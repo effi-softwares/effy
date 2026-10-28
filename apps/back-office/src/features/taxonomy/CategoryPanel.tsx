@@ -3,7 +3,6 @@ import { useEffect, useMemo, useState } from "react"
 import { Link } from "@tanstack/react-router"
 import { ImagePlus, Trash2, X } from "lucide-react"
 
-import { cn } from "@effy/design-system"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,7 +12,9 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  Badge,
   Button,
+  Card,
   Input,
   Label,
   Select,
@@ -24,6 +25,8 @@ import {
   Tabs,
   TabsList,
   TabsTrigger,
+  ToggleGroup,
+  ToggleGroupItem,
 } from "@effy/design-system/ui"
 import {
   CATEGORY_ICONS,
@@ -69,57 +72,59 @@ export function CategoryPanel({
   ]
 
   return (
-    <section className="ef-panel" aria-label={category.name}>
-      <header className="ef-panel__head flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-xs text-muted-foreground">
-            {pathText(pathOf(category.id, byId).slice(0, -1)) || "Department"}
-          </p>
-          <h2 className="ef-panel__title flex items-center gap-2">
-            <CategoryGlyph icon={category.icon} className="size-5 text-muted-foreground" />
-            {category.name}
-            {retired ? <span className="ef-st ef-st--muted">Retired</span> : null}
-          </h2>
-          <p className="ef-panel__desc">
-            {leaf ? "Products are filed here." : "Products are filed in its sub-categories."} {category.productCount}{" "}
-            product
-            {category.productCount === 1 ? "" : "s"}
-            {category.placementCount > 0
-              ? `, ${category.placementCount} extra placement${category.placementCount === 1 ? "" : "s"}`
-              : ""}
-            .
-          </p>
-        </div>
-        {canManage ? <StatusControl category={category} categories={categories} /> : null}
-      </header>
-      <div className="ef-panel__body space-y-4">
-        <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
-          <TabsList aria-label="Category views">
-            {tabs.map((t) => (
-              <TabsTrigger key={t.key} value={t.key}>
-                {t.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
-        {tab === "general" ? (
-          <GeneralTab key={category.id} category={category} editable={editable} />
-        ) : tab === "defaults" ? (
-          <DefaultsTab
-            key={category.id}
-            category={category}
-            parent={category.parentId ? byId.get(category.parentId) : undefined}
-            editable={editable}
-          />
-        ) : tab === "attributes" ? (
-          <div className="space-y-6">
-            <AttachmentEditor categoryId={category.id} parentId={category.parentId} editable={editable} />
-            {leaf && !retired ? <FormPreview categoryId={category.id} /> : null}
+    <section className="min-w-0" aria-label={category.name}>
+      <Card className="gap-0 overflow-hidden py-0">
+        <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b px-5 py-4 max-md:px-4 items-start gap-3">
+          <div className="min-w-0">
+            <p className="text-xs text-muted-foreground">
+              {pathText(pathOf(category.id, byId).slice(0, -1)) || "Department"}
+            </p>
+            <h2 className="flex items-center gap-2 leading-6 font-semibold [&_svg]:size-4 [&_svg]:text-muted-foreground">
+              <CategoryGlyph icon={category.icon} className="size-5 text-muted-foreground" />
+              {category.name}
+              {retired ? <Badge variant="muted">Retired</Badge> : null}
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              {leaf ? "Products are filed here." : "Products are filed in its sub-categories."} {category.productCount}{" "}
+              product
+              {category.productCount === 1 ? "" : "s"}
+              {category.placementCount > 0
+                ? `, ${category.placementCount} extra placement${category.placementCount === 1 ? "" : "s"}`
+                : ""}
+              .
+            </p>
           </div>
-        ) : (
-          <ProductsTab category={category} />
-        )}
-      </div>
+          {canManage ? <StatusControl category={category} categories={categories} /> : null}
+        </header>
+        <div className="px-5 py-4 max-md:px-4 space-y-4">
+          <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
+            <TabsList aria-label="Category views">
+              {tabs.map((t) => (
+                <TabsTrigger key={t.key} value={t.key}>
+                  {t.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+          {tab === "general" ? (
+            <GeneralTab key={category.id} category={category} editable={editable} />
+          ) : tab === "defaults" ? (
+            <DefaultsTab
+              key={category.id}
+              category={category}
+              parent={category.parentId ? byId.get(category.parentId) : undefined}
+              editable={editable}
+            />
+          ) : tab === "attributes" ? (
+            <div className="space-y-6">
+              <AttachmentEditor categoryId={category.id} parentId={category.parentId} editable={editable} />
+              {leaf && !retired ? <FormPreview categoryId={category.id} /> : null}
+            </div>
+          ) : (
+            <ProductsTab category={category} />
+          )}
+        </div>
+      </Card>
     </section>
   )
 }
@@ -188,26 +193,26 @@ function GeneralTab({ category, editable }: { category: Category; editable: bool
       <fieldset className="space-y-2">
         <legend className="text-sm font-medium">Icon</legend>
         <p className="text-xs text-muted-foreground">Shown beside the name on the storefront.</p>
-        <div className="flex flex-wrap gap-1" role="radiogroup" aria-label="Icon">
+        <ToggleGroup
+          type="single"
+          aria-label="Icon"
+          className="flex-wrap gap-1"
+          disabled={!editable || update.isPending}
+          value={category.icon ?? ""}
+          onValueChange={(v) => void save({ icon: v === "" ? null : (v as typeof category.icon) })}
+        >
           {CATEGORY_ICONS.map((key) => (
-            <button
+            <ToggleGroupItem
               key={key}
-              type="button"
-              role="radio"
-              aria-checked={category.icon === key}
+              value={key}
               aria-label={key.replace(/-/g, " ")}
               title={key.replace(/-/g, " ")}
-              disabled={!editable || update.isPending}
-              className={cn(
-                "grid size-11 place-items-center rounded-md border",
-                category.icon === key ? "border-primary bg-muted" : "border-transparent hover:bg-muted",
-              )}
-              onClick={() => void save({ icon: category.icon === key ? null : key })}
+              className="flex-none rounded-lg first:rounded-lg last:rounded-lg"
             >
               <CategoryGlyph icon={key} className="size-5" />
-            </button>
+            </ToggleGroupItem>
           ))}
-        </div>
+        </ToggleGroup>
       </fieldset>
 
       <div className="space-y-2">
@@ -258,17 +263,22 @@ function GeneralTab({ category, editable }: { category: Category; editable: bool
         </p>
         <ul className="flex flex-wrap gap-1.5">
           {category.synonyms.map((s) => (
-            <li key={s} className="ef-chip">
-              {s}
-              {editable ? (
-                <button
-                  type="button"
-                  aria-label={`Remove ${s}`}
-                  onClick={() => void save({ synonyms: category.synonyms.filter((x) => x !== s) })}
-                >
-                  <X className="size-3.5" />
-                </button>
-              ) : null}
+            <li key={s}>
+              <Badge variant="secondary" className="h-8 gap-1 overflow-visible pr-0.5 pl-2.5 text-sm">
+                {s}
+                {editable ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="xs"
+                    className="touch-hit size-7 p-0 pointer-coarse:min-h-0"
+                    aria-label={`Remove ${s}`}
+                    onClick={() => void save({ synonyms: category.synonyms.filter((x) => x !== s) })}
+                  >
+                    <X />
+                  </Button>
+                ) : null}
+              </Badge>
             </li>
           ))}
           {category.synonyms.length === 0 ? <li className="text-sm text-muted-foreground">None yet.</li> : null}

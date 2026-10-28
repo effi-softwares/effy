@@ -3,7 +3,7 @@ import { useMemo, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { X } from "lucide-react"
 
-import { Button, Checkbox, Input } from "@effy/design-system/ui"
+import { Button, Checkbox, Input, ToggleGroup, ToggleGroupItem } from "@effy/design-system/ui"
 
 import { index, pathOf, pathText } from "@/features/taxonomy/model"
 import { treeQuery } from "@/features/taxonomy/queries"
@@ -57,20 +57,20 @@ export function TargetPicker({
 
   return (
     <div className="space-y-4">
-      <div role="group" aria-label="Applies to" className="ef-seg">
+      <ToggleGroup
+        type="single"
+        variant="outline"
+        aria-label="Applies to"
+        disabled={disabled}
+        value={appliesTo}
+        onValueChange={(v) => v && onAppliesTo(v as typeof appliesTo)}
+      >
         {(["products", "categories", "brands"] as const).map((a) => (
-          <button
-            key={a}
-            type="button"
-            disabled={disabled}
-            className={appliesTo === a ? "is-active" : undefined}
-            aria-pressed={appliesTo === a}
-            onClick={() => onAppliesTo(a)}
-          >
+          <ToggleGroupItem key={a} value={a} className="px-3">
             {a === "products" ? "Chosen products" : a === "categories" ? "Categories" : "Brands"}
-          </button>
+          </ToggleGroupItem>
         ))}
-      </div>
+      </ToggleGroup>
 
       {appliesTo === "products" ? (
         <div className="space-y-3">
@@ -195,21 +195,23 @@ function Chips({
   disabled: boolean
   empty: string
 }) {
-  if (items.length === 0) return <p className="ef-sub">{empty}</p>
+  if (items.length === 0) return <p className="mt-0.5 block text-sm text-muted-foreground">{empty}</p>
   return (
     <ul className="flex flex-wrap gap-2">
       {items.map((i) => (
         <li key={i.key} className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1 text-sm">
           {i.label}
           {disabled ? null : (
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="xs"
               aria-label={`Remove ${i.label}`}
-              className="text-muted-foreground hover:text-foreground"
+              className="touch-hit size-7 p-0 text-muted-foreground pointer-coarse:min-h-0"
               onClick={() => onRemove(i.key)}
             >
-              <X className="size-4" aria-hidden="true" />
-            </button>
+              <X aria-hidden="true" />
+            </Button>
           )}
         </li>
       ))}

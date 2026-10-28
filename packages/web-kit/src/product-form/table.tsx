@@ -1,8 +1,9 @@
 import type { ReactNode } from "react";
 
 import { cn } from "@effy/design-system";
+import { Table, TableCell, TableHead } from "@effy/design-system/ui";
 
-/** The form's small table pieces, on the console's `ef-table` patterns (shared by both consoles). */
+/** The form's small table pieces, on shadcn's Table (shared by both consoles). */
 export function MicroLabel({
   children,
   className,
@@ -30,10 +31,8 @@ export function TableFrame({
   className?: string;
 }) {
   return (
-    <div className={cn("ef-table-wrap", className)}>
-      <div className="ef-table-scroll">
-        <table className="ef-table">{children}</table>
-      </div>
+    <div className={cn("overflow-hidden rounded-xl border bg-card", className)}>
+      <Table>{children}</Table>
     </div>
   );
 }
@@ -48,12 +47,12 @@ export function Th({
   width?: string;
 }) {
   return (
-    <th
+    <TableHead
+      numeric={align === "right"}
       style={width ? { width } : undefined}
-      className={cn(align === "right" && "is-num")}
     >
       {children}
-    </th>
+    </TableHead>
   );
 }
 
@@ -67,6 +66,8 @@ export function Td({
   className?: string;
 }) {
   return (
-    <td className={cn(align === "right" && "is-num", className)}>{children}</td>
+    <TableCell numeric={align === "right"} className={className}>
+      {children}
+    </TableCell>
   );
 }

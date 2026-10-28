@@ -180,17 +180,18 @@ export function MoveCategoryDialog({
           onChange={(e) => setQ(e.target.value)}
           autoFocus
         />
-        <ul className="max-h-80 divide-y divide-border overflow-y-auto rounded-md border border-border">
+        <ul className="max-h-80 divide-y overflow-y-auto rounded-lg border">
           {places.map((p) => (
             <li key={p.parentId ?? "root"}>
-              <button
+              <Button
                 type="button"
-                className="w-full px-3 py-2.5 text-left text-sm hover:bg-muted disabled:opacity-50"
+                variant="ghost"
+                className="w-full justify-start rounded-none font-normal"
                 disabled={move.isPending}
                 onClick={() => void choose(p.parentId)}
               >
                 {p.label}
-              </button>
+              </Button>
             </li>
           ))}
           {places.length === 0 ? (

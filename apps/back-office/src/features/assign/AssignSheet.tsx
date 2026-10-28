@@ -1,9 +1,21 @@
 import { useQuery } from "@tanstack/react-query"
+import { cn } from "@effy/design-system"
 import { useState } from "react"
 
 import { CircleAlert, Search } from "lucide-react"
 
-import { Badge, Button, Input, Skeleton, toast } from "@effy/design-system/ui"
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  Avatar,
+  AvatarFallback,
+  Badge,
+  Button,
+  Input,
+  Skeleton,
+  toast,
+} from "@effy/design-system/ui"
 
 import { ResponsiveSheet, Callout } from "@effy/web-kit/patterns"
 import { initialsOf } from "@/components/shell/identity"
@@ -59,7 +71,11 @@ export function AssignSheet({
     { fit: "cannot", title: "Can't take it" },
   ]
 
-  const tone: Record<DriverFit["fit"], string> = { fine: "avatar--green", concern: "avatar--blue", cannot: "" }
+  const tone: Record<DriverFit["fit"], string> = {
+    fine: "bg-success-soft text-success",
+    concern: "bg-primary-muted text-primary",
+    cannot: "",
+  }
 
   return (
     <ResponsiveSheet
@@ -86,20 +102,20 @@ export function AssignSheet({
       </label>
 
       {confirming ? (
-        <div role="alertdialog" className="ef-alert ef-alert--muted">
+        <Alert role="alertdialog" variant="muted">
           <CircleAlert aria-hidden="true" />
-          <div className="ef-alert__title">
+          <AlertTitle>
             {confirming.driver.name}: {confirming.line}
-          </div>
-          <div className="ef-alert__description mt-2 flex gap-2">
+          </AlertTitle>
+          <AlertDescription className="mt-2 flex gap-2">
             <Button size="sm" onClick={() => pick(confirming.driver, true)} disabled={assign.isPending}>
               Assign anyway
             </Button>
             <Button size="sm" variant="ghost" onClick={() => setConfirming(null)}>
               Cancel
             </Button>
-          </div>
-        </div>
+          </AlertDescription>
+        </Alert>
       ) : null}
 
       {drivers.isPending ? (
@@ -130,12 +146,14 @@ export function AssignSheet({
                     onClick={() => pick(d)}
                     className="flex w-full items-center gap-3 px-4 py-3 text-left first:rounded-t-lg last:rounded-b-lg enabled:hover:bg-row-hover disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    <span className={`avatar avatar--sq ${tone[fit]}`} aria-hidden="true">
-                      {initialsOf(d.name)}
-                    </span>
+                    <Avatar aria-hidden="true" className="rounded-lg">
+                      <AvatarFallback className={cn("rounded-lg", tone[fit])}>{initialsOf(d.name)}</AvatarFallback>
+                    </Avatar>
                     <span className="min-w-0 flex-1">
                       <span className="block font-medium">{d.name}</span>
-                      {d.notes.length > 0 ? <span className="ef-sub">{d.notes.join(" · ")}</span> : null}
+                      {d.notes.length > 0 ? (
+                        <span className="mt-0.5 block text-sm text-muted-foreground">{d.notes.join(" · ")}</span>
+                      ) : null}
                     </span>
                     <Badge variant="secondary">{d.packagesToday} today</Badge>
                   </button>

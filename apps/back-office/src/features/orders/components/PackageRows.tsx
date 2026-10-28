@@ -12,7 +12,18 @@ import {
 import { AssignmentLine } from "./AssignmentLine"
 import { ConsignmentBlock } from "./ConsignmentBlock"
 import { PackageStatusPill } from "@effy/web-kit/console"
-import { Button, Input } from "@effy/design-system/ui"
+import { Timeline, TimelineItem } from "@effy/web-kit/patterns"
+import {
+  Badge,
+  Button,
+  Input,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@effy/design-system/ui"
 import { CircleCheck, Package, PackageCheck, Store, Truck, Undo2, Warehouse } from "lucide-react"
 
 import { clockAt } from "@/lib/format"
@@ -121,15 +132,18 @@ function PackageRow({
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-3">
-          <span className="ef-icon-tile" aria-hidden="true">
+          <span
+            className="grid size-9 flex-none place-items-center rounded-lg bg-muted text-foreground [&_svg]:size-4"
+            aria-hidden="true"
+          >
             <Store />
           </span>
           <div className="min-w-0">
             <div className="font-semibold">{pkg.shopName}</div>
-            <div className="ef-sub">
+            <div className="mt-0.5 block text-sm text-muted-foreground">
               {pkg.packageCode ? (
                 <>
-                  <span className="ef-code" aria-label="Package code">
+                  <span className="font-mono" aria-label="Package code">
                     {pkg.packageCode}
                   </span>{" "}
                   ·{" "}
@@ -195,35 +209,34 @@ function PackageRow({
           )}
           {pkg.handovers && pkg.handovers.length > 0 ? (
             <div>
-              <div className="ef-eyebrow mb-2">Hand-overs</div>
-              <ol className="ef-tl" aria-label="Hand-overs">
+              <div className="text-xs font-medium text-muted-foreground mb-2">Hand-overs</div>
+              <Timeline aria-label="Hand-overs">
                 {pkg.handovers.map((h, i) => (
-                  <li key={i} className="ef-tl__item pb-3">
-                    <span
-                      className={`ef-tl__mark ${h.step === "deliver" ? "ef-tl__mark--done" : "ef-tl__mark--primary"}`}
-                      aria-hidden="true"
-                    >
-                      <StepIcon step={h.step} />
-                    </span>
-                    <div>
-                      <div className="text-sm font-medium">
+                  <TimelineItem
+                    key={i}
+                    icon={<StepIcon step={h.step} />}
+                    tone={h.step === "deliver" ? "done" : "primary"}
+                    title={
+                      <>
                         {HANDOVER_STEP_WORDS[h.step]}
                         {h.parcelCode && bags.length > 1 ? (
-                          <span className="ef-sub"> · {bagWord(bags, h.parcelCode)}</span>
+                          <span className="mt-0.5 block text-sm font-normal text-muted-foreground">
+                            {" "}
+                            · {bagWord(bags, h.parcelCode)}
+                          </span>
                         ) : null}
-                      </div>
-                      <div className="ef-tl__body">
-                        {byWords(h)} · <span className="ef-tag">{HANDOVER_METHOD_WORDS[h.method]}</span>
-                        <span className="sr-only">
-                          {" "}
-                          {HANDOVER_STEP_WORDS[h.step]} · {HANDOVER_METHOD_WORDS[h.method]} · {byWords(h)}
-                        </span>
-                      </div>
-                    </div>
-                    <span className="ef-tl__time">{clockAt(h.at)}</span>
-                  </li>
+                      </>
+                    }
+                    time={clockAt(h.at)}
+                  >
+                    {byWords(h)} · <Badge variant="outline">{HANDOVER_METHOD_WORDS[h.method]}</Badge>
+                    <span className="sr-only">
+                      {" "}
+                      {HANDOVER_STEP_WORDS[h.step]} · {HANDOVER_METHOD_WORDS[h.method]} · {byWords(h)}
+                    </span>
+                  </TimelineItem>
                 ))}
-              </ol>
+              </Timeline>
             </div>
           ) : null}
         </div>
@@ -319,31 +332,35 @@ function PackageRow({
 function BagTable({ bags, highlightParcelId }: { bags: AdminParcelDTO[]; highlightParcelId?: string }) {
   return (
     <div>
-      <div className="ef-eyebrow mb-2">Bags</div>
-      <table className="ef-table ef-table--compact ef-table--plain rounded-lg border border-border" aria-label="Bags">
-        <thead>
-          <tr>
-            <th>Bag</th>
-            <th>Code</th>
-            <th>Zone</th>
-            <th>Label</th>
-            <th>Where</th>
-          </tr>
-        </thead>
-        <tbody>
+      <div className="text-xs font-medium text-muted-foreground mb-2">Bags</div>
+      <Table className="rounded-lg border border-border [&_td]:py-2" aria-label="Bags">
+        <TableHeader>
+          <TableRow>
+            <TableHead>Bag</TableHead>
+            <TableHead>Code</TableHead>
+            <TableHead>Zone</TableHead>
+            <TableHead>Label</TableHead>
+            <TableHead>Where</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {bags.map((b) => (
-            <tr
+            <TableRow
               key={b.parcelId}
               id={`parcel-${b.parcelId}`}
               className={
-                b.parcelId === highlightParcelId ? "bg-primary-muted font-medium" : b.voided ? "text-muted-foreground" : ""
+                b.parcelId === highlightParcelId
+                  ? "bg-primary-muted font-medium"
+                  : b.voided
+                    ? "text-muted-foreground"
+                    : ""
               }
               aria-current={b.parcelId === highlightParcelId ? "true" : undefined}
             >
-              <td className="tabular-nums">{b.voided ? <s>Bag {b.seq}</s> : `${b.seq} of ${b.of}`}</td>
-              <td className="font-mono">{b.voided ? <s>{b.code}</s> : b.code}</td>
-              <td>{PARCEL_ZONE_WORDS[b.zone]}</td>
-              <td>
+              <TableCell className="tabular-nums">{b.voided ? <s>Bag {b.seq}</s> : `${b.seq} of ${b.of}`}</TableCell>
+              <TableCell className="font-mono">{b.voided ? <s>{b.code}</s> : b.code}</TableCell>
+              <TableCell>{PARCEL_ZONE_WORDS[b.zone]}</TableCell>
+              <TableCell>
                 {b.voided
                   ? "Removed"
                   : b.printedCount === 0
@@ -351,12 +368,12 @@ function BagTable({ bags, highlightParcelId }: { bags: AdminParcelDTO[]; highlig
                     : b.printedCount === 1
                       ? "Printed"
                       : `Printed ${b.printedCount}×`}
-              </td>
-              <td>{b.voided ? "—" : PARCEL_CUSTODY_WORDS[b.custody]}</td>
-            </tr>
+              </TableCell>
+              <TableCell>{b.voided ? "—" : PARCEL_CUSTODY_WORDS[b.custody]}</TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   )
 }

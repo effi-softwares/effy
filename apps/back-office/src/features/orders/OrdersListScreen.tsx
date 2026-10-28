@@ -6,7 +6,17 @@ import { useHotkey } from "@tanstack/react-hotkeys"
 import { Route, SearchX, Truck, UserX } from "lucide-react"
 
 import { cn } from "@effy/design-system"
-import { Button, Skeleton } from "@effy/design-system/ui"
+import {
+  Badge,
+  Button,
+  Skeleton,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@effy/design-system/ui"
 import { ADMIN_ORDER_DELIVERY_FILTERS, ADMIN_ORDER_PROMISE_FILTERS, type DeliveryPromise } from "@effy/shared-types"
 import { ErrorState, PackageStatusPill } from "@effy/web-kit/console"
 
@@ -199,7 +209,7 @@ export function OrdersListScreen() {
       {isError ? (
         <ErrorState error={error} onRetry={() => void refetch()} />
       ) : isPending ? (
-        <div className="ef-table-wrap space-y-0 p-4">
+        <div className="overflow-hidden rounded-xl border bg-card space-y-0 p-4">
           {Array.from({ length: 6 }, (_, i) => (
             <Skeleton key={i} className="mb-3 h-10" />
           ))}
@@ -229,27 +239,27 @@ export function OrdersListScreen() {
           }
         />
       ) : (
-        <div className="ef-table-wrap">
-          <div className="ef-table-scroll">
-            <table className="ef-table ef-rtable">
-              <thead>
-                <tr>
-                  <th>Order</th>
-                  <th>Placed</th>
-                  <th>Customer</th>
-                  <th>Status</th>
-                  <th>Delivery</th>
-                  <th>Driver</th>
-                  <th>Next step</th>
-                  <th className="is-num">Total</th>
-                </tr>
-              </thead>
-              <tbody>
+        <div className="overflow-hidden rounded-xl border bg-card">
+          <div className="min-w-0">
+            <Table className="ef-rtable">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Order</TableHead>
+                  <TableHead>Placed</TableHead>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Delivery</TableHead>
+                  <TableHead>Driver</TableHead>
+                  <TableHead>Next step</TableHead>
+                  <TableHead numeric>Total</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {items.map((o, i) => (
                   <OrderRow key={o.id} order={o} focused={i === focus} />
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
           <Pager
             summary={`${items.length} order${items.length === 1 ? "" : "s"} · page ${cursors.length + 1}`}
@@ -285,39 +295,45 @@ function clean(s: OrdersSearch): OrdersSearch {
 
 function OrderRow({ order: o, focused }: { order: OrderSummary; focused: boolean }) {
   return (
-    <tr className={cn(focused && "is-selected")} aria-selected={focused || undefined}>
-      <td data-m="primary">
-        <Link to="/orders/$orderId" params={{ orderId: o.id }} className="link ef-code">
+    <TableRow className={cn(focused && "is-selected")} aria-selected={focused || undefined}>
+      <TableCell data-m="primary">
+        <Link to="/orders/$orderId" params={{ orderId: o.id }} className="link font-mono">
           {o.orderNumber}
         </Link>
-        <span className="ef-sub md:hidden">{o.customerEmail}</span>
-      </td>
-      <td data-m="hide" className="is-muted whitespace-nowrap">
+        <span className="mt-0.5 block text-sm text-muted-foreground md:hidden">{o.customerEmail}</span>
+      </TableCell>
+      <TableCell data-m="hide" className="text-muted-foreground whitespace-nowrap">
         {moment(o.placedAt)}
-      </td>
-      <td data-m="hide">
+      </TableCell>
+      <TableCell data-m="hide">
         <span className="line-clamp-1">{o.customerEmail}</span>
-      </td>
-      <td data-m="badge">{o.statusView ? <PackageStatusPill view={o.statusView} showDetail={false} icons /> : "—"}</td>
-      <td data-m="meta">
+      </TableCell>
+      <TableCell data-m="badge">
+        {o.statusView ? <PackageStatusPill view={o.statusView} showDetail={false} icons /> : "—"}
+      </TableCell>
+      <TableCell data-m="meta">
         <span className="whitespace-nowrap">{deliveryTypeText(o.deliveryType)}</span>
-        {o.promise && o.promise !== "window" ? <span className="ef-sub">{PROMISE_LABEL[o.promise]}</span> : null}
-      </td>
-      <td data-m="hide">
+        {o.promise && o.promise !== "window" ? (
+          <span className="mt-0.5 block text-sm text-muted-foreground">{PROMISE_LABEL[o.promise]}</span>
+        ) : null}
+      </TableCell>
+      <TableCell data-m="hide">
         <DriverCell order={o} />
-      </td>
-      <td data-m="meta" data-label="Next step">
+      </TableCell>
+      <TableCell data-m="meta" data-label="Next step">
         {o.awaiting ? (
           <span className="font-medium">{AWAITING_LABEL[o.awaiting]}</span>
         ) : (
           <span className="text-muted-foreground">Complete</span>
         )}
-        <span className="ef-sub">Customer sees: {STAGE_LABEL[o.stage] ?? o.stage}</span>
-      </td>
-      <td data-m="trail" className="is-num font-medium">
+        <span className="mt-0.5 block text-sm text-muted-foreground">
+          Customer sees: {STAGE_LABEL[o.stage] ?? o.stage}
+        </span>
+      </TableCell>
+      <TableCell numeric data-m="trail" className="font-medium">
         {money(o.grandTotalAmount, o.currency)}
-      </td>
-    </tr>
+      </TableCell>
+    </TableRow>
   )
 }
 
@@ -332,10 +348,10 @@ function DriverCell({ order }: { order: OrderSummary }) {
         <span className="text-muted-foreground">—</span>
       ) : null}
       {order.needsDriver ? (
-        <span className="ef-tag">
+        <Badge variant="outline">
           <UserX aria-hidden="true" />
           Needs a driver
-        </span>
+        </Badge>
       ) : null}
     </span>
   )

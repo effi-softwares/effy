@@ -1,6 +1,7 @@
 import { type AdminDeliveryMoveDTO, formatArrival } from "@effy/shared-types"
 
 import { deliveryTypeText } from "../model"
+import { Table, TableBody, TableCell, TableRow } from "@effy/design-system/ui"
 
 const COMPENSATION_TEXT: Record<AdminDeliveryMoveDTO["compensation"], string> = {
   points_difference: "Points for the difference",
@@ -26,12 +27,14 @@ export function DeliveryHistory({
 }) {
   if (moves.length === 0) return null
   return (
-    <table className="w-full text-sm" aria-label="Moves by back-office">
-      <tbody className="divide-y">
+    <Table className="w-full text-sm" aria-label="Moves by back-office">
+      <TableBody className="divide-y">
         {moves.map((m) => (
-          <tr key={m.id}>
-            <td className="w-48 py-2 align-top tabular-nums text-muted-foreground">{formatDateTime(m.at)}</td>
-            <td className="py-2 align-top">
+          <TableRow key={m.id}>
+            <TableCell className="w-48 py-2 align-top tabular-nums text-muted-foreground">
+              {formatDateTime(m.at)}
+            </TableCell>
+            <TableCell className="py-2 align-top">
               <span className="font-medium">
                 {m.to === "courier" ? "Moved to courier delivery" : `Moved back: ${deliveryTypeText("effy")}`}
               </span>
@@ -52,11 +55,11 @@ export function DeliveryHistory({
                 </span>
               ) : null}
               <span className="block">{compensationSummary(m)}</span>
-            </td>
-            <td className="w-56 py-2 align-top text-muted-foreground">{m.actor.name}</td>
-          </tr>
+            </TableCell>
+            <TableCell className="w-56 py-2 align-top text-muted-foreground">{m.actor.name}</TableCell>
+          </TableRow>
         ))}
-      </tbody>
-    </table>
+      </TableBody>
+    </Table>
   )
 }

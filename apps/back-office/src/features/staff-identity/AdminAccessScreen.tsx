@@ -1,7 +1,19 @@
 import { Check, Minus } from "lucide-react"
 
 import type { BackOfficeRole } from "@effy/shared-types"
-import { Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Tabs,
+  TabsContent,
+  TabsCount,
+  TabsList,
+  TabsTrigger,
+} from "@effy/design-system/ui"
 
 import { PageHeader, Panel } from "@effy/web-kit/patterns"
 import { canManageTaxonomy } from "@/features/taxonomy/access"
@@ -79,35 +91,35 @@ export function AdminAccessScreen() {
             description="Roles are granted in the admin sign-in pool; the platform's staff record decides."
             flush
           >
-            <div className="ef-table-scroll">
-              <table className="ef-table">
-                <thead>
-                  <tr>
-                    <th>Permission</th>
+            <div className="min-w-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Permission</TableHead>
                     {ROLES.map((r) => (
-                      <th key={r.role} className="text-center">
+                      <TableHead key={r.role} className="text-center">
                         {r.label}
-                      </th>
+                      </TableHead>
                     ))}
-                  </tr>
-                </thead>
-                <tbody>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {PERMISSIONS.map((p) => (
-                    <tr key={p.what}>
-                      <td>{p.what}</td>
+                    <TableRow key={p.what}>
+                      <TableCell>{p.what}</TableCell>
                       {ROLES.map((r) => (
-                        <td key={r.role} className="text-center">
+                        <TableCell key={r.role} className="text-center">
                           {p.rule([r.role]) ? (
                             <Check aria-label="Allowed" className="mx-auto size-4 text-success" />
                           ) : (
                             <Minus aria-label="Not allowed" className="mx-auto size-4 text-muted-foreground" />
                           )}
-                        </td>
+                        </TableCell>
                       ))}
-                    </tr>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           </Panel>
         </TabsContent>

@@ -3,7 +3,7 @@ import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 
 import { PARCEL_MISSING_REASON_WORDS, READ_OUTCOME_WORDS, type HandoverMixDTO } from "@effy/shared-types"
-import { Input, Skeleton } from "@effy/design-system/ui"
+import { Input, Skeleton, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 
 import { PageHeader, DetailRows, Panel } from "@effy/web-kit/patterns"
@@ -116,46 +116,46 @@ export function HandoverReportScreen() {
               {data.refused.length === 0 ? (
                 <p className="px-5 py-4 text-sm text-muted-foreground">No read was refused in this period.</p>
               ) : (
-                <table className="ef-table ef-table--compact ef-table--plain" aria-label="Refused reads">
-                  <thead>
-                    <tr>
-                      <th>Outcome</th>
-                      <th>Where</th>
-                      <th className="text-right">Reads</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+                <Table className="[&_td]:py-2" aria-label="Refused reads">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Outcome</TableHead>
+                      <TableHead>Where</TableHead>
+                      <TableHead className="text-right">Reads</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {data.refused.map((r) => (
-                      <tr key={`${r.outcome}:${r.surface}`}>
-                        <td>{READ_OUTCOME_WORDS[r.outcome]}</td>
-                        <td>{SURFACE_WORDS[r.surface]}</td>
-                        <td className="text-right tabular-nums">{r.count}</td>
-                      </tr>
+                      <TableRow key={`${r.outcome}:${r.surface}`}>
+                        <TableCell>{READ_OUTCOME_WORDS[r.outcome]}</TableCell>
+                        <TableCell>{SURFACE_WORDS[r.surface]}</TableCell>
+                        <TableCell className="text-right tabular-nums">{r.count}</TableCell>
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               )}
             </Panel>
             <Panel title="Bags declared missing" flush>
               {data.missing.length === 0 ? (
                 <p className="px-5 py-4 text-sm text-muted-foreground">No bag was declared missing in this period.</p>
               ) : (
-                <table className="ef-table ef-table--compact ef-table--plain" aria-label="Bags declared missing">
-                  <thead>
-                    <tr>
-                      <th>Reason</th>
-                      <th className="text-right">Bags</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+                <Table className="[&_td]:py-2" aria-label="Bags declared missing">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Reason</TableHead>
+                      <TableHead className="text-right">Bags</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {data.missing.map((r) => (
-                      <tr key={r.reason}>
-                        <td>{PARCEL_MISSING_REASON_WORDS[r.reason] ?? r.reason}</td>
-                        <td className="text-right tabular-nums">{r.count}</td>
-                      </tr>
+                      <TableRow key={r.reason}>
+                        <TableCell>{PARCEL_MISSING_REASON_WORDS[r.reason] ?? r.reason}</TableCell>
+                        <TableCell className="text-right tabular-nums">{r.count}</TableCell>
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               )}
             </Panel>
           </div>
@@ -176,27 +176,27 @@ function MixTable({
 }) {
   if (rows.length === 0) return <p className="px-5 py-4 text-sm text-muted-foreground">No hand-overs in this period.</p>
   return (
-    <table className="ef-table ef-table--compact ef-table--plain" aria-label={label}>
-      <thead>
-        <tr>
-          <th>{first}</th>
-          <th className="text-right">Scanned</th>
-          <th className="text-right">Typed</th>
-          <th className="text-right">By hand</th>
-          <th className="text-right">Scanned share</th>
-        </tr>
-      </thead>
-      <tbody>
+    <Table className="[&_td]:py-2" aria-label={label}>
+      <TableHeader>
+        <TableRow>
+          <TableHead>{first}</TableHead>
+          <TableHead className="text-right">Scanned</TableHead>
+          <TableHead className="text-right">Typed</TableHead>
+          <TableHead className="text-right">By hand</TableHead>
+          <TableHead className="text-right">Scanned share</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
         {rows.map((r) => (
-          <tr key={r.key}>
-            <td>{r.name}</td>
-            <td className="text-right tabular-nums">{r.scan}</td>
-            <td className="text-right tabular-nums">{r.typed}</td>
-            <td className="text-right tabular-nums">{r.manual}</td>
-            <td className="text-right tabular-nums">{pct(r.scan, total(r))}</td>
-          </tr>
+          <TableRow key={r.key}>
+            <TableCell>{r.name}</TableCell>
+            <TableCell className="text-right tabular-nums">{r.scan}</TableCell>
+            <TableCell className="text-right tabular-nums">{r.typed}</TableCell>
+            <TableCell className="text-right tabular-nums">{r.manual}</TableCell>
+            <TableCell className="text-right tabular-nums">{pct(r.scan, total(r))}</TableCell>
+          </TableRow>
         ))}
-      </tbody>
-    </table>
+      </TableBody>
+    </Table>
   )
 }

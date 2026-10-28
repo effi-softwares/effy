@@ -96,7 +96,9 @@ export function TaxSettingsScreen() {
                   <SelectItem value="gst_free">{GST_STATUS_WORDS.gst_free}</SelectItem>
                 </SelectContent>
               </Select>
-              <span className="ef-sub block">Confirm this with Effy's accountant.</span>
+              <span className="mt-0.5 block text-sm text-muted-foreground block">
+                Confirm this with Effy's accountant.
+              </span>
             </label>
           </div>
         </Panel>
@@ -109,7 +111,7 @@ export function TaxSettingsScreen() {
             <label className="flex items-start justify-between gap-4">
               <span className="space-y-1">
                 <span className="block text-sm font-medium">Tax invoices on</span>
-                <span className="ef-sub block">
+                <span className="mt-0.5 block text-sm text-muted-foreground block">
                   Needs the legal name, ABN and fee treatment above, and a GST status on every live product.
                 </span>
               </span>

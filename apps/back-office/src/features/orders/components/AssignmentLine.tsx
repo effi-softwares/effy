@@ -1,5 +1,6 @@
 import { Lock } from "lucide-react"
 
+import { Badge } from "@effy/design-system/ui"
 import { formatMoment, type OrderAssignment } from "@effy/shared-types"
 
 import { initialsOf } from "@/components/shell/identity"
@@ -31,17 +32,17 @@ export function AssignmentLine({
           {name ? <span className="font-medium">{name}</span> : <span className="font-medium">Unassigned</span>}
           {name && when.length > 0 ? <span className="text-muted-foreground"> · {when.join(" · ")}</span> : null}
         </div>
-        <div className="ef-sub">
+        <div className="mt-0.5 block text-sm text-muted-foreground">
           {!name && assignment.unassignedReason ? assignment.unassignedReason : assignment.how}
           {!name && assignment.unassignedReason && assignment.how ? ` · ${assignment.how}` : null}
         </div>
       </div>
       {actions}
       {name && !assignment.movable ? (
-        <span className="ef-tag">
+        <Badge variant="outline">
           <Lock aria-hidden="true" />
           In their van
-        </span>
+        </Badge>
       ) : null}
     </div>
   )

@@ -74,7 +74,9 @@ export function PicturesSection({ promotion, canManage }: { promotion: Promotion
           description={`Up to ${MAX_PICTURES} per promotion — JPEG, PNG or WebP, up to 10 MB, at least 320 pixels on the shorter side. A wide one and a square one cover every layout.`}
         >
           {full ? (
-            <p className="ef-sub">This promotion has {MAX_PICTURES} pictures. Remove one to add another.</p>
+            <p className="mt-0.5 block text-sm text-muted-foreground">
+              This promotion has {MAX_PICTURES} pictures. Remove one to add another.
+            </p>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
@@ -96,7 +98,9 @@ export function PicturesSection({ promotion, canManage }: { promotion: Promotion
                   placeholder="A basket of oranges on a kitchen table"
                   onChange={(e) => setAlt(e.target.value)}
                 />
-                <p className="ef-sub">Read aloud to shoppers who can't see the picture.</p>
+                <p className="mt-0.5 block text-sm text-muted-foreground">
+                  Read aloud to shoppers who can't see the picture.
+                </p>
               </div>
               <div className="sm:col-span-2">
                 <Button disabled={!file || !alt.trim() || add.isPending} onClick={upload}>
@@ -182,7 +186,7 @@ function PictureItem({
           style={{ left: `${image.focusX * 100}%`, top: `${image.focusY * 100}%` }}
         />
       </button>
-      <div className="ef-sub">
+      <div className="mt-0.5 block text-sm text-muted-foreground">
         {image.width}×{image.height} ·{" "}
         {image.usedIn.length ? `Chosen in ${image.usedIn.map((g) => g.name).join(",")}` : "Used where it fits best"}
         {canManage ? " · Click the picture to set what every crop keeps in view." : null}

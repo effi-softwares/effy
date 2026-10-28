@@ -14,12 +14,15 @@ import {
   DialogTitle,
   Input,
   Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@effy/design-system/ui"
 
 import { coverageError, isNoDriverCovers, NO_DRIVER_GROUP, NO_DRIVER_UNGROUPED } from "../errorText"
 import { coveragePlacesQuery, useAddCoveragePostcodes } from "../queries"
-
-const SELECT = "h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
 
 export function AddPlacesDialog({
   open,
@@ -136,12 +139,11 @@ export function AddPlacesDialog({
                 {results.map((r) => (
                   <li key={r.postcode} className="px-3 py-2">
                     <label className="flex items-start gap-3">
-                      <input
-                        type="checkbox"
-                        className="mt-1"
+                      <Checkbox
+                        className="mt-0.5"
                         disabled={r.listed}
                         checked={picked.has(r.postcode)}
-                        onChange={() => toggle(r)}
+                        onCheckedChange={() => toggle(r)}
                         aria-label={`${r.matched} ${r.state ?? ""} ${r.postcode}`}
                       />
                       <span className="min-w-0 flex-1">
@@ -185,22 +187,27 @@ export function AddPlacesDialog({
           {chosen.length > 0 ? (
             <div className="space-y-2">
               <Label htmlFor="add-group">Group (optional)</Label>
-              <select
-                id="add-group"
-                className={SELECT}
-                value={groupId}
-                onChange={(e) => {
-                  setGroupId(e.target.value)
+              <Select
+                value={groupId || "__none"}
+                onValueChange={(raw) => {
+                  const next = raw === "__none" ? "" : raw
+
+                  setGroupId(next)
                   setAskNoDrivers(false)
                 }}
               >
-                <option value="">No group</option>
-                {groups.map((g) => (
-                  <option key={g.id} value={g.id}>
-                    {g.name}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger id="add-group" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none">No group</SelectItem>
+                  {groups.map((g) => (
+                    <SelectItem key={g.id} value={g.id}>
+                      {g.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <label className="flex items-center gap-2 pt-2 text-sm">
                 <Checkbox checked={todayOffered} onCheckedChange={(v) => setTodayOffered(v === true)} />
                 Offer delivery today

@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
 
-import { Skeleton } from "@effy/design-system/ui"
+import { Skeleton, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 
 import { PageHeader, Panel } from "@effy/web-kit/patterns"
@@ -48,38 +48,38 @@ export function DeliverabilityDetailScreen({ address }: { address: string }) {
             description="Every send to this address the platform heard back about, newest first."
             flush
           >
-            <div className="ef-table-scroll">
-              <table className="ef-table">
-                <thead>
-                  <tr>
-                    <th>When</th>
-                    <th>Outcome</th>
-                    <th>Detail</th>
-                    <th>Template</th>
-                    <th>Message</th>
-                  </tr>
-                </thead>
-                <tbody>
+            <div className="min-w-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>When</TableHead>
+                    <TableHead>Outcome</TableHead>
+                    <TableHead>Detail</TableHead>
+                    <TableHead>Template</TableHead>
+                    <TableHead>Message</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {data.events.length === 0 && (
-                    <tr>
-                      <td colSpan={5} className="text-muted-foreground">
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-muted-foreground">
                         No events recorded.
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   )}
                   {data.events.map((e) => (
-                    <tr key={`${e.messageId}-${e.eventType}`}>
-                      <td className="whitespace-nowrap">{moment(e.occurredAt)}</td>
-                      <td>{e.eventType.replace("_", " ")}</td>
-                      <td className="font-mono text-xs">{e.subType ?? "—"}</td>
-                      <td className="font-mono text-xs">
+                    <TableRow key={`${e.messageId}-${e.eventType}`}>
+                      <TableCell className="whitespace-nowrap">{moment(e.occurredAt)}</TableCell>
+                      <TableCell>{e.eventType.replace("_", " ")}</TableCell>
+                      <TableCell className="font-mono text-xs">{e.subType ?? "—"}</TableCell>
+                      <TableCell className="font-mono text-xs">
                         {e.templateId ?? <span className="text-muted-foreground">Cognito / pre-038</span>}
-                      </td>
-                      <td className="font-mono text-xs text-muted-foreground">{e.messageId}</td>
-                    </tr>
+                      </TableCell>
+                      <TableCell className="font-mono text-xs text-muted-foreground">{e.messageId}</TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           </Panel>
         </div>

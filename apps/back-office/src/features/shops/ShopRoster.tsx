@@ -2,6 +2,8 @@ import { AlertTriangle, UserPlus } from "lucide-react"
 
 import type { ShopRole, ShopStaffStatus } from "@effy/shared-types"
 import {
+  Avatar,
+  AvatarFallback,
   Button,
   Select,
   SelectContent,
@@ -45,14 +47,14 @@ export function ShopRoster({ shop, canManage, onAdd }: { shop: ShopDetail; canMa
         ) : null
       }
       footer={
-        <span className="ef-sub">
+        <span className="mt-0.5 block text-sm text-muted-foreground">
           A role or status change applies straight away and is written to Activity. The last active manager can't be
           demoted or disabled.
         </span>
       }
       flush
     >
-      <div className="ef-table-scroll">
+      <div className="min-w-0">
         <Table>
           <TableHeader>
             <TableRow>
@@ -107,9 +109,9 @@ function RosterRow({
     <TableRow>
       <TableCell>
         <div className="flex items-center gap-3">
-          <span className="avatar avatar--sq" aria-hidden="true">
-            {initialsOf(user.name ?? user.email ?? "?")}
-          </span>
+          <Avatar aria-hidden="true" className="rounded-lg">
+            <AvatarFallback className="rounded-lg">{initialsOf(user.name ?? user.email ?? "?")}</AvatarFallback>
+          </Avatar>
           <div className="flex min-w-0 flex-col">
             <span className="font-medium">{user.name ?? "—"}</span>
             <span className="text-xs text-muted-foreground">{user.email ?? "—"}</span>

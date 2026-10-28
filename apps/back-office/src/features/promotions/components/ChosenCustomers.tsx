@@ -54,7 +54,7 @@ export function ChosenCustomers({ promotionId, canManage }: { promotionId: strin
               Add
             </Button>
             {note ? (
-              <span role="status" className="ef-sub">
+              <span role="status" className="mt-0.5 block text-sm text-muted-foreground">
                 {note}
               </span>
             ) : null}

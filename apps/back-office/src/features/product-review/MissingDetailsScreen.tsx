@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import { CircleCheck } from "lucide-react"
 
-import { Button } from "@effy/design-system/ui"
+import { Button, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 import { EmptyState, PageHeader } from "@effy/web-kit/patterns"
 
@@ -38,21 +38,21 @@ export function MissingDetailsScreen() {
         />
       ) : (
         <div className="space-y-3">
-          <div className="ef-table-wrap">
-            <div className="ef-table-scroll">
-              <table className="ef-table ef-rtable">
-                <thead>
-                  <tr>
-                    <th>Product</th>
-                    <th>Shop</th>
-                    <th>Category</th>
-                    <th>Missing</th>
-                  </tr>
-                </thead>
-                <tbody>
+          <div className="overflow-hidden rounded-xl border bg-card">
+            <div className="min-w-0">
+              <Table className="ef-rtable">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Product</TableHead>
+                    <TableHead>Shop</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Missing</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {list.data.items.map((p) => (
-                    <tr key={p.productId}>
-                      <td data-m="title">
+                    <TableRow key={p.productId}>
+                      <TableCell data-m="title">
                         <Link
                           to="/product-review/$productId"
                           params={{ productId: p.productId }}
@@ -60,14 +60,14 @@ export function MissingDetailsScreen() {
                         >
                           {p.name}
                         </Link>
-                      </td>
-                      <td className="is-muted">{p.shopName}</td>
-                      <td className="is-muted">{pathText(p.categoryPath)}</td>
-                      <td>{p.missing.join(", ")}</td>
-                    </tr>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">{p.shopName}</TableCell>
+                      <TableCell className="text-muted-foreground">{pathText(p.categoryPath)}</TableCell>
+                      <TableCell>{p.missing.join(", ")}</TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           </div>
           {cursors.length > 0 || list.data.nextCursor ? (

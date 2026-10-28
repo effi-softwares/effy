@@ -30,9 +30,9 @@ import {
   DrawerDescription,
   DrawerTitle,
   toast,
+  Kbd,
 } from "@effy/design-system/ui"
 
-import { Kbd } from "@effy/web-kit/patterns"
 import { customerSearchQuery } from "@/features/customers/queries"
 import { ordersListQuery } from "@/features/orders/queries"
 import { lookupLabel } from "@/features/orders/repo"
@@ -303,8 +303,8 @@ export function CommandPalette({ open, onOpenChange, groups, roles }: CommandPal
 
   const body: ReactNode = (
     <>
-      <div className="flex h-13 shrink-0 items-center gap-2 border-b border-border px-4">
-        <Search aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
+      <div className="flex h-12 shrink-0 items-center gap-2 border-b px-3">
+        <Search aria-hidden="true" className="size-4 shrink-0 opacity-50" />
         <input
           autoFocus
           value={query}
@@ -316,7 +316,7 @@ export function CommandPalette({ open, onOpenChange, groups, roles }: CommandPal
           aria-activedescendant={flat[focus] ? `bo-palette-${focus}` : undefined}
           aria-label="Search"
           placeholder="Search orders, customers, packages, codes — or type a command"
-          className="min-w-0 flex-1 border-0 bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground"
+          className="flex h-10 min-w-0 flex-1 bg-transparent py-3 text-sm outline-hidden placeholder:text-muted-foreground"
         />
         <Kbd className="max-md:hidden">esc</Kbd>
       </div>
@@ -325,10 +325,10 @@ export function CommandPalette({ open, onOpenChange, groups, roles }: CommandPal
         id="bo-palette-list"
         role="listbox"
         aria-label="Results"
-        className="max-h-110 overflow-y-auto px-2 pt-1 pb-2 max-md:max-h-none max-md:flex-1"
+        className="max-h-100 overflow-x-hidden overflow-y-auto p-1 max-md:max-h-none max-md:flex-1"
       >
         {sections.length === 0 ? (
-          <p className="px-2 py-8 text-center text-sm text-muted-foreground">
+          <p className="py-6 text-center text-sm text-muted-foreground">
             {loading
               ? "Searching…"
               : searching
@@ -337,8 +337,8 @@ export function CommandPalette({ open, onOpenChange, groups, roles }: CommandPal
           </p>
         ) : (
           sections.map((section) => (
-            <div key={section.label} role="group" aria-label={section.label} className="pt-1">
-              <div className="px-2 py-2 text-xs font-medium text-muted-foreground">{section.label}</div>
+            <div key={section.label} role="group" aria-label={section.label} className="p-1 text-foreground">
+              <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">{section.label}</div>
               {section.items.map((item) => {
                 index += 1
                 const i = index
@@ -353,8 +353,8 @@ export function CommandPalette({ open, onOpenChange, groups, roles }: CommandPal
                     onMouseMove={() => setFocus(i)}
                     onClick={(e) => choose(item, e.metaKey || e.ctrlKey)}
                     className={cn(
-                      "flex h-9 w-full items-center gap-3 rounded-sm px-2 text-left text-sm",
-                      i === focus && "bg-accent",
+                      "relative flex min-h-10 w-full cursor-default items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm outline-hidden select-none pointer-coarse:min-h-11",
+                      i === focus && "bg-accent text-accent-foreground",
                     )}
                   >
                     <item.icon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
@@ -373,7 +373,7 @@ export function CommandPalette({ open, onOpenChange, groups, roles }: CommandPal
           ))
         )}
       </div>
-      <div className="flex h-10 shrink-0 items-center gap-4 border-t border-border px-4 text-xs whitespace-nowrap text-muted-foreground max-md:hidden">
+      <div className="flex h-10 shrink-0 items-center gap-4 border-t px-3 text-xs whitespace-nowrap text-muted-foreground max-md:hidden">
         <span className="flex items-center gap-1">
           <Kbd>↑</Kbd>
           <Kbd>↓</Kbd> move
@@ -409,7 +409,7 @@ export function CommandPalette({ open, onOpenChange, groups, roles }: CommandPal
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         showCloseButton={false}
-        className="top-[12%] flex max-w-160 translate-y-0 flex-col gap-0! overflow-hidden p-0! sm:max-w-160"
+        className="top-[12%] flex max-w-140 translate-y-0 flex-col gap-0! overflow-hidden p-0! sm:max-w-140"
       >
         <DialogTitle className="sr-only">Search and commands</DialogTitle>
         <DialogDescription className="sr-only">

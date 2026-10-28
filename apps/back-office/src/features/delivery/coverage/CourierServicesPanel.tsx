@@ -3,7 +3,19 @@ import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 
 import type { CourierServiceDTO, CourierServiceInput } from "@effy/shared-types"
-import { Badge, Button, Checkbox, Input, Label } from "@effy/design-system/ui"
+import {
+  Badge,
+  Button,
+  Checkbox,
+  Input,
+  Label,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@effy/design-system/ui"
 
 import { courierServiceError, courierServiceFieldErrors } from "../errorText"
 import { courierServicesQuery, useCreateCourierService, useUpdateCourierService } from "../queries"
@@ -107,36 +119,36 @@ export function CourierServicesPanel({ canManage }: { canManage: boolean }) {
         </p>
       ) : (
         <div className="overflow-x-auto rounded-md border">
-          <table className="w-full text-sm" data-testid="courier-services">
-            <thead className="bg-muted/50 text-left text-muted-foreground">
-              <tr>
-                <th className="px-3 py-2 font-medium">Service</th>
-                <th className="px-3 py-2 font-medium">Customers are told</th>
-                <th className="px-3 py-2 font-medium">Pickups</th>
-                <th className="px-3 py-2 font-medium">From suppliers</th>
-                <th className="px-3 py-2 font-medium">Status</th>
-                {canManage ? <th className="px-3 py-2" /> : null}
-              </tr>
-            </thead>
-            <tbody className="divide-y">
+          <Table className="w-full text-sm" data-testid="courier-services">
+            <TableHeader className="bg-muted/50 text-left text-muted-foreground">
+              <TableRow>
+                <TableHead className="px-3 py-2 font-medium">Service</TableHead>
+                <TableHead className="px-3 py-2 font-medium">Customers are told</TableHead>
+                <TableHead className="px-3 py-2 font-medium">Pickups</TableHead>
+                <TableHead className="px-3 py-2 font-medium">From suppliers</TableHead>
+                <TableHead className="px-3 py-2 font-medium">Status</TableHead>
+                {canManage ? <TableHead className="px-3 py-2" /> : null}
+              </TableRow>
+            </TableHeader>
+            <TableBody className="divide-y">
               {items.map((s) => (
-                <tr key={s.id} className={s.status === "retired" ? "text-muted-foreground" : undefined}>
-                  <td className="px-3 py-2">
+                <TableRow key={s.id} className={s.status === "retired" ? "text-muted-foreground" : undefined}>
+                  <TableCell className="px-3 py-2">
                     {s.courierName} · {s.serviceName}
                     {s.isDefault ? (
                       <Badge variant="secondary" className="ml-2">
                         Default
                       </Badge>
                     ) : null}
-                  </td>
-                  <td className="px-3 py-2">{s.estimateText}</td>
-                  <td className="px-3 py-2 tabular-nums">
+                  </TableCell>
+                  <TableCell className="px-3 py-2">{s.estimateText}</TableCell>
+                  <TableCell className="px-3 py-2 tabular-nums">
                     {weekdaysText(s.pickupWeekdays)}, by {s.pickupCutoff}
-                  </td>
-                  <td className="px-3 py-2">{s.collectsFromSupplier ? "Yes" : "No"}</td>
-                  <td className="px-3 py-2">{s.status === "active" ? "Active" : "Retired"}</td>
+                  </TableCell>
+                  <TableCell className="px-3 py-2">{s.collectsFromSupplier ? "Yes" : "No"}</TableCell>
+                  <TableCell className="px-3 py-2">{s.status === "active" ? "Active" : "Retired"}</TableCell>
                   {canManage ? (
-                    <td className="space-x-1 px-3 py-2 text-right whitespace-nowrap">
+                    <TableCell className="space-x-1 px-3 py-2 text-right whitespace-nowrap">
                       <Button variant="ghost" size="sm" onClick={() => open(s)}>
                         Edit
                       </Button>
@@ -167,12 +179,12 @@ export function CourierServicesPanel({ canManage }: { canManage: boolean }) {
                           {s.status === "active" ? "Retire" : "Reinstate"}
                         </Button>
                       ) : null}
-                    </td>
+                    </TableCell>
                   ) : null}
-                </tr>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
 

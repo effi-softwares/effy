@@ -13,6 +13,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
   Button,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@effy/design-system/ui"
 import {
   HOLD_REASON_WORDS,
@@ -51,38 +57,38 @@ export function OverduePanel({ data }: { data: DeliveryExceptionListDTO }) {
           Every open run is loaded, and every finished collection is checked in.
         </p>
       ) : (
-        <div className="ef-table-scroll">
-          <table className="ef-table ef-rtable ef-table--plain">
-            <thead>
-              <tr>
-                <th>Driver</th>
-                <th>Run</th>
-                <th>Waiting on</th>
-                <th className="is-num">For</th>
-              </tr>
-            </thead>
-            <tbody>
+        <div className="min-w-0">
+          <Table className="ef-rtable">
+            <TableHeader>
+              <TableRow>
+                <TableHead>Driver</TableHead>
+                <TableHead>Run</TableHead>
+                <TableHead>Waiting on</TableHead>
+                <TableHead numeric>For</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {overdue.map((o) => (
-                <tr key={o.roundId}>
-                  <td data-m="primary">
+                <TableRow key={o.roundId}>
+                  <TableCell data-m="primary">
                     <Link to="/orders/assignments/rounds/$roundId" params={{ roundId: o.roundId }} className="link">
                       {o.driverName}
                     </Link>
-                  </td>
-                  <td data-m="meta">{o.kind === "delivery" ? "Delivery" : "Collection"}</td>
-                  <td data-m="meta" data-label="Waiting on">
+                  </TableCell>
+                  <TableCell data-m="meta">{o.kind === "delivery" ? "Delivery" : "Collection"}</TableCell>
+                  <TableCell data-m="meta" data-label="Waiting on">
                     {o.kind === "delivery" ? "Loading the van" : "Hub check-in"}
-                  </td>
-                  <td data-m="trail" className="is-num">
+                  </TableCell>
+                  <TableCell numeric data-m="trail">
                     <span className="late">
                       <Clock aria-hidden="true" />
                       {o.minutes} min
                     </span>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
     </Panel>
@@ -107,43 +113,43 @@ export function HeldPanel({ data, canAct }: { data: DeliveryExceptionListDTO; ca
       {held.length === 0 ? (
         <p className="px-5 py-4 text-sm text-muted-foreground">No driver has left a package behind.</p>
       ) : (
-        <div className="ef-table-scroll">
-          <table className="ef-table ef-rtable ef-table--plain">
-            <thead>
-              <tr>
-                <th>Order</th>
-                <th>Shop</th>
-                <th>Where</th>
-                <th>Reason</th>
-                <th>Driver</th>
-                <th>When</th>
-                <th className="is-actions">
+        <div className="min-w-0">
+          <Table className="ef-rtable">
+            <TableHeader>
+              <TableRow>
+                <TableHead>Order</TableHead>
+                <TableHead>Shop</TableHead>
+                <TableHead>Where</TableHead>
+                <TableHead>Reason</TableHead>
+                <TableHead>Driver</TableHead>
+                <TableHead>When</TableHead>
+                <TableHead className="text-right">
                   <span className="sr-only">Action</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {held.map((h) => (
-                <tr key={h.holdId}>
-                  <td data-m="primary">
-                    <span className="ef-code font-medium">{h.orderNumber}</span>
-                    <span className="ef-sub">
+                <TableRow key={h.holdId}>
+                  <TableCell data-m="primary">
+                    <span className="font-mono font-medium">{h.orderNumber}</span>
+                    <span className="mt-0.5 block text-sm text-muted-foreground">
                       {h.parcel ? `Bag ${h.parcel.seq} of ${h.parcel.of} · ${h.parcel.code}` : "Whole package"}
                     </span>
-                  </td>
-                  <td data-m="meta">{h.shopName}</td>
-                  <td data-m="meta" data-label="Where">
+                  </TableCell>
+                  <TableCell data-m="meta">{h.shopName}</TableCell>
+                  <TableCell data-m="meta" data-label="Where">
                     {HOLD_STEP_WORDS[h.step] ?? h.step}
-                  </td>
-                  <td data-m="meta" data-label="Reason">
+                  </TableCell>
+                  <TableCell data-m="meta" data-label="Reason">
                     {HOLD_REASON_WORDS[h.reason] ?? h.reason}
-                    {h.note ? <span className="ef-sub">{h.note}</span> : null}
-                  </td>
-                  <td data-m="hide">{h.driverName}</td>
-                  <td data-m="hide" className="is-muted whitespace-nowrap">
+                    {h.note ? <span className="mt-0.5 block text-sm text-muted-foreground">{h.note}</span> : null}
+                  </TableCell>
+                  <TableCell data-m="hide">{h.driverName}</TableCell>
+                  <TableCell data-m="hide" className="text-muted-foreground whitespace-nowrap">
                     {clockAt(h.createdAt)}
-                  </td>
-                  <td data-m="full" className="is-actions w-auto!">
+                  </TableCell>
+                  <TableCell data-m="full" className="text-right w-auto!">
                     {canAct ? (
                       <div className="flex justify-end gap-1">
                         <Button
@@ -171,11 +177,11 @@ export function HeldPanel({ data, canAct }: { data: DeliveryExceptionListDTO; ca
                     ) : (
                       NOBODY
                     )}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
     </Panel>
@@ -224,25 +230,25 @@ export function VehicleChecksPanel({ data, canAct }: { data: DeliveryExceptionLi
       {checks.length === 0 ? (
         <p className="px-5 py-4 text-sm text-muted-foreground">No vehicle check found a problem today.</p>
       ) : (
-        <div className="ef-table-scroll">
-          <table className="ef-table ef-rtable ef-table--plain">
-            <thead>
-              <tr>
-                <th>Driver</th>
-                <th>Vehicle</th>
-                <th>Found</th>
-                <th>When</th>
-                <th className="is-actions">
+        <div className="min-w-0">
+          <Table className="ef-rtable">
+            <TableHeader>
+              <TableRow>
+                <TableHead>Driver</TableHead>
+                <TableHead>Vehicle</TableHead>
+                <TableHead>Found</TableHead>
+                <TableHead>When</TableHead>
+                <TableHead className="text-right">
                   <span className="sr-only">Action</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {checks.map((c) => (
-                <tr key={c.checkId}>
-                  <td data-m="primary">{c.driverName}</td>
-                  <td data-m="meta">{c.vehicleLabel}</td>
-                  <td data-m="meta">
+                <TableRow key={c.checkId}>
+                  <TableCell data-m="primary">{c.driverName}</TableCell>
+                  <TableCell data-m="meta">{c.vehicleLabel}</TableCell>
+                  <TableCell data-m="meta">
                     <ul className="space-y-1">
                       {c.answers
                         .filter((a) => a.answer !== "ok")
@@ -262,11 +268,11 @@ export function VehicleChecksPanel({ data, canAct }: { data: DeliveryExceptionLi
                           </li>
                         ))}
                     </ul>
-                  </td>
-                  <td data-m="hide" className="is-muted whitespace-nowrap">
+                  </TableCell>
+                  <TableCell data-m="hide" className="text-muted-foreground whitespace-nowrap">
                     {moment(c.createdAt)}
-                  </td>
-                  <td data-m="full" className="is-actions w-auto!">
+                  </TableCell>
+                  <TableCell data-m="full" className="text-right w-auto!">
                     {!c.unsafe ? (
                       <span className="text-xs text-muted-foreground">No action needed</span>
                     ) : c.clearedAt ? (
@@ -292,11 +298,11 @@ export function VehicleChecksPanel({ data, canAct }: { data: DeliveryExceptionLi
                     ) : (
                       NOBODY
                     )}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
     </Panel>

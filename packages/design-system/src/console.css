@@ -160,44 +160,15 @@ html * { @apply overscroll-x-none; }
   /* A form's sticky foot: what happens next, and its buttons (both consoles' product form, 102). */
   .ef-actionbar { @apply sticky bottom-0 z-30 -mx-(--pad) mt-0 -mb-(--pad) flex flex-wrap items-center gap-x-4 gap-y-3 border-t border-t-border bg-background px-(--pad) pt-3 pb-[calc(12px+env(safe-area-inset-bottom))]; }
   .ef-actionbar__text { @apply flex min-w-0 flex-[1_1_260px] flex-col gap-1; }
-  .ef-actionbar__title { @apply text-base leading-6 font-semibold; }
+  .ef-actionbar__title { @apply text-sm leading-5 font-semibold; }
   .ef-actionbar__desc { @apply text-sm leading-5 text-muted-foreground; }
-  .ef-actionbar__actions { @apply flex flex-wrap gap-3; }
+  .ef-actionbar__actions { @apply flex flex-wrap gap-2; }
   @media (max-width: 767px) {
     .ef-actionbar__actions { @apply w-full; }
     .ef-actionbar__actions > [data-slot="button"] { @apply flex-auto; }
     .ef-actionbar__desc { @apply hidden; }
   }
 
-  .ef-toolbar { @apply flex flex-wrap items-center gap-3; }
-  .ef-toolbar__search { @apply relative flex w-85 max-w-full items-center; }
-  .ef-toolbar__search > svg { @apply pointer-events-none absolute left-3 size-5 text-muted-foreground; }
-  .ef-toolbar__search > [data-slot="input"] { @apply pl-10!; }
-  @media (max-width: 767px) {
-    .ef-toolbar__search { @apply w-full; }
-  }
-
-  .ef-table-wrap { @apply overflow-hidden rounded-lg border border-solid border-border bg-card; }
-  .ef-table-scroll { @apply overflow-x-auto; }
-  .ef-table { @apply w-full border-collapse text-base tabular-nums; }
-  .ef-table th { @apply h-11 border-b border-b-border bg-card px-3 py-0 text-left text-sm font-medium whitespace-nowrap text-muted-foreground; }
-  .ef-table th svg { @apply ml-1 size-4 align-[-2px]; }
-  .ef-table td { @apply border-b border-b-border px-3 py-4 align-middle; }
-  .ef-table tr:last-child td { @apply border-b-0; }
-  .ef-table tbody tr:hover td { @apply bg-row-hover; }
-  .ef-table tbody tr[data-href] { @apply cursor-pointer; }
-  .ef-table tr.is-selected td { @apply bg-row-selected; }
-  .ef-table th:first-child,
-  .ef-table td:first-child { @apply pl-4; }
-  .ef-table th:last-child,
-  .ef-table td:last-child { @apply pr-4; }
-  .ef-table .is-num { @apply text-right; }
-  .ef-table .is-check { @apply w-13 pr-0; }
-  .ef-table .is-actions { @apply w-auto text-right; }
-  .ef-table td.is-muted { @apply text-muted-foreground; }
-  .ef-sub { @apply mt-1 block text-sm leading-5 text-muted-foreground; }
-  .ef-table--compact td { @apply py-3; }
-  .ef-table--plain th { @apply bg-transparent; }
   @media (max-width: 767px) {
     .ef-rtable thead { @apply hidden; }
     .ef-rtable,
@@ -217,55 +188,17 @@ html * { @apply overscroll-x-none; }
     .ef-rtable td[data-m="check"] { @apply hidden; }
     .ef-rtable td[data-m="full"] { @apply col-span-full pt-2!; }
   }
-  .ef-pager { @apply flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-t-border px-4 py-3 text-sm text-muted-foreground; }
-  .ef-pager__right { @apply flex items-center gap-4; }
-  .ef-pager__btns { @apply flex gap-1; }
-  .ef-bulkbar {
-    @apply mx-auto my-0 flex w-fit max-w-full items-center gap-3 rounded-xl bg-foreground py-2 pr-2 pl-5 text-base font-medium text-background;
-    box-shadow: var(--shadow-lg);
-  }
-  .ef-bulkbar__sep { @apply h-5 w-px bg-background/25; }
 
-  .ef-st { @apply inline-flex h-7 items-center gap-2 rounded-md border border-solid border-transparent px-3 py-0 text-sm font-semibold whitespace-nowrap tabular-nums; }
-  .ef-st svg { @apply size-4; }
-  .ef-st--muted { @apply bg-secondary text-secondary-foreground; }
-  .ef-st--quiet { @apply bg-secondary text-muted-foreground; }
-  .ef-st--waiting { @apply border-input bg-background text-foreground; }
-  .ef-st--moving { @apply bg-primary-muted text-primary; }
-  .ef-st--done { @apply bg-success-soft text-success; }
-  .ef-st--problem { @apply bg-foreground text-background; }
-  .ef-st--info { @apply bg-primary-fill text-primary-foreground; }
-  .ef-dot { @apply inline-block size-2 flex-none rounded-full bg-muted-foreground; }
-  .ef-dot--on { @apply bg-success; }
-  .ef-dot--busy { @apply bg-primary-fill; }
-  .ef-dot--off { @apply bg-input; }
-  .ef-dot--alert { @apply bg-foreground; }
-  .ef-tag { @apply inline-flex h-6 items-center gap-1 rounded-sm border border-solid border-border bg-background px-2 py-0 text-xs font-medium whitespace-nowrap text-muted-foreground; }
-  .ef-tag svg { @apply size-3; }
-
-  .ef-panel { @apply rounded-lg border border-solid border-border bg-card; }
-  .ef-panel__head { @apply flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-b-border px-5 py-4; }
-  .ef-panel__title { @apply flex items-center gap-2 text-base leading-6 font-semibold; }
-  .ef-panel__title svg { @apply size-4 text-muted-foreground; }
-  .ef-panel__desc { @apply text-sm leading-5 text-muted-foreground; }
-  .ef-panel__body { @apply px-5 py-4; }
-  .ef-panel__foot { @apply flex flex-wrap items-center justify-end gap-2 rounded-t-none rounded-b-lg border-t border-t-border bg-muted/40 px-5 py-3; }
-  .ef-panel__foot--between { @apply justify-between; }
-  .ef-panel > .ef-table-scroll .ef-table th,
-  .ef-panel .ef-table th { @apply bg-transparent; }
-  @media (max-width: 767px) {
-    .ef-panel__foot { @apply px-4; }
-  }
   .ef-dl { @apply flex flex-col; }
-  .ef-dl__row { @apply grid grid-cols-[160px_minmax(0,1fr)] gap-x-4 gap-y-1 border-b border-b-border px-0 py-3 text-base leading-6; }
+  .ef-dl__row { @apply grid grid-cols-[160px_minmax(0,1fr)] gap-x-4 gap-y-1 border-b border-b-border px-0 py-2.5 text-sm leading-5; }
   .ef-dl__row:last-child { @apply border-b-0; }
   .ef-dl__row dt { @apply text-muted-foreground; }
   .ef-dl__row dd { @apply m-0 min-w-0; }
-  .ef-dl--tight .ef-dl__row { @apply grid-cols-[112px_minmax(0,1fr)] px-0 py-3; }
+  .ef-dl--tight .ef-dl__row { @apply grid-cols-[112px_minmax(0,1fr)] px-0 py-2.5; }
   @media (max-width: 639px) {
     .ef-dl__row { @apply grid-cols-[minmax(0,1fr)] gap-1; }
     .ef-dl--tight .ef-dl__row { @apply grid-cols-[minmax(0,1fr)]; }
-    .ef-dl__row dt { @apply text-sm; }
+    .ef-dl__row dt { @apply text-xs; }
   }
   .ef-detail { @apply grid grid-cols-[minmax(0,1fr)] items-start gap-6; }
   .ef-detail__main,
@@ -281,92 +214,7 @@ html * { @apply overscroll-x-none; }
     .ef-detail__main,
     .ef-detail__aside { @apply gap-4; }
   }
-  .ef-section-title { @apply text-base leading-6 font-semibold tracking-[-0.01em]; }
-  .ef-eyebrow { @apply text-xs font-medium text-muted-foreground; }
 
-  .ef-tl { @apply flex flex-col; }
-  .ef-tl__item { @apply relative grid grid-cols-[20px_minmax(0,1fr)_auto] gap-x-3 gap-y-0 px-0 pt-0 pb-4; }
-  .ef-tl__item::before {
-    content: "";
-    @apply absolute top-5 bottom-0 left-[9.5px] w-px bg-border;
-  }
-  .ef-tl__item:last-child::before { @apply hidden; }
-  .ef-tl__mark { @apply z-1 grid size-5 place-items-center rounded-full border border-solid border-border bg-background; }
-  .ef-tl__mark svg { @apply size-3; }
-  .ef-tl__mark--primary { @apply border-transparent bg-primary-muted text-primary; }
-  .ef-tl__mark--done { @apply border-transparent bg-success-soft text-success; }
-  .ef-tl__mark--problem { @apply border-transparent bg-foreground text-background; }
-  .ef-tl__title { @apply text-base leading-5 font-medium; }
-  .ef-tl__body { @apply mt-1 text-sm leading-5 text-muted-foreground; }
-  .ef-tl__time { @apply text-xs leading-5 whitespace-nowrap tabular-nums text-muted-foreground; }
-  .ef-tl__note { @apply mt-2 rounded-md bg-muted px-3 py-2 text-sm text-foreground; }
-
-  .ef-code { @apply font-mono text-sm tracking-[-0.01em] whitespace-nowrap; }
-  .ef-meter { @apply flex h-2 min-w-16 overflow-hidden rounded-full bg-muted; }
-  .ef-meter > i { @apply block h-full; }
-  .ef-meter__booked { @apply bg-primary-fill; }
-  .ef-meter__held { @apply bg-[color-mix(in_srgb,var(--primary)_40%,var(--muted))]; }
-  .ef-meter__over { @apply bg-foreground; }
-  .ef-meter__done { @apply bg-success; }
-  .ef-meter--lg { @apply h-2; }
-  .ef-progress-label { @apply mb-1 flex justify-between text-xs tabular-nums text-muted-foreground; }
-  .ef-img { @apply grid flex-none place-items-center overflow-hidden rounded-md bg-muted text-muted-foreground; }
-  .ef-img svg { @apply h-[40%] max-h-8 w-[40%] max-w-8; }
-  .ef-icon-tile { @apply grid size-9 flex-none place-items-center rounded-lg bg-muted text-foreground; }
-  .ef-icon-tile svg { @apply size-5; }
-  .ef-icon-tile--primary { @apply bg-primary-muted text-primary; }
-  .ef-icon-tile--problem { @apply bg-foreground text-background; }
-  .ef-seg { @apply inline-flex gap-1 rounded-lg bg-muted p-1; }
-  .ef-seg button {
-    font: inherit;
-    @apply inline-flex h-10 cursor-pointer items-center gap-2 rounded-md border-0 bg-transparent px-4 py-0 text-base font-medium whitespace-nowrap text-muted-foreground;
-  }
-  .ef-seg button svg { @apply size-4; }
-  .ef-seg button.is-active {
-    @apply bg-background text-foreground;
-    box-shadow: var(--shadow-xs);
-  }
-  .ef-choice-card { @apply flex min-h-14 cursor-pointer items-center gap-3 rounded-lg border border-solid border-border bg-background px-4 py-4; }
-  .ef-choice-card.is-checked {
-    @apply border-primary;
-    box-shadow: 0 0 0 1px var(--primary);
-  }
-  .ef-switch-row { @apply flex items-center justify-between gap-4 border-b border-b-border px-0 py-4; }
-  .ef-switch-row:last-child { @apply border-b-0; }
-  .ef-attn { @apply flex min-h-18 items-center gap-4 px-5 py-4 text-inherit no-underline; }
-  .ef-attn:hover { @apply bg-row-hover; }
-  .ef-attn + .ef-attn { @apply border-t border-t-border; }
-  .ef-attn__text { @apply min-w-0 flex-auto; }
-  .ef-attn__title { @apply text-base font-medium; }
-  .ef-attn__desc { @apply text-sm text-muted-foreground; }
-  @media (max-width: 767px) {
-    .ef-attn { @apply gap-3; }
-  }
-
-  .ef-empty { @apply flex flex-col items-center gap-2 rounded-lg border border-dashed border-border px-6 py-12 text-center; }
-  .ef-empty__icon { @apply mb-2 grid size-12 place-items-center rounded-lg bg-muted text-foreground; }
-  .ef-empty__icon svg { @apply size-6; }
-  .ef-empty h3 { @apply text-base font-semibold; }
-  .ef-empty p { @apply max-w-[48ch] text-base text-muted-foreground; }
-
-  .ef-alert { @apply grid grid-cols-[16px_minmax(0,1fr)] items-start gap-x-3 gap-y-1 rounded-lg border border-solid border-border bg-card px-4 py-4 text-base leading-6; }
-  .ef-alert > svg { @apply mt-1 size-4; }
-  .ef-alert__title { @apply font-medium; }
-  .ef-alert__description { @apply col-2 text-muted-foreground; }
-  .ef-alert--destructive { @apply border-destructive; }
-  .ef-alert--destructive .ef-alert__title { @apply font-semibold; }
-  .ef-alert--destructive .ef-alert__description { @apply text-foreground; }
-  .ef-alert--info { @apply border-transparent bg-primary-muted; }
-  .ef-alert--info > svg { @apply text-primary; }
-  .ef-alert--muted { @apply border-transparent bg-muted; }
-
-  .ef-cmd-item {
-    font: inherit;
-    @apply flex h-12 w-full cursor-pointer items-center gap-3 rounded-sm border-0 bg-transparent px-2 py-0 text-left text-base text-inherit no-underline;
-  }
-  .ef-cmd-item:hover,
-  .ef-cmd-item.is-focus { @apply bg-accent; }
-  .ef-cmd-item > svg { @apply size-4 flex-none text-muted-foreground; }
 }
 
 .ef-shell [data-slot="sidebar-container"] {
@@ -532,23 +380,3 @@ html * { @apply overscroll-x-none; }
 }
 [data-collapsible="icon"] .ef-count-dot.is-strong { @apply bg-foreground; }
 
-@layer components {
-  .ef-iconbtn {
-    @apply relative inline-grid size-11 flex-none cursor-pointer place-items-center rounded-md border-0 bg-transparent text-foreground;
-    transition: background-color var(--dur-fast) ease;
-  }
-  .ef-iconbtn:hover { @apply bg-accent; }
-  .ef-iconbtn:disabled { @apply cursor-not-allowed bg-transparent opacity-40; }
-  .ef-iconbtn > svg { @apply size-5; }
-  .ef-chip {
-    font: inherit;
-    @apply inline-flex h-10 cursor-default items-center gap-2 rounded-full border-0 bg-muted px-4 py-0 text-sm font-medium whitespace-nowrap text-foreground;
-  }
-  button.ef-chip { @apply cursor-pointer; }
-  .ef-chip > svg { @apply size-4; }
-  .ef-chip.is-solid { @apply bg-foreground text-background; }
-}
-.ef-account-avatar {
-  @apply grid size-9 flex-none place-items-center rounded-full bg-primary-muted text-sm font-semibold tracking-[0.01em] text-primary;
-  transition: box-shadow var(--dur-fast) ease;
-}

@@ -67,7 +67,7 @@ describe("082 — delivery windows by day", () => {
     renderIt()
     expect(await screen.findByText("No deliveries are booked for this day yet.")).toBeInTheDocument()
     expect(getWindows).toHaveBeenCalledWith(null)
-    await userEvent.click(screen.getByRole("button", { name: "Wed 14 Oct" }))
+    await userEvent.click(screen.getByRole("radio", { name: "Wed 14 Oct" }))
     await waitFor(() => expect(getWindows).toHaveBeenCalledWith("2026-10-14"))
     expect(await screen.findByRole("table", { name: "Wed 14 Oct, 4 pm – 6 pm" })).toBeInTheDocument()
   })

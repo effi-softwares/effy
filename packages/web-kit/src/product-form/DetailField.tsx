@@ -11,6 +11,8 @@ import {
   SelectTrigger,
   SelectValue,
   Textarea,
+  ToggleGroup,
+  ToggleGroupItem,
 } from "@effy/design-system/ui";
 import type {
   CategoryFormRow,
@@ -87,33 +89,26 @@ export function DetailField({
       </legend>
 
       {canDiffer ? (
-        <div
-          role="group"
+        <ToggleGroup
+          type="single"
+          variant="outline"
+          size="sm"
           aria-label={`${row.name}: one value or one per size`}
-          className="ef-seg w-fit"
+          disabled={disabled}
+          value={perSize ? "per" : "same"}
+          onValueChange={(v) => {
+            if (v === "same" && perSize) onChange(null);
+            if (v === "per" && !perSize)
+              onChange({ attributeId: row.attributeId, perVariant: [] });
+          }}
         >
-          <button
-            type="button"
-            className={!perSize ? "is-active" : undefined}
-            aria-pressed={!perSize}
-            disabled={disabled}
-            onClick={() => perSize && onChange(null)}
-          >
+          <ToggleGroupItem value="same" className="px-3">
             Same for every size
-          </button>
-          <button
-            type="button"
-            className={perSize ? "is-active" : undefined}
-            aria-pressed={perSize}
-            disabled={disabled}
-            onClick={() =>
-              !perSize &&
-              onChange({ attributeId: row.attributeId, perVariant: [] })
-            }
-          >
+          </ToggleGroupItem>
+          <ToggleGroupItem value="per" className="px-3">
             Differs by size
-          </button>
-        </div>
+          </ToggleGroupItem>
+        </ToggleGroup>
       ) : null}
 
       {perSize ? (
@@ -267,28 +262,28 @@ function Control({
     case "boolean": {
       const b = value && "boolean" in value ? value.boolean : undefined;
       return (
-        <div
-          role="radiogroup"
+        <ToggleGroup
+          type="single"
+          variant="outline"
+          size="sm"
           aria-labelledby={labelledBy}
-          className="ef-seg w-fit"
           id={id}
+          disabled={disabled}
+          value={b === undefined ? "" : String(b)}
+          onValueChange={(v) =>
+            onChange(v === "" ? undefined : { boolean: v === "true" })
+          }
         >
           {([true, false] as const).map((choice) => (
-            <button
+            <ToggleGroupItem
               key={String(choice)}
-              type="button"
-              role="radio"
-              aria-checked={b === choice}
-              className={b === choice ? "is-active" : undefined}
-              disabled={disabled}
-              onClick={() =>
-                onChange(b === choice ? undefined : { boolean: choice })
-              }
+              value={String(choice)}
+              className="px-4"
             >
               {choice ? "Yes" : "No"}
-            </button>
+            </ToggleGroupItem>
           ))}
-        </div>
+        </ToggleGroup>
       );
     }
     case "single_select": {

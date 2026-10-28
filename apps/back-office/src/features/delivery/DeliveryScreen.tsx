@@ -213,7 +213,7 @@ function SettingsPanel({ canManage }: { canManage: boolean }) {
         footerBetween
         footer={
           <>
-            <span className="ef-sub" role="status">
+            <span className="mt-0.5 block text-sm text-muted-foreground" role="status">
               {note ?? "The prep buffer is how long a shop needs before a collection run."}
             </span>
             {canManage ? (

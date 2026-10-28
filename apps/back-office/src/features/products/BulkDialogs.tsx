@@ -2,6 +2,7 @@ import { useState } from "react"
 
 import { HOLD_REASON_MAX, type BulkProductsResultDTO, type MarginDTO } from "@effy/shared-types"
 import {
+  Alert,
   AlertDialog,
   AlertDialogCancel,
   AlertDialogContent,
@@ -114,7 +115,9 @@ export function BulkDialog({
               onChange={(e) => setReason(e.target.value)}
               placeholder="e.g. The maker has recalled this batch."
             />
-            <p className="ef-sub">Each shop sees this, from Effy — not from you by name.</p>
+            <p className="mt-0.5 block text-sm text-muted-foreground">
+              Each shop sees this, from Effy — not from you by name.
+            </p>
           </div>
         ) : null}
         {action === "margin" ? (
@@ -157,7 +160,7 @@ export function BulkResult({
   onDismiss: () => void
 }) {
   return (
-    <div role="status" className="ef-alert ef-alert--info gap-y-2!">
+    <Alert role="status" variant="info" className="flex flex-wrap items-start justify-between gap-3">
       <div className="grid gap-1">
         <p className="font-medium">
           {result.done.length} changed{result.refused.length > 0 ? `, ${result.refused.length} not changed` : ""}.
@@ -175,6 +178,6 @@ export function BulkResult({
       <Button variant="ghost" size="sm" onClick={onDismiss}>
         Dismiss
       </Button>
-    </div>
+    </Alert>
   )
 }

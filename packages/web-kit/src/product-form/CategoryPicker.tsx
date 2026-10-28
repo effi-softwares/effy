@@ -3,7 +3,13 @@ import { useMemo, useState } from "react";
 import { Check, ChevronRight, Search } from "lucide-react";
 
 import { cn } from "@effy/design-system";
-import { Input, Tabs, TabsList, TabsTrigger } from "@effy/design-system/ui";
+import {
+  Button,
+  Input,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+} from "@effy/design-system/ui";
 import {
   searchLeaves,
   suggestCategories,
@@ -232,11 +238,12 @@ function LeafList({
             const selected = it.id === value;
             return (
               <li key={it.id} role="option" aria-selected={selected}>
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
                   disabled={disabled}
                   className={cn(
-                    "flex min-h-11 w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted",
+                    "h-auto min-h-10 w-full justify-start rounded-none px-3 py-2 text-left font-normal whitespace-normal",
                     selected && "bg-muted",
                   )}
                   onClick={() => onPick(it.id, i + 1)}
@@ -253,7 +260,7 @@ function LeafList({
                   {selected ? (
                     <Check aria-hidden className="size-4 text-primary" />
                   ) : null}
-                </button>
+                </Button>
               </li>
             );
           })}
@@ -319,13 +326,14 @@ function Columns({
             const selected = c.id === value;
             return (
               <li key={c.id}>
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
                   disabled={disabled}
                   aria-expanded={c.isLeaf ? undefined : open}
                   aria-pressed={c.isLeaf ? selected : undefined}
                   className={cn(
-                    "flex min-h-11 w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted",
+                    "h-auto min-h-10 w-full justify-start rounded-none px-3 py-2 text-left font-normal whitespace-normal",
                     (open || selected) && "bg-muted font-medium",
                   )}
                   onClick={() => {
@@ -353,7 +361,7 @@ function Columns({
                       className="size-4 text-muted-foreground"
                     />
                   )}
-                </button>
+                </Button>
               </li>
             );
           })}

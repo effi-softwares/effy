@@ -2,6 +2,7 @@ import { useState } from "react"
 
 import {
   Button,
+  Checkbox,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -11,6 +12,11 @@ import {
   DialogTrigger,
   Input,
   Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@effy/design-system/ui"
 import type { VehicleBodyType, VehicleCreateRequest, VehicleOwnership } from "@effy/shared-types"
 
@@ -115,43 +121,43 @@ export function CreateVehicleDialog() {
           </div>
 
           <Field id="v-body" label="Body type">
-            <select
-              id="v-body"
-              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-              value={bodyType}
-              onChange={(e) => setBodyType(e.target.value as VehicleBodyType)}
-            >
-              {BODY_TYPES.map((b) => (
-                <option key={b} value={b}>
-                  {BODY_TYPE_LABEL[b]}
-                </option>
-              ))}
-            </select>
+            <Select value={bodyType} onValueChange={(next) => setBodyType(next as VehicleBodyType)}>
+              <SelectTrigger id="v-body" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {BODY_TYPES.map((b) => (
+                  <SelectItem key={b} value={b}>
+                    {BODY_TYPE_LABEL[b]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </Field>
 
           <Field id="v-owner" label="Owner" hint="A driver-owned vehicle is managed exactly like an Effy-owned one.">
-            <select
-              id="v-owner"
-              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-              value={ownership}
-              onChange={(e) => setOwnership(e.target.value as VehicleOwnership)}
-            >
-              {OWNERSHIPS.map((o) => (
-                <option key={o} value={o}>
-                  {OWNERSHIP_LABEL[o]}
-                </option>
-              ))}
-            </select>
+            <Select value={ownership} onValueChange={(next) => setOwnership(next as VehicleOwnership)}>
+              <SelectTrigger id="v-owner" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {OWNERSHIPS.map((o) => (
+                  <SelectItem key={o} value={o}>
+                    {OWNERSHIP_LABEL[o]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </Field>
 
           <fieldset className="space-y-2">
             <legend className="text-sm font-medium">What it can carry</legend>
             <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={canCarryChilled} onChange={(e) => setChilled(e.target.checked)} />
+              <Checkbox checked={canCarryChilled} onCheckedChange={(v) => setChilled(v === true)} />
               Chilled goods
             </label>
             <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={canCarryFrozen} onChange={(e) => setFrozen(e.target.checked)} />
+              <Checkbox checked={canCarryFrozen} onCheckedChange={(v) => setFrozen(v === true)} />
               Frozen goods
             </label>
           </fieldset>

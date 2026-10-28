@@ -464,7 +464,7 @@ function SwitchRow({
   onChange: (v: boolean) => void
 }) {
   return (
-    <div className="ef-switch-row flex items-start justify-between gap-4">
+    <div className="flex items-center justify-between gap-4 border-b py-3 last:border-b-0 items-start">
       <div>
         <Label htmlFor={id}>{label}</Label>
         <p className="text-xs text-muted-foreground">{hint}</p>

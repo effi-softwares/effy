@@ -4,7 +4,17 @@ import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import { BadgeCheck, Car, History, IdCard, Mail, Pencil, ShieldCheck, Truck, UserRound, Warehouse } from "lucide-react"
 
-import { Button, Skeleton, Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui"
+import {
+  Avatar,
+  AvatarFallback,
+  Button,
+  Skeleton,
+  Tabs,
+  TabsContent,
+  TabsCount,
+  TabsList,
+  TabsTrigger,
+} from "@effy/design-system/ui"
 import { ErrorState, useHeaderDetail } from "@effy/web-kit/console"
 import type { AdminDriverProfile } from "@effy/shared-types"
 
@@ -63,9 +73,9 @@ export function DriverDetailScreen({ driverId }: { driverId: string }) {
         back={{ label: "All drivers", link: { to: "/drivers" } }}
         title={
           <span className="flex items-center gap-3">
-            <span className="avatar avatar--lg avatar--blue" aria-hidden="true">
-              {initialsOf(d.name)}
-            </span>
+            <Avatar aria-hidden="true" className="size-12">
+              <AvatarFallback className="text-base bg-primary-muted text-primary">{initialsOf(d.name)}</AvatarFallback>
+            </Avatar>
             <span className="min-w-0">
               {d.name}
               <span className="mt-1 flex flex-wrap items-center gap-3 text-sm font-normal">
@@ -90,7 +100,7 @@ export function DriverDetailScreen({ driverId }: { driverId: string }) {
             {d.vehicle.plate ? (
               <span>
                 <Truck aria-hidden="true" />
-                <span className="ef-code">{d.vehicle.plate}</span>
+                <span className="font-mono">{d.vehicle.plate}</span>
                 {d.vehicle.type ? ` · ${d.vehicle.type}` : ""}
               </span>
             ) : null}
@@ -153,7 +163,9 @@ export function DriverDetailScreen({ driverId }: { driverId: string }) {
                       value: (
                         <>
                           {d.workEmail}
-                          <div className="ef-sub">The sign-in identity. It cannot be changed here.</div>
+                          <div className="mt-0.5 block text-sm text-muted-foreground">
+                            The sign-in identity. It cannot be changed here.
+                          </div>
                         </>
                       ),
                     },
@@ -178,12 +190,14 @@ export function DriverDetailScreen({ driverId }: { driverId: string }) {
                         <>
                           {d.vehicle.type}
                           {d.vehicle.plate ? ` · ${d.vehicle.plate}` : ""}
-                          <div className="ef-sub">Issued from the vehicle's record</div>
+                          <div className="mt-0.5 block text-sm text-muted-foreground">
+                            Issued from the vehicle's record
+                          </div>
                         </>
                       ) : (
                         <>
                           {dash}
-                          <div className="ef-sub">
+                          <div className="mt-0.5 block text-sm text-muted-foreground">
                             Issue one from a{" "}
                             <Link to="/vehicles" className="link">
                               vehicle's record
@@ -195,7 +209,7 @@ export function DriverDetailScreen({ driverId }: { driverId: string }) {
                     },
                     {
                       label: "Registration plate",
-                      value: d.vehicle.plate ? <span className="ef-code">{d.vehicle.plate}</span> : dash,
+                      value: d.vehicle.plate ? <span className="font-mono">{d.vehicle.plate}</span> : dash,
                     },
                     { label: "Licence", value: d.credentials.licenceReference ?? dash },
                     { label: "Licence class", value: d.credentials.licenceClass ?? dash },
@@ -204,7 +218,7 @@ export function DriverDetailScreen({ driverId }: { driverId: string }) {
                       value: d.credentials.licenceExpiresOn ? (
                         <>
                           {formatDate(d.credentials.licenceExpiresOn)}
-                          {expiry ? <div className="ef-sub">{expiry}</div> : null}
+                          {expiry ? <div className="mt-0.5 block text-sm text-muted-foreground">{expiry}</div> : null}
                         </>
                       ) : (
                         dash
@@ -242,7 +256,7 @@ export function DriverDetailScreen({ driverId }: { driverId: string }) {
             <div className="space-y-4">
               <div>
                 <StatusWord tone={statusTone(d.status)}>{STATUS_LABEL[d.status]}</StatusWord>
-                <p className="ef-sub mt-2">{STATUS_MEANING[d.status]}</p>
+                <p className="mt-0.5 block text-sm text-muted-foreground mt-2">{STATUS_MEANING[d.status]}</p>
               </div>
               <DetailRows
                 tight
@@ -259,7 +273,7 @@ export function DriverDetailScreen({ driverId }: { driverId: string }) {
           <Panel title="Today">
             <div className="space-y-3">
               {onDuty ? <StatusWord tone="moving">On duty</StatusWord> : <StatusWord tone="quiet">Off duty</StatusWord>}
-              <p className="ef-sub">
+              <p className="mt-0.5 block text-sm text-muted-foreground">
                 {onDuty
                   ? "Signed in to the driver app and taking work."
                   : "Not on duty. Work is offered once they start a shift."}

@@ -6,7 +6,7 @@ import { useHotkey } from "@tanstack/react-hotkeys"
 import { MessageSquareText, Star } from "lucide-react"
 
 import { cn } from "@effy/design-system"
-import { Skeleton, Tabs, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui"
+import { Badge, Skeleton, Tabs, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 
 import { Kbd, PageHeader, EmptyState, Facet, Pager, SearchBox, Toolbar } from "@effy/web-kit/patterns"
@@ -228,14 +228,14 @@ function InboxItem({
         </span>
       </div>
       <div className="flex flex-wrap items-center gap-1">
-        <span className="ef-tag">{FEEDBACK_CATEGORY_LABELS[i.category]}</span>
+        <Badge variant="outline">{FEEDBACK_CATEGORY_LABELS[i.category]}</Badge>
         {i.rating ? (
-          <span className="ef-tag">
+          <Badge variant="outline">
             <Star aria-hidden="true" />
             {i.rating}
-          </span>
+          </Badge>
         ) : null}
-        <span className="ef-code text-xs text-muted-foreground">{i.referenceCode}</span>
+        <span className="font-mono text-xs text-muted-foreground">{i.referenceCode}</span>
       </div>
       <p className="line-clamp-2 text-sm text-muted-foreground">{i.preview}</p>
     </>

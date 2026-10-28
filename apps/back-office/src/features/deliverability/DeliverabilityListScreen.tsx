@@ -4,7 +4,19 @@ import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import { MailCheck } from "lucide-react"
 
-import { Skeleton, Tabs, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui"
+import {
+  Skeleton,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Tabs,
+  TabsCount,
+  TabsList,
+  TabsTrigger,
+} from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 
 import { PageHeader, EmptyState, StatusWord, Pager, SearchBox, Toolbar } from "@effy/web-kit/patterns"
@@ -82,7 +94,7 @@ export function DeliverabilityListScreen() {
       {isError ? (
         <ErrorState error={error} onRetry={() => void refetch()} />
       ) : isPending ? (
-        <div className="ef-table-wrap p-4" aria-busy="true">
+        <div className="overflow-hidden rounded-xl border bg-card p-4" aria-busy="true">
           <Skeleton className="mb-3 h-10" />
           <Skeleton className="h-10" />
         </div>
@@ -93,49 +105,51 @@ export function DeliverabilityListScreen() {
           description="Every address the platform has emailed is reachable."
         />
       ) : (
-        <div className="ef-table-wrap">
-          <div className="ef-table-scroll">
-            <table className="ef-table ef-rtable">
-              <thead>
-                <tr>
-                  <th>Address</th>
-                  <th>State</th>
-                  <th>Account</th>
-                  <th>Reason</th>
-                  <th>Last event</th>
-                </tr>
-              </thead>
-              <tbody>
+        <div className="overflow-hidden rounded-xl border bg-card">
+          <div className="min-w-0">
+            <Table className="ef-rtable">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Address</TableHead>
+                  <TableHead>State</TableHead>
+                  <TableHead>Account</TableHead>
+                  <TableHead>Reason</TableHead>
+                  <TableHead>Last event</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {data.items.map((r) => (
-                  <tr key={r.address}>
-                    <td data-m="primary">
+                  <TableRow key={r.address}>
+                    <TableCell data-m="primary">
                       <Link to="/deliverability/$address" params={{ address: r.address }} className="link">
                         {r.address}
                       </Link>
-                    </td>
-                    <td data-m="badge">
+                    </TableCell>
+                    <TableCell data-m="badge">
                       <StateLabel state={r.state} />
-                    </td>
-                    <td data-m="meta">
+                    </TableCell>
+                    <TableCell data-m="meta">
                       {r.subject ? (
                         <>
                           {r.subject.name ?? <span className="text-muted-foreground">unnamed</span>}{" "}
-                          <span className="ef-sub">({r.subject.kind.replace("_", " ")})</span>
+                          <span className="mt-0.5 block text-sm text-muted-foreground">
+                            ({r.subject.kind.replace("_", " ")})
+                          </span>
                         </>
                       ) : (
                         <span className="text-muted-foreground">—</span>
                       )}
-                    </td>
-                    <td data-m="meta" className="is-muted">
+                    </TableCell>
+                    <TableCell data-m="meta" className="text-muted-foreground">
                       <span className="font-mono text-xs">{r.reason ?? "—"}</span>
-                    </td>
-                    <td data-m="trail" className="is-muted whitespace-nowrap">
+                    </TableCell>
+                    <TableCell data-m="trail" className="text-muted-foreground whitespace-nowrap">
                       {moment(r.lastEventAt)}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
           <Pager
             summary={`${data.total} address${data.total === 1 ? "" : "es"} · page ${page + 1} of ${totalPages}`}

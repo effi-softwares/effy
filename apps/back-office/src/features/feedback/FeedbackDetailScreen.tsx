@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
 
-import { Skeleton } from "@effy/design-system/ui"
+import { Card, Skeleton } from "@effy/design-system/ui"
 import { ErrorState, useHeaderDetail } from "@effy/web-kit/console"
 
 import { PageHeader } from "@effy/web-kit/patterns"
@@ -24,9 +24,9 @@ export function FeedbackDetailScreen({ referenceCode }: { referenceCode: string 
       ) : isPending ? (
         <Skeleton className="h-96" />
       ) : (
-        <section className="ef-panel flex flex-col">
+        <Card className="gap-0 overflow-hidden py-0">
           <FeedbackPanel detail={data} mayReply={canReplyFeedback(roles)} />
-        </section>
+        </Card>
       )}
     </>
   )

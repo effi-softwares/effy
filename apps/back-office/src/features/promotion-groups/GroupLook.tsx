@@ -12,6 +12,11 @@ import {
   DialogHeader,
   DialogTitle,
   Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@effy/design-system/ui"
 import {
   GROUP_SIZES,
@@ -31,8 +36,6 @@ import { promotionQuery } from "@/features/promotions/queries"
 import { LAYOUT_WORD, SIZE_WORD, SkinPreviewItem } from "@/features/promotion-skins/SkinPreview"
 
 import { useUpdateGroup } from "./queries"
-
-const SELECT = "h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
 
 const fitsWords = (size: GroupSize) =>
   (Object.keys(LAYOUT_FITS) as (keyof typeof LAYOUT_FITS)[])
@@ -69,49 +72,55 @@ export function LookPanel({
       <fieldset disabled={!canManage || update.isPending} className="grid gap-4 sm:grid-cols-3">
         <div className="space-y-2">
           <Label htmlFor="group-size">Size of the place</Label>
-          <select
-            id="group-size"
-            className={SELECT}
-            value={group.size}
-            onChange={(e) => change({ size: e.target.value as GroupSize })}
-          >
-            {GROUP_SIZES.map((s) => (
-              <option key={s} value={s}>
-                {SIZE_WORD[s]}
-              </option>
-            ))}
-          </select>
+          <Select value={group.size} onValueChange={(next) => change({ size: next as GroupSize })}>
+            <SelectTrigger id="group-size" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {GROUP_SIZES.map((s) => (
+                <SelectItem key={s} value={s}>
+                  {SIZE_WORD[s]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="space-y-2">
           <Label htmlFor="group-default">Default skin</Label>
-          <select
-            id="group-default"
-            className={SELECT}
-            value={group.defaultSkin.id}
-            onChange={(e) => change({ defaultSkinId: e.target.value })}
-          >
-            {fitting(group.size).map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
+          <Select value={group.defaultSkin.id} onValueChange={(next) => change({ defaultSkinId: next })}>
+            <SelectTrigger id="group-default" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {fitting(group.size).map((s) => (
+                <SelectItem key={s.id} value={s.id}>
+                  {s.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="space-y-2">
           <Label htmlFor="group-code-default">For promotions with a code</Label>
-          <select
-            id="group-code-default"
-            className={SELECT}
-            value={group.defaultCodeSkin?.id ?? ""}
-            onChange={(e) => change({ defaultCodeSkinId: e.target.value || null })}
+          <Select
+            value={group.defaultCodeSkin?.id ?? "__none"}
+            onValueChange={(raw) => {
+              const next = raw === "__none" ? "" : raw
+              change({ defaultCodeSkinId: next || null })
+            }}
           >
-            <option value="">Same as the default</option>
-            {fitting(group.size).map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger id="group-code-default" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none">Same as the default</SelectItem>
+              {fitting(group.size).map((s) => (
+                <SelectItem key={s.id} value={s.id}>
+                  {s.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </fieldset>
       {reset.length > 0 ? (
@@ -120,7 +129,7 @@ export function LookPanel({
           so {reset.length === 1 ? "it wears" : "they wear"} the default now.
         </p>
       ) : null}
-      <p className="ef-sub mt-3">
+      <p className="mt-0.5 block text-sm text-muted-foreground mt-3">
         <Link to="/promotions/skins" className="link">
           Manage skins
         </Link>
@@ -190,38 +199,50 @@ export function MemberLookDialog({
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="member-skin">Skin</Label>
-            <select
-              id="member-skin"
-              className={SELECT}
-              value={skinId ?? ""}
-              onChange={(e) => setSkinId(e.target.value || null)}
+            <Select
+              value={skinId ?? "__none"}
+              onValueChange={(raw) => {
+                const next = raw === "__none" ? "" : raw
+                setSkinId(next || null)
+              }}
             >
-              <option value="">Group default ({defaultSkin.name})</option>
-              {skins.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger id="member-skin" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none">Group default ({defaultSkin.name})</SelectItem>
+                {skins.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-2">
             <Label htmlFor="member-picture">Picture</Label>
-            <select
-              id="member-picture"
-              className={SELECT}
-              value={imageId ?? ""}
-              onChange={(e) => setImageId(e.target.value || null)}
+            <Select
+              value={imageId ?? "__none"}
+              onValueChange={(raw) => {
+                const next = raw === "__none" ? "" : raw
+                setImageId(next || null)
+              }}
               disabled={images.length === 0}
             >
-              <option value="">
-                {images.length === 0 ? "This promotion has no pictures" : "The best fit for the layout"}
-              </option>
-              {images.map((i) => (
-                <option key={i.id} value={i.id}>
-                  {i.alt} ({i.width}×{i.height})
-                </option>
-              ))}
-            </select>
+              <SelectTrigger id="member-picture" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none">
+                  {images.length === 0 ? "This promotion has no pictures" : "The best fit for the layout"}
+                </SelectItem>
+                {images.map((i) => (
+                  <SelectItem key={i.id} value={i.id}>
+                    {i.alt} ({i.width}×{i.height})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
         <div className="rounded-lg border border-border bg-muted/40 p-4" data-testid="member-look-preview">

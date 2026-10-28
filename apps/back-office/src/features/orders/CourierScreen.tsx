@@ -6,7 +6,19 @@ import { Link } from "@tanstack/react-router"
 import type { CourierView, HandoverRowDTO } from "@effy/shared-types"
 import { CircleAlert, CircleCheck, Clock, Forward, PackageOpen, Settings2, Store, Truck, Warehouse } from "lucide-react"
 
-import { Button, Skeleton, Tabs, TabsList, TabsTrigger } from "@effy/design-system/ui"
+import {
+  Button,
+  Skeleton,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+} from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 
 import { PageHeader, EmptyState, StatusWord } from "@effy/web-kit/patterns"
@@ -62,7 +74,7 @@ export function CourierScreen() {
       {isError ? (
         <ErrorState error={error} onRetry={() => void refetch()} />
       ) : isPending ? (
-        <div className="ef-table-wrap p-4" aria-busy="true">
+        <div className="overflow-hidden rounded-xl border bg-card p-4" aria-busy="true">
           <Skeleton className="mb-3 h-10" />
           <Skeleton className="mb-3 h-10" />
           <Skeleton className="h-10" />
@@ -70,47 +82,49 @@ export function CourierScreen() {
       ) : data.length === 0 ? (
         <EmptyState icon={Truck} title={current.empty} />
       ) : (
-        <div className="ef-table-wrap">
-          <div className="ef-table-scroll">
-            <table className="ef-table ef-rtable">
-              <thead>
-                <tr>
-                  <th>Order</th>
-                  <th>Courier service</th>
-                  <th>Due</th>
-                  <th>Where it is</th>
-                  <th>
+        <div className="overflow-hidden rounded-xl border bg-card">
+          <div className="min-w-0">
+            <Table className="ef-rtable">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Order</TableHead>
+                  <TableHead>Courier service</TableHead>
+                  <TableHead>Due</TableHead>
+                  <TableHead>Where it is</TableHead>
+                  <TableHead>
                     <span className="sr-only">Late</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {data.map((r) => (
-                  <tr key={r.fulfillmentId}>
-                    <td data-m="primary">
-                      <Link to="/orders/$orderId" params={{ orderId: r.orderId }} className="link ef-code">
+                  <TableRow key={r.fulfillmentId}>
+                    <TableCell data-m="primary">
+                      <Link to="/orders/$orderId" params={{ orderId: r.orderId }} className="link font-mono">
                         {r.orderNumber}
                       </Link>
-                    </td>
-                    <td data-m="meta">{r.service ?? <span className="text-muted-foreground">Not set</span>}</td>
-                    <td data-m="meta" data-label="Due" className="whitespace-nowrap">
+                    </TableCell>
+                    <TableCell data-m="meta">
+                      {r.service ?? <span className="text-muted-foreground">Not set</span>}
+                    </TableCell>
+                    <TableCell data-m="meta" data-label="Due" className="whitespace-nowrap">
                       {dueText(r)}
-                    </td>
-                    <td data-m="badge">{whereWord(r)}</td>
-                    <td data-m="meta">
+                    </TableCell>
+                    <TableCell data-m="badge">{whereWord(r)}</TableCell>
+                    <TableCell data-m="meta">
                       {r.atRisk ? (
                         <span className="late">
                           <Clock aria-hidden="true" />
                           Late
                         </span>
                       ) : null}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
-          <div className="ef-pager">
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t px-4 py-3 text-sm text-muted-foreground">
             <span>
               {data.length} {data.length === 1 ? "parcel" : "parcels"} · {current.label}
             </span>

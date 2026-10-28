@@ -16,7 +16,21 @@ import {
   type BulkProductsResultDTO,
 } from "@effy/shared-types"
 import { cn } from "@effy/design-system"
-import { Button, Checkbox, Skeleton, Tabs, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui"
+import {
+  Button,
+  Checkbox,
+  Skeleton,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Tabs,
+  TabsCount,
+  TabsList,
+  TabsTrigger,
+} from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 import {
   EmptyState,
@@ -229,7 +243,7 @@ export function ProductsListScreen({ search }: { search: ProductSearch }) {
 
       {canManage && chosen.length > 0 ? (
         <div
-          className="ef-toolbar rounded-md border bg-muted/40 px-3 py-2"
+          className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/40 px-3 py-2"
           role="region"
           aria-label="Selected products"
         >
@@ -283,7 +297,7 @@ export function ProductsListScreen({ search }: { search: ProductSearch }) {
       {list.isError ? (
         <ErrorState error={list.error} onRetry={() => void list.refetch()} />
       ) : list.isPending ? (
-        <div className="ef-table-wrap p-4" aria-busy="true">
+        <div className="overflow-hidden rounded-xl border bg-card p-4" aria-busy="true">
           <Skeleton className="mb-3 h-10" />
           <Skeleton className="mb-3 h-10" />
           <Skeleton className="h-10" />
@@ -297,32 +311,32 @@ export function ProductsListScreen({ search }: { search: ProductSearch }) {
           }
         />
       ) : (
-        <div className="ef-table-wrap">
-          <div className="ef-table-scroll">
-            <table className="ef-table ef-rtable">
-              <thead>
-                <tr>
+        <div className="overflow-hidden rounded-xl border bg-card">
+          <div className="min-w-0">
+            <Table className="ef-rtable">
+              <TableHeader>
+                <TableRow>
                   {canManage ? (
-                    <th className="w-10">
+                    <TableHead className="w-10">
                       <Checkbox
                         aria-label="Select every product shown"
                         checked={allShown}
                         onCheckedChange={(on) => setSelected(on ? new Set(items.map((p) => p.productId)) : new Set())}
                       />
-                    </th>
+                    </TableHead>
                   ) : null}
-                  <th>Product</th>
-                  <th className="max-md:hidden">Shop</th>
-                  <th className="max-lg:hidden">Aisle</th>
-                  <th className="text-right max-lg:hidden">Sizes</th>
-                  <th className="text-right max-md:hidden">Shop price</th>
-                  <th className="text-right">Customers pay</th>
-                  <th className="max-lg:hidden">Margin</th>
-                  <th>State</th>
-                  <th className="max-xl:hidden">Changed</th>
-                </tr>
-              </thead>
-              <tbody>
+                  <TableHead>Product</TableHead>
+                  <TableHead className="max-md:hidden">Shop</TableHead>
+                  <TableHead className="max-lg:hidden">Aisle</TableHead>
+                  <TableHead className="text-right max-lg:hidden">Sizes</TableHead>
+                  <TableHead className="text-right max-md:hidden">Shop price</TableHead>
+                  <TableHead className="text-right">Customers pay</TableHead>
+                  <TableHead className="max-lg:hidden">Margin</TableHead>
+                  <TableHead>State</TableHead>
+                  <TableHead className="max-xl:hidden">Changed</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {items.map((p) => (
                   <ProductRow
                     key={p.productId}
@@ -331,8 +345,8 @@ export function ProductsListScreen({ search }: { search: ProductSearch }) {
                     onMargin={canManage ? () => start("margin", [p]) : null}
                   />
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
           <div className="flex items-center justify-between gap-3 border-t px-4 py-3 text-sm text-muted-foreground">
             <span>
@@ -371,13 +385,13 @@ function ProductRow({
   const from = (amount: string | null) => (amount === null ? "—" : `${p.priceVaries ? "From " : ""}${money(amount)}`)
   const marginText = p.margin ? marginLabel(p.margin) : "Not set"
   return (
-    <tr aria-selected={selection?.on}>
+    <TableRow aria-selected={selection?.on}>
       {selection ? (
-        <td>
+        <TableCell>
           <Checkbox aria-label={`Select ${p.name}`} checked={selection.on} onCheckedChange={selection.toggle} />
-        </td>
+        </TableCell>
       ) : null}
-      <td data-m="primary">
+      <TableCell data-m="primary">
         <div className="flex items-center gap-3">
           {p.imageUrl ? (
             <img src={p.imageUrl} alt="" className="size-10 shrink-0 rounded-md border object-cover" loading="lazy" />
@@ -393,7 +407,7 @@ function ProductRow({
             <Link to="/products/$productId" params={{ productId: p.productId }} className="link">
               {p.name}
             </Link>
-            <div className="ef-sub truncate">
+            <div className="mt-0.5 block text-sm text-muted-foreground truncate">
               {[p.brand, p.origin !== "shop" ? PRODUCT_ORIGIN_WORDS[p.origin] : null].filter(Boolean).join(" · ")}
               <span className="md:hidden">
                 {p.brand || p.origin !== "shop" ? " · " : ""}
@@ -402,35 +416,42 @@ function ProductRow({
             </div>
           </div>
         </div>
-      </td>
-      <td data-m="meta" className="max-md:hidden">
+      </TableCell>
+      <TableCell data-m="meta" className="max-md:hidden">
         {p.shop.name}
-        {p.shop.status !== "active" ? <div className="ef-sub">Shop {p.shop.status}</div> : null}
-      </td>
-      <td className="is-muted max-lg:hidden" title={pathText(p.categoryPath)}>
+        {p.shop.status !== "active" ? (
+          <div className="mt-0.5 block text-sm text-muted-foreground">Shop {p.shop.status}</div>
+        ) : null}
+      </TableCell>
+      <TableCell className="text-muted-foreground max-lg:hidden" title={pathText(p.categoryPath)}>
         {p.categoryPath.at(-1) ?? "—"}
-      </td>
-      <td className="text-right tabular-nums max-lg:hidden">{p.variantCount}</td>
-      <td className="text-right tabular-nums max-md:hidden">{from(p.shopPriceFrom)}</td>
-      <td className="text-right tabular-nums">{from(p.customerPriceFrom)}</td>
-      <td className="max-lg:hidden">
+      </TableCell>
+      <TableCell className="text-right tabular-nums max-lg:hidden">{p.variantCount}</TableCell>
+      <TableCell className="text-right tabular-nums max-md:hidden">{from(p.shopPriceFrom)}</TableCell>
+      <TableCell className="text-right tabular-nums">{from(p.customerPriceFrom)}</TableCell>
+      <TableCell className="max-lg:hidden">
         {onMargin && hasMarginToSet(p) ? (
-          <button type="button" className={cn("link", !p.margin && "text-muted-foreground")} onClick={onMargin}>
+          <Button
+            type="button"
+            variant="link"
+            className={cn("font-medium text-foreground", !p.margin && "text-muted-foreground")}
+            onClick={onMargin}
+          >
             {marginText}
-          </button>
+          </Button>
         ) : (
           <span className={p.margin ? undefined : "text-muted-foreground"}>{marginText}</span>
         )}
-      </td>
-      <td data-m="badge">
+      </TableCell>
+      <TableCell data-m="badge">
         <div className="flex flex-wrap items-center gap-1">
           <StatusWord tone={STATE_TONE[p.state]}>{BACKOFFICE_PRODUCT_STATE_WORDS[p.state]}</StatusWord>
           {p.effySettingUp ? <StatusWord tone="info">Effy setting up</StatusWord> : null}
           {p.lowStock ? <StatusWord tone="waiting">Low stock</StatusWord> : null}
           {p.missingRequired > 0 ? <StatusWord tone="waiting">Missing details</StatusWord> : null}
         </div>
-      </td>
-      <td className="is-muted whitespace-nowrap max-xl:hidden">{moment(p.updatedAt)}</td>
-    </tr>
+      </TableCell>
+      <TableCell className="text-muted-foreground whitespace-nowrap max-xl:hidden">{moment(p.updatedAt)}</TableCell>
+    </TableRow>
   )
 }

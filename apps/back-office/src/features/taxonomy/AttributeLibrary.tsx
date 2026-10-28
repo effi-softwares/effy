@@ -3,7 +3,19 @@ import { useMemo, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Plus } from "lucide-react"
 
-import { Button, Input } from "@effy/design-system/ui"
+import {
+  Badge,
+  Button,
+  Input,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  ToggleGroup,
+  ToggleGroupItem,
+} from "@effy/design-system/ui"
 import { INPUT_TYPE_WORDS, UNIT_FAMILIES, type AttributeDTO } from "@effy/shared-types"
 import { ErrorState } from "@effy/web-kit/console"
 
@@ -27,7 +39,7 @@ export function AttributeLibrary({ canManage }: { canManage: boolean }) {
 
   return (
     <div className="space-y-4">
-      <div className="ef-toolbar flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <Input
           className="max-w-xs"
           aria-label="Search attributes"
@@ -35,19 +47,20 @@ export function AttributeLibrary({ canManage }: { canManage: boolean }) {
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
-        <div role="group" aria-label="Status" className="ef-seg">
+        <ToggleGroup
+          type="single"
+          variant="outline"
+          size="sm"
+          aria-label="Status"
+          value={view}
+          onValueChange={(v) => v && setView(v as typeof view)}
+        >
           {(["active", "retired", "all"] as const).map((v) => (
-            <button
-              key={v}
-              type="button"
-              aria-pressed={view === v}
-              className={view === v ? "is-active" : undefined}
-              onClick={() => setView(v)}
-            >
+            <ToggleGroupItem key={v} value={v} className="px-3">
               {v === "active" ? "Active" : v === "retired" ? "Retired" : "All"}
-            </button>
+            </ToggleGroupItem>
           ))}
-        </div>
+        </ToggleGroup>
         {canManage ? (
           <Button size="sm" className="ml-auto" onClick={() => setEditing("new")}>
             <Plus />
@@ -61,62 +74,64 @@ export function AttributeLibrary({ canManage }: { canManage: boolean }) {
       ) : isPending ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
       ) : (
-        <div className="ef-table-wrap">
-          <div className="ef-table-scroll">
-            <table className="ef-table ef-rtable">
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Input</th>
-                  <th>Unit</th>
-                  <th>Filter</th>
-                  <th>Shown to customers</th>
-                  <th>Per size</th>
-                  <th className="text-right">Used by</th>
-                  <th>Status</th>
-                  {canManage ? <th className="sr-only">Actions</th> : null}
-                </tr>
-              </thead>
-              <tbody>
+        <div className="overflow-hidden rounded-xl border bg-card">
+          <div className="min-w-0">
+            <Table className="ef-rtable">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Input</TableHead>
+                  <TableHead>Unit</TableHead>
+                  <TableHead>Filter</TableHead>
+                  <TableHead>Shown to customers</TableHead>
+                  <TableHead>Per size</TableHead>
+                  <TableHead className="text-right">Used by</TableHead>
+                  <TableHead>Status</TableHead>
+                  {canManage ? <TableHead className="sr-only">Actions</TableHead> : null}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {rows.map((a) => (
-                  <tr key={a.id}>
-                    <td data-m="title">
+                  <TableRow key={a.id}>
+                    <TableCell data-m="title">
                       <span className="font-medium">{a.name}</span>
                       {a.variantOption ? (
                         <span className="block text-xs text-muted-foreground">Can be a variant option</span>
                       ) : null}
-                    </td>
-                    <td>{INPUT_TYPE_WORDS[a.inputType]}</td>
-                    <td>{a.unitFamily ? `${UNIT_FAMILIES[a.unitFamily].label} (${a.units.join(", ")})` : "—"}</td>
-                    <td>{a.filterable ? "Yes" : "—"}</td>
-                    <td>{a.customerVisible ? "Yes" : "Internal"}</td>
-                    <td>{a.variesByVariant ? "Yes" : "—"}</td>
-                    <td className="text-right tabular-nums" data-m="trail">
+                    </TableCell>
+                    <TableCell>{INPUT_TYPE_WORDS[a.inputType]}</TableCell>
+                    <TableCell>
+                      {a.unitFamily ? `${UNIT_FAMILIES[a.unitFamily].label} (${a.units.join(", ")})` : "—"}
+                    </TableCell>
+                    <TableCell>{a.filterable ? "Yes" : "—"}</TableCell>
+                    <TableCell>{a.customerVisible ? "Yes" : "Internal"}</TableCell>
+                    <TableCell>{a.variesByVariant ? "Yes" : "—"}</TableCell>
+                    <TableCell className="text-right tabular-nums" data-m="trail">
                       {a.usage.categories} categories · {a.usage.products} products
-                    </td>
-                    <td>
+                    </TableCell>
+                    <TableCell>
                       {a.status === "active" ? (
-                        <span className="ef-st ef-st--done">Active</span>
+                        <Badge variant="success">Active</Badge>
                       ) : (
-                        <span className="ef-st ef-st--muted">Retired</span>
+                        <Badge variant="muted">Retired</Badge>
                       )}
-                    </td>
+                    </TableCell>
                     {canManage ? (
-                      <td>
+                      <TableCell>
                         <RowActions attribute={a} onEdit={() => setEditing(a)} />
-                      </td>
+                      </TableCell>
                     ) : null}
-                  </tr>
+                  </TableRow>
                 ))}
                 {rows.length === 0 ? (
-                  <tr>
-                    <td colSpan={canManage ? 9 : 8} className="text-center text-muted-foreground">
+                  <TableRow>
+                    <TableCell colSpan={canManage ? 9 : 8} className="text-center text-muted-foreground">
                       No attributes match.
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ) : null}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         </div>
       )}

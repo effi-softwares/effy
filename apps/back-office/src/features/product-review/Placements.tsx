@@ -87,9 +87,10 @@ export function Placements({
               <ul className="divide-y divide-border rounded-md border border-border">
                 {matches.map((l) => (
                   <li key={l.id}>
-                    <button
+                    <Button
                       type="button"
-                      className="w-full px-3 py-2 text-left text-sm hover:bg-muted"
+                      variant="ghost"
+                      className="w-full justify-start rounded-none font-normal"
                       disabled={save.isPending}
                       onClick={() => {
                         setQ("")
@@ -97,7 +98,7 @@ export function Placements({
                       }}
                     >
                       {pathText(l.path)}
-                    </button>
+                    </Button>
                   </li>
                 ))}
               </ul>

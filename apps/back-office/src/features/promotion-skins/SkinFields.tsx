@@ -1,11 +1,17 @@
 import { useState, type ReactNode } from "react"
 
 import { TEXT_SIZES, WEIGHTS, type TextStyle } from "@effy/shared-types"
-import { Input, Label, Switch } from "@effy/design-system/ui"
-
-import { cn } from "@/lib/utils"
-
-const SELECT = "h-9 rounded-md border border-input bg-background px-2 text-sm"
+import {
+  Input,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Slider,
+  Switch,
+} from "@effy/design-system/ui"
 
 const HEX = /^#[0-9a-fA-F]{6}$/
 
@@ -36,7 +42,7 @@ export function ColourField({
             setText(e.target.value)
             onChange(e.target.value)
           }}
-          className="h-9 w-10 cursor-pointer rounded-md border border-input bg-background p-1"
+          className="h-10 w-11 cursor-pointer rounded-lg border border-input bg-background p-1 shadow-xs"
         />
         <Input
           id={`${id}-hex`}
@@ -53,7 +59,7 @@ export function ColourField({
       {!HEX.test(shown) ? (
         <p className="text-xs text-destructive">Six hexadecimal digits after #, like #1d4ed8.</p>
       ) : hint ? (
-        <p className="ef-sub">{hint}</p>
+        <p className="mt-0.5 block text-sm text-muted-foreground">{hint}</p>
       ) : null}
     </div>
   )
@@ -96,13 +102,18 @@ export function Choice<T extends string>({
   return (
     <div className="space-y-2">
       <Label htmlFor={id}>{label}</Label>
-      <select id={id} className={cn(SELECT, "w-full")} value={value} onChange={(e) => onChange(e.target.value as T)}>
-        {options.map((o) => (
-          <option key={o} value={o}>
-            {words[o]}
-          </option>
-        ))}
-      </select>
+      <Select value={value} onValueChange={(next) => onChange(next as T)}>
+        <SelectTrigger id={id} className="w-full">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((o) => (
+            <SelectItem key={o} value={o}>
+              {words[o]}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   )
 }
@@ -125,16 +136,7 @@ export function Strength({
       <Label htmlFor={id}>
         {label} <span className="tabular-nums text-muted-foreground">{Math.round(value * 100)}%</span>
       </Label>
-      <input
-        id={id}
-        type="range"
-        min={0}
-        max={max}
-        step={0.05}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full"
-      />
+      <Slider id={id} min={0} max={max} step={0.05} value={[value]} onValueChange={([v]) => onChange(v ?? 0)} />
     </div>
   )
 }

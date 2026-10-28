@@ -5,6 +5,7 @@ import { Panel } from "@effy/web-kit/patterns"
 import { money } from "@/lib/format"
 
 import type { OrderDetail } from "../model"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@effy/design-system/ui"
 
 export function OrderItemsPanel({ order }: { order: OrderDetail }) {
   return (
@@ -17,22 +18,25 @@ export function OrderItemsPanel({ order }: { order: OrderDetail }) {
       }
       flush
     >
-      <div className="ef-table-scroll">
-        <table className="ef-table ef-rtable ef-table--compact ef-table--plain">
-          <thead>
-            <tr>
-              <th>Product</th>
-              <th className="is-num">Qty</th>
-              <th className="is-num">Unit</th>
-              <th className="is-num">Line</th>
-            </tr>
-          </thead>
-          <tbody>
+      <div className="min-w-0">
+        <Table className="ef-rtable [&_td]:py-2">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Product</TableHead>
+              <TableHead numeric>Qty</TableHead>
+              <TableHead numeric>Unit</TableHead>
+              <TableHead numeric>Line</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {order.items.map((i) => (
-              <tr key={i.orderItemId}>
-                <td data-m="primary">
+              <TableRow key={i.orderItemId}>
+                <TableCell data-m="primary">
                   <div className="flex items-center gap-3">
-                    <span className="ef-img size-9" aria-hidden="true">
+                    <span
+                      className="grid flex-none place-items-center overflow-hidden rounded-lg bg-muted text-muted-foreground [&_svg]:size-4 size-9"
+                      aria-hidden="true"
+                    >
                       <Package />
                     </span>
                     <span>
@@ -45,20 +49,20 @@ export function OrderItemsPanel({ order }: { order: OrderDetail }) {
                       ) : null}
                     </span>
                   </div>
-                </td>
-                <td data-m="meta" data-label="Qty" className="is-num">
+                </TableCell>
+                <TableCell numeric data-m="meta" data-label="Qty">
                   {i.quantity}
-                </td>
-                <td data-m="hide" className="is-num is-muted">
+                </TableCell>
+                <TableCell numeric data-m="hide" className="text-muted-foreground">
                   {money(i.unitPriceAmount, order.currency)}
-                </td>
-                <td data-m="trail" className="is-num">
+                </TableCell>
+                <TableCell numeric data-m="trail">
                   {money(i.lineSubtotalAmount, order.currency)}
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
     </Panel>
   )

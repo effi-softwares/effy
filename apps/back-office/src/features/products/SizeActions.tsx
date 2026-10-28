@@ -13,6 +13,8 @@ import {
   Input,
   Label,
   Switch,
+  ToggleGroup,
+  ToggleGroupItem,
 } from "@effy/design-system/ui"
 
 import { useSetStockCount, useSetVariantState } from "./queries"
@@ -107,19 +109,19 @@ function CountDialog({
               onChange={(e) => setCountText(e.target.value)}
             />
           </div>
-          <div role="radiogroup" aria-label="Why" className="ef-seg w-fit">
+          <ToggleGroup
+            type="single"
+            variant="outline"
+            aria-label="Why"
+            value={reason}
+            onValueChange={(v) => v && setReason(v as OperatorStockReason)}
+          >
             {(Object.keys(REASON_WORDS) as OperatorStockReason[]).map((r) => (
-              <button
-                key={r}
-                type="button"
-                aria-pressed={reason === r}
-                className={reason === r ? "is-active" : undefined}
-                onClick={() => setReason(r)}
-              >
+              <ToggleGroupItem key={r} value={r} className="px-3">
                 {REASON_WORDS[r]}
-              </button>
+              </ToggleGroupItem>
             ))}
-          </div>
+          </ToggleGroup>
         </div>
         {error ? (
           <p role="alert" className="text-sm font-medium">

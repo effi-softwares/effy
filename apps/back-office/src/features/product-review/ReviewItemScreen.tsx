@@ -16,6 +16,12 @@ import {
   DialogTitle,
   Label,
   Skeleton,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
   Tabs,
   TabsContent,
   TabsCount,
@@ -176,33 +182,33 @@ function ReviewItem({ item, onChanged }: { item: ReviewItemDetailDTO; onChanged:
                   {item.changes.length === 0 && !item.images.proposed ? (
                     <p className="px-5 py-4 text-sm text-muted-foreground">No details differ from the live product.</p>
                   ) : (
-                    <div className="ef-table-scroll">
-                      <table className="ef-table">
-                        <thead>
-                          <tr>
-                            <th>Detail</th>
-                            <th>Now</th>
-                            <th>Proposed</th>
-                          </tr>
-                        </thead>
-                        <tbody>
+                    <div className="min-w-0">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Detail</TableHead>
+                            <TableHead>Now</TableHead>
+                            <TableHead>Proposed</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
                           {item.changes.map((c) => (
-                            <tr key={c.field} className="align-top">
-                              <th scope="row" className="text-left font-medium">
+                            <TableRow key={c.field} className="align-top">
+                              <TableHead scope="row" className="text-left font-medium">
                                 {c.label}
-                              </th>
-                              <td className="whitespace-pre-line wrap-break-word text-muted-foreground line-through decoration-muted-foreground/40">
+                              </TableHead>
+                              <TableCell className="whitespace-pre-line wrap-break-word text-muted-foreground line-through decoration-muted-foreground/40">
                                 <span className="sr-only">was </span>
                                 {c.before ?? "nothing"}
-                              </td>
-                              <td className="whitespace-pre-line wrap-break-word font-medium">
+                              </TableCell>
+                              <TableCell className="whitespace-pre-line wrap-break-word font-medium">
                                 <span className="sr-only">proposed </span>
                                 {c.after ?? "nothing"}
-                              </td>
-                            </tr>
+                              </TableCell>
+                            </TableRow>
                           ))}
-                        </tbody>
-                      </table>
+                        </TableBody>
+                      </Table>
                     </div>
                   )}
                 </Panel>
@@ -252,7 +258,7 @@ function ReviewItem({ item, onChanged }: { item: ReviewItemDetailDTO; onChanged:
                   onChange={setEntry}
                   disabled={busy}
                 />
-                <p className="ef-sub">
+                <p className="mt-0.5 block text-sm text-muted-foreground">
                   {item.currentMargin
                     ? `Current margin: ${marginLabel(item.currentMargin)}.`
                     : "No margin has been set for this product."}
@@ -265,7 +271,7 @@ function ReviewItem({ item, onChanged }: { item: ReviewItemDetailDTO; onChanged:
                 ) : null}
                 <div className="grid gap-2">
                   {incomplete ? (
-                    <p className="ef-sub">
+                    <p className="mt-0.5 block text-sm text-muted-foreground">
                       It can't be approved until the shop fills in the required details. Send it back to ask.
                     </p>
                   ) : null}
@@ -281,7 +287,7 @@ function ReviewItem({ item, onChanged }: { item: ReviewItemDetailDTO; onChanged:
                     <Kbd className="ml-auto max-md:hidden">R</Kbd>
                   </Button>
                 </div>
-                <p className="ef-sub">
+                <p className="mt-0.5 block text-sm text-muted-foreground">
                   Approving publishes {item.kind === "change" ? "the change" : "the product"} to customers at once.
                 </p>
               </div>
@@ -315,7 +321,9 @@ function ReviewItem({ item, onChanged }: { item: ReviewItemDetailDTO; onChanged:
               onChange={(e) => setReason(e.target.value)}
               placeholder="e.g. The main image is a stock photo — use a photo of the product itself."
             />
-            <p className="ef-sub">The shop sees this, from Effy — not from you by name.</p>
+            <p className="mt-0.5 block text-sm text-muted-foreground">
+              The shop sees this, from Effy — not from you by name.
+            </p>
           </div>
           {message ? (
             <p role="alert" className="text-sm font-medium">
@@ -344,7 +352,7 @@ function ReviewItem({ item, onChanged }: { item: ReviewItemDetailDTO; onChanged:
 function Images({ title, images }: { title: string; images: ReviewImageDTO[] }) {
   return (
     <div className="space-y-2">
-      <h3 className="ef-sub font-medium">{title}</h3>
+      <h3 className="mt-0.5 block text-sm text-muted-foreground font-medium">{title}</h3>
       {images.length === 0 ? (
         <p className="text-sm text-muted-foreground">No images.</p>
       ) : (

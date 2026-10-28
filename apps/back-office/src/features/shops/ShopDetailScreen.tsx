@@ -5,7 +5,17 @@ import { Link, useNavigate } from "@tanstack/react-router"
 import { Boxes, Pencil, ScanLine, UserPlus, Users } from "lucide-react"
 
 import type { ShopLifecycleStatus } from "@effy/shared-types"
-import { Button, Skeleton, Switch, Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui"
+import {
+  Button,
+  Progress,
+  Skeleton,
+  Switch,
+  Tabs,
+  TabsContent,
+  TabsCount,
+  TabsList,
+  TabsTrigger,
+} from "@effy/design-system/ui"
 import { ErrorState, useHeaderDetail } from "@effy/web-kit/console"
 
 import { PageHeader, DetailRows, Panel } from "@effy/web-kit/patterns"
@@ -83,7 +93,7 @@ export function ShopDetailScreen({ shopId }: { shopId: string }) {
         }
         meta={
           <>
-            <span className="ef-code">{shop.code}</span>
+            <span className="font-mono">{shop.code}</span>
             <span>
               <Users aria-hidden="true" />
               {shop.users.length} {shop.users.length === 1 ? "operator" : "operators"}
@@ -155,7 +165,7 @@ export function ShopDetailScreen({ shopId }: { shopId: string }) {
               >
                 <DetailRows
                   rows={[
-                    { label: "Code", value: <span className="ef-code">{shop.code}</span> },
+                    { label: "Code", value: <span className="font-mono">{shop.code}</span> },
                     {
                       label: "Address",
                       value: address ?? (
@@ -174,14 +184,16 @@ export function ShopDetailScreen({ shopId }: { shopId: string }) {
                 <Panel
                   title="Label scanning"
                   description="How packages left this shop — scanned at collection, or recorded without a scan."
-                  actions={<span className="ef-sub">Last {scanning.sinceDays} days</span>}
+                  actions={
+                    <span className="mt-0.5 block text-sm text-muted-foreground">Last {scanning.sinceDays} days</span>
+                  }
                 >
                   <div className="space-y-3">
                     {scanTotal === 0 ? (
                       <p className="text-sm text-muted-foreground">{labelScanningText(scanning)}</p>
                     ) : (
                       <>
-                        <div className="ef-progress-label">
+                        <div className="mb-1 flex justify-between text-xs tabular-nums text-muted-foreground">
                           <span>
                             {scanning.scanned} scanned · {scanning.notScanned} not scanned
                           </span>
@@ -189,15 +201,10 @@ export function ShopDetailScreen({ shopId }: { shopId: string }) {
                             {Math.round((scanning.scanned / scanTotal) * 100)}%
                           </span>
                         </div>
-                        <div className="ef-meter">
-                          <i
-                            className="ef-meter__booked"
-                            style={{ width: `${(scanning.scanned / scanTotal) * 100}%` }}
-                          />
-                        </div>
+                        <Progress value={(scanning.scanned / scanTotal) * 100} height={8} />
                       </>
                     )}
-                    <p className="ef-sub">
+                    <p className="mt-0.5 block text-sm text-muted-foreground">
                       Not scanned means the driver typed the code or recorded the hand-over by hand. A falling rate
                       usually means labels aren't being printed.
                     </p>
@@ -209,7 +216,7 @@ export function ShopDetailScreen({ shopId }: { shopId: string }) {
                 <label className="flex items-start justify-between gap-4">
                   <span className="space-y-1">
                     <span className="block text-sm font-medium">Require pack scanning</span>
-                    <span className="ef-sub block">
+                    <span className="mt-0.5 block text-sm text-muted-foreground block">
                       Every bag's label must be scanned as it is packed. Printing every label is always required.
                     </span>
                   </span>
@@ -339,7 +346,7 @@ function DangerRow({
     <li className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
       <div className="min-w-0 flex-1">
         <div className="text-sm font-medium">{title}</div>
-        <p className="ef-sub">{body}</p>
+        <p className="mt-0.5 block text-sm text-muted-foreground">{body}</p>
       </div>
       <Button variant="outline" size="sm" onClick={onClick}>
         {action}

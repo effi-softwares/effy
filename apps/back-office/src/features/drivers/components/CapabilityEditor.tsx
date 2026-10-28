@@ -2,7 +2,7 @@ import { useState } from "react"
 
 import { useQuery } from "@tanstack/react-query"
 
-import { Button, Label } from "@effy/design-system/ui"
+import { Button, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@effy/design-system/ui"
 import type { CapabilityFunction, DriverCapability } from "@effy/shared-types"
 
 import { useSessionRoles } from "@/features/auth/useSessionRoles"
@@ -77,35 +77,35 @@ export function CapabilityEditor({ driverId }: { driverId: string }) {
         <div className="flex flex-wrap items-end gap-3">
           <div className="space-y-2">
             <Label htmlFor="cap-fn">Work</Label>
-            <select
-              id="cap-fn"
-              className="h-9 w-56 rounded-md border border-input bg-background px-3 text-sm"
-              value={fn}
-              onChange={(e) => setFn(e.target.value as CapabilityFunction)}
-            >
-              {(Object.keys(FUNCTION_LABEL) as CapabilityFunction[]).map((f) => (
-                <option key={f} value={f}>
-                  {FUNCTION_LABEL[f]}
-                </option>
-              ))}
-            </select>
+            <Select value={fn} onValueChange={(next) => setFn(next as CapabilityFunction)}>
+              <SelectTrigger id="cap-fn" className="w-56">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(Object.keys(FUNCTION_LABEL) as CapabilityFunction[]).map((f) => (
+                  <SelectItem key={f} value={f}>
+                    {FUNCTION_LABEL[f]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="cap-zone">Where</Label>
-            <select
-              id="cap-zone"
-              className="h-9 w-56 rounded-md border border-input bg-background px-3 text-sm"
-              value={zone}
-              onChange={(e) => setZone(e.target.value)}
-            >
-              <option value={EVERY_ZONE}>Everywhere (including new areas)</option>
-              {(zones.data ?? []).map((z) => (
-                <option key={z.id} value={z.id}>
-                  {z.name}
-                </option>
-              ))}
-            </select>
+            <Select value={zone} onValueChange={(next) => setZone(next)}>
+              <SelectTrigger id="cap-zone" className="w-56">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={EVERY_ZONE}>Everywhere (including new areas)</SelectItem>
+                {(zones.data ?? []).map((z) => (
+                  <SelectItem key={z.id} value={z.id}>
+                    {z.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <Button

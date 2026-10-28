@@ -66,7 +66,9 @@ export function HoldDialog({
             onChange={(e) => setReason(e.target.value)}
             placeholder="e.g. The maker has recalled this batch."
           />
-          <p className="ef-sub">The shop sees this, from Effy — not from you by name.</p>
+          <p className="mt-0.5 block text-sm text-muted-foreground">
+            The shop sees this, from Effy — not from you by name.
+          </p>
         </div>
         {error ? (
           <p role="alert" className="text-sm font-medium">

@@ -6,7 +6,17 @@ import { Lock } from "lucide-react"
 
 import type { AdminPromotionWriteDTO, PromotionAudience } from "@effy/shared-types"
 import { cn } from "@effy/design-system"
-import { Button, Checkbox, Input, Label, Skeleton, Switch, Textarea } from "@effy/design-system/ui"
+import {
+  Button,
+  Checkbox,
+  Input,
+  Label,
+  Skeleton,
+  Switch,
+  Textarea,
+  ToggleGroup,
+  ToggleGroupItem,
+} from "@effy/design-system/ui"
 import { ErrorState, useHeaderDetail } from "@effy/web-kit/console"
 import { Callout, PageHeader, Panel } from "@effy/web-kit/patterns"
 
@@ -141,7 +151,7 @@ function Editor({ current }: { current: Promotion | null }) {
                     { value: "automatic", label: "Automatically" },
                   ]}
                 />
-                <p className="ef-sub">
+                <p className="mt-0.5 block text-sm text-muted-foreground">
                   {d.trigger === "code"
                     ? "Shoppers type the code in their cart."
                     : "It applies by itself to every cart that qualifies."}
@@ -160,7 +170,9 @@ function Editor({ current }: { current: Promotion | null }) {
                     ]}
                   />
                   {d.codeMode === "single_use" ? (
-                    <p className="ef-sub">Generate the codes on the promotion's page once it is saved.</p>
+                    <p className="mt-0.5 block text-sm text-muted-foreground">
+                      Generate the codes on the promotion's page once it is saved.
+                    </p>
                   ) : (
                     <Field
                       id="promo-code"
@@ -352,10 +364,14 @@ function Editor({ current }: { current: Promotion | null }) {
                 }))}
               />
               {d.audience === "chosen" ? (
-                <p className="ef-sub">Add the customers on the promotion's page once it is saved.</p>
+                <p className="mt-0.5 block text-sm text-muted-foreground">
+                  Add the customers on the promotion's page once it is saved.
+                </p>
               ) : null}
               {d.audience === "new_customers" ? (
-                <p className="ef-sub">Customers whose account was created on or after the start date.</p>
+                <p className="mt-0.5 block text-sm text-muted-foreground">
+                  Customers whose account was created on or after the start date.
+                </p>
               ) : null}
               <div className="space-y-2">
                 <span className="text-sm font-medium">Delivery</span>
@@ -467,7 +483,7 @@ function Editor({ current }: { current: Promotion | null }) {
               />
               <span>
                 <span className="font-medium">Combines with other promotions</span>
-                <span className="ef-sub block">
+                <span className="mt-0.5 block text-sm text-muted-foreground block">
                   Off: when another offer gives the shopper more, that one applies instead of this.
                 </span>
               </span>
@@ -534,14 +550,14 @@ function Editor({ current }: { current: Promotion | null }) {
                       />
                       <span>
                         <span className="font-medium">{g.name}</span>
-                        <span className="ef-sub block font-mono">{g.key}</span>
+                        <span className="mt-0.5 block text-sm text-muted-foreground block font-mono">{g.key}</span>
                       </span>
                     </label>
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="ef-sub">No display groups yet.</p>
+              <p className="mt-0.5 block text-sm text-muted-foreground">No display groups yet.</p>
             )}
           </Panel>
 
@@ -551,8 +567,10 @@ function Editor({ current }: { current: Promotion | null }) {
             </p>
           ) : null}
 
-          <div className="ef-panel ef-panel__foot ef-panel__foot--between rounded-lg">
-            <span className="ef-sub">{current ? "Unsaved changes" : "Saved as a draft until you publish it."}</span>
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border bg-card px-5 py-3">
+            <span className="mt-0.5 block text-sm text-muted-foreground">
+              {current ? "Unsaved changes" : "Saved as a draft until you publish it."}
+            </span>
             <div className="flex flex-wrap gap-2">
               <Button type="button" variant="outline" onClick={() => void navigate(backTo)}>
                 Cancel
@@ -596,7 +614,7 @@ function Field({
         {label}
       </Label>
       {children}
-      {hint ? <p className="ef-sub">{hint}</p> : null}
+      {hint ? <p className="mt-0.5 block text-sm text-muted-foreground">{hint}</p> : null}
     </div>
   )
 }
@@ -617,20 +635,21 @@ function Choice<T extends string>({
   className?: string
 }) {
   return (
-    <div role="group" aria-label={label} className={cn("ef-seg", className)}>
+    <ToggleGroup
+      type="single"
+      variant="outline"
+      aria-label={label}
+      className={className}
+      disabled={disabled}
+      value={value}
+      onValueChange={(v) => v && onChange(v as T)}
+    >
       {options.map((o) => (
-        <button
-          key={o.value}
-          type="button"
-          disabled={disabled}
-          className={cn(value === o.value && "is-active")}
-          aria-pressed={value === o.value}
-          onClick={() => onChange(o.value)}
-        >
+        <ToggleGroupItem key={o.value} value={o.value} className="px-3">
           {o.label}
-        </button>
+        </ToggleGroupItem>
       ))}
-    </div>
+    </ToggleGroup>
   )
 }
 

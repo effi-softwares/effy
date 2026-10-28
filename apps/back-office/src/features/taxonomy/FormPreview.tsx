@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
 
+import { Badge } from "@effy/design-system/ui"
 import { GST_STATUS_WORDS, STORAGE_WORDS, type CategoryFormRow } from "@effy/shared-types"
 import { ErrorState } from "@effy/web-kit/console"
 
@@ -14,7 +15,7 @@ export function FormPreview({ categoryId }: { categoryId: string }) {
   return (
     <section className="space-y-3" aria-label="Shop form preview">
       <div>
-        <h3 className="ef-section-title">Shop form preview</h3>
+        <h3 className="text-base font-semibold">Shop form preview</h3>
         <p className="text-sm text-muted-foreground">
           A new product here starts {d.storage ? STORAGE_WORDS[d.storage].toLowerCase() : "with no storage set"},{" "}
           {d.gstStatus ? GST_STATUS_WORDS[d.gstStatus] : "with no GST status set"}
@@ -49,7 +50,9 @@ function PreviewRow({ row }: { row: CategoryFormRow }) {
           <span className="text-xs text-muted-foreground">Helps shoppers find this</span>
         ) : null}
         {row.variesByVariant ? <span className="text-xs text-muted-foreground">Per size</span> : null}
-        <span className="ef-tag ml-auto">from {row.sourceCategoryName ?? "this category"}</span>
+        <Badge variant="outline" className="ml-auto">
+          from {row.sourceCategoryName ?? "this category"}
+        </Badge>
       </div>
       <Field row={row} />
       {row.helpText ? <p className="text-xs text-muted-foreground">{row.helpText}</p> : null}
@@ -77,9 +80,9 @@ function Field({ row }: { row: CategoryFormRow }) {
       return (
         <div className="flex flex-wrap gap-1.5">
           {row.values.slice(0, 12).map((v) => (
-            <span key={v.id} className="ef-chip">
+            <Badge key={v.id} variant="secondary">
               {v.label}
-            </span>
+            </Badge>
           ))}
           {row.values.length > 12 ? (
             <span className="text-xs text-muted-foreground">+{row.values.length - 12} more</span>

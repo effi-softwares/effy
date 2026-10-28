@@ -11,7 +11,23 @@ import {
   type ProductImportProductDTO,
   type ProductImportState,
 } from "@effy/shared-types"
-import { Button, Label, Skeleton } from "@effy/design-system/ui"
+import {
+  Button,
+  Checkbox,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Skeleton,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@effy/design-system/ui"
 import { ErrorState, useHeaderBack } from "@effy/web-kit/console"
 import { Callout, EmptyState, PageHeader, Panel, StatusWord, type StatusTone } from "@effy/web-kit/patterns"
 
@@ -107,41 +123,56 @@ export function ImportsScreen() {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="import-shop">For which shop</Label>
-                <select
-                  id="import-shop"
-                  className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
+                <Select
                   value={shopId}
-                  onChange={(e) => setShopId(e.target.value)}
+                  onValueChange={(next) => {
+                    setShopId(next)
+                  }}
                 >
-                  <option value="">Choose a shop…</option>
-                  {(shops.data?.items ?? [])
-                    .filter((s) => s.status === "active")
-                    .map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
-                      </option>
-                    ))}
-                </select>
+                  <SelectTrigger id="import-shop" className="w-full">
+                    <SelectValue placeholder="Choose a shop…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(shops.data?.items ?? [])
+                      .filter((s) => s.status === "active")
+                      .map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
               </div>
               <MarginField id="import-margin" shopPrices={[]} value={margin} onChange={setMargin} />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="import-leaves">Aisles in the list (for their detail columns)</Label>
-              <select
-                id="import-leaves"
-                multiple
-                className="h-32 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={leafIds}
-                onChange={(e) => setLeafIds([...e.target.selectedOptions].map((o) => o.value).slice(0, 20))}
+              <p id="import-leaves" className="text-sm font-medium">
+                Aisles in the list (for their detail columns)
+              </p>
+              <ul
+                aria-labelledby="import-leaves"
+                className="max-h-48 divide-y overflow-y-auto rounded-lg border bg-background"
               >
-                {leaves.map((l) => (
-                  <option key={l.id} value={l.id}>
-                    {pathText(l.path)}
-                  </option>
-                ))}
-              </select>
-              <p className="ef-sub">
+                {leaves.map((l) => {
+                  const on = leafIds.includes(l.id)
+                  return (
+                    <li key={l.id}>
+                      <Label className="flex min-h-10 cursor-pointer items-center gap-3 px-3 py-2 font-normal hover:bg-row-hover">
+                        <Checkbox
+                          checked={on}
+                          disabled={!on && leafIds.length >= 20}
+                          onCheckedChange={(v) =>
+                            setLeafIds(v === true ? [...leafIds, l.id] : leafIds.filter((x) => x !== l.id))
+                          }
+                        />
+                        {pathText(l.path)}
+                      </Label>
+                    </li>
+                  )
+                })}
+              </ul>
+              <p className="mt-0.5 block text-sm text-muted-foreground">
                 Optional. Each chosen aisle adds a "Detail: …" column for every detail it asks for.
               </p>
             </div>
@@ -168,7 +199,11 @@ export function ImportsScreen() {
                 <Upload aria-hidden="true" />
                 {upload.isPending ? "Reading…" : "Upload the list"}
               </Button>
-              {!ready ? <span className="ef-sub">Choose the shop and Effy's margin first.</span> : null}
+              {!ready ? (
+                <span className="mt-0.5 block text-sm text-muted-foreground">
+                  Choose the shop and Effy's margin first.
+                </span>
+              ) : null}
             </div>
             {error ? (
               <p role="alert" className="text-sm font-medium">
@@ -184,27 +219,27 @@ export function ImportsScreen() {
         description="One row per size; rows with the same Product key are one product."
         flush
       >
-        <div className="ef-table-scroll">
-          <table className="ef-table">
-            <thead>
-              <tr>
-                <th>Column</th>
-                <th>Required</th>
-                <th>What goes in it</th>
-              </tr>
-            </thead>
-            <tbody>
+        <div className="min-w-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Column</TableHead>
+                <TableHead>Required</TableHead>
+                <TableHead>What goes in it</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {(columns.data?.columns ?? []).map((c) => (
-                <tr key={c.name}>
-                  <th scope="row" className="text-left font-medium">
+                <TableRow key={c.name}>
+                  <TableHead scope="row" className="text-left font-medium">
                     {c.name}
-                  </th>
-                  <td>{c.required ? "Yes" : ""}</td>
-                  <td className="text-muted-foreground">{c.help}</td>
-                </tr>
+                  </TableHead>
+                  <TableCell>{c.required ? "Yes" : ""}</TableCell>
+                  <TableCell className="text-muted-foreground">{c.help}</TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       </Panel>
 
@@ -216,38 +251,42 @@ export function ImportsScreen() {
         ) : items.length === 0 ? (
           <EmptyState icon={FileSpreadsheet} title="No imports yet" />
         ) : (
-          <div className="ef-table-scroll">
-            <table className="ef-table ef-rtable">
-              <thead>
-                <tr>
-                  <th>File</th>
-                  <th>Shop</th>
-                  <th>State</th>
-                  <th className="text-right">Rows</th>
-                  <th className="text-right">Created</th>
-                  <th className="max-md:hidden">When</th>
-                </tr>
-              </thead>
-              <tbody>
+          <div className="min-w-0">
+            <Table className="ef-rtable">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>File</TableHead>
+                  <TableHead>Shop</TableHead>
+                  <TableHead>State</TableHead>
+                  <TableHead className="text-right">Rows</TableHead>
+                  <TableHead className="text-right">Created</TableHead>
+                  <TableHead className="max-md:hidden">When</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {items.map((i) => (
-                  <tr key={i.importId}>
-                    <td data-m="primary">
+                  <TableRow key={i.importId}>
+                    <TableCell data-m="primary">
                       <Link to="/products/imports/$importId" params={{ importId: i.importId }} className="link">
                         {i.fileName}
                       </Link>
-                      {i.createdBy ? <div className="ef-sub">{i.createdBy}</div> : null}
-                    </td>
-                    <td>{i.shop.name}</td>
-                    <td data-m="badge">
+                      {i.createdBy ? (
+                        <div className="mt-0.5 block text-sm text-muted-foreground">{i.createdBy}</div>
+                      ) : null}
+                    </TableCell>
+                    <TableCell>{i.shop.name}</TableCell>
+                    <TableCell data-m="badge">
                       <StatusWord tone={STATE_TONE[i.state]}>{PRODUCT_IMPORT_STATE_WORDS[i.state]}</StatusWord>
-                    </td>
-                    <td className="text-right tabular-nums">{i.counts.rows}</td>
-                    <td className="text-right tabular-nums">{i.counts.created}</td>
-                    <td className="is-muted whitespace-nowrap max-md:hidden">{moment(i.createdAt)}</td>
-                  </tr>
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">{i.counts.rows}</TableCell>
+                    <TableCell className="text-right tabular-nums">{i.counts.created}</TableCell>
+                    <TableCell className="text-muted-foreground whitespace-nowrap max-md:hidden">
+                      {moment(i.createdAt)}
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         )}
       </Panel>
@@ -371,22 +410,22 @@ function Import({ i }: { i: ProductImportDTO }) {
 
 function ProductTable({ products }: { products: readonly ProductImportProductDTO[] }) {
   return (
-    <div className="ef-table-scroll">
-      <table className="ef-table">
-        <thead>
-          <tr>
-            <th>Product</th>
-            <th>Rows</th>
-            <th>Pictures</th>
-            <th>What is wrong</th>
-          </tr>
-        </thead>
-        <tbody>
+    <div className="min-w-0">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Product</TableHead>
+            <TableHead>Rows</TableHead>
+            <TableHead>Pictures</TableHead>
+            <TableHead>What is wrong</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {products.map((p) => {
             const problems = p.rows.flatMap((r) => r.problems.map((x) => ({ row: r.rowNumber, ...x })))
             return (
-              <tr key={p.key} className="align-top">
-                <td>
+              <TableRow key={p.key} className="align-top">
+                <TableCell>
                   {p.productId ? (
                     <Link to="/products/$productId" params={{ productId: p.productId }} className="link">
                       {p.name}
@@ -397,10 +436,10 @@ function ProductTable({ products }: { products: readonly ProductImportProductDTO
                   <div className="mt-1">
                     <StatusWord tone={RESULT[p.result].tone}>{RESULT[p.result].word}</StatusWord>
                   </div>
-                </td>
-                <td className="tabular-nums">{p.rows.map((r) => r.rowNumber).join(", ")}</td>
-                <td className="tabular-nums">{p.pictures}</td>
-                <td>
+                </TableCell>
+                <TableCell className="tabular-nums">{p.rows.map((r) => r.rowNumber).join(", ")}</TableCell>
+                <TableCell className="tabular-nums">{p.pictures}</TableCell>
+                <TableCell>
                   {problems.length === 0 ? (
                     <span className="text-muted-foreground">—</span>
                   ) : (
@@ -413,12 +452,12 @@ function ProductTable({ products }: { products: readonly ProductImportProductDTO
                       ))}
                     </ul>
                   )}
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             )
           })}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   )
 }

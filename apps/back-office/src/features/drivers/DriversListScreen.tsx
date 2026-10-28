@@ -5,7 +5,22 @@ import { Link } from "@tanstack/react-router"
 
 import { CircleAlert, UserX } from "lucide-react"
 
-import { Checkbox, Skeleton, Tabs, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui"
+import {
+  Avatar,
+  AvatarFallback,
+  Checkbox,
+  Skeleton,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Tabs,
+  TabsCount,
+  TabsList,
+  TabsTrigger,
+} from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 import type { AdminDriverListItem, DriverEmploymentStatus } from "@effy/shared-types"
 
@@ -137,7 +152,7 @@ export function DriversListScreen() {
       ) : isError ? (
         <ErrorState error={error} onRetry={() => void refetch()} />
       ) : isPending ? (
-        <div className="ef-table-wrap p-4" aria-busy="true">
+        <div className="overflow-hidden rounded-xl border bg-card p-4" aria-busy="true">
           <Skeleton className="mb-3 h-10" />
           <Skeleton className="mb-3 h-10" />
           <Skeleton className="h-10" />
@@ -153,24 +168,24 @@ export function DriversListScreen() {
           }
         />
       ) : (
-        <div className="ef-table-wrap">
-          <div className="ef-table-scroll">
-            <table className="ef-table ef-rtable">
-              <thead>
-                <tr>
-                  <th>Driver</th>
-                  <th>Work email</th>
-                  <th>Cleared for</th>
-                  <th>Duty</th>
-                  <th>Employment</th>
-                </tr>
-              </thead>
-              <tbody>
+        <div className="overflow-hidden rounded-xl border bg-card">
+          <div className="min-w-0">
+            <Table className="ef-rtable">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Driver</TableHead>
+                  <TableHead>Work email</TableHead>
+                  <TableHead>Cleared for</TableHead>
+                  <TableHead>Duty</TableHead>
+                  <TableHead>Employment</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {data.items.map((d) => (
                   <DriverRow key={d.id} driver={d} />
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
           {cursors.length > 0 || data.nextCursor ? (
             <Pager
@@ -193,29 +208,29 @@ function DriverRow({ driver: d }: { driver: AdminDriverListItem }) {
   const what = c.functions.length === 2 ? "Collect + deliver" : c.functions[0] === "collection" ? "Collect" : "Deliver"
   const where = c.coversEveryZone ? "every zone" : `${c.total} grant${c.total === 1 ? "" : "s"}`
   return (
-    <tr>
-      <td data-m="primary">
+    <TableRow>
+      <TableCell data-m="primary">
         <div className="flex items-center gap-3">
-          <span className="avatar avatar--sq max-md:hidden" aria-hidden="true">
-            {initialsOf(d.name)}
-          </span>
+          <Avatar aria-hidden="true" className="rounded-lg max-md:hidden">
+            <AvatarFallback className="rounded-lg">{initialsOf(d.name)}</AvatarFallback>
+          </Avatar>
           <div className="min-w-0">
             <Link to="/drivers/$driverId" params={{ driverId: d.id }} className="link">
               {d.name}
             </Link>
             {blocked ? (
-              <span className="ef-sub flex items-center gap-1 font-medium text-foreground">
+              <span className="mt-0.5 block text-sm text-muted-foreground flex items-center gap-1 font-medium text-foreground">
                 <CircleAlert aria-hidden="true" className="size-3 shrink-0" />
                 {blocked}
               </span>
             ) : null}
           </div>
         </div>
-      </td>
-      <td data-m="meta" className="is-muted">
+      </TableCell>
+      <TableCell data-m="meta" className="text-muted-foreground">
         {d.workEmail}
-      </td>
-      <td data-m="meta" data-label="Cleared for">
+      </TableCell>
+      <TableCell data-m="meta" data-label="Cleared for">
         {c.total === 0 ? (
           <span className="font-medium">Nothing yet</span>
         ) : (
@@ -223,15 +238,15 @@ function DriverRow({ driver: d }: { driver: AdminDriverListItem }) {
             {what} <span className="text-muted-foreground">· {where}</span>
           </>
         )}
-      </td>
-      <td data-m="trail">
+      </TableCell>
+      <TableCell data-m="trail">
         {d.dutyState === "on_duty" ? <DotWord tone="busy">On duty</DotWord> : <DotWord tone="off">Off duty</DotWord>}
-      </td>
-      <td data-m="badge">
+      </TableCell>
+      <TableCell data-m="badge">
         <StatusWord tone={d.status === "active" ? "done" : d.status === "suspended" ? "problem" : "quiet"}>
           {STATUS_LABEL[d.status]}
         </StatusWord>
-      </td>
-    </tr>
+      </TableCell>
+    </TableRow>
   )
 }

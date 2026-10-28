@@ -45,10 +45,15 @@ export function StatusPage({ kind, onRetry }: { kind: StatusKind; onRetry?: () =
   const k = KINDS[kind]
   return (
     <div className="mx-auto flex max-w-115 flex-1 flex-col items-center justify-center gap-3 py-12 text-center">
-      <span className={cn("ef-icon-tile size-14!", k.problem && "ef-icon-tile--problem")}>
-        <k.icon aria-hidden="true" className="size-7!" />
+      <span
+        className={cn(
+          "grid size-14 place-items-center rounded-xl bg-muted text-foreground",
+          k.problem && "bg-foreground text-background",
+        )}
+      >
+        <k.icon aria-hidden="true" className="size-7" />
       </span>
-      <span className="ef-code text-muted-foreground">{k.code}</span>
+      <span className="font-mono text-muted-foreground">{k.code}</span>
       <h1 className="text-2xl font-semibold tracking-tight">{k.title}</h1>
       <p className="text-sm text-balance text-muted-foreground">{k.body}</p>
       <div className="mt-2 flex flex-wrap justify-center gap-2">

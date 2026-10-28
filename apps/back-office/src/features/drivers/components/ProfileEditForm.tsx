@@ -1,7 +1,17 @@
 import { useState } from "react"
 
 import type { AdminDriverProfile, AdminDriverUpdateRequest } from "@effy/shared-types"
-import { Button, Input, Label, Textarea } from "@effy/design-system/ui"
+import {
+  Button,
+  Input,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Textarea,
+} from "@effy/design-system/ui"
 
 import { driverActionError } from "../errorText"
 import { useUpdateDriver } from "../queries"
@@ -70,18 +80,24 @@ export function ProfileEditForm({ driver, onDone }: { driver: AdminDriverProfile
         </Field>
 
         <Field id="f-licence-class" label="Licence class">
-          <select
-            id="f-licence-class"
-            className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-            value={licenceClass}
-            onChange={(e) => setLicenceClass(e.target.value)}
+          <Select
+            value={licenceClass || "__none"}
+            onValueChange={(raw) => {
+              const next = raw === "__none" ? "" : raw
+              setLicenceClass(next)
+            }}
           >
-            <option value="">Not recorded</option>
-            <option value="C">C — car and light vehicle</option>
-            <option value="LR">LR — light rigid</option>
-            <option value="MR">MR — medium rigid</option>
-            <option value="HR">HR — heavy rigid</option>
-          </select>
+            <SelectTrigger id="f-licence-class" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none">Not recorded</SelectItem>
+              <SelectItem value="C">C — car and light vehicle</SelectItem>
+              <SelectItem value="LR">LR — light rigid</SelectItem>
+              <SelectItem value="MR">MR — medium rigid</SelectItem>
+              <SelectItem value="HR">HR — heavy rigid</SelectItem>
+            </SelectContent>
+          </Select>
           <p className="text-xs text-muted-foreground">
             Recorded so the platform can check a driver may legally drive the vehicle they hold.
           </p>

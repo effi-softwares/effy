@@ -3,12 +3,20 @@ import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 
 import { DELIVERY_FEE_LINE_LABEL, type FeePlanKind, type FeePlanDTO, type FeeSimulationDTO } from "@effy/shared-types"
-import { Button, Checkbox, Input, Label } from "@effy/design-system/ui"
+import {
+  Button,
+  Checkbox,
+  Input,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@effy/design-system/ui"
 
 import { slotsQuery, useSimulateFee } from "../queries"
 import { pricingError } from "./gapText"
-
-const SELECT = "h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
 
 export function FeeSimulator({ plans, kind }: { plans: FeePlanDTO[]; kind: FeePlanKind }) {
   const slots = useQuery({ ...slotsQuery(), enabled: kind === "effy" })
@@ -48,14 +56,25 @@ export function FeeSimulator({ plans, kind }: { plans: FeePlanDTO[]; kind: FeePl
       <form onSubmit={run} className="space-y-3">
         <div className="space-y-2">
           <Label htmlFor="sim-plan">Plan</Label>
-          <select id="sim-plan" className={SELECT} value={planId} onChange={(e) => setPlanId(e.target.value)}>
-            <option value="">The one in force</option>
-            {plans.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name} ({p.state})
-              </option>
-            ))}
-          </select>
+          <Select
+            value={planId || "__none"}
+            onValueChange={(raw) => {
+              const next = raw === "__none" ? "" : raw
+              setPlanId(next)
+            }}
+          >
+            <SelectTrigger id="sim-plan" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none">The one in force</SelectItem>
+              {plans.map((p) => (
+                <SelectItem key={p.id} value={p.id}>
+                  {p.name} ({p.state})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="grid grid-cols-3 gap-3">
           <div className="space-y-2">
@@ -81,16 +100,27 @@ export function FeeSimulator({ plans, kind }: { plans: FeePlanDTO[]; kind: FeePl
           <div className="grid grid-cols-2 items-end gap-3">
             <div className="space-y-2">
               <Label htmlFor="sim-window">Window</Label>
-              <select id="sim-window" className={SELECT} value={slotId} onChange={(e) => setSlotId(e.target.value)}>
-                <option value="">None — a later day</option>
-                {(slots.data ?? [])
-                  .filter((s) => !s.anyTime)
-                  .map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.startTime}–{s.endTime}
-                    </option>
-                  ))}
-              </select>
+              <Select
+                value={slotId || "__none"}
+                onValueChange={(raw) => {
+                  const next = raw === "__none" ? "" : raw
+                  setSlotId(next)
+                }}
+              >
+                <SelectTrigger id="sim-window" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none">None — a later day</SelectItem>
+                  {(slots.data ?? [])
+                    .filter((s) => !s.anyTime)
+                    .map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.startTime}–{s.endTime}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="flex h-9 items-center gap-2">
               <Checkbox

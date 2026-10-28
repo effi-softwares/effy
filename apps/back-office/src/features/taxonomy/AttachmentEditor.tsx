@@ -3,7 +3,21 @@ import { useMemo, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { EyeOff, Plus, Trash2 } from "lucide-react"
 
-import { Button, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@effy/design-system/ui"
+import {
+  Button,
+  Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@effy/design-system/ui"
 import {
   INPUT_TYPE_WORDS,
   LEVEL_ORDER,
@@ -67,31 +81,31 @@ export function AttachmentEditor({
   return (
     <div className="space-y-6">
       <section className="space-y-2">
-        <h3 className="ef-section-title">Inherited</h3>
+        <h3 className="text-base font-semibold">Inherited</h3>
         {inherited.length === 0 ? (
           <p className="text-sm text-muted-foreground">Nothing is inherited from above.</p>
         ) : (
-          <div className="ef-table-wrap">
-            <table className="ef-table ef-table--compact">
-              <thead>
-                <tr>
-                  <th>Attribute</th>
-                  <th>From</th>
-                  <th>Level</th>
-                  {editable ? <th className="sr-only">Actions</th> : null}
-                </tr>
-              </thead>
-              <tbody>
+          <div className="overflow-hidden rounded-xl border bg-card">
+            <Table className="[&_td]:py-2">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Attribute</TableHead>
+                  <TableHead>From</TableHead>
+                  <TableHead>Level</TableHead>
+                  {editable ? <TableHead className="sr-only">Actions</TableHead> : null}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {inherited.map((r) => (
-                  <tr key={r.attributeId}>
-                    <td>
+                  <TableRow key={r.attributeId}>
+                    <TableCell>
                       <span className="font-medium">{r.name}</span>
                       <span className="block text-xs text-muted-foreground">{INPUT_TYPE_WORDS[r.inputType]}</span>
-                    </td>
-                    <td className="text-muted-foreground">{r.sourceCategoryName ?? "—"}</td>
-                    <td>{LEVEL_WORDS[r.level]}</td>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{r.sourceCategoryName ?? "—"}</TableCell>
+                    <TableCell>{LEVEL_WORDS[r.level]}</TableCell>
                     {editable ? (
-                      <td>
+                      <TableCell>
                         <div className="flex justify-end gap-2">
                           <Stricter
                             current={r.level}
@@ -111,33 +125,33 @@ export function AttachmentEditor({
                             Hide here
                           </Button>
                         </div>
-                      </td>
+                      </TableCell>
                     ) : null}
-                  </tr>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         )}
       </section>
 
       <section className="space-y-2">
-        <h3 className="ef-section-title">Set on this category</h3>
+        <h3 className="text-base font-semibold">Set on this category</h3>
         {own.length === 0 ? (
           <p className="text-sm text-muted-foreground">Nothing yet.</p>
         ) : (
-          <div className="ef-table-wrap">
-            <table className="ef-table ef-table--compact">
-              <thead>
-                <tr>
-                  <th>Attribute</th>
-                  <th>Level</th>
-                  <th>Section</th>
-                  <th>Order</th>
-                  {editable ? <th className="sr-only">Actions</th> : null}
-                </tr>
-              </thead>
-              <tbody>
+          <div className="overflow-hidden rounded-xl border bg-card">
+            <Table className="[&_td]:py-2">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Attribute</TableHead>
+                  <TableHead>Level</TableHead>
+                  <TableHead>Section</TableHead>
+                  <TableHead>Order</TableHead>
+                  {editable ? <TableHead className="sr-only">Actions</TableHead> : null}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {own.map((o) => (
                   <OwnRow
                     key={o.attributeId}
@@ -149,8 +163,8 @@ export function AttachmentEditor({
                     onRemove={() => void detach(o.attributeId)}
                   />
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         )}
         {editable ? (
@@ -217,21 +231,21 @@ function OwnRow({
   const [position, setPosition] = useState(own.position === null ? "" : String(own.position))
   if (own.hidden) {
     return (
-      <tr>
-        <td className="font-medium">{own.name}</td>
-        <td colSpan={3} className="text-muted-foreground">
+      <TableRow>
+        <TableCell className="font-medium">{own.name}</TableCell>
+        <TableCell colSpan={3} className="text-muted-foreground">
           Hidden here and below
-        </td>
+        </TableCell>
         {editable ? (
-          <td>
+          <TableCell>
             <div className="flex justify-end">
               <Button type="button" size="sm" variant="outline" disabled={busy} onClick={onRemove}>
                 Show again
               </Button>
             </div>
-          </td>
+          </TableCell>
         ) : null}
-      </tr>
+      </TableRow>
     )
   }
   const level = own.level!
@@ -243,9 +257,9 @@ function OwnRow({
       position: (patch.position ?? position).trim() === "" ? null : Number(patch.position ?? position),
     })
   return (
-    <tr>
-      <td className="font-medium">{own.name}</td>
-      <td>
+    <TableRow>
+      <TableCell className="font-medium">{own.name}</TableCell>
+      <TableCell>
         <Select value={level} onValueChange={(v) => save({ level: v as AttributeLevel })} disabled={!editable || busy}>
           <SelectTrigger className="h-10 w-36" aria-label={`${own.name} level`}>
             <SelectValue />
@@ -258,8 +272,8 @@ function OwnRow({
             ))}
           </SelectContent>
         </Select>
-      </td>
-      <td>
+      </TableCell>
+      <TableCell>
         <Input
           className="h-10 w-40"
           aria-label={`${own.name} section`}
@@ -270,8 +284,8 @@ function OwnRow({
           onChange={(e) => setSection(e.target.value)}
           onBlur={() => section.trim() !== (own.section ?? "") && save({})}
         />
-      </td>
-      <td>
+      </TableCell>
+      <TableCell>
         <Input
           className="h-10 w-20"
           aria-label={`${own.name} order`}
@@ -281,9 +295,9 @@ function OwnRow({
           onChange={(e) => setPosition(e.target.value.replace(/\D/g, ""))}
           onBlur={() => position !== (own.position === null ? "" : String(own.position)) && save({})}
         />
-      </td>
+      </TableCell>
       {editable ? (
-        <td>
+        <TableCell>
           <div className="flex justify-end">
             <Button
               type="button"
@@ -296,9 +310,9 @@ function OwnRow({
               <Trash2 />
             </Button>
           </div>
-        </td>
+        </TableCell>
       ) : null}
-    </tr>
+    </TableRow>
   )
 }
 

@@ -5,7 +5,19 @@ import { useQuery } from "@tanstack/react-query"
 import { Link, useSearch } from "@tanstack/react-router"
 import { ChevronRight, Coins, History, Search, SearchX } from "lucide-react"
 
-import { Button, Input, Skeleton } from "@effy/design-system/ui"
+import {
+  Avatar,
+  AvatarFallback,
+  Button,
+  Input,
+  Skeleton,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 
 import { PageHeader, EmptyState } from "@effy/web-kit/patterns"
@@ -86,17 +98,21 @@ function CustomerSearch() {
           </p>
           {recent.length > 0 ? (
             <>
-              <h2 id="recent-h" className="ef-eyebrow">
+              <h2 id="recent-h" className="text-xs font-medium text-muted-foreground">
                 Your recent customers
               </h2>
-              <ul className="ef-panel divide-y divide-border">
+              <ul className="divide-y overflow-hidden rounded-xl border bg-card">
                 {recent.map((r) => (
                   <li key={r.id}>
-                    <Link to="/customers/$customerId" params={{ customerId: r.id }} className="ef-attn">
+                    <Link
+                      to="/customers/$customerId"
+                      params={{ customerId: r.id }}
+                      className="flex min-h-14 items-center gap-4 px-5 py-3 text-sm no-underline hover:bg-row-hover max-md:gap-3 max-md:px-4"
+                    >
                       <History aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
-                      <span className="ef-attn__text">
-                        <span className="ef-attn__title">{r.name || r.email}</span>
-                        <span className="ef-attn__desc block">
+                      <span className="min-w-0 flex-auto">
+                        <span className="font-medium">{r.name || r.email}</span>
+                        <span className="block text-muted-foreground">
                           {r.email} · {formatPoints(r.points)} points
                         </span>
                       </span>
@@ -112,7 +128,7 @@ function CustomerSearch() {
       ) : search.isError ? (
         <ErrorState error={search.error} onRetry={() => void search.refetch()} />
       ) : search.isPending ? (
-        <div className="ef-table-wrap p-4" aria-busy="true">
+        <div className="overflow-hidden rounded-xl border bg-card p-4" aria-busy="true">
           <Skeleton className="mb-3 h-10" />
           <Skeleton className="h-10" />
         </div>
@@ -127,25 +143,27 @@ function CustomerSearch() {
           <p className="text-sm text-muted-foreground">
             {search.data.length} {search.data.length === 1 ? "customer matches" : "customers match"} “{query}”
           </p>
-          <div className="ef-table-wrap">
-            <div className="ef-table-scroll">
-              <table className="ef-table ef-rtable">
-                <thead>
-                  <tr>
-                    <th>Customer</th>
-                    <th>Email</th>
-                    <th className="is-num">Points</th>
-                    <th className="is-num">Orders</th>
-                  </tr>
-                </thead>
-                <tbody>
+          <div className="overflow-hidden rounded-xl border bg-card">
+            <div className="min-w-0">
+              <Table className="ef-rtable">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Customer</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead numeric>Points</TableHead>
+                    <TableHead numeric>Orders</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {search.data.map((c) => (
-                    <tr key={c.id}>
-                      <td data-m="primary">
+                    <TableRow key={c.id}>
+                      <TableCell data-m="primary">
                         <div className="flex items-center gap-3">
-                          <span className="avatar avatar--blue" aria-hidden="true">
-                            {initialsOf(c.name || c.email)}
-                          </span>
+                          <Avatar aria-hidden="true">
+                            <AvatarFallback className="bg-primary-muted text-primary">
+                              {initialsOf(c.name || c.email)}
+                            </AvatarFallback>
+                          </Avatar>
                           <Link
                             to="/customers/$customerId"
                             params={{ customerId: c.id }}
@@ -157,18 +175,18 @@ function CustomerSearch() {
                             {c.name || c.email}
                           </Link>
                         </div>
-                      </td>
-                      <td data-m="meta">{c.email}</td>
-                      <td data-m="trail" className="is-num">
+                      </TableCell>
+                      <TableCell data-m="meta">{c.email}</TableCell>
+                      <TableCell numeric data-m="trail">
                         {formatPoints(c.points)}
-                      </td>
-                      <td data-m="meta" data-label="Orders" className="is-num">
+                      </TableCell>
+                      <TableCell numeric data-m="meta" data-label="Orders">
                         {c.orderCount}
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           </div>
         </section>

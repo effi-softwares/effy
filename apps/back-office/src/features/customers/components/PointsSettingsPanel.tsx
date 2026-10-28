@@ -7,7 +7,7 @@ import type { PointsSettingsDTO } from "@effy/shared-types"
 import { Button, Input, Label, toast } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 
-import { Panel } from "@effy/web-kit/patterns"
+import { Panel, Timeline, TimelineItem } from "@effy/web-kit/patterns"
 import { sessionQuery } from "@/features/auth/queries"
 
 import { canEditPointsSettings } from "../access"
@@ -104,7 +104,7 @@ export function PointsSettingsPanel() {
         >
           <div>
             {FIELDS.map((f) => (
-              <div key={f.key} className="ef-switch-row">
+              <div key={f.key} className="flex items-center justify-between gap-4 border-b py-3 last:border-b-0">
                 <div className="min-w-0">
                   <Label htmlFor={`ps-${f.key}`}>{f.label}</Label>
                   <p className="mt-1 text-sm text-muted-foreground">{f.help}</p>
@@ -131,20 +131,20 @@ export function PointsSettingsPanel() {
         {(s.history ?? []).length === 0 ? (
           <p className="text-sm text-muted-foreground">No changes yet.</p>
         ) : (
-          <ol className="ef-tl">
+          <Timeline>
             {(s.history ?? []).map((h, i) => (
-              <li key={i} className="ef-tl__item">
-                <span className="ef-tl__mark" aria-hidden="true" />
-                <div>
-                  <div className="ef-tl__title">{FIELDS.find((f) => f.key === h.field)?.label ?? h.field}</div>
-                  <div className="ef-tl__body tabular-nums">
-                    {h.oldValue} → {h.newValue}
-                  </div>
-                </div>
-                <span className="ef-tl__time">{when(h.changedAt)}</span>
-              </li>
+              <TimelineItem
+                key={i}
+                icon={null}
+                title={FIELDS.find((f) => f.key === h.field)?.label ?? h.field}
+                time={when(h.changedAt)}
+              >
+                <span className="tabular-nums">
+                  {h.oldValue} → {h.newValue}
+                </span>
+              </TimelineItem>
             ))}
-          </ol>
+          </Timeline>
         )}
       </Panel>
     </div>

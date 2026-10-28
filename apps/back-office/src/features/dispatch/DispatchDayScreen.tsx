@@ -4,7 +4,17 @@ import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import { CalendarClock, PackageX, Truck, UserX } from "lucide-react"
 
-import { Skeleton, Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui"
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  Skeleton,
+  Tabs,
+  TabsContent,
+  TabsCount,
+  TabsList,
+  TabsTrigger,
+} from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 
 import { PageHeader } from "@effy/web-kit/patterns"
@@ -42,13 +52,15 @@ export function DispatchDayScreen() {
         <>
           {data.failedParcels &&
           (Number(data.failedParcels.withDrivers) > 0 || Number(data.failedParcels.returnedAwaitingDecision) > 0) ? (
-            <Link to="/exceptions" className="ef-alert ef-alert--destructive no-underline">
-              <PackageX aria-hidden="true" />
-              <div className="ef-alert__title">
-                Failed deliveries: {data.failedParcels.withDrivers} still with drivers ·{" "}
-                {data.failedParcels.returnedAwaitingDecision} back at the hub, waiting for a decision.
-              </div>
-              <div className="ef-alert__description">See exceptions — each one has a customer still waiting.</div>
+            <Link to="/exceptions" className="block no-underline">
+              <Alert variant="destructive" className="hover:bg-row-hover">
+                <PackageX aria-hidden="true" />
+                <AlertTitle>
+                  Failed deliveries: {data.failedParcels.withDrivers} still with drivers ·{" "}
+                  {data.failedParcels.returnedAwaitingDecision} back at the hub, waiting for a decision.
+                </AlertTitle>
+                <AlertDescription>See exceptions — each one has a customer still waiting.</AlertDescription>
+              </Alert>
             </Link>
           ) : null}
 

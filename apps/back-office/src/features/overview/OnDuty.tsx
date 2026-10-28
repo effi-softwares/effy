@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 
-import { Button, Skeleton } from "@effy/design-system/ui"
+import { Avatar, AvatarFallback, Button, Skeleton } from "@effy/design-system/ui"
 import { Panel, DotWord } from "@effy/web-kit/patterns"
 import { initialsOf } from "@/components/shell/identity"
 import { dispatchDayQuery } from "@/features/dispatch/queries"
@@ -73,12 +73,14 @@ export function OnDuty() {
                 : "Nothing assigned yet"
             return (
               <li key={d.driverId} className="flex items-center gap-3 px-5 py-3">
-                <span className="avatar avatar--sq">{initialsOf(d.driverName)}</span>
+                <Avatar className="rounded-lg">
+                  <AvatarFallback className="rounded-lg">{initialsOf(d.driverName)}</AvatarFallback>
+                </Avatar>
                 <div className="min-w-0 flex-1">
                   <Link to="/drivers/$driverId" params={{ driverId: d.driverId }} className="link">
                     {d.driverName}
                   </Link>
-                  <span className="ef-sub truncate">{doing}</span>
+                  <span className="mt-0.5 block text-sm text-muted-foreground truncate">{doing}</span>
                 </div>
                 {isBlocked ? (
                   <DotWord tone="alert">Blocked</DotWord>

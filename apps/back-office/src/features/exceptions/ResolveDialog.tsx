@@ -1,6 +1,5 @@
 import { useState } from "react"
 
-import { cn } from "@effy/design-system"
 import {
   Button,
   Dialog,
@@ -10,6 +9,8 @@ import {
   DialogHeader,
   DialogTitle,
   Label,
+  RadioGroup,
+  RadioGroupItem,
   Textarea,
 } from "@effy/design-system/ui"
 import { EXCEPTION_OUTCOMES, type DeliveryExceptionDTO, type ExceptionOutcome } from "@effy/shared-types"
@@ -72,21 +73,24 @@ export function ResolveDialog({ exception: e, disabled }: { exception: DeliveryE
           </DialogHeader>
           <fieldset className="space-y-2">
             <legend className="mb-2 text-sm font-medium">Outcome</legend>
-            <div className="grid gap-2 sm:grid-cols-2" role="radiogroup">
+            <RadioGroup
+              className="grid gap-2 sm:grid-cols-2"
+              value={outcome}
+              onValueChange={(v) => setOutcome(v as typeof outcome)}
+            >
               {EXCEPTION_OUTCOMES.map((o) => (
-                <button
+                <Label
                   key={o}
-                  type="button"
-                  role="radio"
-                  aria-checked={outcome === o}
-                  onClick={() => setOutcome(o)}
-                  className={cn("ef-choice-card flex-col gap-1! text-left", outcome === o && "is-checked")}
+                  className="flex cursor-pointer items-start gap-3 rounded-lg border bg-background p-3 text-sm font-normal transition-colors hover:bg-accent/50 has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary-muted/40"
                 >
-                  <span className="text-sm font-medium">{OUTCOME_WORDS[o].label}</span>
-                  <span className="text-xs text-muted-foreground">{OUTCOME_WORDS[o].hint}</span>
-                </button>
+                  <RadioGroupItem value={o} className="mt-0.5" />
+                  <span className="grid gap-1">
+                    <span className="font-medium">{OUTCOME_WORDS[o].label}</span>
+                    <span className="text-xs text-muted-foreground">{OUTCOME_WORDS[o].hint}</span>
+                  </span>
+                </Label>
               ))}
-            </div>
+            </RadioGroup>
           </fieldset>
           <div className="space-y-2">
             <Label htmlFor="resolve-note">{outcome === "other" ? "What happened" : "Note (optional)"}</Label>

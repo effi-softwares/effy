@@ -4,7 +4,7 @@ import { Link } from "@tanstack/react-router"
 import { Hand, PencilLine, Undo2 } from "lucide-react"
 
 import type { BackOfficeProductDTO } from "@effy/shared-types"
-import { Button } from "@effy/design-system/ui"
+import { Alert, AlertDescription, Button } from "@effy/design-system/ui"
 
 import { useSessionRoles } from "@/features/auth/useSessionRoles"
 
@@ -20,9 +20,9 @@ export function ProductPage({ productId }: { productId: string }) {
   return (
     <>
       {notice ? (
-        <p role="status" className="ef-alert ef-alert--info text-sm">
-          {notice}
-        </p>
+        <Alert role="status" variant="info">
+          <AlertDescription className="text-foreground">{notice}</AlertDescription>
+        </Alert>
       ) : null}
       <ProductScreen
         productId={productId}

@@ -4,7 +4,19 @@ import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import { CircleAlert, Truck } from "lucide-react"
 
-import { Checkbox, Skeleton, Tabs, TabsList, TabsTrigger } from "@effy/design-system/ui"
+import {
+  Checkbox,
+  Skeleton,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+} from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 import type { VehicleListItem, VehicleOwnership, VehicleStatus } from "@effy/shared-types"
 
@@ -138,7 +150,7 @@ export function VehiclesListScreen() {
       {query.isError ? (
         <ErrorState error={query.error} onRetry={() => void query.refetch()} />
       ) : query.isPending ? (
-        <div className="ef-table-wrap p-4" aria-busy="true">
+        <div className="overflow-hidden rounded-xl border bg-card p-4" aria-busy="true">
           <Skeleton className="mb-3 h-10" />
           <Skeleton className="mb-3 h-10" />
           <Skeleton className="h-10" />
@@ -154,25 +166,25 @@ export function VehiclesListScreen() {
           }
         />
       ) : (
-        <div className="ef-table-wrap">
-          <div className="ef-table-scroll">
-            <table className="ef-table ef-rtable">
-              <thead>
-                <tr>
-                  <th>Plate</th>
-                  <th>Vehicle</th>
-                  <th>Carries</th>
-                  <th>Owner</th>
-                  <th>With</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
+        <div className="overflow-hidden rounded-xl border bg-card">
+          <div className="min-w-0">
+            <Table className="ef-rtable">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Plate</TableHead>
+                  <TableHead>Vehicle</TableHead>
+                  <TableHead>Carries</TableHead>
+                  <TableHead>Owner</TableHead>
+                  <TableHead>With</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {items.map((v) => (
                   <VehicleRow key={v.id} vehicle={v} />
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
           {query.data.nextCursor || cursorStack.length > 0 ? (
             <Pager
@@ -196,23 +208,23 @@ export function vehicleStatusTone(s: VehicleStatus) {
 function VehicleRow({ vehicle: v }: { vehicle: VehicleListItem }) {
   const issues = v.complianceIssues
   return (
-    <tr>
-      <td data-m="primary">
-        <Link to="/vehicles/$vehicleId" params={{ vehicleId: v.id }} className="link ef-code">
+    <TableRow>
+      <TableCell data-m="primary">
+        <Link to="/vehicles/$vehicleId" params={{ vehicleId: v.id }} className="link font-mono">
           {v.registrationPlate}
         </Link>
-      </td>
-      <td data-m="meta">
+      </TableCell>
+      <TableCell data-m="meta">
         {v.make} {v.model}
-        <div className="ef-sub">{BODY_TYPE_LABEL[v.bodyType]}</div>
-      </td>
-      <td data-m="meta" data-label="Carries">
+        <div className="mt-0.5 block text-sm text-muted-foreground">{BODY_TYPE_LABEL[v.bodyType]}</div>
+      </TableCell>
+      <TableCell data-m="meta" data-label="Carries">
         {refrigerationLabel(v.canCarryChilled, v.canCarryFrozen)}
-      </td>
-      <td data-m="meta" className="is-muted">
+      </TableCell>
+      <TableCell data-m="meta" className="text-muted-foreground">
         {OWNERSHIP_LABEL[v.ownership]}
-      </td>
-      <td data-m="trail">
+      </TableCell>
+      <TableCell data-m="trail">
         {v.currentHolderDriverId ? (
           <Link to="/drivers/$driverId" params={{ driverId: v.currentHolderDriverId }} className="link">
             {v.currentHolderName}
@@ -220,16 +232,16 @@ function VehicleRow({ vehicle: v }: { vehicle: VehicleListItem }) {
         ) : (
           <span className="text-muted-foreground">Available</span>
         )}
-      </td>
-      <td data-m="badge">
+      </TableCell>
+      <TableCell data-m="badge">
         <StatusWord tone={vehicleStatusTone(v.status)}>{STATUS_LABEL[v.status]}</StatusWord>
         {issues.length > 0 ? (
-          <span className="ef-sub mt-1 flex items-center gap-1 font-medium text-foreground">
+          <span className="mt-0.5 block text-sm text-muted-foreground mt-1 flex items-center gap-1 font-medium text-foreground">
             <CircleAlert aria-hidden="true" className="size-3 shrink-0" />
             {issues.map((i) => COMPLIANCE_LABEL[i]).join(" · ")}
           </span>
         ) : null}
-      </td>
-    </tr>
+      </TableCell>
+    </TableRow>
   )
 }

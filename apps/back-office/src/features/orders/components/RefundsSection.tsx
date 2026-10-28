@@ -1,7 +1,7 @@
 import { useState } from "react"
 
 import type { AdminOrderDetailDTO, ProposedRefundDTO, RefundDTO } from "@effy/shared-types"
-import { Button, Input } from "@effy/design-system/ui"
+import { Button, Input, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@effy/design-system/ui"
 
 import { refundActionError } from "../refundErrorText"
 import { useDeclineRefundRequest, useDismissProposal } from "../refundQueries"
@@ -117,14 +117,14 @@ function ProposedRefunds({
       <p className="text-sm text-muted-foreground">
         The shop recorded these as not supplied. The customer paid for them.
       </p>
-      <table className="w-full text-sm">
-        <tbody className="divide-y">
+      <Table className="w-full text-sm">
+        <TableBody className="divide-y">
           {proposals.map((p) => (
-            <tr key={p.orderItemId}>
-              <td className="py-2">{p.productName}</td>
-              <td className="w-20 py-2 tabular-nums text-muted-foreground">{p.quantity} short</td>
-              <td className="w-24 py-2 tabular-nums">{p.amount}</td>
-              <td className="w-32 py-2 text-right">
+            <TableRow key={p.orderItemId}>
+              <TableCell className="py-2">{p.productName}</TableCell>
+              <TableCell className="w-20 py-2 tabular-nums text-muted-foreground">{p.quantity} short</TableCell>
+              <TableCell className="w-24 py-2 tabular-nums">{p.amount}</TableCell>
+              <TableCell className="w-32 py-2 text-right">
                 {canAct ? (
                   dismissing === p.orderItemId ? null : (
                     <Button variant="ghost" size="sm" onClick={() => setDismissing(p.orderItemId)}>
@@ -132,11 +132,11 @@ function ProposedRefunds({
                     </Button>
                   )
                 ) : null}
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
 
       {dismissing ? (
         <div className="space-y-2 border-t pt-3">
@@ -195,31 +195,31 @@ function RefundHistory({ refunds, refundedAmount }: { refunds: readonly RefundDT
   return (
     <section className="space-y-3">
       <h3 className="font-medium">Refunds issued</h3>
-      <table className="ef-table ef-table--compact ef-table--plain rounded-lg border border-border">
-        <thead className="text-left text-muted-foreground">
-          <tr className="border-b">
-            <th className="py-2 font-medium">When</th>
-            <th className="py-2 font-medium">Amount</th>
-            <th className="py-2 font-medium">What it covered</th>
-            <th className="py-2 font-medium">State</th>
-            <th className="py-2 font-medium">Who</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y">
+      <Table className="rounded-lg border border-border [&_td]:py-2">
+        <TableHeader className="text-left text-muted-foreground">
+          <TableRow className="border-b">
+            <TableHead className="py-2 font-medium">When</TableHead>
+            <TableHead className="py-2 font-medium">Amount</TableHead>
+            <TableHead className="py-2 font-medium">What it covered</TableHead>
+            <TableHead className="py-2 font-medium">State</TableHead>
+            <TableHead className="py-2 font-medium">Who</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody className="divide-y">
           {refunds.map((r) => (
-            <tr key={r.id}>
-              <td className="w-44 py-2 align-top tabular-nums text-muted-foreground">
+            <TableRow key={r.id}>
+              <TableCell className="w-44 py-2 align-top tabular-nums text-muted-foreground">
                 {new Date(r.createdAt).toLocaleString()}
-              </td>
-              <td className="w-24 py-2 align-top tabular-nums">
+              </TableCell>
+              <TableCell className="w-24 py-2 align-top tabular-nums">
                 {r.amount}
                 {r.pointsReturned ? (
                   <span className="block text-xs text-muted-foreground">
                     {r.cardAmount} to card · {r.pointsReturned.toLocaleString("en-AU")} points
                   </span>
                 ) : null}
-              </td>
-              <td className="py-2 align-top">
+              </TableCell>
+              <TableCell className="py-2 align-top">
                 {r.kind !== "item" ? (
                   <span>
                     {KIND_WORD[r.kind] ?? r.kind}
@@ -228,18 +228,18 @@ function RefundHistory({ refunds, refundedAmount }: { refunds: readonly RefundDT
                 ) : (
                   <span>{r.lines.map((l) => `${l.quantity} × ${l.productName}`).join(", ") || "—"}</span>
                 )}
-              </td>
-              <td className="w-56 py-2 align-top">
+              </TableCell>
+              <TableCell className="w-56 py-2 align-top">
                 {STATE_WORD[r.status] ?? r.status}
                 {r.failureReason ? (
                   <span className="block text-xs text-muted-foreground">{r.failureReason}</span>
                 ) : null}
-              </td>
-              <td className="w-40 py-2 align-top text-muted-foreground">{actorText(r)}</td>
-            </tr>
+              </TableCell>
+              <TableCell className="w-40 py-2 align-top text-muted-foreground">{actorText(r)}</TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
       <dl className="grid grid-cols-[10rem_1fr] gap-x-4 border-t pt-2 text-sm">
         <dt className="text-muted-foreground">Refunded in total</dt>
         <dd className="tabular-nums">{refundedAmount}</dd>

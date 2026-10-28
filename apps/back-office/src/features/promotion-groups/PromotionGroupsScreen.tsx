@@ -15,6 +15,12 @@ import {
   Input,
   Label,
   Skeleton,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
   Textarea,
 } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
@@ -57,35 +63,37 @@ export function PromotionGroupsScreen() {
           description="Create one for each place promotions are shown."
         />
       ) : (
-        <div className="ef-table-wrap">
-          <div className="ef-table-scroll">
-            <table className="ef-table ef-rtable">
-              <thead>
-                <tr>
-                  <th>Group</th>
-                  <th>Key</th>
-                  <th className="text-right">Promotions</th>
-                </tr>
-              </thead>
-              <tbody>
+        <div className="overflow-hidden rounded-xl border bg-card">
+          <div className="min-w-0">
+            <Table className="ef-rtable">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Group</TableHead>
+                  <TableHead>Key</TableHead>
+                  <TableHead className="text-right">Promotions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {data.map((g) => (
-                  <tr key={g.id}>
-                    <td data-m="primary">
+                  <TableRow key={g.id}>
+                    <TableCell data-m="primary">
                       <Link to="/promotions/groups/$groupId" params={{ groupId: g.id }} className="link">
                         {g.name}
                       </Link>
-                      {g.description ? <div className="ef-sub">{g.description}</div> : null}
-                    </td>
-                    <td data-m="meta" className="font-mono text-xs">
+                      {g.description ? (
+                        <div className="mt-0.5 block text-sm text-muted-foreground">{g.description}</div>
+                      ) : null}
+                    </TableCell>
+                    <TableCell data-m="meta" className="font-mono text-xs">
                       {g.key}
-                    </td>
-                    <td data-m="trail" className="text-right tabular-nums">
+                    </TableCell>
+                    <TableCell data-m="trail" className="text-right tabular-nums">
                       {g.count}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         </div>
       )}
@@ -149,7 +157,9 @@ function CreateGroupDialog({ open, onOpenChange }: { open: boolean; onOpenChange
                 setKey(slug(e.target.value))
               }}
             />
-            <p className="ef-sub">Lower-case letters, numbers and dashes. It can't be changed later.</p>
+            <p className="mt-0.5 block text-sm text-muted-foreground">
+              Lower-case letters, numbers and dashes. It can't be changed later.
+            </p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="group-desc">Where it's shown (optional)</Label>

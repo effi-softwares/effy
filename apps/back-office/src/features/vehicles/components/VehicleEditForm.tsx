@@ -1,6 +1,16 @@
 import { useState } from "react"
 
-import { Button, Input, Label } from "@effy/design-system/ui"
+import {
+  Button,
+  Checkbox,
+  Input,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@effy/design-system/ui"
 import type { VehicleDetail, VehicleFuelType, VehicleUpdateRequest } from "@effy/shared-types"
 
 import { FUEL_TYPE_LABEL } from "../model"
@@ -89,19 +99,25 @@ export function VehicleEditForm({ vehicle }: { vehicle: VehicleDetail }) {
           <Input id="ve-year" inputMode="numeric" value={year} onChange={(e) => setYear(e.target.value)} />
         </Field>
         <Field id="ve-fuel" label="Fuel">
-          <select
-            id="ve-fuel"
-            className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-            value={fuelType}
-            onChange={(e) => setFuelType(e.target.value)}
+          <Select
+            value={fuelType || "__none"}
+            onValueChange={(raw) => {
+              const next = raw === "__none" ? "" : raw
+              setFuelType(next)
+            }}
           >
-            <option value="">Not recorded</option>
-            {FUEL_TYPES.map((f) => (
-              <option key={f} value={f}>
-                {FUEL_TYPE_LABEL[f]}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger id="ve-fuel" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none">Not recorded</SelectItem>
+              {FUEL_TYPES.map((f) => (
+                <SelectItem key={f} value={f}>
+                  {FUEL_TYPE_LABEL[f]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </Field>
         <Field id="ve-payload" label="Payload (kg)">
           <Input id="ve-payload" inputMode="numeric" value={payloadKg} onChange={(e) => setPayload(e.target.value)} />
@@ -137,11 +153,11 @@ export function VehicleEditForm({ vehicle }: { vehicle: VehicleDetail }) {
       <fieldset className="space-y-2">
         <legend className="text-sm font-medium">What it can carry</legend>
         <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={canCarryChilled} onChange={(e) => setChilled(e.target.checked)} />
+          <Checkbox checked={canCarryChilled} onCheckedChange={(v) => setChilled(v === true)} />
           Chilled goods
         </label>
         <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={canCarryFrozen} onChange={(e) => setFrozen(e.target.checked)} />
+          <Checkbox checked={canCarryFrozen} onCheckedChange={(v) => setFrozen(v === true)} />
           Frozen goods
         </label>
       </fieldset>

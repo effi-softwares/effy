@@ -11,6 +11,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
+  Avatar,
+  AvatarFallback,
+  Badge,
   Button,
   Skeleton,
 } from "@effy/design-system/ui"
@@ -206,18 +209,18 @@ export function RoundDetailScreen({ roundId }: { roundId: string }) {
               const note = windowNoteFor(s, now)
               return (
                 <li key={id} className="flex items-center gap-3 border-b border-border px-5 py-3 last:border-b-0">
-                  <span className="avatar avatar--sq size-7! text-xs!" aria-hidden="true">
-                    {i + 1}
-                  </span>
+                  <Avatar aria-hidden="true" className="rounded-lg size-7">
+                    <AvatarFallback className="rounded-lg text-xs">{i + 1}</AvatarFallback>
+                  </Avatar>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-medium">{s.label}</span>
                       {s.orderNumber ? (
-                        <span className="ef-code text-xs text-muted-foreground">{s.orderNumber}</span>
+                        <span className="font-mono text-xs text-muted-foreground">{s.orderNumber}</span>
                       ) : null}
-                      {moved ? <span className="ef-tag">Moved</span> : null}
+                      {moved ? <Badge variant="outline">Moved</Badge> : null}
                     </div>
-                    <div className="ef-sub">
+                    <div className="mt-0.5 block text-sm text-muted-foreground">
                       {[note?.text, s.zoneName ?? "No area", s.handovers ? handoverCounts(s.handovers) : null]
                         .filter(Boolean)
                         .join(" · ")}
@@ -229,24 +232,26 @@ export function RoundDetailScreen({ roundId }: { roundId: string }) {
                   <span className="text-xs text-muted-foreground max-md:hidden">{s.status.replace("_", " ")}</span>
                   {mayChange && !finished ? (
                     <div className="flex gap-1">
-                      <button
+                      <Button
                         type="button"
-                        className="ef-iconbtn"
+                        variant="ghost"
+                        size="icon-sm"
                         aria-label={`Move stop ${i + 1} earlier`}
                         disabled={i === 0}
                         onClick={() => editing.move(i, -1)}
                       >
                         <ChevronUp aria-hidden="true" />
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         type="button"
-                        className="ef-iconbtn"
+                        variant="ghost"
+                        size="icon-sm"
                         aria-label={`Move stop ${i + 1} later`}
                         disabled={i === editing.order.length - 1}
                         onClick={() => editing.move(i, 1)}
                       >
                         <ChevronDown aria-hidden="true" />
-                      </button>
+                      </Button>
                     </div>
                   ) : null}
                 </li>

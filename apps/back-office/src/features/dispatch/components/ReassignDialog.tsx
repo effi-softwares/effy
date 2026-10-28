@@ -9,6 +9,11 @@ import {
   DialogHeader,
   DialogTitle,
   Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@effy/design-system/ui"
 
 import { dispatchActionError, refusalReasons } from "../errorText"
@@ -63,19 +68,23 @@ export function ReassignDialog({ roundId, currentDriverName, expectedUpdatedAt, 
 
           <div className="space-y-2">
             <Label htmlFor="reassign-driver">Driver</Label>
-            <select
-              id="reassign-driver"
-              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+            <Select
               value={driverId}
-              onChange={(e) => setDriverId(e.target.value)}
+              onValueChange={(next) => {
+                setDriverId(next)
+              }}
             >
-              <option value="">Choose a driver…</option>
-              {drivers.map((d) => (
-                <option key={d.driverId} value={d.driverId}>
-                  {d.driverName}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger id="reassign-driver" className="w-full">
+                <SelectValue placeholder="Choose a driver…" />
+              </SelectTrigger>
+              <SelectContent>
+                {drivers.map((d) => (
+                  <SelectItem key={d.driverId} value={d.driverId}>
+                    {d.driverName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {error ? (

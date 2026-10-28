@@ -16,6 +16,8 @@ import {
   Button,
   Input,
   Label,
+  RadioGroup,
+  RadioGroupItem,
   Skeleton,
 } from "@effy/design-system/ui"
 import {
@@ -43,7 +45,6 @@ import { Callout, PageHeader, Panel } from "@effy/web-kit/patterns"
 import { useSessionRoles } from "@/features/auth/useSessionRoles"
 import { canManagePromotions } from "@/features/promotions/access"
 import { inUseError, promotionMutationError } from "@/features/promotions/errorText"
-import { cn } from "@/lib/utils"
 import { track } from "@/lib/telemetry"
 
 import { promotionSkinQuery, useCreateSkin, useDeleteSkin, useUpdateSkin } from "./queries"
@@ -180,34 +181,38 @@ function Editor({ current }: { current: AdminSkinDTO | null }) {
                   placeholder="Winter — photo"
                   className="max-w-md"
                 />
-                <p className="ef-sub">For staff only. Pick it by this name when placing a promotion.</p>
+                <p className="mt-0.5 block text-sm text-muted-foreground">
+                  For staff only. Pick it by this name when placing a promotion.
+                </p>
               </div>
               <div className="space-y-2">
                 <span className="text-sm font-medium">Layout</span>
-                <div role="radiogroup" aria-label="Layout" className="grid gap-2 sm:grid-cols-3">
+                <RadioGroup
+                  aria-label="Layout"
+                  className="grid gap-2 sm:grid-cols-3"
+                  value={layout}
+                  onValueChange={(v) => {
+                    const l = v as typeof layout
+                    if (l === layout) return
+                    setLayout(l)
+                    setS((prev) => relayout(prev, l))
+                  }}
+                >
                   {DESIGNED_LAYOUTS.map((l) => (
-                    <button
+                    <Label
                       key={l}
-                      type="button"
-                      role="radio"
-                      aria-checked={layout === l}
-                      onClick={() => {
-                        if (l === layout) return
-                        setLayout(l)
-                        setS((prev) => relayout(prev, l))
-                      }}
-                      className={cn(
-                        "rounded-lg border p-3 text-left text-sm",
-                        layout === l ? "border-primary" : "border-border hover:bg-accent",
-                      )}
+                      className="flex cursor-pointer items-start gap-3 rounded-lg border bg-background p-3 text-sm font-normal transition-colors hover:bg-accent/50 has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary-muted/40"
                     >
-                      <div className="font-medium">{LAYOUT_WORD[l]}</div>
-                      <div className="ef-sub">
-                        Fits {LAYOUT_FITS[l].map((z) => SIZE_WORD[z].toLowerCase()).join(",")} places
-                      </div>
-                    </button>
+                      <RadioGroupItem value={l} className="mt-0.5" />
+                      <span className="grid gap-1">
+                        <span className="font-medium">{LAYOUT_WORD[l]}</span>
+                        <span className="text-muted-foreground">
+                          Fits {LAYOUT_FITS[l].map((z) => SIZE_WORD[z].toLowerCase()).join(",")} places
+                        </span>
+                      </span>
+                    </Label>
                   ))}
-                </div>
+                </RadioGroup>
               </div>
             </div>
           </Panel>
@@ -237,7 +242,9 @@ function Editor({ current }: { current: AdminSkinDTO | null }) {
                   }
                 />
               ) : (
-                <p className="ef-sub self-center">This layout always shows the promotion's picture when it has one.</p>
+                <p className="mt-0.5 block text-sm text-muted-foreground self-center">
+                  This layout always shows the promotion's picture when it has one.
+                </p>
               )}
               {showsPicture && wordsOverPicture(layout) ? (
                 <>
@@ -420,7 +427,9 @@ function Editor({ current }: { current: AdminSkinDTO | null }) {
                         patch("button", { ...s.button, words: e.target.value.trim() ? e.target.value : AUTO })
                       }
                     />
-                    <p className="ef-sub">With a code the button copies it; without one it opens the offer.</p>
+                    <p className="mt-0.5 block text-sm text-muted-foreground">
+                      With a code the button copies it; without one it opens the offer.
+                    </p>
                   </div>
                   {s.button.style === "filled" ? (
                     <ColourField

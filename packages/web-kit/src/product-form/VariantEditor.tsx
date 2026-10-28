@@ -11,6 +11,9 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  TableBody,
+  TableHeader,
+  TableRow,
 } from "@effy/design-system/ui";
 import {
   PACK_SIZE_OPTION_NAME,
@@ -255,8 +258,8 @@ export function VariantEditor({
           <p className="text-sm font-medium">{err("variants")}</p>
         ) : null}
         <TableFrame>
-          <thead className="bg-muted">
-            <tr>
+          <TableHeader>
+            <TableRow>
               {hasOptions ? (
                 <Th>
                   Variant
@@ -314,14 +317,14 @@ export function VariantEditor({
                 <Th width="140px">Picture</Th>
               ) : null}
               {hasOptions ? <Th width="44px" /> : null}
-            </tr>
-          </thead>
-          <tbody>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {value.variants.map((r, i) => {
               const unit = previewUnitPrice(value, r);
               const cell = (field: string) => err(`variants[${i}].${field}`);
               return (
-                <tr key={r.id} className="border-border border-t align-top">
+                <TableRow key={r.id} className="align-top">
                   {hasOptions ? (
                     <Td>
                       <span className="font-medium">{label(r)}</span>
@@ -513,10 +516,10 @@ export function VariantEditor({
                       ) : null}
                     </Td>
                   ) : null}
-                </tr>
+                </TableRow>
               );
             })}
-          </tbody>
+          </TableBody>
         </TableFrame>
         {missing ? (
           <div>
@@ -556,15 +559,16 @@ function ApplyAll({
   disabled?: boolean;
 }) {
   return (
-    <button
+    <Button
       type="button"
-      className="text-primary mt-1 block text-xs font-medium tracking-normal normal-case hover:underline disabled:opacity-50"
+      variant="link"
+      className="mt-1 text-xs"
       onClick={onClick}
       disabled={disabled}
       aria-label={`Use the first row's ${label} for every variant`}
     >
       Apply first to all
-    </button>
+    </Button>
   );
 }
 

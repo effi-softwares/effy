@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import { Palette, Plus } from "lucide-react"
 
-import { Button, Skeleton } from "@effy/design-system/ui"
+import { Button, Skeleton, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@effy/design-system/ui"
 import { defaultSize, type AdminSkinListItemDTO } from "@effy/shared-types"
 import { ErrorState } from "@effy/web-kit/console"
 
@@ -41,23 +41,23 @@ export function SkinsListScreen() {
       ) : data.length === 0 ? (
         <EmptyState icon={Palette} title="No skins yet." description="Create one to give promotions their own look." />
       ) : (
-        <div className="ef-table-wrap">
-          <div className="ef-table-scroll">
-            <table className="ef-table ef-rtable">
-              <thead>
-                <tr>
-                  <th className="w-56">Looks like</th>
-                  <th>Skin</th>
-                  <th>Layout</th>
-                  <th className="text-right">Used in</th>
-                </tr>
-              </thead>
-              <tbody>
+        <div className="overflow-hidden rounded-xl border bg-card">
+          <div className="min-w-0">
+            <Table className="ef-rtable">
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-56">Looks like</TableHead>
+                  <TableHead>Skin</TableHead>
+                  <TableHead>Layout</TableHead>
+                  <TableHead className="text-right">Used in</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {data.map((s) => (
                   <SkinRow key={s.id} skin={s} />
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         </div>
       )}
@@ -68,8 +68,8 @@ export function SkinsListScreen() {
 function SkinRow({ skin }: { skin: AdminSkinListItemDTO }) {
   const sample = SAMPLES[0]!
   return (
-    <tr>
-      <td data-m="media">
+    <TableRow>
+      <TableCell data-m="media">
         <div className="pointer-events-none relative h-28 w-52 overflow-hidden rounded-md" aria-hidden="true" inert>
           <div style={{ width: 520, transform: "scale(0.4)", transformOrigin: "top left" }}>
             <SkinPreviewItem
@@ -88,8 +88,8 @@ function SkinRow({ skin }: { skin: AdminSkinListItemDTO }) {
             />
           </div>
         </div>
-      </td>
-      <td data-m="primary">
+      </TableCell>
+      <TableCell data-m="primary">
         <Link to="/promotions/skins/$skinId" params={{ skinId: skin.id }} className="link">
           {skin.name}
         </Link>
@@ -98,15 +98,15 @@ function SkinRow({ skin }: { skin: AdminSkinListItemDTO }) {
             <StatusWord tone="quiet">Built in</StatusWord>
           </div>
         ) : null}
-      </td>
-      <td data-m="meta">{LAYOUT_WORD[skin.layout]}</td>
-      <td data-m="trail" className="text-right tabular-nums">
+      </TableCell>
+      <TableCell data-m="meta">{LAYOUT_WORD[skin.layout]}</TableCell>
+      <TableCell data-m="trail" className="text-right tabular-nums">
         {skin.usageCount === 0 ? (
           <span className="text-muted-foreground">Not used</span>
         ) : (
           `${skin.usageCount} ${skin.usageCount === 1 ? "place" : "places"}`
         )}
-      </td>
-    </tr>
+      </TableCell>
+    </TableRow>
   )
 }

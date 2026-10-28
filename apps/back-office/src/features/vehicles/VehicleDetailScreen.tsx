@@ -61,7 +61,7 @@ export function VehicleDetailScreen({ vehicleId }: { vehicleId: string }) {
         back={{ label: "All vehicles", link: { to: "/vehicles" } }}
         title={
           <span className="flex flex-wrap items-center gap-3">
-            <span className="ef-code">{v.registrationPlate}</span>
+            <span className="font-mono">{v.registrationPlate}</span>
             <StatusWord tone={vehicleStatusTone(v.status)}>{STATUS_LABEL[v.status]}</StatusWord>
           </span>
         }
@@ -180,7 +180,7 @@ export function VehicleDetailScreen({ vehicleId }: { vehicleId: string }) {
                   value: (
                     <>
                       {formatDate(v.registrationExpiresOn)}
-                      {regDays ? <div className="ef-sub">{regDays}</div> : null}
+                      {regDays ? <div className="mt-0.5 block text-sm text-muted-foreground">{regDays}</div> : null}
                     </>
                   ),
                 },
@@ -190,7 +190,9 @@ export function VehicleDetailScreen({ vehicleId }: { vehicleId: string }) {
                     <>
                       {v.insurancePolicyReference ?? dash}
                       {v.insuranceExpiresOn ? (
-                        <div className="ef-sub">Expires {formatDate(v.insuranceExpiresOn)}</div>
+                        <div className="mt-0.5 block text-sm text-muted-foreground">
+                          Expires {formatDate(v.insuranceExpiresOn)}
+                        </div>
                       ) : null}
                     </>
                   ),
@@ -202,7 +204,7 @@ export function VehicleDetailScreen({ vehicleId }: { vehicleId: string }) {
           {canManage ? (
             <Panel title="Status">
               <div className="space-y-3">
-                <p className="ef-sub">
+                <p className="mt-0.5 block text-sm text-muted-foreground">
                   Off the road is temporary — in the workshop, or awaiting repair. Retired is for good.
                 </p>
                 <VehicleStatusControl vehicle={v} />

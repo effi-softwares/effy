@@ -3,7 +3,7 @@ import { useEffect, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 
 import type { DeliveryDaysDTO } from "@effy/shared-types"
-import { Button, Checkbox, Input, Label } from "@effy/design-system/ui"
+import { Button, Checkbox, Input, Label, Toggle } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 
 import { deliveryMutationError, fieldErrors, HUB_NOT_SET } from "../errorText"
@@ -153,21 +153,16 @@ function SettingsForm({ value, canManage }: { value: DeliveryDaysDTO; canManage:
             {WEEKDAYS.map(([day, name]) => {
               const pressed = closed.includes(day)
               return (
-                <button
+                <Toggle
                   key={day}
-                  type="button"
-                  aria-pressed={pressed}
-                  onClick={() => toggle(day)}
-                  className={
-                    "min-h-9 rounded-md border px-3 text-sm font-medium transition-colors " +
-                    "disabled:opacity-50 " +
-                    (pressed
-                      ? "border-primary bg-primary-fill text-primary-foreground"
-                      : "border-border bg-background hover:bg-muted")
-                  }
+                  variant="outline"
+                  size="sm"
+                  pressed={pressed}
+                  onPressedChange={() => toggle(day)}
+                  className="px-3"
                 >
                   {name}
-                </button>
+                </Toggle>
               )
             })}
           </div>

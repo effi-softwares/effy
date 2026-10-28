@@ -3,7 +3,7 @@ import { useMemo, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Link, useNavigate } from "@tanstack/react-router"
 
-import { Tabs, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui"
+import { Card, CardContent, Tabs, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 import { PageHeader } from "@effy/web-kit/patterns"
 import { sessionQuery } from "@/features/auth/queries"
@@ -97,8 +97,8 @@ function Categories({
 
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(320px,2fr)_3fr]">
-      <div className="ef-panel">
-        <div className="ef-panel__body">
+      <Card className="py-4">
+        <CardContent className="px-4">
           <CategoryTree
             categories={categories}
             selectedId={selectedId}
@@ -116,16 +116,16 @@ function Categories({
               {error}
             </p>
           ) : null}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
       {selected ? (
         <CategoryPanel category={selected} categories={categories} canManage={canManage} />
       ) : (
-        <div className="ef-panel">
-          <div className="ef-panel__body text-sm text-muted-foreground">
+        <Card className="py-4">
+          <CardContent className="text-sm text-muted-foreground">
             Choose a category to see its details, defaults and attributes.
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       )}
       {adding ? (
         <AddCategoryDialog

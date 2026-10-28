@@ -177,9 +177,10 @@ export function OtpSignInCard({
         className="w-full max-w-90 space-y-6"
         noValidate
       >
-        <button
+        <Button
           type="button"
-          className="inline-flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+          variant="link"
+          className="w-fit gap-1 text-muted-foreground hover:text-foreground"
           onClick={() => {
             setFormError(null);
             otpForm.reset();
@@ -188,7 +189,7 @@ export function OtpSignInCard({
         >
           <ArrowLeft aria-hidden="true" className="size-4" />
           Use a different email
-        </button>
+        </Button>
         <div className="space-y-2">
           <h1 className="text-2xl font-semibold tracking-tight">Check your email</h1>
           <p className="text-sm text-muted-foreground">

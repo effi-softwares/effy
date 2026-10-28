@@ -1,5 +1,15 @@
 import { useState } from "react"
 
+import {
+  Checkbox,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  ToggleGroup,
+  ToggleGroupItem,
+} from "@effy/design-system/ui"
 import { Palette } from "lucide-react"
 
 import {
@@ -81,7 +91,7 @@ function ClassicStandIn({ className }: { className?: string }) {
     >
       <Palette aria-hidden="true" className="size-5 text-muted-foreground" />
       <div className="text-sm font-medium">Classic</div>
-      <div className="ef-sub max-w-60">
+      <div className="mt-0.5 block text-sm text-muted-foreground max-w-60">
         Drawn as this place always looked — colours and icons chosen by the website.
       </div>
     </div>
@@ -132,48 +142,50 @@ export function SkinPreview({
   return (
     <div className="space-y-3" data-testid="skin-preview">
       <div className="flex flex-wrap items-center gap-2">
-        <select
-          aria-label="Preview words"
-          className="h-8 rounded-md border border-input bg-background px-2 text-sm"
-          value={which}
-          onChange={(e) => setWhich(e.target.value)}
-        >
-          {choices.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.label}
-            </option>
-          ))}
-        </select>
-        <div role="group" aria-label="Preview width" className="ef-seg">
-          {(["phone", "desktop"] as const).map((w) => (
-            <button
-              key={w}
-              type="button"
-              className={cn(width === w && "is-active")}
-              aria-pressed={width === w}
-              onClick={() => setWidth(w)}
-            >
-              {w === "phone" ? "Phone" : "Desktop"}
-            </button>
-          ))}
-        </div>
-        {sizes.length > 1 ? (
-          <div role="group" aria-label="Preview size" className="ef-seg">
-            {sizes.map((s) => (
-              <button
-                key={s}
-                type="button"
-                className={cn(shown === s && "is-active")}
-                aria-pressed={shown === s}
-                onClick={() => setSize(s)}
-              >
-                {SIZE_WORD[s]}
-              </button>
+        <Select value={which} onValueChange={(next) => setWhich(next)}>
+          <SelectTrigger aria-label="Preview words">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {choices.map((c) => (
+              <SelectItem key={c.id} value={c.id}>
+                {c.label}
+              </SelectItem>
             ))}
-          </div>
+          </SelectContent>
+        </Select>
+        <ToggleGroup
+          type="single"
+          variant="outline"
+          size="sm"
+          aria-label="Preview width"
+          value={width}
+          onValueChange={(v) => v && setWidth(v as typeof width)}
+        >
+          {(["phone", "desktop"] as const).map((w) => (
+            <ToggleGroupItem key={w} value={w} className="px-3">
+              {w === "phone" ? "Phone" : "Desktop"}
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
+        {sizes.length > 1 ? (
+          <ToggleGroup
+            type="single"
+            variant="outline"
+            size="sm"
+            aria-label="Preview size"
+            value={shown}
+            onValueChange={(v) => v && setSize(v as typeof shown)}
+          >
+            {sizes.map((s) => (
+              <ToggleGroupItem key={s} value={s} className="px-3">
+                {SIZE_WORD[s]}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
         ) : null}
         <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={picture} onChange={(e) => setPicture(e.target.checked)} />
+          <Checkbox checked={picture} onCheckedChange={(v) => setPicture(v === true)} />
           Sample picture
         </label>
       </div>

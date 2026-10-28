@@ -4,7 +4,17 @@ import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import { CircleMinus, CirclePlus, Coins, History, Mail, ShoppingBag } from "lucide-react"
 
-import { Button, Skeleton, Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui"
+import {
+  Avatar,
+  AvatarFallback,
+  Button,
+  Skeleton,
+  Tabs,
+  TabsContent,
+  TabsCount,
+  TabsList,
+  TabsTrigger,
+} from "@effy/design-system/ui"
 import { ErrorState, useHeaderDetail } from "@effy/web-kit/console"
 
 import { PageHeader, Panel } from "@effy/web-kit/patterns"
@@ -139,7 +149,7 @@ export function CustomerDetailScreen({ customerId }: { customerId: string }) {
                   <ul className="divide-y divide-border">
                     {c.recentOrders.map((o) => (
                       <li key={o.id} className="flex items-center justify-between gap-3 px-5 py-3">
-                        <Link to="/orders/$orderId" params={{ orderId: o.id }} className="link ef-code">
+                        <Link to="/orders/$orderId" params={{ orderId: o.id }} className="link font-mono">
                           {o.orderNumber}
                         </Link>
                         <span className="text-sm tabular-nums">{money(o.total)}</span>
@@ -156,12 +166,14 @@ export function CustomerDetailScreen({ customerId }: { customerId: string }) {
           <Panel title="Customer">
             <div className="space-y-4">
               <div className="flex items-center gap-3">
-                <span className="avatar avatar--lg avatar--blue" aria-hidden="true">
-                  {initialsOf(c.name || c.email)}
-                </span>
+                <Avatar aria-hidden="true" className="size-12">
+                  <AvatarFallback className="text-base bg-primary-muted text-primary">
+                    {initialsOf(c.name || c.email)}
+                  </AvatarFallback>
+                </Avatar>
                 <div className="min-w-0">
                   <div className="truncate font-semibold">{c.name || c.email}</div>
-                  <div className="ef-sub truncate">{c.email}</div>
+                  <div className="mt-0.5 block text-sm text-muted-foreground truncate">{c.email}</div>
                 </div>
               </div>
               <div className="grid gap-2">

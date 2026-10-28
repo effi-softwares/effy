@@ -50,7 +50,7 @@ export function SignInScreen({ next }: { next?: string }) {
         <ul className="max-w-110 space-y-4">
           {ASIDE.map((a) => (
             <li key={a.title} className="flex gap-3">
-              <span className="ef-icon-tile ef-icon-tile--primary">
+              <span className="grid size-9 flex-none place-items-center rounded-lg bg-primary-muted text-primary [&_svg]:size-4">
                 <a.icon aria-hidden="true" />
               </span>
               <div>

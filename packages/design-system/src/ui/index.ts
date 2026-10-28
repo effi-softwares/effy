@@ -29,6 +29,7 @@ export * from "./separator";
 export * from "./sidebar";
 export * from "./loader";
 export * from "./skeleton";
+export * from "./slider";
 export * from "./spinner";
 export * from "./sonner";
 export * from "./switch";

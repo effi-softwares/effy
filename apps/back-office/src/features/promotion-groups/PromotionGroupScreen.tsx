@@ -125,7 +125,7 @@ export function PromotionGroupScreen({ groupId }: { groupId: string }) {
                       <Link to="/promotions/$promoId" params={{ promoId: m.promotionId }} className="link">
                         {m.headline ?? m.name}
                       </Link>
-                      <div className="ef-sub">
+                      <div className="mt-0.5 block text-sm text-muted-foreground">
                         {m.name} ·{" "}
                         {skinName(m.skinId) ??
                           `Default (${(m.resolved.code && g.defaultCodeSkin ? g.defaultCodeSkin : g.defaultSkin).name})`}
@@ -184,7 +184,7 @@ export function PromotionGroupScreen({ groupId }: { groupId: string }) {
                   <li key={p.id} className="flex items-center justify-between gap-3 px-5 py-3">
                     <div className="min-w-0">
                       <div className="text-sm font-medium">{p.name}</div>
-                      <div className="ef-sub">{p.gives}</div>
+                      <div className="mt-0.5 block text-sm text-muted-foreground">{p.gives}</div>
                     </div>
                     <Button
                       size="sm"
@@ -210,7 +210,9 @@ export function PromotionGroupScreen({ groupId }: { groupId: string }) {
               <Skeleton className="h-24" />
             ) : preview.data ? (
               <div className="space-y-4">
-                {preview.data.shown.length === 0 ? <p className="ef-sub">Nothing — the place is not shown.</p> : null}
+                {preview.data.shown.length === 0 ? (
+                  <p className="mt-0.5 block text-sm text-muted-foreground">Nothing — the place is not shown.</p>
+                ) : null}
                 <ol className="space-y-3" data-testid="group-preview">
                   {preview.data.shown.map((s) => (
                     <li key={s.id}>

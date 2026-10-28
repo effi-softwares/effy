@@ -1,4 +1,4 @@
-import { Input, Label } from "@effy/design-system/ui"
+import { Input, Label, ToggleGroup, ToggleGroupItem } from "@effy/design-system/ui"
 
 import { previewCustomerPrice, priceRange, type MarginEntry } from "./model"
 
@@ -22,23 +22,20 @@ export function MarginField({
     <div className="space-y-2">
       <Label htmlFor={id}>Effy margin</Label>
       <div className="flex items-center gap-2">
-        <div role="group" aria-label="Margin type" className="flex rounded-md border border-border">
+        <ToggleGroup
+          type="single"
+          variant="outline"
+          aria-label="Margin type"
+          disabled={disabled}
+          value={value.kind}
+          onValueChange={(kind) => kind && onChange({ ...value, kind: kind as MarginEntry["kind"] })}
+        >
           {(["percent", "amount"] as const).map((kind) => (
-            <button
-              key={kind}
-              type="button"
-              aria-pressed={value.kind === kind}
-              disabled={disabled}
-              onClick={() => onChange({ ...value, kind })}
-              className={
-                "h-9 px-3 text-sm first:rounded-l-md last:rounded-r-md " +
-                (value.kind === kind ? "bg-primary-fill text-primary-foreground" : "bg-background hover:bg-muted")
-              }
-            >
+            <ToggleGroupItem key={kind} value={kind} className="px-3">
               {kind === "percent" ? "Percent" : "Amount"}
-            </button>
+            </ToggleGroupItem>
           ))}
-        </div>
+        </ToggleGroup>
         <Input
           id={id}
           inputMode="decimal"

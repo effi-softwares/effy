@@ -85,9 +85,11 @@ function wrap(children: ReactNode) {
 afterEach(() => vi.clearAllMocks())
 
 describe("095 — how a group's place looks", () => {
-  it("offers only skins whose layout fits the place's size", () => {
+  it("offers only skins whose layout fits the place's size", async () => {
+    const user = userEvent.setup()
     wrap(<LookPanel group={group} skins={[classic, tile, panel]} canManage onError={() => undefined} />)
-    const defaults = within(screen.getByLabelText("Default skin"))
+    await user.click(screen.getByLabelText("Default skin"))
+    const defaults = within(screen.getByRole("listbox"))
     expect(defaults.getByRole("option", { name: "Tile — Effy blue" })).toBeInTheDocument()
     expect(defaults.queryByRole("option", { name: "Panel — Effy blue" })).not.toBeInTheDocument()
   })
@@ -107,7 +109,8 @@ describe("095 — how a group's place looks", () => {
       />,
     )
     expect(within(screen.getByTestId("member-look-preview")).getByText("Classic")).toBeInTheDocument()
-    await user.selectOptions(screen.getByLabelText("Skin"), "t")
+    await user.click(screen.getByLabelText("Skin"))
+    await user.click(screen.getByRole("option", { name: "Tile — Effy blue" }))
     expect(within(screen.getByTestId("member-look-preview")).getByTestId("promo-skin")).toHaveAttribute(
       "data-layout",
       "tile",

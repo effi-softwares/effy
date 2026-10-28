@@ -25,7 +25,7 @@ export function HistoryList({ entries }: { entries: readonly ProductHistoryEntry
               <p className="text-sm font-medium">{PRODUCT_HISTORY_WORDS[e.action]}</p>
               {e.note ? <p className="text-sm whitespace-pre-line text-muted-foreground">{e.note}</p> : null}
             </div>
-            <p className="ef-sub whitespace-nowrap">
+            <p className="mt-0.5 block text-sm text-muted-foreground whitespace-nowrap">
               {moment(e.at)}
               {e.actor ? ` · ${e.actor}` : ""}
             </p>

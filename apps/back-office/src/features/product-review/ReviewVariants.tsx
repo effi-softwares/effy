@@ -3,6 +3,7 @@ import type { ReviewVariantDTO } from "@effy/shared-types"
 import { Panel, StatusWord, type StatusTone } from "@effy/web-kit/patterns"
 
 import { previewCustomerPrice, type MarginEntry } from "./model"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@effy/design-system/ui"
 
 const CHANGE_WORD: Record<ReviewVariantDTO["change"], { word: string; tone: StatusTone } | null> = {
   added: { word: "New", tone: "info" },
@@ -25,63 +26,65 @@ export function ReviewVariants({ variants, entry }: { variants: readonly ReviewV
       }
       flush
     >
-      <div className="ef-table-scroll">
-        <table className="ef-table">
-          <thead>
-            <tr>
-              {named ? <th>Size</th> : null}
-              <th>Effy code</th>
-              <th>Shop code</th>
-              <th>Barcode</th>
-              <th className="text-right">Shop price</th>
-              <th className="text-right">Customers pay</th>
-              <th className="text-right">Weight</th>
-              <th>Pack</th>
-              <th>
+      <div className="min-w-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              {named ? <TableHead>Size</TableHead> : null}
+              <TableHead>Effy code</TableHead>
+              <TableHead>Shop code</TableHead>
+              <TableHead>Barcode</TableHead>
+              <TableHead className="text-right">Shop price</TableHead>
+              <TableHead className="text-right">Customers pay</TableHead>
+              <TableHead className="text-right">Weight</TableHead>
+              <TableHead>Pack</TableHead>
+              <TableHead>
                 <span className="sr-only">Change</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {variants.map((v) => {
               const preview =
                 v.change === "removed" ? null : previewCustomerPrice(v.shopPriceAmount, entry.kind, entry.value)
               const change = CHANGE_WORD[v.change]
               return (
-                <tr key={v.id} className={v.change === "removed" ? "text-muted-foreground" : undefined}>
+                <TableRow key={v.id} className={v.change === "removed" ? "text-muted-foreground" : undefined}>
                   {named ? (
-                    <th scope="row" className="text-left font-medium">
+                    <TableHead scope="row" className="text-left font-medium">
                       {v.label ?? "—"}
-                    </th>
+                    </TableHead>
                   ) : null}
-                  <td className="font-mono text-xs">{v.code ?? "On approval"}</td>
-                  <td className="font-mono text-xs">{v.sku ?? "—"}</td>
-                  <td className="font-mono text-xs">{v.gtin ?? "—"}</td>
-                  <td className="text-right tabular-nums">
+                  <TableCell className="font-mono text-xs">{v.code ?? "On approval"}</TableCell>
+                  <TableCell className="font-mono text-xs">{v.sku ?? "—"}</TableCell>
+                  <TableCell className="font-mono text-xs">{v.gtin ?? "—"}</TableCell>
+                  <TableCell className="text-right tabular-nums">
                     {v.shopPriceAmount}
                     {v.shopCompareAtAmount ? (
                       <span className="block text-xs text-muted-foreground line-through">{v.shopCompareAtAmount}</span>
                     ) : null}
-                  </td>
-                  <td className="text-right tabular-nums font-medium">{preview ?? v.customerPriceAmount}</td>
-                  <td className="text-right tabular-nums">{v.weightGrams} g</td>
-                  <td>{v.packQuantity ? `${Number(v.packQuantity)} ${v.packUnit ?? ""}` : "—"}</td>
-                  <td>
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums font-medium">
+                    {preview ?? v.customerPriceAmount}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">{v.weightGrams} g</TableCell>
+                  <TableCell>{v.packQuantity ? `${Number(v.packQuantity)} ${v.packUnit ?? ""}` : "—"}</TableCell>
+                  <TableCell>
                     {change ? (
                       <StatusWord tone={change.tone}>{change.word}</StatusWord>
                     ) : v.state === "inactive" ? (
                       <StatusWord tone="muted">Off sale</StatusWord>
                     ) : null}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               )
             })}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
       {perSize.length > 0 ? (
         <div className="space-y-3 border-t border-border px-5 py-4">
-          <h3 className="ef-section-title">Details that differ by size</h3>
+          <h3 className="text-base font-semibold">Details that differ by size</h3>
           {perSize.map((v) => (
             <div key={v.id} className="space-y-1">
               <p className="text-sm font-medium">{v.label ?? "This size"}</p>

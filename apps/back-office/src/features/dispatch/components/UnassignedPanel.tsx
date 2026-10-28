@@ -5,6 +5,7 @@ import type { UnassignedWorkDTO } from "@effy/shared-types"
 import { Panel, EmptyState } from "@effy/web-kit/patterns"
 
 import { describeReasons, waitingFor } from "../model"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@effy/design-system/ui"
 
 export function UnassignedPanel({
   items,
@@ -37,30 +38,30 @@ export function UnassignedPanel({
       description="Ready at a shop or waiting at the hub. Each says why auto-assign couldn't place it."
       flush
     >
-      <div className="ef-table-scroll">
-        <table className="ef-table ef-rtable ef-table--plain">
-          <thead>
-            <tr>
-              <th>Package</th>
-              <th>Why nobody has it</th>
-              <th>Where it is</th>
-              <th>Area</th>
-              <th className="is-actions">
+      <div className="min-w-0">
+        <Table className="ef-rtable">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Package</TableHead>
+              <TableHead>Why nobody has it</TableHead>
+              <TableHead>Where it is</TableHead>
+              <TableHead>Area</TableHead>
+              <TableHead className="text-right">
                 <span className="sr-only">Assign</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {items.map((item) => (
-              <tr key={item.packageId}>
-                <td data-m="primary">
-                  <span className="ef-code font-medium">{item.orderNumber}</span>
-                  <span className="ef-sub">{item.shopName}</span>
-                </td>
-                <td data-m="meta">
+              <TableRow key={item.packageId}>
+                <TableCell data-m="primary">
+                  <span className="font-mono font-medium">{item.orderNumber}</span>
+                  <span className="mt-0.5 block text-sm text-muted-foreground">{item.shopName}</span>
+                </TableCell>
+                <TableCell data-m="meta">
                   <span className="font-medium">{describeReasons(item.reasons)}</span>
-                </td>
-                <td data-m="meta">
+                </TableCell>
+                <TableCell data-m="meta">
                   <span>{waitingFor(item, new Date())}</span>
                   {item.collectLate ? (
                     <span className="late ml-2">
@@ -68,17 +69,17 @@ export function UnassignedPanel({
                       Late for its run
                     </span>
                   ) : null}
-                </td>
-                <td data-m="hide" className="is-muted">
+                </TableCell>
+                <TableCell data-m="hide" className="text-muted-foreground">
                   {item.zoneName ?? "No area"}
-                </td>
-                <td data-m="trail" className="is-actions w-auto!">
+                </TableCell>
+                <TableCell data-m="trail" className="text-right w-auto!">
                   {renderAssign?.(item)}
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
     </Panel>
   )

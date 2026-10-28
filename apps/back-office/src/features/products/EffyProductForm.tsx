@@ -11,7 +11,20 @@ import {
   type FactKey,
   type ProductFacts,
 } from "@effy/shared-types"
-import { Button, Label, Skeleton } from "@effy/design-system/ui"
+import {
+  Alert,
+  AlertTitle,
+  Button,
+  Card,
+  CardContent,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Skeleton,
+} from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 import { PageHeader } from "@effy/web-kit/patterns"
 import {
@@ -240,23 +253,27 @@ export function EffyProductForm({
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="effy-shop">For which shop</Label>
-                  <select
-                    id="effy-shop"
-                    className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  <Select
                     value={shopId}
+                    onValueChange={(next) => {
+                      setShopId(next)
+                    }}
                     disabled={busy}
-                    onChange={(e) => setShopId(e.target.value)}
                   >
-                    <option value="">Choose a shop…</option>
-                    {(shops.data?.items ?? [])
-                      .filter((s) => s.status === "active")
-                      .map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.name}
-                        </option>
-                      ))}
-                  </select>
-                  <p className="ef-sub">
+                    <SelectTrigger id="effy-shop" className="w-full">
+                      <SelectValue placeholder="Choose a shop…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(shops.data?.items ?? [])
+                        .filter((s) => s.status === "active")
+                        .map((s) => (
+                          <SelectItem key={s.id} value={s.id}>
+                            {s.name}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="mt-0.5 block text-sm text-muted-foreground">
                     The product is the shop's: it sees it, fulfils its orders and owns it once it is on sale.
                   </p>
                 </div>
@@ -288,12 +305,14 @@ export function EffyProductForm({
           <div className="space-y-3">
             <ImageDropzone file={picture} onChange={setPicture} disabled={busy} />
             {!picture && content?.media.length ? (
-              <p className="ef-sub">
+              <p className="mt-0.5 block text-sm text-muted-foreground">
                 It already has {content.media.length === 1 ? "a picture" : `${content.media.length} pictures`}; a new
                 one becomes the main picture.
               </p>
             ) : (
-              <p className="ef-sub">Optional now: without a main picture it stays off sale until one is added.</p>
+              <p className="mt-0.5 block text-sm text-muted-foreground">
+                Optional now: without a main picture it stays off sale until one is added.
+              </p>
             )}
           </div>
         )
@@ -342,20 +361,18 @@ export function EffyProductForm({
       />
       <StepTabs step={step} disabled={busy} onStep={(s) => update({ step: s })} />
       <div className="ef-detail">
-        <section className="ef-panel ef-detail__main">
-          <div className="ef-panel__body min-h-70">
-            <div className="flex h-full flex-col gap-4">{stepBody()}</div>
-          </div>
-        </section>
+        <Card className="ef-detail__main min-h-70 py-5">
+          <CardContent className="flex h-full flex-col gap-4">{stepBody()}</CardContent>
+        </Card>
         <aside className="ef-detail__aside">
           <ShopperPreview draft={draft} path={form.data?.path ?? null} imageUrl={pictureUrl} />
         </aside>
       </div>
       {error ? (
-        <div role="alert" className="ef-alert ef-alert--destructive">
+        <Alert variant="destructive">
           <CircleAlert aria-hidden="true" />
-          <div className="ef-alert__title">{error}</div>
-        </div>
+          <AlertTitle>{error}</AlertTitle>
+        </Alert>
       ) : null}
       {pendingMove ? (
         <RecategoriseDialog

@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router"
 
-import { Button } from "@effy/design-system/ui"
+import { Avatar, AvatarFallback, Button } from "@effy/design-system/ui"
 import { Panel } from "@effy/web-kit/patterns"
 
 import { initialsOf } from "@/components/shell/identity"
@@ -22,12 +22,16 @@ export function OrderCustomerPanel({ order }: { order: OrderDetail }) {
     >
       <div className="space-y-4">
         <div className="flex items-center gap-3">
-          <span className="avatar avatar--lg avatar--blue" aria-hidden="true">
-            {initialsOf(order.customerName ?? order.customerEmail)}
-          </span>
+          <Avatar aria-hidden="true" className="size-12">
+            <AvatarFallback className="text-base bg-primary-muted text-primary">
+              {initialsOf(order.customerName ?? order.customerEmail)}
+            </AvatarFallback>
+          </Avatar>
           <div className="min-w-0">
             <div className="truncate font-semibold">{order.customerName ?? order.customerEmail}</div>
-            {order.customerName ? <div className="ef-sub truncate">{order.customerEmail}</div> : null}
+            {order.customerName ? (
+              <div className="mt-0.5 block text-sm text-muted-foreground truncate">{order.customerEmail}</div>
+            ) : null}
           </div>
         </div>
         <OrderCustomerPoints

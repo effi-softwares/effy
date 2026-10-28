@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import { CircleAlert, IdCard, MapPinned, UserX } from "lucide-react"
 
-import { Skeleton } from "@effy/design-system/ui"
+import { Avatar, AvatarFallback, Skeleton } from "@effy/design-system/ui"
 
 import { Panel, EmptyState, StatusWord } from "@effy/web-kit/patterns"
 import { initialsOf } from "@/components/shell/identity"
@@ -44,14 +44,16 @@ export function ReadinessPanel() {
           <ul className="divide-y divide-border">
             {data.blocked.map((b) => (
               <li key={b.driverId} className="flex items-center gap-3 px-5 py-3">
-                <span className="avatar avatar--sq" aria-hidden="true">
-                  {initialsOf(b.driverName)}
-                </span>
+                <Avatar aria-hidden="true" className="rounded-lg">
+                  <AvatarFallback className="rounded-lg">{initialsOf(b.driverName)}</AvatarFallback>
+                </Avatar>
                 <div className="min-w-0 flex-1">
                   <Link to="/drivers/$driverId" params={{ driverId: b.driverId }} className="link">
                     {b.driverName}
                   </Link>
-                  <span className="ef-sub">{b.reasons.map((r) => BLOCKED_LABEL[r]).join(" · ")}</span>
+                  <span className="mt-0.5 block text-sm text-muted-foreground">
+                    {b.reasons.map((r) => BLOCKED_LABEL[r]).join(" · ")}
+                  </span>
                 </div>
               </li>
             ))}
@@ -75,7 +77,9 @@ export function ReadinessPanel() {
                   <Link to="/drivers/$driverId" params={{ driverId: e.driverId }} className="link">
                     {e.driverName}
                   </Link>
-                  <span className="ef-sub">{e.kind === "licence" ? "Driving licence" : "Vehicle registration"}</span>
+                  <span className="mt-0.5 block text-sm text-muted-foreground">
+                    {e.kind === "licence" ? "Driving licence" : "Vehicle registration"}
+                  </span>
                 </div>
                 {e.expired ? (
                   <StatusWord tone="problem" icon={CircleAlert}>

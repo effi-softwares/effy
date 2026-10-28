@@ -9,6 +9,19 @@ import { Panel, StatusWord } from "@effy/web-kit/patterns"
 import { initialsOf } from "@/components/shell/identity"
 
 import { momentText, roundLabel, roundOpenState } from "../model"
+import {
+  Avatar,
+  AvatarFallback,
+  Progress,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  ToggleGroup,
+  ToggleGroupItem,
+} from "@effy/design-system/ui"
 
 export function RoundTable({ rounds }: { rounds: DispatchRoundSummaryDTO[] }) {
   const [kind, setKind] = useState<"all" | "collection" | "delivery">("all")
@@ -25,51 +38,52 @@ export function RoundTable({ rounds }: { rounds: DispatchRoundSummaryDTO[] }) {
       icon={<Truck aria-hidden="true" />}
       description="Collection runs bring parcels from shops to the hub; delivery rounds take them to customers."
       actions={
-        <div className="ef-seg" role="group" aria-label="Work">
+        <ToggleGroup
+          type="single"
+          variant="outline"
+          size="sm"
+          aria-label="Work"
+          value={kind}
+          onValueChange={(v) => v && setKind(v as typeof kind)}
+        >
           {(["all", "collection", "delivery"] as const).map((k) => (
-            <button
-              key={k}
-              type="button"
-              className={kind === k ? "is-active" : undefined}
-              aria-pressed={kind === k}
-              onClick={() => setKind(k)}
-            >
+            <ToggleGroupItem key={k} value={k} className="px-3">
               {k === "all" ? "All" : k === "collection" ? "Collection" : "Delivery"}
-            </button>
+            </ToggleGroupItem>
           ))}
-        </div>
+        </ToggleGroup>
       }
       flush
     >
       {shown.length === 0 ? (
         <p className="px-5 py-6 text-sm text-muted-foreground">No driver is holding a round.</p>
       ) : (
-        <div className="ef-table-scroll">
-          <table className="ef-table ef-rtable ef-table--plain">
-            <thead>
-              <tr>
-                <th>Driver</th>
-                <th>Work</th>
-                <th>Progress</th>
-                <th className="is-num">Packages left</th>
-                <th>Opens</th>
-                <th>Due</th>
-                <th>State</th>
-              </tr>
-            </thead>
-            <tbody>
+        <div className="min-w-0">
+          <Table className="ef-rtable">
+            <TableHeader>
+              <TableRow>
+                <TableHead>Driver</TableHead>
+                <TableHead>Work</TableHead>
+                <TableHead>Progress</TableHead>
+                <TableHead numeric>Packages left</TableHead>
+                <TableHead>Opens</TableHead>
+                <TableHead>Due</TableHead>
+                <TableHead>State</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {shown.map((r) => {
                 const total = r.round.stops?.length ?? 0
                 const done = Math.max(0, total - Number(r.stopsRemaining))
                 const pct = total > 0 ? Math.round((done / total) * 100) : 0
                 const open = roundOpenState(r.round, now)
                 return (
-                  <tr key={r.round.id}>
-                    <td data-m="primary">
+                  <TableRow key={r.round.id}>
+                    <TableCell data-m="primary">
                       <div className="flex items-center gap-2">
-                        <span className="avatar avatar--sq" aria-hidden="true">
-                          {initialsOf(r.driverName)}
-                        </span>
+                        <Avatar aria-hidden="true" className="rounded-lg">
+                          <AvatarFallback className="rounded-lg">{initialsOf(r.driverName)}</AvatarFallback>
+                        </Avatar>
                         <Link
                           to="/orders/assignments/rounds/$roundId"
                           params={{ roundId: r.round.id }}
@@ -78,35 +92,33 @@ export function RoundTable({ rounds }: { rounds: DispatchRoundSummaryDTO[] }) {
                           {r.driverName}
                         </Link>
                       </div>
-                    </td>
-                    <td data-m="meta">{roundLabel(r.round.kind)}</td>
-                    <td data-m="full" className="min-w-40">
+                    </TableCell>
+                    <TableCell data-m="meta">{roundLabel(r.round.kind)}</TableCell>
+                    <TableCell data-m="full" className="min-w-40">
                       {total > 0 ? (
                         <>
-                          <div className="ef-progress-label">
+                          <div className="mb-1 flex justify-between text-xs tabular-nums text-muted-foreground">
                             <span>
                               {done} of {total} stops
                             </span>
                             <span>{pct}%</span>
                           </div>
-                          <div className="ef-meter">
-                            <i className="ef-meter__booked" style={{ width: `${pct}%` }} />
-                          </div>
+                          <Progress value={pct} height={8} />
                         </>
                       ) : (
                         <span className="text-muted-foreground">{r.stopsRemaining} stops left</span>
                       )}
-                    </td>
-                    <td data-m="meta" data-label="Packages left" className="is-num">
+                    </TableCell>
+                    <TableCell numeric data-m="meta" data-label="Packages left">
                       {r.packagesRemaining}
-                    </td>
-                    <td data-m="meta" data-label="Opens">
+                    </TableCell>
+                    <TableCell data-m="meta" data-label="Opens">
                       {open.text || "—"}
-                    </td>
-                    <td data-m="hide" className="whitespace-nowrap">
+                    </TableCell>
+                    <TableCell data-m="hide" className="whitespace-nowrap">
                       {momentText(r.round.deadlineAt, now)}
-                    </td>
-                    <td data-m="badge">
+                    </TableCell>
+                    <TableCell data-m="badge">
                       <span className="flex flex-wrap items-center gap-2">
                         <StatusWord
                           tone={
@@ -126,12 +138,12 @@ export function RoundTable({ rounds }: { rounds: DispatchRoundSummaryDTO[] }) {
                           </span>
                         ) : null}
                       </span>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 )
               })}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
     </Panel>

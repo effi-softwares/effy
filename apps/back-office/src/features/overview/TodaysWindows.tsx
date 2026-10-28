@@ -2,7 +2,17 @@ import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import { ArrowRight, CircleSlash, Clock } from "lucide-react"
 
-import { Badge, Button, Skeleton } from "@effy/design-system/ui"
+import {
+  Badge,
+  Button,
+  Skeleton,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@effy/design-system/ui"
 import { leastAdvanced, type DispatchWindowDTO, type DeliverySlotDTO } from "@effy/shared-types"
 import { PackageStatusPill } from "@effy/web-kit/console"
 import { Panel, Meter, StatusWord } from "@effy/web-kit/patterns"
@@ -35,32 +45,32 @@ export function TodaysWindows() {
       }
       flush
     >
-      <div className="ef-table-scroll">
-        <table className="ef-table ef-rtable ef-table--plain">
-          <thead>
-            <tr>
-              <th>Window</th>
-              <th>Booked</th>
-              <th className="is-num">At the hub</th>
-              <th>Round</th>
-              <th>State</th>
-            </tr>
-          </thead>
-          <tbody>
+      <div className="min-w-0">
+        <Table className="ef-rtable">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Window</TableHead>
+              <TableHead>Booked</TableHead>
+              <TableHead numeric>At the hub</TableHead>
+              <TableHead>Round</TableHead>
+              <TableHead>State</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {grid.isPending ? (
               [0, 1, 2].map((i) => (
-                <tr key={i}>
-                  <td colSpan={5}>
+                <TableRow key={i}>
+                  <TableCell colSpan={5}>
                     <Skeleton className="h-6" />
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))
             ) : slots.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="is-muted">
+              <TableRow>
+                <TableCell colSpan={5} className="text-muted-foreground">
                   No delivery windows are set up. Add them under Delivery › Delivery windows.
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ) : (
               slots.map((s) => {
                 const w = byKey.get(keyOf(s))
@@ -70,9 +80,9 @@ export function TodaysWindows() {
                 const full = s.capacity !== null && s.bookedToday >= s.capacity
                 const pct = s.capacity ? (s.bookedToday / s.capacity) * 100 : 0
                 return (
-                  <tr key={s.id}>
-                    <td data-m="primary">
-                      <span className="ef-code font-medium">
+                  <TableRow key={s.id}>
+                    <TableCell data-m="primary">
+                      <span className="font-mono font-medium">
                         {s.startTime.slice(0, 5)} – {s.endTime.slice(0, 5)}
                       </span>
                       {s.anyTime ? (
@@ -80,30 +90,34 @@ export function TodaysWindows() {
                           Any time
                         </Badge>
                       ) : null}
-                      <span className="ef-sub">Order by {ampm(s.cutoffTime)}</span>
-                    </td>
-                    <td data-m="full" className="min-w-45">
+                      <span className="mt-0.5 block text-sm text-muted-foreground">Order by {ampm(s.cutoffTime)}</span>
+                    </TableCell>
+                    <TableCell data-m="full" className="min-w-45">
                       <Meter
                         booked={pct}
                         label={`${s.bookedToday} booked`}
                         limit={s.capacity === null ? "no limit" : `limit ${s.capacity}`}
                       />
-                    </td>
-                    <td data-m="meta" data-label="At the hub" className="is-num">
+                    </TableCell>
+                    <TableCell numeric data-m="meta" data-label="At the hub">
                       {atHub}
-                    </td>
-                    <td data-m="meta" data-label="Round">
+                    </TableCell>
+                    <TableCell data-m="meta" data-label="Round">
                       {round ? (
                         <>
                           {round.driver.name}
                           {w && w.rounds.length > 1 ? ` +${w.rounds.length - 1}` : ""}
-                          {round.opensAt ? <span className="ef-sub">Opens {at12(round.opensAt)}</span> : null}
+                          {round.opensAt ? (
+                            <span className="mt-0.5 block text-sm text-muted-foreground">
+                              Opens {at12(round.opensAt)}
+                            </span>
+                          ) : null}
                         </>
                       ) : (
                         <span className="text-muted-foreground">No round yet</span>
                       )}
-                    </td>
-                    <td data-m="badge">
+                    </TableCell>
+                    <TableCell data-m="badge">
                       {state ? (
                         <PackageStatusPill view={state} showDetail={false} icons />
                       ) : full ? (
@@ -115,13 +129,13 @@ export function TodaysWindows() {
                           Open
                         </StatusWord>
                       )}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 )
               })
             )}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
     </Panel>
   )

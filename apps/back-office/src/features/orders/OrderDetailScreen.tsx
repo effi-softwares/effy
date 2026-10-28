@@ -31,7 +31,7 @@ type Section = "packages" | "items" | "payment" | "refunds" | "history"
 function AddressBlock({ title, address }: { title: string; address: Record<string, unknown> | null }) {
   return (
     <div className="space-y-1">
-      <div className="ef-eyebrow">{title}</div>
+      <div className="text-xs font-medium text-muted-foreground">{title}</div>
       <address className="text-sm not-italic">
         {addressLines(address).map((line) => (
           <div key={line}>{line}</div>
@@ -116,7 +116,7 @@ export function OrderDetailScreen({
         back={{ label: "Orders", link: { to: "/orders" } }}
         title={
           <>
-            <span className="ef-code text-2xl font-semibold">{order.orderNumber}</span>
+            <span className="font-mono text-2xl font-semibold">{order.orderNumber}</span>
             {status ? <PackageStatusPill view={status} showDetail={false} icons /> : null}
             <Badge variant={order.deliveryType === "effy" ? "success" : "secondary"}>
               {deliveryTypeText(order.deliveryType)}

@@ -95,7 +95,7 @@ function OrderRulesForm({
         footerBetween
         footer={
           <>
-            <span className="ef-sub">
+            <span className="mt-0.5 block text-sm text-muted-foreground">
               Last updated {formatTime(updatedAt)}
               {updatedBy ? (
                 <>
@@ -113,7 +113,9 @@ function OrderRulesForm({
                 )}
               </form.Subscribe>
             ) : (
-              <span className="ef-sub">You have read-only access to the order rules.</span>
+              <span className="mt-0.5 block text-sm text-muted-foreground">
+                You have read-only access to the order rules.
+              </span>
             )}
           </>
         }

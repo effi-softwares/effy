@@ -243,7 +243,8 @@ describe("Coverage — the list of postcodes Effy delivers to (076)", () => {
     await screen.findByText("3121")
     await user.click(screen.getByRole("checkbox", { name: "Select all shown" }))
     expect(screen.getByTestId("coverage-bulk")).toHaveTextContent("2 selected")
-    await user.selectOptions(screen.getByRole("combobox", { name: "Delivery today" }), "stop")
+    await user.click(screen.getByRole("combobox", { name: "Delivery today" }))
+    await user.click(screen.getByRole("option", { name: "Don't offer" }))
     await user.click(screen.getByRole("button", { name: "Apply" }))
     await waitFor(() =>
       expect(repo.patchCoveragePostcodes).toHaveBeenCalledWith({ postcodes: ["3121", "3900"], todayOffered: false }),
@@ -266,7 +267,8 @@ describe("Coverage — the list of postcodes Effy delivers to (076)", () => {
     renderPanel()
     await screen.findByText("3121")
     await user.click(screen.getByRole("checkbox", { name: "Select 3121" }))
-    await user.selectOptions(screen.getByLabelText("Move to group"), "none")
+    await user.click(screen.getByLabelText("Move to group"))
+    await user.click(screen.getByRole("option", { name: "No group" }))
     await user.click(screen.getByRole("button", { name: "Move" }))
     const dialog = await screen.findByRole("alertdialog")
     expect(dialog).toHaveTextContent("no driver is cleared to deliver everywhere")

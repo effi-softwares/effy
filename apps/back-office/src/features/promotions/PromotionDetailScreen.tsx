@@ -242,9 +242,9 @@ export function PromotionDetailScreen({ promoId }: { promoId: string }) {
                           <Link to="/promotions/groups/$groupId" params={{ groupId: g.id }} className="link">
                             {g.name}
                           </Link>
-                          <div className="ef-sub font-mono">{g.key}</div>
+                          <div className="mt-0.5 block text-sm text-muted-foreground font-mono">{g.key}</div>
                         </div>
-                        <span className="ef-sub">Position {g.position + 1}</span>
+                        <span className="mt-0.5 block text-sm text-muted-foreground">Position {g.position + 1}</span>
                       </li>
                     ))}
                   </ul>
@@ -262,13 +262,19 @@ export function PromotionDetailScreen({ promoId }: { promoId: string }) {
         <aside className="ef-detail__aside is-first">
           <Panel title="What shoppers read">
             <div className="space-y-2">
-              {p.label ? <div className="ef-sub font-semibold uppercase tracking-wide">{p.label}</div> : null}
+              {p.label ? (
+                <div className="mt-0.5 block text-sm text-muted-foreground font-semibold uppercase tracking-wide">
+                  {p.label}
+                </div>
+              ) : null}
               <div className="text-base font-semibold">
                 {p.headline ?? <span className="text-muted-foreground">No headline — not shown in groups</span>}
               </div>
-              {p.supportingLine ? <p className="ef-sub">{p.supportingLine}</p> : null}
-              {p.sharedCode ? <div className="ef-code">{p.sharedCode}</div> : null}
-              {p.terms ? <p className="ef-sub">{p.terms}</p> : null}
+              {p.supportingLine ? (
+                <p className="mt-0.5 block text-sm text-muted-foreground">{p.supportingLine}</p>
+              ) : null}
+              {p.sharedCode ? <div className="font-mono">{p.sharedCode}</div> : null}
+              {p.terms ? <p className="mt-0.5 block text-sm text-muted-foreground">{p.terms}</p> : null}
             </div>
           </Panel>
           <Panel title="Attribution">
@@ -341,7 +347,7 @@ function Overview({ p }: { p: Promotion }) {
                 p.trigger === "code" ? (
                   <>
                     With the code{" "}
-                    <span className="ef-code">{p.sharedCode ?? `${p.singleUseCodeCount} single-use codes`}</span>
+                    <span className="font-mono">{p.sharedCode ?? `${p.singleUseCodeCount} single-use codes`}</span>
                   </>
                 ) : (
                   "Automatically"
@@ -419,9 +425,11 @@ function History({ promoId }: { promoId: string }) {
                 <div className="text-sm font-medium">
                   {e.action.replace(/^promo(tion|_code)\./, "").replace(/_/g, " ")}
                 </div>
-                <div className="ef-sub font-mono">{e.actorSub}</div>
+                <div className="mt-0.5 block text-sm text-muted-foreground font-mono">{e.actorSub}</div>
               </div>
-              <span className="ef-sub whitespace-nowrap">{formatTime(e.createdAt)}</span>
+              <span className="mt-0.5 block text-sm text-muted-foreground whitespace-nowrap">
+                {formatTime(e.createdAt)}
+              </span>
             </li>
           ))}
         </ul>

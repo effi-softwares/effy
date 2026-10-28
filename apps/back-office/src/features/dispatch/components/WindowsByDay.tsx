@@ -4,7 +4,17 @@ import { useQuery } from "@tanstack/react-query"
 import { CalendarClock, Clock, Route, Snowflake } from "lucide-react"
 
 import type { DispatchWindowDTO } from "@effy/shared-types"
-import { Badge, Skeleton } from "@effy/design-system/ui"
+import {
+  Badge,
+  Skeleton,
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableRow,
+  ToggleGroup,
+  ToggleGroupItem,
+} from "@effy/design-system/ui"
 import { PackageStatusPill } from "@effy/web-kit/console"
 
 import { Panel } from "@effy/web-kit/patterns"
@@ -28,19 +38,24 @@ export function WindowsByDay() {
       description="Parcels booked into each window, and the round that carries them."
       actions={
         data ? (
-          <div className="ef-seg max-w-full overflow-x-auto" role="group" aria-label="Day">
+          <ToggleGroup
+            type="single"
+            variant="outline"
+            size="sm"
+            className="max-w-full overflow-x-auto"
+            aria-label="Day"
+            value={data.date}
+            onValueChange={(v) => {
+              const d = data.days.find((x) => x.date === v)
+              if (d) setDate(d.isToday ? null : d.date)
+            }}
+          >
             {data.days.map((d) => (
-              <button
-                key={d.date}
-                type="button"
-                aria-pressed={d.date === data.date}
-                className={d.date === data.date ? "is-active" : undefined}
-                onClick={() => setDate(d.isToday ? null : d.date)}
-              >
+              <ToggleGroupItem key={d.date} value={d.date} className="px-3">
                 {d.label}
-              </button>
+              </ToggleGroupItem>
             ))}
-          </div>
+          </ToggleGroup>
         ) : undefined
       }
       flush
@@ -70,7 +85,7 @@ export function WindowsByDay() {
               <div key={w.windowStart} className="space-y-3 px-5 py-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex min-w-0 items-center gap-3">
-                    <span className="ef-code text-sm font-semibold">{w.label}</span>
+                    <span className="font-mono text-sm font-semibold">{w.label}</span>
                     {w.anyTime ? <Badge variant="outline">Any time</Badge> : null}
                     <span className="text-sm text-muted-foreground">
                       {w.parcels.length} {w.parcels.length === 1 ? "parcel" : "parcels"}
@@ -78,12 +93,12 @@ export function WindowsByDay() {
                   </div>
                   <div className="flex min-w-55 items-center gap-3">
                     <div
-                      className="ef-meter flex-1"
+                      className="flex h-2 min-w-16 flex-1 overflow-hidden rounded-full bg-muted"
                       role="img"
                       aria-label={`${delivered} delivered, ${moving} on the way, of ${w.parcels.length}`}
                     >
-                      <i className="ef-meter__done" style={{ width: `${(delivered / n) * 100}%` }} />
-                      <i className="ef-meter__booked" style={{ width: `${(moving / n) * 100}%` }} />
+                      <i className="block h-full bg-success" style={{ width: `${(delivered / n) * 100}%` }} />
+                      <i className="block h-full bg-primary-fill" style={{ width: `${(moving / n) * 100}%` }} />
                     </div>
                     <span className="text-xs whitespace-nowrap text-muted-foreground tabular-nums">
                       {delivered} delivered
@@ -96,21 +111,21 @@ export function WindowsByDay() {
                 </div>
                 {w.parcels.length > 0 ? (
                   <div className="overflow-x-auto rounded-lg border border-border">
-                    <table className="ef-table ef-rtable ef-table--compact ef-table--plain" aria-label={w.label}>
-                      <caption className="sr-only">{summary}</caption>
-                      <tbody>
+                    <Table className="ef-rtable [&_td]:py-2" aria-label={w.label}>
+                      <TableCaption className="sr-only">{summary}</TableCaption>
+                      <TableBody>
                         {w.parcels.map((p) => (
-                          <tr key={p.packageId}>
-                            <td data-m="primary" className="w-40">
-                              <span className="ef-code font-medium">{p.orderNumber}</span>
-                            </td>
-                            <td data-m="badge">
+                          <TableRow key={p.packageId}>
+                            <TableCell data-m="primary" className="w-40">
+                              <span className="font-mono font-medium">{p.orderNumber}</span>
+                            </TableCell>
+                            <TableCell data-m="badge">
                               <PackageStatusPill view={p.status} icons />
-                            </td>
-                            <td data-m="meta" className="is-muted">
+                            </TableCell>
+                            <TableCell data-m="meta" className="text-muted-foreground">
                               {p.group ?? "No area"}
-                            </td>
-                            <td data-m="meta">
+                            </TableCell>
+                            <TableCell data-m="meta">
                               <span className="flex flex-wrap gap-2">
                                 {p.collectLate ? (
                                   <span className="late">
@@ -119,17 +134,17 @@ export function WindowsByDay() {
                                   </span>
                                 ) : null}
                                 {p.coldOvernight ? (
-                                  <span className="ef-tag">
+                                  <Badge variant="outline">
                                     <Snowflake aria-hidden="true" />
                                     Needs cold storage
-                                  </span>
+                                  </Badge>
                                 ) : null}
                               </span>
-                            </td>
-                          </tr>
+                            </TableCell>
+                          </TableRow>
                         ))}
-                      </tbody>
-                    </table>
+                      </TableBody>
+                    </Table>
                   </div>
                 ) : null}
               </div>

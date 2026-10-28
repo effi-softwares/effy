@@ -5,7 +5,20 @@ import { Link } from "@tanstack/react-router"
 import { LayoutList, Palette, Plus, SlidersHorizontal, TicketPercent } from "lucide-react"
 
 import { PROMOTION_STATES, type PromotionKind, type PromotionState, type PromotionTrigger } from "@effy/shared-types"
-import { Button, Skeleton, Tabs, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui"
+import {
+  Button,
+  Skeleton,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Tabs,
+  TabsCount,
+  TabsList,
+  TabsTrigger,
+} from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 
 import {
@@ -180,7 +193,7 @@ export function PromotionsListScreen() {
       {isError ? (
         <ErrorState error={error} onRetry={() => void refetch()} />
       ) : isPending ? (
-        <div className="ef-table-wrap p-4" aria-busy="true">
+        <div className="overflow-hidden rounded-xl border bg-card p-4" aria-busy="true">
           <Skeleton className="mb-3 h-10" />
           <Skeleton className="h-10" />
         </div>
@@ -195,51 +208,51 @@ export function PromotionsListScreen() {
           }
         />
       ) : (
-        <div className="ef-table-wrap">
-          <div className="ef-table-scroll">
-            <table className="ef-table ef-rtable">
-              <thead>
-                <tr>
-                  <th>Promotion</th>
-                  <th>Gives</th>
-                  <th>Who</th>
-                  <th>Status</th>
-                  <th>Active dates</th>
-                  <th className="text-right">Used</th>
-                  <th>Shown in</th>
-                </tr>
-              </thead>
-              <tbody>
+        <div className="overflow-hidden rounded-xl border bg-card">
+          <div className="min-w-0">
+            <Table className="ef-rtable">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Promotion</TableHead>
+                  <TableHead>Gives</TableHead>
+                  <TableHead>Who</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Active dates</TableHead>
+                  <TableHead className="text-right">Used</TableHead>
+                  <TableHead>Shown in</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {data.items.map((p) => (
-                  <tr key={p.id}>
-                    <td data-m="primary">
+                  <TableRow key={p.id}>
+                    <TableCell data-m="primary">
                       <Link to="/promotions/$promoId" params={{ promoId: p.id }} className="link">
                         {p.name}
                       </Link>
-                      <div className="ef-sub">
-                        {p.codeSummary ? <span className="ef-code">{p.codeSummary}</span> : "Automatic"}
+                      <div className="mt-0.5 block text-sm text-muted-foreground">
+                        {p.codeSummary ? <span className="font-mono">{p.codeSummary}</span> : "Automatic"}
                       </div>
-                    </td>
-                    <td data-m="meta">{p.gives}</td>
-                    <td data-m="meta" className="is-muted">
+                    </TableCell>
+                    <TableCell data-m="meta">{p.gives}</TableCell>
+                    <TableCell data-m="meta" className="text-muted-foreground">
                       {p.who}
-                    </td>
-                    <td data-m="badge">
+                    </TableCell>
+                    <TableCell data-m="badge">
                       <PromotionStateWord state={p.state} />
-                    </td>
-                    <td data-m="meta" className="is-muted">
+                    </TableCell>
+                    <TableCell data-m="meta" className="text-muted-foreground">
                       {activeDates(p.startsAt, p.endsAt)}
-                    </td>
-                    <td data-m="trail" className="text-right tabular-nums">
+                    </TableCell>
+                    <TableCell data-m="trail" className="text-right tabular-nums">
                       {usesLabel(p)}
-                    </td>
-                    <td data-m="meta" data-label="Shown in" className="is-muted">
+                    </TableCell>
+                    <TableCell data-m="meta" data-label="Shown in" className="text-muted-foreground">
                       {p.groups.length ? p.groups.join(", ") : "—"}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
           <Pager
             summary={`${data.total} promotion${data.total === 1 ? "" : "s"} · page ${data.page} of ${totalPages}`}
@@ -250,7 +263,7 @@ export function PromotionsListScreen() {
           />
         </div>
       )}
-      <p className="ef-sub">
+      <p className="mt-0.5 block text-sm text-muted-foreground">
         Status is worked out from a promotion's dates, uses, budget and whether it is paused — it is never stored.
         Customer service can read every promotion; changing one needs a manager or an administrator.
       </p>

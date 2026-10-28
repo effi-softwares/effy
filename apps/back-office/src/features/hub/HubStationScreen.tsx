@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query"
 import { Warehouse } from "lucide-react"
 
 import { PARCEL_ZONE_WORDS, type HubCheckinResultDTO } from "@effy/shared-types"
-import { Skeleton } from "@effy/design-system/ui"
+import { Skeleton, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 import { ScanField } from "@effy/web-kit/scanner"
 
@@ -101,32 +101,32 @@ export function HubStationScreen() {
                 description={`${inCount} of ${run.bags.length} bags checked in`}
                 flush
               >
-                <table className="ef-table ef-table--compact ef-table--plain" aria-label={`${run.driverName}'s bags`}>
-                  <thead>
-                    <tr>
-                      <th>Code</th>
-                      <th>Bag</th>
-                      <th>Zone</th>
-                      <th>Order</th>
-                      <th>Goes to</th>
-                      <th>Checked in</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+                <Table className="[&_td]:py-2" aria-label={`${run.driverName}'s bags`}>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Code</TableHead>
+                      <TableHead>Bag</TableHead>
+                      <TableHead>Zone</TableHead>
+                      <TableHead>Order</TableHead>
+                      <TableHead>Goes to</TableHead>
+                      <TableHead>Checked in</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {run.bags.map((b) => (
-                      <tr key={b.parcelId} className={b.checkedIn ? "text-muted-foreground" : ""}>
-                        <td className="font-mono">{b.code}</td>
-                        <td className="tabular-nums">
+                      <TableRow key={b.parcelId} className={b.checkedIn ? "text-muted-foreground" : ""}>
+                        <TableCell className="font-mono">{b.code}</TableCell>
+                        <TableCell className="tabular-nums">
                           {b.seq} of {b.of}
-                        </td>
-                        <td>{PARCEL_ZONE_WORDS[b.zone]}</td>
-                        <td className="font-mono">{b.orderNumber}</td>
-                        <td>{b.sort.label}</td>
-                        <td>{b.checkedIn ? "Yes" : "Not yet"}</td>
-                      </tr>
+                        </TableCell>
+                        <TableCell>{PARCEL_ZONE_WORDS[b.zone]}</TableCell>
+                        <TableCell className="font-mono">{b.orderNumber}</TableCell>
+                        <TableCell>{b.sort.label}</TableCell>
+                        <TableCell>{b.checkedIn ? "Yes" : "Not yet"}</TableCell>
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </Panel>
             )
           })

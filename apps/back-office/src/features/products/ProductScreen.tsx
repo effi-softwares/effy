@@ -13,7 +13,20 @@ import {
   type BackOfficeProductDTO,
   type BackOfficeVariantDTO,
 } from "@effy/shared-types"
-import { Skeleton, Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui"
+import {
+  Skeleton,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Tabs,
+  TabsContent,
+  TabsCount,
+  TabsList,
+  TabsTrigger,
+} from "@effy/design-system/ui"
 import { ErrorState, useHeaderBack } from "@effy/web-kit/console"
 import { Callout, DetailRows, PageHeader, Panel, StatusWord } from "@effy/web-kit/patterns"
 
@@ -98,7 +111,7 @@ function Product({
       {p.hold ? (
         <Callout tone="destructive" title="Held by Effy" role="status">
           <p className="whitespace-pre-line">{p.hold.reason}</p>
-          <p className="ef-sub mt-1">
+          <p className="mt-0.5 block text-sm text-muted-foreground mt-1">
             {moment(p.hold.heldAt)}
             {p.hold.heldBy ? ` · ${p.hold.heldBy}` : ""}. Customers cannot find or buy it, and the shop cannot put it
             back on sale.
@@ -190,62 +203,68 @@ function Product({
 
         <TabsContent value="sizes" className="ef-tabpanel">
           <Panel title="Sizes, prices and stock" flush>
-            <div className="ef-table-scroll">
-              <table className="ef-table">
-                <thead>
-                  <tr>
-                    <th>Size</th>
-                    <th>Effy code</th>
-                    <th>Shop code</th>
-                    <th>Barcode</th>
-                    <th className="text-right">Shop price</th>
-                    <th className="text-right">Customers pay</th>
-                    <th className="text-right">Weight</th>
-                    <th className="text-right">Stock</th>
-                    <th>On sale</th>
+            <div className="min-w-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Size</TableHead>
+                    <TableHead>Effy code</TableHead>
+                    <TableHead>Shop code</TableHead>
+                    <TableHead>Barcode</TableHead>
+                    <TableHead className="text-right">Shop price</TableHead>
+                    <TableHead className="text-right">Customers pay</TableHead>
+                    <TableHead className="text-right">Weight</TableHead>
+                    <TableHead className="text-right">Stock</TableHead>
+                    <TableHead>On sale</TableHead>
                     {sizeAction ? (
-                      <th>
+                      <TableHead>
                         <span className="sr-only">Actions</span>
-                      </th>
+                      </TableHead>
                     ) : null}
-                  </tr>
-                </thead>
-                <tbody>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {p.variants.map((v) => (
-                    <tr key={v.id}>
-                      <th scope="row" className="text-left font-medium">
+                    <TableRow key={v.id}>
+                      <TableHead scope="row" className="text-left font-medium">
                         {v.label ?? "One size"}
-                      </th>
-                      <td className="font-mono text-xs">{v.code ?? "—"}</td>
-                      <td className="font-mono text-xs">{v.sku ?? "—"}</td>
-                      <td className="font-mono text-xs">{v.gtin ?? "—"}</td>
-                      <td className="text-right tabular-nums">{money(v.shopPriceAmount)}</td>
-                      <td className="text-right font-medium tabular-nums">{money(v.customerPriceAmount)}</td>
-                      <td className="text-right tabular-nums">{v.weightGrams} g</td>
-                      <td className="text-right tabular-nums">
+                      </TableHead>
+                      <TableCell className="font-mono text-xs">{v.code ?? "—"}</TableCell>
+                      <TableCell className="font-mono text-xs">{v.sku ?? "—"}</TableCell>
+                      <TableCell className="font-mono text-xs">{v.gtin ?? "—"}</TableCell>
+                      <TableCell className="text-right tabular-nums">{money(v.shopPriceAmount)}</TableCell>
+                      <TableCell className="text-right font-medium tabular-nums">
+                        {money(v.customerPriceAmount)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">{v.weightGrams} g</TableCell>
+                      <TableCell className="text-right tabular-nums">
                         {v.stockTracked ? (
                           <>
                             {v.stockOnHand ?? 0}
                             {v.lowStockThreshold !== null ? (
-                              <span className="ef-sub block">reorder at {v.lowStockThreshold}</span>
+                              <span className="mt-0.5 block text-sm text-muted-foreground block">
+                                reorder at {v.lowStockThreshold}
+                              </span>
                             ) : null}
                           </>
                         ) : (
                           <span className="text-muted-foreground">Not tracked</span>
                         )}
-                      </td>
-                      <td>
+                      </TableCell>
+                      <TableCell>
                         {v.state === "active" ? (
                           <StatusWord tone="done">On sale</StatusWord>
                         ) : (
                           <StatusWord tone="muted">Off sale</StatusWord>
                         )}
-                      </td>
-                      {sizeAction ? <td className="text-right">{canManage ? sizeAction(p, v) : null}</td> : null}
-                    </tr>
+                      </TableCell>
+                      {sizeAction ? (
+                        <TableCell className="text-right">{canManage ? sizeAction(p, v) : null}</TableCell>
+                      ) : null}
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           </Panel>
         </TabsContent>

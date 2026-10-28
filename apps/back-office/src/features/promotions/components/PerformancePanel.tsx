@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query"
 import { Panel } from "@effy/web-kit/patterns"
 
 import { performanceQuery } from "../queries"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@effy/design-system/ui"
 
 export function PerformancePanel({ promotionId }: { promotionId: string }) {
   const { data } = useQuery(performanceQuery(promotionId))
@@ -25,31 +26,31 @@ export function PerformancePanel({ promotionId }: { promotionId: string }) {
       description={data.budgetLeft ? `$${data.budgetLeft} of its budget left.` : "Paid orders only."}
       flush
     >
-      <div className="ef-table-scroll">
-        <table className="ef-table">
-          <thead>
-            <tr>
-              <th />
+      <div className="min-w-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead />
               {cols.map(([l]) => (
-                <th key={l} className="text-right">
+                <TableHead key={l} className="text-right">
                   {l}
-                </th>
+                </TableHead>
               ))}
-            </tr>
-          </thead>
-          <tbody>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {rows.map((r) => (
-              <tr key={r.label}>
-                <td>{r.label}</td>
+              <TableRow key={r.label}>
+                <TableCell>{r.label}</TableCell>
                 {cols.map(([l, w]) => (
-                  <td key={l} className="text-right tabular-nums">
+                  <TableCell key={l} className="text-right tabular-nums">
                     {r.value(w)}
-                  </td>
+                  </TableCell>
                 ))}
-              </tr>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
     </Panel>
   )

@@ -4,7 +4,21 @@ import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import { CircleCheck, Hourglass, PackageSearch, PackageX, Route, ShieldAlert, Undo2, Warehouse } from "lucide-react"
 
-import { Button, Skeleton, Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui"
+import {
+  Button,
+  Skeleton,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Tabs,
+  TabsContent,
+  TabsCount,
+  TabsList,
+  TabsTrigger,
+} from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 
 import { PageHeader, EmptyState, StatusWord } from "@effy/web-kit/patterns"
@@ -91,7 +105,7 @@ export function ExceptionsScreen() {
             <section className="space-y-3" aria-labelledby="failed-h">
               <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
                 <div className="min-w-0">
-                  <h2 id="failed-h" className="ef-section-title">
+                  <h2 id="failed-h" className="text-base font-semibold">
                     Failed deliveries
                   </h2>
                   <p className="text-xs text-muted-foreground">Open first, then newest · live</p>
@@ -121,37 +135,39 @@ export function ExceptionsScreen() {
                   description={showResolved ? undefined : "No driver has reported a delivery they could not complete."}
                 />
               ) : (
-                <div className="ef-table-wrap">
-                  <div className="ef-table-scroll">
-                    <table className="ef-table ef-rtable">
-                      <thead>
-                        <tr>
-                          <th>Order</th>
-                          <th>Reason</th>
-                          <th>Driver</th>
-                          <th>Destination</th>
-                          <th>Package</th>
-                          <th>When</th>
-                          <th className="is-actions">
+                <div className="overflow-hidden rounded-xl border bg-card">
+                  <div className="min-w-0">
+                    <Table className="ef-rtable">
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Order</TableHead>
+                          <TableHead>Reason</TableHead>
+                          <TableHead>Driver</TableHead>
+                          <TableHead>Destination</TableHead>
+                          <TableHead>Package</TableHead>
+                          <TableHead>When</TableHead>
+                          <TableHead className="text-right">
                             <span className="sr-only">Action</span>
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
+                          </TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
                         {sortForTriage(failedRows).map((e) => (
-                          <tr key={e.exceptionId}>
-                            <td data-m="primary">
-                              <span className="ef-code font-medium">{e.orderNumber}</span>
-                            </td>
-                            <td data-m="meta">
+                          <TableRow key={e.exceptionId}>
+                            <TableCell data-m="primary">
+                              <span className="font-mono font-medium">{e.orderNumber}</span>
+                            </TableCell>
+                            <TableCell data-m="meta">
                               <span className="font-medium">{reasonLabel(e.reason)}</span>
-                              {e.note ? <span className="ef-sub">{e.note}</span> : null}
-                            </td>
-                            <td data-m="meta" data-label="Driver">
+                              {e.note ? (
+                                <span className="mt-0.5 block text-sm text-muted-foreground">{e.note}</span>
+                              ) : null}
+                            </TableCell>
+                            <TableCell data-m="meta" data-label="Driver">
                               {e.driverName}
-                            </td>
-                            <td data-m="hide">{e.destinationSuburb ?? "—"}</td>
-                            <td data-m="badge">
+                            </TableCell>
+                            <TableCell data-m="hide">{e.destinationSuburb ?? "—"}</TableCell>
+                            <TableCell data-m="badge">
                               {e.packageLocation === "with_driver" ? (
                                 <StatusWord tone="problem" icon={Undo2}>
                                   With {e.driverName} — to return
@@ -161,15 +177,19 @@ export function ExceptionsScreen() {
                                   {e.returnedAt ? `Returned ${moment(e.returnedAt).toLowerCase()}` : "At hub"}
                                 </StatusWord>
                               )}
-                            </td>
-                            <td data-m="hide" className="is-muted whitespace-nowrap">
+                            </TableCell>
+                            <TableCell data-m="hide" className="text-muted-foreground whitespace-nowrap">
                               {moment(e.failedAt)}
-                            </td>
-                            <td data-m="full" className="is-actions w-auto!">
+                            </TableCell>
+                            <TableCell data-m="full" className="text-right w-auto!">
                               {e.resolvedAt ? (
                                 <span className="text-xs text-muted-foreground">
                                   {e.resolution?.outcome ? OUTCOME_WORDS[e.resolution.outcome].label : "Dealt with"}
-                                  {e.resolution?.note ? <span className="ef-sub">{e.resolution.note}</span> : null}
+                                  {e.resolution?.note ? (
+                                    <span className="mt-0.5 block text-sm text-muted-foreground">
+                                      {e.resolution.note}
+                                    </span>
+                                  ) : null}
                                 </span>
                               ) : canResolve && e.packageLocation === "with_driver" ? (
                                 <RecordReturnButton exception={e} />
@@ -178,11 +198,11 @@ export function ExceptionsScreen() {
                               ) : (
                                 <span className="text-xs text-muted-foreground">Admin or manager</span>
                               )}
-                            </td>
-                          </tr>
+                            </TableCell>
+                          </TableRow>
                         ))}
-                      </tbody>
-                    </table>
+                      </TableBody>
+                    </Table>
                   </div>
                 </div>
               )}

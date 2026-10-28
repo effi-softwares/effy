@@ -6,14 +6,20 @@ import { Plus, X } from "lucide-react"
 import type { FeePlanKind, FeePlanDTO } from "@effy/shared-types"
 import {
   Button,
-  Input,
-  Label,
   Drawer,
   DrawerContent,
   DrawerDescription,
   DrawerFooter,
   DrawerHeader,
   DrawerTitle,
+  Input,
+  Label,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@effy/design-system/ui"
 
 import { slotsQuery, useSavePlan } from "../queries"
@@ -173,25 +179,25 @@ export function PlanEditor({
                 "Delivery today",
                 "Added to any window today — what makes same-day a bit dearer.",
               )}
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-muted-foreground">
-                    <th className="py-1 font-normal">Window</th>
-                    <th className="py-1 font-normal">Adds (any day)</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <Table className="w-full text-sm">
+                <TableHeader>
+                  <TableRow className="text-left text-muted-foreground">
+                    <TableHead className="py-1 font-normal">Window</TableHead>
+                    <TableHead className="py-1 font-normal">Adds (any day)</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {(slots.data ?? [])
                     .filter((s) => !s.anyTime)
                     .map((s, i) => (
-                      <tr key={s.id} className="border-t">
-                        <td className="py-2 font-mono tabular-nums">
+                      <TableRow key={s.id} className="border-t">
+                        <TableCell className="py-2 font-mono tabular-nums">
                           {s.startTime}–{s.endTime}
                           {s.status !== "active" ? (
                             <span className="ml-2 font-sans text-muted-foreground">switched off</span>
                           ) : null}
-                        </td>
-                        <td className="py-2">
+                        </TableCell>
+                        <TableCell className="py-2">
                           <Input
                             aria-label={`Surcharge for ${s.startTime}–${s.endTime}`}
                             inputMode="decimal"
@@ -202,11 +208,11 @@ export function PlanEditor({
                             onChange={(e) => set({ slotPremiums: { ...draft.slotPremiums, [s.id]: e.target.value } })}
                           />
                           {fieldError(`slotPremiums.${i}.addAmount`)}
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
               {fieldError("slotPremiums")}
             </section>
           ) : null}
@@ -253,18 +259,18 @@ function BandsSection({
     <section className="space-y-3">
       <h3 className="text-sm font-semibold">{title}</h3>
       <p className="text-sm text-muted-foreground">{help}</p>
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="text-left text-muted-foreground">
-            <th className="py-1 font-normal">Up to ({unit})</th>
-            <th className="py-1 font-normal">Adds</th>
-            <th />
-          </tr>
-        </thead>
-        <tbody>
+      <Table className="w-full text-sm">
+        <TableHeader>
+          <TableRow className="text-left text-muted-foreground">
+            <TableHead className="py-1 font-normal">Up to ({unit})</TableHead>
+            <TableHead className="py-1 font-normal">Adds</TableHead>
+            <TableHead />
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {rows.map((r, i) => (
-            <tr key={i} className="border-t">
-              <td className="py-2 pr-2">
+            <TableRow key={i} className="border-t">
+              <TableCell className="py-2 pr-2">
                 <Input
                   aria-label={`${title} ${i + 1} up to`}
                   inputMode="decimal"
@@ -274,8 +280,8 @@ function BandsSection({
                   value={r.upper}
                   onChange={(e) => update(i, { upper: e.target.value })}
                 />
-              </td>
-              <td className="py-2 pr-2">
+              </TableCell>
+              <TableCell className="py-2 pr-2">
                 <Input
                   aria-label={`${title} ${i + 1} adds`}
                   inputMode="decimal"
@@ -284,8 +290,8 @@ function BandsSection({
                   value={r.add}
                   onChange={(e) => update(i, { add: e.target.value })}
                 />
-              </td>
-              <td className="py-2 text-right">
+              </TableCell>
+              <TableCell className="py-2 text-right">
                 {editable ? (
                   <Button
                     type="button"
@@ -297,11 +303,11 @@ function BandsSection({
                     <X />
                   </Button>
                 ) : null}
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
       {editable ? (
         <Button type="button" variant="outline" size="sm" onClick={() => onChange([...rows, { upper: "", add: "" }])}>
           <Plus /> Add band

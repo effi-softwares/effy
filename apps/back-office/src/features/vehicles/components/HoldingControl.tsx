@@ -2,7 +2,16 @@ import { useState } from "react"
 
 import { useQuery } from "@tanstack/react-query"
 
-import { Button, Input, Label } from "@effy/design-system/ui"
+import {
+  Button,
+  Input,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@effy/design-system/ui"
 import type { VehicleDetail } from "@effy/shared-types"
 
 import { driversListQuery } from "@/features/drivers/queries"
@@ -87,19 +96,23 @@ export function HoldingControl({ vehicle }: { vehicle: VehicleDetail }) {
           <div className="flex flex-wrap items-end gap-3">
             <div className="space-y-2">
               <Label htmlFor="hold-driver">Issue to</Label>
-              <select
-                id="hold-driver"
-                className="h-9 w-64 rounded-md border border-input bg-background px-3 text-sm"
+              <Select
                 value={driverId}
-                onChange={(e) => setDriverId(e.target.value)}
+                onValueChange={(next) => {
+                  setDriverId(next)
+                }}
               >
-                <option value="">Choose a driver…</option>
-                {(drivers.data?.items ?? []).map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger id="hold-driver" className="w-64">
+                  <SelectValue placeholder="Choose a driver…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(drivers.data?.items ?? []).map((d) => (
+                    <SelectItem key={d.id} value={d.id}>
+                      {d.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="odo-out">Opening odometer (km)</Label>

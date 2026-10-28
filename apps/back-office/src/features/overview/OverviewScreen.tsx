@@ -16,7 +16,8 @@ import {
   UserX,
 } from "lucide-react"
 
-import { Button, Skeleton } from "@effy/design-system/ui"
+import { cn } from "@effy/design-system"
+import { Badge, Button, Skeleton } from "@effy/design-system/ui"
 
 import { Kbd, PageHeader, Panel, Callout } from "@effy/web-kit/patterns"
 import { displayName } from "@/components/shell/identity"
@@ -154,27 +155,37 @@ export function OverviewScreen() {
             title="Needs attention"
             description="Each count opens the list it comes from. They update live — nothing here refreshes on a timer."
             actions={
-              <span className="ef-tag">
+              <Badge variant="outline">
                 <span
                   className="size-2 animate-[effy-pulse_2s_ease-in-out_infinite] rounded-full bg-success"
                   aria-hidden="true"
                 />
                 Live
-              </span>
+              </Badge>
             }
             flush
           >
-            <div>
+            <div className="divide-y">
               {attention.map((a) => (
-                <Link key={a.title} {...a.link} className="ef-attn">
-                  <span className={`ef-icon-tile${a.tile ? ` ef-icon-tile--${a.tile}` : ""}`}>
+                <Link
+                  key={a.title}
+                  {...a.link}
+                  className="flex min-h-16 items-center gap-4 px-5 py-3 text-sm no-underline hover:bg-row-hover max-md:gap-3 max-md:px-4"
+                >
+                  <span
+                    className={cn(
+                      "grid size-9 flex-none place-items-center rounded-lg bg-muted text-foreground [&_svg]:size-4",
+                      a.tile === "primary" && "bg-primary-muted text-primary",
+                      a.tile === "problem" && "bg-foreground text-background",
+                    )}
+                  >
                     <a.icon aria-hidden="true" />
                   </span>
-                  <span className="ef-attn__text">
-                    <span className="ef-attn__title">{a.title}</span>
-                    <span className="ef-attn__desc block">{a.desc}</span>
+                  <span className="min-w-0 flex-auto">
+                    <span className="font-medium">{a.title}</span>
+                    <span className="block text-muted-foreground">{a.desc}</span>
                   </span>
-                  <span className="min-w-10 text-right text-2xl leading-7 font-semibold tracking-[-0.02em] tabular-nums max-md:min-w-7 max-md:text-lg">
+                  <span className="min-w-10 text-right text-xl leading-7 font-semibold tracking-[-0.02em] tabular-nums max-md:min-w-7 max-md:text-lg">
                     {a.n === undefined ? <Skeleton className="ml-auto h-6 w-8" /> : a.n}
                   </span>
                   <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
@@ -189,21 +200,31 @@ export function OverviewScreen() {
         <div className="min-w-0 space-y-6">
           <OnDuty />
           <Panel title="Shortcuts" flush>
-            <ul className="space-y-1 px-5 py-2">
+            <ul className="space-y-1 p-2">
               <li>
-                <button type="button" className="ef-cmd-item" onClick={() => setCommandPaletteOpen(true)}>
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start font-normal [&_svg]:text-muted-foreground"
+                  onClick={() => setCommandPaletteOpen(true)}
+                >
                   <Search aria-hidden="true" />
                   Find an order or customer
                   <Kbd className="ml-auto">⌘K</Kbd>
-                </button>
+                </Button>
               </li>
               {SHORTCUTS.map((s) => (
                 <li key={s.label}>
-                  <Link {...s.link} className="ef-cmd-item">
-                    <s.icon aria-hidden="true" />
-                    {s.label}
-                    <Kbd className="ml-auto">{s.keys}</Kbd>
-                  </Link>
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start font-normal [&_svg]:text-muted-foreground"
+                    asChild
+                  >
+                    <Link {...s.link}>
+                      <s.icon aria-hidden="true" />
+                      {s.label}
+                      <Kbd className="ml-auto">{s.keys}</Kbd>
+                    </Link>
+                  </Button>
                 </li>
               ))}
             </ul>

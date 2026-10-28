@@ -54,7 +54,8 @@ describe("ReassignDialog — FR-029 and FR-034", () => {
     open()
 
     await user.click(screen.getByRole("button", { name: "Reassign" }))
-    await user.selectOptions(screen.getByLabelText("Driver"), "d-2")
+    await user.click(screen.getByLabelText("Driver"))
+    await user.click(screen.getByRole("option", { name: "Bea" }))
     await user.click(screen.getByRole("button", { name: "Move the round" }))
 
     await waitFor(() =>
@@ -77,7 +78,8 @@ describe("ReassignDialog — FR-029 and FR-034", () => {
     open()
 
     await user.click(screen.getByRole("button", { name: "Reassign" }))
-    await user.selectOptions(screen.getByLabelText("Driver"), "d-1")
+    await user.click(screen.getByLabelText("Driver"))
+    await user.click(screen.getByRole("option", { name: "Ada" }))
     await user.click(screen.getByRole("button", { name: "Move the round" }))
 
     const alert = await screen.findByRole("alert")
@@ -102,7 +104,8 @@ describe("ReassignDialog — FR-029 and FR-034", () => {
     open()
 
     await user.click(screen.getByRole("button", { name: "Reassign" }))
-    await user.selectOptions(screen.getByLabelText("Driver"), "d-1")
+    await user.click(screen.getByLabelText("Driver"))
+    await user.click(screen.getByRole("option", { name: "Ada" }))
     await user.click(screen.getByRole("button", { name: "Move the round" }))
 
     await screen.findByRole("alert")
@@ -118,7 +121,8 @@ describe("ReassignDialog — FR-029 and FR-034", () => {
     open()
 
     await user.click(screen.getByRole("button", { name: "Reassign" }))
-    await user.selectOptions(screen.getByLabelText("Driver"), "d-1")
+    await user.click(screen.getByLabelText("Driver"))
+    await user.click(screen.getByRole("option", { name: "Ada" }))
     await user.click(screen.getByRole("button", { name: "Move the round" }))
 
     const alert = await screen.findByRole("alert")
@@ -130,10 +134,10 @@ describe("ReassignDialog — FR-029 and FR-034", () => {
     const user = userEvent.setup()
     open()
     await user.click(screen.getByRole("button", { name: "Reassign" }))
-    const select = screen.getByLabelText("Driver") as HTMLSelectElement
-    const values = [...select.options].map((o) => o.value)
-    expect(values).toContain("d-1")
-    expect(values).toContain("d-2")
+    await user.click(screen.getByLabelText("Driver"))
+    const names = screen.getAllByRole("option").map((o) => o.textContent)
+    expect(names).toContain("Ada")
+    expect(names).toContain("Bea")
   })
 
   it("will not submit until a driver is chosen", async () => {

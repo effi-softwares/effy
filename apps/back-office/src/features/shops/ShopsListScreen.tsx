@@ -5,7 +5,20 @@ import { Link } from "@tanstack/react-router"
 import { Plus, Store } from "lucide-react"
 
 import type { ShopLifecycleStatus } from "@effy/shared-types"
-import { Button, Skeleton, Tabs, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui"
+import {
+  Button,
+  Skeleton,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Tabs,
+  TabsCount,
+  TabsList,
+  TabsTrigger,
+} from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 
 import { PageHeader, EmptyState, Pager, SearchBox, Toolbar } from "@effy/web-kit/patterns"
@@ -92,7 +105,7 @@ export function ShopsListScreen() {
       {isError ? (
         <ErrorState error={error} onRetry={() => void refetch()} />
       ) : isPending ? (
-        <div className="ef-table-wrap p-4" aria-busy="true">
+        <div className="overflow-hidden rounded-xl border bg-card p-4" aria-busy="true">
           <Skeleton className="mb-3 h-10" />
           <Skeleton className="mb-3 h-10" />
           <Skeleton className="h-10" />
@@ -104,25 +117,25 @@ export function ShopsListScreen() {
           description={search || view !== "all" ? undefined : "Create the first shop to give its operators a sign-in."}
         />
       ) : (
-        <div className="ef-table-wrap">
-          <div className="ef-table-scroll">
-            <table className="ef-table ef-rtable">
-              <thead>
-                <tr>
-                  <th>Code</th>
-                  <th>Name</th>
-                  <th>Address</th>
-                  <th>Status</th>
-                  <th className="text-right">Users</th>
-                  <th>Label scanning</th>
-                </tr>
-              </thead>
-              <tbody>
+        <div className="overflow-hidden rounded-xl border bg-card">
+          <div className="min-w-0">
+            <Table className="ef-rtable">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Code</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Address</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Users</TableHead>
+                  <TableHead>Label scanning</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {data.items.map((s) => (
                   <ShopRow key={s.id} shop={s} />
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
           <Pager
             summary={`${data.total} shop${data.total === 1 ? "" : "s"} · page ${data.page} of ${totalPages}`}
@@ -143,17 +156,23 @@ function ScanRate({ scanning }: { scanning?: { scanned: number; notScanned: numb
   if (!scanning) return <span className="text-muted-foreground">—</span>
   const total = scanning.scanned + scanning.notScanned
   if (total === 0) {
-    return <span className="ef-sub">No scanning yet · {scanning.sinceDays} days</span>
+    return (
+      <span className="mt-0.5 block text-sm text-muted-foreground">No scanning yet · {scanning.sinceDays} days</span>
+    )
   }
   const pct = Math.round((scanning.scanned / total) * 100)
   return (
     <div className="min-w-32">
-      <div className="ef-progress-label">
+      <div className="mb-1 flex justify-between text-xs tabular-nums text-muted-foreground">
         <span>{pct}% scanned</span>
         <span>{scanning.sinceDays} days</span>
       </div>
-      <div className="ef-meter" role="img" aria-label={`${pct}% of labels scanned in ${scanning.sinceDays} days`}>
-        <i className={pct < 70 ? "ef-meter__over" : "ef-meter__booked"} style={{ width: `${pct}%` }} />
+      <div
+        className="flex h-2 min-w-16 overflow-hidden rounded-full bg-muted"
+        role="img"
+        aria-label={`${pct}% of labels scanned in ${scanning.sinceDays} days`}
+      >
+        <i className={`block h-full ${pct < 70 ? "bg-foreground" : "bg-primary-fill"}`} style={{ width: `${pct}%` }} />
       </div>
     </div>
   )
@@ -161,29 +180,29 @@ function ScanRate({ scanning }: { scanning?: { scanned: number; notScanned: numb
 
 function ShopRow({ shop: s }: { shop: ShopListItem }) {
   return (
-    <tr>
-      <td data-m="primary">
-        <Link to="/shops/$shopId" params={{ shopId: s.id }} className="link ef-code">
+    <TableRow>
+      <TableCell data-m="primary">
+        <Link to="/shops/$shopId" params={{ shopId: s.id }} className="link font-mono">
           {s.code}
         </Link>
-      </td>
-      <td data-m="meta">{s.name}</td>
-      <td data-m="meta" data-label="Address">
+      </TableCell>
+      <TableCell data-m="meta">{s.name}</TableCell>
+      <TableCell data-m="meta" data-label="Address">
         {s.hasAddress ? (
           <span className="text-muted-foreground">Recorded</span>
         ) : (
           <span className="font-medium">Not recorded</span>
         )}
-      </td>
-      <td data-m="badge">
+      </TableCell>
+      <TableCell data-m="badge">
         <ShopStatusBadge status={s.status} />
-      </td>
-      <td data-m="meta" data-label="Users" className="text-right tabular-nums">
+      </TableCell>
+      <TableCell data-m="meta" data-label="Users" className="text-right tabular-nums">
         {s.userCount}
-      </td>
-      <td data-m="trail">
+      </TableCell>
+      <TableCell data-m="trail">
         <ScanRate scanning={s.labelScanning} />
-      </td>
-    </tr>
+      </TableCell>
+    </TableRow>
   )
 }

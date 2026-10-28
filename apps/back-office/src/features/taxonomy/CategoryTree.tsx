@@ -100,18 +100,20 @@ export function CategoryTree({ categories, selectedId, canManage, onSelect, onAd
           onDragLeave={() => overId === c.id && setOverId(null)}
           onDrop={(e) => dropOn(e, c.id)}
         >
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="xs"
             className={cn(
-              "grid size-7 shrink-0 place-items-center rounded text-muted-foreground",
+              "touch-hit size-7 shrink-0 p-0 text-muted-foreground pointer-coarse:min-h-0",
               !hasKids && "invisible",
             )}
             aria-label={isOpen ? `Collapse ${c.name}` : `Expand ${c.name}`}
             onClick={() => toggle(c.id)}
             tabIndex={hasKids ? 0 : -1}
           >
-            <ChevronRight className={cn("size-4 transition-transform", isOpen && "rotate-90")} />
-          </button>
+            <ChevronRight className={cn("transition-transform", isOpen && "rotate-90")} />
+          </Button>
           <button
             type="button"
             className="flex min-w-0 flex-1 items-center gap-2 py-2 text-left"

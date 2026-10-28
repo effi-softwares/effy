@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router"
 
 import { Clock, Radio } from "lucide-react"
 
-import { Button, Skeleton } from "@effy/design-system/ui"
+import { Button, Skeleton, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 
 import { Panel, Callout } from "@effy/web-kit/patterns"
@@ -81,45 +81,48 @@ export function DutyPanel() {
       {data.onDuty.length === 0 ? (
         <p className="px-5 py-4 text-sm text-muted-foreground">No drivers are on duty.</p>
       ) : (
-        <div className="ef-table-scroll">
-          <table className="ef-table ef-rtable ef-table--plain">
-            <thead>
-              <tr>
-                <th>Driver</th>
-                <th>Doing now</th>
-                <th>Zone</th>
-                <th>On duty</th>
-                <th>Finish</th>
-                <th className="is-actions">
+        <div className="min-w-0">
+          <Table className="ef-rtable">
+            <TableHeader>
+              <TableRow>
+                <TableHead>Driver</TableHead>
+                <TableHead>Doing now</TableHead>
+                <TableHead>Zone</TableHead>
+                <TableHead>On duty</TableHead>
+                <TableHead>Finish</TableHead>
+                <TableHead className="text-right">
                   <span className="sr-only">Actions</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {data.onDuty.map((d) => {
                 const round = roundOf(d.driverId)
                 return (
-                  <tr key={d.sessionId}>
-                    <td data-m="primary">
+                  <TableRow key={d.sessionId}>
+                    <TableCell data-m="primary">
                       <div className="flex items-center gap-2">
-                        <span aria-hidden="true" className={`ef-dot ${round ? "ef-dot--busy" : "ef-dot--on"}`} />
+                        <span
+                          aria-hidden="true"
+                          className={`inline-block size-2 rounded-full ${round ? "bg-primary-fill" : "bg-success"}`}
+                        />
                         <Link to="/drivers/$driverId" params={{ driverId: d.driverId }} className="link">
                           {d.driverName}
                         </Link>
                       </div>
-                    </td>
-                    <td data-m="meta">
+                    </TableCell>
+                    <TableCell data-m="meta">
                       {round
                         ? `${round.round.kind === "collection" ? "Collection run" : "Delivery round"}${round.stageLabel ? ` · ${round.stageLabel}` : ""}`
                         : "Idle — nothing is assigned"}
-                    </td>
-                    <td data-m="hide" className="is-muted">
+                    </TableCell>
+                    <TableCell data-m="hide" className="text-muted-foreground">
                       {d.zone ?? "No zone"}
-                    </td>
-                    <td data-m="trail" className="whitespace-nowrap tabular-nums">
+                    </TableCell>
+                    <TableCell data-m="trail" className="whitespace-nowrap tabular-nums">
                       {durationSince(d.onDutySince)}
-                    </td>
-                    <td data-m="meta" data-label="Finish">
+                    </TableCell>
+                    <TableCell data-m="meta" data-label="Finish">
                       <span
                         className={
                           d.pastExpectedEnd ? "font-medium" : d.expectedEndAt ? undefined : "text-muted-foreground"
@@ -137,8 +140,8 @@ export function DutyPanel() {
                           Shift running long
                         </span>
                       ) : null}
-                    </td>
-                    <td data-m="full" className="is-actions w-auto!">
+                    </TableCell>
+                    <TableCell data-m="full" className="text-right w-auto!">
                       {d.overdue && canManage ? (
                         <Button
                           variant="outline"
@@ -154,12 +157,12 @@ export function DutyPanel() {
                           End shift
                         </Button>
                       ) : null}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 )
               })}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
     </Panel>

@@ -5,8 +5,22 @@ import { useState } from "react"
 import { CircleCheck } from "lucide-react"
 
 import type { MarginNotSetItemDTO, ReviewKind } from "@effy/shared-types"
-import { cn } from "@effy/design-system"
-import { Button, Skeleton, Tabs, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui"
+import {
+  Button,
+  Skeleton,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Tabs,
+  TabsCount,
+  TabsList,
+  TabsTrigger,
+  ToggleGroup,
+  ToggleGroupItem,
+} from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 
 import {
@@ -101,19 +115,19 @@ export function ReviewQueueScreen() {
               options={(shops.data?.items ?? []).map((s) => ({ value: s.id, label: s.name }))}
             />
             <ToolbarSpacer />
-            <div role="group" aria-label="Kind" className="ef-seg">
+            <ToggleGroup
+              type="single"
+              variant="outline"
+              aria-label="Kind"
+              value={kind ?? "all"}
+              onValueChange={(v) => v && filter(setKind, v === "all" ? null : (v as NonNullable<typeof kind>))}
+            >
               {([null, "new_product", "change"] as const).map((k) => (
-                <button
-                  key={k ?? "all"}
-                  type="button"
-                  className={cn(kind === k && "is-active")}
-                  aria-pressed={kind === k}
-                  onClick={() => filter(setKind, k)}
-                >
+                <ToggleGroupItem key={k ?? "all"} value={k ?? "all"} className="px-3">
                   {k ? KIND_LABEL[k] : "All"}
-                </button>
+                </ToggleGroupItem>
               ))}
-            </div>
+            </ToggleGroup>
           </Toolbar>
         ) : null}
       </div>
@@ -123,7 +137,7 @@ export function ReviewQueueScreen() {
       ) : queue.isError ? (
         <ErrorState error={queue.error} onRetry={() => void queue.refetch()} />
       ) : queue.isPending ? (
-        <div className="ef-table-wrap p-4" aria-busy="true">
+        <div className="overflow-hidden rounded-xl border bg-card p-4" aria-busy="true">
           <Skeleton className="mb-3 h-10" />
           <Skeleton className="h-10" />
         </div>
@@ -134,50 +148,52 @@ export function ReviewQueueScreen() {
           description="Every product and change a shop has submitted has been decided."
         />
       ) : (
-        <div className="ef-table-wrap">
-          <div className="ef-table-scroll">
-            <table className="ef-table ef-rtable">
-              <thead>
-                <tr>
-                  <th>Product</th>
-                  <th>Shop</th>
-                  <th>Kind</th>
-                  <th>Waiting</th>
-                  <th className="text-right">Open</th>
-                </tr>
-              </thead>
-              <tbody>
+        <div className="overflow-hidden rounded-xl border bg-card">
+          <div className="min-w-0">
+            <Table className="ef-rtable">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Product</TableHead>
+                  <TableHead>Shop</TableHead>
+                  <TableHead>Kind</TableHead>
+                  <TableHead>Waiting</TableHead>
+                  <TableHead className="text-right">Open</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {queue.data.items.map((i) => (
-                  <tr key={`${i.kind}-${i.productId}`}>
-                    <td data-m="primary">
+                  <TableRow key={`${i.kind}-${i.productId}`}>
+                    <TableCell data-m="primary">
                       <Link to="/product-review/$productId" params={{ productId: i.productId }} className="link">
                         {i.productName}
                       </Link>
-                      <div className="ef-sub md:hidden">{i.shopName}</div>
-                    </td>
-                    <td data-m="meta" className="is-muted max-md:hidden">
+                      <div className="mt-0.5 block text-sm text-muted-foreground md:hidden">{i.shopName}</div>
+                    </TableCell>
+                    <TableCell data-m="meta" className="text-muted-foreground max-md:hidden">
                       {i.shopName}
-                    </td>
-                    <td data-m="badge">
+                    </TableCell>
+                    <TableCell data-m="badge">
                       <StatusWord tone={i.kind === "new_product" ? "info" : "waiting"}>{KIND_LABEL[i.kind]}</StatusWord>
-                    </td>
-                    <td data-m="trail" className="tabular-nums">
+                    </TableCell>
+                    <TableCell data-m="trail" className="tabular-nums">
                       {waitingLabel(i.waitingHours)}
                       {i.waitingHours >= 24 ? (
-                        <span className="ef-sub ml-2 font-medium text-foreground">Over a day</span>
+                        <span className="mt-0.5 block text-sm text-muted-foreground ml-2 font-medium text-foreground">
+                          Over a day
+                        </span>
                       ) : null}
-                    </td>
-                    <td className="text-right max-md:hidden">
+                    </TableCell>
+                    <TableCell className="text-right max-md:hidden">
                       <Button variant="outline" size="sm" asChild>
                         <Link to="/product-review/$productId" params={{ productId: i.productId }}>
                           Review
                         </Link>
                       </Button>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
           {cursors.length > 0 || queue.data.nextCursor ? (
             <Pager
@@ -222,23 +238,23 @@ function MarginNotSet() {
       <p className="text-sm text-muted-foreground">
         These are on sale at the shop's own price. Setting a margin changes what customers pay straight away.
       </p>
-      <div className="ef-table-wrap">
-        <div className="ef-table-scroll">
-          <table className="ef-table">
-            <thead>
-              <tr>
-                <th>Product</th>
-                <th>Shop</th>
-                <th className="text-right">Lowest shop price</th>
-                <th>{canDecide ? "Set margin" : ""}</th>
-              </tr>
-            </thead>
-            <tbody>
+      <div className="overflow-hidden rounded-xl border bg-card">
+        <div className="min-w-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Product</TableHead>
+                <TableHead>Shop</TableHead>
+                <TableHead className="text-right">Lowest shop price</TableHead>
+                <TableHead>{canDecide ? "Set margin" : ""}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {list.data.items.map((p) => (
                 <MarginNotSetRow key={p.productId} product={p} canDecide={canDecide} />
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       </div>
       {cursors.length > 0 || list.data.nextCursor ? (
@@ -279,11 +295,11 @@ function MarginNotSetRow({ product, canDecide }: { product: MarginNotSetItemDTO;
   }
 
   return (
-    <tr className="align-top">
-      <td className="font-medium">{product.productName}</td>
-      <td className="is-muted">{product.shopName}</td>
-      <td className="text-right tabular-nums">{money(product.shopPriceAmount)}</td>
-      <td>
+    <TableRow className="align-top">
+      <TableCell className="font-medium">{product.productName}</TableCell>
+      <TableCell className="text-muted-foreground">{product.shopName}</TableCell>
+      <TableCell className="text-right tabular-nums">{money(product.shopPriceAmount)}</TableCell>
+      <TableCell>
         {!canDecide ? null : !open ? (
           <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
             Set margin
@@ -312,7 +328,7 @@ function MarginNotSetRow({ product, canDecide }: { product: MarginNotSetItemDTO;
             ) : null}
           </div>
         )}
-      </td>
-    </tr>
+      </TableCell>
+    </TableRow>
   )
 }

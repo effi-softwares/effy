@@ -14,9 +14,10 @@ import {
   Tabs,
   TabsList,
   TabsTrigger,
+  Textarea,
 } from "@effy/design-system/ui"
 
-import { StatusWord, type StatusTone } from "@effy/web-kit/patterns"
+import { StatusWord, Timeline, TimelineItem, type StatusTone } from "@effy/web-kit/patterns"
 import { moment } from "@/lib/format"
 
 import {
@@ -59,10 +60,10 @@ export function FeedbackPanel({
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-6 py-4 max-md:px-4">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <h2 className="ef-code text-lg font-semibold">{detail.referenceCode}</h2>
+            <h2 className="font-mono text-lg font-semibold">{detail.referenceCode}</h2>
             <StatusWord tone={STATUS_TONE[detail.status]}>{FEEDBACK_STATUS_LABELS[detail.status]}</StatusWord>
           </div>
-          <p className="ef-sub">
+          <p className="mt-0.5 block text-sm text-muted-foreground">
             {FEEDBACK_CATEGORY_LABELS[detail.category]}
             {detail.rating ? ` · ${detail.rating}/5` : ""}
             {s.name ? ` · ${s.name}` : ""}
@@ -89,31 +90,26 @@ export function FeedbackPanel({
           <p className="rounded-lg bg-muted p-4 text-sm whitespace-pre-wrap">{detail.message}</p>
 
           {timeline.length > 0 ? (
-            <ol className="ef-tl">
+            <Timeline>
               {timeline.map((t, i) => (
-                <li key={i} className="ef-tl__item">
-                  <span className={cn("ef-tl__mark", t.kind === "reply" && "ef-tl__mark--done")} aria-hidden="true">
-                    {t.kind === "note" ? <Lock /> : <Reply />}
-                  </span>
-                  <div>
-                    <div className="ef-tl__title">
-                      {t.kind === "note" ? "Internal note" : "Reply sent"} · {t.who}
-                    </div>
-                    <div className={cn("ef-tl__note whitespace-pre-wrap", t.kind === "note" && "bg-primary-muted!")}>
-                      {t.body}
-                    </div>
-                  </div>
-                  <span className="ef-tl__time">{moment(t.at)}</span>
-                </li>
+                <TimelineItem
+                  key={i}
+                  icon={t.kind === "note" ? <Lock /> : <Reply />}
+                  tone={t.kind === "reply" ? "done" : "default"}
+                  title={`${t.kind === "note" ? "Internal note" : "Reply sent"} · ${t.who}`}
+                  time={moment(t.at)}
+                  note={t.body}
+                  noteTone={t.kind === "note" ? "primary" : "muted"}
+                />
               ))}
-            </ol>
+            </Timeline>
           ) : null}
 
           <Composer detail={detail} mayReply={mayReply} />
         </div>
 
         <div className="min-w-0 space-y-4 p-6 max-md:p-4">
-          <h3 className="ef-eyebrow">Details</h3>
+          <h3 className="text-xs font-medium text-muted-foreground">Details</h3>
           <dl className="ef-dl [&_.ef-dl__row]:grid-cols-[minmax(0,1fr)] [&_.ef-dl__row]:gap-1">
             <Row label="Category">{FEEDBACK_CATEGORY_LABELS[detail.category]}</Row>
             <Row label="Rating">{detail.rating ? `${detail.rating}/5` : "—"}</Row>
@@ -210,14 +206,19 @@ function Composer({ detail, mayReply }: { detail: FeedbackDetailDTO; mayReply: b
           This submission has no email address, so there is nowhere to send a reply.
         </p>
       ) : (
-        <div className={cn("rounded-lg border border-input bg-background shadow-xs", mode === "note" && "bg-muted")}>
+        <div
+          className={cn(
+            "rounded-lg border border-input bg-background shadow-xs focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50",
+            mode === "note" && "bg-muted",
+          )}
+        >
           <label className="sr-only" htmlFor="fb-compose">
             {mode === "reply" ? "Reply" : "Internal note"}
           </label>
-          <textarea
+          <Textarea
             id="fb-compose"
             rows={4}
-            className="min-h-16 w-full resize-none border-0 bg-transparent px-3 py-3 text-sm text-foreground outline-none"
+            className="min-h-16 resize-none rounded-none border-0 bg-transparent shadow-none focus-visible:ring-0 dark:bg-transparent"
             value={body}
             maxLength={max}
             onChange={(e) => setBody(e.target.value)}

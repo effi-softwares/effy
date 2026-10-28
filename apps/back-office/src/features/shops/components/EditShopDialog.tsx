@@ -14,6 +14,11 @@ import {
   DialogTitle,
   Input,
   Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@effy/design-system/ui"
 
 import { track } from "@/lib/telemetry"
@@ -184,20 +189,25 @@ export function EditShopDialog({ shop, open, onOpenChange }: EditShopDialogProps
             {(field) => (
               <div className="space-y-2">
                 <Label htmlFor="edit-state">State</Label>
-                <select
-                  id="edit-state"
-                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-                  value={field.state.value}
-                  onChange={(e) => field.handleChange(e.target.value)}
-                  onBlur={field.handleBlur}
+                <Select
+                  value={field.state.value || "__none"}
+                  onValueChange={(raw) => {
+                    const next = raw === "__none" ? "" : raw
+                    field.handleChange(next)
+                  }}
                 >
-                  <option value="">Not recorded</option>
-                  {["ACT", "NSW", "NT", "QLD", "SA", "TAS", "VIC", "WA"].map((st) => (
-                    <option key={st} value={st}>
-                      {st}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger id="edit-state" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none">Not recorded</SelectItem>
+                    {["ACT", "NSW", "NT", "QLD", "SA", "TAS", "VIC", "WA"].map((st) => (
+                      <SelectItem key={st} value={st}>
+                        {st}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             )}
           </form.Field>
