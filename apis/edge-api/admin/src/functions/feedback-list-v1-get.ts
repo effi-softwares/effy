@@ -1,11 +1,13 @@
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda"
 
 import type { AuthedEvent } from "@effy/edge-shared"
-import { json, preamble } from "@effy/edge-shared"
+import { json, listProblem, parseListQuery, preamble } from "@effy/edge-shared"
 
 import { guard, mapFeedbackError } from "../feedback/handler-support"
-import { list, parseListParams } from "../feedback/service"
+import { FEEDBACK_LIST_SPEC } from "../feedback/list"
+import { list, viewCounts } from "../feedback/service"
 
+/** Customer feedback, a console list (103); `?views=only` answers every view's count in one request. */
 export const handler = async (
   event: AuthedEvent,
   context: Context,
@@ -15,9 +17,10 @@ export const handler = async (
   if ("deny" in g) return g.deny
 
   try {
-    const params = parseListParams(event.queryStringParameters ?? {})
-    return json(200, await list(params), scope)
+    const req = parseListQuery(event.queryStringParameters, FEEDBACK_LIST_SPEC)
+    if (req.viewsOnly) return json(200, { views: await viewCounts(req) }, scope)
+    return json(200, await list(req), scope)
   } catch (err) {
-    return mapFeedbackError(err, scope)
+    return listProblem(err, scope) ?? mapFeedbackError(err, scope)
   }
 }

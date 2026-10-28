@@ -13,11 +13,15 @@ const sendEmail = vi.fn()
 
 vi.mock("./repository", () => repo)
 vi.mock("@effy/email-kit/send", () => ({ sendEmail: (...a: unknown[]) => sendEmail(...a) }))
-vi.mock("@effy/edge-shared", () => ({
+vi.mock("@effy/edge-shared", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@effy/edge-shared")>()),
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }))
 
 const { addNote, changeStatus, detail, list, reply } = await import("./service")
+const { parseListQuery } = await import("@effy/edge-shared")
+const { FEEDBACK_LIST_SPEC } = await import("./list")
+const req = (qs: Record<string, string> = {}) => parseListQuery(qs, FEEDBACK_LIST_SPEC)
 
 const actor = { sub: "staff-1", name: "Alex Ops" }
 
@@ -48,26 +52,22 @@ beforeEach(() => {
 describe("list — shapes rows into DTOs with a truncated preview", () => {
   it("maps guest vs customer and truncates a long message", async () => {
     repo.list.mockResolvedValue({
-      items: [row({ message: "x".repeat(200), customer_id: null }), row({ customer_id: "c1" })],
+      rows: [row({ message: "x".repeat(200), customer_id: null }), row({ customer_id: "c1" })],
       total: 2,
+      page: 1,
     })
-    const dto = await list({
-      q: null, category: null, status: null, rating: null, from: null, to: null, limit: 25, offset: 0,
-    })
+    const dto = await list(req())
     expect(dto.total).toBe(2)
     expect(dto.items[0]!.preview.endsWith("…")).toBe(true)
     expect(dto.items[0]!.preview.length).toBeLessThanOrEqual(141)
     expect(dto.items[0]!.submitter.kind).toBe("guest")
     expect(dto.items[1]!.submitter.kind).toBe("customer")
-    expect(dto.nextCursor).toBeNull()
   })
 
-  it("returns a nextCursor when more remain", async () => {
-    repo.list.mockResolvedValue({ items: [row()], total: 5 })
-    const dto = await list({
-      q: null, category: null, status: null, rating: null, from: null, to: null, limit: 1, offset: 0,
-    })
-    expect(dto.nextCursor).toBe("1")
+  it("103: answers a list page with its total and page", async () => {
+    repo.list.mockResolvedValue({ rows: [row()], total: 30, page: 2 })
+    const dto = await list(req({ page: "2" }))
+    expect(dto).toMatchObject({ total: 30, page: 2, pageSize: 25, totalCapped: false })
   })
 })
 

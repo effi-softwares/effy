@@ -2,9 +2,9 @@ import { useState } from "react"
 
 import { ArrowDown, PackageX } from "lucide-react"
 
-import { Badge, Button, Input, Label, Table, TableBody, TableHeader, TableRow, toast } from "@effy/design-system/ui"
+import { Badge, Button, Input, Label, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, toast } from "@effy/design-system/ui"
 
-import { DetailSection, Segmented, Td, Th } from "@/components/console/primitives"
+import { DetailSection, Segmented } from "@/components/console/primitives"
 import { track } from "@/lib/telemetry"
 
 import type { ProductDetail } from "./model"
@@ -97,13 +97,13 @@ export function StockTable({
         <Table>
           <TableHeader>
             <TableRow>
-              <Th>{named ? "Size" : "Item"}</Th>
-              <Th align="right">On hand</Th>
-              <Th>Status</Th>
-              <Th align="right">Low at</Th>
-              <Th width="160px">{mode === "receive" ? "Received" : "Counted"}</Th>
-              <Th align="right">After</Th>
-              <Th />
+              <TableHead>{named ? "Size" : "Item"}</TableHead>
+              <TableHead numeric>On hand</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead numeric>Low at</TableHead>
+              <TableHead style={{ width: "160px" }}>{mode === "receive" ? "Received" : "Counted"}</TableHead>
+              <TableHead numeric>After</TableHead>
+              <TableHead />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -113,23 +113,23 @@ export function StockTable({
               const label = v.label ?? detail.name
               return (
                 <TableRow key={v.id} className="align-top">
-                  <Td>
+                  <TableCell>
                     <span className="font-medium">{label}</span>
                     <span className="mt-0.5 block text-muted-foreground">
                       <span className="font-mono">{v.code}</span>
                       {v.state === "inactive" ? " · Off sale" : ""}
                     </span>
-                  </Td>
-                  <Td align="right" className="tabular-nums">
+                  </TableCell>
+                  <TableCell numeric className="tabular-nums">
                     {v.stock.tracked ? (v.stock.onHand ?? 0) : "—"}
-                  </Td>
-                  <Td>
+                  </TableCell>
+                  <TableCell>
                     <StockBadge stock={v.stock} />
-                  </Td>
-                  <Td align="right" className="text-muted-foreground tabular-nums">
+                  </TableCell>
+                  <TableCell numeric className="text-muted-foreground tabular-nums">
                     {v.stock.tracked ? (v.stock.effectiveThreshold ?? "—") : "—"}
-                  </Td>
-                  <Td>
+                  </TableCell>
+                  <TableCell>
                     <Input
                       aria-label={`${mode === "receive" ? "Units received" : "Units counted"} for ${label}`}
                       inputMode="numeric"
@@ -151,11 +151,11 @@ export function StockTable({
                     {!v.stock.tracked && after !== null ? (
                       <p className="mt-1 text-sm text-muted-foreground">Starts counting this size</p>
                     ) : null}
-                  </Td>
-                  <Td align="right" className="font-medium tabular-nums">
+                  </TableCell>
+                  <TableCell numeric className="font-medium tabular-nums">
                     {after ?? ""}
-                  </Td>
-                  <Td>
+                  </TableCell>
+                  <TableCell>
                     <div className="flex justify-end gap-2">
                       <Button type="button" variant="ghost" size="sm" onClick={() => onRules(v.id)}>
                         Rules
@@ -166,7 +166,7 @@ export function StockTable({
                         </Button>
                       ) : null}
                     </div>
-                  </Td>
+                  </TableCell>
                 </TableRow>
               )
             })}

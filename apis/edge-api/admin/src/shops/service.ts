@@ -1,12 +1,11 @@
-import { offsetListPage } from "@effy/edge-shared";
+import { offsetListPage, SET_FULL_SENTENCE } from "@effy/edge-shared";
 import type { ListPage } from "@effy/shared-types";
 
 import * as cognito from "./cognito";
-import type { ShopListRequest } from "./list";
+import type { ShopHistoryRequest, ShopListRequest } from "./list";
 import * as repo from "./repository";
 import {
   type AuditEntry,
-  type Paged,
   type ShopDetail,
   ShopError,
   type ShopLifecycleStatus,
@@ -45,15 +44,8 @@ export async function getShop(shopId: string): Promise<ShopDetail> {
   return detail;
 }
 
-export async function getShopHistory(
-  shopId: string,
-  page?: number,
-  pageSize?: number,
-): Promise<Paged<AuditEntry>> {
-  const p = page && page > 0 ? Math.floor(page) : 1;
-  const ps = pageSize && pageSize > 0 ? Math.min(Math.floor(pageSize), 100) : 50;
-  return repo.listShopHistory(shopId, p, ps);
-}
+export const getShopHistory = (shopId: string, req: ShopHistoryRequest): Promise<ListPage<AuditEntry>> =>
+  repo.listShopHistory(shopId, req);
 
 export async function createShop(
   input: {
@@ -211,6 +203,8 @@ export async function addShopUser(
 
   const boundShop = await repo.shopIdForEmail(email);
   if (boundShop) throw new ShopError("conflict", "this email already belongs to a shop user");
+  // 103 FR-024: a shop's team is shown whole, so it is capped; refused before any sign-in is made.
+  if (await repo.teamIsFull(shopId)) throw new ShopError("conflict", SET_FULL_SENTENCE);
 
   const sub = await cognito.ensureShopUser(email, name, role as ShopRole);
   return repo.addShopUser(shopId, { sub, email, name, role: role as ShopRole }, actorSub);

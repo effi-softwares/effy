@@ -10,6 +10,7 @@ import type {
   DriverEmploymentStatus,
 } from "@effy/shared-types";
 import type { FieldError, RequestScope } from "@effy/edge-shared";
+import { offsetListPage } from "@effy/edge-shared";
 
 import { auditDetail, recordAudit } from "../shared/audit";
 import { conflict, notFound, validationError } from "../shared/errors";
@@ -21,6 +22,7 @@ import {
   lookupDriverUser,
 } from "./cognito";
 import { heldByDriver } from "../holdings/repository";
+import type { DriverListRequest } from "./list";
 import * as repo from "./repository";
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
@@ -68,10 +70,12 @@ function normalise(patch: Record<string, unknown>): Record<string, unknown> {
   return out;
 }
 
-export async function listDrivers(params: repo.ListParams): Promise<AdminDriverListResponse> {
-  const result = await repo.listDrivers(params);
-  return { items: result.items, nextCursor: result.nextCursor };
+export async function listDrivers(req: DriverListRequest): Promise<AdminDriverListResponse> {
+  const r = await repo.listDrivers(req);
+  return offsetListPage(r.items, req, r);
 }
+
+export const driverViewCounts = (req: DriverListRequest) => repo.driverViewCounts(req);
 
 /** The identity lookup is best-effort: Cognito being down still renders the profile (logged). */
 export async function getDriver(id: string, scope?: RequestScope): Promise<AdminDriverProfile> {

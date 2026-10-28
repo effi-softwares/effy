@@ -35,7 +35,7 @@ import type { ProductListParams } from "./model"
 
 const CATALOG_ROOT = ["shop", "catalog"] as const
 /** The list and one product: a live `products` update (an Effy hold or release, 102) re-reads both. */
-const PRODUCTS_ROOT = ["shop", "catalog", "products"] as const
+export const PRODUCTS_ROOT = ["shop", "catalog", "products"] as const
 const PRODUCT_ROOT = ["shop", "catalog", "product"] as const
 
 /** The category tree for the picker: it changes rarely, and a live `taxonomy` update re-reads it (101). */

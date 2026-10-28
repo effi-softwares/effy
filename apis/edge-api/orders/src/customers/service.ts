@@ -1,6 +1,6 @@
 // Every points rule is @effy/edge-shared/points; this decides who is asking, and meters and announces after commit.
 import {
-  emitMetric, formatCents, hasStaffRole, metricNamespace, OUTWARD_ACTION_ROLES, pooled, withTransaction,
+  emitMetric, formatCents, offsetListPage, hasStaffRole, metricNamespace, OUTWARD_ACTION_ROLES, pooled, withTransaction,
   type Queryable, type Transactor,
 } from "@effy/edge-shared";
 import {
@@ -8,10 +8,11 @@ import {
   type PointsSettingsPatch,
 } from "@effy/edge-shared/points";
 import type {
-  CustomerDetailDTO, CustomerSearchResultDTO, PointsChangeResultDTO, PointsCreditRequest, PointsDebitRequest,
+  CustomerDetailDTO, CustomerListDTO, PointsChangeResultDTO, PointsCreditRequest, PointsDebitRequest,
   PointsSettingsDTO, StaffPointsHistoryPageDTO,
 } from "@effy/shared-types";
 
+import type { CustomerListRequest } from "./list";
 import * as repo from "./repository";
 
 /** Also raised for a non-uuid id. */
@@ -45,8 +46,23 @@ export function createCustomerService(deps: CustomerServiceDeps = {}) {
   }
 
   return {
-    async search(q: string): Promise<CustomerSearchResultDTO[]> {
-      return (await repo.search(q)).map((r) => ({ id: r.id, name: r.name, email: r.email, points: r.points, orderCount: r.order_count }));
+    /** Back-office › Customers, a console list (103). */
+    async list(req: CustomerListRequest): Promise<CustomerListDTO> {
+      const r = await repo.list(req);
+      return offsetListPage(
+        r.rows.map((x) => ({
+          id: x.id,
+          name: x.name,
+          email: x.email,
+          phone: x.phone,
+          joinedAt: x.joined_at.toISOString(),
+          points: x.points,
+          orderCount: x.order_count,
+          lastOrderAt: x.last_order_at ? x.last_order_at.toISOString() : null,
+        })),
+        req,
+        r,
+      );
     },
 
     async detail(id: string): Promise<CustomerDetailDTO> {

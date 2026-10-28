@@ -1,7 +1,8 @@
 import { useState } from "react"
 
 import type { AdminOrderDetailDTO, ProposedRefundDTO, RefundDTO } from "@effy/shared-types"
-import { Button, Input, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@effy/design-system/ui"
+import { Button, Input, Table, TableBody, TableCell, TableRow } from "@effy/design-system/ui"
+import { StaticTable, type EffyColumnDef } from "@effy/web-kit/data-table"
 
 import { refundActionError } from "../refundErrorText"
 import { useDeclineRefundRequest, useDismissProposal } from "../refundQueries"
@@ -182,6 +183,67 @@ function ProposedRefunds({
   )
 }
 
+const REFUND_COLUMNS: EffyColumnDef<RefundDTO>[] = [
+  {
+    id: "when",
+    header: "When",
+    cell: ({ row }) => <span className="text-muted-foreground">{new Date(row.original.createdAt).toLocaleString()}</span>,
+    meta: { label: "When", phone: "primary" },
+  },
+  {
+    id: "amount",
+    header: "Amount",
+    cell: ({ row }) => {
+      const r = row.original
+      return (
+        <>
+          {r.amount}
+          {r.pointsReturned ? (
+            <span className="block text-xs text-muted-foreground">
+              {r.cardAmount} to card · {r.pointsReturned.toLocaleString("en-AU")} points
+            </span>
+          ) : null}
+        </>
+      )
+    },
+    meta: { label: "Amount", align: "numeric", phone: "trail" },
+  },
+  {
+    id: "covered",
+    header: "What it covered",
+    cell: ({ row }) => {
+      const r = row.original
+      return (
+        <span className="whitespace-normal">
+          {r.kind !== "item"
+            ? `${KIND_WORD[r.kind] ?? r.kind}${r.note ? ` — ${r.note}` : ""}`
+            : r.lines.map((l) => `${l.quantity} × ${l.productName}`).join(", ") || "—"}
+        </span>
+      )
+    },
+    meta: { label: "What it covered", phone: "full" },
+  },
+  {
+    id: "state",
+    header: "State",
+    cell: ({ row }) => (
+      <>
+        {STATE_WORD[row.original.status] ?? row.original.status}
+        {row.original.failureReason ? (
+          <span className="block text-xs text-muted-foreground">{row.original.failureReason}</span>
+        ) : null}
+      </>
+    ),
+    meta: { label: "State", phone: "badge" },
+  },
+  {
+    id: "who",
+    header: "Who",
+    cell: ({ row }) => <span className="text-muted-foreground">{actorText(row.original)}</span>,
+    meta: { label: "Who", priority: 2 },
+  },
+]
+
 function RefundHistory({ refunds, refundedAmount }: { refunds: readonly RefundDTO[]; refundedAmount: string }) {
   if (refunds.length === 0) {
     return (
@@ -195,51 +257,7 @@ function RefundHistory({ refunds, refundedAmount }: { refunds: readonly RefundDT
   return (
     <section className="space-y-3">
       <h3 className="font-medium">Refunds issued</h3>
-      <Table className="rounded-lg border border-border [&_td]:py-2">
-        <TableHeader className="text-left text-muted-foreground">
-          <TableRow className="border-b">
-            <TableHead className="py-2 font-medium">When</TableHead>
-            <TableHead className="py-2 font-medium">Amount</TableHead>
-            <TableHead className="py-2 font-medium">What it covered</TableHead>
-            <TableHead className="py-2 font-medium">State</TableHead>
-            <TableHead className="py-2 font-medium">Who</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody className="divide-y">
-          {refunds.map((r) => (
-            <TableRow key={r.id}>
-              <TableCell className="w-44 py-2 align-top tabular-nums text-muted-foreground">
-                {new Date(r.createdAt).toLocaleString()}
-              </TableCell>
-              <TableCell className="w-24 py-2 align-top tabular-nums">
-                {r.amount}
-                {r.pointsReturned ? (
-                  <span className="block text-xs text-muted-foreground">
-                    {r.cardAmount} to card · {r.pointsReturned.toLocaleString("en-AU")} points
-                  </span>
-                ) : null}
-              </TableCell>
-              <TableCell className="py-2 align-top">
-                {r.kind !== "item" ? (
-                  <span>
-                    {KIND_WORD[r.kind] ?? r.kind}
-                    {r.note ? ` — ${r.note}` : ""}
-                  </span>
-                ) : (
-                  <span>{r.lines.map((l) => `${l.quantity} × ${l.productName}`).join(", ") || "—"}</span>
-                )}
-              </TableCell>
-              <TableCell className="w-56 py-2 align-top">
-                {STATE_WORD[r.status] ?? r.status}
-                {r.failureReason ? (
-                  <span className="block text-xs text-muted-foreground">{r.failureReason}</span>
-                ) : null}
-              </TableCell>
-              <TableCell className="w-40 py-2 align-top text-muted-foreground">{actorText(r)}</TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+      <StaticTable label="Refunds issued" columns={REFUND_COLUMNS} rows={refunds} getRowId={(r) => r.id} />
       <dl className="grid grid-cols-[10rem_1fr] gap-x-4 border-t pt-2 text-sm">
         <dt className="text-muted-foreground">Refunded in total</dt>
         <dd className="tabular-nums">{refundedAmount}</dd>

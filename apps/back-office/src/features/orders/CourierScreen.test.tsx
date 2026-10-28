@@ -1,17 +1,24 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { render, screen, waitFor, within } from "@testing-library/react"
+import { screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import type { ReactNode } from "react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import type { HandoverRowDTO } from "@effy/shared-types"
 
+import { onePage, renderList } from "@/test/renderList"
+
+/** Answers by stage, as the service does; the screen asks with the list's query string (103). */
 const listCourierParcels = vi.hoisted(() => vi.fn())
-vi.mock("./repo", async () => ({ ...(await vi.importActual<object>("./repo")), listCourierParcels }))
-vi.mock("@tanstack/react-router", () => ({
-  Link: ({ children, params, to }: { children: ReactNode; params?: { orderId: string }; to: string }) => (
-    <a href={params ? `/orders/${params.orderId}` : to}>{children}</a>
-  ),
+vi.mock("./repo", async () => ({
+  ...(await vi.importActual<object>("./repo")),
+  fetchCourierPage: async (qs: URLSearchParams) => {
+    const view = qs.get("view") ?? "hub_due"
+    const items = await listCourierParcels(view)
+    return { ...onePage(items), views: { hub_due: 1, hub_late: 1, supplier: 1, with_courier: 0, problems: 1 } }
+  },
+}))
+vi.mock("@/features/delivery/repo", async () => ({
+  ...(await vi.importActual<object>("@/features/delivery/repo")),
+  listCourierServices: async () => ({ items: [], collectionDefault: "hub" }),
 }))
 
 const { CourierScreen } = await import("./CourierScreen")
@@ -33,14 +40,7 @@ const row = (over: Partial<HandoverRowDTO> = {}): HandoverRowDTO => ({
   ...over,
 })
 
-function renderScreen() {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  return render(<CourierScreen />, {
-    wrapper: ({ children }: { children: ReactNode }) => (
-      <QueryClientProvider client={qc}>{children}</QueryClientProvider>
-    ),
-  })
-}
+const renderScreen = () => renderList(CourierScreen, "/orders/handover")
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -80,23 +80,23 @@ describe("080 — the Courier tab", () => {
 
   it("late says so in words; supplier pickups show the booked window; problems show where it is", async () => {
     renderScreen()
-    await userEvent.click(screen.getByRole("combobox", { name: "Courier stages" }))
-    await userEvent.click(screen.getByRole("option", { name: "Late at the hub" }))
+    await userEvent.click(await screen.findByRole("combobox", { name: "Courier stages" }))
+    await userEvent.click(screen.getByRole("option", { name: /^Late at the hub/ }))
     expect(within((await screen.findByText("EFY-0002")).closest("tr")!).getByText("Late")).toBeInTheDocument()
     await userEvent.click(screen.getByRole("combobox", { name: "Courier stages" }))
-    await userEvent.click(screen.getByRole("option", { name: "Supplier pickups" }))
+    await userEvent.click(screen.getByRole("option", { name: /^Supplier pickups/ }))
     const s = (await screen.findByText("EFY-0003")).closest("tr")!
     expect(within(s).getByText("Pickup 2026-10-12, 13:00–15:00")).toBeInTheDocument()
     expect(within(s).getByText("Booked")).toBeInTheDocument()
     await userEvent.click(screen.getByRole("combobox", { name: "Courier stages" }))
-    await userEvent.click(screen.getByRole("option", { name: "Problems" }))
+    await userEvent.click(screen.getByRole("option", { name: /^Problems/ }))
     expect(within((await screen.findByText("EFY-0004")).closest("tr")!).getByText("Lost")).toBeInTheDocument()
   })
 
   it("an empty view says what it means", async () => {
     renderScreen()
-    await userEvent.click(screen.getByRole("combobox", { name: "Courier stages" }))
-    await userEvent.click(screen.getByRole("option", { name: "With the courier" }))
+    await userEvent.click(await screen.findByRole("combobox", { name: "Courier stages" }))
+    await userEvent.click(screen.getByRole("option", { name: /^With the courier/ }))
     await waitFor(() => expect(screen.getByText("Nothing is with a courier right now.")).toBeInTheDocument())
   })
 })

@@ -3,7 +3,7 @@ import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query
 import { addFeedbackNote, getFeedback, listFeedback, replyToFeedback, setFeedbackStatus } from "./repo"
 import type { FeedbackListParams } from "./model"
 
-const ROOT = ["back-office", "feedback"] as const
+export const ROOT = ["back-office", "feedback"] as const
 
 export const feedbackListQuery = (params: FeedbackListParams) =>
   queryOptions({

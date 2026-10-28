@@ -1,148 +1,104 @@
-import { useMemo, useState } from "react"
-
 import { useQuery } from "@tanstack/react-query"
-import { Link } from "@tanstack/react-router"
+import { useSearch } from "@tanstack/react-router"
 import { MailCheck } from "lucide-react"
 
-import { Skeleton, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@effy/design-system/ui"
-import { ErrorState } from "@effy/web-kit/console"
-
-import { EmptyState, PageHeader, Pager, SearchBox, StatusWord, Toolbar, ViewSelect } from "@effy/web-kit/patterns"
+import {
+  DataTable,
+  ListPage,
+  listQueryOptions,
+  SearchBox,
+  useListState,
+  viewsQueryOptions,
+  ViewSelect,
+  type EffyColumnDef,
+} from "@effy/web-kit/data-table"
+import { PageHeader, StatusWord } from "@effy/web-kit/patterns"
 import { moment } from "@/lib/format"
 
-import { STATE_LABEL, type EmailDeliveryState } from "./model"
-import { deliverabilityListQuery } from "./queries"
+import { DELIVERABILITY_VIEWS, deliverabilityList, STATE_LABEL, type DeliverabilityView, type DeliveryListItem, type EmailDeliveryState } from "./model"
+import { ROOT } from "./queries"
+import { fetchDeliverabilityPage, fetchDeliverabilityViews } from "./repo"
 
-const PAGE_SIZE = 25
-const PROBLEMS = "problems"
+const VIEW_LABEL: Record<DeliverabilityView, string> = {
+  problems: "Needs attention",
+  undeliverable: STATE_LABEL.undeliverable,
+  soft_failing: STATE_LABEL.soft_failing,
+  complained: STATE_LABEL.complained,
+  reachable: STATE_LABEL.reachable,
+  all: "All addresses",
+}
 
-const VIEWS: readonly { key: string; label: string }[] = [
-  { key: PROBLEMS, label: "Needs attention" },
-  { key: "undeliverable", label: STATE_LABEL.undeliverable },
-  { key: "soft_failing", label: STATE_LABEL.soft_failing },
-  { key: "complained", label: STATE_LABEL.complained },
-  { key: "all", label: "All addresses" },
+const columns: EffyColumnDef<DeliveryListItem>[] = [
+  { id: "address", header: "Address", cell: ({ row }) => row.original.address, meta: { label: "Address", identifying: true, phone: "primary", sortKey: "address" } },
+  { id: "state", header: "State", cell: ({ row }) => <StateLabel state={row.original.state} />, meta: { label: "State", phone: "badge" } },
+  {
+    id: "account",
+    header: "Account",
+    cell: ({ row }) =>
+      row.original.subject ? (
+        <>
+          {row.original.subject.name ?? <span className="text-muted-foreground">unnamed</span>}{" "}
+          <span className="text-sm text-muted-foreground">({row.original.subject.kind.replace("_", " ")})</span>
+        </>
+      ) : (
+        <span className="text-muted-foreground">—</span>
+      ),
+    meta: { label: "Account", priority: 2 },
+  },
+  {
+    id: "reason",
+    header: "Reason",
+    cell: ({ row }) => <span className="font-mono text-xs text-muted-foreground">{row.original.reason ?? "—"}</span>,
+    meta: { label: "Reason", priority: 2 },
+  },
+  {
+    id: "lastEvent",
+    header: "Last event",
+    cell: ({ row }) => <span className="text-muted-foreground">{moment(row.original.lastEventAt)}</span>,
+    meta: { label: "Last event", sortKey: "lastEvent", phone: "trail" },
+  },
 ]
 
 export function DeliverabilityListScreen() {
-  const [state, setState] = useState<string>(PROBLEMS)
-  const [q, setQ] = useState("")
-  const [page, setPage] = useState(0)
-
-  const params = useMemo(
-    () => ({
-      state: state === PROBLEMS ? undefined : (state as EmailDeliveryState | "all"),
-      q: q.trim() || undefined,
-      limit: PAGE_SIZE,
-      offset: page * PAGE_SIZE,
-    }),
-    [state, q, page],
-  )
-
-  const { data, isPending, isError, error, refetch } = useQuery(deliverabilityListQuery(params))
-  const totalPages = data ? Math.max(1, Math.ceil(data.total / PAGE_SIZE)) : 1
+  const state = useListState(deliverabilityList, useSearch({ strict: false }))
+  const input = { key: ROOT, list: deliverabilityList, view: state.view, fetch: fetchDeliverabilityPage }
+  const query = useQuery(listQueryOptions(input))
+  const views = useQuery(viewsQueryOptions({ key: ROOT, list: deliverabilityList, view: state.view, except: ["view"], fetch: fetchDeliverabilityViews }))
 
   return (
-    <>
-      <PageHeader
-        title="Email deliverability"
-        description="Email addresses that are bouncing or rejected, which can stop people receiving sign-in codes."
+    <ListPage
+      header={
+        <PageHeader
+          title="Email deliverability"
+          description="Email addresses that are bouncing or rejected, which can stop people receiving sign-in codes."
+        />
+      }
+    >
+      <DataTable
+        app="back-office"
+        label="Email deliverability"
+        list={deliverabilityList}
+        state={state}
+        columns={columns}
+        query={query}
+        queryInput={input}
+        viewFilters={["view"]}
+        rowId={(r) => r.address}
+        rowHref={(r) => ({ to: "/deliverability/$address", params: { address: r.address } })}
+        empty={{ icon: MailCheck, title: "No delivery problems.", description: "Every address the platform has emailed is reachable." }}
+        toolbar={
+          <>
+            <ViewSelect
+              label="Deliverability views"
+              value={state.view.filters.view ?? "problems"}
+              onChange={(v) => state.setFilter("view", v === "problems" ? undefined : v)}
+              options={DELIVERABILITY_VIEWS.map((v) => ({ value: v, label: VIEW_LABEL[v], count: views.data?.views[v], attention: v === "problems" }))}
+            />
+            <SearchBox label="Search address" placeholder="Search address…" value={state.draftQ} onChange={state.setQ} />
+          </>
+        }
       />
-      <Toolbar>
-        <ViewSelect
-          label="Deliverability views"
-          value={state}
-          onChange={(v) => {
-            setState(v)
-            setPage(0)
-          }}
-          options={VIEWS.map((v) => ({
-            value: v.key,
-            label: v.label,
-            count: v.key === state ? data?.total : undefined,
-          }))}
-        />
-        <SearchBox
-          label="Search address"
-          placeholder="Search address…"
-          value={q}
-          onChange={(v) => {
-            setQ(v)
-            setPage(0)
-          }}
-        />
-      </Toolbar>
-
-      {isError ? (
-        <ErrorState error={error} onRetry={() => void refetch()} />
-      ) : isPending ? (
-        <div className="overflow-hidden rounded-xl border bg-card p-4" aria-busy="true">
-          <Skeleton className="mb-3 h-10" />
-          <Skeleton className="h-10" />
-        </div>
-      ) : data.items.length === 0 ? (
-        <EmptyState
-          icon={MailCheck}
-          title="No delivery problems."
-          description="Every address the platform has emailed is reachable."
-        />
-      ) : (
-        <div className="overflow-hidden rounded-xl border bg-card">
-          <div className="min-w-0">
-            <Table className="ef-rtable">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Address</TableHead>
-                  <TableHead>State</TableHead>
-                  <TableHead>Account</TableHead>
-                  <TableHead>Reason</TableHead>
-                  <TableHead>Last event</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data.items.map((r) => (
-                  <TableRow key={r.address}>
-                    <TableCell data-m="primary">
-                      <Link to="/deliverability/$address" params={{ address: r.address }} className="link">
-                        {r.address}
-                      </Link>
-                    </TableCell>
-                    <TableCell data-m="badge">
-                      <StateLabel state={r.state} />
-                    </TableCell>
-                    <TableCell data-m="meta">
-                      {r.subject ? (
-                        <>
-                          {r.subject.name ?? <span className="text-muted-foreground">unnamed</span>}{" "}
-                          <span className="mt-0.5 block text-sm text-muted-foreground">
-                            ({r.subject.kind.replace("_", " ")})
-                          </span>
-                        </>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell data-m="meta" className="text-muted-foreground">
-                      <span className="font-mono text-xs">{r.reason ?? "—"}</span>
-                    </TableCell>
-                    <TableCell data-m="trail" className="text-muted-foreground whitespace-nowrap">
-                      {moment(r.lastEventAt)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-          <Pager
-            summary={`${data.total} address${data.total === 1 ? "" : "es"} · page ${page + 1} of ${totalPages}`}
-            canBack={page > 0}
-            canNext={(page + 1) * PAGE_SIZE < data.total}
-            onBack={() => setPage((p) => Math.max(0, p - 1))}
-            onNext={() => setPage((p) => p + 1)}
-          />
-        </div>
-      )}
-    </>
+    </ListPage>
   )
 }
 

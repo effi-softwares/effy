@@ -6,7 +6,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 /** Filters and trigram search, the reply + status in one transaction, notes and replies in order. */
 const holder = vi.hoisted(() => ({ pool: null as Pool | null }))
 
-vi.mock("@effy/edge-shared", () => ({
+vi.mock("@effy/edge-shared", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@effy/edge-shared")>()),
   query: (text: string, params?: unknown[]) => holder.pool!.query(text, params as never[]),
   withTransaction: async (fn: (c: unknown) => unknown) => {
     const client = await holder.pool!.connect()
@@ -25,6 +26,8 @@ vi.mock("@effy/edge-shared", () => ({
 }))
 
 import * as repo from "./repository"
+import { parseListQuery } from "@effy/edge-shared"
+import { FEEDBACK_LIST_SPEC } from "./list"
 
 const RUN = process.env.CONTAINER_TESTS === "1"
 
@@ -70,24 +73,30 @@ describe.skipIf(!RUN)("feedback console repo — against real PostgreSQL", () =>
     )
   })
 
-  const emptyParams = { q: null, category: null, status: null, rating: null, from: null, to: null, limit: 25, offset: 0 }
+  const list = (qs: Record<string, string> = {}) => repo.list(parseListQuery({ view: "all", ...qs }, FEEDBACK_LIST_SPEC))
 
-  it("lists newest-first and paginates", async () => {
+  it("lists newest-first and pages, ties at the page edge included (103)", async () => {
     await seed(pool, { reference_code: "FB-OLD", created_at: "2026-08-01T00:00:00Z" })
     await seed(pool, { reference_code: "FB-NEW", created_at: "2026-08-10T00:00:00Z" })
-    const page = await repo.list({ ...emptyParams, limit: 1 })
+    const page = await list()
     expect(page.total).toBe(2)
-    expect(page.items[0]!.reference_code).toBe("FB-NEW")
+    expect(page.rows[0]!.reference_code).toBe("FB-NEW")
+    for (let i = 0; i < 28; i++) await seed(pool, { reference_code: `FB-T${i}`, created_at: "2026-08-05T00:00:00Z" })
+    const seen = [...(await list({ pageSize: "25" })).rows, ...(await list({ pageSize: "25", page: "2" })).rows].map((r) => r.reference_code)
+    expect(new Set(seen).size).toBe(30)
   })
 
-  it("searches message and email; filters by category/status/rating combinably", async () => {
+  it("searches message, email and reference; filters by view/category/rating combinably; counts views at once", async () => {
     await seed(pool, { reference_code: "FB-A", message: "the checkout is slow", category: "bug", status: "new", rating: 2 })
     await seed(pool, { reference_code: "FB-B", message: "love the app", category: "compliment", status: "resolved", rating: 5, submitter_email: "fan@x.com" })
 
-    expect((await repo.list({ ...emptyParams, q: "checkout" })).total).toBe(1)
-    expect((await repo.list({ ...emptyParams, q: "fan@x.com" })).total).toBe(1)
-    expect((await repo.list({ ...emptyParams, category: "bug", status: "new", rating: 2 })).total).toBe(1)
-    expect((await repo.list({ ...emptyParams, category: "bug", status: "resolved" })).total).toBe(0)
+    expect((await list({ q: "checkout" })).total).toBe(1)
+    expect((await list({ q: "fan@x.com" })).total).toBe(1)
+    expect((await list({ q: "FB-B" })).total).toBe(1)
+    expect((await list({ category: "bug", view: "new", rating: "2" })).total).toBe(1)
+    expect((await list({ category: "bug", view: "resolved" })).total).toBe(0)
+    expect((await list({ view: "open" })).total).toBe(1)
+    expect(await repo.viewCounts(parseListQuery({}, FEEDBACK_LIST_SPEC))).toMatchObject({ open: 1, new: 1, resolved: 1, all: 2 })
   })
 
   it("changes status and returns false for an unknown reference", async () => {

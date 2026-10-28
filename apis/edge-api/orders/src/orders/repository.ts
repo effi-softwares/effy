@@ -583,8 +583,8 @@ export interface CourierParcelRow {
 }
 
 /**
- * Every unfinished courier parcel of an order sold as courier delivery. The service decides its view
- * and due time (`nextCourierPickup`).
+ * Every unfinished courier parcel of an order sold as courier delivery — no cap (103): the set is bounded by
+ * what is in flight, and the service decides each one's stage and due time (`nextCourierPickup`), then pages.
  */
 export async function courierParcels(): Promise<CourierParcelRow[]> {
   const res = await query<CourierParcelRow>(
@@ -616,8 +616,7 @@ export async function courierParcels(): Promise<CourierParcelRow[]> {
         AND o.delivery_type = 'courier'
         AND pa.id IS NULL
         AND sf.status NOT IN ('withdrawn', 'unfulfillable', 'delivered')
-      ORDER BY o.order_number
-      LIMIT 1000`,
+      ORDER BY o.order_number, sf.id`,
   );
   return res.rows;
 }

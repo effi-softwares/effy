@@ -1,6 +1,4 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { render, screen, waitFor } from "@testing-library/react"
-import type { ReactNode } from "react"
+import { screen, waitFor } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import type { AdminDriverListItem } from "@effy/shared-types"
@@ -11,7 +9,9 @@ const getDuty = vi.hoisted(() => vi.fn())
 const roles = vi.hoisted(() => ({ current: [] as string[] }))
 
 vi.mock("./repo", () => ({
-  listDrivers,
+  fetchDriverPage: listDrivers,
+  fetchDriverViews: async () => ({ views: { employed: 1, active: 1, suspended: 0, offboarded: 0, everyone: 1 } }),
+  getReadiness: async () => ({ blocked: [], expiring: [], zones: [] }),
   listZones,
   getDuty,
   createDriver: vi.fn(),
@@ -22,9 +22,7 @@ vi.mock("@/features/auth/useSessionRoles", () => ({
   useSessionRoles: () => roles.current,
 }))
 
-vi.mock("@tanstack/react-router", () => ({
-  Link: ({ children, ...rest }: { children: ReactNode }) => <a {...rest}>{children}</a>,
-}))
+import { onePage, renderList } from "@/test/renderList"
 
 const { DriversListScreen } = await import("./DriversListScreen")
 
@@ -41,18 +39,12 @@ function driver(over: Partial<AdminDriverListItem> = {}): AdminDriverListItem {
   }
 }
 
-function renderScreen() {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  const wrapper = ({ children }: { children: ReactNode }) => (
-    <QueryClientProvider client={qc}>{children}</QueryClientProvider>
-  )
-  return render(<DriversListScreen />, { wrapper })
-}
+const renderScreen = (url = "/drivers") => renderList(DriversListScreen, url)
 
 beforeEach(() => {
   vi.clearAllMocks()
   roles.current = ["admin"]
-  listDrivers.mockResolvedValue({ items: [driver()], nextCursor: null })
+  listDrivers.mockResolvedValue(onePage([driver()]))
   listZones.mockResolvedValue([{ id: "z-1", name: "Inner North" }])
   getDuty.mockResolvedValue({
     onDuty: [],
@@ -70,21 +62,18 @@ describe("DriversListScreen — the register", () => {
   })
 
   it("⚠ SC-009 — a driver cleared for NOTHING says so on the register, before an order is affected", async () => {
-    listDrivers.mockResolvedValue({
-      items: [
+    listDrivers.mockResolvedValue(onePage([
         driver({
           capabilitySummary: { total: 0, coversEveryZone: false, functions: [] },
           blockedReasons: ["no_capabilities"],
         }),
-      ],
-      nextCursor: null,
-    })
+      ]))
     renderScreen()
     expect(await screen.findByText(/Not cleared for any work — cannot be given work/)).toBeInTheDocument()
   })
 
   it("explains the empty register instead of showing a bare empty table", async () => {
-    listDrivers.mockResolvedValue({ items: [], nextCursor: null })
+    listDrivers.mockResolvedValue(onePage([]))
     renderScreen()
     expect(await screen.findByText(/No drivers yet/)).toBeInTheDocument()
   })
@@ -108,17 +97,17 @@ describe("DriversListScreen — the register", () => {
     expect(await screen.findByRole("button", { name: /add driver/i })).toBeInTheDocument()
   })
 
-  it("⚠ consumes nextCursor — 053 shipped a console silently capped at 25 rows", async () => {
-    listDrivers.mockResolvedValue({ items: [driver()], nextCursor: "cursor-2" })
+  it("⚠ pages the whole register — 053 shipped a console silently capped at 25 rows", async () => {
+    listDrivers.mockResolvedValue(onePage([driver()], { total: 60 }))
     renderScreen()
-    const next = await screen.findByRole("button", { name: "Next" })
-    expect(next).toBeEnabled()
+    expect(await screen.findByText("1–1 of 60")).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Next page" })).toBeEnabled()
   })
 
-  it("shows no paging controls when there is only one page", async () => {
+  it("disables Next when there is only one page", async () => {
     renderScreen()
     await screen.findByText("Sam Rivers")
-    expect(screen.queryByRole("button", { name: "Next" })).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Next page" })).toBeDisabled()
   })
 })
 

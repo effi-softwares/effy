@@ -1,11 +1,13 @@
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";
-import { json, preamble } from "@effy/edge-shared";
+import { json, listProblem, parseListQuery, preamble } from "@effy/edge-shared";
 
 import { gate, mapProductError, toListDTO } from "../products/handler-support";
+import { SHOP_PRODUCT_LIST_SPEC } from "../products/list";
 import { listProducts } from "../products/service";
 
+/** The shop's catalogue, a console list (103); the shop comes from the caller, never the query string. */
 export const handler = async (
   event: AuthedEvent,
   context: Context,
@@ -13,16 +15,10 @@ export const handler = async (
   const scope = preamble(event, context);
   const g = await gate(event, scope);
   if ("deny" in g) return g.deny;
-  const qp = event.queryStringParameters ?? {};
   try {
-    const page = await listProducts(g.shopId, {
-      page: qp.page, pageSize: qp.pageSize, q: qp.q, missing: qp.missing, category: qp.category,
-      section: qp.section, status: qp.status, reviewState: qp.reviewState,
-      priceMin: qp.priceMin, priceMax: qp.priceMax,
-      sort: qp.sort, order: qp.order,
-    });
-    return json(200, toListDTO(page), scope);
+    const req = parseListQuery(event.queryStringParameters, SHOP_PRODUCT_LIST_SPEC);
+    return json(200, toListDTO(await listProducts(g.shopId, req)), scope);
   } catch (err) {
-    return mapProductError(err, scope);
+    return listProblem(err, scope) ?? mapProductError(err, scope);
   }
 };

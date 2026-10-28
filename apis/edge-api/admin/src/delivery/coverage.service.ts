@@ -1,4 +1,4 @@
-import { pooled } from "@effy/edge-shared";
+import { offsetListPage, parseListQuery, pooled } from "@effy/edge-shared";
 import { coverageForPostcode, normalizePostcode } from "@effy/edge-shared/delivery";
 import { announce } from "@effy/edge-shared/live";
 import type {
@@ -6,6 +6,7 @@ import type {
   CoverageCheckResultDTO, CoverageListDTO, CoveragePlaceSearchDTO, PatchCoveragePostcodesRequest,
 } from "@effy/shared-types";
 
+import { COVERAGE_LIST_SPEC } from "./coverage.list";
 import * as repo from "./coverage.repository";
 import { activePlanId } from "./pricing.repository";
 
@@ -22,7 +23,6 @@ export class CoverageError extends Error {
   }
 }
 
-const PAGE = 100;
 const SEARCH_LIMIT = 20;
 /** Catches a distance typed in metres. */
 const MAX_KM = 5000;
@@ -77,34 +77,11 @@ async function requireDrivers(groupId: string | null, confirmed: boolean | undef
   }
 }
 
-export interface ListQuery {
-  group?: string; q?: string; source?: string; review?: string; cursor?: string;
-  today?: string;
-  minKm?: string;
-}
-
-/** Refused when malformed, never ignored. */
-function todayFilterOf(input: string | undefined): "offered" | "not_offered" | undefined {
-  if (input === undefined || input === "") return undefined;
-  if (input === "offered" || input === "not_offered") return input;
-  throw new CoverageError(400, "invalid_request", "delivery today is offered or not_offered");
-}
-function minKmOf(input: string | undefined): string | undefined {
-  if (input === undefined || input === "") return undefined;
-  if (!/^\d{1,4}(\.\d{1,2})?$/.test(input.trim())) throw new CoverageError(400, "invalid_request", "a distance is a number of km, up to two decimals");
-  return input.trim();
-}
-
-export async function list(input: ListQuery): Promise<CoverageListDTO> {
-  const group = input.group === "none" ? "none" : input.group && UUID.test(input.group) ? input.group : undefined;
-  const source = input.source === "manual" || input.source === "computed" ? input.source : undefined;
-  const q = input.q?.trim() || undefined;
-  const after = input.cursor && /^[0-9]{4}$/.test(input.cursor) ? input.cursor : undefined;
-  const today = todayFilterOf(input.today);
-  const minKm = minKmOf(input.minKm);
-
-  const [rows, groups, totals, courier, courierPlan, exclusions] = await Promise.all([
-    repo.listPostcodes({ group, q, source, review: input.review === "true", today, minKm, after, limit: PAGE + 1 }),
+/** The postcode list as a console list (103), with the groups, totals and courier state the screen shows beside it. */
+export async function list(qs: Readonly<Record<string, string | undefined>> | null | undefined): Promise<CoverageListDTO> {
+  const req = parseListQuery(qs, COVERAGE_LIST_SPEC);
+  const [page, groups, totals, courier, courierPlan, exclusions] = await Promise.all([
+    repo.listPostcodes(req),
     repo.listGroups(),
     repo.totals(),
     repo.courierSettings(),
@@ -116,10 +93,8 @@ export async function list(input: ListQuery): Promise<CoverageListDTO> {
     ...(courierPlan === null ? ["no_fee_table" as const] : []),
     ...(courier.defaultService === null ? ["no_service" as const] : []),
   ];
-  const page = rows.slice(0, PAGE);
   return {
-    postcodes: page.map((r) => ({ ...r, state: r.state as AustralianState | null })),
-    ...(rows.length > PAGE ? { nextCursor: page[page.length - 1]!.postcode } : {}),
+    ...offsetListPage(page.rows.map((r) => ({ ...r, state: r.state as AustralianState | null })), req, page),
     groups,
     ungrouped: { postcodeCount: totals.ungrouped, driverCount: totals.ungroupedDrivers },
     courier: {

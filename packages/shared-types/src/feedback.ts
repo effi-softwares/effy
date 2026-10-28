@@ -93,11 +93,8 @@ export interface FeedbackListItemDTO {
   createdAt: string;
 }
 
-export interface FeedbackListDTO {
-  items: FeedbackListItemDTO[];
-  total: number;
-  nextCursor: string | null;
-}
+/** A console list page (103). */
+export type FeedbackListDTO = import("./list").ListPage<FeedbackListItemDTO>;
 
 export interface FeedbackReplyDTO {
   body: string;

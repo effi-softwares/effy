@@ -1,6 +1,6 @@
 import { createRoute } from "@tanstack/react-router"
 
-import { CourierScreen } from "@/features/orders/CourierScreen"
+import { courierList, CourierScreen } from "@/features/orders/CourierScreen"
 import { OrderDetailScreen } from "@/features/orders/OrderDetailScreen"
 import { ordersList } from "@/features/orders/list"
 import { OrdersListScreen } from "@/features/orders/OrdersListScreen"
@@ -19,6 +19,7 @@ export const ordersIndexRoute = createRoute({
 export const ordersHandoverRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "orders/handover",
+  validateSearch: (raw: Record<string, unknown>) => courierList.validateSearch(raw),
   component: CourierScreen,
 })
 

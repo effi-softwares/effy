@@ -1,53 +1,42 @@
 // Parsing, validation and the activity log's wording; the repository owns shop scoping.
 
+import { parseListQuery } from "@effy/edge-shared";
 import { announceMoves } from "@effy/edge-shared/live";
 import * as fulfillmentsRepo from "../fulfillments/repository";
 import type { Actor } from "../fulfillments/service";
 import { FulfillmentError } from "../fulfillments/types";
+import { SHOP_ORDER_LIST_SPEC } from "./list";
 import * as repo from "./repository";
 import type { ActivityRecord } from "./repository";
 import {
-  ATTENTIONS,
-  DELIVERED_BY_FILTERS,
-  ORDER_TABS,
-  PAYMENT_STATES,
-  RANGES,
   SHOP_ORDER_NOTE_MAX_LENGTH,
   SHOP_ORDER_TAG_MAX,
   SHOP_ORDER_TAG_MAX_LENGTH,
-  SORT_KEYS,
   type ActivityEntry,
   type OrderDetail,
   type OrderList,
   type OrderListQuery,
 } from "./types";
 
-export const PAGE_SIZE = 25;
-
-/** `raw` if it is one of `allowed`, else the default. */
-function oneOf<T extends string>(raw: string | undefined, allowed: readonly T[], fallback: T): T {
-  return raw !== undefined && (allowed as readonly string[]).includes(raw) ? (raw as T) : fallback;
-}
-
 /**
  * Every field is optional on the wire and defaulted here. The default sort is newest first (operator
  * direction): unopened orders are marked in the row, and FIFO is one click away (Awaiting pick, or
  * the `placed` header ascending).
  */
-export function parseListQuery(qs: Record<string, string | undefined> | null): OrderListQuery {
-  const p = qs ?? {};
-  const page = Number.parseInt(p.page ?? "1", 10);
+export function parseOrderListQuery(qs: Readonly<Record<string, string | undefined>> | null): OrderListQuery {
+  const req = parseListQuery(qs, SHOP_ORDER_LIST_SPEC);
+  const f = req.filters;
   return {
-    tab: oneOf(p.tab, ORDER_TABS, "all"),
-    q: (p.q ?? "").slice(0, 100),
-    attention: oneOf(p.attention, ATTENTIONS, "any"),
-    payment: oneOf(p.payment, [...PAYMENT_STATES, "any"] as const, "any"),
-    deliveredBy: oneOf(p.deliveredBy, DELIVERED_BY_FILTERS, "any"),
-    range: oneOf(p.range, RANGES, "any"),
-    sort: oneOf(p.sort, SORT_KEYS, "placed"),
-    dir: p.dir === "asc" ? "asc" : "desc",
-    page: Number.isFinite(page) && page >= 1 ? Math.min(page, 10_000) : 1,
-    pageSize: PAGE_SIZE,
+    tab: f.tab ?? "all",
+    q: req.q ?? "",
+    attention: f.attention ?? "any",
+    payment: f.payment ?? "any",
+    deliveredBy: f.deliveredBy ?? "any",
+    range: f.range ?? "any",
+    sort: req.sort,
+    dir: req.dir,
+    page: req.page,
+    pageSize: req.pageSize,
   };
 }
 

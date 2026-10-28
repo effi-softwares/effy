@@ -1,4 +1,5 @@
 import { createTelemetry } from "@effy/web-kit"
+import { setListEventSink, type ListEvent } from "@effy/web-kit/data-table"
 
 import { config } from "./env"
 
@@ -38,13 +39,17 @@ type AnalyticsEvent =
     }
   | { name: "product_margin_set"; productId: string }
 
-const telemetry = createTelemetry<AnalyticsEvent>({
+const telemetry = createTelemetry<AnalyticsEvent | ListEvent>({
   key: config.posthogKey(),
   host: config.posthogHost(),
   surface: "back-office",
   enabled: config.telemetryEnabled(),
 })
 
-export const initTelemetry = telemetry.init
+export const initTelemetry = () => {
+  telemetry.init()
+  // 103: every console list reports being shown and filtered (list id and mode only).
+  setListEventSink(telemetry.track)
+}
 export const track = telemetry.track
 export const reportError = telemetry.reportError

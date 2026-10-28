@@ -31,7 +31,7 @@ import { ShopStatusDialog } from "./components/ShopStatusMenu"
 import { ShopStatusBadge } from "./components/StatusBadge"
 import { shopDetailQuery, useSetPackScanning } from "./queries"
 import { ShopStockPanel } from "./ShopStockPanel"
-import { shopLowStockQuery } from "./stockQueries"
+import { shopLowStockCountsQuery } from "./stockQueries"
 import { ShopRoster } from "./ShopRoster"
 import { formatTime, labelScanningText } from "./shopText"
 
@@ -42,7 +42,7 @@ export function ShopDetailScreen({ shopId }: { shopId: string }) {
 
   const navigate = useNavigate()
   const { data, error, isPending, isError, refetch } = useQuery(shopDetailQuery(shopId))
-  const lowStock = useQuery(shopLowStockQuery(shopId))
+  const lowStock = useQuery(shopLowStockCountsQuery(shopId))
   useHeaderDetail(data?.name ?? null)
 
   const [editOpen, setEditOpen] = useState(false)
@@ -66,8 +66,8 @@ export function ShopDetailScreen({ shopId }: { shopId: string }) {
   const managers = active.filter((u) => u.roles.includes("shop_manager")).length
   const scanning = shop.labelScanning
   const scanTotal = scanning ? scanning.scanned + scanning.notScanned : 0
-  const low = (lowStock.data ?? []).filter((r) => r.severity !== "out").length
-  const out = (lowStock.data ?? []).filter((r) => r.severity === "out").length
+  const low = lowStock.data?.low ?? 0
+  const out = lowStock.data?.out ?? 0
   // Where a driver is told to collect from. A missing address is a named gap.
   const address = shop.address?.addressLine1
     ? [
@@ -143,7 +143,7 @@ export function ShopDetailScreen({ shopId }: { shopId: string }) {
                   </TabsTrigger>
                   <TabsTrigger value="stock">
                     Stock
-                    {lowStock.data && lowStock.data.length > 0 ? <TabsCount>{lowStock.data.length}</TabsCount> : null}
+                    {low + out > 0 ? <TabsCount>{low + out}</TabsCount> : null}
                   </TabsTrigger>
                   <TabsTrigger value="activity">Activity</TabsTrigger>
                 </TabsList>

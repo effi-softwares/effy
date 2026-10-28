@@ -1,34 +1,53 @@
-import { useMemo, useState } from "react"
-
 import { useQuery } from "@tanstack/react-query"
-import { Link } from "@tanstack/react-router"
+import { Link, useSearch } from "@tanstack/react-router"
 import { LayoutList, Palette, Plus, SlidersHorizontal, TicketPercent } from "lucide-react"
 
-import { PROMOTION_STATES, type PromotionKind, type PromotionState, type PromotionTrigger } from "@effy/shared-types"
-import { Button, Skeleton, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@effy/design-system/ui"
-import { ErrorState } from "@effy/web-kit/console"
-
 import {
-  EmptyState,
+  PROMOTION_STATES,
+  type AdminPromotionListItemDTO,
+  type PromotionKind,
+  type PromotionState,
+} from "@effy/shared-types"
+import { Button } from "@effy/design-system/ui"
+import {
+  DataTable,
+  defineListSearch,
   Facet,
-  MoreActions,
-  PageHeader,
-  Pager,
+  isFiltered,
+  ListPage,
+  listQueryOptions,
   ResetFilters,
   SearchBox,
-  StatusWord,
-  Toolbar,
+  searchFilter,
+  useListState,
   ViewSelect,
-} from "@effy/web-kit/patterns"
+  type EffyColumnDef,
+} from "@effy/web-kit/data-table"
+import { MoreActions, PageHeader, StatusWord } from "@effy/web-kit/patterns"
 import { sessionQuery } from "@/features/auth/queries"
 import { promotionGroupsQuery } from "@/features/promotion-groups/queries"
 
 import { canManagePromotions } from "./access"
 import { KIND_WORD, STATE_TONE, STATE_WORD, usesLabel } from "./model"
-import { promotionListQuery } from "./queries"
+import { PROMO_ROOT } from "./queries"
+import { fetchPromotionPage } from "./repo"
 
-const PAGE_SIZE = 25
 type View = "all" | PromotionState
+
+/** Promotions' view in the address (103), mirroring the admin service's `PROMOTION_LIST_SPEC`. */
+export const promotionsList = defineListSearch({
+  id: "promotions",
+  mode: "offset",
+  sorts: ["updated", "name", "start", "end", "used"] as const,
+  defaultSort: "updated",
+  sortDir: { updated: "desc", name: "asc", start: "desc", end: "asc", used: "desc" },
+  filters: {
+    state: searchFilter.oneOf(PROMOTION_STATES),
+    kind: searchFilter.oneOf(["cart", "item", "bxgy", "delivery"] as const),
+    trigger: searchFilter.oneOf(["automatic", "code"] as const),
+    groupId: searchFilter.uuid,
+  },
+})
 
 const dateFmt = new Intl.DateTimeFormat("en-AU", {
   day: "numeric",
@@ -48,201 +67,144 @@ export function PromotionStateWord({ state }: { state: PromotionState }) {
   return <StatusWord tone={STATE_TONE[state]}>{STATE_WORD[state]}</StatusWord>
 }
 
+const columns: EffyColumnDef<AdminPromotionListItemDTO>[] = [
+  {
+    id: "promotion",
+    header: "Promotion",
+    cell: ({ row }) => (
+      <>
+        {row.original.name}
+        <span className="mt-0.5 block text-sm font-normal text-muted-foreground">
+          {row.original.codeSummary ? <span className="font-mono">{row.original.codeSummary}</span> : "Automatic"}
+        </span>
+      </>
+    ),
+    meta: { label: "Promotion", identifying: true, phone: "primary", sortKey: "name" },
+  },
+  { id: "gives", header: "Gives", cell: ({ row }) => row.original.gives, meta: { label: "Gives" } },
+  { id: "who", header: "Who", cell: ({ row }) => <span className="text-muted-foreground">{row.original.who}</span>, meta: { label: "Who", priority: 2 } },
+  { id: "status", header: "Status", cell: ({ row }) => <PromotionStateWord state={row.original.state} />, meta: { label: "Status", phone: "badge" } },
+  {
+    id: "dates",
+    header: "Active dates",
+    cell: ({ row }) => <span className="text-muted-foreground">{activeDates(row.original.startsAt, row.original.endsAt)}</span>,
+    meta: { label: "Active dates", priority: 2, sortKey: "start" },
+  },
+  { id: "used", header: "Used", cell: ({ row }) => usesLabel(row.original), meta: { label: "Used", align: "numeric", priority: 2, sortKey: "used", phone: "trail" } },
+  {
+    id: "shownIn",
+    header: "Shown in",
+    cell: ({ row }) => <span className="text-muted-foreground">{row.original.groups.length ? row.original.groups.join(", ") : "—"}</span>,
+    meta: { label: "Shown in", priority: 3 },
+  },
+]
+
 export function PromotionsListScreen() {
   const { data: session } = useQuery(sessionQuery)
   const roles = session?.status === "signed-in" ? session.identity.roles : []
   const canManage = canManagePromotions(roles)
-
-  const [page, setPage] = useState(1)
-  const [view, setView] = useState<View>("all")
-  const [search, setSearch] = useState("")
-  const [kind, setKind] = useState<PromotionKind | null>(null)
-  const [trigger, setTrigger] = useState<PromotionTrigger | null>(null)
-  const [groupId, setGroupId] = useState<string | null>(null)
   const groups = useQuery(promotionGroupsQuery())
-
-  const params = useMemo(
-    () => ({
-      page,
-      pageSize: PAGE_SIZE,
-      q: search.trim() || undefined,
-      state: view === "all" ? undefined : view,
-      kind: kind ?? undefined,
-      trigger: trigger ?? undefined,
-      groupId: groupId ?? undefined,
-    }),
-    [page, view, search, kind, trigger, groupId],
-  )
-  const { data, error, isPending, isError, refetch } = useQuery(promotionListQuery(params))
-  const totalPages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1
-  const filtered = Boolean(search || kind || trigger || groupId)
-  const reset =
-    <T,>(set: (v: T) => void) =>
-    (v: T) => {
-      set(v)
-      setPage(1)
-    }
+  const state = useListState(promotionsList, useSearch({ strict: false }))
+  const f = state.view.filters
+  const input = { key: PROMO_ROOT, list: promotionsList, view: state.view, fetch: fetchPromotionPage }
+  const query = useQuery(listQueryOptions(input))
+  const counts = query.data?.counts
   const countOf = (v: View) =>
-    data
+    counts
       ? v === "all"
-        ? Object.entries(data.counts)
+        ? Object.entries(counts)
             .filter(([s]) => s !== "archived")
             .reduce((a, [, n]) => a + n, 0)
-        : data.counts[v]
+        : counts[v]
       : undefined
-  // Archived ones are kept out of "All" (and of the tabs) unless asked for.
-  const views: View[] = ["all", ...PROMOTION_STATES]
 
   return (
-    <>
-      <PageHeader
-        title="Promotions"
-        description="All discounts and offers, applied automatically or by code, with their status and schedule."
-        actions={
-          <>
-            <Button variant="outline" asChild>
-              <Link to="/promotions/groups">
-                <LayoutList aria-hidden="true" />
-                Display groups
-              </Link>
-            </Button>
-            {canManage ? (
-              <Button asChild>
-                <Link to="/promotions/new">
-                  <Plus aria-hidden="true" />
-                  Create promotion
+    <ListPage
+      header={
+        <PageHeader
+          title="Promotions"
+          description="All discounts and offers, applied automatically or by code, with their status and schedule."
+          actions={
+            <>
+              <Button variant="outline" asChild>
+                <Link to="/promotions/groups">
+                  <LayoutList aria-hidden="true" />
+                  Display groups
                 </Link>
               </Button>
-            ) : null}
-            <MoreActions
-              actions={[
-                { label: "Skins", icon: Palette, link: { to: "/promotions/skins" } },
-                { label: "Order rules", icon: SlidersHorizontal, link: { to: "/promotions/order-rules" } },
+              {canManage ? (
+                <Button asChild>
+                  <Link to="/promotions/new">
+                    <Plus aria-hidden="true" />
+                    Create promotion
+                  </Link>
+                </Button>
+              ) : null}
+              <MoreActions
+                actions={[
+                  { label: "Skins", icon: Palette, link: { to: "/promotions/skins" } },
+                  { label: "Order rules", icon: SlidersHorizontal, link: { to: "/promotions/order-rules" } },
+                ]}
+              />
+            </>
+          }
+        />
+      }
+    >
+      <DataTable
+        app="back-office"
+        label="Promotions"
+        list={promotionsList}
+        state={state}
+        columns={columns}
+        query={query}
+        queryInput={input}
+        viewFilters={["state"]}
+        rowHref={(p) => ({ to: "/promotions/$promoId", params: { promoId: p.id } })}
+        empty={{
+          icon: TicketPercent,
+          title: "No promotions yet.",
+          description: "Create a promotion to give shoppers money off — automatically or with a code.",
+        }}
+        toolbar={
+          <>
+            <ViewSelect
+              label="Promotion views"
+              value={(f.state ?? "all") as View}
+              onChange={(v) => state.setFilter("state", v === "all" ? undefined : v)}
+              options={(["all", ...PROMOTION_STATES] as View[]).map((v) => ({ value: v, label: v === "all" ? "All" : STATE_WORD[v], count: countOf(v) }))}
+            />
+            <Facet
+              label="Kind"
+              value={f.kind ?? null}
+              onChange={(v) => state.setFilter("kind", v ?? undefined)}
+              options={(Object.keys(KIND_WORD) as PromotionKind[]).map((k) => ({ value: k, label: KIND_WORD[k] }))}
+            />
+            <Facet
+              label="Applies"
+              value={f.trigger ?? null}
+              onChange={(v) => state.setFilter("trigger", v ?? undefined)}
+              options={[
+                { value: "automatic" as const, label: "Automatically" },
+                { value: "code" as const, label: "With a code" },
               ]}
             />
+            <Facet
+              label="Group"
+              anyLabel="Any group"
+              value={f.groupId ?? null}
+              onChange={(v) => state.setFilter("groupId", v ?? undefined)}
+              options={(groups.data ?? []).map((g) => ({ value: g.id, label: g.name }))}
+            />
+            {isFiltered(state.view, ["state"]) ? <ResetFilters onReset={state.reset} /> : null}
+            <SearchBox label="Search promotions" placeholder="Name or code…" value={state.draftQ} onChange={state.setQ} />
           </>
         }
       />
-      <Toolbar>
-        <ViewSelect
-          label="Promotion views"
-          value={view}
-          onChange={reset(setView)}
-          options={views.map((v) => ({ value: v, label: v === "all" ? "All" : STATE_WORD[v], count: countOf(v) }))}
-        />
-        <SearchBox label="Search promotions" placeholder="Name or code…" value={search} onChange={reset(setSearch)} />
-        <Facet
-          label="Kind"
-          value={kind}
-          onChange={reset(setKind)}
-          options={(Object.keys(KIND_WORD) as PromotionKind[]).map((k) => ({ value: k, label: KIND_WORD[k] }))}
-        />
-        <Facet
-          label="Applies"
-          value={trigger}
-          onChange={reset(setTrigger)}
-          options={[
-            { value: "automatic", label: "Automatically" },
-            { value: "code", label: "With a code" },
-          ]}
-        />
-        <Facet
-          label="Group"
-          anyLabel="Any group"
-          value={groupId}
-          onChange={reset(setGroupId)}
-          options={(groups.data ?? []).map((g) => ({ value: g.id, label: g.name }))}
-        />
-        {filtered ? (
-          <ResetFilters
-            onReset={() => {
-              setSearch("")
-              setKind(null)
-              setTrigger(null)
-              setGroupId(null)
-              setPage(1)
-            }}
-          />
-        ) : null}
-      </Toolbar>
-
-      {isError ? (
-        <ErrorState error={error} onRetry={() => void refetch()} />
-      ) : isPending ? (
-        <div className="overflow-hidden rounded-xl border bg-card p-4" aria-busy="true">
-          <Skeleton className="mb-3 h-10" />
-          <Skeleton className="h-10" />
-        </div>
-      ) : data.items.length === 0 ? (
-        <EmptyState
-          icon={TicketPercent}
-          title={filtered || view !== "all" ? "No promotions match your filter." : "No promotions yet."}
-          description={
-            filtered || view !== "all"
-              ? undefined
-              : "Create a promotion to give shoppers money off — automatically or with a code."
-          }
-        />
-      ) : (
-        <div className="overflow-hidden rounded-xl border bg-card">
-          <div className="min-w-0">
-            <Table className="ef-rtable">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Promotion</TableHead>
-                  <TableHead>Gives</TableHead>
-                  <TableHead>Who</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Active dates</TableHead>
-                  <TableHead className="text-right">Used</TableHead>
-                  <TableHead>Shown in</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data.items.map((p) => (
-                  <TableRow key={p.id}>
-                    <TableCell data-m="primary">
-                      <Link to="/promotions/$promoId" params={{ promoId: p.id }} className="link">
-                        {p.name}
-                      </Link>
-                      <div className="mt-0.5 block text-sm text-muted-foreground">
-                        {p.codeSummary ? <span className="font-mono">{p.codeSummary}</span> : "Automatic"}
-                      </div>
-                    </TableCell>
-                    <TableCell data-m="meta">{p.gives}</TableCell>
-                    <TableCell data-m="meta" className="text-muted-foreground">
-                      {p.who}
-                    </TableCell>
-                    <TableCell data-m="badge">
-                      <PromotionStateWord state={p.state} />
-                    </TableCell>
-                    <TableCell data-m="meta" className="text-muted-foreground">
-                      {activeDates(p.startsAt, p.endsAt)}
-                    </TableCell>
-                    <TableCell data-m="trail" className="text-right tabular-nums">
-                      {usesLabel(p)}
-                    </TableCell>
-                    <TableCell data-m="meta" data-label="Shown in" className="text-muted-foreground">
-                      {p.groups.length ? p.groups.join(", ") : "—"}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-          <Pager
-            summary={`${data.total} promotion${data.total === 1 ? "" : "s"} · page ${data.page} of ${totalPages}`}
-            canBack={page > 1}
-            canNext={page < totalPages}
-            onBack={() => setPage((p) => Math.max(1, p - 1))}
-            onNext={() => setPage((p) => p + 1)}
-          />
-        </div>
-      )}
-      <p className="mt-0.5 block text-sm text-muted-foreground">
+      <p className="text-sm text-muted-foreground">
         Status is worked out from a promotion's dates, uses, budget and whether it is paused — it is never stored.
         Customer service can read every promotion; changing one needs a manager or an administrator.
       </p>
-    </>
+    </ListPage>
   )
 }

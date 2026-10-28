@@ -1,3 +1,6 @@
+import type { ListPage } from "@effy/shared-types"
+import { defineListSearch, searchFilter } from "@effy/web-kit/data-table"
+
 export type EmailDeliveryState = "reachable" | "soft_failing" | "undeliverable" | "complained"
 
 interface DeliverySubject {
@@ -33,17 +36,23 @@ export interface DeliveryDetail extends DeliveryListItem {
   events: DeliveryEvent[]
 }
 
-export interface DeliveryListParams {
-  state?: EmailDeliveryState | "all"
-  q?: string
-  limit?: number
-  offset?: number
-}
+/** A quick read: how many addresses need attention (the rail's and the overview's count). */
+export type DeliveryListParams = Record<string, never>
 
-export interface DeliveryList {
-  items: DeliveryListItem[]
-  total: number
-}
+export type DeliveryList = ListPage<DeliveryListItem>
+
+export const DELIVERABILITY_VIEWS = ["problems", "undeliverable", "soft_failing", "complained", "reachable", "all"] as const
+export type DeliverabilityView = (typeof DELIVERABILITY_VIEWS)[number]
+
+/** The deliverability list's view in the address (103), mirroring the admin service's spec. */
+export const deliverabilityList = defineListSearch({
+  id: "deliverability",
+  mode: "offset",
+  sorts: ["lastEvent", "address"] as const,
+  defaultSort: "lastEvent",
+  sortDir: { lastEvent: "desc", address: "asc" },
+  filters: { view: searchFilter.oneOf(DELIVERABILITY_VIEWS) },
+})
 
 export const STATE_LABEL: Record<EmailDeliveryState, string> = {
   reachable: "Reachable",

@@ -1,12 +1,24 @@
 import type { DriverBlockedReason, DriverEmploymentStatus } from "@effy/shared-types"
+import { defineListSearch, searchFilter } from "@effy/web-kit/data-table"
 
+/** A quick read of the register outside its screen (a picker of active drivers). */
 export interface DriverListParams {
   q?: string
   status?: DriverEmploymentStatus | ""
-  zoneId?: string
-  includeOffboarded?: boolean
-  cursor?: string
 }
+
+export const DRIVER_LIST_VIEWS = ["employed", "active", "suspended", "offboarded", "everyone"] as const
+export type DriverListView = (typeof DRIVER_LIST_VIEWS)[number]
+
+/** The register's view in the address (103), mirroring the fleet service's `DRIVER_LIST_SPEC`. */
+export const driversList = defineListSearch({
+  id: "drivers",
+  mode: "offset",
+  sorts: ["name"] as const,
+  defaultSort: "name",
+  sortDir: { name: "asc" },
+  filters: { view: searchFilter.oneOf(DRIVER_LIST_VIEWS), zoneId: searchFilter.uuid },
+})
 
 export const STATUS_LABEL: Record<DriverEmploymentStatus, string> = {
   active: "Active",

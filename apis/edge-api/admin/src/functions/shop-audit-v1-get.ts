@@ -1,11 +1,13 @@
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";
-import { json, preamble } from "@effy/edge-shared";
+import { json, listProblem, parseListQuery, preamble } from "@effy/edge-shared";
 
-import { guard, mapShopError, toAuditDTO } from "../shops/handler-support";
+import { guard, mapShopError } from "../shops/handler-support";
+import { SHOP_HISTORY_SPEC } from "../shops/list";
 import { getShopHistory } from "../shops/service";
 
+/** A shop's history, newest first: a keyset console list (103). */
 export const handler = async (
   event: AuthedEvent,
   context: Context,
@@ -14,16 +16,10 @@ export const handler = async (
   const g = await guard(event, scope, "read");
   if ("deny" in g) return g.deny;
 
-  const shopId = event.pathParameters?.shopId ?? "";
-  const qp = event.queryStringParameters ?? {};
   try {
-    const page = await getShopHistory(
-      shopId,
-      qp.page ? Number(qp.page) : undefined,
-      qp.pageSize ? Number(qp.pageSize) : undefined,
-    );
-    return json(200, toAuditDTO(page), scope);
+    const req = parseListQuery(event.queryStringParameters, SHOP_HISTORY_SPEC);
+    return json(200, await getShopHistory(event.pathParameters?.shopId ?? "", req), scope);
   } catch (err) {
-    return mapShopError(err, scope);
+    return listProblem(err, scope) ?? mapShopError(err, scope);
   }
 };

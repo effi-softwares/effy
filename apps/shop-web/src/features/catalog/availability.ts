@@ -1,41 +1,28 @@
-import { keepPreviousData, queryOptions, useMutation, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
 
-import type { AvailabilityFilter, ShopAvailabilityDTO } from "@effy/shared-types"
+import { AVAILABILITY_FILTERS, type ShopAvailabilityDTO } from "@effy/shared-types"
+import { defineListSearch, searchFilter } from "@effy/web-kit/data-table"
 
 import { api } from "@/lib/api"
 
 import { setVariantState } from "./repo"
 
-interface AvailabilityParams {
-  q?: string
-  filter?: AvailabilityFilter
-  after?: string
+/** Availability's view in the address (103), mirroring the shop service's `AVAILABILITY_LIST_SPEC`. */
+export const availabilityList = defineListSearch({
+  id: "availability",
+  mode: "offset",
+  sorts: ["name", "stock"] as const,
+  defaultSort: "name",
+  sortDir: { name: "asc", stock: "asc" },
+  filters: { filter: searchFilter.oneOf(AVAILABILITY_FILTERS) },
+})
+
+/** One page of the shop's sizes for the address's view. */
+export function fetchAvailabilityPage(qs: URLSearchParams, signal: AbortSignal): Promise<ShopAvailabilityDTO> {
+  return api.get<ShopAvailabilityDTO>(`/shop/v1/availability?${qs}`, { signal })
 }
 
-function encodeAvailabilityQuery(p: AvailabilityParams): string {
-  const params = new URLSearchParams()
-  if (p.q?.trim()) params.set("q", p.q.trim())
-  if (p.filter && p.filter !== "all") params.set("filter", p.filter)
-  if (p.after) params.set("after", p.after)
-  return params.toString()
-}
-
-function listAvailability(p: AvailabilityParams): Promise<ShopAvailabilityDTO> {
-  const qs = encodeAvailabilityQuery(p)
-  return api.get<ShopAvailabilityDTO>(`/shop/v1/availability${qs ? `?${qs}` : ""}`)
-}
-
-const AVAILABILITY_ROOT = ["shop", "stock", "availability"] as const
-
-export const availabilityQuery = (p: AvailabilityParams) =>
-  queryOptions({
-    queryKey: [
-      ...AVAILABILITY_ROOT,
-      { q: p.q?.trim() || undefined, filter: p.filter ?? "all", after: p.after },
-    ] as const,
-    queryFn: () => listAvailability(p),
-    placeholderData: keepPreviousData,
-  })
+export const AVAILABILITY_ROOT = ["shop", "stock", "availability"] as const
 
 export function useToggleSale() {
   const queryClient = useQueryClient()

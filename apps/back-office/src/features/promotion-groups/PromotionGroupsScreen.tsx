@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useMemo, useState } from "react"
 
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
@@ -15,15 +15,11 @@ import {
   Input,
   Label,
   Skeleton,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
   Textarea,
 } from "@effy/design-system/ui"
+import { CAPPED_SET_LIMIT, listFullSentence, type AdminPromotionGroupDTO } from "@effy/shared-types"
 import { ErrorState } from "@effy/web-kit/console"
+import { SearchBox, StaticTable, type EffyColumnDef } from "@effy/web-kit/data-table"
 
 import { PageHeader, EmptyState } from "@effy/web-kit/patterns"
 import { useSessionRoles } from "@/features/auth/useSessionRoles"
@@ -32,10 +28,50 @@ import { promotionMutationError } from "@/features/promotions/errorText"
 
 import { promotionGroupsQuery, useCreateGroup } from "./queries"
 
+const GROUP_COLUMNS: EffyColumnDef<AdminPromotionGroupDTO>[] = [
+  {
+    id: "group",
+    accessorFn: (g) => g.name.toLowerCase(),
+    header: "Group",
+    cell: ({ row }) => (
+      <>
+        <Link to="/promotions/groups/$groupId" params={{ groupId: row.original.id }} className="link">
+          {row.original.name}
+        </Link>
+        {row.original.description ? (
+          <span className="mt-0.5 block text-sm text-muted-foreground whitespace-normal">{row.original.description}</span>
+        ) : null}
+      </>
+    ),
+    meta: { label: "Group", identifying: true, phone: "primary" },
+  },
+  {
+    id: "key",
+    accessorFn: (g) => g.key,
+    header: "Key",
+    cell: ({ row }) => <span className="text-xs">{row.original.key}</span>,
+    meta: { label: "Key", align: "mono" },
+  },
+  {
+    id: "promotions",
+    accessorFn: (g) => g.count,
+    sortDescFirst: true,
+    header: "Promotions",
+    cell: ({ row }) => row.original.count,
+    meta: { label: "Promotions", align: "numeric", phone: "trail" },
+  },
+]
+
 export function PromotionGroupsScreen() {
   const canManage = canManagePromotions(useSessionRoles())
   const { data, error, isPending, isError, refetch } = useQuery(promotionGroupsQuery())
   const [creating, setCreating] = useState(false)
+  const [q, setQ] = useState("")
+  // The whole set is here (capped at 500, 103 FR-024), so it is searched in the browser, in the groups' own order.
+  const rows = useMemo(() => {
+    const w = q.trim().toLowerCase()
+    return (data ?? []).filter((g) => !w || g.name.toLowerCase().includes(w) || g.key.includes(w))
+  }, [data, q])
 
   return (
     <>
@@ -63,39 +99,21 @@ export function PromotionGroupsScreen() {
           description="Create one for each place promotions are shown."
         />
       ) : (
-        <div className="overflow-hidden rounded-xl border bg-card">
-          <div className="min-w-0">
-            <Table className="ef-rtable">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Group</TableHead>
-                  <TableHead>Key</TableHead>
-                  <TableHead className="text-right">Promotions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data.map((g) => (
-                  <TableRow key={g.id}>
-                    <TableCell data-m="primary">
-                      <Link to="/promotions/groups/$groupId" params={{ groupId: g.id }} className="link">
-                        {g.name}
-                      </Link>
-                      {g.description ? (
-                        <div className="mt-0.5 block text-sm text-muted-foreground">{g.description}</div>
-                      ) : null}
-                    </TableCell>
-                    <TableCell data-m="meta" className="font-mono text-xs">
-                      {g.key}
-                    </TableCell>
-                    <TableCell data-m="trail" className="text-right tabular-nums">
-                      {g.count}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+        <>
+          <div className="flex flex-wrap items-center gap-2">
+            <SearchBox label="Search groups" placeholder="Name or key…" value={q} onChange={setQ} />
           </div>
-        </div>
+          <StaticTable
+            label="Display groups"
+            columns={GROUP_COLUMNS}
+            rows={rows}
+            getRowId={(g) => g.id}
+            empty="No group matches."
+          />
+          {data.length >= CAPPED_SET_LIMIT ? (
+            <p className="text-sm text-muted-foreground">{listFullSentence(CAPPED_SET_LIMIT)}</p>
+          ) : null}
+        </>
       )}
       {canManage ? <CreateGroupDialog open={creating} onOpenChange={setCreating} /> : null}
     </>

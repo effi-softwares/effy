@@ -1,7 +1,7 @@
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";
-import { json, preamble } from "@effy/edge-shared";
+import { json, listProblem, preamble } from "@effy/edge-shared";
 
 import { listCustomers } from "../promotions/promotion-extras";
 import { guard, mapPromoError } from "../promotions/handler-support";
@@ -14,6 +14,6 @@ export const handler = async (event: AuthedEvent, context: Context): Promise<API
   try {
     return json(200, await listCustomers(id, event.queryStringParameters ?? {}), scope);
   } catch (err) {
-    return mapPromoError(err, scope);
+    return listProblem(err, scope) ?? mapPromoError(err, scope);
   }
 };

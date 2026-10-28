@@ -1,4 +1,4 @@
-import { logger } from "@effy/edge-shared"
+import { logger, offsetListPage } from "@effy/edge-shared"
 import { sendEmail } from "@effy/email-kit/send"
 import {
   FEEDBACK_CATEGORY_LABELS,
@@ -13,7 +13,8 @@ import {
 } from "@effy/shared-types"
 
 import * as repo from "./repository"
-import { FeedbackError, type ListParams, type StaffActor, type SubmissionRow } from "./types"
+import type { FeedbackListRequest } from "./list"
+import { FeedbackError, type StaffActor, type SubmissionRow } from "./types"
 
 const PREVIEW_MAX = 140
 
@@ -41,15 +42,12 @@ function toListItem(row: SubmissionRow): FeedbackListItemDTO {
   }
 }
 
-export async function list(params: ListParams): Promise<FeedbackListDTO> {
-  const { items, total } = await repo.list(params)
-  const nextOffset = params.offset + items.length
-  return {
-    items: items.map(toListItem),
-    total,
-    nextCursor: nextOffset < total ? String(nextOffset) : null,
-  }
+export async function list(req: FeedbackListRequest): Promise<FeedbackListDTO> {
+  const r = await repo.list(req)
+  return offsetListPage(r.rows.map(toListItem), req, r)
 }
+
+export const viewCounts = (req: FeedbackListRequest) => repo.viewCounts(req)
 
 export async function detail(referenceCode: string): Promise<FeedbackDetailDTO> {
   const row = await repo.getByReference(referenceCode)
@@ -143,18 +141,3 @@ export async function reply(referenceCode: string, body: unknown, actor: StaffAc
   logger.info({ msg: "feedback.replied", referenceCode, category: row.category }, "feedback reply sent")
 }
 
-const MAX_LIMIT = 100
-
-export function parseListParams(qp: Record<string, string | undefined>): ListParams {
-  const ratingRaw = qp.rating ? Number(qp.rating) : NaN
-  return {
-    q: qp.q?.trim() || null,
-    category: (qp.category as ListParams["category"]) || null,
-    status: (qp.status as ListParams["status"]) || null,
-    rating: Number.isInteger(ratingRaw) && ratingRaw >= 1 && ratingRaw <= 5 ? ratingRaw : null,
-    from: qp.from || null,
-    to: qp.to || null,
-    limit: Math.min(Number(qp.limit) || 25, MAX_LIMIT),
-    offset: Math.max(Number(qp.cursor ?? qp.offset) || 0, 0),
-  }
-}

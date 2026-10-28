@@ -1,3 +1,4 @@
+import { SET_FULL_SENTENCE } from "@effy/edge-shared";
 import { SHOP_ROLES, type ShopRole, type ShopTeamMemberDTO } from "@effy/shared-types";
 
 import { ProductError } from "../products/types";
@@ -72,6 +73,8 @@ export async function invite(
     );
   }
 
+  // A new member only: the address is not on the team (checked above). Refused before any sign-in is made.
+  if (await repo.isFull(shopId)) throw new ProductError("conflict", SET_FULL_SENTENCE);
   const sub = await cognito.ensureShopUser(email, name, role);
   await repo.upsertMember(shopId, sub, email, name, role);
 }

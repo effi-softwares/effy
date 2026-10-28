@@ -25,7 +25,8 @@ import { ORDER_LIST_SPEC } from "../orders/list";
 const req = (qs: Record<string, string | undefined>) => parseListQuery({ pageSize: "100", ...qs }, ORDER_LIST_SPEC);
 
 import { packages } from "../orders/repository";
-import { getOrder, listCourierParcels, listOrders, toPackage } from "../orders/service";
+import { courierParcelPage, getOrder, listCourierParcels, listOrders, toPackage } from "../orders/service";
+import { COURIER_LIST_SPEC } from "../orders/list";
 import { recordHandoff } from "../handoff/repository";
 import { changeCollection, recordStep, saveConsignment } from "./service";
 
@@ -102,6 +103,10 @@ d("080 — courier work in back-office", () => {
     // Not at the hub by 3 pm: the next pickup is Monday's. (A checked-in parcel keeps the one it missed.)
     rows = await listCourierParcels("hub_due", mel("2026-10-09T15:00:00+11:00"));
     expect(rows[0]).toMatchObject({ dueOut: "2026-10-12T14:00:00+11:00" });
+    // 103: the console list answers the same parcel with a total, every stage's count, and a search.
+    const page = await courierParcelPage(parseListQuery({ view: "hub_due" }, COURIER_LIST_SPEC), morning);
+    expect(page).toMatchObject({ total: 1, page: 1, views: expect.objectContaining({ hub_due: 1, hub_late: 0 }) });
+    expect((await courierParcelPage(parseListQuery({ view: "hub_due", q: "no such order" }, COURIER_LIST_SPEC), morning)).total).toBe(0);
   });
 
   it("P8 — a parcel CHECKED IN before a pickup it then misses is late", async () => {

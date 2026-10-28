@@ -72,15 +72,6 @@ export function isShopManager(roles: readonly ShopRole[]): boolean {
 
 // Back-office shop management (/admin/v1/shops...): an operator managing many shops.
 
-/** A paged-list envelope for server-side pagination.
- * @deprecated 103: lists answer `ListPage<T>` (`./list`), a superset of this; removed once no list uses it. */
-export interface PagedDTO<T> {
-  items: T[];
-  total: number;
-  page: number;
-  pageSize: number;
-}
-
 /** A row in the shop register (GET /admin/v1/shops). */
 export interface ShopListItemDTO {
   id: string;

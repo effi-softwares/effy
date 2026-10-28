@@ -21,6 +21,19 @@ export type StockMovementReason =
   /** Returned on an item refund of an uncollected portion. */
   | "refund"
 
+/** Every reason, in the order a filter offers them (the migration's CHECK holds the same set). */
+export const STOCK_MOVEMENT_REASONS = [
+  "received",
+  "correction",
+  "damage",
+  "expiry",
+  "order_paid",
+  "pick_shortfall",
+  "refund",
+  "tracking_enabled",
+  "tracking_disabled",
+] as const satisfies readonly StockMovementReason[]
+
 /** Who acted, kept apart from why (`reason`), so a shop sees plainly that back-office made a change. `system` is the paid-order path. */
 export type StockActorKind = "shop" | "back_office" | "system"
 

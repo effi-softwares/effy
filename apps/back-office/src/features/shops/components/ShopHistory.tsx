@@ -1,15 +1,15 @@
-import { useState } from "react"
-
 import { useQuery } from "@tanstack/react-query"
+import { useSearch } from "@tanstack/react-router"
+import { History } from "lucide-react"
 
-import { ErrorState } from "@effy/web-kit/console"
-
-import { Panel, Pager } from "@effy/web-kit/patterns"
+import { DataTable, listQueryOptions, useListState, type EffyColumnDef } from "@effy/web-kit/data-table"
+import { Panel } from "@effy/web-kit/patterns"
 import { moment } from "@/lib/format"
 
-import { shopHistoryQuery } from "../queries"
-
-const PAGE_SIZE = 10
+import { shopHistoryList } from "../list"
+import type { AuditEntry } from "../model"
+import { SHOPS_ROOT } from "../queries"
+import { fetchShopHistoryPage } from "../repo"
 
 function actionWords(action: string): string {
   const words = action
@@ -19,51 +19,50 @@ function actionWords(action: string): string {
   return words ? words[0]!.toUpperCase() + words.slice(1) : action
 }
 
-export function ShopHistory({ shopId }: { shopId: string }) {
-  const [page, setPage] = useState(1)
-  const { data, error, isPending, isError, refetch } = useQuery(shopHistoryQuery(shopId, page, PAGE_SIZE))
-  const totalPages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1
+const columns: EffyColumnDef<AuditEntry>[] = [
+  { id: "what", header: "What", cell: ({ row }) => actionWords(row.original.action), meta: { label: "What", identifying: true, phone: "primary" } },
+  {
+    id: "on",
+    header: "On",
+    cell: ({ row }) => (
+      <span className="text-muted-foreground">
+        {row.original.targetType}
+        {row.original.targetId ? ` · ${row.original.targetId}` : ""}
+      </span>
+    ),
+    meta: { label: "On", priority: 3, phone: "hide" },
+  },
+  { id: "who", header: "Who", cell: ({ row }) => <span className="font-mono text-xs">{row.original.actorSub}</span>, meta: { label: "Who", priority: 2 } },
+  {
+    id: "when",
+    header: "When",
+    cell: ({ row }) => <span className="text-muted-foreground">{moment(row.original.createdAt)}</span>,
+    meta: { label: "When", phone: "trail" },
+  },
+]
 
+/** Every change to the shop and its roster, newest first (103: a keyset list on the shop's page). */
+export function ShopHistory({ shopId }: { shopId: string }) {
+  const state = useListState(shopHistoryList, useSearch({ strict: false }))
+  const input = {
+    key: [...SHOPS_ROOT, "history", shopId] as const,
+    list: shopHistoryList,
+    view: state.view,
+    cursor: state.cursor,
+    fetch: (qs: URLSearchParams, signal: AbortSignal) => fetchShopHistoryPage(shopId, qs, signal),
+  }
+  const query = useQuery(listQueryOptions(input))
   return (
     <Panel title="Activity" description="Every change to this shop and its roster, Melbourne time." flush>
-      {isError ? (
-        <div className="p-5">
-          <ErrorState error={error} onRetry={() => void refetch()} />
-        </div>
-      ) : isPending ? (
-        <p className="px-5 py-4 text-sm text-muted-foreground">Loading…</p>
-      ) : (
-        <>
-          {data.items.length === 0 ? (
-            <p className="px-5 py-4 text-sm text-muted-foreground">No history yet.</p>
-          ) : (
-            <ul className="divide-y divide-border">
-              {data.items.map((entry) => (
-                <li key={entry.id} className="flex flex-wrap items-start justify-between gap-3 px-5 py-3">
-                  <div className="min-w-0">
-                    <div className="text-sm font-medium">{actionWords(entry.action)}</div>
-                    <div className="mt-0.5 block text-sm text-muted-foreground">
-                      {entry.targetType}
-                      {entry.targetId ? ` · ${entry.targetId}` : ""} · by{" "}
-                      <span className="font-mono">{entry.actorSub}</span>
-                    </div>
-                  </div>
-                  <span className="mt-0.5 block text-sm text-muted-foreground whitespace-nowrap">
-                    {moment(entry.createdAt)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-          <Pager
-            summary={`${data.total} entr${data.total === 1 ? "y" : "ies"} · page ${data.page} of ${totalPages}`}
-            canBack={page > 1}
-            canNext={page < totalPages}
-            onBack={() => setPage((p) => Math.max(1, p - 1))}
-            onNext={() => setPage((p) => p + 1)}
-          />
-        </>
-      )}
+      <DataTable
+        app="back-office"
+        label="Shop activity"
+        list={shopHistoryList}
+        state={state}
+        columns={columns}
+        query={query}
+        empty={{ icon: History, title: "No history yet" }}
+      />
     </Panel>
   )
 }

@@ -1,6 +1,6 @@
 import type { StockActorKind, StockMovementDTO, StockMovementReason } from "@effy/shared-types"
 
-const REASONS: Record<StockMovementReason, string> = {
+export const REASON_WORDS: Record<StockMovementReason, string> = {
   received: "Stock received",
   correction: "Correction",
   damage: "Damaged",
@@ -13,7 +13,7 @@ const REASONS: Record<StockMovementReason, string> = {
 }
 
 export function reasonLabel(movement: StockMovementDTO): string {
-  return REASONS[movement.reason] ?? movement.reason
+  return REASON_WORDS[movement.reason] ?? movement.reason
 }
 
 const ACTORS: Record<StockActorKind, string> = {

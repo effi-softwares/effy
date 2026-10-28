@@ -2,7 +2,7 @@
 // portion is the only way in, so a caller only ever sees orders their shop is filling part of. Nothing
 // client-supplied is spliced into SQL: sort columns come from a fixed map.
 
-import { packageStatuses, presignRead, query, withTransaction, type Queryable } from "@effy/edge-shared";
+import { likePattern, orderBy, packageStatuses, presignRead, query, withTransaction, type Queryable } from "@effy/edge-shared";
 
 import { collectionsFor } from "../collection/service";
 import { courierPickups, pickupOf } from "../lib/courier-pickup";
@@ -25,6 +25,7 @@ import type {
   OrderTab,
   PaymentState,
 } from "./types";
+import { SHOP_ORDER_LIST } from "./list";
 import { ORDER_TABS } from "./types";
 import { DELIVERED_BY_SQL, type DeliveredBy } from "../lib/delivered-by";
 
@@ -131,15 +132,6 @@ WITH base AS (
           OR ($5::text = '30d' AND placed_at >= now() - interval '30 days'))
 )`;
 
-/** A fixed map, never the client's string; every entry ends in `id` so the order is total. */
-const ORDER_BY: Record<OrderListQuery["sort"], string> = {
-  placed: "placed_at",
-  number: "order_number",
-  customer: "lower(customer_name)",
-  items: "item_count",
-  total: "total",
-};
-
 interface RowRecord {
   id: string;
   order_number: string;
@@ -159,13 +151,6 @@ interface RowRecord {
   full_count: string;
 }
 
-/** So a search for "50%" means the characters. */
-function likePattern(q: string): string | null {
-  const trimmed = q.trim();
-  if (!trimmed) return null;
-  return `%${trimmed.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
-}
-
 /** Through `query`, so container tests ask their own database. */
 const db: Queryable = { query: (text, values) => query(text, values) };
 
@@ -178,8 +163,7 @@ async function shopStatuses(ids: readonly string[]): Promise<Map<string, Package
 }
 
 export async function listOrders(shopId: string, q: OrderListQuery): Promise<OrderList> {
-  const filterArgs = [shopId, likePattern(q.q), q.attention, q.payment, q.range, q.deliveredBy];
-  const direction = q.dir === "asc" ? "ASC" : "DESC";
+  const filterArgs = [shopId, q.q.trim() ? likePattern(q.q.trim()) : null, q.attention, q.payment, q.range, q.deliveredBy];
   const offset = (q.page - 1) * q.pageSize;
 
   const [page, counts] = await Promise.all([
@@ -188,7 +172,7 @@ export async function listOrders(shopId: string, q: OrderListQuery): Promise<Ord
        SELECT *, count(*) OVER () AS full_count
          FROM filtered
         WHERE ($7::text = 'all' OR tab = $7::text)
-        ORDER BY ${ORDER_BY[q.sort]} ${direction}, id ${direction}
+        ${orderBy(SHOP_ORDER_LIST, q as unknown as Parameters<typeof orderBy>[1])}
         LIMIT $8 OFFSET $9`,
       [...filterArgs, q.tab, q.pageSize, offset],
     ),

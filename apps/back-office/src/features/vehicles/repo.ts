@@ -1,5 +1,6 @@
 import type {
   HoldingIssueRequest,
+  ListViews,
   HoldingReturnRequest,
   VehicleCreateRequest,
   VehicleDetail,
@@ -10,24 +11,15 @@ import type {
 
 import { api } from "@/lib/api"
 
-import type { VehicleListParams } from "./model"
+import type { VehicleListView } from "./model"
 
-function qs(params: Record<string, string | undefined>): string {
-  const sp = new URLSearchParams()
-  for (const [k, v] of Object.entries(params)) if (v) sp.set(k, v)
-  const s = sp.toString()
-  return s ? `?${s}` : ""
+/** One page of the register for the address's view (103). */
+export function fetchVehiclePage(qs: URLSearchParams, signal: AbortSignal): Promise<VehicleListResponse> {
+  return api.get<VehicleListResponse>(`/fleet/v1/vehicles?${qs}`, { signal })
 }
 
-export async function listVehicles(p: VehicleListParams): Promise<VehicleListResponse> {
-  return api.get<VehicleListResponse>(
-    `/fleet/v1/vehicles${qs({
-      status: p.status || undefined,
-      refrigeration: p.refrigeration || undefined,
-      nonCompliant: p.nonCompliantOnly ? "true" : undefined,
-      cursor: p.cursor,
-    })}`,
-  )
+export function fetchVehicleViews(qs: URLSearchParams, signal: AbortSignal): Promise<ListViews<VehicleListView>> {
+  return api.get<ListViews<VehicleListView>>(`/fleet/v1/vehicles?${qs}`, { signal })
 }
 
 export async function getVehicle(vehicleId: string): Promise<VehicleDetail> {

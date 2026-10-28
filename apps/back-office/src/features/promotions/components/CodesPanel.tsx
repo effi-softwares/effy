@@ -1,15 +1,19 @@
 import { useState } from "react"
 
 import { useQuery } from "@tanstack/react-query"
-import { Download } from "lucide-react"
+import { useSearch } from "@tanstack/react-router"
+import { Download, Ticket } from "lucide-react"
 
 import { Button, Input, Label } from "@effy/design-system/ui"
 
-import { Panel, StatusWord, Pager } from "@effy/web-kit/patterns"
+import type { AdminPromotionCodeDTO } from "@effy/shared-types"
+import { DataTable, Facet, listQueryOptions, SearchBox, useListState, type EffyColumnDef } from "@effy/web-kit/data-table"
+import { Panel, StatusWord } from "@effy/web-kit/patterns"
 
 import { promotionMutationError } from "../errorText"
-import { codesQuery, useGenerateCodes } from "../queries"
-import { exportCodes } from "../repo"
+import { codesList } from "../list"
+import { PROMO_ROOT, useGenerateCodes } from "../queries"
+import { exportCodes, fetchCodePage } from "../repo"
 
 const STATE = {
   unused: { word: "Unused", tone: "quiet" },
@@ -17,9 +21,25 @@ const STATE = {
   used: { word: "Used", tone: "done" },
 } as const
 
+const CODE_COLUMNS: EffyColumnDef<AdminPromotionCodeDTO>[] = [
+  { id: "code", header: "Code", cell: ({ row }) => row.original.code, meta: { label: "Code", identifying: true, phone: "primary", align: "mono", sortKey: "code" } },
+  {
+    id: "state",
+    header: "State",
+    cell: ({ row }) => <StatusWord tone={STATE[row.original.state].tone}>{STATE[row.original.state].word}</StatusWord>,
+    meta: { label: "State", phone: "badge" },
+  },
+]
+
 export function CodesPanel({ promotionId, canManage }: { promotionId: string; canManage: boolean }) {
-  const [page, setPage] = useState(1)
-  const list = useQuery(codesQuery(promotionId, page))
+  const state = useListState(codesList, useSearch({ strict: false }))
+  const input = {
+    key: [...PROMO_ROOT, "codes", promotionId] as const,
+    list: codesList,
+    view: state.view,
+    fetch: (qs: URLSearchParams, signal: AbortSignal) => fetchCodePage(promotionId, qs, signal),
+  }
+  const list = useQuery(listQueryOptions(input))
   const gen = useGenerateCodes(promotionId)
   const [count, setCount] = useState("100")
   const [prefix, setPrefix] = useState("")
@@ -33,7 +53,6 @@ export function CodesPanel({ promotionId, canManage }: { promotionId: string; ca
     URL.revokeObjectURL(url)
   }
 
-  const pages = list.data ? Math.max(1, Math.ceil(list.data.total / list.data.pageSize)) : 1
   return (
     <Panel
       title="Single-use codes"
@@ -95,27 +114,29 @@ export function CodesPanel({ promotionId, canManage }: { promotionId: string; ca
           ) : null}
         </div>
       ) : null}
-      {list.data && list.data.items.length > 0 ? (
-        <>
-          <ul className="divide-y divide-border">
-            {list.data.items.map((c) => (
-              <li key={c.code} className="flex items-center justify-between gap-3 px-5 py-2 text-sm">
-                <span className="font-mono">{c.code}</span>
-                <StatusWord tone={STATE[c.state].tone}>{STATE[c.state].word}</StatusWord>
-              </li>
-            ))}
-          </ul>
-          <Pager
-            summary={`${list.data.total} codes`}
-            canBack={page > 1}
-            canNext={page < pages}
-            onBack={() => setPage((p) => p - 1)}
-            onNext={() => setPage((p) => p + 1)}
-          />
-        </>
-      ) : (
-        <p className="px-5 py-4 text-sm text-muted-foreground">No single-use codes yet.</p>
-      )}
+      <DataTable
+        app="back-office"
+        label="Single-use codes"
+        list={codesList}
+        state={state}
+        columns={CODE_COLUMNS}
+        query={list}
+        queryInput={input}
+        rowId={(c) => c.code}
+        empty={{ icon: Ticket, title: "No single-use codes yet" }}
+        toolbar={
+          <>
+            <Facet
+              label="State"
+              anyLabel="Any state"
+              value={state.view.filters.state ?? null}
+              onChange={(v) => state.setFilter("state", v ?? undefined)}
+              options={(Object.keys(STATE) as (keyof typeof STATE)[]).map((k) => ({ value: k, label: STATE[k].word }))}
+            />
+            <SearchBox label="Search codes" placeholder="Code…" value={state.draftQ} onChange={state.setQ} />
+          </>
+        }
+      />
     </Panel>
   )
 }

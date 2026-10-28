@@ -6,10 +6,13 @@ import type { ListPage, ListViews } from "@effy/shared-types";
 
 import type { FilterValue, ListSearch, ListView } from "./list-search";
 
-/** Reads one page from the list's route. `qs` is the whole query string; pass `signal` to the fetch. */
-export type ListFetcher<T> = (qs: URLSearchParams, signal: AbortSignal) => Promise<ListPage<T>>;
+/**
+ * Reads one page from the list's route. `qs` is the whole query string; pass `signal` to the fetch. A list may
+ * answer more than the page (Products' tab counts): `P` keeps it.
+ */
+export type ListFetcher<T, P extends ListPage<T> = ListPage<T>> = (qs: URLSearchParams, signal: AbortSignal) => Promise<P>;
 
-export interface ListQueryInput<T, S extends string, F extends Record<string, FilterValue>> {
+export interface ListQueryInput<T, S extends string, F extends Record<string, FilterValue>, P extends ListPage<T> = ListPage<T>> {
   /**
    * The list's key root. ⚠ It must start with the root its live kind invalidates (`["orders", …]`), so an
    * announcement refreshes the page on screen (071, FR-018).
@@ -19,14 +22,16 @@ export interface ListQueryInput<T, S extends string, F extends Record<string, Fi
   view: ListView<S, F>;
   /** Keyset lists: where this page starts. */
   cursor?: string | null;
-  fetch: ListFetcher<T>;
+  fetch: ListFetcher<T, P>;
 }
 
 /**
  * One list page as server state. Every server-owned value is in the key (the query string itself), the
  * previous page stays on screen while the next loads, and a superseded request is cancelled.
  */
-export function listQueryOptions<T, S extends string, F extends Record<string, FilterValue>>(input: ListQueryInput<T, S, F>) {
+export function listQueryOptions<T, S extends string, F extends Record<string, FilterValue>, P extends ListPage<T> = ListPage<T>>(
+  input: ListQueryInput<T, S, F, P>,
+) {
   const qs = input.list.toQuery(input.view, input.cursor);
   return queryOptions({
     queryKey: [...input.key, "list", qs.toString()] as const,
@@ -60,8 +65,8 @@ export function viewsQueryOptions<V extends string, S extends string, F extends 
 }
 
 /** Offset lists: once a page has settled, read the next one in the background so Next is instant. */
-export function usePrefetchNextPage<T, S extends string, F extends Record<string, FilterValue>>(
-  input: ListQueryInput<T, S, F>,
+export function usePrefetchNextPage<T, S extends string, F extends Record<string, FilterValue>, P extends ListPage<T> = ListPage<T>>(
+  input: ListQueryInput<T, S, F, P>,
   page: ListPage<T> | undefined,
   settled: boolean,
 ): void {

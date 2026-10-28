@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("./repository", () => ({
   readStock: vi.fn(),
-  readMovements: vi.fn(),
+  readMovementPage: vi.fn(),
   setCount: vi.fn(),
   adjustCount: vi.fn(),
   setTracking: vi.fn(),
@@ -32,7 +32,7 @@ function row(over: Partial<StockRow> = {}): StockRow {
 }
 
 beforeEach(() => {
-  vi.mocked(repo.readMovements).mockResolvedValue([]);
+  vi.mocked(repo.readMovementPage).mockResolvedValue({ items: [], pageSize: 25, total: 0, totalCapped: false, page: null, nextCursor: null, ignored: [] });
   vi.mocked(repo.readStock).mockResolvedValue(row());
   vi.mocked(repo.setCount).mockResolvedValue({ before: 5, after: 9 });
   vi.mocked(repo.adjustCount).mockResolvedValue({ before: 5, after: 9 });
@@ -238,8 +238,10 @@ describe("the assisted path", () => {
 
 describe("the restock list (FR-029)", () => {
   it("reads the caller's own shop", async () => {
-    vi.mocked(repo.readLowStock).mockResolvedValue([]);
-    await service.listLowStock(shopActor);
-    expect(repo.readLowStock).toHaveBeenCalledWith("shop-1");
+    const page = { items: [], pageSize: 25, total: 0, totalCapped: false, page: 1, nextCursor: null, ignored: [] };
+    vi.mocked(repo.readLowStock).mockResolvedValue(page);
+    const req = { mode: "offset", q: null, filters: {}, sort: "onHand", dir: "asc", page: 1, pageSize: 25, cursor: null, ignored: [] } as const;
+    await service.listLowStock(shopActor, req as never);
+    expect(repo.readLowStock).toHaveBeenCalledWith("shop-1", req);
   });
 });

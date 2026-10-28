@@ -4,7 +4,9 @@
 
 import type pg from "pg";
 
-import { query, withTransaction } from "@effy/edge-shared";
+import { likePattern, limitOffsetClause, orderBy, query, runOffsetPage, withTransaction } from "@effy/edge-shared";
+
+import { MARGIN_NOT_SET, REVIEW_QUEUE, type MarginNotSetRequest, type ReviewQueueRequest } from "./list";
 
 export interface QueueRow {
   product_id: string;
@@ -17,16 +19,7 @@ export interface QueueRow {
   waiting_hours: string;
 }
 
-export interface QueueParams {
-  shopId: string | null;
-  kind: "new_product" | "change" | null;
-  q: string | null;
-  afterSubmittedAt: string | null;
-  afterProductId: string | null;
-  limit: number;
-}
-
-/** New products and pending changes as one list, oldest first, so neither goes unwatched. */
+/** New products and pending changes as one list, so neither goes unwatched. */
 const QUEUE_ROWS = `
       SELECT p.id AS product_id, 'new_product'::text AS kind, p.shop_id, s.name AS shop_name,
              p.name AS product_name, p.submitted_at
@@ -41,39 +34,50 @@ const QUEUE_ROWS = `
        WHERE pc.state = 'in_review'
 `;
 
-/** $1 shop, $2 kind, $3 name. */
+/** $1 shop, $2 kind, $3 product or shop name (an ILIKE pattern). */
 const QUEUE_FILTERS = `
    WHERE ($1::uuid IS NULL OR q.shop_id = $1)
      AND ($2::text IS NULL OR q.kind = $2)
-     AND ($3::text IS NULL OR lower(q.product_name) LIKE '%' || lower($3) || '%')
+     AND ($3::text IS NULL OR q.product_name ILIKE $3 OR q.shop_name ILIKE $3)
 `;
 
-const QUEUE = `
-  SELECT q.product_id, q.kind, q.shop_id, q.shop_name, q.product_name, q.submitted_at,
-         q.submitted_at::text AS submitted_at_text,
-         floor(extract(epoch FROM (now() - q.submitted_at)) / 3600)::text AS waiting_hours
-    FROM (${QUEUE_ROWS}) q
-  ${QUEUE_FILTERS}
-     AND ($4::text IS NULL OR (q.submitted_at, q.product_id) > ($4::timestamptz, $5::uuid))
-   ORDER BY q.submitted_at, q.product_id
-   LIMIT $6
-`;
+const queueArgs = (req: Pick<ReviewQueueRequest, "q" | "filters">): unknown[] => [
+  req.filters.shopId ?? null,
+  req.filters.kind ?? null,
+  req.q ? likePattern(req.q) : null,
+];
 
-/** The rail's count: the same rows and filters as the list, without the cursor. */
-const QUEUE_COUNT = `
-  SELECT count(*)::text AS n
-    FROM (${QUEUE_ROWS}) q
-  ${QUEUE_FILTERS}
-`;
-
-export async function listQueue(p: QueueParams): Promise<QueueRow[]> {
-  const res = await query<QueueRow>(QUEUE, [p.shopId, p.kind, p.q, p.afterSubmittedAt, p.afterProductId, p.limit]);
-  return res.rows;
+/** One page of the queue with its exact total (103). */
+export async function listQueue(req: ReviewQueueRequest) {
+  return runOffsetPage(req, async (read) => {
+    const args = queueArgs(req);
+    const paging = limitOffsetClause(read, args);
+    const res = await query<QueueRow & { full_count: string }>(
+      `SELECT q.product_id, q.kind, q.shop_id, q.shop_name, q.product_name, q.submitted_at,
+              q.submitted_at::text AS submitted_at_text,
+              floor(extract(epoch FROM (now() - q.submitted_at)) / 3600)::text AS waiting_hours,
+              count(*) OVER () AS full_count
+         FROM (${QUEUE_ROWS}) q
+       ${QUEUE_FILTERS}
+       ${orderBy(REVIEW_QUEUE, req)}
+       ${paging}`,
+      args,
+    );
+    return res.rows;
+  });
 }
 
-export async function countQueue(p: Pick<QueueParams, "shopId" | "kind" | "q">): Promise<number> {
-  const res = await query<{ n: string }>(QUEUE_COUNT, [p.shopId, p.kind, p.q]);
-  return Number(res.rows[0]?.n ?? 0);
+/** The queue's views (new products, changes) for the search and shop: one statement (103 FR-017). */
+export async function queueViewCounts(req: Pick<ReviewQueueRequest, "q" | "filters">): Promise<{ all: number; new_product: number; change: number }> {
+  const res = await query<{ all: number; new_product: number; change: number }>(
+    `SELECT count(*)::int AS all,
+            count(*) FILTER (WHERE q.kind = 'new_product')::int AS new_product,
+            count(*) FILTER (WHERE q.kind = 'change')::int AS change
+       FROM (${QUEUE_ROWS}) q
+     ${QUEUE_FILTERS}`,
+    queueArgs({ ...req, filters: { ...req.filters, kind: undefined } }),
+  );
+  return res.rows[0]!;
 }
 
 export interface MarginNotSetRow {
@@ -83,30 +87,32 @@ export interface MarginNotSetRow {
   product_name: string;
   shop_price_amount: string;
   status: string;
+  approved_at: Date;
 }
 
-/** They sell at the shop's price until Effy sets one. */
-export async function listMarginNotSet(
-  shopId: string | null,
-  afterProductId: string | null,
-  limit: number,
-): Promise<MarginNotSetRow[]> {
-  const res = await query<MarginNotSetRow>(
-    `SELECT p.id AS product_id, p.shop_id, s.name AS shop_name, p.name AS product_name,
-            -- The lowest shop price among its active variants ("from").
-            (SELECT min(v.shop_price_amount) FROM public.product_variant v
-              WHERE v.product_id = p.id AND v.state = 'active')::text AS shop_price_amount,
-            p.status
-       FROM public.product p
-       JOIN public.shop s ON s.id = p.shop_id
-      WHERE p.approved_at IS NOT NULL AND p.margin_kind IS NULL AND p.status <> 'archived'
-        AND ($1::uuid IS NULL OR p.shop_id = $1)
-        AND ($2::uuid IS NULL OR p.id > $2)
-      ORDER BY p.id
-      LIMIT $3`,
-    [shopId, afterProductId, limit],
-  );
-  return res.rows;
+/** They sell at the shop's price until Effy sets one. One page with its exact total (103). */
+export async function listMarginNotSet(req: MarginNotSetRequest) {
+  return runOffsetPage(req, async (read) => {
+    const args: unknown[] = [req.filters.shopId ?? null, req.q ? likePattern(req.q) : null];
+    const paging = limitOffsetClause(read, args);
+    const res = await query<MarginNotSetRow & { full_count: string }>(
+      `SELECT p.id AS product_id, p.shop_id, s.name AS shop_name, p.name AS product_name,
+              -- The lowest shop price among its active variants ("from").
+              (SELECT min(v.shop_price_amount) FROM public.product_variant v
+                WHERE v.product_id = p.id AND v.state = 'active')::text AS shop_price_amount,
+              p.status, p.approved_at,
+              count(*) OVER () AS full_count
+         FROM public.product p
+         JOIN public.shop s ON s.id = p.shop_id
+        WHERE p.approved_at IS NOT NULL AND p.margin_kind IS NULL AND p.status <> 'archived'
+          AND ($1::uuid IS NULL OR p.shop_id = $1)
+          AND ($2::text IS NULL OR p.name ILIKE $2)
+        ${orderBy(MARGIN_NOT_SET, req)}
+        ${paging}`,
+      args,
+    );
+    return res.rows;
+  });
 }
 
 /** Whole hours; null when the queue is empty. */

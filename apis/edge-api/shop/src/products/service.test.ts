@@ -23,7 +23,13 @@ vi.mock("@effy/edge-shared/catalog", async (importOriginal) => ({
   readFormRows: vi.fn(async (_db: unknown, ids: string[]) => new Map(ids.map((id) => [id, form.rows]))),
 }));
 
-import { createProduct, listProducts, presignUpload } from "./service";
+import { parseListQuery } from "@effy/edge-shared";
+
+import { SHOP_PRODUCT_LIST_SPEC } from "./list";
+import { createProduct, listProducts as listProductsReq, presignUpload } from "./service";
+
+/** The catalogue as its route parses it (103). */
+const listProducts = (shopId: string, qs: Record<string, string>) => listProductsReq(shopId, parseListQuery(qs, SHOP_PRODUCT_LIST_SPEC));
 import { ProductError, isProductError } from "./types";
 
 async function kindOf(p: Promise<unknown>): Promise<string> {
@@ -148,16 +154,16 @@ describe("createProduct (validation, draft-first, 101 facts and details)", () =>
 describe("listProducts (param clamp, shop-scope, presign)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    repo.listProducts.mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 });
+    repo.listProducts.mockResolvedValue({ items: [], total: 0, page: 1 });
   });
 
-  it("clamps pageSize to 100 and defaults page/sort/order", async () => {
+  it("103: answers an unknown page size at 25 and defaults page and sort", async () => {
     await listProducts("shop-1", { pageSize: "9999", page: "0" });
     const params = repo.listProducts.mock.calls[0]![1];
-    expect(params.pageSize).toBe(100);
+    expect(params.pageSize).toBe(25);
     expect(params.page).toBe(1);
     expect(params.sort).toBe("recent");
-    expect(params.order).toBe("desc");
+    expect(params.dir).toBe("desc");
   });
 
   it("passes the caller-resolved shopId to the repository (isolation)", async () => {
@@ -168,7 +174,7 @@ describe("listProducts (param clamp, shop-scope, presign)", () => {
   it("presigns the primary image storage key into a url", async () => {
     repo.listProducts.mockResolvedValue({
       items: [{ id: "p1", primaryImageUrl: "products/p1/abc.jpg", name: "x", brand: null, categoryName: "C", priceAmount: "1.00", currency: "AUD", status: "draft", updatedAt: "t", priceVaries: false, variantCount: 1, missingRequired: 0 }],
-      total: 1, page: 1, pageSize: 20,
+      total: 1, page: 1,
     });
     mediaMod.presignRead.mockResolvedValue("https://s3/signed");
     const out = await listProducts("shop-1", {});

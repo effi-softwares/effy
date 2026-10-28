@@ -1,3 +1,4 @@
+import { LIMIT_REACHED, SET_FULL_SENTENCE } from "@effy/edge-shared";
 import { announce } from "@effy/edge-shared/live";
 import type { CourierServiceDTO, CourierServiceInput, CourierServiceListDTO } from "@effy/shared-types";
 
@@ -79,6 +80,7 @@ async function save(id: string | null, body: CourierServiceInput, base: CourierS
 }
 
 export async function create(body: CourierServiceInput, sub: string): Promise<CourierServiceDTO> {
+  if (await repo.isFull()) throw new CoverageError(409, LIMIT_REACHED, SET_FULL_SENTENCE);
   return save(null, body, null, sub);
 }
 

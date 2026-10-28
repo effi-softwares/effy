@@ -15,12 +15,6 @@ import {
 } from "@effy/shared-types"
 import {
   Skeleton,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
   Tabs,
   TabsContent,
   TabsCount,
@@ -28,6 +22,7 @@ import {
   TabsTrigger,
 } from "@effy/design-system/ui"
 import { ErrorState, useHeaderBack } from "@effy/web-kit/console"
+import { StaticTable, type EffyColumnDef } from "@effy/web-kit/data-table"
 import { Callout, DetailRows, PageHeader, Panel, StatusWord } from "@effy/web-kit/patterns"
 
 import { useSessionRoles } from "@/features/auth/useSessionRoles"
@@ -203,69 +198,13 @@ function Product({
 
         <TabsContent value="sizes" className="ef-tabpanel">
           <Panel title="Sizes, prices and stock" flush>
-            <div className="min-w-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Size</TableHead>
-                    <TableHead>Effy code</TableHead>
-                    <TableHead>Shop code</TableHead>
-                    <TableHead>Barcode</TableHead>
-                    <TableHead className="text-right">Shop price</TableHead>
-                    <TableHead className="text-right">Customers pay</TableHead>
-                    <TableHead className="text-right">Weight</TableHead>
-                    <TableHead className="text-right">Stock</TableHead>
-                    <TableHead>On sale</TableHead>
-                    {sizeAction ? (
-                      <TableHead>
-                        <span className="sr-only">Actions</span>
-                      </TableHead>
-                    ) : null}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {p.variants.map((v) => (
-                    <TableRow key={v.id}>
-                      <TableHead scope="row" className="text-left font-medium">
-                        {v.label ?? "One size"}
-                      </TableHead>
-                      <TableCell className="font-mono text-xs">{v.code ?? "—"}</TableCell>
-                      <TableCell className="font-mono text-xs">{v.sku ?? "—"}</TableCell>
-                      <TableCell className="font-mono text-xs">{v.gtin ?? "—"}</TableCell>
-                      <TableCell className="text-right tabular-nums">{money(v.shopPriceAmount)}</TableCell>
-                      <TableCell className="text-right font-medium tabular-nums">
-                        {money(v.customerPriceAmount)}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">{v.weightGrams} g</TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {v.stockTracked ? (
-                          <>
-                            {v.stockOnHand ?? 0}
-                            {v.lowStockThreshold !== null ? (
-                              <span className="mt-0.5 block text-sm text-muted-foreground block">
-                                reorder at {v.lowStockThreshold}
-                              </span>
-                            ) : null}
-                          </>
-                        ) : (
-                          <span className="text-muted-foreground">Not tracked</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {v.state === "active" ? (
-                          <StatusWord tone="done">On sale</StatusWord>
-                        ) : (
-                          <StatusWord tone="muted">Off sale</StatusWord>
-                        )}
-                      </TableCell>
-                      {sizeAction ? (
-                        <TableCell className="text-right">{canManage ? sizeAction(p, v) : null}</TableCell>
-                      ) : null}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+            <StaticTable
+              label="Sizes"
+              columns={sizeColumns(p, canManage ? sizeAction : undefined)}
+              rows={p.variants}
+              getRowId={(v) => v.id}
+              framed={false}
+            />
           </Panel>
         </TabsContent>
 
@@ -305,4 +244,65 @@ function Product({
       ) : null}
     </>
   )
+}
+
+/** A product's sizes: every one is on the product, so a bounded table with no pager (103 FR-021). */
+function sizeColumns(
+  p: BackOfficeProductDTO,
+  sizeAction?: (p: BackOfficeProductDTO, v: BackOfficeVariantDTO) => ReactNode,
+): EffyColumnDef<BackOfficeVariantDTO>[] {
+  return [
+    {
+      id: "size",
+      header: "Size",
+      cell: ({ row }) => <span className="font-medium">{row.original.label ?? "One size"}</span>,
+      meta: { label: "Size", identifying: true, phone: "primary" },
+    },
+    { id: "code", header: "Effy code", cell: ({ row }) => <span className="text-xs">{row.original.code ?? "—"}</span>, meta: { label: "Effy code", align: "mono", priority: 2 } },
+    { id: "sku", header: "Shop code", cell: ({ row }) => <span className="text-xs">{row.original.sku ?? "—"}</span>, meta: { label: "Shop code", align: "mono", priority: 2 } },
+    { id: "gtin", header: "Barcode", cell: ({ row }) => <span className="text-xs">{row.original.gtin ?? "—"}</span>, meta: { label: "Barcode", align: "mono", priority: 3 } },
+    { id: "shopPrice", header: "Shop price", cell: ({ row }) => money(row.original.shopPriceAmount), meta: { label: "Shop price", align: "numeric" } },
+    {
+      id: "customerPrice",
+      header: "Customers pay",
+      cell: ({ row }) => <span className="font-medium">{money(row.original.customerPriceAmount)}</span>,
+      meta: { label: "Customers pay", align: "numeric", phone: "trail" },
+    },
+    { id: "weight", header: "Weight", cell: ({ row }) => `${row.original.weightGrams} g`, meta: { label: "Weight", align: "numeric", priority: 3 } },
+    {
+      id: "stock",
+      header: "Stock",
+      cell: ({ row }) => {
+        const v = row.original
+        return v.stockTracked ? (
+          <>
+            {v.stockOnHand ?? 0}
+            {v.lowStockThreshold !== null ? (
+              <span className="mt-0.5 block text-sm text-muted-foreground">reorder at {v.lowStockThreshold}</span>
+            ) : null}
+          </>
+        ) : (
+          <span className="text-muted-foreground">Not tracked</span>
+        )
+      },
+      meta: { label: "Stock", align: "numeric" },
+    },
+    {
+      id: "onSale",
+      header: "On sale",
+      cell: ({ row }) =>
+        row.original.state === "active" ? <StatusWord tone="done">On sale</StatusWord> : <StatusWord tone="muted">Off sale</StatusWord>,
+      meta: { label: "On sale", phone: "badge" },
+    },
+    ...(sizeAction
+      ? [
+          {
+            id: "actions",
+            header: () => <span className="sr-only">Actions</span>,
+            cell: ({ row }) => sizeAction(p, row.original),
+            meta: { label: "Actions", phone: "full", className: "text-right" },
+          } satisfies EffyColumnDef<BackOfficeVariantDTO>,
+        ]
+      : []),
+  ]
 }

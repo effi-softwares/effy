@@ -1,4 +1,5 @@
 import { createTelemetry } from "@effy/web-kit"
+import { setListEventSink, type ListEvent } from "@effy/web-kit/data-table"
 
 import { config } from "./env"
 
@@ -61,13 +62,17 @@ type ShopAnalyticsEvent =
   | { name: "offline_entered" }
   | { name: "offline_recovered" }
 
-const telemetry = createTelemetry<ShopAnalyticsEvent>({
+const telemetry = createTelemetry<ShopAnalyticsEvent | ListEvent>({
   key: config.posthogKey(),
   host: config.posthogHost(),
   surface: "shop-web",
   enabled: config.telemetryEnabled(),
 })
 
-export const initTelemetry = telemetry.init
+export const initTelemetry = () => {
+  telemetry.init()
+  // 103: every console list reports being shown and filtered (list id and mode only).
+  setListEventSink(telemetry.track)
+}
 export const track = telemetry.track
 export const reportError = telemetry.reportError

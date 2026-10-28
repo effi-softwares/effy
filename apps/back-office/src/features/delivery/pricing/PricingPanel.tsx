@@ -1,12 +1,12 @@
 import { useState } from "react"
 
 import { useQuery } from "@tanstack/react-query"
-import type { EffyColumnDef as ColumnDef } from "@effy/web-kit/data-table"
+import { StaticTable, type EffyColumnDef as ColumnDef } from "@effy/web-kit/data-table"
 import { Plus } from "lucide-react"
 
-import type { FeePlanKind, FeePlanDTO } from "@effy/shared-types"
+import { CAPPED_SET_LIMIT, listFullSentence, type FeePlanKind, type FeePlanDTO } from "@effy/shared-types"
 import { Badge, Button, Tabs, TabsList, TabsTrigger } from "@effy/design-system/ui"
-import { DataTable, ErrorState } from "@effy/web-kit/console"
+import { ErrorState } from "@effy/web-kit/console"
 
 import { plansQuery } from "../queries"
 import { ActivateDialog } from "./ActivateDialog"
@@ -23,12 +23,15 @@ export function PricingPanel({ canManage }: { canManage: boolean }) {
 
   const columns: ColumnDef<FeePlanDTO>[] = [
     {
-      accessorKey: "name",
+      id: "name",
+      accessorFn: (p) => p.name.toLowerCase(),
       header: "Plan",
       cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
+      meta: { label: "Plan", identifying: true, phone: "primary" },
     },
     {
-      accessorKey: "state",
+      id: "state",
+      accessorFn: (p) => (p.state === "active" ? 0 : p.state === "draft" ? 1 : 2),
       header: "State",
       cell: ({ row }) =>
         row.original.state === "active" ? (
@@ -38,6 +41,7 @@ export function PricingPanel({ canManage }: { canManage: boolean }) {
         ) : (
           <Badge variant="outline">Retired</Badge>
         ),
+      meta: { label: "State", phone: "badge" },
     },
     {
       id: "gaps",
@@ -51,9 +55,12 @@ export function PricingPanel({ canManage }: { canManage: boolean }) {
           <span className="text-warning">{n} to fix</span>
         )
       },
+      meta: { label: "Ready" },
     },
     {
       id: "activated",
+      accessorFn: (p) => p.activatedAt ?? "",
+      sortDescFirst: true,
       header: "Activated",
       cell: ({ row }) =>
         row.original.activatedAt ? (
@@ -65,10 +72,12 @@ export function PricingPanel({ canManage }: { canManage: boolean }) {
             })}
           </span>
         ) : null,
+      meta: { label: "Activated", priority: 2, phone: "trail" },
     },
     {
       id: "actions",
-      header: "",
+      header: () => <span className="sr-only">Actions</span>,
+      enableSorting: false,
       cell: ({ row }) => {
         const p = row.original
         return (
@@ -89,6 +98,7 @@ export function PricingPanel({ canManage }: { canManage: boolean }) {
           </div>
         )
       },
+      meta: { label: "Actions", phone: "full" },
     },
   ]
 
@@ -120,11 +130,18 @@ export function PricingPanel({ canManage }: { canManage: boolean }) {
         ) : (
           <>
             {kind === "courier" && !active ? <p className="text-sm">No courier table is active.</p> : null}
-            <DataTable
+            {/* Every plan of the kind (capped at 500, 103 FR-024): sorted in the browser, newest active first. */}
+            <StaticTable
+              label={kind === "courier" ? "Courier tables" : "Fee plans"}
               columns={columns}
-              data={plans.data}
-              emptyMessage={kind === "courier" ? "No courier tables yet." : "No fee plans yet."}
+              rows={plans.data}
+              getRowId={(p) => p.id}
+              initialSort={{ id: "state" }}
+              empty={kind === "courier" ? "No courier tables yet." : "No fee plans yet."}
             />
+            {plans.data.length >= CAPPED_SET_LIMIT ? (
+              <p className="text-sm text-muted-foreground">{listFullSentence(CAPPED_SET_LIMIT)}</p>
+            ) : null}
           </>
         )}
       </section>

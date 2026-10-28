@@ -26,8 +26,11 @@ export function orderList(items: OrderRow[], over: Partial<OrderList> = {}): Ord
   return {
     items,
     total: items.length,
+    totalCapped: false,
     page: 1,
     pageSize: 25,
+    nextCursor: null,
+    ignored: [],
     counts: {
       all: items.length,
       new: items.filter((r) => r.status === "pending" || r.status === "received").length,

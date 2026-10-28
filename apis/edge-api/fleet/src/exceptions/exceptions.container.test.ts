@@ -32,7 +32,15 @@ vi.mock("@effy/edge-shared", async () => {
 
 import { migrationSql } from "@effy/edge-shared/testing";
 
-import { ExceptionNotFoundError, ExceptionOutcomeError, listExceptions, resolveException } from "./service";
+import { ExceptionNotFoundError, ExceptionOutcomeError, listExceptions as listExceptionsReq, resolveException } from "./service";
+import { parseListQuery } from "@effy/edge-shared";
+import { EXCEPTION_LIST_SPEC } from "./list";
+
+/** The board as its route answers it, with the page's rows flattened for these checks (103). */
+const listExceptions = async (includeResolved = false) => {
+  const r = await listExceptionsReq(parseListQuery(includeResolved ? { view: "all" } : {}, EXCEPTION_LIST_SPEC));
+  return { ...r, exceptions: r.exceptions.items, page: r.exceptions };
+};
 
 const RUN = process.env.CONTAINER_TESTS === "1";
 const d = RUN ? describe : describe.skip;
@@ -238,8 +246,10 @@ d("064 — delivery exceptions", () => {
   it("keeps several attempts for one drop as separate rows", async () => {
     await addFailure("nobody_home");
     await addFailure("access_blocked");
-    const { exceptions, openCount } = await listExceptions();
+    const { exceptions, openCount, page } = await listExceptions();
     expect(exceptions).toHaveLength(2);
     expect(openCount).toBe(2);
+    // 103: a page with its exact total; nothing past a fixed number is ever dropped.
+    expect(page).toMatchObject({ total: 2, page: 1 });
   });
 });

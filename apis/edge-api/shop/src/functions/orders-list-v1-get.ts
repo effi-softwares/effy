@@ -2,10 +2,10 @@
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";
-import { json, preamble } from "@effy/edge-shared";
+import { json, listProblem, preamble } from "@effy/edge-shared";
 
 import { gate, mapOrderError, toListDTO } from "../orders/handler-support";
-import { listOrders, parseListQuery } from "../orders/service";
+import { listOrders, parseOrderListQuery } from "../orders/service";
 
 export const handler = async (
   event: AuthedEvent,
@@ -16,9 +16,9 @@ export const handler = async (
   if ("deny" in g) return g.deny;
 
   try {
-    const q = parseListQuery(event.queryStringParameters ?? null);
+    const q = parseOrderListQuery(event.queryStringParameters ?? null);
     return json(200, toListDTO(await listOrders(g.actor, q)), scope);
   } catch (err) {
-    return mapOrderError(err, scope);
+    return listProblem(err, scope) ?? mapOrderError(err, scope);
   }
 };

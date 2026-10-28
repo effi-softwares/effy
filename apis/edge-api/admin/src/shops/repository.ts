@@ -1,13 +1,26 @@
 // Every mutation writes its audit row in the same transaction.
 import type { PoolClient } from "pg";
 
-import { likePattern, limitOffsetClause, orderBy, query, runOffsetPage, withTransaction } from "@effy/edge-shared";
+import {
+  cappedCountSql,
+  keysetColumns,
+  keysetCondition,
+  keysetListPage,
+  likePattern,
+  limitOffsetClause,
+  orderBy,
+  pageClause,
+  query,
+  runOffsetPage,
+  setIsFull,
+  withTransaction,
+} from "@effy/edge-shared";
+import type { ListPage } from "@effy/shared-types";
 
-import { SHOP_LIST, type ShopListRequest } from "./list";
+import { SHOP_HISTORY, SHOP_LIST, type ShopHistoryRequest, type ShopListRequest } from "./list";
 
 import {
   type AuditEntry,
-  type Paged,
   type Shop,
   type ShopDetail,
   ShopError,
@@ -66,7 +79,6 @@ interface AuditRow {
   target_id: string | null;
   detail: Record<string, unknown>;
   created_at: Date;
-  total: string;
 }
 
 function mapShop(row: ShopRow): Shop {
@@ -287,38 +299,37 @@ export async function getShopUserForUpdate(
   return { id: row.id, email: row.email, shopId: row.shop_id, roles };
 }
 
-/** Newest first. */
-export async function listShopHistory(
-  shopId: string,
-  page: number,
-  pageSize: number,
-): Promise<Paged<AuditEntry>> {
-  const res = await query<AuditRow>(
-    `SELECT a.id, a.actor_sub, a.action, a.target_type, a.target_id, a.detail, a.created_at,
-            count(*) OVER() AS total
-       FROM admin.audit_log a
-      WHERE (a.target_type = 'shop' AND a.target_id = $1)
+const SHOP_HISTORY_WHERE = `
+      WHERE ((a.target_type = 'shop' AND a.target_id = $1)
          OR (a.target_type = 'shop_staff'
-             AND a.target_id IN (SELECT id FROM public.shop_staff WHERE shop_id = $1))
-      ORDER BY a.created_at DESC
-      LIMIT $2 OFFSET $3`,
-    [shopId, pageSize, (page - 1) * pageSize],
-  );
-  const total = res.rows[0] ? Number(res.rows[0].total) : 0;
-  return {
-    items: res.rows.map((r) => ({
-      id: r.id,
-      actorSub: r.actor_sub,
-      action: r.action,
-      targetType: r.target_type,
-      targetId: r.target_id,
-      detail: r.detail,
-      createdAt: r.created_at.toISOString(),
-    })),
-    total,
-    page,
-    pageSize,
-  };
+             AND a.target_id IN (SELECT id FROM public.shop_staff WHERE shop_id = $1)))`;
+
+/** One page of a shop's history, newest first, with a capped count (103). */
+export async function listShopHistory(shopId: string, req: ShopHistoryRequest): Promise<ListPage<AuditEntry>> {
+  const args: unknown[] = [shopId];
+  const after = keysetCondition(SHOP_HISTORY, req, args);
+  const paging = pageClause(req, args);
+  const [res, count] = await Promise.all([
+    query<AuditRow & { list_sort_key: string; list_row_id: string }>(
+      `SELECT a.id, a.actor_sub, a.action, a.target_type, a.target_id, a.detail, a.created_at, ${keysetColumns(SHOP_HISTORY, req)}
+         FROM admin.audit_log a
+        ${SHOP_HISTORY_WHERE}
+        ${after ? `AND ${after}` : ""}
+        ${orderBy(SHOP_HISTORY, req)}
+        ${paging}`,
+      args,
+    ),
+    query<{ n: number }>(cappedCountSql(`SELECT 1 FROM admin.audit_log a ${SHOP_HISTORY_WHERE}`), [shopId]),
+  ]);
+  return keysetListPage(res.rows, req, count.rows[0]?.n ?? 0, (r) => ({
+    id: r.id,
+    actorSub: r.actor_sub,
+    action: r.action,
+    targetType: r.target_type,
+    targetId: r.target_id,
+    detail: r.detail,
+    createdAt: r.created_at.toISOString(),
+  }));
 }
 
 async function setRoles(client: PoolClient, staffId: string, roles: readonly ShopRole[]): Promise<void> {
@@ -550,3 +561,6 @@ async function readUserById(userId: string): Promise<ShopUser | null> {
   const row = res.rows[0];
   return row ? mapUser(row) : null;
 }
+
+/** 103 FR-024: a shop's team is shown whole, so it is capped (`setIsFull`). */
+export const teamIsFull = (shopId: string): Promise<boolean> => setIsFull("FROM public.shop_staff WHERE shop_id = $1", [shopId]);

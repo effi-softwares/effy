@@ -19,9 +19,6 @@ function OrdersRoute() {
     <OrderListScreen
       search={search}
       onSearchChange={(next) => void navigate({ to: "/orders", search: next, replace: true })}
-      onOpenOrder={(fulfillmentId) =>
-        void navigate({ to: "/orders/$fulfillmentId", params: { fulfillmentId }, search })
-      }
     />
   )
 }

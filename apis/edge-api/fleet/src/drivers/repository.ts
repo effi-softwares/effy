@@ -1,6 +1,6 @@
 // No upsert on create (a duplicate is refused, by the citext unique on work_email), presence-based
 // updates (absent leaves alone, null clears), and a paged, searchable register.
-import { query, withTransaction } from "@effy/edge-shared";
+import { likePattern, limitOffsetClause, orderBy, query, runOffsetPage, withTransaction } from "@effy/edge-shared";
 import type {
   AdminDriverCredentials,
   DriverCapabilitySummary,
@@ -12,6 +12,7 @@ import type {
 import type pg from "pg";
 
 import { listForDriver, summariseForDrivers } from "../capabilities/repository";
+import { DRIVER_LIST, DRIVER_VIEWS, type DriverListRequest, type DriverView } from "./list";
 import { BLOCKED_REASONS, ON_DUTY_EXISTS } from "./sql";
 
 interface ListRow {
@@ -76,87 +77,66 @@ const LIST_SELECT = `
     FROM public.driver d
 `;
 
-export interface ListParams {
-  q?: string;
-  statuses?: DriverEmploymentStatus[];
-  zoneId?: string;
-  includeOffboarded?: boolean;
-  cursor?: string;
-  limit: number;
-}
-
-export interface ListResult {
-  items: AdminDriverListItem[];
-  nextCursor: string | null;
-}
-
-/** Keyset paging on `(name, id)`, a total order, with the cursor minted from the same pair. */
-export async function listDrivers(params: ListParams): Promise<ListResult> {
+/** The register's search, zone and view, shared by the page and its view counts. `view` absent = every view. */
+function driverWhere(req: Pick<DriverListRequest, "q" | "filters">, args: unknown[], view: DriverView | null): string[] {
   const where: string[] = [];
-  const args: unknown[] = [];
-
-  if (params.q) {
-    args.push(`%${params.q}%`);
+  if (req.q) {
+    args.push(likePattern(req.q));
     // ILIKE on both (trigram index on name; work_email is citext).
-    where.push(`(d.name ILIKE $${args.length} OR d.work_email ILIKE $${args.length})`);
+    where.push(`(d.name ILIKE $${args.length} OR d.work_email::text ILIKE $${args.length})`);
   }
-  if (params.statuses && params.statuses.length > 0) {
-    args.push(params.statuses);
-    where.push(`d.status = ANY($${args.length}::text[])`);
-  } else if (!params.includeOffboarded) {
-    // Leavers are hidden by default.
-    where.push(`d.status <> 'offboarded'`);
-  }
-  if (params.zoneId) {
+  if (req.filters.zoneId) {
     // "Cleared for this zone" includes every-zone drivers.
-    args.push(params.zoneId);
+    args.push(req.filters.zoneId);
     where.push(`EXISTS (
       SELECT 1 FROM public.driver_zone_capability fc
        WHERE fc.driver_id = d.id AND (fc.zone_id = $${args.length} OR fc.zone_id IS NULL)
     )`);
   }
-  if (params.cursor) {
-    const decoded = decodeCursor(params.cursor);
-    if (decoded) {
-      args.push(decoded.name, decoded.id);
-      where.push(`(d.name, d.id) > ($${args.length - 1}, $${args.length}::uuid)`);
-    }
-  }
+  if (view) where.push(VIEW_SQL[view]);
+  return where;
+}
 
-  args.push(params.limit + 1);
-  const sql = `${LIST_SELECT}
-    ${where.length > 0 ? `WHERE ${where.join(" AND ")}` : ""}
-    ORDER BY d.name ASC, d.id ASC
-    LIMIT $${args.length}`;
+const VIEW_SQL: Record<DriverView, string> = {
+  // Leavers are hidden by default.
+  employed: "d.status <> 'offboarded'",
+  active: "d.status = 'active'",
+  suspended: "d.status = 'suspended'",
+  offboarded: "d.status = 'offboarded'",
+  everyone: "TRUE",
+};
 
-  const res = await query<ListRow>(sql, args);
-  const rows = res.rows.slice(0, params.limit);
-  const hasMore = res.rows.length > params.limit;
-  const last = rows[rows.length - 1];
+/** One page of the register with its exact total (103). */
+export async function listDrivers(req: DriverListRequest): Promise<{ items: AdminDriverListItem[]; total: number; page: number }> {
+  const r = await runOffsetPage(req, async (read) => {
+    const args: unknown[] = [];
+    const where = driverWhere(req, args, req.filters.view ?? "employed");
+    const paging = limitOffsetClause(read, args);
+    const res = await query<ListRow & { full_count: string }>(
+      `${LIST_SELECT.replace("SELECT d.id,", "SELECT count(*) OVER () AS full_count, d.id,")}
+        ${where.length > 0 ? `WHERE ${where.join(" AND ")}` : ""}
+        ${orderBy(DRIVER_LIST, req)}
+        ${paging}`,
+      args,
+    );
+    return res.rows;
+  });
   // One batched read for the page, not one per row.
-  const summaries = await summariseForDrivers(rows.map((r) => r.id));
-  return {
-    items: rows.map((r) => toListItem(r, summaries.get(r.id) ?? EMPTY_SUMMARY)),
-    nextCursor: hasMore && last ? encodeCursor(last.name, last.id) : null,
-  };
+  const summaries = await summariseForDrivers(r.rows.map((x) => x.id));
+  return { items: r.rows.map((x) => toListItem(x, summaries.get(x.id) ?? EMPTY_SUMMARY)), total: r.total, page: r.page };
 }
 
-export function encodeCursor(name: string, id: string): string {
-  return Buffer.from(JSON.stringify({ n: name, i: id }), "utf8").toString("base64url");
-}
-
-export function decodeCursor(raw: string): { name: string; id: string } | null {
-  try {
-    const parsed = JSON.parse(Buffer.from(raw, "base64url").toString("utf8")) as {
-      n?: unknown;
-      i?: unknown;
-    };
-    if (typeof parsed.n !== "string" || typeof parsed.i !== "string") return null;
-    return { name: parsed.n, id: parsed.i };
-  } catch {
-    // A malformed cursor restarts the listing rather than 500-ing.
-    return null;
-  }
+/** Every view's count for the search and zone, in one statement (103 FR-017). */
+export async function driverViewCounts(req: Pick<DriverListRequest, "q" | "filters">): Promise<Record<DriverView, number>> {
+  const args: unknown[] = [];
+  const where = driverWhere(req, args, null);
+  const res = await query<Record<DriverView, number>>(
+    `SELECT ${DRIVER_VIEWS.map((v) => `count(*) FILTER (WHERE ${VIEW_SQL[v]})::int AS ${v}`).join(", ")}
+       FROM public.driver d
+      ${where.length > 0 ? `WHERE ${where.join(" AND ")}` : ""}`,
+    args,
+  );
+  return res.rows[0]!;
 }
 
 const PROFILE_SELECT = `

@@ -8,10 +8,6 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  Table,
-  TableCell,
-  TableHead,
-  TableRow,
   Tabs,
   TabsList,
   TabsTrigger,
@@ -72,62 +68,6 @@ export function SectionAction({
 
 export function MicroLabel({ children, className }: { children: ReactNode; className?: string }) {
   return <div className={cn("text-sm font-medium whitespace-nowrap text-muted-foreground", className)}>{children}</div>
-}
-
-export function TableFrame({ children, className }: { children: ReactNode; className?: string }) {
-  return (
-    <div className={cn("overflow-hidden rounded-xl border bg-card", className)}>
-      <Table>{children}</Table>
-    </div>
-  )
-}
-
-export function Th({
-  children,
-  align = "left",
-  width,
-}: {
-  children?: ReactNode
-  align?: "left" | "right"
-  width?: string
-}) {
-  return (
-    <TableHead numeric={align === "right"} style={width ? { width } : undefined}>
-      {children}
-    </TableHead>
-  )
-}
-
-export function Td({
-  children,
-  align = "left",
-  className,
-}: {
-  children?: ReactNode
-  align?: "left" | "right"
-  className?: string
-}) {
-  return (
-    <TableCell numeric={align === "right"} className={className}>
-      {children}
-    </TableCell>
-  )
-}
-
-export function Tr({
-  children,
-  interactive,
-  onClick,
-}: {
-  children: ReactNode
-  interactive?: boolean
-  onClick?: () => void
-}) {
-  return (
-    <TableRow onClick={onClick} className={cn(interactive && "cursor-pointer")}>
-      {children}
-    </TableRow>
-  )
 }
 
 export function Segmented<T extends string>({

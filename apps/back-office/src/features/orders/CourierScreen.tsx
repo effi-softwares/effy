@@ -1,18 +1,27 @@
-import { useState } from "react"
-
 import { useQuery } from "@tanstack/react-query"
-import { Link } from "@tanstack/react-router"
+import { Link, useSearch } from "@tanstack/react-router"
 
-import type { CourierView, HandoverRowDTO } from "@effy/shared-types"
+import { COURIER_VIEWS, type CourierView, type HandoverRowDTO } from "@effy/shared-types"
 import { CircleAlert, CircleCheck, Clock, Forward, PackageOpen, Settings2, Store, Truck, Warehouse } from "lucide-react"
 
-import { Button, Skeleton, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@effy/design-system/ui"
-import { ErrorState } from "@effy/web-kit/console"
-
-import { EmptyState, PageHeader, StatusWord, Toolbar, ViewSelect } from "@effy/web-kit/patterns"
+import { Button } from "@effy/design-system/ui"
+import {
+  DataTable,
+  defineListSearch,
+  Facet,
+  ListPage,
+  listQueryOptions,
+  SearchBox,
+  searchFilter,
+  useListState,
+  ViewSelect,
+  type EffyColumnDef,
+} from "@effy/web-kit/data-table"
+import { PageHeader, StatusWord } from "@effy/web-kit/patterns"
+import { courierServicesQuery } from "@/features/delivery/queries"
 
 import { CONSIGNMENT_STATE_LABEL } from "./components/ConsignmentBlock"
-import { courierParcelsQuery } from "./queries"
+import { fetchCourierPage } from "./repo"
 
 const VIEWS: { value: CourierView; label: string; empty: string }[] = [
   { value: "hub_due", label: "At the hub", empty: "No courier parcels are waiting at the hub." },
@@ -32,94 +41,103 @@ const when = (iso: string) =>
     timeZone: "Australia/Melbourne",
   }).format(new Date(iso))
 
+/** Courier parcels' view in the address (103), mirroring the orders service's `COURIER_LIST_SPEC`. */
+export const courierList = defineListSearch({
+  id: "courier-parcels",
+  mode: "offset",
+  sorts: ["due", "order"] as const,
+  defaultSort: "due",
+  sortDir: { due: "asc", order: "asc" },
+  filters: { view: searchFilter.oneOf(COURIER_VIEWS), service: searchFilter.text },
+})
+
+const columns: EffyColumnDef<HandoverRowDTO>[] = [
+  { id: "order", header: "Order", cell: ({ row }) => row.original.orderNumber, meta: { label: "Order", identifying: true, phone: "primary", align: "mono", sortKey: "order" } },
+  {
+    id: "service",
+    header: "Courier service",
+    cell: ({ row }) => row.original.service ?? <span className="text-muted-foreground">Not set</span>,
+    meta: { label: "Courier service" },
+  },
+  {
+    id: "due",
+    header: "Due",
+    cell: ({ row }) => (
+      <span className="flex flex-col gap-1">
+        {dueText(row.original)}
+        {row.original.atRisk ? (
+          <span className="late">
+            <Clock aria-hidden="true" />
+            Late
+          </span>
+        ) : null}
+      </span>
+    ),
+    meta: { label: "Due", sortKey: "due" },
+  },
+  { id: "where", header: "Where it is", cell: ({ row }) => whereWord(row.original), meta: { label: "Where it is", phone: "badge" } },
+]
+
 export function CourierScreen() {
-  const [view, setView] = useState<CourierView>("hub_due")
-  const { data, error, isPending, isError, refetch } = useQuery(courierParcelsQuery(view))
+  const state = useListState(courierList, useSearch({ strict: false }))
+  const input = { key: ["orders", "courier"] as const, list: courierList, view: state.view, fetch: fetchCourierPage }
+  const query = useQuery(listQueryOptions(input))
+  const view: CourierView = state.view.filters.view ?? "hub_due"
   const current = VIEWS.find((v) => v.value === view)!
+  const services = useQuery(courierServicesQuery())
   return (
-    <>
-      <PageHeader
-        title="Courier parcels"
-        description="Parcels going to customers by courier, ready to book, track and record each step."
-        actions={
-          <Button variant="outline" asChild>
-            <Link to="/delivery" search={{ tab: "coverage" }}>
-              <Settings2 aria-hidden="true" />
-              Courier services
-            </Link>
-          </Button>
+    <ListPage
+      header={
+        <PageHeader
+          title="Courier parcels"
+          description="Parcels going to customers by courier, ready to book, track and record each step."
+          actions={
+            <Button variant="outline" asChild>
+              <Link to="/delivery" search={{ tab: "coverage" }}>
+                <Settings2 aria-hidden="true" />
+                Courier services
+              </Link>
+            </Button>
+          }
+        />
+      }
+    >
+      <DataTable
+        app="back-office"
+        label="Courier parcels"
+        list={courierList}
+        state={state}
+        columns={columns}
+        query={query}
+        queryInput={input}
+        viewFilters={["view"]}
+        rowId={(r) => r.fulfillmentId}
+        rowHref={(r) => ({ to: "/orders/$orderId", params: { orderId: r.orderId } })}
+        empty={{ icon: Truck, title: current.empty }}
+        toolbar={
+          <>
+            <ViewSelect
+              label="Courier stages"
+              value={view}
+              onChange={(v) => state.setFilter("view", v === "hub_due" ? undefined : v)}
+              options={VIEWS.map((v) => ({ value: v.value, label: v.label, count: query.data?.views[v.value], attention: v.value !== "with_courier" }))}
+            />
+            <Facet
+              label="Service"
+              anyLabel="Every service"
+              value={state.view.filters.service ?? null}
+              onChange={(v) => state.setFilter("service", v ?? undefined)}
+              options={(services.data?.items ?? []).map((s) => {
+                const label = `${s.courierName} · ${s.serviceName}`
+                return { value: label, label }
+              })}
+            />
+            <SearchBox label="Search courier parcels" placeholder="Order number or service…" value={state.draftQ} onChange={state.setQ} />
+          </>
         }
       />
-      <Toolbar>
-        <ViewSelect
-          label="Courier stages"
-          value={view}
-          onChange={setView}
-          options={VIEWS.map((v) => ({ value: v.value, label: v.label }))}
-        />
-      </Toolbar>
-      {isError ? (
-        <ErrorState error={error} onRetry={() => void refetch()} />
-      ) : isPending ? (
-        <div className="overflow-hidden rounded-xl border bg-card p-4" aria-busy="true">
-          <Skeleton className="mb-3 h-10" />
-          <Skeleton className="mb-3 h-10" />
-          <Skeleton className="h-10" />
-        </div>
-      ) : data.length === 0 ? (
-        <EmptyState icon={Truck} title={current.empty} />
-      ) : (
-        <div className="overflow-hidden rounded-xl border bg-card">
-          <div className="min-w-0">
-            <Table className="ef-rtable">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Order</TableHead>
-                  <TableHead>Courier service</TableHead>
-                  <TableHead>Due</TableHead>
-                  <TableHead>Where it is</TableHead>
-                  <TableHead>
-                    <span className="sr-only">Late</span>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data.map((r) => (
-                  <TableRow key={r.fulfillmentId}>
-                    <TableCell data-m="primary">
-                      <Link to="/orders/$orderId" params={{ orderId: r.orderId }} className="link font-mono">
-                        {r.orderNumber}
-                      </Link>
-                    </TableCell>
-                    <TableCell data-m="meta">
-                      {r.service ?? <span className="text-muted-foreground">Not set</span>}
-                    </TableCell>
-                    <TableCell data-m="meta" data-label="Due" className="whitespace-nowrap">
-                      {dueText(r)}
-                    </TableCell>
-                    <TableCell data-m="badge">{whereWord(r)}</TableCell>
-                    <TableCell data-m="meta">
-                      {r.atRisk ? (
-                        <span className="late">
-                          <Clock aria-hidden="true" />
-                          Late
-                        </span>
-                      ) : null}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t px-4 py-3 text-sm text-muted-foreground">
-            <span>
-              {data.length} {data.length === 1 ? "parcel" : "parcels"} · {current.label}
-            </span>
-            <span>Labels open through a short-lived link — never shared publicly</span>
-          </div>
-        </div>
-      )}
-    </>
+      <p className="text-sm text-muted-foreground">Labels open through a short-lived link — never shared publicly.</p>
+    </ListPage>
   )
 }
 

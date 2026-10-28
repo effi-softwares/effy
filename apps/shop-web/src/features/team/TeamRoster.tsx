@@ -2,7 +2,7 @@ import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { UserPlus } from "lucide-react"
 
-import { isShopManager, SHOP_ROLES, type ShopRole, type ShopTeamMemberDTO } from "@effy/shared-types"
+import { CAPPED_SET_LIMIT, isShopManager, listFullSentence, SHOP_ROLES, type ShopRole, type ShopTeamMemberDTO } from "@effy/shared-types"
 import {
   Badge,
   Skeleton,
@@ -21,13 +21,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
 } from "@effy/design-system/ui"
+import { StaticTable, type EffyColumnDef } from "@effy/web-kit/data-table"
 import { ErrorState } from "@effy/web-kit/console"
 import { PageHeader } from "@effy/web-kit/patterns"
 
@@ -82,24 +77,18 @@ export function TeamRoster() {
           ))}
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border bg-card">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Status</TableHead>
-                {canManage ? <TableHead /> : null}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.map((m) => (
-                <MemberRow key={m.staffId} member={m} canManage={canManage} />
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <>
+          <StaticTable
+            label="Team"
+            columns={teamColumns(canManage)}
+            rows={data}
+            getRowId={(m) => m.staffId}
+            initialSort={{ id: "name" }}
+          />
+          {data.length >= CAPPED_SET_LIMIT ? (
+            <p className="text-sm text-muted-foreground">{listFullSentence(CAPPED_SET_LIMIT)}</p>
+          ) : null}
+        </>
       )}
 
       <InviteDialog open={inviteOpen} onOpenChange={setInviteOpen} />
@@ -107,93 +96,133 @@ export function TeamRoster() {
   )
 }
 
-function MemberRow({ member, canManage }: { member: ShopTeamMemberDTO; canManage: boolean }) {
+const roleOf = (m: ShopTeamMemberDTO): ShopRole => (m.roles.includes("shop_manager") ? "shop_manager" : "shop_staff")
+
+/** The shop's team, shown whole (103 FR-024: a capped set) and sorted in the browser. */
+function teamColumns(canManage: boolean): EffyColumnDef<ShopTeamMemberDTO>[] {
+  return [
+    {
+      id: "name",
+      accessorFn: (m) => (m.name ?? m.email ?? "").toLowerCase(),
+      header: "Name",
+      cell: ({ row }) => (
+        <span className="flex items-center gap-3 font-medium">
+          <InitialsAvatar name={row.original.name ?? row.original.email ?? "?"} seed={row.original.staffId} className="size-8 shrink-0" />
+          {row.original.name ?? "—"}
+        </span>
+      ),
+      meta: { label: "Name", identifying: true, phone: "primary" },
+    },
+    {
+      id: "email",
+      accessorFn: (m) => m.email ?? "",
+      header: "Email",
+      cell: ({ row }) => <span className="text-muted-foreground">{row.original.email ?? "—"}</span>,
+      meta: { label: "Email", priority: 2 },
+    },
+    {
+      id: "role",
+      accessorFn: (m) => (roleOf(m) === "shop_manager" ? 0 : 1),
+      header: "Role",
+      cell: ({ row }) => <RoleCell member={row.original} canManage={canManage} />,
+      meta: { label: "Role" },
+    },
+    {
+      id: "status",
+      accessorFn: (m) => m.status,
+      header: "Status",
+      cell: ({ row }) =>
+        row.original.status === "active" ? <Badge variant="success">Active</Badge> : <Badge variant="quiet">Stood down</Badge>,
+      meta: { label: "Status", phone: "badge" },
+    },
+    ...(canManage
+      ? [
+          {
+            id: "actions",
+            header: () => <span className="sr-only">Actions</span>,
+            enableSorting: false,
+            cell: ({ row }) => <StandDownCell member={row.original} />,
+            meta: { label: "Actions", phone: "full", className: "text-right" },
+          } satisfies EffyColumnDef<ShopTeamMemberDTO>,
+        ]
+      : []),
+  ]
+}
+
+function RoleCell({ member, canManage }: { member: ShopTeamMemberDTO; canManage: boolean }) {
   const changeRole = useChangeRole()
+  const [error, setError] = useState<string | null>(null)
+  const role = roleOf(member)
+  return (
+    <>
+      {canManage && member.status === "active" ? (
+        <Select
+          value={role}
+          disabled={changeRole.isPending}
+          onValueChange={(v) =>
+            changeRole.mutate({ staffId: member.staffId, role: v as ShopRole }, { onError: (e) => setError(productMutationError(e)) })
+          }
+        >
+          <SelectTrigger size="sm" className="w-40" aria-label={`Role for ${member.name ?? member.email}`}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {SHOP_ROLES.map((r) => (
+              <SelectItem key={r} value={r}>
+                {ROLE_LABEL[r]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ) : (
+        ROLE_LABEL[role]
+      )}
+      {error ? (
+        <span role="alert" className="mt-1 block text-sm font-medium">
+          {error}
+        </span>
+      ) : null}
+    </>
+  )
+}
+
+function StandDownCell({ member }: { member: ShopTeamMemberDTO }) {
   const deactivate = useDeactivateStaff()
   const [error, setError] = useState<string | null>(null)
   const [confirm, setConfirm] = useState(false)
-
-  const busy = changeRole.isPending || deactivate.isPending
-  const role = member.roles.includes("shop_manager") ? "shop_manager" : "shop_staff"
-
   return (
-    <TableRow>
-      <TableCell className="font-medium">
-        <span className="flex items-center gap-3">
-          <InitialsAvatar name={member.name ?? member.email ?? "?"} seed={member.staffId} className="size-8 shrink-0" />
-          {member.name ?? "—"}
-        </span>
-      </TableCell>
-      <TableCell className="text-muted-foreground">{member.email ?? "—"}</TableCell>
-      <TableCell>
-        {canManage && member.status === "active" ? (
-          <Select
-            value={role}
-            disabled={busy}
-            onValueChange={(v) =>
-              changeRole.mutate(
-                { staffId: member.staffId, role: v as ShopRole },
-                { onError: (e) => setError(productMutationError(e)) },
-              )
-            }
-          >
-            <SelectTrigger size="sm" className="w-40" aria-label={`Role for ${member.name ?? member.email}`}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {SHOP_ROLES.map((r) => (
-                <SelectItem key={r} value={r}>
-                  {ROLE_LABEL[r]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        ) : (
-          ROLE_LABEL[role]
-        )}
-        {error ? (
-          <span role="alert" className="mt-1 block text-sm font-medium">
-            {error}
-          </span>
-        ) : null}
-      </TableCell>
-      <TableCell>
-        {member.status === "active" ? (
-          <Badge variant="success">Active</Badge>
-        ) : (
-          <Badge variant="quiet">Stood down</Badge>
-        )}
-      </TableCell>
-      {canManage ? (
-        <TableCell className="text-right">
-          {member.status === "active" && !member.isSelf ? (
-            <Button variant="outline" size="sm" disabled={busy} onClick={() => setConfirm(true)}>
-              Stand down
-            </Button>
-          ) : null}
-          <DesignSheet
-            open={confirm}
-            onOpenChange={setConfirm}
-            title={`Stand down ${member.name ?? member.email ?? "this colleague"}?`}
-            description="They can no longer sign in to this shop. You can reinstate them by inviting the same email again."
-            saveLabel="Stand down"
-            destructive
-            saving={deactivate.isPending}
-            onSave={() =>
-              deactivate.mutate(member.staffId, {
-                onSuccess: () => setConfirm(false),
-                onError: (e) => {
-                  setConfirm(false)
-                  setError(productMutationError(e))
-                },
-              })
-            }
-          >
-            {null}
-          </DesignSheet>
-        </TableCell>
+    <>
+      {member.status === "active" && !member.isSelf ? (
+        <Button variant="outline" size="sm" disabled={deactivate.isPending} onClick={() => setConfirm(true)}>
+          Stand down
+        </Button>
       ) : null}
-    </TableRow>
+      {error ? (
+        <span role="alert" className="mt-1 block text-sm font-medium">
+          {error}
+        </span>
+      ) : null}
+      <DesignSheet
+        open={confirm}
+        onOpenChange={setConfirm}
+        title={`Stand down ${member.name ?? member.email ?? "this colleague"}?`}
+        description="They can no longer sign in to this shop. You can reinstate them by inviting the same email again."
+        saveLabel="Stand down"
+        destructive
+        saving={deactivate.isPending}
+        onSave={() =>
+          deactivate.mutate(member.staffId, {
+            onSuccess: () => setConfirm(false),
+            onError: (e) => {
+              setConfirm(false)
+              setError(productMutationError(e))
+            },
+          })
+        }
+      >
+        {null}
+      </DesignSheet>
+    </>
   )
 }
 

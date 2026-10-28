@@ -1,4 +1,4 @@
-import type { PagedDTO } from "./shop";
+import type { ListPage } from "./list";
 import type { DesignedLayout, GroupSize, SkinLayout, SkinSettings } from "./promotion-skins";
 
 /**
@@ -142,7 +142,8 @@ export interface AdminPromotionListItemDTO {
   updatedAt: string;
 }
 
-export interface AdminPromotionListDTO extends PagedDTO<AdminPromotionListItemDTO> {
+/** A console list page (103) with every state's count for the view select. */
+export interface AdminPromotionListDTO extends ListPage<AdminPromotionListItemDTO> {
   counts: Record<PromotionState, number>;
 }
 
@@ -263,7 +264,7 @@ export interface AdminPromotionCodeDTO {
   orderId: string | null;
 }
 
-export type AdminPromotionCodeListDTO = PagedDTO<AdminPromotionCodeDTO>;
+export type AdminPromotionCodeListDTO = ListPage<AdminPromotionCodeDTO>;
 
 export interface AdminGenerateCodesResponse {
   batchId: string;
@@ -276,7 +277,7 @@ export interface AdminPromotionCustomerDTO {
   email: string;
 }
 
-export type AdminPromotionCustomerListDTO = PagedDTO<AdminPromotionCustomerDTO>;
+export type AdminPromotionCustomerListDTO = ListPage<AdminPromotionCustomerDTO>;
 
 export interface AdminAddPromotionCustomersResponse {
   added: number;

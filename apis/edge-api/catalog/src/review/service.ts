@@ -1,4 +1,5 @@
 import {
+  offsetListPage,
   customerPrice,
   pooled,
   presignRead,
@@ -39,99 +40,53 @@ import {
 } from "@effy/shared-types";
 
 import { ReviewError } from "./errors";
+import type { MarginNotSetRequest, ReviewQueueRequest } from "./list";
 import * as repo from "./repository";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MONEY = /^\d+(\.\d{1,2})?$/;
 
-const DEFAULT_LIMIT = 25;
-const MAX_LIMIT = 100;
 
 function requireProductId(id: string | undefined): string {
   if (!id || !UUID.test(id)) throw new ReviewError("not_found", "no such review item");
   return id;
 }
 
-function limitOf(raw: unknown): number {
-  const n = typeof raw === "string" ? Number(raw) : NaN;
-  return Number.isInteger(n) && n > 0 ? Math.min(n, MAX_LIMIT) : DEFAULT_LIMIT;
-}
 
-/** Opaque to the client; the timestamp travels as the database's own text, never through a Date. */
-function encodeCursor(parts: string[]): string {
-  return Buffer.from(JSON.stringify(parts), "utf8").toString("base64url");
-}
-
-function decodeCursor(raw: unknown, size: number): string[] | null {
-  if (typeof raw !== "string" || raw === "") return null;
-  try {
-    const parts = JSON.parse(Buffer.from(raw, "base64url").toString("utf8")) as unknown;
-    if (Array.isArray(parts) && parts.length === size && parts.every((p) => typeof p === "string")) {
-      return parts as string[];
-    }
-  } catch {
-    /* fall through */
-  }
-  throw new ReviewError("validation", "the paging cursor is not valid");
-}
-
-export async function queue(params: Record<string, string | undefined>): Promise<ReviewQueueDTO> {
-  const limit = limitOf(params.limit);
-  const cursor = decodeCursor(params.cursor, 2);
-  const kind = params.kind === "new_product" || params.kind === "change" ? params.kind : null;
-  if (params.shopId && !UUID.test(params.shopId)) throw new ReviewError("validation", "shopId is not valid");
-
-  const filters: Pick<repo.QueueParams, "shopId" | "kind" | "q"> = {
-    shopId: params.shopId ?? null,
-    kind,
-    q: params.q?.trim() ? params.q.trim() : null,
-  };
-  // One extra row tells us whether there is a next page without a second query.
-  const [rows, total] = await Promise.all([
-    repo.listQueue({
-      ...filters,
-      afterSubmittedAt: cursor?.[0] ?? null,
-      afterProductId: cursor?.[1] ?? null,
-      limit: limit + 1,
-    }),
-    repo.countQueue(filters),
-  ]);
-  const page = rows.slice(0, limit);
-  const last = page[page.length - 1];
-  return {
-    items: page.map((r) => ({
-      productId: r.product_id,
-      kind: r.kind,
-      shopId: r.shop_id,
-      shopName: r.shop_name,
-      productName: r.product_name,
-      submittedAt: r.submitted_at.toISOString(),
-      waitingHours: Number(r.waiting_hours),
+export async function queue(req: ReviewQueueRequest): Promise<ReviewQueueDTO> {
+  const r = await repo.listQueue(req);
+  return offsetListPage(
+    r.rows.map((x) => ({
+      productId: x.product_id,
+      kind: x.kind,
+      shopId: x.shop_id,
+      shopName: x.shop_name,
+      productName: x.product_name,
+      submittedAt: x.submitted_at.toISOString(),
+      waitingHours: Number(x.waiting_hours),
     })),
-    // Minted from the last row returned and the order by column.
-    nextCursor: rows.length > limit && last ? encodeCursor([last.submitted_at_text, last.product_id]) : null,
-    total,
-  };
+    req,
+    r,
+  );
 }
 
-export async function marginNotSet(params: Record<string, string | undefined>): Promise<MarginNotSetDTO> {
-  const limit = limitOf(params.limit);
-  const cursor = decodeCursor(params.cursor, 1);
-  if (params.shopId && !UUID.test(params.shopId)) throw new ReviewError("validation", "shopId is not valid");
-  const rows = await repo.listMarginNotSet(params.shopId ?? null, cursor?.[0] ?? null, limit + 1);
-  const page = rows.slice(0, limit);
-  const last = page[page.length - 1];
-  return {
-    items: page.map((r) => ({
-      productId: r.product_id,
-      shopId: r.shop_id,
-      shopName: r.shop_name,
-      productName: r.product_name,
-      shopPriceAmount: r.shop_price_amount,
-      status: r.status,
+export const queueViewCounts = (req: ReviewQueueRequest) => repo.queueViewCounts(req);
+
+export async function marginNotSet(req: MarginNotSetRequest): Promise<MarginNotSetDTO> {
+  const r = await repo.listMarginNotSet(req);
+  return offsetListPage(
+    r.rows.map((x) => ({
+      productId: x.product_id,
+      shopId: x.shop_id,
+      shopName: x.shop_name,
+      productName: x.product_name,
+      shopPriceAmount: x.shop_price_amount,
+      status: x.status,
+      approvedAt: x.approved_at.toISOString(),
     })),
-    nextCursor: rows.length > limit && last ? encodeCursor([last.product_id]) : null,
-  };
+    req,
+    r,
+  );
 }
 
 export const oldestWaitingHours = repo.oldestWaitingHours;

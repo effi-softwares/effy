@@ -43,17 +43,6 @@ export interface NoteRow {
   created_at: Date
 }
 
-export interface ListParams {
-  q: string | null
-  category: FeedbackCategory | null
-  status: FeedbackStatus | null
-  rating: number | null
-  from: string | null
-  to: string | null
-  limit: number
-  offset: number
-}
-
 /** Snapshotted at write time; no cross-schema FK. */
 export interface StaffActor {
   sub: string

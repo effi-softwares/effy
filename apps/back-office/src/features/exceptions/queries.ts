@@ -8,14 +8,14 @@ import * as repo from "./repo"
 
 const exceptionKeys = {
   all: ["exceptions"] as const,
-  list: (includeResolved: boolean) => ["exceptions", "list", includeResolved] as const,
+  board: ["exceptions", "board"] as const,
 }
 
-export const exceptionsQuery = (includeResolved: boolean) =>
-  queryOptions({
-    queryKey: exceptionKeys.list(includeResolved),
-    queryFn: () => repo.listExceptions(includeResolved),
-  })
+/** The board's figures (the overview, the rail): its open failures and what else needs a dispatcher. */
+export const exceptionsQuery = () => queryOptions({ queryKey: exceptionKeys.board, queryFn: () => repo.listExceptions() })
+
+/** Under `["exceptions"]`, which the `dispatch` live kind invalidates. */
+export const EXCEPTIONS_KEY = exceptionKeys.all
 
 export function useResolveException() {
   const qc = useQueryClient()

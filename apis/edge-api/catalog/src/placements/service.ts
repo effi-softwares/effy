@@ -1,8 +1,9 @@
 // Extra placements and the missing-details list (101, US8).
-import { withTransaction } from "@effy/edge-shared";
+import { offsetListPage, withTransaction } from "@effy/edge-shared";
 import { TaxonomyRefusal } from "@effy/edge-shared/catalog";
 import { PLACEMENTS_MAX, type MissingDetailsPageDTO, type PlacementsDTO } from "@effy/shared-types";
 
+import type { MissingDetailsRequest } from "../review/list";
 import * as repo from "./repository";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -27,18 +28,11 @@ export async function setPlacements(productId: string, body: Record<string, unkn
   });
 }
 
-function decodeCursor(raw: string | undefined): { at: string; id: string } | null {
-  if (!raw) return null;
-  try {
-    const v = JSON.parse(Buffer.from(raw, "base64url").toString("utf8")) as { at?: unknown; id?: unknown };
-    if (typeof v.at === "string" && typeof v.id === "string" && UUID.test(v.id) && !Number.isNaN(Date.parse(v.at))) return { at: v.at, id: v.id };
-  } catch {
-    // fall through
-  }
-  throw new TaxonomyRefusal("validation", "invalid_cursor", "the cursor is not valid", [{ field: "cursor", message: "is not valid" }]);
-}
-
-export async function missingDetails(cursor: string | undefined): Promise<MissingDetailsPageDTO> {
-  const page = await repo.missingDetailsPage(decodeCursor(cursor));
-  return { items: page.items, nextCursor: page.next ? Buffer.from(JSON.stringify(page.next)).toString("base64url") : null };
+export async function missingDetails(req: MissingDetailsRequest): Promise<MissingDetailsPageDTO> {
+  const r = await repo.missingDetailsPage(req);
+  return offsetListPage(
+    r.rows.map((x) => ({ productId: x.id, shopName: x.shop_name, name: x.name, categoryPath: x.path, missing: x.missing })),
+    req,
+    r,
+  );
 }

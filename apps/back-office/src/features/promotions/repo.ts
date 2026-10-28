@@ -29,6 +29,9 @@ function encode(p: PromotionListParams): string {
 
 export const listPromotions = (p: PromotionListParams) =>
   api.get<AdminPromotionListDTO>(`/admin/v1/promotions?${encode(p)}`)
+/** One page of promotions for the address's view (103). */
+export const fetchPromotionPage = (qs: URLSearchParams, signal: AbortSignal) =>
+  api.get<AdminPromotionListDTO>(`/admin/v1/promotions?${qs}`, { signal })
 export const getPromotion = (id: string) => api.get<AdminPromotionDTO>(`/admin/v1/promotions/${id}`)
 export const createPromotion = (body: AdminPromotionWriteDTO) =>
   api.post<AdminPromotionDTO>("/admin/v1/promotions", body)
@@ -48,16 +51,16 @@ export const searchPromotionProducts = (q: string) =>
     `/admin/v1/promotions/products?q=${encodeURIComponent(q)}`,
   )
 
-export const listChosenCustomers = (id: string, page = 1) =>
-  api.get<AdminPromotionCustomerListDTO>(`/admin/v1/promotions/${id}/customers?page=${page}`)
+export const fetchChosenCustomerPage = (id: string, qs: URLSearchParams, signal: AbortSignal) =>
+  api.get<AdminPromotionCustomerListDTO>(`/admin/v1/promotions/${id}/customers?${qs}`, { signal })
 export const addChosenCustomers = (id: string, body: { emails?: string[]; customerIds?: string[] }) =>
   api.post<AdminAddPromotionCustomersResponse>(`/admin/v1/promotions/${id}/customers`, body)
 export const removeChosenCustomer = (id: string, customerId: string) =>
   api.delete<void>(`/admin/v1/promotions/${id}/customers/${customerId}`)
 export const generateCodes = (id: string, body: { count: number; prefix?: string | null }) =>
   api.post<AdminGenerateCodesResponse>(`/admin/v1/promotions/${id}/codes`, body)
-export const listCodes = (id: string, page = 1, state?: string) =>
-  api.get<AdminPromotionCodeListDTO>(`/admin/v1/promotions/${id}/codes?page=${page}${state ? `&state=${state}` : ""}`)
+export const fetchCodePage = (id: string, qs: URLSearchParams, signal: AbortSignal) =>
+  api.get<AdminPromotionCodeListDTO>(`/admin/v1/promotions/${id}/codes?${qs}`, { signal })
 export const exportCodes = (id: string) => api.get<{ csv: string }>(`/admin/v1/promotions/${id}/codes/export`)
 export const getPerformance = (id: string) =>
   api.get<AdminPromotionPerformanceDTO>(`/admin/v1/promotions/${id}/performance`)

@@ -1,14 +1,14 @@
 // The repair writes its audit row in the same transaction as the change.
 import type { PoolClient } from "pg"
 
-import { query, withTransaction } from "@effy/edge-shared"
+import { query, withTransaction, likePattern, limitOffsetClause, orderBy, runOffsetPage } from "@effy/edge-shared"
+import { DELIVERABILITY_LIST, DELIVERABILITY_VIEWS, VIEW_SQL, type DeliverabilityListRequest, type DeliverabilityView } from "./list"
 
 import {
   type DeliveryEvent,
   type DeliveryEventDTO,
   type DeliveryEventType,
   type DeliveryListItemDTO,
-  type DeliveryListParams,
   type DeliveryStatusRow,
   type DeliverySubject,
   type EmailDeliveryState,
@@ -117,40 +117,39 @@ export async function getStatus(address: string): Promise<DeliveryStatusRow | nu
   return row ? toStatus(row) : null
 }
 
-export async function listStatuses(
-  params: DeliveryListParams,
-): Promise<{ items: DeliveryStatusRow[]; total: number }> {
-  // "problems" is the default view.
-  const stateClause =
-    params.state === "all"
-      ? "TRUE"
-      : params.state === "problems"
-        ? "state <> 'reachable'"
-        : "state = $1"
+/** One page with its exact total (103). */
+export async function listStatuses(req: DeliverabilityListRequest): Promise<{ items: DeliveryStatusRow[]; total: number; page: number }> {
+  const r = await runOffsetPage(req, async (read) => {
+    const args: unknown[] = []
+    const where = [VIEW_SQL[req.filters.view ?? "problems"]]
+    if (req.q) {
+      args.push(likePattern(req.q))
+      where.push(`address ILIKE $${args.length}`)
+    }
+    const paging = limitOffsetClause(read, args)
+    const res = await query<StatusRow & { full_count: string }>(
+      `SELECT ${STATUS_COLUMNS}, count(*) OVER() AS full_count
+         FROM public.email_delivery_status
+        WHERE ${where.join(" AND ")}
+        ${orderBy(DELIVERABILITY_LIST, req)}
+        ${paging}`,
+      args,
+    )
+    return res.rows
+  })
+  return { items: r.rows.map(toStatus), total: r.total, page: r.page }
+}
 
-  const args: unknown[] = params.state === "all" || params.state === "problems" ? [] : [params.state]
-
-  let where = stateClause
-  if (params.q) {
-    args.push(`%${params.q}%`)
-    where += ` AND address ILIKE $${args.length}`
-  }
-
-  args.push(params.limit, params.offset)
-
-  const res = await query<StatusRow & { total: string }>(
-    `SELECT ${STATUS_COLUMNS}, count(*) OVER() AS total
+/** Every view's count for the search, in one statement (103 FR-017). */
+export async function statusViewCounts(req: Pick<DeliverabilityListRequest, "q">): Promise<Record<DeliverabilityView, number>> {
+  const args: unknown[] = req.q ? [likePattern(req.q)] : []
+  const res = await query<Record<DeliverabilityView, number>>(
+    `SELECT ${DELIVERABILITY_VIEWS.map((v) => `count(*) FILTER (WHERE ${VIEW_SQL[v]})::int AS ${v}`).join(", ")}
        FROM public.email_delivery_status
-      WHERE ${where}
-      ORDER BY last_event_at DESC
-      LIMIT $${args.length - 1} OFFSET $${args.length}`,
+      ${req.q ? "WHERE address ILIKE $1" : ""}`,
     args,
   )
-
-  return {
-    items: res.rows.map(toStatus),
-    total: res.rows[0] ? Number(res.rows[0].total) : 0,
-  }
+  return res.rows[0]!
 }
 
 export async function listEvents(address: string, limit = 50): Promise<DeliveryEventDTO[]> {

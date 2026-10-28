@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // Repository and live channel mocked; the SQL is proven in pricing.container.test.ts.
 const repo = vi.hoisted(() => ({
   listPlans: vi.fn(),
+  isFull: vi.fn(async () => false),
   readPlan: vi.fn(),
   savePlan: vi.fn(),
   activatePlan: vi.fn(),
@@ -150,5 +151,13 @@ describe("stepsOf — the simulator says how a fee was built, in words", () => {
     const steps = run(25, 9000, 9000, 300);
     expect(steps.find((s) => s.label === "Free delivery")).toEqual({ label: "Free delivery", detail: "the basket (90.00) reaches 80.00", amount: "-12.00" });
     expect(steps.at(-1)!.amount).toBe("0.00");
+  });
+});
+
+describe("103 — the set of fee plans is capped", () => {
+  it("refuses a new plan once the set is full, and writes nothing", async () => {
+    repo.isFull.mockResolvedValueOnce(true);
+    await expect(createPlan(valid, SUB)).rejects.toMatchObject({ status: 409, code: "limit_reached" });
+    expect(repo.savePlan).not.toHaveBeenCalled();
   });
 });

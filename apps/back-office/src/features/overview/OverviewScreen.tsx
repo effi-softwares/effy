@@ -40,16 +40,16 @@ export function OverviewScreen() {
   const email = session.data?.status === "signed-in" ? session.data.identity.email : ""
   const first = displayName(email).split(" ")[0] ?? ""
 
-  const exceptions = useQuery(exceptionsQuery(false))
+  const exceptions = useQuery(exceptionsQuery())
   const day = useQuery(dispatchDayQuery())
   const views = useQuery(orderViewCountsQuery({}))
   const review = useQuery(reviewQueueQuery({}))
-  const feedback = useQuery(feedbackListQuery({ status: "new", limit: 1 }))
-  const deliverability = useQuery(deliverabilityListQuery({ limit: 1 }))
+  const feedback = useQuery(feedbackListQuery({ status: "new" }))
+  const deliverability = useQuery(deliverabilityListQuery({}))
   const duty = useQuery(dutyQuery())
 
   const ex = exceptions.data
-  const open = ex?.exceptions.filter((e) => e.resolvedAt === null) ?? []
+  const open = ex?.exceptions.items.filter((e) => e.resolvedAt === null) ?? []
   const withDrivers = open.filter((e) => e.packageLocation === "with_driver").length
   const unsafe = ex?.vehicleChecks?.filter((c) => c.unsafe && c.clearedAt === null) ?? []
   const waitingTotal =

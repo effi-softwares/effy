@@ -1,5 +1,4 @@
 import {
-  infiniteQueryOptions,
   keepPreviousData,
   queryOptions,
   useMutation,
@@ -36,11 +35,11 @@ import {
   removeCoveragePostcode,
   renameCoverageGroup,
   updateCourier,
-  type CoverageFilters,
   createCourierService,
   listCourierServices,
   updateCourierService,
 } from "./repo"
+import { coverageList } from "./coverage/list"
 import type {
   AddCoveragePostcodesRequest,
   DeliveryDaysInput,
@@ -140,14 +139,15 @@ export function useRemoveNonDeliveryDate() {
 
 const COVERAGE_ROOT = [...ROOT, "coverage"] as const
 
-export const coverageQuery = (filters: CoverageFilters) =>
-  infiniteQueryOptions({
-    queryKey: [...COVERAGE_ROOT, filters] as const,
-    queryFn: ({ pageParam }) => listCoverage(filters, pageParam),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (last) => last.nextCursor,
-    placeholderData: keepPreviousData,
+/** The postcode list's first page in its default view: the screens that only need its groups, totals or courier state. */
+export const coverageQuery = () =>
+  queryOptions({
+    queryKey: [...COVERAGE_ROOT, "summary"] as const,
+    queryFn: ({ signal }) => listCoverage(coverageList.toQuery(coverageList.initial()), signal),
   })
+
+/** Under the coverage root, which the `coverage` live kind invalidates. */
+export const COVERAGE_KEY = COVERAGE_ROOT
 
 export const coveragePlacesQuery = (q: string) =>
   queryOptions({

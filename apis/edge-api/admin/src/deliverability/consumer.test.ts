@@ -9,7 +9,8 @@ vi.mock("./service", async () => {
 })
 
 const logged: unknown[] = []
-vi.mock("@effy/edge-shared", () => ({
+vi.mock("@effy/edge-shared", async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
   logger: {
     info: (...a: unknown[]) => logged.push(a),
     warn: (...a: unknown[]) => logged.push(a),

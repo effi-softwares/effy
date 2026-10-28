@@ -1,3 +1,4 @@
+import type { ListPage } from "./list";
 /**
  * Back-office products (102), served by the catalog service on the staff gateway: every shop's products
  * in one list, a product's whole page, holds, Effy-created products and imports. These types carry Effy's
@@ -104,11 +105,9 @@ export interface BackOfficeProductRowDTO {
   version: string;
 }
 
-export interface BackOfficeProductListDTO {
-  items: BackOfficeProductRowDTO[];
-  /** Every tab's count under the current search and filters (the tab itself ignored). */
+/** A console list page (103) with every tab's count under the current search and filters (the tab itself ignored). */
+export interface BackOfficeProductListDTO extends ListPage<BackOfficeProductRowDTO> {
   counts: Record<BackOfficeProductTab, WireInt>;
-  nextCursor: string | null;
 }
 
 export interface ProductHoldDTO {
@@ -305,10 +304,8 @@ export interface ProductImportDTO extends ProductImportSummaryDTO {
   version: string;
 }
 
-export interface ProductImportListDTO {
-  items: ProductImportSummaryDTO[];
-  nextCursor: string | null;
-}
+/** A console list page (103). */
+export type ProductImportListDTO = ListPage<ProductImportSummaryDTO>;
 
 export interface CreateProductImportRequest {
   version: string;

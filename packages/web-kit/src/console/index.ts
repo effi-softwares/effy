@@ -18,7 +18,6 @@ export {
 } from "./staff-nav";
 export { OtpSignInCard, type OtpSignInCardProps } from "./OtpSignInCard";
 export { ErrorState, type ErrorStateProps } from "./ErrorState";
-export { DataTable, type DataTableProps } from "./DataTable";
 export { visibleNav, type NavItem } from "./nav";
 export { LiveProvider, useLiveStatus, type LiveProviderProps, type LiveStatusValue } from "../live/LiveProvider";
 export { LiveStatus } from "./LiveStatus";

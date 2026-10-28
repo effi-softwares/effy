@@ -1,4 +1,5 @@
 // Every change is announced to back-office.
+import { LIMIT_REACHED, SET_FULL_SENTENCE } from "@effy/edge-shared";
 import { announce } from "@effy/edge-shared/live";
 import { GROUP_SIZES, type AdminPromotionGroupDetailDTO, type AdminPromotionGroupDTO, type AdminPromotionGroupPreviewDTO, type AdminUpdatePromotionGroupResponse, type GroupSize } from "@effy/shared-types";
 
@@ -27,6 +28,7 @@ export async function createGroup(body: Record<string, unknown>, actor: string):
   const description = typeof body.description === "string" && body.description.trim() ? body.description.trim().slice(0, 240) : null;
   const size = body.size === undefined ? "medium" : body.size;
   if (!(GROUP_SIZES as readonly unknown[]).includes(size)) throw invalid("size", "large, medium, small or strip");
+  if (await repo.isFull()) throw new PromoError(409, LIMIT_REACHED, SET_FULL_SENTENCE);
   const g = await repo.createGroup({ key, name, description, size: size as GroupSize }, actor);
   await changed();
   return g;

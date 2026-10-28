@@ -1,5 +1,5 @@
 // Never adds up a fee itself: the simulator calls checkout's engine with a plan loaded by id, so its answer equals the charge.
-import { formatCents, parseCents, pooled } from "@effy/edge-shared";
+import { formatCents, LIMIT_REACHED, parseCents, pooled, SET_FULL_SENTENCE } from "@effy/edge-shared";
 import {
   courierFee, courierValues, coverageForPostcode, feeDTO, feeLines, loadActivePlan, loadPlan, normalizePostcode,
   priceEffyOrder, type FeeBreakdown, type Plan, type PricedFee,
@@ -166,6 +166,7 @@ export async function listPlans(kind: unknown): Promise<{ items: FeePlanDTO[] }>
 export async function createPlan(body: unknown, sub: string): Promise<FeePlanDTO> {
   const input = normalise(body);
   await checkSlots(input);
+  if (await repo.isFull()) throw new PricingError(409, LIMIT_REACHED, SET_FULL_SENTENCE);
   const id = await repo.savePlan(null, input, sub);
   await changed();
   return (await repo.readPlan(id))!;

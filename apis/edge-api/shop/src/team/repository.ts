@@ -1,5 +1,5 @@
 // Writes the same `shop_staff` records back-office owns; there is no shop-local roster.
-import { query, withTransaction } from "@effy/edge-shared";
+import { query, withTransaction, setIsFull } from "@effy/edge-shared";
 
 import type { ShopRole, ShopTeamMemberDTO } from "@effy/shared-types";
 
@@ -138,3 +138,6 @@ export async function activeManagersExcluding(
   );
   return res.rows[0]?.n ?? 0;
 }
+
+/** 103 FR-024: a shop's team is shown whole, so it is capped (`setIsFull`). */
+export const isFull = (shopId: string): Promise<boolean> => setIsFull("FROM public.shop_staff WHERE shop_id = $1", [shopId]);

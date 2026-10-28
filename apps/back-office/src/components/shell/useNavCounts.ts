@@ -10,10 +10,10 @@ import type { NavCountKey } from "./nav"
 
 export function useNavCounts(enabled: boolean): Partial<Record<NavCountKey, number>> {
   const day = useQuery({ ...dispatchDayQuery(), enabled })
-  const exceptions = useQuery({ ...exceptionsQuery(false), enabled })
+  const exceptions = useQuery({ ...exceptionsQuery(), enabled })
   const review = useQuery({ ...reviewQueueQuery({}), enabled })
-  const feedback = useQuery({ ...feedbackListQuery({ status: "new", limit: 1 }), enabled })
-  const deliverability = useQuery({ ...deliverabilityListQuery({ limit: 1 }), enabled })
+  const feedback = useQuery({ ...feedbackListQuery({ status: "new" }), enabled })
+  const deliverability = useQuery({ ...deliverabilityListQuery({}), enabled })
 
   const ex = exceptions.data
   return {

@@ -19,3 +19,6 @@ if (typeof Element !== "undefined") {
   Element.prototype.releasePointerCapture ??= () => {}
   Element.prototype.scrollIntoView ??= () => {}
 }
+
+// jsdom has no scrolling; the router restores scroll on every navigation (the console lists, 103).
+if (typeof window !== "undefined") window.scrollTo = (() => {}) as typeof window.scrollTo

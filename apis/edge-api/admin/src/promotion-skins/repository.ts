@@ -1,5 +1,5 @@
 // Every write audits in the same transaction; the rules are the service's.
-import { query, withTransaction, type Queryable } from "@effy/edge-shared";
+import { query, withTransaction, type Queryable, setIsFull } from "@effy/edge-shared";
 import type { AdminSkinDTO, AdminSkinListItemDTO, AdminSkinUsageDTO, DesignedLayout, GroupSize, SkinLayout, SkinSettings } from "@effy/shared-types";
 
 interface SkinRow {
@@ -148,3 +148,6 @@ export async function deleteSkin(id: string, actor: string): Promise<"deleted" |
     return "deleted";
   });
 }
+
+/** 103 FR-024: the set is shown whole, so it is capped (`setIsFull`). */
+export const isFull = (): Promise<boolean> => setIsFull("FROM public.promotion_skin");

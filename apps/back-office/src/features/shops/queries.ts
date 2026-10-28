@@ -14,7 +14,6 @@ import {
   createShop,
   deleteShop,
   getShop,
-  getShopHistory,
   listShops,
   updateShop,
   updateShopUser,
@@ -22,7 +21,7 @@ import {
 } from "./repo"
 import type { ShopListParams } from "./model"
 
-const SHOPS_ROOT = ["back-office", "shops"] as const
+export const SHOPS_ROOT = ["back-office", "shops"] as const
 
 export const shopListQuery = (params: ShopListParams) =>
   queryOptions({
@@ -34,12 +33,6 @@ export const shopDetailQuery = (id: string) =>
   queryOptions({
     queryKey: [...SHOPS_ROOT, "detail", id] as const,
     queryFn: () => getShop(id),
-  })
-
-export const shopHistoryQuery = (id: string, page: number, pageSize: number) =>
-  queryOptions({
-    queryKey: [...SHOPS_ROOT, "history", id, page, pageSize] as const,
-    queryFn: () => getShopHistory(id, page, pageSize),
   })
 
 function invalidateShops(queryClient: ReturnType<typeof useQueryClient>, id?: string) {

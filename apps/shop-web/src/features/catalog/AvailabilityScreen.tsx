@@ -1,20 +1,17 @@
-import { useEffect, useState } from "react"
-import { useDebouncedValue } from "@effy/web-kit"
+import { useEffect } from "react"
 
 import { useQuery } from "@tanstack/react-query"
-import { Link } from "@tanstack/react-router"
-import { ArrowDown, CircleAlert, CircleSlash, ImageOff, SearchX, ToggleRight } from "lucide-react"
+import { useSearch } from "@tanstack/react-router"
+import { ArrowDown, CircleAlert, CircleSlash, ImageOff, ToggleRight } from "lucide-react"
 
 import type { AvailabilityFilter, ShopAvailabilityDTO, ShopAvailabilityRowDTO } from "@effy/shared-types"
-import { Badge, Button, Label, Skeleton, Switch, toast } from "@effy/design-system/ui"
-import { ErrorState } from "@effy/web-kit/console"
-import { EmptyState, PageHeader, SearchBox, ViewSelect } from "@effy/web-kit/patterns"
+import { Badge, Label, Switch, toast } from "@effy/design-system/ui"
+import { DataTable, ListPage, listQueryOptions, SearchBox, useListState, ViewSelect, type EffyColumnDef } from "@effy/web-kit/data-table"
+import { PageHeader } from "@effy/web-kit/patterns"
 
-import { Page } from "@/components/console/primitives"
 import { track } from "@/lib/telemetry"
-import { cn } from "@/lib/utils"
 
-import { availabilityQuery, useToggleSale } from "./availability"
+import { AVAILABILITY_ROOT, availabilityList, fetchAvailabilityPage, useToggleSale } from "./availability"
 import { productMutationError } from "./errorText"
 
 const VIEWS: readonly { key: AvailabilityFilter; label: string; count: keyof ShopAvailabilityDTO["counts"] }[] = [
@@ -25,111 +22,107 @@ const VIEWS: readonly { key: AvailabilityFilter; label: string; count: keyof Sho
   { key: "all", label: "Everything", count: "all" },
 ]
 
-export function AvailabilityScreen() {
-  const [filter, setFilter] = useState<AvailabilityFilter>("needs_look")
-  const [text, setText] = useState("")
-  const q = useDebouncedValue(text.trim())
-  const listKey = `${filter}|${q}`
-  const [paging, setPaging] = useState<{ key: string; pages: string[] }>({ key: listKey, pages: [] })
-  const pages = paging.key === listKey ? paging.pages : []
-  const setPages = (next: string[]) => setPaging({ key: listKey, pages: next })
-  useEffect(() => track({ name: "availability_viewed" }), [])
+const columns: EffyColumnDef<ShopAvailabilityRowDTO>[] = [
+  {
+    id: "product",
+    header: "Product",
+    cell: ({ row }) => (
+      <span className="flex items-center gap-3">
+        {row.original.imageUrl ? (
+          <img src={row.original.imageUrl} alt="" className="size-10 shrink-0 rounded-lg border object-cover" />
+        ) : (
+          <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
+            <ImageOff aria-hidden="true" className="size-4" />
+          </span>
+        )}
+        <span className="min-w-0">
+          <span className="block max-w-[36ch] truncate">{row.original.productName}</span>
+          {row.original.brand ? <span className="block text-sm font-normal text-muted-foreground">{row.original.brand}</span> : null}
+        </span>
+      </span>
+    ),
+    meta: { label: "Product", identifying: true, phone: "primary", sortKey: "name" },
+  },
+  { id: "size", header: "Size", cell: ({ row }) => row.original.label ?? <span className="text-muted-foreground">One size</span>, meta: { label: "Size" } },
+  {
+    id: "stock",
+    header: "In stock",
+    cell: ({ row }) => (row.original.stock.tracked ? (row.original.stock.onHand ?? 0) : <span className="text-muted-foreground">Not counted</span>),
+    meta: { label: "In stock", align: "numeric", sortKey: "stock" },
+  },
+  {
+    id: "state",
+    header: "Status",
+    cell: ({ row }) => (
+      <span className="flex flex-col items-start gap-1 whitespace-normal">
+        <StockWord row={row.original} />
+        {row.original.lastOnSale ? <span className="text-xs text-muted-foreground">Last size on sale — make the product unavailable instead</span> : null}
+      </span>
+    ),
+    meta: { label: "Status", phone: "badge" },
+  },
+  {
+    id: "code",
+    header: "Your code",
+    cell: ({ row }) => <span className="font-mono text-muted-foreground">{row.original.sku ?? "—"}</span>,
+    meta: { label: "Your code", priority: 2 },
+  },
+  { id: "sale", header: "On sale", cell: ({ row }) => <SaleSwitch row={row.original} />, meta: { label: "On sale", phone: "trail" } },
+]
 
-  const after = pages.at(-1)
-  const { data, error, isError, isPending, refetch, isPlaceholderData } = useQuery(
-    availabilityQuery({ q, filter, after }),
-  )
+export function AvailabilityScreen() {
+  useEffect(() => track({ name: "availability_viewed" }), [])
+  const state = useListState(availabilityList, useSearch({ strict: false }))
+  const input = { key: AVAILABILITY_ROOT, list: availabilityList, view: state.view, fetch: fetchAvailabilityPage }
+  const query = useQuery(listQueryOptions(input))
+  const filter: AvailabilityFilter = state.view.filters.filter ?? "needs_look"
 
   return (
-    <Page>
-      <PageHeader
-        back={{ label: "Catalog", link: { to: "/catalog" } }}
-        title="Availability"
-        description="Switch products off sale instantly when you run out, with no review needed."
+    <ListPage
+      header={
+        <PageHeader
+          back={{ label: "Catalog", link: { to: "/catalog" } }}
+          title="Availability"
+          description="Switch products off sale instantly when you run out, with no review needed."
+        />
+      }
+    >
+      <DataTable
+        app="shop-web"
+        label="Sizes"
+        list={availabilityList}
+        state={state}
+        columns={columns}
+        query={query}
+        queryInput={input}
+        viewFilters={["filter"]}
+        rowId={(r) => r.variantId}
+        rowHref={(r) => ({ to: "/catalog/$productId", params: { productId: r.productId }, search: { size: r.variantId } })}
+        empty={{
+          icon: ToggleRight,
+          title: filter === "needs_look" ? "Nothing needs a look" : "No sizes here",
+          description:
+            filter === "needs_look"
+              ? "No size is out of stock or running low. Sizes appear here the moment they do."
+              : "Sizes of your live and unavailable products are listed here.",
+        }}
+        toolbar={
+          <>
+            <ViewSelect
+              label="Show"
+              value={filter}
+              onChange={(v) => state.setFilter("filter", v === "needs_look" ? undefined : v)}
+              options={VIEWS.map((v) => ({ value: v.key, label: v.label, count: query.data?.counts[v.count], attention: v.key === "out_of_stock" }))}
+            />
+            <SearchBox label="Search sizes" placeholder="Product, size or barcode…" value={state.draftQ} onChange={state.setQ} />
+          </>
+        }
       />
-
-      <div className="flex flex-wrap items-center gap-2">
-        <ViewSelect
-          label="Show"
-          value={filter}
-          onChange={setFilter}
-          options={VIEWS.map((v) => ({
-            value: v.key,
-            label: v.label,
-            count: data?.counts[v.count],
-            attention: v.key === "out_of_stock",
-          }))}
-        />
-        <SearchBox label="Search sizes" placeholder="Product, size or barcode…" value={text} onChange={setText} />
-      </div>
-
-      {isError ? (
-        <ErrorState error={error} onRetry={() => void refetch()} />
-      ) : isPending ? (
-        <div className="overflow-hidden rounded-xl border bg-card" aria-busy="true" aria-label="Loading sizes">
-          {Array.from({ length: 6 }, (_, i) => (
-            <div key={i} className="flex items-center gap-4 border-b px-4 py-3 last:border-b-0">
-              <Skeleton className="size-12 rounded-lg" />
-              <div className="grid flex-1 gap-2">
-                <Skeleton className="h-4 w-48" />
-                <Skeleton className="h-5 w-32" />
-              </div>
-              <Skeleton className="h-7 w-12 rounded-full" />
-            </div>
-          ))}
-        </div>
-      ) : data.items.length === 0 ? (
-        <EmptyState
-          icon={q ? SearchX : ToggleRight}
-          title={q ? "No sizes match that search" : filter === "needs_look" ? "Nothing needs a look" : "No sizes here"}
-          description={
-            q
-              ? "Try the product's name, the size, its code or its barcode."
-              : filter === "needs_look"
-                ? "No size is out of stock or running low. Sizes appear here the moment they do."
-                : "Sizes of your live and unavailable products are listed here."
-          }
-        />
-      ) : (
-        <>
-          <ul
-            className={cn(
-              "overflow-hidden rounded-xl border bg-card transition-opacity",
-              isPlaceholderData && "opacity-60",
-            )}
-          >
-            {data.items.map((row) => (
-              <SizeRow key={row.variantId} row={row} />
-            ))}
-          </ul>
-          {pages.length > 0 || data.next ? (
-            <div className="flex items-center justify-end gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={pages.length === 0}
-                onClick={() => setPages(pages.slice(0, -1))}
-              >
-                Previous
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={!data.next}
-                onClick={() => data.next && setPages([...pages, data.next])}
-              >
-                Next
-              </Button>
-            </div>
-          ) : null}
-        </>
-      )}
-
       <p className="text-sm text-muted-foreground">
         A size with 0 in stock already can&apos;t be bought while its stock is counted. Switch it off when the count is
         wrong or you can&apos;t sell it today.
       </p>
-    </Page>
+    </ListPage>
   )
 }
 
@@ -158,37 +151,12 @@ function StockWord({ row }: { row: ShopAvailabilityRowDTO }) {
   return null
 }
 
-function SizeRow({ row }: { row: ShopAvailabilityRowDTO }) {
+function SaleSwitch({ row }: { row: ShopAvailabilityRowDTO }) {
   const toggle = useToggleSale()
   const name = row.label ? `${row.productName} · ${row.label}` : row.productName
-  const count = row.stock.tracked ? `${row.stock.onHand ?? 0} in stock` : "Not counted"
   return (
-    <li className="flex min-h-18 flex-wrap items-center gap-x-4 gap-y-2 border-b px-4 py-3 text-sm last:border-b-0 max-md:px-3">
-      {row.imageUrl ? (
-        <img src={row.imageUrl} alt="" className="size-12 shrink-0 rounded-lg border object-cover" />
-      ) : (
-        <div className="grid size-12 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
-          <ImageOff aria-hidden="true" className="size-5" />
-        </div>
-      )}
-      <div className="min-w-0 flex-1">
-        <Link
-          to="/catalog/$productId"
-          params={{ productId: row.productId }}
-          search={{ size: row.variantId }}
-          className="font-medium text-foreground no-underline hover:underline"
-        >
-          {row.productName}
-          {row.label ? <span className="font-normal text-muted-foreground"> · {row.label}</span> : null}
-        </Link>
-        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
-          <StockWord row={row} />
-          <span className="tabular-nums">{count}</span>
-          {row.sku ? <span className="font-mono">{row.sku}</span> : null}
-          {row.lastOnSale ? <span>· The last size on sale — make the product unavailable instead</span> : null}
-        </div>
-      </div>
-      <Label className="gap-3 font-normal">
+      // The switch is not the row: toggling it never opens the product.
+      <Label className="gap-3 font-normal" onClick={(e) => e.stopPropagation()}>
         <span className="text-muted-foreground">{row.onSale ? "On sale" : "Off sale"}</span>
         <Switch
           checked={row.onSale}
@@ -208,6 +176,5 @@ function SizeRow({ row }: { row: ShopAvailabilityRowDTO }) {
           }
         />
       </Label>
-    </li>
   )
 }

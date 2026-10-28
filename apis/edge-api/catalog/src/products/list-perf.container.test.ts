@@ -12,7 +12,13 @@ vi.mock("@effy/edge-shared", async () => {
 
 import { migrationSql, testLeafId } from "@effy/edge-shared/testing";
 
-import { list } from "./service";
+import { parseListQuery } from "@effy/edge-shared";
+
+import { PRODUCT_LIST_SPEC } from "./list";
+import { list as listReq } from "./service";
+
+/** The list as the route parses it (103). */
+const list = (params: Record<string, string>) => listReq(parseListQuery({ pageSize: "100", ...params }, PRODUCT_LIST_SPEC));
 
 const RUN = process.env.CONTAINER_TESTS === "1";
 const d = RUN ? describe : describe.skip;

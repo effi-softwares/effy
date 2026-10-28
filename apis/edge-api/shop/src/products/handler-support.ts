@@ -2,11 +2,11 @@ import type { APIGatewayProxyStructuredResultV2 } from "aws-lambda";
 
 import type { AuthedEvent, RequestScope } from "@effy/edge-shared";
 import { forbidden, problem, ProblemType, stockState, subject, unavailable } from "@effy/edge-shared";
-import type { ProductDetailDTO, ProductListDTO, ProductListItemDTO, ProductMediaDTO } from "@effy/shared-types";
+import type { ListPage, ProductDetailDTO, ProductListDTO, ProductListItemDTO, ProductMediaDTO } from "@effy/shared-types";
 
 import { authorizeShopMember } from "./authz";
 import { isProductError } from "./types";
-import type { Paged, ProductDetail, ProductListItem, ProductMedia } from "./types";
+import type { ProductDetail, ProductListItem, ProductMedia } from "./types";
 
 const CONFLICT = "https://effyshopping.com/problems/conflict";
 const NOT_FOUND = "https://effyshopping.com/problems/not-found";
@@ -147,7 +147,7 @@ export function toMediaDTO(m: ProductMedia): ProductMediaDTO {
   };
 }
 
-export function toListDTO(p: Paged<ProductListItem>): ProductListDTO {
+export function toListDTO(p: ListPage<ProductListItem>): ProductListDTO {
   return {
     items: p.items.map(
       (i): ProductListItemDTO => ({
@@ -171,7 +171,10 @@ export function toListDTO(p: Paged<ProductListItem>): ProductListDTO {
       }),
     ),
     total: p.total,
+    totalCapped: p.totalCapped,
     page: p.page,
     pageSize: p.pageSize,
+    nextCursor: p.nextCursor,
+    ignored: p.ignored,
   };
 }

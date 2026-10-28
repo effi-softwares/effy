@@ -3,7 +3,9 @@
 // transaction, with before and after.
 import type pg from "pg";
 
-import { query, withTransaction } from "@effy/edge-shared";
+import { limitOffsetClause, orderBy, prefixPattern, query, runOffsetPage, withTransaction } from "@effy/edge-shared";
+
+import { COVERAGE_LIST, type CoverageListRequest } from "./coverage.list";
 
 type Client = pg.PoolClient;
 
@@ -38,71 +40,67 @@ export interface PostcodeRow {
   todayOffered: boolean;
 }
 
-export interface ListFilters {
-  /** A group id, `"none"` for ungrouped, or undefined for all. */
-  group?: string;
-  /** A postcode or place-name prefix. */
-  q?: string;
-  source?: "computed" | "manual";
-  review?: boolean;
-  today?: "offered" | "not_offered";
-  /** A validated decimal string. */
-  minKm?: string;
-  /** Keyset: the last postcode of the previous page. */
-  after?: string;
-  limit: number;
-}
-
 /** Most addresses first; the first stands for the postcode. */
 const PLACES = `
   (SELECT array_agg(l.name ORDER BY l.address_count DESC, l.name) FROM public.locality l WHERE l.postcode = zp.postcode)`;
 const STATE = `
   (SELECT l.state FROM public.locality l WHERE l.postcode = zp.postcode ORDER BY l.address_count DESC, l.name LIMIT 1)`;
 
-export async function listPostcodes(f: ListFilters): Promise<PostcodeRow[]> {
-  const where: string[] = [];
-  const args: unknown[] = [];
-  const arg = (v: unknown): string => `$${args.push(v)}`;
+/** One page of the postcode list with its exact total (103). */
+export async function listPostcodes(req: CoverageListRequest): Promise<{ rows: PostcodeRow[]; total: number; page: number }> {
+  const f = req.filters;
+  const r = await runOffsetPage(req, async (read) => {
+    const where: string[] = [];
+    const args: unknown[] = [];
+    const arg = (v: unknown): string => `$${args.push(v)}`;
 
-  if (f.group === "none") where.push(`z.id IS NULL`);
-  else if (f.group) where.push(`z.id = ${arg(f.group)}::uuid`);
-  if (f.source) where.push(`zp.distance_source = ${arg(f.source)}`);
-  if (f.review) where.push(`zp.distance_review`);
-  if (f.today) where.push(`zp.today_offered = ${arg(f.today === "offered")}`);
-  if (f.minKm !== undefined) where.push(`zp.distance_km >= ${arg(f.minKm)}::numeric`);
-  if (f.after) where.push(`zp.postcode > ${arg(f.after)}`);
-  if (f.q) {
-    where.push(
-      /^[0-9]+$/.test(f.q)
-        ? `zp.postcode LIKE ${arg(f.q)} || '%'`
-        : `EXISTS (SELECT 1 FROM public.locality l WHERE l.postcode = zp.postcode AND lower(l.name) LIKE lower(${arg(f.q)}) || '%')`,
+    if (f.group === "none") where.push(`z.id IS NULL`);
+    else if (f.group) where.push(`z.id = ${arg(f.group)}::uuid`);
+    if (f.source) where.push(`zp.distance_source = ${arg(f.source)}`);
+    if (f.review) where.push(`zp.distance_review`);
+    if (f.today) where.push(`zp.today_offered = ${arg(f.today === "offered")}`);
+    if (f.minKm !== undefined) where.push(`zp.distance_km >= ${arg(f.minKm)}::numeric`);
+    if (req.q) {
+      // A number is a postcode prefix (delivery_zone_postcode_prefix_idx); words are a place-name prefix.
+      where.push(
+        /^[0-9]+$/.test(req.q)
+          ? `zp.postcode LIKE ${arg(prefixPattern(req.q))}`
+          : `EXISTS (SELECT 1 FROM public.locality l WHERE l.postcode = zp.postcode AND lower(l.name) LIKE lower(${arg(prefixPattern(req.q))}))`,
+      );
+    }
+    const paging = limitOffsetClause(read, args);
+    const res = await query<{
+      postcode: string; places: string[] | null; state: string | null; group_id: string | null;
+      distance_km: string; distance_source: "computed" | "manual"; distance_review: boolean; today_offered: boolean;
+      full_count: string;
+    }>(
+      `SELECT zp.postcode, ${PLACES} AS places, ${STATE} AS state, z.id::text AS group_id,
+              zp.distance_km::text AS distance_km, zp.distance_source, zp.distance_review, zp.today_offered,
+              count(*) OVER () AS full_count
+         FROM public.delivery_zone_postcode zp
+         -- A removed group ('disabled') is no group: its postcodes read as ungrouped.
+         LEFT JOIN public.delivery_zone z ON z.id = zp.zone_id AND z.status = 'active'
+        ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
+        ${orderBy(COVERAGE_LIST, req)}
+        ${paging}`,
+      args,
     );
-  }
-
-  const res = await query<{
-    postcode: string; places: string[] | null; state: string | null; group_id: string | null;
-    distance_km: string; distance_source: "computed" | "manual"; distance_review: boolean; today_offered: boolean;
-  }>(
-    `SELECT zp.postcode, ${PLACES} AS places, ${STATE} AS state, z.id::text AS group_id,
-            zp.distance_km::text AS distance_km, zp.distance_source, zp.distance_review, zp.today_offered
-       FROM public.delivery_zone_postcode zp
-       -- A removed group ('disabled') is no group: its postcodes read as ungrouped.
-       LEFT JOIN public.delivery_zone z ON z.id = zp.zone_id AND z.status = 'active'
-      ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
-      ORDER BY zp.postcode
-      LIMIT ${arg(f.limit)}`,
-    args,
-  );
-  return res.rows.map((r) => ({
-    postcode: r.postcode,
-    places: r.places ?? [],
-    state: r.state,
-    groupId: r.group_id,
-    distanceKm: r.distance_km,
-    distanceSource: r.distance_source,
-    needsReview: r.distance_review,
-    todayOffered: r.today_offered,
-  }));
+    return res.rows;
+  });
+  return {
+    rows: r.rows.map((x) => ({
+      postcode: x.postcode,
+      places: x.places ?? [],
+      state: x.state,
+      groupId: x.group_id,
+      distanceKm: x.distance_km,
+      distanceSource: x.distance_source,
+      needsReview: x.distance_review,
+      todayOffered: x.today_offered,
+    })),
+    total: r.total,
+    page: r.page,
+  };
 }
 
 export interface GroupRow { id: string; name: string; postcodeCount: number; driverCount: number }

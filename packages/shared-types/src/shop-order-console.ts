@@ -1,3 +1,4 @@
+import type { ListPage } from "./list"
 /**
  * Shop order console contracts (the orders list and order detail). Separate from `./shop-order` (the
  * pick contract) because the console shows the order's money: total, paid, refunded. Still never: a
@@ -62,6 +63,8 @@ export interface ShopOrderListQuery {
   dir?: "asc" | "desc"
   /** 1-based. */
   page?: number
+  /** Rows per page (103): 25, 50 or 100. */
+  pageSize?: 25 | 50 | 100
 }
 
 // Collection (099)
@@ -141,12 +144,8 @@ export interface ShopOrderRowDTO {
 /** Per-tab counts over every state, under every filter but the tab. */
 export type ShopOrderCounts = Record<ShopOrderTab, WireInt>
 
-export interface ShopOrderListDTO {
-  items: ShopOrderRowDTO[]
-  /** Rows matching tab + filters, across all pages. */
-  total: WireInt
-  page: WireInt
-  pageSize: WireInt
+/** The shop's orders as a console list page (103), with every tab's count under the filters. */
+export interface ShopOrderListDTO extends ListPage<ShopOrderRowDTO> {
   counts: ShopOrderCounts
 }
 

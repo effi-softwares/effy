@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
 
-import type { StockMovementDTO } from "@effy/shared-types"
+import { DEFAULT_PAGE_SIZE, type StockMovementDTO } from "@effy/shared-types"
 import { Minus, Plus } from "lucide-react"
 
 import { Skeleton } from "@effy/design-system/ui"
@@ -67,11 +67,18 @@ export function ProductActivitySheet({
             No changes recorded yet. Every change to the stock count appears here, with who made it.
           </p>
         ) : (
-          <Timeline>
-            {stock.data.movements.map((m) => (
-              <ChangeLogEntry key={m.id} movement={m} />
-            ))}
-          </Timeline>
+          <>
+            <Timeline>
+              {stock.data.movements.map((m) => (
+                <ChangeLogEntry key={m.id} movement={m} />
+              ))}
+            </Timeline>
+            {stock.data.movements.length >= DEFAULT_PAGE_SIZE ? (
+              <p className="text-xs text-muted-foreground">
+                The latest {DEFAULT_PAGE_SIZE} changes. Every change is under Stock movements on the product page.
+              </p>
+            ) : null}
+          </>
         )}
       </section>
     </ResponsiveSheet>

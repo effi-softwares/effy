@@ -1,7 +1,7 @@
 // Entered by the operator; nothing is seeded.
 import type pg from "pg";
 
-import { query, withTransaction } from "@effy/edge-shared";
+import { query, withTransaction, setIsFull } from "@effy/edge-shared";
 import type { CourierServiceDTO } from "@effy/shared-types";
 
 type Client = pg.PoolClient;
@@ -92,3 +92,6 @@ export async function saveService(id: string | null, v: ServiceValues, actorSub:
     return { id: savedId };
   });
 }
+
+/** 103 FR-024: the set is shown whole, so it is capped (`setIsFull`). */
+export const isFull = (): Promise<boolean> => setIsFull("FROM public.courier_service");

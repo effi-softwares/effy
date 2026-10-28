@@ -2,19 +2,14 @@ import { useState } from "react"
 
 import { useQuery } from "@tanstack/react-query"
 
-import type { CourierServiceDTO, CourierServiceInput } from "@effy/shared-types"
+import { CAPPED_SET_LIMIT, listFullSentence, type CourierServiceDTO, type CourierServiceInput } from "@effy/shared-types"
+import { StaticTable, type EffyColumnDef } from "@effy/web-kit/data-table"
 import {
   Badge,
   Button,
   Checkbox,
   Input,
   Label,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
   TimeField,
 } from "@effy/design-system/ui"
 
@@ -98,6 +93,91 @@ export function CourierServicesPanel({ canManage }: { canManage: boolean }) {
         : update.mutateAsync({ id: editing as string, body: draft }),
     )
   const busy = create.isPending || update.isPending
+  // The whole set is here (capped at 500, 103 FR-024), so it sorts in the browser.
+  const columns: EffyColumnDef<CourierServiceDTO>[] = [
+    {
+      id: "service",
+      accessorFn: (c) => `${c.courierName} ${c.serviceName}`.toLowerCase(),
+      header: "Service",
+      cell: ({ row }) => (
+        <>
+          {row.original.courierName} · {row.original.serviceName}
+          {row.original.isDefault ? (
+            <Badge variant="secondary" className="ml-2">
+              Default
+            </Badge>
+          ) : null}
+        </>
+      ),
+      meta: { label: "Service", identifying: true, phone: "primary" },
+    },
+    { id: "told", header: "Customers are told", enableSorting: false, cell: ({ row }) => row.original.estimateText, meta: { label: "Customers are told" } },
+    {
+      id: "pickups",
+      header: "Pickups",
+      enableSorting: false,
+      cell: ({ row }) => `${weekdaysText(row.original.pickupWeekdays)}, by ${row.original.pickupCutoff}`,
+      meta: { label: "Pickups", priority: 2 },
+    },
+    {
+      id: "fromSuppliers",
+      header: "From suppliers",
+      enableSorting: false,
+      cell: ({ row }) => (row.original.collectsFromSupplier ? "Yes" : "No"),
+      meta: { label: "From suppliers", priority: 2 },
+    },
+    {
+      id: "status",
+      accessorFn: (c) => c.status,
+      header: "Status",
+      cell: ({ row }) => (row.original.status === "active" ? "Active" : "Retired"),
+      meta: { label: "Status", phone: "badge" },
+    },
+    ...(canManage
+      ? [
+          {
+            id: "actions",
+            header: () => <span className="sr-only">Actions</span>,
+            enableSorting: false,
+            cell: ({ row }) => {
+              const s = row.original
+              return (
+                <span className="space-x-1 whitespace-nowrap">
+                  <Button variant="ghost" size="sm" onClick={() => open(s)}>
+                    Edit
+                  </Button>
+                  {!s.isDefault && s.status === "active" ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={busy}
+                      onClick={() => void run(() => update.mutateAsync({ id: s.id, body: { isDefault: true } }))}
+                    >
+                      Make default
+                    </Button>
+                  ) : null}
+                  {!s.isDefault ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={busy}
+                      onClick={() =>
+                        void run(() =>
+                          update.mutateAsync({ id: s.id, body: { status: s.status === "active" ? "retired" : "active" } }),
+                        )
+                      }
+                    >
+                      {s.status === "active" ? "Retire" : "Reinstate"}
+                    </Button>
+                  ) : null}
+                </span>
+              )
+            },
+            meta: { label: "Actions", phone: "full", className: "text-right" },
+          } satisfies EffyColumnDef<CourierServiceDTO>,
+        ]
+      : []),
+  ]
 
   return (
     <section className="space-y-3" aria-labelledby="courier-services">
@@ -119,75 +199,20 @@ export function CourierServicesPanel({ canManage }: { canManage: boolean }) {
           default.
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-md border">
-          <Table className="w-full text-sm" data-testid="courier-services">
-            <TableHeader className="bg-muted/50 text-left text-muted-foreground">
-              <TableRow>
-                <TableHead className="px-3 py-2 font-medium">Service</TableHead>
-                <TableHead className="px-3 py-2 font-medium">Customers are told</TableHead>
-                <TableHead className="px-3 py-2 font-medium">Pickups</TableHead>
-                <TableHead className="px-3 py-2 font-medium">From suppliers</TableHead>
-                <TableHead className="px-3 py-2 font-medium">Status</TableHead>
-                {canManage ? <TableHead className="px-3 py-2" /> : null}
-              </TableRow>
-            </TableHeader>
-            <TableBody className="divide-y">
-              {items.map((s) => (
-                <TableRow key={s.id} className={s.status === "retired" ? "text-muted-foreground" : undefined}>
-                  <TableCell className="px-3 py-2">
-                    {s.courierName} · {s.serviceName}
-                    {s.isDefault ? (
-                      <Badge variant="secondary" className="ml-2">
-                        Default
-                      </Badge>
-                    ) : null}
-                  </TableCell>
-                  <TableCell className="px-3 py-2">{s.estimateText}</TableCell>
-                  <TableCell className="px-3 py-2 tabular-nums">
-                    {weekdaysText(s.pickupWeekdays)}, by {s.pickupCutoff}
-                  </TableCell>
-                  <TableCell className="px-3 py-2">{s.collectsFromSupplier ? "Yes" : "No"}</TableCell>
-                  <TableCell className="px-3 py-2">{s.status === "active" ? "Active" : "Retired"}</TableCell>
-                  {canManage ? (
-                    <TableCell className="space-x-1 px-3 py-2 text-right whitespace-nowrap">
-                      <Button variant="ghost" size="sm" onClick={() => open(s)}>
-                        Edit
-                      </Button>
-                      {!s.isDefault && s.status === "active" ? (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          disabled={busy}
-                          onClick={() => void run(() => update.mutateAsync({ id: s.id, body: { isDefault: true } }))}
-                        >
-                          Make default
-                        </Button>
-                      ) : null}
-                      {!s.isDefault ? (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          disabled={busy}
-                          onClick={() =>
-                            void run(() =>
-                              update.mutateAsync({
-                                id: s.id,
-                                body: { status: s.status === "active" ? "retired" : "active" },
-                              }),
-                            )
-                          }
-                        >
-                          {s.status === "active" ? "Retire" : "Reinstate"}
-                        </Button>
-                      ) : null}
-                    </TableCell>
-                  ) : null}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+        <div data-testid="courier-services">
+          <StaticTable
+            label="Courier services"
+            columns={columns}
+            rows={items}
+            getRowId={(c) => c.id}
+            rowClassName={(c) => (c.status === "retired" ? "text-muted-foreground" : undefined)}
+          />
         </div>
       )}
+
+      {items.length >= CAPPED_SET_LIMIT ? (
+        <p className="text-sm text-muted-foreground">{listFullSentence(CAPPED_SET_LIMIT)}</p>
+      ) : null}
 
       {canManage && editing === null ? (
         <Button variant="outline" size="sm" onClick={() => open(null)}>

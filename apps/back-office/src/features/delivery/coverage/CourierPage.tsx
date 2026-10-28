@@ -1,4 +1,4 @@
-import { useInfiniteQuery } from "@tanstack/react-query"
+import { useQuery } from "@tanstack/react-query"
 import { Skeleton } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 
@@ -7,8 +7,8 @@ import { coverageQuery } from "../queries"
 import { CourierPanel } from "./CourierPanel"
 
 export function CourierPage({ canManage }: { canManage: boolean }) {
-  const coverage = useInfiniteQuery(coverageQuery({}))
-  const first = coverage.data?.pages[0]
+  const coverage = useQuery(coverageQuery())
+  const first = coverage.data
   return (
     <>
       <PageHeader

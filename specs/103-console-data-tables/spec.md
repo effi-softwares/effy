@@ -49,6 +49,8 @@ The back-office and shop consoles show 55 tables. About thirty of them are lists
 - Q: Small staff-created sets (promotion groups, skins, courier services, fee plans, a shop's team) — paged, or
   shown whole? → A: Shown whole with search and sort, limited to 500 each (recommended default, taken when
   planning started without an answer; the operator may change it).
+- Q (during implementation): the attribute library? → A: a capped set too — staff make it and the category
+  editor's picker reads it whole; paging it would break the picker.
 - Q: Default page size for Orders? → A: 25, like every other list (same basis).
 
 ## User Scenarios & Testing *(mandatory)*
@@ -337,7 +339,6 @@ Back-office:
 | Coverage postcodes | Postcode (1) · Places (2) · Group (1) · Distance from hub (2) · Delivery today (1) · Actions (1) | postcode, place | group, delivery today on/off | postcode, distance |
 | Courier parcels | Order (1) · Courier service (1) · Due (1) · Where it is (1) | order number, consignment reference | stage, service | due |
 | Exceptions | Order (1) · Reason (1) · Driver (2) · Destination (2) · Package (2) · When (1) | order number, package code | kind, resolved | when |
-| Attribute library | Name (1) · Input (1) · Unit (2) · Filter (2) · Shown to customers (2) · Per size (3) · Used by (1) · Status (1) | name | status, input | name, used by |
 
 Shop console:
 
@@ -349,7 +350,7 @@ Shop console:
 | A product's stock history | When (1) · Change (1) · Count (1) · Reason (1) · By (2) | — | reason | when |
 
 - **FR-024**: Small sets that staff themselves create — promotion groups, promotion skins, courier services,
-  fee plans, a shop's team — MUST be shown whole, with search and sort but no page controls, and MUST be
+  fee plans, a shop's team, the attribute library — MUST be shown whole, with search and sort but no page controls, and MUST be
   limited to 500 records each: adding one past the limit is refused with a sentence saying so, so the set can
   never silently outgrow being shown whole.
 - **FR-025**: Every list, Orders included, MUST open at 25 rows per page. A staff member's chosen page size is part of the address (FR-005).

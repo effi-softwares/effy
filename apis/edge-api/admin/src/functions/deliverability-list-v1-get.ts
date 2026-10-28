@@ -1,16 +1,13 @@
-// Any active staff. Problems only by default.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda"
 
 import type { AuthedEvent } from "@effy/edge-shared"
-import { json, preamble } from "@effy/edge-shared"
+import { json, listProblem, parseListQuery, preamble } from "@effy/edge-shared"
 
 import { guard, mapDeliverabilityError } from "../deliverability/handler-support"
-import { list } from "../deliverability/service"
-import type { DeliveryListParams } from "../deliverability/types"
+import { DELIVERABILITY_LIST_SPEC } from "../deliverability/list"
+import { list, viewCounts } from "../deliverability/service"
 
-const STATES = ["reachable", "soft_failing", "undeliverable", "complained", "all"] as const
-const MAX_LIMIT = 100
-
+/** Email deliverability, a console list (103); `?views=only` answers every view's count in one request. */
 export const handler = async (
   event: AuthedEvent,
   context: Context,
@@ -19,21 +16,11 @@ export const handler = async (
   const g = await guard(event, scope, "read")
   if ("deny" in g) return g.deny
 
-  const qp = event.queryStringParameters ?? {}
-  const requested = qp.state ?? ""
-
-  const params: DeliveryListParams = {
-    state: (STATES as readonly string[]).includes(requested)
-      ? (requested as DeliveryListParams["state"])
-      : "problems",
-    q: qp.q?.trim() || null,
-    limit: Math.min(Number(qp.limit) || 25, MAX_LIMIT),
-    offset: Math.max(Number(qp.offset) || 0, 0),
-  }
-
   try {
-    return json(200, await list(params), scope)
+    const req = parseListQuery(event.queryStringParameters, DELIVERABILITY_LIST_SPEC)
+    if (req.viewsOnly) return json(200, { views: await viewCounts(req) }, scope)
+    return json(200, await list(req), scope)
   } catch (err) {
-    return mapDeliverabilityError(err, scope)
+    return listProblem(err, scope) ?? mapDeliverabilityError(err, scope)
   }
 }

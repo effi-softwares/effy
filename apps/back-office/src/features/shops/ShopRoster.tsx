@@ -10,13 +10,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
 } from "@effy/design-system/ui"
+import { StaticTable, type EffyColumnDef } from "@effy/web-kit/data-table"
 import { Panel } from "@effy/web-kit/patterns"
 import { initialsOf } from "@/components/shell/identity"
 import { track } from "@/lib/telemetry"
@@ -54,88 +49,91 @@ export function ShopRoster({ shop, canManage, onAdd }: { shop: ShopDetail; canMa
       }
       flush
     >
-      <div className="min-w-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Operator</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Last seen</TableHead>
-              {canManage ? <TableHead className="text-right">Manage</TableHead> : null}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {shop.users.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={canManage ? 5 : 4} className="h-20 text-center text-muted-foreground">
-                  No operators yet.
-                </TableCell>
-              </TableRow>
-            ) : (
-              shop.users.map((user) => (
-                <RosterRow
-                  key={user.id}
-                  shopId={shop.id}
-                  user={user}
-                  canManage={canManage}
-                  isLastActiveManager={
-                    activeManagerCount === 1 && user.status === "active" && user.roles.includes("shop_manager")
-                  }
-                />
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+      <StaticTable
+        label="Team"
+        columns={rosterColumns(shop.id, canManage, activeManagerCount)}
+        rows={shop.users}
+        getRowId={(u) => u.id}
+        initialSort={{ id: "operator" }}
+        empty="No operators yet."
+        framed={false}
+      />
     </Panel>
   )
 }
 
-function RosterRow({
-  shopId,
-  user,
-  canManage,
-  isLastActiveManager,
-}: {
-  shopId: string
-  user: ShopUser
-  canManage: boolean
-  isLastActiveManager: boolean
-}) {
-  const primaryRole: ShopRole = user.roles.includes("shop_manager") ? "shop_manager" : "shop_staff"
-
-  return (
-    <TableRow>
-      <TableCell>
-        <div className="flex items-center gap-3">
-          <Avatar aria-hidden="true" className="rounded-lg">
-            <AvatarFallback className="rounded-lg">{initialsOf(user.name ?? user.email ?? "?")}</AvatarFallback>
-          </Avatar>
-          <div className="flex min-w-0 flex-col">
-            <span className="font-medium">{user.name ?? "—"}</span>
-            <span className="text-xs text-muted-foreground">{user.email ?? "—"}</span>
+/** A shop's team, shown whole (103 FR-024: a capped set) and sorted in the browser. */
+function rosterColumns(shopId: string, canManage: boolean, activeManagerCount: number): EffyColumnDef<ShopUser>[] {
+  return [
+    {
+      id: "operator",
+      accessorFn: (u) => (u.name ?? u.email ?? "").toLowerCase(),
+      header: "Operator",
+      cell: ({ row }) => {
+        const user = row.original
+        return (
+          <div className="flex items-center gap-3">
+            <Avatar aria-hidden="true" className="rounded-lg max-md:hidden">
+              <AvatarFallback className="rounded-lg">{initialsOf(user.name ?? user.email ?? "?")}</AvatarFallback>
+            </Avatar>
+            <div className="flex min-w-0 flex-col">
+              <span className="font-medium">{user.name ?? "—"}</span>
+              <span className="text-xs text-muted-foreground">{user.email ?? "—"}</span>
+            </div>
           </div>
-        </div>
-      </TableCell>
-      <TableCell>{user.roles.map((r) => ROLE_LABELS[r]).join(", ") || "—"}</TableCell>
-      <TableCell>
-        <StaffStatusBadge status={user.status} />
-      </TableCell>
-      <TableCell className="text-muted-foreground">{user.lastSeenAt ? formatTime(user.lastSeenAt) : "Never"}</TableCell>
-      {canManage ? (
-        <TableCell>
-          <RosterControls
-            shopId={shopId}
-            userId={user.id}
-            role={primaryRole}
-            status={user.status}
-            isLastActiveManager={isLastActiveManager}
-          />
-        </TableCell>
-      ) : null}
-    </TableRow>
-  )
+        )
+      },
+      meta: { label: "Operator", identifying: true, phone: "primary" },
+    },
+    {
+      id: "role",
+      accessorFn: (u) => (u.roles.includes("shop_manager") ? 0 : 1),
+      header: "Role",
+      cell: ({ row }) => row.original.roles.map((r) => ROLE_LABELS[r]).join(", ") || "—",
+      meta: { label: "Role" },
+    },
+    {
+      id: "status",
+      header: "Status",
+      enableSorting: false,
+      cell: ({ row }) => <StaffStatusBadge status={row.original.status} />,
+      meta: { label: "Status", phone: "badge" },
+    },
+    {
+      id: "lastSeen",
+      accessorFn: (u) => u.lastSeenAt ?? "",
+      sortDescFirst: true,
+      header: "Last seen",
+      cell: ({ row }) => (
+        <span className="text-muted-foreground">{row.original.lastSeenAt ? formatTime(row.original.lastSeenAt) : "Never"}</span>
+      ),
+      meta: { label: "Last seen", priority: 2, phone: "trail" },
+    },
+    ...(canManage
+      ? [
+          {
+            id: "manage",
+            header: () => <span className="sr-only">Manage</span>,
+            enableSorting: false,
+            cell: ({ row }) => {
+              const user = row.original
+              return (
+                <RosterControls
+                  shopId={shopId}
+                  userId={user.id}
+                  role={user.roles.includes("shop_manager") ? "shop_manager" : "shop_staff"}
+                  status={user.status}
+                  isLastActiveManager={
+                    activeManagerCount === 1 && user.status === "active" && user.roles.includes("shop_manager")
+                  }
+                />
+              )
+            },
+            meta: { label: "Manage", phone: "full" },
+          } satisfies EffyColumnDef<ShopUser>,
+        ]
+      : []),
+  ]
 }
 
 function RosterControls({

@@ -34,7 +34,16 @@ vi.mock("@effy/edge-shared", async () => {
   };
 });
 
-import * as driversRepo from "./drivers/repository";
+import * as driversRepoRaw from "./drivers/repository";
+import { parseListQuery } from "@effy/edge-shared";
+import { DRIVER_LIST_SPEC } from "./drivers/list";
+import { VEHICLE_LIST_SPEC } from "./vehicles/list";
+
+/** The register as its route parses it (103). */
+const driversRepo = {
+  ...driversRepoRaw,
+  listDrivers: (qs: Record<string, string> = {}) => driversRepoRaw.listDrivers(parseListQuery({ pageSize: "100", ...qs }, DRIVER_LIST_SPEC)),
+};
 import * as dutyRepo from "./duty/repository";
 import * as readinessRepo from "./readiness/repository";
 import * as capRepo from "./capabilities/repository";
@@ -167,33 +176,25 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
       for (const n of names) await seedDriver(n);
 
       const seen: string[] = [];
-      let cursor: string | undefined;
       let pages = 0;
-      do {
-        // Through the service-shaped call, where the cursor is minted.
-        const page = await driversRepo.listDrivers({ limit: 25, cursor });
+      for (let p = 1; p <= 20; p++) {
+        const page = await driversRepo.listDrivers({ pageSize: "25", page: String(p) });
+        expect(page.total).toBe(500);
         seen.push(...page.items.map((i) => i.id));
-        cursor = page.nextCursor ?? undefined;
         pages++;
-        expect(pages, "paging did not terminate").toBeLessThan(50);
-      } while (cursor);
+      }
 
       expect(seen).toHaveLength(500);
       expect(new Set(seen).size, "a driver was returned on two pages").toBe(500);
       expect(pages).toBe(20);
     });
 
-    it("⚠ orders on the SAME pair the cursor is minted from, so duplicate names cannot break it", async () => {
-      // Five identical names: a `(name)` cursor would skip or repeat them.
-      for (let i = 0; i < 5; i++) await seedDriver("Same Name");
+    it("⚠ orders by (name, id), so duplicate names straddling a page edge cannot break it", async () => {
+      // Thirty identical names: ordering by name alone would let a page edge repeat or skip them.
+      for (let i = 0; i < 30; i++) await seedDriver("Same Name");
       const seen: string[] = [];
-      let cursor: string | undefined;
-      do {
-        const page = await driversRepo.listDrivers({ limit: 2, cursor });
-        seen.push(...page.items.map((i) => i.id));
-        cursor = page.nextCursor ?? undefined;
-      } while (cursor);
-      expect(new Set(seen).size).toBe(5);
+      for (let p = 1; p <= 2; p++) seen.push(...(await driversRepo.listDrivers({ pageSize: "25", page: String(p) })).items.map((i) => i.id));
+      expect(new Set(seen).size).toBe(30);
     });
   });
 
@@ -447,12 +448,24 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
       expect(history[0]!.odometerEndKm).toBe(99);
     });
 
+    it("103: pages, searches and filters on the server — never just the rows on screen", async () => {
+      for (let i = 0; i < 30; i++) await seedVehicle(`EFY-L${String(i).padStart(2, "0")}`);
+      const list = (qs: Record<string, string>) => vehiclesRepo.listVehicles(parseListQuery({ pageSize: "25", ...qs }, VEHICLE_LIST_SPEC));
+      const p1 = await list({});
+      const p2 = await list({ page: "2" });
+      expect(p1.total).toBe(30);
+      expect(new Set([...p1.items, ...p2.items].map((v) => v.id)).size).toBe(30);
+      // The search finds a vehicle on what was page 2.
+      expect((await list({ q: "l29" })).items.map((v) => v.registrationPlate)).toEqual(["EFY-L29"]);
+      expect(await vehiclesRepo.vehicleViewCounts(parseListQuery({}, VEHICLE_LIST_SPEC))).toMatchObject({ fleet: 30, retired: 0 });
+    });
+
     /** Derived: a date that lapsed overnight is reported without anything running. */
     it("reports each lapsed compliance item by name, and reports none when dates are unset", async () => {
       await seedVehicle("EFY-CMP1", { regExpires: "2020-01-01" });
       await seedVehicle("EFY-CMP2");
 
-      const { items } = await vehiclesRepo.listVehicles({});
+      const { items } = await vehiclesRepo.listVehicles(parseListQuery({}, VEHICLE_LIST_SPEC));
       const lapsed = items.find((i) => i.registrationPlate === "EFY-CMP1");
       const unset = items.find((i) => i.registrationPlate === "EFY-CMP2");
       expect(lapsed!.complianceIssues).toEqual(["registration_expired"]);
@@ -844,7 +857,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
 
     it("⚠ the register carries the SAME flag, so the gap is visible where drivers are listed", async () => {
       await seedDriver("Uncleared");
-      const page = await driversRepo.listDrivers({ limit: 10 });
+      const page = await driversRepo.listDrivers();
       expect(page.items[0]!.blockedReasons).toContain("no_capabilities");
     });
 
@@ -882,21 +895,21 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
     it("excludes them unless asked for, and includes them when asked", async () => {
       await seedDriver("Current");
       await seedDriver("Departed", { status: "offboarded" });
-      expect((await driversRepo.listDrivers({ limit: 10 })).items).toHaveLength(1);
+      expect((await driversRepo.listDrivers()).items).toHaveLength(1);
       expect(
-        (await driversRepo.listDrivers({ limit: 10, includeOffboarded: true })).items,
+        (await driversRepo.listDrivers({ view: "everyone" })).items,
       ).toHaveLength(2);
       expect(
-        (await driversRepo.listDrivers({ limit: 10, statuses: ["offboarded"] })).items,
+        (await driversRepo.listDrivers({ view: "offboarded" })).items,
       ).toHaveLength(1);
     });
 
     it("searches on partial name and on email", async () => {
       await seedDriver("Alexandra Chen");
       await seedDriver("Bob Smith");
-      expect((await driversRepo.listDrivers({ limit: 10, q: "exandr" })).items).toHaveLength(1);
-      expect((await driversRepo.listDrivers({ limit: 10, q: "bob.smith" })).items).toHaveLength(1);
-      expect((await driversRepo.listDrivers({ limit: 10, q: "nobody" })).items).toHaveLength(0);
+      expect((await driversRepo.listDrivers({ q: "exandr" })).items).toHaveLength(1);
+      expect((await driversRepo.listDrivers({ q: "bob.smith" })).items).toHaveLength(1);
+      expect((await driversRepo.listDrivers({ q: "nobody" })).items).toHaveLength(0);
     });
   });
 });

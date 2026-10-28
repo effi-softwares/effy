@@ -1,7 +1,7 @@
 // The database decides completeness (`public.delivery_plan_gaps`) and activation
 // (`public.delivery_plan_activate`). An activated plan is never changed (`savePlan`) or deleted.
 // Every write records its audit row in the same transaction.
-import { query, withTransaction, type Queryable } from "@effy/edge-shared";
+import { query, withTransaction, type Queryable, setIsFull } from "@effy/edge-shared";
 import type { FeePlanInput, FeePlanKind, FeePlanDTO, PlanGapDTO, SlotPremiumDTO } from "@effy/shared-types";
 
 /** `code` becomes the problem's type. */
@@ -223,3 +223,6 @@ export async function activatePlan(id: string, actorSub: string, confirmZeroFloo
     throw new PricingError(refusal[0], e.message!, refusal[1], extra);
   }
 }
+
+/** 103 FR-024: the set is shown whole, so it is capped (`setIsFull`). */
+export const isFull = (): Promise<boolean> => setIsFull("FROM public.delivery_fee_plan");

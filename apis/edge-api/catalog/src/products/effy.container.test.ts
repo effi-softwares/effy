@@ -41,7 +41,12 @@ import { randomUUID } from "node:crypto";
 
 import { migrationSql } from "@effy/edge-shared/testing";
 
-import { queue } from "../review/service";
+import { queue as queueReq } from "../review/service";
+import { parseListQuery } from "@effy/edge-shared";
+import { REVIEW_QUEUE_SPEC } from "../review/list";
+
+/** The queue as its route parses it (103). */
+const queue = (qs: Record<string, string>) => queueReq(parseListQuery(qs, REVIEW_QUEUE_SPEC));
 import { createForShop, editEffyOwned } from "./effy";
 import { hold } from "./holds";
 

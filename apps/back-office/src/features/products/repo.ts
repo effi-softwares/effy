@@ -18,11 +18,9 @@ import type {
 
 import { api } from "@/lib/api"
 
-import { toQueryString, type ProductSearch } from "./model"
-
-export async function listProducts(search: ProductSearch, cursor: string | null): Promise<BackOfficeProductListDTO> {
-  const qs = toQueryString(search, cursor)
-  return api.get<BackOfficeProductListDTO>(`/catalog/v1/products${qs ? `?${qs}` : ""}`)
+/** One page of every shop's products for the address's view (103). */
+export function fetchProductPage(qs: URLSearchParams, signal: AbortSignal): Promise<BackOfficeProductListDTO> {
+  return api.get<BackOfficeProductListDTO>(`/catalog/v1/products?${qs}`, { signal })
 }
 
 export async function getProduct(productId: string): Promise<BackOfficeProductDTO> {
@@ -89,12 +87,9 @@ export async function startImport(body: StartProductImportRequest): Promise<Prod
   return api.post<ProductImportDTO>(`/catalog/v1/imports`, body)
 }
 
-export async function listImports(shopId: string | null, cursor: string | null): Promise<ProductImportListDTO> {
-  const p = new URLSearchParams()
-  if (shopId) p.set("shopId", shopId)
-  if (cursor) p.set("cursor", cursor)
-  const qs = p.toString()
-  return api.get<ProductImportListDTO>(`/catalog/v1/imports${qs ? `?${qs}` : ""}`)
+/** One page of imports for the address's view (103). */
+export function fetchImportPage(qs: URLSearchParams, signal: AbortSignal): Promise<ProductImportListDTO> {
+  return api.get<ProductImportListDTO>(`/catalog/v1/imports?${qs}`, { signal })
 }
 
 export async function getImport(importId: string): Promise<ProductImportDTO> {

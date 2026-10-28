@@ -1,6 +1,8 @@
 import type {
   ExceptionOutcome,
+  DeliveryExceptionDTO,
   DeliveryExceptionListDTO,
+  ListPage,
   ResolveExceptionResponse,
   StaffActionResponse,
   StaffParcelReturnResponse,
@@ -8,10 +10,18 @@ import type {
 
 import { api } from "@/lib/api"
 
-export async function listExceptions(includeResolved: boolean): Promise<DeliveryExceptionListDTO> {
-  const q = includeResolved ? "?includeResolved=true" : ""
-  return api.get<DeliveryExceptionListDTO>(`/fleet/v1/exceptions${q}`)
+/** The board with its first 100 open failures (the overview's figures). */
+export async function listExceptions(): Promise<DeliveryExceptionListDTO> {
+  return api.get<DeliveryExceptionListDTO>("/fleet/v1/exceptions?pageSize=100")
 }
+
+/** The board for the address's view (103): the failures' page as a list page, and the rest of the board beside it. */
+export async function fetchExceptionsBoard(qs: URLSearchParams, signal: AbortSignal): Promise<ExceptionsBoardPage> {
+  const board = await api.get<DeliveryExceptionListDTO>(`/fleet/v1/exceptions?${qs}`, { signal })
+  return { ...board.exceptions, board }
+}
+
+export type ExceptionsBoardPage = ListPage<DeliveryExceptionDTO> & { board: DeliveryExceptionListDTO }
 
 export async function resolveException(
   id: string,

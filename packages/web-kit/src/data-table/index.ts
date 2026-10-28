@@ -16,6 +16,8 @@ export { listQueryOptions, viewsQueryOptions, usePrefetchNextPage, type ListFetc
 export { useHiddenColumns } from "./hidden-columns";
 export { DataTable, columnsFor, type DataTableProps, type RowHref } from "./DataTable";
 export { StaticTable } from "./StaticTable";
+export { setFullText } from "./set-full";
+export { setListEventSink, type ListEvent } from "./list-events";
 export { ListPage } from "./ListPage";
 export { Pagination, rangeText } from "./Pagination";
 export { ColumnMenu, type ColumnChoice } from "./ColumnMenu";

@@ -1,16 +1,10 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { render, screen, waitFor } from "@testing-library/react"
+import { screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import type { ReactNode } from "react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import type { ShopAvailabilityDTO, ShopAvailabilityRowDTO } from "@effy/shared-types"
 
-vi.mock("@tanstack/react-router", () => ({
-  Link: ({ children, className }: { children: ReactNode; className?: string }) => (
-    <a className={className}>{children}</a>
-  ),
-}))
+import { onePage, renderList } from "@/test/renderList"
 vi.mock("@/lib/telemetry", () => ({ track: vi.fn() }))
 
 const get = vi.hoisted(() => vi.fn())
@@ -47,19 +41,13 @@ const row = (over: Partial<ShopAvailabilityRowDTO> = {}): ShopAvailabilityRowDTO
 })
 
 const page = (items: ShopAvailabilityRowDTO[]): ShopAvailabilityDTO => ({
-  items,
-  next: null,
+  ...onePage(items),
   counts: { needsLook: items.length, outOfStock: 1, lowStock: 0, offSale: 0, all: 9 },
 })
 
-function wrap() {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  return render(
-    <QueryClientProvider client={qc}>
-      <AvailabilityScreen />
-    </QueryClientProvider>,
-  )
-}
+const wrap = () => renderList(AvailabilityScreen, "/catalog/availability")
+/** The view the screen last asked the server for (103: it travels as the list's query string). */
+const lastAsked = () => new URLSearchParams(String(get.mock.lastCall?.[0] ?? "").split("?")[1])
 
 beforeEach(() => vi.clearAllMocks())
 
@@ -68,7 +56,8 @@ describe("Availability (099)", () => {
     get.mockResolvedValue(page([row()]))
     wrap()
     expect(await screen.findByText("Out of stock", { selector: "[data-slot=badge]" })).toBeInTheDocument()
-    expect(get).toHaveBeenCalledWith("/shop/v1/availability?filter=needs_look")
+    // "Needs a look" is the list's default view: it is not spelled out, and the server opens on it too.
+    expect(lastAsked().get("filter")).toBeNull()
     await userEvent.click(screen.getByRole("combobox", { name: "Show" }))
     expect(screen.getByRole("option", { name: /Everything/ })).toHaveTextContent("9")
   })
@@ -93,6 +82,6 @@ describe("Availability (099)", () => {
     wrap()
     await userEvent.click(await screen.findByRole("combobox", { name: "Show" }))
     await userEvent.click(screen.getByRole("option", { name: /Off sale/ }))
-    await waitFor(() => expect(get).toHaveBeenLastCalledWith("/shop/v1/availability?filter=off_sale"))
+    await waitFor(() => expect(lastAsked().get("filter")).toBe("off_sale"))
   })
 })

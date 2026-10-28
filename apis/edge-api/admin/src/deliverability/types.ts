@@ -1,3 +1,4 @@
+import type { ListPage } from "@effy/shared-types";
 /**
  * Which addresses the platform can actually reach. After a hard failure SES accepts every send and
  * delivers nothing, a silent lockout when an emailed code is the only credential; only the outcome
@@ -85,17 +86,8 @@ export interface DeliveryDetailDTO extends DeliveryListItemDTO {
   events: DeliveryEventDTO[];
 }
 
-export interface DeliveryListParams {
-  state: EmailDeliveryState | "all" | "problems";
-  q: string | null;
-  limit: number;
-  offset: number;
-}
-
-export interface DeliveryListDTO {
-  items: DeliveryListItemDTO[];
-  total: number;
-}
+/** A console list page (103). */
+export type DeliveryListDTO = ListPage<DeliveryListItemDTO>;
 
 export type DeliverabilityErrorKind = "not_found" | "validation" | "unavailable";
 

@@ -19,8 +19,13 @@ vi.mock("@effy/edge-shared", async () => {
 import { insertTestProduct, insertTestVariant, migrationSql, testLeafId } from "@effy/edge-shared/testing";
 import type { BackOfficeProductListDTO } from "@effy/shared-types";
 
-import { ProductAdminError } from "./errors";
-import { detail, list } from "./service";
+import { parseListQuery } from "@effy/edge-shared";
+
+import { PRODUCT_LIST_SPEC } from "./list";
+import { detail, list as listReq } from "./service";
+
+/** The list as the route parses it (103). */
+const list = (params: Record<string, string>) => listReq(parseListQuery({ pageSize: "100", ...params }, PRODUCT_LIST_SPEC));
 
 const RUN = process.env.CONTAINER_TESTS === "1";
 const d = RUN ? describe : describe.skip;
@@ -79,13 +84,10 @@ async function seedEveryState(): Promise<Record<string, string>> {
 const all = async (params: Record<string, string> = {}): Promise<BackOfficeProductListDTO> => {
   const first = await list(params);
   const items = [...first.items];
-  let cursor = first.nextCursor;
-  while (cursor) {
-    const next = await list({ ...params, cursor });
-    items.push(...next.items);
-    cursor = next.nextCursor;
+  for (let page = 2; (page - 1) * first.pageSize < first.total; page += 1) {
+    items.push(...(await list({ ...params, page: String(page) })).items);
   }
-  return { ...first, items, nextCursor: null };
+  return { ...first, items };
 };
 
 const names = (dto: BackOfficeProductListDTO) => dto.items.map((i) => i.name).sort();
@@ -201,10 +203,14 @@ d("102 — the back-office product list against real PostgreSQL", () => {
     expect(byName.items[0]!.name).toBe("Item 000");
   });
 
-  it("refuses a malformed shop, aisle or cursor", async () => {
-    await expect(list({ shopId: "nope" })).rejects.toBeInstanceOf(ProductAdminError);
-    await expect(list({ categoryId: "nope" })).rejects.toBeInstanceOf(ProductAdminError);
-    await expect(list({ cursor: "!!" })).rejects.toBeInstanceOf(ProductAdminError);
+  it("103: ignores (and reports) a malformed shop or aisle from a stale link instead of failing", async () => {
+    const r = await list({ shopId: "nope", categoryId: "nope" });
+    expect(r.ignored.sort()).toEqual(["categoryId", "shopId"]);
+  });
+
+  it("103: answers a page past the end with the last real page, and pages with an exact total", async () => {
+    const r = await list({ pageSize: "25", page: "999" });
+    expect(r.page).toBe(Math.max(1, Math.ceil(r.total / 25)));
   });
 
   it("opens a product with its sizes, stock, waiting review, hold and history", async () => {

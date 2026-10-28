@@ -1,3 +1,4 @@
+import { setFullText } from "@effy/web-kit/data-table"
 import { isDomainError } from "@effy/api-client"
 
 const BY_TYPE: Record<string, string> = {
@@ -37,6 +38,8 @@ export function inUseError(err: unknown, what: "skin" | "picture"): string | nul
 }
 
 export function promotionMutationError(err: unknown): string {
+  const full = setFullText(err)
+  if (full) return full
   if (isDomainError(err)) {
     const slug = err.type?.split("/").pop() ?? ""
     if (BY_TYPE[slug]) return BY_TYPE[slug]

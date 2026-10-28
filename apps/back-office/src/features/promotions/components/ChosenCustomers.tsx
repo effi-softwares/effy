@@ -1,18 +1,29 @@
 import { useState } from "react"
 
 import { useQuery } from "@tanstack/react-query"
-import { X } from "lucide-react"
+import { useSearch } from "@tanstack/react-router"
+import { Users, X } from "lucide-react"
 
 import { Button, Label, Textarea } from "@effy/design-system/ui"
 
-import { Panel, Pager } from "@effy/web-kit/patterns"
+import type { AdminPromotionCustomerDTO } from "@effy/shared-types"
+import { DataTable, listQueryOptions, SearchBox, useListState, type EffyColumnDef } from "@effy/web-kit/data-table"
+import { Panel } from "@effy/web-kit/patterns"
 
 import { promotionMutationError } from "../errorText"
-import { chosenCustomersQuery, useAddChosenCustomers, useRemoveChosenCustomer } from "../queries"
+import { chosenCustomersList } from "../list"
+import { PROMO_ROOT, useAddChosenCustomers, useRemoveChosenCustomer } from "../queries"
+import { fetchChosenCustomerPage } from "../repo"
 
 export function ChosenCustomers({ promotionId, canManage }: { promotionId: string; canManage: boolean }) {
-  const [page, setPage] = useState(1)
-  const list = useQuery(chosenCustomersQuery(promotionId, page))
+  const state = useListState(chosenCustomersList, useSearch({ strict: false }))
+  const input = {
+    key: [...PROMO_ROOT, "customers", promotionId] as const,
+    list: chosenCustomersList,
+    view: state.view,
+    fetch: (qs: URLSearchParams, signal: AbortSignal) => fetchChosenCustomerPage(promotionId, qs, signal),
+  }
+  const list = useQuery(listQueryOptions(input))
   const add = useAddChosenCustomers(promotionId)
   const remove = useRemoveChosenCustomer(promotionId)
   const [text, setText] = useState("")
@@ -36,7 +47,40 @@ export function ChosenCustomers({ promotionId, canManage }: { promotionId: strin
     )
   }
 
-  const pages = list.data ? Math.max(1, Math.ceil(list.data.total / list.data.pageSize)) : 1
+  const columns: EffyColumnDef<AdminPromotionCustomerDTO>[] = [
+    {
+      id: "customer",
+      header: "Customer",
+      cell: ({ row }) => row.original.name ?? row.original.email,
+      meta: { label: "Customer", identifying: true, phone: "primary" },
+    },
+    {
+      id: "email",
+      header: "Email",
+      cell: ({ row }) => <span className="text-muted-foreground">{row.original.email}</span>,
+      meta: { label: "Email", sortKey: "email" },
+    },
+    ...(canManage
+      ? [
+          {
+            id: "remove",
+            header: () => <span className="sr-only">Remove</span>,
+            cell: ({ row }) => (
+              <Button
+                size="icon"
+                variant="ghost"
+                aria-label={`Remove ${row.original.email}`}
+                disabled={remove.isPending}
+                onClick={() => remove.mutate(row.original.customerId)}
+              >
+                <X aria-hidden="true" />
+              </Button>
+            ),
+            meta: { label: "Remove", phone: "trail", className: "text-right" },
+          } satisfies EffyColumnDef<AdminPromotionCustomerDTO>,
+        ]
+      : []),
+  ]
   return (
     <Panel title="Chosen customers" description="Only these customers see and can use this promotion." flush>
       {canManage ? (
@@ -61,42 +105,18 @@ export function ChosenCustomers({ promotionId, canManage }: { promotionId: strin
           </div>
         </div>
       ) : null}
-      {list.data && list.data.items.length > 0 ? (
-        <>
-          <ul className="divide-y divide-border">
-            {list.data.items.map((c) => (
-              <li key={c.customerId} className="flex items-center justify-between gap-3 px-5 py-3 text-sm">
-                <span>
-                  {c.name ?? c.email}
-                  {c.name ? <span className="text-muted-foreground"> · {c.email}</span> : null}
-                </span>
-                {canManage ? (
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    aria-label={`Remove ${c.email}`}
-                    disabled={remove.isPending}
-                    onClick={() => remove.mutate(c.customerId)}
-                  >
-                    <X aria-hidden="true" />
-                  </Button>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-          <Pager
-            summary={`${list.data.total} customers`}
-            canBack={page > 1}
-            canNext={page < pages}
-            onBack={() => setPage((p) => p - 1)}
-            onNext={() => setPage((p) => p + 1)}
-          />
-        </>
-      ) : (
-        <p className="px-5 py-4 text-sm text-muted-foreground">
-          No customers yet — nobody can use it until some are added.
-        </p>
-      )}
+      <DataTable
+        app="back-office"
+        label="Chosen customers"
+        list={chosenCustomersList}
+        state={state}
+        columns={columns}
+        query={list}
+        queryInput={input}
+        rowId={(c) => c.customerId}
+        empty={{ icon: Users, title: "No customers yet", description: "Nobody can use it until some are added." }}
+        toolbar={<SearchBox label="Search chosen customers" placeholder="Name or email…" value={state.draftQ} onChange={state.setQ} />}
+      />
     </Panel>
   )
 }

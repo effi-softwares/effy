@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest"
 import type { DeliveryExceptionDTO } from "@effy/shared-types"
 
 import { canResolveExceptions } from "./access"
-import { locationLabel, reasonLabel, sortForTriage } from "./model"
+import { locationLabel, reasonLabel } from "./model"
 
 const row = (over: Partial<DeliveryExceptionDTO> = {}): DeliveryExceptionDTO => ({
   exceptionId: "e1",
@@ -41,30 +41,6 @@ describe("⚠ FR-020 — where the package actually is", () => {
     expect(locationLabel(row({ packageLocation: "at_hub", returnedAt: "2026-10-16T05:00:00.000Z" }))).toMatch(
       /^Returned /,
     )
-  })
-})
-
-describe("triage order", () => {
-  it("puts open exceptions above resolved ones, whatever their dates", () => {
-    const sorted = sortForTriage([
-      row({ exceptionId: "old-open", failedAt: "2026-09-01T00:00:00.000Z" }),
-      row({ exceptionId: "new-done", failedAt: "2026-09-20T00:00:00.000Z", resolvedAt: "2026-09-20T01:00:00.000Z" }),
-    ])
-    expect(sorted[0]!.exceptionId).toBe("old-open")
-  })
-
-  it("orders open ones most recent first", () => {
-    const sorted = sortForTriage([
-      row({ exceptionId: "a", failedAt: "2026-09-01T00:00:00.000Z" }),
-      row({ exceptionId: "b", failedAt: "2026-09-20T00:00:00.000Z" }),
-    ])
-    expect(sorted.map((e) => e.exceptionId)).toEqual(["b", "a"])
-  })
-
-  it("does not mutate its input", () => {
-    const input = [row({ exceptionId: "a" }), row({ exceptionId: "b", resolvedAt: "x" })]
-    sortForTriage(input)
-    expect(input[0]!.exceptionId).toBe("a")
   })
 })
 

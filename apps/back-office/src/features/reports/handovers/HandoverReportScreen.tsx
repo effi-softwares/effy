@@ -2,17 +2,12 @@ import { useState } from "react"
 
 import { useQuery } from "@tanstack/react-query"
 
-import { PARCEL_MISSING_REASON_WORDS, READ_OUTCOME_WORDS, type HandoverMixDTO } from "@effy/shared-types"
+import { PARCEL_MISSING_REASON_WORDS, READ_OUTCOME_WORDS, type HandoverMixDTO, type HandoverReportDTO } from "@effy/shared-types"
 import {
   DateField,
   Skeleton,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
 } from "@effy/design-system/ui"
+import { StaticTable, type EffyColumnDef } from "@effy/web-kit/data-table"
 import { ErrorState } from "@effy/web-kit/console"
 
 import { PageHeader, DetailRows, Panel } from "@effy/web-kit/patterns"
@@ -112,46 +107,28 @@ export function HandoverReportScreen() {
               {data.refused.length === 0 ? (
                 <p className="px-5 py-4 text-sm text-muted-foreground">No read was refused in this period.</p>
               ) : (
-                <Table className="[&_td]:py-2" aria-label="Refused reads">
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Outcome</TableHead>
-                      <TableHead>Where</TableHead>
-                      <TableHead className="text-right">Reads</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {data.refused.map((r) => (
-                      <TableRow key={`${r.outcome}:${r.surface}`}>
-                        <TableCell>{READ_OUTCOME_WORDS[r.outcome]}</TableCell>
-                        <TableCell>{SURFACE_WORDS[r.surface]}</TableCell>
-                        <TableCell className="text-right tabular-nums">{r.count}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                <StaticTable
+                  label="Refused reads"
+                  columns={REFUSED_COLUMNS}
+                  rows={data.refused}
+                  getRowId={(r) => `${r.outcome}:${r.surface}`}
+                  initialSort={{ id: "reads", desc: true }}
+                  framed={false}
+                />
               )}
             </Panel>
             <Panel title="Bags declared missing" flush>
               {data.missing.length === 0 ? (
                 <p className="px-5 py-4 text-sm text-muted-foreground">No bag was declared missing in this period.</p>
               ) : (
-                <Table className="[&_td]:py-2" aria-label="Bags declared missing">
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Reason</TableHead>
-                      <TableHead className="text-right">Bags</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {data.missing.map((r) => (
-                      <TableRow key={r.reason}>
-                        <TableCell>{PARCEL_MISSING_REASON_WORDS[r.reason] ?? r.reason}</TableCell>
-                        <TableCell className="text-right tabular-nums">{r.count}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                <StaticTable
+                  label="Bags declared missing"
+                  columns={MISSING_COLUMNS}
+                  rows={data.missing}
+                  getRowId={(r) => r.reason}
+                  initialSort={{ id: "bags", desc: true }}
+                  framed={false}
+                />
               )}
             </Panel>
           </div>
@@ -172,27 +149,51 @@ function MixTable({
 }) {
   if (rows.length === 0) return <p className="px-5 py-4 text-sm text-muted-foreground">No hand-overs in this period.</p>
   return (
-    <Table className="[&_td]:py-2" aria-label={label}>
-      <TableHeader>
-        <TableRow>
-          <TableHead>{first}</TableHead>
-          <TableHead className="text-right">Scanned</TableHead>
-          <TableHead className="text-right">Typed</TableHead>
-          <TableHead className="text-right">By hand</TableHead>
-          <TableHead className="text-right">Scanned share</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {rows.map((r) => (
-          <TableRow key={r.key}>
-            <TableCell>{r.name}</TableCell>
-            <TableCell className="text-right tabular-nums">{r.scan}</TableCell>
-            <TableCell className="text-right tabular-nums">{r.typed}</TableCell>
-            <TableCell className="text-right tabular-nums">{r.manual}</TableCell>
-            <TableCell className="text-right tabular-nums">{pct(r.scan, total(r))}</TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+    <StaticTable label={label} columns={mixColumns(first)} rows={rows} getRowId={(r) => r.key} framed={false} />
   )
 }
+
+type MixRow = HandoverMixDTO & { key: string; name: string }
+type Refused = HandoverReportDTO["refused"][number]
+type Missing = HandoverReportDTO["missing"][number]
+
+/** The rows arrive in the report's order (least scanned first); every column sorts in the browser (103). */
+function mixColumns(first: string): EffyColumnDef<MixRow>[] {
+  const count = (id: "scan" | "typed" | "manual", header: string): EffyColumnDef<MixRow> => ({
+    id,
+    accessorFn: (r) => r[id],
+    sortDescFirst: true,
+    header,
+    cell: ({ row }) => row.original[id],
+    meta: { label: header, align: "numeric" },
+  })
+  return [
+    { id: "name", accessorFn: (r) => r.name.toLowerCase(), header: first, cell: ({ row }) => row.original.name, meta: { label: first, identifying: true, phone: "primary" } },
+    count("scan", "Scanned"),
+    count("typed", "Typed"),
+    count("manual", "By hand"),
+    {
+      id: "share",
+      accessorFn: (r) => (total(r) === 0 ? -1 : r.scan / total(r)),
+      header: "Scanned share",
+      cell: ({ row }) => pct(row.original.scan, total(row.original)),
+      meta: { label: "Scanned share", align: "numeric", phone: "trail" },
+    },
+  ]
+}
+
+const REFUSED_COLUMNS: EffyColumnDef<Refused>[] = [
+  { id: "outcome", header: "Outcome", cell: ({ row }) => READ_OUTCOME_WORDS[row.original.outcome], meta: { label: "Outcome", identifying: true, phone: "primary" } },
+  { id: "where", header: "Where", cell: ({ row }) => SURFACE_WORDS[row.original.surface], meta: { label: "Where" } },
+  { id: "reads", accessorFn: (r) => r.count, sortDescFirst: true, header: "Reads", cell: ({ row }) => row.original.count, meta: { label: "Reads", align: "numeric", phone: "trail" } },
+]
+
+const MISSING_COLUMNS: EffyColumnDef<Missing>[] = [
+  {
+    id: "reason",
+    header: "Reason",
+    cell: ({ row }) => PARCEL_MISSING_REASON_WORDS[row.original.reason] ?? row.original.reason,
+    meta: { label: "Reason", identifying: true, phone: "primary" },
+  },
+  { id: "bags", accessorFn: (r) => r.count, sortDescFirst: true, header: "Bags", cell: ({ row }) => row.original.count, meta: { label: "Bags", align: "numeric", phone: "trail" } },
+]

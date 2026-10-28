@@ -17,7 +17,6 @@ import {
   getOrder,
   getOrdersToday,
   getOrderViewCounts,
-  listCourierParcels,
   listOrders,
   changeDeliveryWindow,
   moveDelivery,
@@ -44,9 +43,6 @@ export const deliveryMovePreviewQuery = (orderId: string, to: DeliveryType) =>
     queryFn: () => previewDeliveryMove(orderId, to),
     staleTime: 0,
   })
-
-export const courierParcelsQuery = (view: CourierView) =>
-  queryOptions({ queryKey: ordersKeys.courier(view), queryFn: () => listCourierParcels(view) })
 
 function useOrderMutation<V, R>(orderId: string, fn: (v: V) => Promise<R>) {
   const qc = useQueryClient()

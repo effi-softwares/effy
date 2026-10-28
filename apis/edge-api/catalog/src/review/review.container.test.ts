@@ -41,7 +41,12 @@ vi.mock("@effy/edge-shared", async () => {
 import { migrationSql } from "@effy/edge-shared/testing";
 
 import { ReviewError } from "./errors";
-import { approve, item, marginNotSet, oldestWaitingHours, queue, sendBack, setMargin } from "./service";
+import { approve, item, marginNotSet, oldestWaitingHours, queue as queueReq, queueViewCounts, sendBack, setMargin } from "./service";
+import { parseListQuery } from "@effy/edge-shared";
+import { MARGIN_NOT_SET_SPEC, REVIEW_QUEUE_SPEC } from "./list";
+
+/** The queue as its route parses it (103). */
+const queue = (qs: Record<string, string>) => queueReq(parseListQuery(qs, REVIEW_QUEUE_SPEC));
 
 const RUN = process.env.CONTAINER_TESTS === "1";
 const d = RUN ? describe : describe.skip;
@@ -219,7 +224,7 @@ d("067 — product review against real PostgreSQL", () => {
     // For a change the reviewer sees the live name — the one they would recognise.
     expect(out.items[1]!.productName).toBe("Live milk");
     expect(out.items[0]!.shopName).toBe("SA shop");
-    expect(out.nextCursor).toBeNull();
+    expect(out).toMatchObject({ total: 3, page: 1 });
   });
 
   it("filters by shop, by kind and by name", async () => {
@@ -234,18 +239,15 @@ d("067 — product review against real PostgreSQL", () => {
     expect((await queue({ q: "sour" })).items.map((i) => i.productId)).toEqual([mine]);
   });
 
-  it("pages without repeating or skipping an item", async () => {
+  it("pages without repeating or skipping an item, ties included (103)", async () => {
     const ids: string[] = [];
-    for (let i = 5; i >= 1; i -= 1) ids.push(await makeProduct({ name: `P${i}`, submittedAgo: `${i} hours` }));
+    for (let i = 30; i >= 1; i -= 1) ids.push(await makeProduct({ name: `P${i}`, submittedAgo: `${i} hours` }));
+    // Five of them submitted in the same instant: the id breaks the tie at the page edge.
+    await pool.query(`UPDATE public.product SET submitted_at = '2026-01-01T00:00:00Z' WHERE name IN ('P1','P2','P3','P4','P5')`);
     const seen: string[] = [];
-    let cursor: string | undefined;
-    for (let guard = 0; guard < 10; guard += 1) {
-      const page = await queue({ limit: "2", ...(cursor ? { cursor } : {}) });
-      seen.push(...page.items.map((i) => i.productId));
-      if (!page.nextCursor) break;
-      cursor = page.nextCursor;
-    }
-    expect(seen).toEqual(ids);
+    for (let page = 1; page <= 2; page += 1) seen.push(...(await queue({ pageSize: "25", page: String(page) })).items.map((i) => i.productId));
+    expect(seen).toHaveLength(30);
+    expect(new Set(seen)).toEqual(new Set(ids));
   });
 
   // The back-office rail's count beside "Product review" (redesign): every page, the same filters.
@@ -256,10 +258,9 @@ d("067 — product review against real PostgreSQL", () => {
     const changed = await makeProduct({ name: "Milk", approved: true });
     await proposeChange(changed, { name: "Oat milk" });
 
-    const first = await queue({ limit: "2" });
-    expect(first.items).toHaveLength(2);
+    const first = await queue({});
     expect(first.total).toBe(5);
-    expect((await queue({ limit: "2", cursor: first.nextCursor! })).total).toBe(5);
+    expect((await queueViewCounts(parseListQuery({ kind: "change" }, REVIEW_QUEUE_SPEC)))).toEqual({ all: 5, new_product: 4, change: 1 });
     expect((await queue({ shopId: other })).total).toBe(1);
     expect((await queue({ kind: "change" })).total).toBe(1);
     expect((await queue({ q: "q" })).total).toBe(3);
@@ -557,8 +558,10 @@ d("067 — product review against real PostgreSQL", () => {
     const has = await makeProduct({ name: "Has margin", approved: true });
     await pool.query(`UPDATE public.product SET margin_kind = 'percent', margin_value = 5 WHERE id = $1`, [has]);
     await makeProduct({ name: "Not approved" });
-    const out = await marginNotSet({});
+    const out = await marginNotSet(parseListQuery({}, MARGIN_NOT_SET_SPEC));
     expect(out.items.map((i) => i.productId)).toEqual([none]);
+    expect(out.total).toBe(1);
+    expect((await marginNotSet(parseListQuery({ q: "nothing like it" }, MARGIN_NOT_SET_SPEC))).total).toBe(0);
     expect(out.items[0]).toMatchObject({ productName: "No margin", shopPriceAmount: "10.00" });
   });
 

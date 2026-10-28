@@ -37,7 +37,13 @@ import { categoryMembershipSql } from "@effy/edge-shared/catalog";
 import { migrationSql } from "@effy/edge-shared/testing";
 
 import * as taxonomy from "../taxonomy/service";
-import { missingDetails, setPlacements } from "./service";
+import { parseListQuery } from "@effy/edge-shared";
+
+import { MISSING_DETAILS_SPEC } from "../review/list";
+import { missingDetails as missingReq, setPlacements } from "./service";
+
+/** The list as its route parses it (103). */
+const missingDetails = (qs: Record<string, string> = {}) => missingReq(parseListQuery(qs, MISSING_DETAILS_SPEC));
 
 const RUN = process.env.CONTAINER_TESTS === "1";
 const d = RUN ? describe : describe.skip;
@@ -136,15 +142,18 @@ d("101 — placements and missing details", () => {
     const material = await one(`SELECT id::text FROM public.attribute_definition WHERE key = 'material'`);
     const ids: string[] = [];
     for (let i = 0; i < 52; i += 1) ids.push(await product(leaf.id, `Missing ${i}`));
-    expect((await missingDetails(undefined)).items.filter((x) => ids.includes(x.productId))).toHaveLength(0);
+    expect((await missingDetails()).items.filter((x) => ids.includes(x.productId))).toHaveLength(0);
     await taxonomy.attach(leaf.id, material, { level: "required" }, ADMIN);
-    const first = await missingDetails(undefined);
+    const first = await missingDetails({ pageSize: "50" });
     expect(first.items).toHaveLength(50);
+    expect(first.total).toBeGreaterThanOrEqual(52);
     expect(first.items[0]).toMatchObject({ shopName: "Corner Shop", categoryPath: ["Missing Leaf"], missing: ["Material"] });
-    const second = await missingDetails(first.nextCursor!);
+    const second = await missingDetails({ pageSize: "50", page: "2" });
     const all = [...first.items, ...second.items].map((x) => x.productId);
     expect(new Set(all).size).toBe(all.length);
     expect(ids.every((id) => all.includes(id))).toBe(true);
-    expect(await refusal(missingDetails("not-a-cursor"))).toBe("invalid_cursor");
+    // 103: narrowed by aisle and by name.
+    expect((await missingDetails({ categoryId: leaf.id })).total).toBe(52);
+    expect((await missingDetails({ q: "Missing 5" })).total).toBe(3);
   });
 });

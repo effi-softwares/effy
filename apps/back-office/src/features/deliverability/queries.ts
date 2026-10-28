@@ -3,7 +3,7 @@ import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query
 import { getDeliverability, listDeliverability, repairDeliverability } from "./repo"
 import type { DeliveryListParams } from "./model"
 
-const ROOT = ["back-office", "deliverability"] as const
+export const ROOT = ["back-office", "deliverability"] as const
 
 export const deliverabilityListQuery = (params: DeliveryListParams) =>
   queryOptions({

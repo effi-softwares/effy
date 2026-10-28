@@ -14,6 +14,9 @@ import { transactorFor } from "@effy/edge-shared";
 import { migrationSql } from "@effy/edge-shared/testing";
 import { InsufficientPointsError, OverAgentLimitError, PointsNoteRequiredError, PointsOrderNotFoundError } from "@effy/edge-shared/points";
 
+import { parseListQuery } from "@effy/edge-shared";
+
+import { CUSTOMER_LIST_SPEC } from "./list";
 import { createCustomerService, CustomerNotFoundError } from "./service";
 
 const RUN = process.env.CONTAINER_TESTS === "1";
@@ -58,15 +61,20 @@ describe.skipIf(!RUN)("074 — back-office customers and points", () => {
     await container?.stop();
   });
 
-  it("finds a customer by email prefix, exact email (any case) and order number — and nothing by two letters", async () => {
+  it("103: lists customers newest first, finds one by any part of the email (any case) or its order number, and counts their orders", async () => {
+    const list = (qs: Record<string, string>) => svc.list(parseListQuery(qs, CUSTOMER_LIST_SPEC));
     const c = await customer("grace.hopper@example.test");
     await paidOrder(c, "EFY-GH1234");
-    expect((await svc.search("grace.h")).map((r) => r.id)).toEqual([c]);
-    expect((await svc.search("GRACE.HOPPER@EXAMPLE.TEST")).map((r) => r.id)).toEqual([c]);
-    expect((await svc.search("efy-gh1234")).map((r) => r.id)).toEqual([c]);
-    expect(await svc.search("gr")).toEqual([]);
+    expect((await list({ q: "grace.h" })).items.map((r) => r.id)).toEqual([c]);
+    expect((await list({ q: "HOPPER@EXAMPLE" })).items.map((r) => r.id)).toEqual([c]);
+    expect((await list({ q: "efy-gh1234" })).items.map((r) => r.id)).toEqual([c]);
     // A typed wildcard is text, not a wildcard.
-    expect(await svc.search("%%%")).toEqual([]);
+    expect((await list({ q: "%%%" })).items).toEqual([]);
+    const row = (await list({ q: "grace.h" })).items[0]!;
+    expect(row.orderCount).toBe(1);
+    expect(row.lastOrderAt).not.toBeNull();
+    expect((await list({ hasOrdered: "true" })).items.map((r) => r.id)).toContain(c);
+    expect((await list({ hasOrdered: "false" })).items.map((r) => r.id)).not.toContain(c);
   });
 
   it("a manager credits any amount against the customer's order; history names them and the reason", async () => {

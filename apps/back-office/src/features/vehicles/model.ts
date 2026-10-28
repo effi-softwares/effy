@@ -5,13 +5,25 @@ import type {
   VehicleOwnership,
   VehicleStatus,
 } from "@effy/shared-types"
+import { defineListSearch, searchFilter } from "@effy/web-kit/data-table"
 
-export interface VehicleListParams {
-  status?: VehicleStatus | ""
-  refrigeration?: "chilled" | "frozen" | ""
-  nonCompliantOnly?: boolean
-  cursor?: string
-}
+export const VEHICLE_LIST_VIEWS = ["fleet", "active", "off_road", "retired"] as const
+export type VehicleListView = (typeof VEHICLE_LIST_VIEWS)[number]
+
+/** The register's view in the address (103), mirroring the fleet service's `VEHICLE_LIST_SPEC`. */
+export const vehiclesList = defineListSearch({
+  id: "vehicles",
+  mode: "offset",
+  sorts: ["plate", "vehicle"] as const,
+  defaultSort: "plate",
+  sortDir: { plate: "asc", vehicle: "asc" },
+  filters: {
+    view: searchFilter.oneOf(VEHICLE_LIST_VIEWS),
+    refrigeration: searchFilter.oneOf(["chilled", "frozen"] as const),
+    owner: searchFilter.oneOf(["effy_owned", "driver_owned"] as const),
+    nonCompliant: searchFilter.flag,
+  },
+})
 
 export const BODY_TYPE_LABEL: Record<VehicleBodyType, string> = {
   van: "Van",

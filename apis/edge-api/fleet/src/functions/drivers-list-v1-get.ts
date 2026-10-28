@@ -1,16 +1,13 @@
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";
-import { json, preamble } from "@effy/edge-shared";
-import type { DriverEmploymentStatus } from "@effy/shared-types";
+import { json, listProblem, parseListQuery, preamble } from "@effy/edge-shared";
 
+import { DRIVER_LIST_SPEC } from "../drivers/list";
+import { driverViewCounts, listDrivers } from "../drivers/service";
 import { denied, guard, mapFleetError } from "../shared/handler-support";
-import { listDrivers } from "../drivers/service";
 
-const STATUSES: DriverEmploymentStatus[] = ["active", "suspended", "offboarded"];
-const DEFAULT_LIMIT = 25;
-const MAX_LIMIT = 100;
-
+/** The driver register, a console list (103); `?views=only` answers every view's count instead of a page. */
 export const handler = async (
   event: AuthedEvent,
   context: Context,
@@ -19,30 +16,11 @@ export const handler = async (
   const g = await guard(event, scope, "read");
   if (denied(g)) return g.deny;
 
-  const qs = event.queryStringParameters ?? {};
-  // API Gateway joins a repeated key with commas; both forms are accepted.
-  const requested = (qs.status ?? "").split(",").map((s) => s.trim()).filter(Boolean);
-  const statuses = requested.filter((s): s is DriverEmploymentStatus =>
-    (STATUSES as string[]).includes(s),
-  );
-  const limitRaw = Number(qs.limit);
-  const limit =
-    Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(Math.floor(limitRaw), MAX_LIMIT) : DEFAULT_LIMIT;
-
   try {
-    return json(
-      200,
-      await listDrivers({
-        q: qs.q?.trim() || undefined,
-        statuses: statuses.length > 0 ? statuses : undefined,
-        zoneId: qs.zoneId?.trim() || undefined,
-        includeOffboarded: qs.includeOffboarded === "true",
-        cursor: qs.cursor?.trim() || undefined,
-        limit,
-      }),
-      scope,
-    );
+    const req = parseListQuery(event.queryStringParameters, DRIVER_LIST_SPEC);
+    if (req.viewsOnly) return json(200, { views: await driverViewCounts(req) }, scope);
+    return json(200, await listDrivers(req), scope);
   } catch (err) {
-    return mapFleetError(err, scope);
+    return listProblem(err, scope) ?? mapFleetError(err, scope);
   }
 };

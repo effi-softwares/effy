@@ -78,7 +78,7 @@ export function InventorySection({
             <Skeleton className="h-5 w-1/3" />
           </div>
         ) : stock.tracked ? (
-          <StockHistory movements={data!.movements} />
+          <StockHistory variantId={variantId} />
         ) : (
           <p className="text-muted-foreground">
             This size is not counted, so nothing is recorded. Enter a number for it in the table above to start keeping

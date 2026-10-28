@@ -1,7 +1,8 @@
 // UPDATE reads a key's presence (null clears, absent leaves alone), and the concurrency token carries
 // microseconds: `toISOString` truncates to ms, so `WHERE updated_at = $2` would never match.
 
-import { query, withTransaction } from "@effy/edge-shared";
+import { query, withTransaction, likePattern, limitOffsetClause, orderBy, runOffsetPage } from "@effy/edge-shared";
+import { VEHICLE_VIEWS, VEHICLE_LIST, type VehicleListRequest, type VehicleView } from "./list";
 import type {
   VehicleComplianceIssue,
   VehicleDetail,
@@ -84,52 +85,62 @@ function toListItem(r: ListRow): VehicleListItem {
   };
 }
 
-export interface ListParams {
-  status?: string;
-  refrigeration?: "chilled" | "frozen";
-  nonCompliantOnly?: boolean;
-  cursor?: string;
-  limit?: number;
+const VIEW_SQL: Record<VehicleView, string> = {
+  fleet: "v.status <> 'retired'",
+  active: "v.status = 'active'",
+  off_road: "v.status = 'off_road'",
+  retired: "v.status = 'retired'",
+};
+
+/** Search and every filter but the view, shared by the page and its view counts. */
+function vehicleWhere(req: Pick<VehicleListRequest, "q" | "filters">, args: unknown[]): string[] {
+  const f = req.filters;
+  const where: string[] = [];
+  if (req.q) {
+    args.push(likePattern(req.q));
+    where.push(`(v.registration_plate ILIKE $${args.length} OR (v.make || ' ' || v.model) ILIKE $${args.length})`);
+  }
+  if (f.refrigeration === "chilled") where.push(`v.can_carry_chilled`);
+  if (f.refrigeration === "frozen") where.push(`v.can_carry_frozen`);
+  if (f.owner) {
+    args.push(f.owner);
+    where.push(`v.ownership = $${args.length}`);
+  }
+  if (f.nonCompliant) where.push(`cardinality(${COMPLIANCE_ISSUES}) > 0`);
+  return where;
 }
 
-/** Keyset-paginated on (registration_plate, id), with the cursor minted from the same columns. */
-export async function listVehicles(p: ListParams): Promise<{ items: VehicleListItem[]; nextCursor: string | null }> {
-  const limit = Math.min(Math.max(p.limit ?? 50, 1), 100);
+/** One page of the register with its exact total (103). */
+export async function listVehicles(req: VehicleListRequest): Promise<{ items: VehicleListItem[]; total: number; page: number }> {
+  const r = await runOffsetPage(req, async (read) => {
+    const args: unknown[] = [];
+    const where = [...vehicleWhere(req, args), VIEW_SQL[req.filters.view ?? "fleet"]];
+    const paging = limitOffsetClause(read, args);
+    const res = await query<ListRow & { full_count: string }>(
+      `SELECT ${LIST_COLUMNS}, count(*) OVER () AS full_count
+         FROM public.vehicle v
+         ${CURRENT_HOLDING_JOIN}
+        WHERE ${where.join(" AND ")}
+        ${orderBy(VEHICLE_LIST, req)}
+        ${paging}`,
+      args,
+    );
+    return res.rows;
+  });
+  return { items: r.rows.map(toListItem), total: r.total, page: r.page };
+}
+
+/** Every view's count for the search and filters, in one statement (103 FR-017). */
+export async function vehicleViewCounts(req: Pick<VehicleListRequest, "q" | "filters">): Promise<Record<VehicleView, number>> {
   const args: unknown[] = [];
-  const where: string[] = [];
-
-  if (p.status) {
-    args.push(p.status);
-    where.push(`v.status = $${args.length}`);
-  } else {
-    where.push(`v.status <> 'retired'`);
-  }
-  if (p.refrigeration === "chilled") where.push(`v.can_carry_chilled`);
-  if (p.refrigeration === "frozen") where.push(`v.can_carry_frozen`);
-  if (p.nonCompliantOnly) where.push(`cardinality(${COMPLIANCE_ISSUES}) > 0`);
-  if (p.cursor) {
-    args.push(p.cursor);
-    where.push(`(upper(v.registration_plate) || ':' || v.id::text) > $${args.length}`);
-  }
-  args.push(limit + 1);
-
-  const res = await query<ListRow>(
-    `SELECT ${LIST_COLUMNS}
+  const where = vehicleWhere(req, args);
+  const res = await query<Record<VehicleView, number>>(
+    `SELECT ${VEHICLE_VIEWS.map((v) => `count(*) FILTER (WHERE ${VIEW_SQL[v]})::int AS ${v}`).join(", ")}
        FROM public.vehicle v
-       ${CURRENT_HOLDING_JOIN}
-      WHERE ${where.join(" AND ")}
-      ORDER BY upper(v.registration_plate) ASC, v.id ASC
-      LIMIT $${args.length}`,
+      ${where.length > 0 ? `WHERE ${where.join(" AND ")}` : ""}`,
     args,
   );
-
-  const rows = res.rows.slice(0, limit);
-  const last = rows[rows.length - 1];
-  return {
-    items: rows.map(toListItem),
-    nextCursor:
-      res.rows.length > limit && last ? `${last.registration_plate.toUpperCase()}:${last.id}` : null,
-  };
+  return res.rows[0]!;
 }
 
 export async function getVehicle(id: string): Promise<VehicleDetail | null> {

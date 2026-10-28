@@ -759,11 +759,8 @@ export interface AdminDriverListItem {
   blockedReasons: DriverBlockedReason[];
 }
 
-export interface AdminDriverListResponse {
-  items: AdminDriverListItem[];
-  /** Must be used by the UI, or the list silently stops at the first page. */
-  nextCursor: string | null;
-}
+/** The driver register as a console list (103). */
+export type AdminDriverListResponse = import("./list").ListPage<AdminDriverListItem>;
 
 // Profile of record
 
@@ -961,11 +958,8 @@ export interface VehicleListItem {
   complianceIssues: VehicleComplianceIssue[];
 }
 
-export interface VehicleListResponse {
-  items: VehicleListItem[];
-  /** Must be used by the UI, or the list silently stops at the first page. */
-  nextCursor: string | null;
-}
+/** The vehicle register as a console list (103). */
+export type VehicleListResponse = import("./list").ListPage<VehicleListItem>;
 
 /** One period a driver had a vehicle. */
 export interface VehicleHolding {

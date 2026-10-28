@@ -8,17 +8,12 @@ import type {
   VehicleUpdateRequest,
 } from "@effy/shared-types"
 
-import type { VehicleListParams } from "./model"
 import * as repo from "./repo"
 
 const vehicleKeys = {
   all: ["vehicles"] as const,
-  list: (p: VehicleListParams) => ["vehicles", "list", p] as const,
   detail: (id: string) => ["vehicles", "detail", id] as const,
 }
-
-export const vehiclesListQuery = (p: VehicleListParams) =>
-  queryOptions({ queryKey: vehicleKeys.list(p), queryFn: () => repo.listVehicles(p) })
 
 export const vehicleDetailQuery = (id: string) =>
   queryOptions({ queryKey: vehicleKeys.detail(id), queryFn: () => repo.getVehicle(id) })

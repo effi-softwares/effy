@@ -3,8 +3,6 @@ import type { APIGatewayProxyStructuredResultV2 } from "aws-lambda";
 import type { AuthedEvent, RequestScope } from "@effy/edge-shared";
 import { forbidden, problem, ProblemType, subject, unavailable } from "@effy/edge-shared";
 import type {
-  AuditEntryDTO,
-  PagedDTO,
   ShopDetailDTO,
   ShopListItemDTO,
   ShopUserDTO,
@@ -12,7 +10,7 @@ import type {
 
 import { canManageShops, isActiveStaff } from "./authz";
 import { isShopError } from "./types";
-import type { AuditEntry, Paged, ShopDetail, ShopListItem, ShopUser } from "./types";
+import type { ShopDetail, ShopListItem, ShopUser } from "./types";
 
 const CONFLICT = "https://effyshopping.com/problems/conflict";
 const NOT_FOUND = "https://effyshopping.com/problems/not-found";
@@ -92,19 +90,3 @@ export function toListItemDTO(i: ShopListItem): ShopListItemDTO {
   return { id: i.id, code: i.code, name: i.name, status: i.status, userCount: i.userCount, hasAddress: i.hasAddress, labelScanning: i.labelScanning };
 }
 
-export function toAuditDTO(p: Paged<AuditEntry>): PagedDTO<AuditEntryDTO> {
-  return {
-    items: p.items.map((a) => ({
-      id: a.id,
-      actorSub: a.actorSub,
-      action: a.action,
-      targetType: a.targetType,
-      targetId: a.targetId,
-      detail: a.detail,
-      createdAt: a.createdAt,
-    })),
-    total: p.total,
-    page: p.page,
-    pageSize: p.pageSize,
-  };
-}

@@ -38,7 +38,7 @@ export interface RowHref {
   search?: Record<string, unknown>;
 }
 
-export interface DataTableProps<T extends { id: string }, S extends string, F extends Record<string, FilterValue>> {
+export interface DataTableProps<T extends RowData, S extends string, F extends Record<string, FilterValue>> {
   /** Namespaces the hidden-columns memory: one console's list never reads another's. */
   app: "back-office" | "shop-web";
   list: ListSearch<S, F>;
@@ -46,7 +46,8 @@ export interface DataTableProps<T extends { id: string }, S extends string, F ex
   columns: EffyColumnDef<T>[];
   query: UseQueryResult<ListPage<T>>;
   /** What `query` was built from, so the next page can be read ahead. */
-  queryInput?: ListQueryInput<T, S, F>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  queryInput?: ListQueryInput<T, S, F, any>;
   /** The toolbar's controls (views, facets, search); the column menu is added at its end. */
   toolbar?: ReactNode;
   /** Where a row leads: the identifying cell becomes a link to it, the whole row opens it, and Enter too. */
@@ -62,6 +63,8 @@ export interface DataTableProps<T extends { id: string }, S extends string, F ex
   above?: ReactNode;
   /** Accessible name of the table. */
   label: string;
+  /** The row's stable id (selection, keys). Default: its `id` field. */
+  rowId?: (row: T) => string;
 }
 
 const SKELETON_ROWS = 10;
@@ -71,10 +74,13 @@ const SKELETON_ROWS = 10;
  * that fills the window — sticky column names, rows scrolling inside, the pager on the frame's bottom edge.
  * contracts/data-table-ui.md is its behaviour; each line there is a test.
  */
-export function DataTable<T extends { id: string }, S extends string, F extends Record<string, FilterValue>>(
+const idField = (row: unknown) => (row as { id: string }).id;
+
+export function DataTable<T extends RowData, S extends string, F extends Record<string, FilterValue>>(
   props: DataTableProps<T, S, F>,
 ) {
   const { app, list, state, columns, query, queryInput, rowHref, rowClassName, selection, empty, label } = props;
+  const rowId = props.rowId ?? idField;
   const navigate = useNavigate();
   const view = state.view;
   const page = query.data;
@@ -89,7 +95,7 @@ export function DataTable<T extends { id: string }, S extends string, F extends 
     features: effyFeatures,
     columns,
     data: rows,
-    getRowId: (r) => r.id,
+    getRowId: rowId,
     manualPagination: true,
     manualSorting: true,
     enableSortingRemoval: false,
@@ -128,8 +134,8 @@ export function DataTable<T extends { id: string }, S extends string, F extends 
 
   const filtered = isFiltered(view, props.viewFilters ?? []);
   const visibleColumns = table.getVisibleLeafColumns();
-  const allOnPage = selection ? rows.length > 0 && rows.every((r) => selection.selected.has(r.id)) : false;
-  const someOnPage = selection ? rows.some((r) => selection.selected.has(r.id)) : false;
+  const allOnPage = selection ? rows.length > 0 && rows.every((r) => selection.selected.has(rowId(r))) : false;
+  const someOnPage = selection ? rows.some((r) => selection.selected.has(rowId(r))) : false;
   const colSpan = visibleColumns.length + (selection ? 1 : 0);
 
   const headerCell = (header: Header<EffyFeatures, T, unknown>) => {
@@ -236,7 +242,7 @@ export function DataTable<T extends { id: string }, S extends string, F extends 
       <div className="ef-dt-frame" aria-busy={query.isFetching}>
         {query.isFetching && !query.isPending ? <div className="ef-dt-progress" aria-hidden="true" /> : null}
         <div ref={bodyRef} className={cn("ef-dt-scroll", query.isPlaceholderData && "ef-dt-stale")}>
-          <table aria-label={label} className="ef-rtable w-full caption-bottom text-sm tabular-nums">
+          <table aria-label={label} aria-busy={query.isPending || undefined} className="ef-rtable w-full caption-bottom text-sm tabular-nums">
             <TableHeader className="ef-dt-head">
               {table.getHeaderGroups().map((group) => (
                 <TableRow key={group.id} className="hover:bg-transparent">
@@ -247,7 +253,7 @@ export function DataTable<T extends { id: string }, S extends string, F extends 
                         checked={allOnPage ? true : someOnPage ? "indeterminate" : false}
                         onCheckedChange={(v) => {
                           const next = new Set(selection.selected);
-                          for (const r of rows) (v === true ? next.add(r.id) : next.delete(r.id));
+                          for (const r of rows) (v === true ? next.add(rowId(r)) : next.delete(rowId(r)));
                           selection.onChange(next);
                         }}
                       />
@@ -270,7 +276,7 @@ export function DataTable<T extends { id: string }, S extends string, F extends 
                   ))
                 : table.getRowModel().rows.map((row, i) => {
                     const r = row.original;
-                    const sel = selection?.selected.has(r.id) ?? false;
+                    const sel = selection?.selected.has(rowId(r)) ?? false;
                     return (
                       <TableRow
                         key={row.id}
@@ -287,8 +293,8 @@ export function DataTable<T extends { id: string }, S extends string, F extends 
                               checked={sel}
                               onCheckedChange={(v) => {
                                 const next = new Set(selection.selected);
-                                if (v === true) next.add(r.id);
-                                else next.delete(r.id);
+                                if (v === true) next.add(rowId(r));
+                                else next.delete(rowId(r));
                                 selection.onChange(next);
                               }}
                             />

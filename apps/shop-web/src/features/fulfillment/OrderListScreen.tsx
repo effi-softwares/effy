@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 
 import { useQuery } from "@tanstack/react-query"
-import { Columns3, Download, Inbox, Loader2, SearchX, SlidersHorizontal, Table2, X } from "lucide-react"
+import { Columns3, Download, Loader2, SlidersHorizontal, Table2, X } from "lucide-react"
 
 import {
   SHOP_ORDER_DELIVERED_BY,
@@ -9,9 +9,8 @@ import {
   SHOP_ORDER_RANGES,
   SHOP_ORDER_TABS,
 } from "@effy/shared-types"
-import { Button, Skeleton, TabsCount, toast } from "@effy/design-system/ui"
-import { ErrorState } from "@effy/web-kit/console"
-import { EmptyState as PatternEmptyState, Facet, PageHeader, ViewSelect } from "@effy/web-kit/patterns"
+import { Button, TabsCount, toast } from "@effy/design-system/ui"
+import { Facet, PageHeader, ViewSelect } from "@effy/web-kit/patterns"
 
 import { track } from "@/lib/telemetry"
 
@@ -24,11 +23,13 @@ import { OrderFiltersSheet } from "./components/OrderFiltersSheet"
 import { OrderQueue } from "./components/OrderQueue"
 import { OrderSearchBox } from "./components/OrderSearchBox"
 import { OrderTable } from "./components/OrderTable"
+import { ListPage, useListState } from "@effy/web-kit/data-table"
 import {
   activeFilterCount,
   DELIVERED_BY_FILTER_LABEL,
   RANGE_LABEL,
   isFiltered,
+  shopOrdersList,
   PAYMENT_LABEL,
   TAB_LABEL,
   toListQuery,
@@ -43,14 +44,16 @@ const NONE: ReadonlySet<string> = new Set()
 export function OrderListScreen({
   search,
   onSearchChange,
-  onOpenOrder,
 }: {
   search: OrdersSearch
   onSearchChange: (next: OrdersSearch) => void
-  onOpenOrder: (id: string) => void
 }) {
-  const { data, error, isPending, isError, refetch, isPlaceholderData } = useQuery(orderListQuery(search))
-  const searchKey = JSON.stringify(toListQuery(search))
+  const query = useQuery(orderListQuery(search))
+  const { data } = query
+  const state = useListState(shopOrdersList, search as Record<string, unknown>, (next) => onSearchChange(validateOrdersSearch(next)))
+  // A selection is of what is listed: it survives paging and sorting, and starts again when the filters change (103).
+  const { page: _p, size: _s, sort: _o, dir: _d, ...listed } = toListQuery(search) as Record<string, unknown>
+  const searchKey = JSON.stringify(listed)
   const [selection, setSelection] = useState<{ key: string; ids: ReadonlySet<string> }>({
     key: searchKey,
     ids: new Set(),
@@ -79,7 +82,6 @@ export function OrderListScreen({
   const total = data?.total ?? 0
   const page = data?.page ?? search.page ?? 1
   const pageSize = data?.pageSize ?? 25
-  const pageCount = Math.max(1, Math.ceil(total / pageSize))
   const filtered = isFiltered(search)
   const dirty = filtered || tab !== "all"
   const filterCount = activeFilterCount(search)
@@ -108,7 +110,7 @@ export function OrderListScreen({
   const view = search.view === "queue" ? "queue" : "table"
 
   return (
-    <div className="flex min-w-0 flex-col gap-6 max-md:gap-4">
+    <ListPage>
       <PageHeader
         title="Orders"
         description={
@@ -162,8 +164,32 @@ export function OrderListScreen({
         <OrderQueue search={search} now={now} />
       ) : (
         <>
-          <div className="flex flex-wrap items-center gap-2">
-            <ViewSelect
+          <OrderFiltersSheet
+            open={filtersOpen}
+            onOpenChange={setFiltersOpen}
+            search={search}
+            countLabel={countLabel}
+            onChange={(patch) => update(patch)}
+            onClearAll={() =>
+              update({ range: undefined, payment: undefined, deliveredBy: undefined, attention: undefined })
+            }
+          />
+
+          <OrderTable
+            state={state}
+            query={query}
+            search={search}
+            now={now}
+            selected={selected}
+            onSelect={setSelected}
+            above={
+              selected.size > 0 ? (
+                <BulkActions rows={rows.filter((r) => selected.has(r.id))} selected={selected} onClear={() => setSelected(new Set())} onExport={downloadOrdersCsv} />
+              ) : null
+            }
+            toolbar={
+              <>
+                <ViewSelect
               label="Order status"
               value={tab}
               onChange={(t) => update({ tab: t })}
@@ -212,90 +238,11 @@ export function OrderListScreen({
                 <X aria-hidden="true" />
               </Button>
             ) : null}
-          </div>
-
-          <OrderFiltersSheet
-            open={filtersOpen}
-            onOpenChange={setFiltersOpen}
-            search={search}
-            countLabel={countLabel}
-            onChange={(patch) => update(patch)}
-            onClearAll={() =>
-              update({ range: undefined, payment: undefined, deliveredBy: undefined, attention: undefined })
+              </>
             }
           />
-
-          {selected.size > 0 ? (
-            <BulkActions
-              rows={rows}
-              selected={selected}
-              onClear={() => setSelected(new Set())}
-              onExport={downloadOrdersCsv}
-            />
-          ) : null}
-
-          {isError ? (
-            <ErrorState error={error} onRetry={() => void refetch()} />
-          ) : isPending ? (
-            <ListLoading />
-          ) : total === 0 ? (
-            <EmptyState filtered={dirty} onReset={clearAll} />
-          ) : (
-            <OrderTable
-              rows={rows}
-              search={search}
-              now={now}
-              selected={selected}
-              onSelect={setSelected}
-              stale={isPlaceholderData}
-              countLabel={countLabel}
-              page={page}
-              pageCount={pageCount}
-              update={update}
-              onOpenOrder={onOpenOrder}
-            />
-          )}
         </>
       )}
-    </div>
-  )
-}
-
-function EmptyState({ filtered, onReset }: { filtered: boolean; onReset: () => void }) {
-  return (
-    <PatternEmptyState
-      icon={filtered ? SearchX : Inbox}
-      title={filtered ? "No orders match these filters" : "No orders yet"}
-      description={
-        filtered
-          ? "Widen the date range, clear the search, or reset everything and start again."
-          : "Orders appear here the moment a customer pays for something your shop supplies. This list updates by itself."
-      }
-      action={
-        filtered ? (
-          <Button variant="outline" onClick={onReset}>
-            Reset filters
-          </Button>
-        ) : undefined
-      }
-    />
-  )
-}
-
-function ListLoading() {
-  return (
-    <div className="overflow-hidden rounded-xl border bg-card" aria-busy="true" aria-label="Loading orders">
-      {Array.from({ length: 6 }, (_, i) => (
-        <div key={i} className="flex items-center gap-4 border-b px-4 py-3 last:border-b-0">
-          <Skeleton className="size-5 rounded" />
-          <div className="grid flex-1 gap-2">
-            <Skeleton className="h-4 w-32" />
-            <Skeleton className="h-4 w-48" />
-          </div>
-          <Skeleton className="h-6 w-24 rounded-md" />
-          <Skeleton className="h-4 w-16" />
-        </div>
-      ))}
-    </div>
+    </ListPage>
   )
 }

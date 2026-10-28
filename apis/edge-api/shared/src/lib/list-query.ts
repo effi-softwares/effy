@@ -40,6 +40,11 @@ export interface SortSpec {
   dir: SortDir;
   /** Keyset lists: how the cursor's value is cast back. */
   type?: SortValueType;
+  /**
+   * Offset lists only: rows without a value go last in both directions (a product never priced). A keyset list
+   * may not use it — its sort expression must never be NULL.
+   */
+  nullsLast?: true;
 }
 
 /** Turns one raw query value into a filter value, or `undefined` when the value is not one it knows. */
@@ -194,7 +199,9 @@ const SQL_DIR: Record<SortDir, string> = { asc: "ASC", desc: "DESC" };
 /** `ORDER BY <whitelisted expression> <dir>, <id> <dir>` — a total order, so no row ties at a page edge. */
 export function orderBy<S extends string, F>(spec: ListOrder<S>, req: ListRequest<S, F>): string {
   const d = SQL_DIR[req.dir];
-  return `ORDER BY ${spec.sorts[req.sort].sql} ${d}, ${spec.idSql} ${d}`;
+  const s = spec.sorts[req.sort];
+  if (s.nullsLast && spec.mode === "keyset") throw new Error("a keyset list's sort must never be NULL");
+  return `ORDER BY ${s.sql} ${d}${s.nullsLast ? " NULLS LAST" : ""}, ${spec.idSql} ${d}`;
 }
 
 /**

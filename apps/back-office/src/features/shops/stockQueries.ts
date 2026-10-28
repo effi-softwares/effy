@@ -2,14 +2,15 @@ import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query
 
 import type { SetShopStockSettingsRequest } from "@effy/shared-types"
 
-import { getShopLowStock, setShopStockSettings } from "./stockRepo"
+import { getShopLowStockCounts, setShopStockSettings } from "./stockRepo"
 
-const STOCK_ROOT = ["admin", "shop-stock"] as const
+export const STOCK_ROOT = ["admin", "shop-stock"] as const
 
-export const shopLowStockQuery = (shopId: string) =>
+/** Out and low totals for the shop's page (its tab count and summary line). */
+export const shopLowStockCountsQuery = (shopId: string) =>
   queryOptions({
-    queryKey: [...STOCK_ROOT, "low", shopId] as const,
-    queryFn: () => getShopLowStock(shopId),
+    queryKey: [...STOCK_ROOT, "counts", shopId] as const,
+    queryFn: () => getShopLowStockCounts(shopId),
     staleTime: 15_000,
   })
 

@@ -3,7 +3,9 @@
 
 import type pg from "pg";
 
-import { query } from "@effy/edge-shared";
+import { likePattern, limitOffsetClause, orderBy, query, runOffsetPage } from "@effy/edge-shared";
+
+import { IMPORT_LIST, type ImportListRequest } from "./list";
 import type { ProductImportProblemDTO, ProductImportRowResult, ProductImportState } from "@effy/shared-types";
 
 type Db = { query: pg.PoolClient["query"] } | null;
@@ -79,12 +81,22 @@ export async function earlierImport(shopId: string, sha: string, notId: string |
   return r.rows[0] ?? null;
 }
 
-export async function listImports(shopId: string | null, offset: number, limit: number): Promise<ImportRow[]> {
-  const r = await query<ImportRow>(
-    `${IMPORT} WHERE ($1::uuid IS NULL OR i.shop_id = $1) ORDER BY i.created_at DESC, i.id LIMIT $2 OFFSET $3`,
-    [shopId, limit, offset],
-  );
-  return r.rows;
+/** One page of imports with its exact total (103). */
+export async function listImports(req: ImportListRequest) {
+  return runOffsetPage(req, async (read) => {
+    const args: unknown[] = [req.filters.shopId ?? null, req.filters.state ?? null, req.q ? likePattern(req.q) : null];
+    const paging = limitOffsetClause(read, args);
+    const r = await query<ImportRow & { full_count: string }>(
+      `${IMPORT.replace("SELECT ", "SELECT count(*) OVER () AS full_count, ")}
+        WHERE ($1::uuid IS NULL OR i.shop_id = $1)
+          AND ($2::text IS NULL OR i.state = $2)
+          AND ($3::text IS NULL OR i.file_name ILIKE $3)
+        ${orderBy(IMPORT_LIST, req)}
+        ${paging}`,
+      args,
+    );
+    return r.rows;
+  });
 }
 
 export interface RowRow {

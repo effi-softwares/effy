@@ -20,6 +20,7 @@ import {
   type ShopOrderTab,
   type FulfillmentStatus,
 } from "@effy/shared-types"
+import { defineListSearch, searchFilter, type ListState } from "@effy/web-kit/data-table"
 
 export type OrderRow = ShopOrderRowDTO
 export type OrderList = ShopOrderListDTO
@@ -36,6 +37,8 @@ export interface OrdersSearch {
   sort?: ShopOrderSort
   dir?: "asc" | "desc"
   page?: number
+  /** Rows per page (103); 25 when absent. */
+  size?: 25 | 50 | 100
   view?: "queue"
 }
 
@@ -61,14 +64,46 @@ export function validateOrdersSearch(raw: Record<string, unknown>): OrdersSearch
   if (raw.dir === "asc") out.dir = "asc"
   const page = typeof raw.page === "number" ? raw.page : Number(raw.page)
   if (Number.isInteger(page) && page > 1) out.page = page
+  const size = Number(raw.size)
+  if (size === 50 || size === 100) out.size = size
   if (raw.view === "queue") out.view = "queue"
   return out
 }
 
 export function toListQuery(s: OrdersSearch): ShopOrderListQuery {
-  const { view: _view, ...query } = validateOrdersSearch(s as Record<string, unknown>)
-  return query
+  const { view: _view, size, ...query } = validateOrdersSearch(s as Record<string, unknown>)
+  return size ? { ...query, pageSize: size } : query
 }
+
+const without = <T extends string, D extends T>(values: readonly T[], drop: D) => values.filter((v): v is Exclude<T, D> => v !== drop)
+
+/**
+ * The order list's view as a console list (103): the SAME address keys as `validateOrdersSearch` (the
+ * order pager and the CSV export read them too), so the shared table and the rest of the console agree.
+ */
+export type ShopOrderFilters = {
+  tab: Exclude<ShopOrderTab, "all">
+  attention: Exclude<ShopOrderAttention, "any">
+  payment: ShopOrderPaymentState
+  deliveredBy: Exclude<ShopOrderDeliveredBy, "any">
+  range: Exclude<ShopOrderRange, "any">
+}
+export type ShopOrdersListState = ListState<ShopOrderSort, ShopOrderFilters>
+
+export const shopOrdersList = defineListSearch<ShopOrderSort, ShopOrderFilters>({
+  id: "orders",
+  mode: "offset",
+  sorts: SHOP_ORDER_SORTS,
+  defaultSort: "placed",
+  sortDir: { placed: "desc", number: "asc", customer: "asc", items: "desc", total: "desc" },
+  filters: {
+    tab: searchFilter.oneOf(without(SHOP_ORDER_TABS, "all")),
+    attention: searchFilter.oneOf(without(SHOP_ORDER_ATTENTION, "any")),
+    payment: searchFilter.oneOf(SHOP_ORDER_PAYMENT_STATES),
+    deliveredBy: searchFilter.oneOf(without(SHOP_ORDER_DELIVERED_BY, "any")),
+    range: searchFilter.oneOf(without(SHOP_ORDER_RANGES, "any")),
+  },
+})
 
 export function isFiltered(s: OrdersSearch): boolean {
   return !!(s.q || s.attention || s.payment || s.deliveredBy || s.range)

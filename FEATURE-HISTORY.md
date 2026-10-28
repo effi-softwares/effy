@@ -4,6 +4,46 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
+**103-console-data-tables — One Data Table for Every Console List.** 🔨 **MVP (phases 1–3) DEPLOYED TO DEV; THE REST BUILT
+2026-10-28, NOT DEPLOYED OR WALKED.** Spec, plan, tasks: [specs/103-console-data-tables/](specs/103-console-data-tables/tasks.md);
+the inventory it started from: [docs/research/console-data-tables.md](docs/research/console-data-tables.md).
+- **See**: every list in back-office and shop-web is `@effy/web-kit/data-table` — `DataTable` (server-driven:
+  search, filters, sort, page and page size in the address; numbered pages with an exact total, or a cursor with
+  a capped "10,000+" count) or `StaticTable` (a bounded table on a record page, or a capped staff-made set, sorted
+  in the browser). Every list fills the window (header and pager stay, rows scroll), keeps its rows while a new
+  page loads, and says empty / no matches / error apart. Column meta (label, priority, phone placement, sort key)
+  drives the narrow-width and phone layouts; a column can be hidden and stays hidden.
+- **Backend**: ONE list helper, `@effy/edge-shared` `lib/list-query.ts` (`parseListQuery`, whitelisted ORDER BY
+  always ending in the id, offset ≤ 10 000, keyset cursors built from Postgres text, `?views=only` counts on the
+  same route — **no new routes**). Lists computed in code (availability, courier parcels) read every row, then
+  filter, sort and page in TypeScript. `list-query.guard.test.ts` holds every console list route to it, fails a
+  spliced `ORDER BY ${…}` and a fixed `LIMIT` of 200+ outside its allow-list.
+- **Capped sets (FR-024)**: promotion groups, skins, courier services, fee plans, a shop's team (shop-web and
+  back-office) and the attribute library refuse a create past 500 — 409 `limit_reached`, "This list is full (500).
+  Remove one before adding another." (`setIsFull` / `SET_FULL_SENTENCE` in `lib/capped-set.ts`; read on the client by
+  `setFullText`). The check runs before the insert (under the taxonomy lock for attributes, plain elsewhere).
+- **Defects fixed**: (1) orders paging dropped rows tied on `placed` at a page edge (no id tie-break); (2) a keyset
+  cursor built from a JS `Date` lost microseconds and skipped rows in the same millisecond (also in points
+  history); (3) search, page and filters were lost on reload/Back for orders, drivers, vehicles and feedback;
+  (4) silent truncation — courier parcels at 1 000, exceptions at 200, low stock at 500, a size's stock history at
+  50; (5) feedback's view counts cost one request per view; (6) found while building: the search debounce never
+  fired while anything else re-rendered (`restartRef`), and a keyset page and its back-stack were read from two
+  router snapshots and could pair wrongly mid-navigation.
+- **Removed**: web-kit's old console `DataTable`, `Pager`, shop-web's `TableFrame`/`Th`/`Td`/`Tr`, the deprecated
+  `PagedDTO`. The raw `Table` remains only on boards, editors, reviews and timelines, each named with why in
+  `apps/{back-office,shop-web}/src/__tests__/list-screens.guard.test.ts`.
+- **Telemetry**: `list_viewed {list, mode}` and `list_filtered {list}` from `useListState`, through the sink each
+  app registers at `initTelemetry` (`setListEventSink`) — no search text, no ids.
+- ⚠ **Not run here**: every `*.container.test.ts` (no Docker in the session) and the seed script.
+  `GET /inventory/v1/low-stock` (shop) is converted but no client reads it today; the shop console's restock view
+  is Availability. An address's delivery history still answers the newest 50 events and now says so.
+- **Operator steps open**: (1) `make db-up-one ENV=dev` for `20261028090000_console_list_indexes.sql` if not yet
+  applied (CONCURRENTLY, no locks); (2) deploy backend before consoles —
+  `make edge-deploy-all ENV=dev SERVICES="orders catalog admin admin-promotions fleet inventory-staff inventory shop"`,
+  then the back-office and shop-web pipelines straight after (a console older than the backend shows only the
+  first page of the lists that changed mode — cosmetic, keep it short); (3) `ENV=dev scripts/seed-list-volumes.sh`,
+  then the EXPLAINs in quickstart §4, then `--remove`; (4) the walk, quickstart §5.
+
 **102-backoffice-product-catalogue — Back-Office Product Catalogue.** 🔨 **BUILT 2026-10-27; NOT YET APPLIED, MIGRATED,
 DEPLOYED OR WALKED.** Spec, plan, tasks: [specs/102-backoffice-product-catalogue/](specs/102-backoffice-product-catalogue/tasks.md).
 Decisions: research R1–R12 and its "Implementation notes".

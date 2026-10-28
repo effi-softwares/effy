@@ -4,6 +4,7 @@ import { starterSettings, type AdminSkinDTO } from "@effy/shared-types";
 
 const repo = vi.hoisted(() => ({
   listSkins: vi.fn(),
+  isFull: vi.fn(async () => false),
   readSkin: vi.fn(),
   insertSkin: vi.fn(),
   updateSkin: vi.fn(),
@@ -12,7 +13,12 @@ const repo = vi.hoisted(() => ({
 }));
 vi.mock("./repository", () => repo);
 vi.mock("@effy/edge-shared/live", () => ({ announce: vi.fn() }));
-vi.mock("@effy/edge-shared", () => ({ emitMetric: vi.fn(), metricNamespace: () => "test" }));
+vi.mock("@effy/edge-shared", () => ({
+  emitMetric: vi.fn(),
+  metricNamespace: () => "test",
+  LIMIT_REACHED: "limit_reached",
+  SET_FULL_SENTENCE: "This list is full (500). Remove one before adding another.",
+}));
 
 const { createSkin, deleteSkin, duplicateSkin, updateSkin } = await import("./service");
 
@@ -78,5 +84,16 @@ describe("095 — skins are saved only when valid and readable", () => {
   it("duplicating copies every setting under the new name", async () => {
     await duplicateSkin(ID, { name: "Panel copy" }, "s");
     expect(repo.insertSkin).toHaveBeenCalledWith({ name: "Panel copy", layout: "panel", settings: starterSettings("panel") }, "s", "promotion_skin.duplicated", { from: ID });
+  });
+});
+
+describe("103 — the set of skins is capped", () => {
+  it("refuses a new skin once the set is full, and writes nothing", async () => {
+    repo.isFull.mockResolvedValueOnce(true);
+    await expect(createSkin({ name: "One more", layout: "panel", settings: starterSettings("panel") }, "s")).rejects.toMatchObject({
+      status: 409,
+      code: "limit_reached",
+    });
+    expect(repo.insertSkin).not.toHaveBeenCalled();
   });
 });

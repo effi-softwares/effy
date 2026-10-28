@@ -146,19 +146,19 @@ describe.skipIf(!RUN)("076 — the coverage console, against real PostgreSQL", (
 
   it("the list: postcodes with their places, distance and how it was obtained; filters; counts", async () => {
     const all = await svc.list({});
-    expect(all.postcodes.map((p) => p.postcode)).toEqual(["3121", "3900"]);
-    expect(all.postcodes[0]).toMatchObject({ places: ["RICHMOND", "BURNLEY"], state: "VIC", groupId: null, distanceSource: "computed", needsReview: false });
+    expect(all.items.map((p) => p.postcode)).toEqual(["3121", "3900"]);
+    expect(all.items[0]).toMatchObject({ places: ["RICHMOND", "BURNLEY"], state: "VIC", groupId: null, distanceSource: "computed", needsReview: false });
     expect(all.counts).toEqual({ listed: 2, manualDistance: 1, needsReview: 0, todayNotOffered: 0 });
-    expect(all.postcodes.map((p) => p.todayOffered)).toEqual([true, true]);
+    expect(all.items.map((p) => p.todayOffered)).toEqual([true, true]);
     expect(all.ungrouped).toEqual({ postcodeCount: 2, driverCount: 1 });
     // Nothing is set yet, and the screen is told both things needed before courier can go on.
     expect(all.courier).toEqual({
       offered: false, whenNoWindows: false, collectionDefault: "hub", defaultService: null,
       blockedBy: ["no_fee_table", "no_service"], exclusions: [],
     });
-    expect((await svc.list({ source: "manual" })).postcodes.map((p) => p.postcode)).toEqual(["3900"]);
-    expect((await svc.list({ q: "burn" })).postcodes.map((p) => p.postcode)).toEqual(["3121"]);
-    expect((await svc.list({ q: "39" })).postcodes.map((p) => p.postcode)).toEqual(["3900"]);
+    expect((await svc.list({ source: "manual" })).items.map((p) => p.postcode)).toEqual(["3900"]);
+    expect((await svc.list({ q: "burn" })).items.map((p) => p.postcode)).toEqual(["3121"]);
+    expect((await svc.list({ q: "39" })).items.map((p) => p.postcode)).toEqual(["3900"]);
   });
 
   it("the checker: each answer with a reason a person can repeat", async () => {
@@ -186,7 +186,7 @@ describe.skipIf(!RUN)("076 — the coverage console, against real PostgreSQL", (
     await svc.renameGroup(a, { name: "Inner East" }, SUB);
     const groups = (await svc.list({})).groups;
     expect(groups.map((g) => `${g.name}:${g.postcodeCount}:${g.driverCount}`)).toEqual(["Bayside:1:1", "Inner East:1:1"]);
-    expect((await svc.list({ group: a })).postcodes.map((p) => p.postcode)).toEqual(["3121"]);
+    expect((await svc.list({ group: a })).items.map((p) => p.postcode)).toEqual(["3121"]);
     expect((await svc.check("3121")).matches[0]).toMatchObject({ coverage: "effy", groupName: "Inner East" });
     expect((await audits("coverage.postcode.group")).length).toBe(2);
     expect((await audits("coverage.group.rename")).at(-1)?.detail).toEqual({ before: { name: "Inner Melbourne" }, after: { name: "Inner East" } });
@@ -320,7 +320,7 @@ describe.skipIf(!RUN)("076 — the coverage console, against real PostgreSQL", (
 
   it("097 — delivery today, per postcode: added with it, switched in bulk, filtered, counted, checked, audited once", async () => {
     const todayAudits = async () => (await audits("coverage.postcode.today")).length;
-    const listed = async (f: svc.ListQuery = {}) => (await svc.list(f)).postcodes.map((p) => p.postcode);
+    const listed = async (f: Record<string, string> = {}) => (await svc.list(f)).items.map((p) => p.postcode);
 
     // Added with it switched off — and the add's audit says so.
     expect(await svc.addPostcodes({ postcodes: [{ postcode: "3900", manualDistanceKm: "18.5" }], todayOffered: false, confirmNoDrivers: true }, SUB))
@@ -342,7 +342,7 @@ describe.skipIf(!RUN)("076 — the coverage console, against real PostgreSQL", (
     // Filters and the count.
     const all = await svc.list({});
     expect(all.counts.todayNotOffered).toBe(3);
-    expect(all.postcodes.map((p) => [p.postcode, p.todayOffered])).toEqual([["3121", false], ["3141", true], ["3220", false], ["3900", false]]);
+    expect(all.items.map((p) => [p.postcode, p.todayOffered])).toEqual([["3121", false], ["3141", true], ["3220", false], ["3900", false]]);
     expect(await listed({ today: "not_offered" })).toEqual(["3121", "3220", "3900"]);
     expect(await listed({ today: "offered" })).toEqual(["3141"]);
     expect(await listed({ minKm: "25" })).toEqual(["3220"]);
@@ -363,8 +363,8 @@ describe.skipIf(!RUN)("076 — the coverage console, against real PostgreSQL", (
     // Malformed is the caller's error, never a guess.
     expect(await refusal(svc.patchPostcodes({ postcodes: ["3121"], todayOffered: "no" as never }, SUB))).toMatchObject({ status: 400 });
     expect(await refusal(svc.addPostcodes({ postcodes: [{ postcode: "2753" }], todayOffered: 1 as never }, SUB))).toMatchObject({ status: 400 });
-    expect(await refusal(svc.list({ today: "maybe" }))).toMatchObject({ status: 400 });
-    expect(await refusal(svc.list({ minKm: "2x" }))).toMatchObject({ status: 400 });
+    // 103: a value the list does not know (a stale link) is ignored and reported, never a failure.
+    expect((await svc.list({ today: "maybe", minKm: "2x" })).ignored.sort()).toEqual(["minKm", "today"]);
 
     // Back on.
     await svc.patchPostcodes({ postcodes: ["3121"], todayOffered: true }, SUB);

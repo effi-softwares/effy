@@ -34,7 +34,7 @@ vi.mock("@effy/edge-shared/live", () => ({ announce: vi.fn(), announceMoves: vi.
 import { bookConsignment } from "@effy/edge-shared/delivery";
 
 import { addNote, applyPicks, listOrders, readActivity, readOrder, replaceTags } from "./repository";
-import { parseListQuery, toEntry } from "./service";
+import { parseOrderListQuery, toEntry } from "./service";
 import { toListDTO, toOrderDTO } from "./handler-support";
 import { readPickLists } from "../pick-lists/repository";
 import { readLiveOrders } from "../today/repository";
@@ -151,7 +151,7 @@ SELECT id FROM p`,
     await order({ number: "EFY-C", recipient: "Cy", status: "delivered" });
     await order({ number: "EFY-X", recipient: "Other", shop: OTHER_SHOP });
 
-    const out = await listOrders(SHOP, parseListQuery({ tab: "picking" }));
+    const out = await listOrders(SHOP, parseOrderListQuery({ tab: "picking" }));
     expect(out.items.map((r) => r.orderNumber)).toEqual(["EFY-B"]);
     expect(out.total).toBe(1);
     expect(out.counts).toMatchObject({ all: 3, new: 1, picking: 1, delivered: 1, collected: 0 });
@@ -162,7 +162,7 @@ SELECT id FROM p`,
     await order({ number: "EFY-A2", recipient: "Ann Park", status: "received" });
     await order({ number: "EFY-B1", recipient: "Bo", status: "picking" });
 
-    const out = await listOrders(SHOP, parseListQuery({ q: "ann", tab: "picking" }));
+    const out = await listOrders(SHOP, parseOrderListQuery({ q: "ann", tab: "picking" }));
     expect(out.items.map((r) => r.orderNumber)).toEqual(["EFY-A1"]);
     expect(out.counts).toMatchObject({ all: 2, picking: 1 });
   });
@@ -173,10 +173,10 @@ SELECT id FROM p`,
       recipient: "I",
       lines: [{ name: "Oat milk, 1L", price: 3, qty: 2 }, { name: "Bread", price: 5, qty: 1 }],
     });
-    const out = await listOrders(SHOP, parseListQuery({}));
+    const out = await listOrders(SHOP, parseOrderListQuery({}));
     expect(out.items[0]!.itemsSummary).toBe("Bread ×1, Oat milk ×2");
-    expect((await listOrders(SHOP, parseListQuery({ q: "oat" }))).items).toHaveLength(1);
-    expect((await listOrders(SHOP, parseListQuery({ q: "cheese" }))).items).toHaveLength(0);
+    expect((await listOrders(SHOP, parseOrderListQuery({ q: "oat" }))).items).toHaveLength(1);
+    expect((await listOrders(SHOP, parseOrderListQuery({ q: "cheese" }))).items).toHaveLength(0);
   });
 
   it("derives payment state from refunds — submitted is pending, not refunded", async () => {
@@ -189,11 +189,11 @@ SELECT id FROM p`,
     await refund(pend.orderId, 10, "submitted");
     await refund(fail.orderId, 10, "failed");
 
-    const out = await listOrders(SHOP, parseListQuery({ sort: "number" }));
+    const out = await listOrders(SHOP, parseOrderListQuery({ sort: "number" }));
     const by = Object.fromEntries(out.items.map((r) => [r.orderNumber, r.payment]));
     expect(by).toEqual({ "EFY-F": "refunded", "EFY-P": "partially_refunded", "EFY-Q": "refund_pending", "EFY-Z": "paid" });
 
-    const filtered = await listOrders(SHOP, parseListQuery({ payment: "partially_refunded" }));
+    const filtered = await listOrders(SHOP, parseOrderListQuery({ payment: "partially_refunded" }));
     expect(filtered.items.map((r) => r.orderNumber)).toEqual(["EFY-P"]);
   });
 
@@ -202,7 +202,7 @@ SELECT id FROM p`,
     await order({ number: "EFY-DONE", recipient: "D", status: "delivered", placedMinutesAgo: 70 });
     await order({ number: "EFY-NEW", recipient: "N", status: "received", placedMinutesAgo: 1 });
 
-    const out = await listOrders(SHOP, parseListQuery({ attention: "at_risk" }));
+    const out = await listOrders(SHOP, parseOrderListQuery({ attention: "at_risk" }));
     expect(out.items.map((r) => r.orderNumber)).toEqual(["EFY-LATE"]);
   });
 
@@ -211,8 +211,8 @@ SELECT id FROM p`,
       await order({ number: `EFY-${String(i).padStart(2, "0")}`, recipient: "R" });
     }
     // `dir: "asc"` explicitly: the default is newest-first, and this test is about paging.
-    const p1 = await listOrders(SHOP, parseListQuery({ sort: "number", dir: "asc" }));
-    const p2 = await listOrders(SHOP, parseListQuery({ sort: "number", dir: "asc", page: "2" }));
+    const p1 = await listOrders(SHOP, parseOrderListQuery({ sort: "number", dir: "asc" }));
+    const p2 = await listOrders(SHOP, parseOrderListQuery({ sort: "number", dir: "asc", page: "2" }));
     expect(p1.items).toHaveLength(25);
     expect(p2.items.map((r) => r.orderNumber)).toEqual(["EFY-25", "EFY-26"]);
     expect(p1.total).toBe(27);
@@ -328,7 +328,7 @@ SELECT id FROM p`,
     expect(log.filter((e) => e.title.startsWith("Tags")).map((e) => e.title)).toEqual(["Tags set to fragile, vip"]);
     expect(log.some((e) => e.title === "Internal note added" && e.actorLabel === "Maya")).toBe(true);
 
-    const listed = await listOrders(SHOP, parseListQuery({}));
+    const listed = await listOrders(SHOP, parseOrderListQuery({}));
     expect(listed.items[0]!.tags).toEqual(["fragile", "vip"]);
   });
 
@@ -435,7 +435,7 @@ SELECT id FROM p`,
   it("079 P17 — every package says who takes it away, on the list, the detail, Today and the pick lists", async () => {
     const made = await threeKinds();
 
-    const list = await listOrders(SHOP, parseListQuery({ sort: "number", dir: "asc" }));
+    const list = await listOrders(SHOP, parseOrderListQuery({ sort: "number", dir: "asc" }));
     expect(Object.fromEntries(list.items.map((r) => [r.orderNumber, r.deliveredBy]))).toEqual(EXPECTED);
 
     for (const [name, o] of Object.entries(made)) {
@@ -448,17 +448,17 @@ SELECT id FROM p`,
   it("079 — the list filters by who takes it away", async () => {
     await threeKinds();
     const numbers = async (qs: Record<string, string>) =>
-      (await listOrders(SHOP, parseListQuery({ sort: "number", dir: "asc", ...qs }))).items.map((r) => r.orderNumber);
+      (await listOrders(SHOP, parseOrderListQuery({ sort: "number", dir: "asc", ...qs }))).items.map((r) => r.orderNumber);
     expect(await numbers({ deliveredBy: "effy_driver" })).toEqual(["EFY-K1", "EFY-K2"]);
     expect(await numbers({ deliveredBy: "courier" })).toEqual(["EFY-K3"]);
     // An unknown value is the default, never "match nothing".
     expect(await numbers({ deliveredBy: "drone" })).toHaveLength(3);
-    expect((await listOrders(SHOP, parseListQuery({ deliveredBy: "courier" }))).counts.all).toBe(1);
+    expect((await listOrders(SHOP, parseOrderListQuery({ deliveredBy: "courier" }))).counts.all).toBe(1);
   });
 
   it("079 — ⚠ what the shop is sent says who takes it and NOTHING else about delivery: no window, day, estimate or fee", async () => {
     const made = await threeKinds();
-    const list = await listOrders(SHOP, parseListQuery({}));
+    const list = await listOrders(SHOP, parseOrderListQuery({}));
     const wire = [
       toListDTO(list),
       ...(await Promise.all(Object.values(made).map(async (o) => toOrderDTO(await readOrder(o.fulfillmentId, SHOP))))),
@@ -504,7 +504,7 @@ SELECT id FROM p`,
     const o = await supplierPickupOrder();
 
     // Not booked yet: the shop is told a courier will collect, nothing more.
-    const before = (await listOrders(SHOP, parseListQuery({}))).items.find((r) => r.id === o.mine)!;
+    const before = (await listOrders(SHOP, parseOrderListQuery({}))).items.find((r) => r.id === o.mine)!;
     expect(before.courierPickup).toMatchObject({ state: "arranging", courierName: "Test Courier", serviceName: "Parcel", pickupDate: null });
     await expect(courierHandover(SHOP_ACTOR, o.mine, null)).rejects.toMatchObject({ kind: "conflict" });
     // Another shop's parcel is indistinguishable from a missing one.
@@ -571,7 +571,7 @@ SELECT id FROM p`,
     }
     await pool.query(`UPDATE public."order" SET delivery_fee_amount = 12.34 WHERE id = $1`, [o.orderId]);
     const wire = JSON.stringify([
-      toListDTO(await listOrders(SHOP, parseListQuery({}))),
+      toListDTO(await listOrders(SHOP, parseOrderListQuery({}))),
       toOrderDTO(await readOrder(o.mine, SHOP)),
       await readLiveOrders(SHOP, 50),
       (await readPickLists(SHOP)).lists,

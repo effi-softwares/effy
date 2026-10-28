@@ -98,26 +98,9 @@ export function removeNonDeliveryDate(day: string): Promise<void> {
   return api.delete<void>(`/fleet/v1/delivery-days/dates/${day}`)
 }
 
-export interface CoverageFilters {
-  group?: string
-  q?: string
-  source?: "computed" | "manual"
-  review?: boolean
-  today?: "offered" | "not_offered"
-  minKm?: string
-}
-
-export function listCoverage(f: CoverageFilters = {}, cursor?: string): Promise<CoverageListDTO> {
-  const qs = new URLSearchParams()
-  if (f.group) qs.set("group", f.group)
-  if (f.q) qs.set("q", f.q)
-  if (f.source) qs.set("source", f.source)
-  if (f.review) qs.set("review", "true")
-  if (f.today) qs.set("today", f.today)
-  if (f.minKm) qs.set("minKm", f.minKm)
-  if (cursor) qs.set("cursor", cursor)
-  const tail = qs.toString()
-  return api.get<CoverageListDTO>(`/admin/v1/delivery/coverage${tail ? `?${tail}` : ""}`)
+/** One page of Effy's postcode list for the address's view (103), with the groups and totals beside it. */
+export function listCoverage(qs: URLSearchParams, signal?: AbortSignal): Promise<CoverageListDTO> {
+  return api.get<CoverageListDTO>(`/admin/v1/delivery/coverage?${qs}`, { signal })
 }
 export function searchCoveragePlaces(q: string): Promise<CoveragePlaceSearchDTO> {
   return api.get<CoveragePlaceSearchDTO>(`/admin/v1/delivery/coverage/places?q=${encodeURIComponent(q)}`)

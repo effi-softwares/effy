@@ -1,6 +1,9 @@
+import { setFullText } from "@effy/web-kit/data-table"
 import { isDomainError } from "@effy/api-client"
 
 export function productMutationError(err: unknown, conflictMessage?: string): string {
+  const full = setFullText(err)
+  if (full) return full
   if (isDomainError(err)) {
     if (err.kind === "forbidden") return "You don't have permission to perform this action."
     if (err.kind === "not-found") return "That product no longer exists."

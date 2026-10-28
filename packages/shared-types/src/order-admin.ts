@@ -1,3 +1,4 @@
+import type { ListPage } from "./list";
 /**
  * Back-office order contracts. A separate family from `order.ts` on purpose: these carry shop identity
  * (an operator must see which shop holds which package), and the customer's contract must never learn
@@ -247,8 +248,9 @@ export interface HandoverRowDTO {
 export type CourierView = "hub_due" | "hub_late" | "supplier" | "with_courier" | "problems";
 export const COURIER_VIEWS: readonly CourierView[] = ["hub_due", "hub_late", "supplier", "with_courier", "problems"];
 
-export interface HandoverListResponse {
-  items: HandoverRowDTO[];
+/** Courier parcels as a console list page (103), with every stage's count under the search and service. */
+export interface CourierParcelListDTO extends ListPage<HandoverRowDTO> {
+  views: Record<CourierView, number>;
 }
 
 /** A package's handover to an outside carrier. */
@@ -476,7 +478,7 @@ export interface AdminOrderViewCountsDTO {
 }
 
 /** Back-office Orders (103): a keyset console list. */
-export type AdminOrderListResponse = import("./list").ListPage<AdminOrderSummaryDTO>;
+export type AdminOrderListResponse = ListPage<AdminOrderSummaryDTO>;
 
 /**
  * Who has one package for one stage (collection or delivery), and how. `assignmentId` is the

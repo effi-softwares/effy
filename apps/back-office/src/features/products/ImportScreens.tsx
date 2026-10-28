@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from "react"
 
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Link, useNavigate } from "@tanstack/react-router"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { Link, useNavigate, useSearch } from "@tanstack/react-router"
 import { CircleAlert, CircleCheck, Download, FileSpreadsheet, Upload } from "lucide-react"
 
 import {
@@ -10,6 +10,7 @@ import {
   type ProductImportDTO,
   type ProductImportProductDTO,
   type ProductImportState,
+  type ProductImportSummaryDTO,
 } from "@effy/shared-types"
 import {
   Button,
@@ -29,7 +30,17 @@ import {
   TableRow,
 } from "@effy/design-system/ui"
 import { ErrorState, useHeaderBack } from "@effy/web-kit/console"
-import { Callout, EmptyState, PageHeader, Panel, StatusWord, type StatusTone } from "@effy/web-kit/patterns"
+import {
+  DataTable,
+  defineListSearch,
+  Facet,
+  listQueryOptions,
+  SearchBox,
+  searchFilter,
+  useListState,
+  type EffyColumnDef,
+} from "@effy/web-kit/data-table"
+import { Callout, PageHeader, Panel, StatusWord, type StatusTone } from "@effy/web-kit/patterns"
 
 import { useSessionRoles } from "@/features/auth/useSessionRoles"
 import { MarginField } from "@/features/product-review/MarginField"
@@ -41,8 +52,8 @@ import { moment } from "@/lib/format"
 
 import { canManageProducts } from "./access"
 import { downloadTemplate, isSheetFile, readSheetFile, sha256Hex } from "./importFile"
-import { importListQuery, importQuery, productKeys } from "./queries"
-import { createImport, getImportTemplate, startImport } from "./repo"
+import { importQuery, productKeys } from "./queries"
+import { createImport, fetchImportPage, getImportTemplate, startImport } from "./repo"
 import { productErrorText } from "./words"
 
 const STATE_TONE: Record<ProductImportState, StatusTone> = {
@@ -54,6 +65,52 @@ const STATE_TONE: Record<ProductImportState, StatusTone> = {
 }
 
 const BACK = { label: "Products", link: { to: "/products" } } as const
+
+const IMPORT_STATES = ["checking", "checked", "creating", "done", "failed"] as const satisfies readonly ProductImportState[]
+
+/** Imports in the address (103), mirroring the catalog service's `IMPORT_LIST_SPEC`. */
+export const importsList = defineListSearch({
+  id: "imports",
+  mode: "offset",
+  sorts: ["created", "file"] as const,
+  defaultSort: "created",
+  sortDir: { created: "desc", file: "asc" },
+  filters: { shopId: searchFilter.uuid, state: searchFilter.oneOf(IMPORT_STATES) },
+})
+
+const importColumns: EffyColumnDef<ProductImportSummaryDTO>[] = [
+  {
+    id: "file",
+    header: "File",
+    cell: ({ row }) => (
+      <>
+        {row.original.fileName}
+        {row.original.createdBy ? <span className="mt-0.5 block text-sm font-normal text-muted-foreground">{row.original.createdBy}</span> : null}
+      </>
+    ),
+    meta: { label: "File", identifying: true, phone: "primary", sortKey: "file" },
+  },
+  { id: "shop", header: "Shop", cell: ({ row }) => row.original.shop.name, meta: { label: "Shop" } },
+  {
+    id: "state",
+    header: "State",
+    cell: ({ row }) => <StatusWord tone={STATE_TONE[row.original.state]}>{PRODUCT_IMPORT_STATE_WORDS[row.original.state]}</StatusWord>,
+    meta: { label: "State", phone: "badge" },
+  },
+  {
+    id: "rows",
+    header: "Rows",
+    cell: ({ row }) => `${row.original.counts.ready} of ${row.original.counts.rows} ready`,
+    meta: { label: "Rows", align: "numeric", priority: 2 },
+  },
+  { id: "created", header: "Products created", cell: ({ row }) => row.original.counts.created, meta: { label: "Products created", align: "numeric", priority: 2 } },
+  {
+    id: "when",
+    header: "When",
+    cell: ({ row }) => <span className="text-muted-foreground">{moment(row.original.createdAt)}</span>,
+    meta: { label: "When", sortKey: "created", phone: "trail" },
+  },
+]
 
 /** Catalogue › Products › Imports: start one from a shop's list, and every import so far (102). */
 export function ImportsScreen() {
@@ -68,7 +125,8 @@ export function ImportsScreen() {
   const [leafIds, setLeafIds] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
-  const history = useInfiniteQuery(importListQuery(null))
+  const historyState = useListState(importsList, useSearch({ strict: false }))
+  const history = useQuery(listQueryOptions({ key: productKeys.all, list: importsList, view: historyState.view, fetch: fetchImportPage }))
   const leaves = useMemo(() => leavesWithPaths((tree.data ?? []).filter((c) => c.status === "active")), [tree.data])
 
   const template = useMutation({
@@ -107,7 +165,6 @@ export function ImportsScreen() {
   })
 
   const ready = shopId !== "" && toMargin(margin) !== null
-  const items = history.data?.pages.flatMap((p) => p.items) ?? []
 
   return (
     <>
@@ -244,51 +301,35 @@ export function ImportsScreen() {
       </Panel>
 
       <Panel title="Imports" flush>
-        {history.isError ? (
-          <ErrorState error={history.error} onRetry={() => void history.refetch()} />
-        ) : history.isPending ? (
-          <Skeleton className="m-4 h-10" />
-        ) : items.length === 0 ? (
-          <EmptyState icon={FileSpreadsheet} title="No imports yet" />
-        ) : (
-          <div className="min-w-0">
-            <Table className="ef-rtable">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>File</TableHead>
-                  <TableHead>Shop</TableHead>
-                  <TableHead>State</TableHead>
-                  <TableHead className="text-right">Rows</TableHead>
-                  <TableHead className="text-right">Created</TableHead>
-                  <TableHead className="max-md:hidden">When</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {items.map((i) => (
-                  <TableRow key={i.importId}>
-                    <TableCell data-m="primary">
-                      <Link to="/products/imports/$importId" params={{ importId: i.importId }} className="link">
-                        {i.fileName}
-                      </Link>
-                      {i.createdBy ? (
-                        <div className="mt-0.5 block text-sm text-muted-foreground">{i.createdBy}</div>
-                      ) : null}
-                    </TableCell>
-                    <TableCell>{i.shop.name}</TableCell>
-                    <TableCell data-m="badge">
-                      <StatusWord tone={STATE_TONE[i.state]}>{PRODUCT_IMPORT_STATE_WORDS[i.state]}</StatusWord>
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">{i.counts.rows}</TableCell>
-                    <TableCell className="text-right tabular-nums">{i.counts.created}</TableCell>
-                    <TableCell className="text-muted-foreground whitespace-nowrap max-md:hidden">
-                      {moment(i.createdAt)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
+        <DataTable
+          app="back-office"
+          label="Imports"
+          list={importsList}
+          state={historyState}
+          columns={importColumns}
+          query={history}
+          rowId={(i) => i.importId}
+          rowHref={(i) => ({ to: "/products/imports/$importId", params: { importId: i.importId } })}
+          empty={{ icon: FileSpreadsheet, title: "No imports yet" }}
+          toolbar={
+            <>
+              <Facet
+                label="Shop"
+                anyLabel="All shops"
+                value={historyState.view.filters.shopId ?? null}
+                onChange={(v) => historyState.setFilter("shopId", v ?? undefined)}
+                options={(shops.data?.items ?? []).map((s) => ({ value: s.id, label: s.name }))}
+              />
+              <Facet
+                label="State"
+                value={historyState.view.filters.state ?? null}
+                onChange={(v) => historyState.setFilter("state", v ?? undefined)}
+                options={IMPORT_STATES.map((st) => ({ value: st, label: PRODUCT_IMPORT_STATE_WORDS[st] }))}
+              />
+              <SearchBox label="Search imports" placeholder="File name" value={historyState.draftQ} onChange={historyState.setQ} />
+            </>
+          }
+        />
       </Panel>
     </>
   )

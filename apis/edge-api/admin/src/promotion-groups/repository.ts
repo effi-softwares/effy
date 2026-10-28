@@ -1,5 +1,5 @@
 // Every write audits in the same transaction.
-import { query, withTransaction, type Queryable } from "@effy/edge-shared";
+import { query, withTransaction, type Queryable, setIsFull } from "@effy/edge-shared";
 import {
   hiddenBecause,
   loadPictures,
@@ -285,3 +285,6 @@ export async function previewGroup(id: string, now: Date): Promise<AdminPromotio
 }
 
 export type { AdminSkinRefDTO };
+
+/** 103 FR-024: the set is shown whole, so it is capped (`setIsFull`). */
+export const isFull = (): Promise<boolean> => setIsFull("FROM public.promotion_group");

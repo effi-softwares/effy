@@ -1,3 +1,4 @@
+import { defineListSearch, searchFilter } from "@effy/web-kit/data-table"
 import type { DeliveryExceptionDTO, DeliveryFailureReason } from "@effy/shared-types"
 
 const REASON_LABEL: Record<DeliveryFailureReason, string> = {
@@ -18,9 +19,14 @@ export function locationLabel(e: DeliveryExceptionDTO): string {
   return e.returnedAt ? `Returned ${new Date(e.returnedAt).toLocaleString()}` : "At hub"
 }
 
-export function sortForTriage(rows: readonly DeliveryExceptionDTO[]): DeliveryExceptionDTO[] {
-  return [...rows].sort((a, b) => {
-    if ((a.resolvedAt === null) !== (b.resolvedAt === null)) return a.resolvedAt === null ? -1 : 1
-    return b.failedAt.localeCompare(a.failedAt)
-  })
-}
+export const EXCEPTION_VIEWS = ["open", "resolved", "all"] as const
+
+/** Failed deliveries' view in the address (103), mirroring the fleet service's `EXCEPTION_LIST_SPEC`. */
+export const exceptionsList = defineListSearch({
+  id: "exceptions",
+  mode: "offset",
+  sorts: ["when"] as const,
+  defaultSort: "when",
+  sortDir: { when: "desc" },
+  filters: { view: searchFilter.oneOf(EXCEPTION_VIEWS) },
+})

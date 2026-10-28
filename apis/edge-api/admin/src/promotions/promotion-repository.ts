@@ -1,11 +1,12 @@
 // Every write audits in the same transaction. State is never stored (`public.promotion_state`). Once
 // used, what a promotion gives and who it is for are fixed: the service refuses, triggers back it up.
-import { query, withTransaction, type Queryable } from "@effy/edge-shared";
+import { likePattern, limitOffsetClause, orderBy, query, runOffsetPage, withTransaction, type Queryable } from "@effy/edge-shared";
 import { loadPromotions, type PromotionRecord } from "@effy/edge-shared/promotions";
 
 import type { AdminPromotionImageDTO } from "@effy/shared-types";
 
 import { listImages } from "./images";
+import { PROMOTION_LIST, type PromotionListRequest } from "./list";
 import { type AuditEntry, type Paged, PromoError } from "./types";
 
 export const PROMOTION_STATES = ["draft", "scheduled", "active", "paused", "used_up", "out_of_budget", "ended", "archived"] as const;
@@ -113,29 +114,23 @@ export interface ListRow {
   single_use: string;
   groups: string[];
   updated_at: Date;
-  total: string;
 }
 
-export async function listPromotions(p: {
-  q: string | null;
-  state: PromotionState | null;
-  kind: string | null;
-  trigger: string | null;
-  groupId: string | null;
-  page: number;
-  pageSize: number;
-  now: Date;
-}): Promise<{ rows: ListRow[]; records: Map<string, PromotionRecord>; counts: Record<PromotionState, number>; total: number }> {
+export async function listPromotions(req: PromotionListRequest, now: Date): Promise<{ rows: ListRow[]; records: Map<string, PromotionRecord>; counts: Record<PromotionState, number>; total: number; page: number }> {
+  const p = { q: req.q, kind: req.filters.kind ?? null, trigger: req.filters.trigger ?? null, groupId: req.filters.groupId ?? null, state: req.filters.state ?? null, now };
   const where = `
-    WHERE ($2::text IS NULL OR p.name ILIKE '%' || $2 || '%'
+    WHERE ($2::text IS NULL OR p.name ILIKE $6
            OR EXISTS (SELECT 1 FROM public.promotion_code c WHERE c.promotion_id = p.id AND upper(c.code) = upper($2)))
       AND ($3::text IS NULL OR p.kind = $3)
       AND ($4::text IS NULL OR p.trigger = $4)
       AND ($5::uuid IS NULL OR EXISTS (SELECT 1 FROM public.promotion_group_member m WHERE m.promotion_id = p.id AND m.group_id = $5))`;
-  const base = [p.now, p.q, p.kind, p.trigger, p.groupId];
-  const [rows, counts] = await Promise.all([
-    query<ListRow>(
-      `SELECT y.*, count(*) OVER() AS total FROM (
+  const base = [p.now, p.q, p.kind, p.trigger, p.groupId, p.q ? likePattern(p.q) : null];
+  const [page, counts] = await Promise.all([
+    runOffsetPage(req, async (read) => {
+      const args = [...base, p.state];
+      const paging = limitOffsetClause(read, args);
+      const r = await query<ListRow & { full_count: string }>(
+      `SELECT y.*, count(*) OVER() AS full_count FROM (
          SELECT p.id::text, p.name, public.promotion_state(p.id, $1) AS state, p.starts_at, p.ends_at, p.max_uses, p.updated_at,
                 (SELECT count(*) FROM public.promotion_use u WHERE u.promotion_id = p.id
                     AND (u.status = 'confirmed' OR (u.status = 'held' AND u.hold_expires_at > $1)))::text AS uses,
@@ -144,11 +139,13 @@ export async function listPromotions(p: {
                 coalesce((SELECT array_agg(g.name ORDER BY g.sort) FROM public.promotion_group_member m
                             JOIN public.promotion_group g ON g.id = m.group_id WHERE m.promotion_id = p.id), '{}') AS groups
            FROM public.promotion p ${where}) y
-        WHERE ($6::text IS NULL OR y.state = $6)
-        ORDER BY y.updated_at DESC
-        LIMIT $7 OFFSET $8`,
-      [...base, p.state, p.pageSize, (p.page - 1) * p.pageSize],
-    ),
+        WHERE ($7::text IS NULL OR y.state = $7)
+        ${orderBy(PROMOTION_LIST, req)}
+        ${paging}`,
+        args,
+      );
+      return r.rows;
+    }),
     query<{ state: PromotionState; n: number }>(
       `SELECT public.promotion_state(p.id, $1) AS state, count(*)::int AS n FROM public.promotion p ${where} GROUP BY 1`,
       base,
@@ -156,9 +153,9 @@ export async function listPromotions(p: {
   ]);
   const byState = Object.fromEntries(PROMOTION_STATES.map((s) => [s, 0])) as Record<PromotionState, number>;
   for (const r of counts.rows) byState[r.state] = Number(r.n);
-  const ids = rows.rows.map((r) => r.id);
+  const ids = page.rows.map((r) => r.id);
   const records = new Map((ids.length ? await loadPromotions({ query }, { ids }, p.now) : []).map((r) => [r.id, r]));
-  return { rows: rows.rows, records, counts: byState, total: rows.rows[0] ? Number(rows.rows[0].total) : 0 };
+  return { rows: page.rows, records, counts: byState, total: page.total, page: page.page };
 }
 
 export interface DetailExtras {

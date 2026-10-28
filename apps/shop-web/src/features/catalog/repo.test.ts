@@ -38,6 +38,6 @@ describe("encodeProductListQuery", () => {
     expect(qs.get("priceMin")).toBe("1.00")
     expect(qs.get("priceMax")).toBe("9.99")
     expect(qs.get("sort")).toBe("price")
-    expect(qs.get("order")).toBe("asc")
+    expect(qs.get("dir")).toBe("asc")
   })
 })

@@ -1,10 +1,13 @@
+import { useMemo, useState } from "react"
+
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import { Palette, Plus } from "lucide-react"
 
-import { Button, Skeleton, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@effy/design-system/ui"
-import { defaultSize, type AdminSkinListItemDTO } from "@effy/shared-types"
+import { Button, Skeleton } from "@effy/design-system/ui"
+import { CAPPED_SET_LIMIT, defaultSize, listFullSentence, type AdminSkinListItemDTO } from "@effy/shared-types"
 import { ErrorState } from "@effy/web-kit/console"
+import { SearchBox, StaticTable, type EffyColumnDef } from "@effy/web-kit/data-table"
 
 import { PageHeader, EmptyState, StatusWord } from "@effy/web-kit/patterns"
 import { useSessionRoles } from "@/features/auth/useSessionRoles"
@@ -16,6 +19,12 @@ import { LAYOUT_WORD, SAMPLES, SkinPreviewItem } from "./SkinPreview"
 export function SkinsListScreen() {
   const canManage = canManagePromotions(useSessionRoles())
   const { data, error, isPending, isError, refetch } = useQuery(promotionSkinsQuery())
+  const [q, setQ] = useState("")
+  // The whole set is here (capped at 500, 103 FR-024): searched and sorted in the browser.
+  const rows = useMemo(() => {
+    const w = q.trim().toLowerCase()
+    return (data ?? []).filter((s) => !w || s.name.toLowerCase().includes(w))
+  }, [data, q])
 
   return (
     <>
@@ -41,72 +50,88 @@ export function SkinsListScreen() {
       ) : data.length === 0 ? (
         <EmptyState icon={Palette} title="No skins yet." description="Create one to give promotions their own look." />
       ) : (
-        <div className="overflow-hidden rounded-xl border bg-card">
-          <div className="min-w-0">
-            <Table className="ef-rtable">
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-56">Looks like</TableHead>
-                  <TableHead>Skin</TableHead>
-                  <TableHead>Layout</TableHead>
-                  <TableHead className="text-right">Used in</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data.map((s) => (
-                  <SkinRow key={s.id} skin={s} />
-                ))}
-              </TableBody>
-            </Table>
+        <>
+          <div className="flex flex-wrap items-center gap-2">
+            <SearchBox label="Search skins" placeholder="Skin name…" value={q} onChange={setQ} />
           </div>
-        </div>
+          <StaticTable label="Skins" columns={SKIN_COLUMNS} rows={rows} getRowId={(s) => s.id} empty="No skin matches." />
+          {data.length >= CAPPED_SET_LIMIT ? (
+            <p className="text-sm text-muted-foreground">{listFullSentence(CAPPED_SET_LIMIT)}</p>
+          ) : null}
+        </>
       )}
     </>
   )
 }
 
-function SkinRow({ skin }: { skin: AdminSkinListItemDTO }) {
+function SkinSample({ skin }: { skin: AdminSkinListItemDTO }) {
   const sample = SAMPLES[0]!
   return (
-    <TableRow>
-      <TableCell data-m="media">
-        <div className="pointer-events-none relative h-28 w-52 overflow-hidden rounded-md" aria-hidden="true" inert>
-          <div style={{ width: 520, transform: "scale(0.4)", transformOrigin: "top left" }}>
-            <SkinPreviewItem
-              promotion={sample}
-              skin={
-                skin.builtIn || !skin.settings
-                  ? undefined
-                  : {
-                      id: skin.id,
-                      version: skin.version,
-                      layout: skin.layout,
-                      size: defaultSize(skin.layout as never),
-                      settings: skin.settings,
-                    }
-              }
-            />
-          </div>
-        </div>
-      </TableCell>
-      <TableCell data-m="primary">
-        <Link to="/promotions/skins/$skinId" params={{ skinId: skin.id }} className="link">
-          {skin.name}
+    <div className="pointer-events-none relative h-28 w-52 overflow-hidden rounded-md" aria-hidden="true" inert>
+      <div style={{ width: 520, transform: "scale(0.4)", transformOrigin: "top left" }}>
+        <SkinPreviewItem
+          promotion={sample}
+          skin={
+            skin.builtIn || !skin.settings
+              ? undefined
+              : {
+                  id: skin.id,
+                  version: skin.version,
+                  layout: skin.layout,
+                  size: defaultSize(skin.layout as never),
+                  settings: skin.settings,
+                }
+          }
+        />
+      </div>
+    </div>
+  )
+}
+
+const SKIN_COLUMNS: EffyColumnDef<AdminSkinListItemDTO>[] = [
+  {
+    id: "looks",
+    header: "Looks like",
+    enableSorting: false,
+    cell: ({ row }) => <SkinSample skin={row.original} />,
+    meta: { label: "Looks like", phone: "full", className: "w-56" },
+  },
+  {
+    id: "skin",
+    accessorFn: (s) => s.name.toLowerCase(),
+    header: "Skin",
+    cell: ({ row }) => (
+      <>
+        <Link to="/promotions/skins/$skinId" params={{ skinId: row.original.id }} className="link">
+          {row.original.name}
         </Link>
-        {skin.builtIn ? (
+        {row.original.builtIn ? (
           <div className="mt-1">
             <StatusWord tone="quiet">Built in</StatusWord>
           </div>
         ) : null}
-      </TableCell>
-      <TableCell data-m="meta">{LAYOUT_WORD[skin.layout]}</TableCell>
-      <TableCell data-m="trail" className="text-right tabular-nums">
-        {skin.usageCount === 0 ? (
-          <span className="text-muted-foreground">Not used</span>
-        ) : (
-          `${skin.usageCount} ${skin.usageCount === 1 ? "place" : "places"}`
-        )}
-      </TableCell>
-    </TableRow>
-  )
-}
+      </>
+    ),
+    meta: { label: "Skin", identifying: true, phone: "primary" },
+  },
+  {
+    id: "layout",
+    accessorFn: (s) => LAYOUT_WORD[s.layout],
+    header: "Layout",
+    cell: ({ row }) => LAYOUT_WORD[row.original.layout],
+    meta: { label: "Layout" },
+  },
+  {
+    id: "usedIn",
+    accessorFn: (s) => s.usageCount,
+    sortDescFirst: true,
+    header: "Used in",
+    cell: ({ row }) =>
+      row.original.usageCount === 0 ? (
+        <span className="text-muted-foreground">Not used</span>
+      ) : (
+        `${row.original.usageCount} ${row.original.usageCount === 1 ? "place" : "places"}`
+      ),
+    meta: { label: "Used in", align: "numeric", phone: "trail" },
+  },
+]

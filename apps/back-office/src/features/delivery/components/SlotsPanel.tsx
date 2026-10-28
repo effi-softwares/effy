@@ -18,7 +18,8 @@ import {
   Input,
   Label,
 } from "@effy/design-system/ui"
-import { DataTable, ErrorState } from "@effy/web-kit/console"
+import { ErrorState } from "@effy/web-kit/console"
+import { StaticTable } from "@effy/web-kit/data-table"
 
 import { Callout } from "@effy/web-kit/patterns"
 
@@ -170,7 +171,9 @@ export function SlotsPanel({ canManage }: { canManage: boolean }) {
               title="No window is active, so Effy delivery is not being offered to anyone."
             />
           ) : null}
-          {slots.data && slots.data.length > 0 ? <DataTable columns={columns} data={slots.data} /> : null}
+          {slots.data && slots.data.length > 0 ? (
+            <StaticTable label="Delivery windows" columns={columns} rows={slots.data} getRowId={(w) => w.id} />
+          ) : null}
         </>
       )}
       {error ? <p className="text-sm text-destructive">{error}</p> : null}

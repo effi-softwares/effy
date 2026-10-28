@@ -78,7 +78,6 @@ Mode O = offset, K = keyset. Default sort first. Gateway: S = staff, Sh = shared
 | Coverage postcodes | `GET /admin/v1/delivery/coverage` | S | O | `postcode`, `distance` | `groupId`, `today` | postcode, place |
 | Courier parcels | `GET /orders/v1/handovers` | S | O | `due`↑ | view (stage), `serviceId` | order number, consignment ref |
 | Exceptions | `GET /fleet/v1/exceptions` | S | O | `when`↓ | `kind`, `resolved` | order number, package code |
-| Attribute library | `GET /catalog/v1/taxonomy/attributes` | S | O | `name`, `usedBy`↓ | `status`, `input` | name |
 | Shop orders | `GET /shop/v1/orders` | Sh | O | as today | as today | as today |
 | Shop catalogue | `GET /shop/v1/products` | Sh | O | as today | as today | as today |
 | Availability | `GET /shop/v1/availability` | Sh | O | `stock`↑, `name` | view | name, your code |
@@ -89,5 +88,5 @@ table names a path that differs, the existing path wins (no route is renamed or 
 
 ## Bounded sets (kind B, capped — R10)
 
-Promotion groups, skins, courier services, fee plans, shop team: unchanged routes; each returns ≤ 501 rows;
+Promotion groups, skins, courier services, fee plans, shop team, the attribute library: unchanged routes; each returns ≤ 501 rows;
 create beyond 500 → 409 `limit_reached`, `message`: "This list is full (500). Remove one before adding another."

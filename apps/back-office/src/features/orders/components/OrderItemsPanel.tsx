@@ -1,12 +1,60 @@
 import { Package } from "lucide-react"
 
+import { StaticTable, type EffyColumnDef } from "@effy/web-kit/data-table"
 import { Panel } from "@effy/web-kit/patterns"
 
 import { money } from "@/lib/format"
 
 import type { OrderDetail } from "../model"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@effy/design-system/ui"
 
+type Item = OrderDetail["items"][number]
+
+function columnsFor(currency: string): EffyColumnDef<Item>[] {
+  return [
+    {
+      id: "product",
+      header: "Product",
+      cell: ({ row }) => {
+        const i = row.original
+        return (
+          <div className="flex items-center gap-3">
+            <span
+              className="grid flex-none place-items-center overflow-hidden rounded-lg bg-muted text-muted-foreground [&_svg]:size-4 size-9"
+              aria-hidden="true"
+            >
+              <Package />
+            </span>
+            <span>
+              {i.productName}
+              {i.variantLabel ? <span className="text-muted-foreground"> — {i.variantLabel}</span> : null}
+              {i.variantCode || i.sku ? (
+                <span className="block font-mono text-xs text-muted-foreground">
+                  {[i.variantCode, i.sku].filter(Boolean).join(" · ")}
+                </span>
+              ) : null}
+            </span>
+          </div>
+        )
+      },
+      meta: { label: "Product", identifying: true, phone: "primary" },
+    },
+    { id: "qty", header: "Qty", cell: ({ row }) => row.original.quantity, meta: { label: "Qty", align: "numeric" } },
+    {
+      id: "unit",
+      header: "Unit",
+      cell: ({ row }) => <span className="text-muted-foreground">{money(row.original.unitPriceAmount, currency)}</span>,
+      meta: { label: "Unit", align: "numeric", phone: "hide" },
+    },
+    {
+      id: "line",
+      header: "Line",
+      cell: ({ row }) => money(row.original.lineSubtotalAmount, currency),
+      meta: { label: "Line", align: "numeric", phone: "trail" },
+    },
+  ]
+}
+
+/** The order's lines: every one is on the order, so a bounded table with no pager (103 FR-021). */
 export function OrderItemsPanel({ order }: { order: OrderDetail }) {
   return (
     <Panel
@@ -18,52 +66,13 @@ export function OrderItemsPanel({ order }: { order: OrderDetail }) {
       }
       flush
     >
-      <div className="min-w-0">
-        <Table className="ef-rtable [&_td]:py-2">
-          <TableHeader>
-            <TableRow>
-              <TableHead>Product</TableHead>
-              <TableHead numeric>Qty</TableHead>
-              <TableHead numeric>Unit</TableHead>
-              <TableHead numeric>Line</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {order.items.map((i) => (
-              <TableRow key={i.orderItemId}>
-                <TableCell data-m="primary">
-                  <div className="flex items-center gap-3">
-                    <span
-                      className="grid flex-none place-items-center overflow-hidden rounded-lg bg-muted text-muted-foreground [&_svg]:size-4 size-9"
-                      aria-hidden="true"
-                    >
-                      <Package />
-                    </span>
-                    <span>
-                      {i.productName}
-                      {i.variantLabel ? <span className="text-muted-foreground"> — {i.variantLabel}</span> : null}
-                      {i.variantCode || i.sku ? (
-                        <span className="block font-mono text-xs text-muted-foreground">
-                          {[i.variantCode, i.sku].filter(Boolean).join(" · ")}
-                        </span>
-                      ) : null}
-                    </span>
-                  </div>
-                </TableCell>
-                <TableCell numeric data-m="meta" data-label="Qty">
-                  {i.quantity}
-                </TableCell>
-                <TableCell numeric data-m="hide" className="text-muted-foreground">
-                  {money(i.unitPriceAmount, order.currency)}
-                </TableCell>
-                <TableCell numeric data-m="trail">
-                  {money(i.lineSubtotalAmount, order.currency)}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+      <StaticTable
+        label="Items"
+        columns={columnsFor(order.currency)}
+        rows={order.items}
+        getRowId={(i) => i.orderItemId}
+        framed={false}
+      />
     </Panel>
   )
 }

@@ -1,14 +1,10 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { render, screen } from "@testing-library/react"
+import { screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import type { ReactNode } from "react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import type { AdminPromotionListItemDTO, BackOfficeRole } from "@effy/shared-types"
 
-vi.mock("@tanstack/react-router", () => ({
-  Link: ({ children }: { children: ReactNode }) => <a>{children}</a>,
-}))
+import { onePage, renderList } from "@/test/renderList"
 
 const roleState = vi.hoisted(() => ({ roles: ["manager"] as BackOfficeRole[] }))
 vi.mock("@/features/auth/queries", () => ({
@@ -19,7 +15,7 @@ vi.mock("@/features/auth/queries", () => ({
 }))
 
 const listPromotions = vi.hoisted(() => vi.fn())
-vi.mock("./repo", () => ({ listPromotions }))
+vi.mock("./repo", () => ({ fetchPromotionPage: listPromotions }))
 vi.mock("@/features/promotion-groups/repo", () => ({ listGroups: async () => [] }))
 
 import { PromotionsListScreen } from "./PromotionsListScreen"
@@ -41,18 +37,9 @@ const ROW: AdminPromotionListItemDTO = {
   updatedAt: "2026-10-01T00:00:00Z",
 }
 const COUNTS = { draft: 1, scheduled: 0, active: 1, paused: 0, used_up: 0, out_of_budget: 0, ended: 0, archived: 2 }
-const page = (items: AdminPromotionListItemDTO[]) => ({
-  items,
-  counts: COUNTS,
-  total: items.length,
-  page: 1,
-  pageSize: 25,
-})
+const page = (items: AdminPromotionListItemDTO[]) => ({ ...onePage(items), counts: COUNTS })
 
-function wrap(children: ReactNode) {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  return render(<QueryClientProvider client={qc}>{children}</QueryClientProvider>)
-}
+const wrap = (_: unknown) => renderList(PromotionsListScreen, "/promotions")
 
 afterEach(() => {
   vi.clearAllMocks()

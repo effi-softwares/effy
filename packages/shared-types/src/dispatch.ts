@@ -204,7 +204,9 @@ export interface DeliveryExceptionResolutionDTO {
 }
 
 export interface DeliveryExceptionListDTO {
-  exceptions: DeliveryExceptionDTO[];
+  /** One page of failed deliveries (a console list, 103). */
+  exceptions: import("./list").ListPage<DeliveryExceptionDTO>;
+  /** Every open one, whatever page is shown. */
   openCount: WireInt;
   /** Packages a driver declared missing at loading or check-in, still to be decided. */
   held?: HeldPackageDTO[];

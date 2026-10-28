@@ -1,18 +1,19 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { render, screen } from "@testing-library/react"
-import type { ReactNode } from "react"
+import { screen } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import type { VehicleListItem } from "@effy/shared-types"
 
+import { onePage, renderList } from "@/test/renderList"
+
 const listVehicles = vi.hoisted(() => vi.fn())
 const roles = vi.hoisted(() => ({ current: [] as string[] }))
 
-vi.mock("./repo", () => ({ listVehicles, createVehicle: vi.fn() }))
-vi.mock("@/features/auth/useSessionRoles", () => ({ useSessionRoles: () => roles.current }))
-vi.mock("@tanstack/react-router", () => ({
-  Link: ({ children, ...rest }: { children: ReactNode }) => <a {...rest}>{children}</a>,
+vi.mock("./repo", () => ({
+  fetchVehiclePage: listVehicles,
+  fetchVehicleViews: async () => ({ views: { fleet: 1, active: 1, off_road: 0, retired: 0 } }),
+  createVehicle: vi.fn(),
 }))
+vi.mock("@/features/auth/useSessionRoles", () => ({ useSessionRoles: () => roles.current }))
 
 const { VehiclesListScreen } = await import("./VehiclesListScreen")
 
@@ -34,19 +35,12 @@ function vehicle(over: Partial<VehicleListItem> = {}): VehicleListItem {
   }
 }
 
-function renderScreen() {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  return render(<VehiclesListScreen />, {
-    wrapper: ({ children }: { children: ReactNode }) => (
-      <QueryClientProvider client={qc}>{children}</QueryClientProvider>
-    ),
-  })
-}
+const renderScreen = (url = "/vehicles") => renderList(VehiclesListScreen, url)
 
 beforeEach(() => {
   vi.clearAllMocks()
   roles.current = ["admin"]
-  listVehicles.mockResolvedValue({ items: [vehicle()], nextCursor: null })
+  listVehicles.mockResolvedValue(onePage([vehicle()]))
 })
 
 describe("VehiclesListScreen — the register", () => {
@@ -59,28 +53,19 @@ describe("VehiclesListScreen — the register", () => {
   })
 
   it("⚠ names the lapsed compliance item in the row, not a bare 'non-compliant'", async () => {
-    listVehicles.mockResolvedValue({
-      items: [vehicle({ complianceIssues: ["registration_expired"] })],
-      nextCursor: null,
-    })
+    listVehicles.mockResolvedValue(onePage([vehicle({ complianceIssues: ["registration_expired"] })]))
     renderScreen()
     expect(await screen.findByText(/Registration expired/)).toBeInTheDocument()
   })
 
   it("shows every lapsed item when several have lapsed at once", async () => {
-    listVehicles.mockResolvedValue({
-      items: [vehicle({ complianceIssues: ["registration_expired", "roadworthy_expired"] })],
-      nextCursor: null,
-    })
+    listVehicles.mockResolvedValue(onePage([vehicle({ complianceIssues: ["registration_expired", "roadworthy_expired"] })]))
     renderScreen()
     expect(await screen.findByText(/Registration expired · Roadworthy inspection overdue/)).toBeInTheDocument()
   })
 
   it("shows refrigeration capability without opening the record", async () => {
-    listVehicles.mockResolvedValue({
-      items: [vehicle({ canCarryChilled: true, canCarryFrozen: true })],
-      nextCursor: null,
-    })
+    listVehicles.mockResolvedValue(onePage([vehicle({ canCarryChilled: true, canCarryFrozen: true })]))
     renderScreen()
     expect(await screen.findByText("Chilled · Frozen")).toBeInTheDocument()
   })
@@ -91,10 +76,7 @@ describe("VehiclesListScreen — the register", () => {
   })
 
   it("names the holder, and links to them, when a vehicle is out", async () => {
-    listVehicles.mockResolvedValue({
-      items: [vehicle({ currentHolderDriverId: "d-9", currentHolderName: "Sam Rivers" })],
-      nextCursor: null,
-    })
+    listVehicles.mockResolvedValue(onePage([vehicle({ currentHolderDriverId: "d-9", currentHolderName: "Sam Rivers" })]))
     renderScreen()
     expect(await screen.findByText("Sam Rivers")).toBeInTheDocument()
   })
@@ -112,20 +94,30 @@ describe("VehiclesListScreen — the register", () => {
     expect(await screen.findByRole("button", { name: /add vehicle/i })).toBeInTheDocument()
   })
 
-  it("⚠ consumes nextCursor rather than silently capping the register", async () => {
-    listVehicles.mockResolvedValue({ items: [vehicle()], nextCursor: "EFY-001:v-1" })
+  it("⚠ 103: pages the whole register on the server, rather than silently capping it", async () => {
+    listVehicles.mockResolvedValue(onePage([vehicle()], { total: 60 }))
     renderScreen()
-    expect(await screen.findByRole("button", { name: "Next" })).toBeEnabled()
+    expect(await screen.findByText("1–1 of 60")).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Next page" })).toBeEnabled()
   })
 
-  it("shows no paging controls when there is only one page", async () => {
+  it("103: the search and filters reach the server, and come from the address", async () => {
+    renderScreen("/vehicles?q=efy&owner=driver_owned&view=retired")
+    await screen.findByText("EFY-001")
+    const qs = String(listVehicles.mock.calls.at(-1)![0])
+    expect(qs).toContain("q=efy")
+    expect(qs).toContain("owner=driver_owned")
+    expect(qs).toContain("view=retired")
+  })
+
+  it("disables Next when there is only one page", async () => {
     renderScreen()
     await screen.findByText("EFY-001")
-    expect(screen.queryByRole("button", { name: "Next" })).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Next page" })).toBeDisabled()
   })
 
   it("explains an empty register instead of showing a bare empty table", async () => {
-    listVehicles.mockResolvedValue({ items: [], nextCursor: null })
+    listVehicles.mockResolvedValue(onePage([]))
     renderScreen()
     expect(await screen.findByText(/No vehicles yet/)).toBeInTheDocument()
   })

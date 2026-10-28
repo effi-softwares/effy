@@ -1,6 +1,6 @@
 // The shape and readability check are declared in @effy/shared-types (promotion-skins.ts); back-office
 // runs them as staff type, but only this service decides what is saved. Every change is announced.
-import { emitMetric, metricNamespace } from "@effy/edge-shared";
+import { emitMetric, LIMIT_REACHED, metricNamespace, SET_FULL_SENTENCE } from "@effy/edge-shared";
 import { announce } from "@effy/edge-shared/live";
 import {
   DESIGNED_LAYOUTS,
@@ -68,6 +68,7 @@ export async function readSkin(id: string): Promise<AdminSkinDTO> {
 export async function createSkin(body: Record<string, unknown>, actor: string): Promise<AdminSkinDTO> {
   const l = layout(body.layout);
   const input = { name: name(body.name), layout: l, settings: assertSaveable(l, body.settings) };
+  if (await repo.isFull()) throw new PromoError(409, LIMIT_REACHED, SET_FULL_SENTENCE);
   const id = await repo.insertSkin(input, actor).catch(nameTaken);
   await changed();
   return readSkin(id);

@@ -41,8 +41,13 @@ export function encodeProductListQuery(p: ProductListParams): string {
   if (p.priceMin && p.priceMin.trim()) params.set("priceMin", p.priceMin.trim())
   if (p.priceMax && p.priceMax.trim()) params.set("priceMax", p.priceMax.trim())
   if (p.sort) params.set("sort", p.sort)
-  if (p.order) params.set("order", p.order)
+  if (p.order) params.set("dir", p.order)
   return params.toString()
+}
+
+/** One page of the catalogue for the address's view (103). */
+export function fetchProductPage(qs: URLSearchParams, signal: AbortSignal): Promise<ProductList> {
+  return api.get<ProductListDTO>(`/shop/v1/products?${qs}`, { signal })
 }
 
 /** Every active category (paths, synonyms, icons) and the shop's recently used leaves (101). */

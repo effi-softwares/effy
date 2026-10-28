@@ -1,14 +1,17 @@
 import { createRoute } from "@tanstack/react-router"
 
 import { ProductDetailScreen } from "@/features/catalog/ProductDetailScreen"
+import { movementsList } from "@/features/catalog/StockHistory"
 
 import { appRoute } from "./app"
 
 export const catalogProductRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "catalog/$productId",
-  validateSearch: (search: Record<string, unknown>): { size?: string } =>
-    typeof search.size === "string" ? { size: search.size } : {},
+  validateSearch: (search: Record<string, unknown>) => ({
+    ...movementsList.validateSearch(search),
+    ...(typeof search.size === "string" ? { size: search.size } : {}),
+  }),
   component: CatalogProductScreen,
 })
 

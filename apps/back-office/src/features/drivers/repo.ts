@@ -11,7 +11,9 @@ import type {
 
 import { api } from "@/lib/api"
 
-import type { DriverListParams } from "./model"
+import type { ListViews } from "@effy/shared-types"
+
+import type { DriverListParams, DriverListView } from "./model"
 
 function qs(params: Record<string, string | undefined>): string {
   const sp = new URLSearchParams()
@@ -20,16 +22,20 @@ function qs(params: Record<string, string | undefined>): string {
   return s ? `?${s}` : ""
 }
 
+/** A quick read (a picker): up to 100 drivers in one status. */
 export async function listDrivers(p: DriverListParams): Promise<AdminDriverListResponse> {
   return api.get<AdminDriverListResponse>(
-    `/fleet/v1/drivers${qs({
-      q: p.q?.trim() || undefined,
-      status: p.status || undefined,
-      zoneId: p.zoneId || undefined,
-      includeOffboarded: p.includeOffboarded ? "true" : undefined,
-      cursor: p.cursor,
-    })}`,
+    `/fleet/v1/drivers${qs({ q: p.q?.trim() || undefined, view: p.status || undefined, pageSize: "100" })}`,
   )
+}
+
+/** One page of the register for the address's view (103). */
+export function fetchDriverPage(qs: URLSearchParams, signal: AbortSignal): Promise<AdminDriverListResponse> {
+  return api.get<AdminDriverListResponse>(`/fleet/v1/drivers?${qs}`, { signal })
+}
+
+export function fetchDriverViews(qs: URLSearchParams, signal: AbortSignal): Promise<ListViews<DriverListView>> {
+  return api.get<ListViews<DriverListView>>(`/fleet/v1/drivers?${qs}`, { signal })
 }
 
 export async function getDriver(driverId: string): Promise<AdminDriverProfile> {

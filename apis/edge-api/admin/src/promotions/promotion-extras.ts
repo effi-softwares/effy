@@ -2,7 +2,7 @@
 import { randomInt, randomUUID } from "node:crypto";
 
 import { announce } from "@effy/edge-shared/live";
-import { query, withTransaction } from "@effy/edge-shared";
+import { likePattern, limitOffsetClause, offsetListPage, orderBy, parseListQuery, query, runOffsetPage, withTransaction } from "@effy/edge-shared";
 import type {
   AdminAddPromotionCustomersResponse,
   AdminGenerateCodesResponse,
@@ -12,6 +12,7 @@ import type {
   PromotionPerformanceWindowDTO,
 } from "@effy/shared-types";
 
+import { CODE_LIST, CODE_LIST_SPEC, CUSTOMER_LIST, CUSTOMER_LIST_SPEC } from "./list";
 import { PromoError } from "./types";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -23,7 +24,6 @@ const MAX_BATCH = 10_000;
 
 const notFound = () => new PromoError(404, "not_found", "promotion not found");
 const changed = () => announce([{ scope: "ops", kind: "promotions" }]);
-const page = (n: unknown) => (typeof n === "string" && Number(n) > 0 ? Math.floor(Number(n)) : 1);
 
 async function assertPromotion(id: string): Promise<{ trigger: string; audience: string }> {
   if (!UUID.test(id)) throw notFound();
@@ -32,22 +32,25 @@ async function assertPromotion(id: string): Promise<{ trigger: string; audience:
   return r;
 }
 
-export async function listCustomers(id: string, q: Record<string, string | undefined>): Promise<AdminPromotionCustomerListDTO> {
+/** The customers a chosen-customers promotion is for: a console list (103), searched by name or email. */
+export async function listCustomers(id: string, q: Readonly<Record<string, string | undefined>> | null | undefined): Promise<AdminPromotionCustomerListDTO> {
   await assertPromotion(id);
-  const p = page(q.page);
-  const pageSize = 50;
-  const res = await query<{ id: string; name: string | null; email: string; total: string }>(
-    `SELECT c.id::text, NULLIF(TRIM(CONCAT_WS(' ', c.given_name, c.family_name)), '') AS name, c.email, count(*) OVER() AS total
-       FROM public.promotion_customer pc JOIN public.customer c ON c.id = pc.customer_id
-      WHERE pc.promotion_id = $1 ORDER BY c.email LIMIT $2 OFFSET $3`,
-    [id, pageSize, (p - 1) * pageSize],
-  );
-  return {
-    items: res.rows.map((r) => ({ customerId: r.id, name: r.name, email: r.email })),
-    total: res.rows[0] ? Number(res.rows[0].total) : 0,
-    page: p,
-    pageSize,
-  };
+  const req = parseListQuery(q, CUSTOMER_LIST_SPEC);
+  const r = await runOffsetPage(req, async (read) => {
+    const args: unknown[] = [id, req.q ? likePattern(req.q) : null];
+    const paging = limitOffsetClause(read, args);
+    const res = await query<{ id: string; name: string | null; email: string; full_count: string }>(
+      `SELECT c.id::text, NULLIF(TRIM(CONCAT_WS(' ', c.given_name, c.family_name)), '') AS name, c.email, count(*) OVER() AS full_count
+         FROM public.promotion_customer pc JOIN public.customer c ON c.id = pc.customer_id
+        WHERE pc.promotion_id = $1
+          AND ($2::text IS NULL OR c.email::text ILIKE $2 OR CONCAT_WS(' ', c.given_name, c.family_name) ILIKE $2)
+        ${orderBy(CUSTOMER_LIST, req)}
+        ${paging}`,
+      args,
+    );
+    return res.rows;
+  });
+  return offsetListPage(r.rows.map((x) => ({ customerId: x.id, name: x.name, email: x.email })), req, r);
 }
 
 /** By id or email; unmatched emails are listed back, never invented. */
@@ -135,27 +138,28 @@ const CODE_STATE_SQL = `
        WHEN EXISTS (SELECT 1 FROM public.promotion_use u WHERE u.code_id = c.id AND u.status = 'held' AND u.hold_expires_at > now()) THEN 'held'
        ELSE 'unused' END`;
 
-export async function listCodes(id: string, q: Record<string, string | undefined>): Promise<AdminPromotionCodeListDTO> {
+/** A promotion's single-use codes: a console list (103), searched by code, filtered by state. */
+export async function listCodes(id: string, q: Readonly<Record<string, string | undefined>> | null | undefined): Promise<AdminPromotionCodeListDTO> {
   await assertPromotion(id);
-  const p = page(q.page);
-  const pageSize = 100;
-  const state = q.state === "unused" || q.state === "held" || q.state === "used" ? q.state : null;
-  const res = await query<{ code: string; state: "unused" | "held" | "used"; order_id: string | null; total: string }>(
-    `SELECT y.*, count(*) OVER() AS total FROM (
-       SELECT c.code, ${CODE_STATE_SQL} AS state,
-              (SELECT u.order_id::text FROM public.promotion_use u WHERE u.code_id = c.id AND u.status = 'confirmed' LIMIT 1) AS order_id,
-              c.created_at
-         FROM public.promotion_code c WHERE c.promotion_id = $1 AND c.single_use) y
-      WHERE ($2::text IS NULL OR y.state = $2)
-      ORDER BY y.created_at, y.code LIMIT $3 OFFSET $4`,
-    [id, state, pageSize, (p - 1) * pageSize],
-  );
-  return {
-    items: res.rows.map((r) => ({ code: r.code, state: r.state, orderId: r.order_id })),
-    total: res.rows[0] ? Number(res.rows[0].total) : 0,
-    page: p,
-    pageSize,
-  };
+  const req = parseListQuery(q, CODE_LIST_SPEC);
+  const r = await runOffsetPage(req, async (read) => {
+    const args: unknown[] = [id, req.filters.state ?? null, req.q ? likePattern(req.q) : null];
+    const paging = limitOffsetClause(read, args);
+    const res = await query<{ code: string; state: "unused" | "held" | "used"; order_id: string | null; full_count: string }>(
+      `SELECT y.*, count(*) OVER() AS full_count FROM (
+         SELECT c.code, ${CODE_STATE_SQL} AS state,
+                (SELECT u.order_id::text FROM public.promotion_use u WHERE u.code_id = c.id AND u.status = 'confirmed' LIMIT 1) AS order_id,
+                c.created_at
+           FROM public.promotion_code c WHERE c.promotion_id = $1 AND c.single_use) y
+        WHERE ($2::text IS NULL OR y.state = $2)
+          AND ($3::text IS NULL OR y.code ILIKE $3)
+        ${orderBy(CODE_LIST, req)}
+        ${paging}`,
+      args,
+    );
+    return res.rows;
+  });
+  return offsetListPage(r.rows.map((x) => ({ code: x.code, state: x.state, orderId: x.order_id })), req, r);
 }
 
 /** As CSV; no file storage. */

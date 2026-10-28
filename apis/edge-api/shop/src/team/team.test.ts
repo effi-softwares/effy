@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const repo = vi.hoisted(() => ({
   listTeam: vi.fn(),
+  isFull: vi.fn(async () => false),
   findByEmail: vi.fn(),
   upsertMember: vi.fn(),
   setRole: vi.fn(),
@@ -170,5 +171,16 @@ describe("role changes reconcile both systems", () => {
   it("replaces the Cognito groups rather than adding to them", async () => {
     await changeRole(SHOP, ME, "st-2", { role: "shop_staff" });
     expect(cognito.setUserGroups).toHaveBeenCalledWith("them@effy.shop", ["shop_staff"]);
+  });
+});
+
+describe("103 — a shop's team is capped", () => {
+  it("refuses a new colleague once the team is full, before any sign-in is made", async () => {
+    repo.isFull.mockResolvedValueOnce(true);
+    await expect(invite(SHOP, ME, { email: "new@effy.shop", name: "New", role: "shop_staff" })).rejects.toMatchObject({
+      kind: "conflict",
+      message: "This list is full (500). Remove one before adding another.",
+    });
+    expect(cognito.ensureShopUser).not.toHaveBeenCalled();
   });
 });

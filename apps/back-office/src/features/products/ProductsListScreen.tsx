@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query"
-import { Link, useNavigate } from "@tanstack/react-router"
+import { useQuery } from "@tanstack/react-query"
+import { Link } from "@tanstack/react-router"
 import { ImageOff, PackageSearch, Plus, Upload } from "lucide-react"
 
 import {
@@ -11,34 +11,25 @@ import {
   STORAGE_WORDS,
   STORAGES,
   type BackOfficeProductRowDTO,
-  type BackOfficeProductSort,
   type BackOfficeProductTab,
   type BulkProductsResultDTO,
 } from "@effy/shared-types"
 import { cn } from "@effy/design-system"
+import { Button } from "@effy/design-system/ui"
 import {
-  Button,
-  Checkbox,
-  Skeleton,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@effy/design-system/ui"
-import { ErrorState } from "@effy/web-kit/console"
-import {
-  EmptyState,
+  DataTable,
   Facet,
-  PageHeader,
+  isFiltered,
+  ListPage,
+  listQueryOptions,
   ResetFilters,
   SearchBox,
-  StatusWord,
-  Toolbar,
   ToolbarSpacer,
+  useListState,
   ViewSelect,
-} from "@effy/web-kit/patterns"
+  type EffyColumnDef,
+} from "@effy/web-kit/data-table"
+import { PageHeader, StatusWord } from "@effy/web-kit/patterns"
 
 import { useSessionRoles } from "@/features/auth/useSessionRoles"
 import { marginLabel } from "@/features/product-review/model"
@@ -49,37 +40,121 @@ import { money, moment } from "@/lib/format"
 
 import { canManageProducts } from "./access"
 import { BulkDialog, BulkResult, type BulkAction, type Target } from "./BulkDialogs"
-import { clearFilters, hasFilters, type ProductSearch } from "./model"
-import { productListQuery } from "./queries"
+import { productsList } from "./model"
+import { productKeys } from "./queries"
+import { fetchProductPage } from "./repo"
 import { STATE_TONE } from "./words"
 
-const SORT_WORDS: Record<BackOfficeProductSort, string> = {
-  updated: "Last changed",
-  name: "Name",
-  price: "Customer price",
-  shop: "Shop",
+type Row = BackOfficeProductRowDTO
+
+/** Approved, not archived: only these have a margin to set (a new product gets one at approval). */
+const hasMarginToSet = (p: Row) => !["draft", "in_review", "archived"].includes(p.state) || p.effySettingUp
+
+const from = (p: Row, amount: string | null) => (amount === null ? "—" : `${p.priceVaries ? "From " : ""}${money(amount)}`)
+
+/** The columns; the margin cell opens the margin dialog, so it is built with the screen's action. */
+function productColumns(onMargin: ((p: Row) => void) | null): EffyColumnDef<Row>[] {
+  return [
+    {
+      id: "product",
+      header: "Product",
+      cell: ({ row }) => <ProductCell p={row.original} />,
+      meta: { label: "Product", identifying: true, phone: "primary", sortKey: "name" },
+    },
+    {
+      id: "shop",
+      header: "Shop",
+      cell: ({ row }) => (
+        <>
+          {row.original.shop.name}
+          {row.original.shop.status !== "active" ? (
+            <span className="mt-0.5 block text-sm text-muted-foreground">Shop {row.original.shop.status}</span>
+          ) : null}
+        </>
+      ),
+      meta: { label: "Shop", priority: 2, sortKey: "shop" },
+    },
+    {
+      id: "aisle",
+      header: "Aisle",
+      cell: ({ row }) => (
+        <span className="text-muted-foreground" title={pathText(row.original.categoryPath)}>
+          {row.original.categoryPath.at(-1) ?? "—"}
+        </span>
+      ),
+      meta: { label: "Aisle", priority: 2, phone: "hide" },
+    },
+    { id: "sizes", header: "Sizes", cell: ({ row }) => row.original.variantCount, meta: { label: "Sizes", align: "numeric", priority: 3, phone: "hide" } },
+    {
+      id: "shopPrice",
+      header: "Shop price",
+      cell: ({ row }) => from(row.original, row.original.shopPriceFrom),
+      meta: { label: "Shop price", align: "numeric", priority: 2, phone: "hide" },
+    },
+    {
+      id: "customerPrice",
+      header: "Customers pay",
+      cell: ({ row }) => from(row.original, row.original.customerPriceFrom),
+      meta: { label: "Customers pay", align: "numeric", sortKey: "price", phone: "trail" },
+    },
+    {
+      id: "margin",
+      header: "Margin",
+      cell: ({ row }) => {
+        const p = row.original
+        const text = p.margin ? marginLabel(p.margin) : "Not set"
+        return onMargin && hasMarginToSet(p) ? (
+          <Button
+            type="button"
+            variant="link"
+            className={cn("font-medium text-foreground", !p.margin && "text-muted-foreground")}
+            onClick={(e) => {
+              e.stopPropagation()
+              onMargin(p)
+            }}
+          >
+            {text}
+          </Button>
+        ) : (
+          <span className={p.margin ? undefined : "text-muted-foreground"}>{text}</span>
+        )
+      },
+      meta: { label: "Margin", priority: 2 },
+    },
+    {
+      id: "state",
+      header: "State",
+      cell: ({ row }) => {
+        const p = row.original
+        return (
+          <div className="flex flex-wrap items-center gap-1">
+            <StatusWord tone={STATE_TONE[p.state]}>{BACKOFFICE_PRODUCT_STATE_WORDS[p.state]}</StatusWord>
+            {p.effySettingUp ? <StatusWord tone="info">Effy setting up</StatusWord> : null}
+            {p.lowStock ? <StatusWord tone="waiting">Low stock</StatusWord> : null}
+            {p.missingRequired > 0 ? <StatusWord tone="waiting">Missing details</StatusWord> : null}
+          </div>
+        )
+      },
+      meta: { label: "State", phone: "badge" },
+    },
+    {
+      id: "changed",
+      header: "Changed",
+      cell: ({ row }) => <span className="text-muted-foreground">{moment(row.original.updatedAt)}</span>,
+      meta: { label: "Changed", priority: 3, sortKey: "updated", phone: "hide" },
+    },
+  ]
 }
 
 /** Catalogue › Products: every product of every shop (102). The view lives in the URL. */
-export function ProductsListScreen({ search }: { search: ProductSearch }) {
-  const navigate = useNavigate()
+export function ProductsListScreen({ search }: { search: Record<string, unknown> }) {
   const canManage = canManageProducts(useSessionRoles())
-  const list = useInfiniteQuery(productListQuery(search))
+  const state = useListState(productsList, search)
+  const f = state.view.filters
+  const input = { key: productKeys.all, list: productsList, view: state.view, fetch: fetchProductPage }
+  const query = useQuery(listQueryOptions(input))
   const shops = useQuery(shopListQuery({ page: 1, pageSize: 100 }))
   const tree = useQuery(treeQuery())
-
-  const go = (next: ProductSearch) => void navigate({ to: "/products", search: next as never, replace: true })
-  const set = (patch: Partial<ProductSearch>) => go({ ...search, ...patch })
-
-  // The box answers as you type; the URL follows once typing pauses.
-  const [q, setQ] = useState(search.q ?? "")
-  useEffect(() => setQ(search.q ?? ""), [search.q])
-  useEffect(() => {
-    if (q === (search.q ?? "")) return
-    const t = setTimeout(() => set({ q: q.trim() || undefined }), 300)
-    return () => clearTimeout(t)
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- `set` is rebuilt every render; `q` is the trigger
-  }, [q])
 
   // Departments and their aisles: deep enough to narrow, short enough to scan.
   const aisles = useMemo(() => {
@@ -99,180 +174,66 @@ export function ProductsListScreen({ search }: { search: ProductSearch }) {
       .sort((a, b) => a.group.localeCompare(b.group) || a.order.localeCompare(b.order, undefined, { numeric: true }))
   }, [tree.data])
 
-  const first = list.data?.pages[0]
-  const items = list.data?.pages.flatMap((p) => p.items) ?? []
-  const tab: BackOfficeProductTab = search.state ?? "all"
+  const items = useMemo(() => query.data?.items ?? [], [query.data])
+  const tab: BackOfficeProductTab = f.state ?? "all"
 
-  // Selection follows the view: a new search or filter starts it again.
+  // Selection survives paging (it is by product id) and starts again when what is listed changes (103 FR-019).
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set())
-  const viewKey = JSON.stringify(search)
-  useEffect(() => setSelected(new Set()), [viewKey])
-  const toggle = (id: string) =>
-    setSelected((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
+  const filterKey = JSON.stringify([state.view.q, state.view.filters])
+  useEffect(() => setSelected(new Set()), [filterKey])
+  // What was selected, kept as rows so a bulk action can name products on other pages.
+  const [known, setKnown] = useState<ReadonlyMap<string, Row>>(new Map())
+  useEffect(() => {
+    if (items.length === 0) return
+    setKnown((prev) => {
+      const next = new Map(prev)
+      for (const p of items) next.set(p.productId, p)
       return next
     })
-  const allShown = items.length > 0 && items.every((p) => selected.has(p.productId))
+  }, [items])
 
   const [action, setAction] = useState<{ kind: BulkAction; targets: Target[] } | null>(null)
   const [result, setResult] = useState<BulkProductsResultDTO | null>(null)
-  const names = useMemo(() => new Map(items.map((p) => [p.productId, p.name])), [items])
-  const targetsOf = (rows: readonly BackOfficeProductRowDTO[]): Target[] =>
-    rows.map((p) => ({
-      productId: p.productId,
-      name: p.name,
-      version: p.version,
-      shopPriceFrom: p.shopPriceFrom,
-      margin: p.margin,
-    }))
-  const start = (kind: BulkAction, rows: readonly BackOfficeProductRowDTO[]) => {
+  const names = useMemo(() => new Map([...known.values()].map((p) => [p.productId, p.name])), [known])
+  const targetsOf = (rows: readonly Row[]): Target[] =>
+    rows.map((p) => ({ productId: p.productId, name: p.name, version: p.version, shopPriceFrom: p.shopPriceFrom, margin: p.margin }))
+  const start = (kind: BulkAction, rows: readonly Row[]) => {
     setResult(null)
     setAction({ kind, targets: targetsOf(rows) })
   }
-  const chosen = items.filter((p) => selected.has(p.productId))
+  const chosen = [...selected].flatMap((id) => {
+    const p = known.get(id)
+    return p ? [p] : []
+  })
+  const columns = useMemo(() => productColumns(canManage ? (p) => start("margin", [p]) : null), [canManage])
 
   return (
-    <>
-      <PageHeader
-        title="Products"
-        description="Every product of every shop. Search, narrow and open one to see everything about it."
-        actions={
-          canManage ? (
-            <>
-              <Button variant="outline" asChild>
-                <Link to="/products/imports">
-                  <Upload aria-hidden="true" />
-                  Import a list
-                </Link>
-              </Button>
-              <Button asChild>
-                <Link to="/products/new">
-                  <Plus aria-hidden="true" />
-                  New product
-                </Link>
-              </Button>
-            </>
-          ) : undefined
-        }
-      />
-
-      <Toolbar>
-        <ViewSelect
-          label="Product states"
-          value={tab}
-          onChange={(v) => set({ state: v === "all" ? undefined : v })}
-          options={BACKOFFICE_PRODUCT_TABS.map((t) => ({
-            value: t,
-            label: BACKOFFICE_PRODUCT_STATE_WORDS[t],
-            count: first?.counts[t],
-            attention: t === "held",
-          }))}
-        />
-        <SearchBox label="Search products" placeholder="Name, SKU or barcode" value={q} onChange={setQ} />
-        <Facet
-          label="Shop"
-          anyLabel="All shops"
-          value={search.shopId ?? null}
-          onChange={(v) => set({ shopId: v ?? undefined })}
-          options={(shops.data?.items ?? []).map((s) => ({ value: s.id, label: s.name }))}
-        />
-        <Facet
-          label="Aisle"
-          anyLabel="Every aisle"
-          value={search.categoryId ?? null}
-          onChange={(v) => set({ categoryId: v ?? undefined })}
-          options={aisles}
-        />
-        <Facet
-          label="Storage"
-          value={search.storage ?? null}
-          onChange={(v) => set({ storage: v ?? undefined })}
-          options={STORAGES.map((s) => ({ value: s, label: STORAGE_WORDS[s] }))}
-        />
-        <Facet
-          label="Margin"
-          value={search.margin ?? null}
-          onChange={(v) => set({ margin: v ?? undefined })}
-          options={[
-            { value: "set" as const, label: "Set" },
-            { value: "not_set" as const, label: "Not set" },
-          ]}
-        />
-        <Facet
-          label="Needs attention"
-          anyLabel="Anything"
-          value={search.lowStock ? "low" : search.missingDetails ? "missing" : null}
-          onChange={(v) =>
-            set({ lowStock: v === "low" ? true : undefined, missingDetails: v === "missing" ? true : undefined })
+    <ListPage
+      header={
+        <PageHeader
+          title="Products"
+          description="Every product of every shop. Search, narrow and open one to see everything about it."
+          actions={
+            canManage ? (
+              <>
+                <Button variant="outline" asChild>
+                  <Link to="/products/imports">
+                    <Upload aria-hidden="true" />
+                    Import a list
+                  </Link>
+                </Button>
+                <Button asChild>
+                  <Link to="/products/new">
+                    <Plus aria-hidden="true" />
+                    New product
+                  </Link>
+                </Button>
+              </>
+            ) : undefined
           }
-          options={[
-            { value: "low" as const, label: "Low stock" },
-            { value: "missing" as const, label: "Missing details" },
-          ]}
         />
-        {hasFilters(search) ? (
-          <ResetFilters
-            onReset={() => {
-              setQ("")
-              go(clearFilters(search))
-            }}
-          />
-        ) : null}
-        <ToolbarSpacer />
-        <Facet
-          label="Sort"
-          anyLabel={SORT_WORDS.updated}
-          value={search.sort ?? null}
-          onChange={(v) => set({ sort: v ?? undefined, dir: undefined })}
-          options={(["name", "price", "shop"] as const).map((s) => ({ value: s, label: SORT_WORDS[s] }))}
-        />
-      </Toolbar>
-
-      {result ? <BulkResult result={result} names={names} onDismiss={() => setResult(null)} /> : null}
-
-      {canManage && chosen.length > 0 ? (
-        <div
-          className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/40 px-3 py-2"
-          role="region"
-          aria-label="Selected products"
-        >
-          <span className="text-sm font-medium">{chosen.length} selected</span>
-          <Button size="sm" variant="outline" onClick={() => start("margin", chosen)}>
-            Set margin
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() =>
-              start(
-                "hold",
-                chosen.filter((p) => p.state !== "held"),
-              )
-            }
-          >
-            Hold
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() =>
-              start(
-                "release",
-                chosen.filter((p) => p.state === "held"),
-              )
-            }
-          >
-            Release
-          </Button>
-          <ToolbarSpacer />
-          <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>
-            Clear
-          </Button>
-        </div>
-      ) : null}
-
+      }
+    >
       <BulkDialog
         key={action ? `${action.kind}-${action.targets.length}` : "none"}
         action={action?.kind ?? null}
@@ -284,165 +245,117 @@ export function ProductsListScreen({ search }: { search: ProductSearch }) {
           setSelected(new Set())
         }}
       />
-
-      {list.isError ? (
-        <ErrorState error={list.error} onRetry={() => void list.refetch()} />
-      ) : list.isPending ? (
-        <div className="overflow-hidden rounded-xl border bg-card p-4" aria-busy="true">
-          <Skeleton className="mb-3 h-10" />
-          <Skeleton className="mb-3 h-10" />
-          <Skeleton className="h-10" />
-        </div>
-      ) : items.length === 0 ? (
-        <EmptyState
-          icon={PackageSearch}
-          title={hasFilters(search) ? "No product matches" : "No products here"}
-          description={
-            hasFilters(search) ? "Try fewer filters or a different search." : "Products appear here as shops add them."
-          }
-        />
-      ) : (
-        <div className="overflow-hidden rounded-xl border bg-card">
-          <div className="min-w-0">
-            <Table className="ef-rtable">
-              <TableHeader>
-                <TableRow>
-                  {canManage ? (
-                    <TableHead className="w-10">
-                      <Checkbox
-                        aria-label="Select every product shown"
-                        checked={allShown}
-                        onCheckedChange={(on) => setSelected(on ? new Set(items.map((p) => p.productId)) : new Set())}
-                      />
-                    </TableHead>
-                  ) : null}
-                  <TableHead>Product</TableHead>
-                  <TableHead className="max-md:hidden">Shop</TableHead>
-                  <TableHead className="max-lg:hidden">Aisle</TableHead>
-                  <TableHead className="text-right max-lg:hidden">Sizes</TableHead>
-                  <TableHead className="text-right max-md:hidden">Shop price</TableHead>
-                  <TableHead className="text-right">Customers pay</TableHead>
-                  <TableHead className="max-lg:hidden">Margin</TableHead>
-                  <TableHead>State</TableHead>
-                  <TableHead className="max-xl:hidden">Changed</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {items.map((p) => (
-                  <ProductRow
-                    key={p.productId}
-                    p={p}
-                    selection={canManage ? { on: selected.has(p.productId), toggle: () => toggle(p.productId) } : null}
-                    onMargin={canManage ? () => start("margin", [p]) : null}
-                  />
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-          <div className="flex items-center justify-between gap-3 border-t px-4 py-3 text-sm text-muted-foreground">
-            <span>
-              {items.length} of {first?.counts[tab] ?? items.length} shown
-            </span>
-            {list.hasNextPage ? (
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={list.isFetchingNextPage}
-                onClick={() => void list.fetchNextPage()}
-              >
-                {list.isFetchingNextPage ? "Loading…" : "Show more"}
-              </Button>
+      <DataTable
+        app="back-office"
+        label="Products"
+        list={productsList}
+        state={state}
+        columns={columns}
+        query={query}
+        queryInput={input}
+        rowId={(p) => p.productId}
+        viewFilters={["state"]}
+        rowHref={(p) => ({ to: "/products/$productId", params: { productId: p.productId } })}
+        selection={canManage ? { selected, onChange: setSelected, label: (p) => p.name } : undefined}
+        empty={{ icon: PackageSearch, title: "No products here", description: "Products appear here as shops add them." }}
+        above={
+          <>
+            {result ? <BulkResult result={result} names={names} onDismiss={() => setResult(null)} /> : null}
+            {canManage && chosen.length > 0 ? (
+              <div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/40 px-3 py-2" role="region" aria-label="Selected products">
+                <span className="text-sm font-medium">{chosen.length} selected</span>
+                <Button size="sm" variant="outline" onClick={() => start("margin", chosen)}>
+                  Set margin
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => start("hold", chosen.filter((p) => p.state !== "held"))}>
+                  Hold
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => start("release", chosen.filter((p) => p.state === "held"))}>
+                  Release
+                </Button>
+                <ToolbarSpacer />
+                <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>
+                  Clear
+                </Button>
+              </div>
             ) : null}
-          </div>
-        </div>
-      )}
-    </>
+          </>
+        }
+        toolbar={
+          <>
+            <ViewSelect
+              label="Product states"
+              value={tab}
+              onChange={(v) => state.setFilter("state", v === "all" ? undefined : v)}
+              options={BACKOFFICE_PRODUCT_TABS.map((t) => ({
+                value: t,
+                label: BACKOFFICE_PRODUCT_STATE_WORDS[t],
+                count: query.data?.counts[t],
+                attention: t === "held",
+              }))}
+            />
+            <Facet
+              label="Shop"
+              anyLabel="All shops"
+              value={f.shopId ?? null}
+              onChange={(v) => state.setFilter("shopId", v ?? undefined)}
+              options={(shops.data?.items ?? []).map((s) => ({ value: s.id, label: s.name }))}
+            />
+            <Facet label="Aisle" anyLabel="Every aisle" value={f.categoryId ?? null} onChange={(v) => state.setFilter("categoryId", v ?? undefined)} options={aisles} />
+            <Facet
+              label="Storage"
+              value={f.storage ?? null}
+              onChange={(v) => state.setFilter("storage", v ?? undefined)}
+              options={STORAGES.map((s) => ({ value: s, label: STORAGE_WORDS[s] }))}
+            />
+            <Facet
+              label="Margin"
+              value={f.margin ?? null}
+              onChange={(v) => state.setFilter("margin", v ?? undefined)}
+              options={[
+                { value: "set" as const, label: "Set" },
+                { value: "not_set" as const, label: "Not set" },
+              ]}
+            />
+            <Facet
+              label="Needs attention"
+              anyLabel="Anything"
+              value={f.lowStock ? "low" : f.missingDetails ? "missing" : null}
+              onChange={(v) => state.setFilters({ lowStock: v === "low" ? true : undefined, missingDetails: v === "missing" ? true : undefined })}
+              options={[
+                { value: "low" as const, label: "Low stock" },
+                { value: "missing" as const, label: "Missing details" },
+              ]}
+            />
+            {isFiltered(state.view, ["state"]) ? <ResetFilters onReset={state.reset} /> : null}
+            <SearchBox label="Search products" placeholder="Name, SKU or barcode" value={state.draftQ} onChange={state.setQ} />
+          </>
+        }
+      />
+    </ListPage>
   )
 }
 
-/** Approved, not archived: only these have a margin to set (a new product gets one at approval). */
-const hasMarginToSet = (p: BackOfficeProductRowDTO) =>
-  !["draft", "in_review", "archived"].includes(p.state) || p.effySettingUp
-
-function ProductRow({
-  p,
-  selection,
-  onMargin,
-}: {
-  p: BackOfficeProductRowDTO
-  selection: { on: boolean; toggle: () => void } | null
-  onMargin: (() => void) | null
-}) {
-  const from = (amount: string | null) => (amount === null ? "—" : `${p.priceVaries ? "From " : ""}${money(amount)}`)
-  const marginText = p.margin ? marginLabel(p.margin) : "Not set"
+function ProductCell({ p }: { p: Row }) {
   return (
-    <TableRow aria-selected={selection?.on}>
-      {selection ? (
-        <TableCell>
-          <Checkbox aria-label={`Select ${p.name}`} checked={selection.on} onCheckedChange={selection.toggle} />
-        </TableCell>
-      ) : null}
-      <TableCell data-m="primary">
-        <div className="flex items-center gap-3">
-          {p.imageUrl ? (
-            <img src={p.imageUrl} alt="" className="size-10 shrink-0 rounded-md border object-cover" loading="lazy" />
-          ) : (
-            <span
-              className="grid size-10 shrink-0 place-items-center rounded-md border text-muted-foreground"
-              aria-hidden="true"
-            >
-              <ImageOff className="size-4" />
-            </span>
-          )}
-          <div className="min-w-0">
-            <Link to="/products/$productId" params={{ productId: p.productId }} className="link">
-              {p.name}
-            </Link>
-            <div className="mt-0.5 block text-sm text-muted-foreground truncate">
-              {[p.brand, p.origin !== "shop" ? PRODUCT_ORIGIN_WORDS[p.origin] : null].filter(Boolean).join(" · ")}
-              <span className="md:hidden">
-                {p.brand || p.origin !== "shop" ? " · " : ""}
-                {p.shop.name}
-              </span>
-            </div>
-          </div>
-        </div>
-      </TableCell>
-      <TableCell data-m="meta" className="max-md:hidden">
-        {p.shop.name}
-        {p.shop.status !== "active" ? (
-          <div className="mt-0.5 block text-sm text-muted-foreground">Shop {p.shop.status}</div>
-        ) : null}
-      </TableCell>
-      <TableCell className="text-muted-foreground max-lg:hidden" title={pathText(p.categoryPath)}>
-        {p.categoryPath.at(-1) ?? "—"}
-      </TableCell>
-      <TableCell className="text-right tabular-nums max-lg:hidden">{p.variantCount}</TableCell>
-      <TableCell className="text-right tabular-nums max-md:hidden">{from(p.shopPriceFrom)}</TableCell>
-      <TableCell className="text-right tabular-nums">{from(p.customerPriceFrom)}</TableCell>
-      <TableCell className="max-lg:hidden">
-        {onMargin && hasMarginToSet(p) ? (
-          <Button
-            type="button"
-            variant="link"
-            className={cn("font-medium text-foreground", !p.margin && "text-muted-foreground")}
-            onClick={onMargin}
-          >
-            {marginText}
-          </Button>
-        ) : (
-          <span className={p.margin ? undefined : "text-muted-foreground"}>{marginText}</span>
-        )}
-      </TableCell>
-      <TableCell data-m="badge">
-        <div className="flex flex-wrap items-center gap-1">
-          <StatusWord tone={STATE_TONE[p.state]}>{BACKOFFICE_PRODUCT_STATE_WORDS[p.state]}</StatusWord>
-          {p.effySettingUp ? <StatusWord tone="info">Effy setting up</StatusWord> : null}
-          {p.lowStock ? <StatusWord tone="waiting">Low stock</StatusWord> : null}
-          {p.missingRequired > 0 ? <StatusWord tone="waiting">Missing details</StatusWord> : null}
-        </div>
-      </TableCell>
-      <TableCell className="text-muted-foreground whitespace-nowrap max-xl:hidden">{moment(p.updatedAt)}</TableCell>
-    </TableRow>
+    <div className="flex items-center gap-3">
+      {p.imageUrl ? (
+        <img src={p.imageUrl} alt="" className="size-10 shrink-0 rounded-md border object-cover" loading="lazy" />
+      ) : (
+        <span className="grid size-10 shrink-0 place-items-center rounded-md border text-muted-foreground" aria-hidden="true">
+          <ImageOff className="size-4" />
+        </span>
+      )}
+      <div className="min-w-0">
+        <span className="block max-w-[36ch] truncate">{p.name}</span>
+        <span className="mt-0.5 block truncate text-sm font-normal text-muted-foreground">
+          {[p.brand, p.origin !== "shop" ? PRODUCT_ORIGIN_WORDS[p.origin] : null].filter(Boolean).join(" · ")}
+          <span className="md:hidden">
+            {p.brand || p.origin !== "shop" ? " · " : ""}
+            {p.shop.name}
+          </span>
+        </span>
+      </div>
+    </div>
   )
 }

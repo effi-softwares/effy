@@ -1,11 +1,13 @@
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";
-import { json, preamble } from "@effy/edge-shared";
+import { json, listProblem, offsetListPage, parseListQuery, preamble } from "@effy/edge-shared";
 
-import { listVehicles } from "../vehicles/repository";
 import { denied, guard, mapFleetError } from "../shared/handler-support";
+import { VEHICLE_LIST_SPEC } from "../vehicles/list";
+import { listVehicles, vehicleViewCounts } from "../vehicles/repository";
 
+/** The vehicle register, a console list (103); `?views=only` answers every view's count instead of a page. */
 export const handler = async (
   event: AuthedEvent,
   context: Context,
@@ -14,18 +16,11 @@ export const handler = async (
   const g = await guard(event, scope, "read");
   if (denied(g)) return g.deny;
   try {
-    const q = event.queryStringParameters ?? {};
-    return json(
-      200,
-      await listVehicles({
-        status: q.status ?? undefined,
-        refrigeration: (q.refrigeration as "chilled" | "frozen" | undefined) ?? undefined,
-        nonCompliantOnly: q.nonCompliant === "true",
-        cursor: q.cursor ?? undefined,
-      }),
-      scope,
-    );
+    const req = parseListQuery(event.queryStringParameters, VEHICLE_LIST_SPEC);
+    if (req.viewsOnly) return json(200, { views: await vehicleViewCounts(req) }, scope);
+    const r = await listVehicles(req);
+    return json(200, offsetListPage(r.items, req, r), scope);
   } catch (err) {
-    return mapFleetError(err, scope);
+    return listProblem(err, scope) ?? mapFleetError(err, scope);
   }
 };

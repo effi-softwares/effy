@@ -1,3 +1,4 @@
+import type { ListPage } from "./list"
 /**
  * Availability (099): every size a shop sells, its stock and whether it is on sale — one quick screen
  * to take a size off sale in one tap. Read only: the switch is the existing variant state route
@@ -39,10 +40,8 @@ export interface ShopAvailabilityRowDTO {
   imageUrl: string | null
 }
 
-export interface ShopAvailabilityDTO {
-  items: ShopAvailabilityRowDTO[]
-  /** Cursor for the next page; null on the last. */
-  next: string | null
+/** A console list page (103) with every view's count. */
+export interface ShopAvailabilityDTO extends ListPage<ShopAvailabilityRowDTO> {
   /** Under the search, before the filter. */
   counts: { needsLook: WireInt; outOfStock: WireInt; lowStock: WireInt; offSale: WireInt; all: WireInt }
 }

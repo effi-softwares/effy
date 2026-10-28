@@ -12,7 +12,7 @@ import { at12 } from "./overviewFormat"
 export function OnDuty() {
   const duty = useQuery(dutyQuery())
   const day = useQuery(dispatchDayQuery())
-  const exceptions = useQuery(exceptionsQuery(false))
+  const exceptions = useQuery(exceptionsQuery())
 
   const blocked = new Set(
     (exceptions.data?.vehicleChecks ?? []).filter((c) => c.unsafe && c.clearedAt === null).map((c) => c.driverName),

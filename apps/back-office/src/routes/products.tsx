@@ -1,8 +1,8 @@
 import { createRoute } from "@tanstack/react-router"
 
-import { parseProductSearch, type ProductSearch } from "@/features/products/model"
+import { productsList } from "@/features/products/model"
 import { FinishProductScreen, NewProductScreen } from "@/features/products/EffyProductScreens"
-import { ImportScreen, ImportsScreen } from "@/features/products/ImportScreens"
+import { ImportScreen, ImportsScreen, importsList } from "@/features/products/ImportScreens"
 import { ProductPage } from "@/features/products/ProductPage"
 import { ProductsListScreen } from "@/features/products/ProductsListScreen"
 
@@ -11,7 +11,7 @@ import { appRoute } from "./app"
 export const productsIndexRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "products",
-  validateSearch: (search: Record<string, unknown>): ProductSearch => parseProductSearch(search),
+  validateSearch: (raw: Record<string, unknown>) => productsList.validateSearch(raw),
   component: ProductsIndexRouteComponent,
 })
 
@@ -30,6 +30,7 @@ export const productNewRoute = createRoute({
 export const productImportsRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "products/imports",
+  validateSearch: (raw: Record<string, unknown>) => importsList.validateSearch(raw),
   component: ImportsScreen,
 })
 

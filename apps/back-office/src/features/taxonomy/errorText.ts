@@ -1,3 +1,4 @@
+import { setFullText } from "@effy/web-kit/data-table"
 import { isDomainError } from "@effy/api-client"
 
 import { CATEGORY_DEPTH_MAX, PLACEMENTS_MAX } from "@effy/shared-types"
@@ -31,6 +32,8 @@ const CODES: Record<string, string> = {
 }
 
 export function taxonomyErrorText(err: unknown): string {
+  const full = setFullText(err)
+  if (full) return full
   if (isDomainError(err)) {
     if (err.code && CODES[err.code]) return CODES[err.code]!
     if (err.kind === "forbidden") return "You don't have permission to change the taxonomy."

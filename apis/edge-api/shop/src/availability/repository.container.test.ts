@@ -11,7 +11,11 @@ vi.mock("@effy/edge-shared", async () => {
   return { ...actual, query: (text: string, params?: unknown[]) => holder.pool!.query(text, params as never[]) };
 });
 
+import { parseListQuery } from "@effy/edge-shared";
+
+import { AVAILABILITY_LIST_SPEC } from "./list";
 import { readAvailability } from "./repository";
+import { listAvailability } from "./service";
 
 const RUN = process.env.CONTAINER_TESTS === "1";
 
@@ -86,7 +90,7 @@ describe.skipIf(!RUN)("Availability — real PostgreSQL, real migrations", () =>
     await product("Draft cake", [{ sku: "D-1" }], { status: "draft" });
     await product("Old jam", [{ sku: "J-1" }], { status: "archived" });
     await product("Their milk", [{ sku: "T-1" }], { shop: OTHER_SHOP });
-    const page = await readAvailability(SHOP, null, "all", 0, 50);
+    const page = await readAvailability(SHOP, null, "all");
     expect(page.rows.map((r) => r.sku)).toEqual(["B-1", "M-1", "M-2"]);
     expect(page.counts).toEqual({ needsLook: 0, outOfStock: 0, lowStock: 0, offSale: 1, all: 3 });
   });
@@ -94,7 +98,7 @@ describe.skipIf(!RUN)("Availability — real PostgreSQL, real migrations", () =>
   it("marks the last size on sale, so its switch can say why it is refused", async () => {
     await product("Milk", [{ sku: "M-1" }, { sku: "M-2", state: "inactive" }]);
     await product("Eggs", [{ sku: "E-1" }, { sku: "E-2" }]);
-    const rows = (await readAvailability(SHOP, null, "all", 0, 50)).rows;
+    const rows = (await readAvailability(SHOP, null, "all")).rows;
     const last = Object.fromEntries(rows.map((r) => [r.sku, r.lastOnSale]));
     expect(last).toEqual({ "E-1": false, "E-2": false, "M-1": true, "M-2": false });
   });
@@ -102,20 +106,22 @@ describe.skipIf(!RUN)("Availability — real PostgreSQL, real migrations", () =>
   it("filters to off sale and to out of stock, and searches name, code and exact barcode", async () => {
     await product("Milk", [{ sku: "M-1", onHand: 0 }, { sku: "M-2", state: "inactive", gtin: "9300000000014" }]);
     await product("Eggs", [{ sku: "E-1", onHand: 4 }]);
-    expect((await readAvailability(SHOP, null, "off_sale", 0, 50)).rows.map((r) => r.sku)).toEqual(["M-2"]);
-    expect((await readAvailability(SHOP, null, "out_of_stock", 0, 50)).rows.map((r) => r.sku)).toEqual(["M-1"]);
-    expect((await readAvailability(SHOP, "egg", "all", 0, 50)).rows.map((r) => r.sku)).toEqual(["E-1"]);
-    expect((await readAvailability(SHOP, "9300000000014", "all", 0, 50)).rows.map((r) => r.sku)).toEqual(["M-2"]);
-    expect((await readAvailability(SHOP, "930000", "all", 0, 50)).rows).toEqual([]);
+    expect((await readAvailability(SHOP, null, "off_sale")).rows.map((r) => r.sku)).toEqual(["M-2"]);
+    expect((await readAvailability(SHOP, null, "out_of_stock")).rows.map((r) => r.sku)).toEqual(["M-1"]);
+    expect((await readAvailability(SHOP, "egg", "all")).rows.map((r) => r.sku)).toEqual(["E-1"]);
+    expect((await readAvailability(SHOP, "9300000000014", "all")).rows.map((r) => r.sku)).toEqual(["M-2"]);
+    expect((await readAvailability(SHOP, "930000", "all")).rows).toEqual([]);
   });
 
-  it("pages through the filtered list", async () => {
-    await product("Milk", [{ sku: "A" }, { sku: "B" }, { sku: "C" }]);
-    const first = await readAvailability(SHOP, null, "all", 0, 2);
-    expect(first.rows.map((r) => r.sku)).toEqual(["A", "B"]);
-    expect(first.hasMore).toBe(true);
-    const second = await readAvailability(SHOP, null, "all", 2, 2);
-    expect(second.rows.map((r) => r.sku)).toEqual(["C"]);
-    expect(second.hasMore).toBe(false);
+  it("103: pages through the filtered list with an exact total, and answers a page past the end with the last", async () => {
+    const skus = Array.from({ length: 27 }, (_, i) => ({ sku: `S${String(i).padStart(2, "0")}` }));
+    await product("Milk", skus);
+    const list = (qs: Record<string, string>) => listAvailability({ shopId: SHOP }, parseListQuery({ filter: "all", ...qs }, AVAILABILITY_LIST_SPEC));
+    const first = await list({});
+    expect(first).toMatchObject({ total: 27, page: 1 });
+    expect(first.rows).toHaveLength(25);
+    const second = await list({ page: "2" });
+    expect(second.rows.map((r) => r.sku)).toEqual(["S25", "S26"]);
+    expect((await list({ page: "9" })).page).toBe(2);
   });
 });

@@ -38,8 +38,11 @@ export function toListDTO(l: OrderList): ShopOrderListDTO {
   return {
     items: l.items.map(toRowDTO),
     total: l.total,
+    totalCapped: false,
     page: l.page,
     pageSize: l.pageSize,
+    nextCursor: null,
+    ignored: [],
     counts: { ...l.counts },
   };
 }

@@ -1,76 +1,101 @@
 import { useState } from "react"
 
 import { useQuery } from "@tanstack/react-query"
+import { useSearch } from "@tanstack/react-router"
+import { PackageCheck } from "lucide-react"
 
 import type { LowStockRowDTO } from "@effy/shared-types"
-import {
-  Button,
-  Input,
-  Label,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@effy/design-system/ui"
-import { ErrorState } from "@effy/web-kit/console"
+import { Button, Input, Label } from "@effy/design-system/ui"
+import { DataTable, Facet, listQueryOptions, SearchBox, useListState, type EffyColumnDef } from "@effy/web-kit/data-table"
 
-import { shopLowStockQuery, useSetShopStockSettings } from "./stockQueries"
+import { shopStockList } from "./list"
+import { STOCK_ROOT, useSetShopStockSettings } from "./stockQueries"
+import { fetchShopLowStockPage } from "./stockRepo"
+
+const columns: EffyColumnDef<LowStockRowDTO>[] = [
+  {
+    id: "product",
+    header: "Product",
+    cell: ({ row }) => (
+      <>
+        {row.original.name}
+        {row.original.variantLabel ? <span className="text-muted-foreground"> — {row.original.variantLabel}</span> : null}
+      </>
+    ),
+    meta: { label: "Product", identifying: true, phone: "primary", sortKey: "name" },
+  },
+  {
+    id: "sku",
+    header: "SKU",
+    cell: ({ row }) => <span className="text-muted-foreground">{row.original.sku ?? "—"}</span>,
+    meta: { label: "SKU", align: "mono", priority: 2 },
+  },
+  { id: "onHand", header: "In stock", cell: ({ row }) => row.original.onHand, meta: { label: "In stock", align: "numeric", sortKey: "onHand", phone: "trail" } },
+  {
+    id: "threshold",
+    header: "Threshold",
+    cell: ({ row }) => <span className="text-muted-foreground">{row.original.effectiveThreshold ?? "—"}</span>,
+    meta: { label: "Threshold", align: "numeric", priority: 2 },
+  },
+  {
+    id: "status",
+    header: "Status",
+    cell: ({ row }) =>
+      row.original.severity === "out" ? <span className="font-semibold">Out of stock</span> : <span>Low</span>,
+    meta: { label: "Status", phone: "badge" },
+  },
+]
 
 export function ShopStockPanel({ shopId, canManage }: { shopId: string; canManage: boolean }) {
-  const { data, error, isPending, isError, refetch } = useQuery(shopLowStockQuery(shopId))
-
-  if (isError) return <ErrorState error={error} onRetry={() => void refetch()} />
-  if (isPending) return <p className="text-sm text-muted-foreground">Loading stock…</p>
-
   return (
     <div className="space-y-6">
       {canManage ? <ShopDefaultThreshold shopId={shopId} /> : null}
-      <LowStockTable rows={data} />
+      <LowStockTable shopId={shopId} />
     </div>
   )
 }
 
-function LowStockTable({ rows }: { rows: LowStockRowDTO[] }) {
-  if (rows.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        Nothing needs restocking. Products this shop does not track never appear here.
-      </p>
-    )
+/** The shop's restock list (103): searched, narrowed and paged by the server, least stock first. */
+function LowStockTable({ shopId }: { shopId: string }) {
+  const state = useListState(shopStockList, useSearch({ strict: false }))
+  const input = {
+    key: [...STOCK_ROOT, "low", shopId] as const,
+    list: shopStockList,
+    view: state.view,
+    fetch: (qs: URLSearchParams, signal: AbortSignal) => fetchShopLowStockPage(shopId, qs, signal),
   }
-
+  const query = useQuery(listQueryOptions(input))
   return (
-    <div className="overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Product</TableHead>
-            <TableHead>SKU</TableHead>
-            <TableHead>In stock</TableHead>
-            <TableHead>Threshold</TableHead>
-            <TableHead>Status</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((row) => (
-            <TableRow key={row.variantId}>
-              <TableCell>
-                {row.name}
-                {row.variantLabel ? <span className="text-muted-foreground"> — {row.variantLabel}</span> : null}
-              </TableCell>
-              <TableCell className="font-mono text-muted-foreground">{row.sku ?? "—"}</TableCell>
-              <TableCell className="tabular-nums">{row.onHand}</TableCell>
-              <TableCell className="tabular-nums text-muted-foreground">{row.effectiveThreshold ?? "—"}</TableCell>
-              <TableCell className={row.severity === "out" ? "font-semibold" : undefined}>
-                {row.severity === "out" ? "Out of stock" : "Low"}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+    <DataTable
+      app="back-office"
+      label="Products to restock"
+      list={shopStockList}
+      state={state}
+      columns={columns}
+      query={query}
+      queryInput={input}
+      rowId={(r) => r.variantId}
+      empty={{
+        icon: PackageCheck,
+        title: "Nothing needs restocking",
+        description: "Products this shop does not track never appear here.",
+      }}
+      toolbar={
+        <>
+          <Facet
+            label="Status"
+            anyLabel="Out or low"
+            value={state.view.filters.severity ?? null}
+            onChange={(v) => state.setFilter("severity", v ?? undefined)}
+            options={[
+              { value: "out" as const, label: "Out of stock" },
+              { value: "low" as const, label: "Low" },
+            ]}
+          />
+          <SearchBox label="Search stock" placeholder="Product or SKU…" value={state.draftQ} onChange={state.setQ} />
+        </>
+      }
+    />
   )
 }
 

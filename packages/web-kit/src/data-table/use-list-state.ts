@@ -4,6 +4,7 @@ import { useNavigate, useRouterState } from "@tanstack/react-router";
 
 import type { ListPageSize } from "@effy/shared-types";
 
+import { emitListEvent } from "./list-events";
 import type { FilterValue, ListSearch, ListView } from "./list-search";
 
 /** How long typing pauses before the search reaches the address (and the server). */
@@ -44,6 +45,11 @@ export interface ListState<S extends string, F extends Record<string, FilterValu
 export function useListState<S extends string, F extends Record<string, FilterValue>>(
   list: ListSearch<S, F>,
   search: Record<string, unknown>,
+  /**
+   * A screen whose route hands it the search and a callback (rather than the list writing the address itself)
+   * passes the callback here; it receives the route's whole next search. Offset lists only.
+   */
+  write?: (next: Record<string, unknown>) => void,
 ): ListState<S, F> {
   const navigate = useNavigate();
   const view = useMemo(() => list.read(search), [list, search]);
@@ -59,6 +65,7 @@ export function useListState<S extends string, F extends Record<string, FilterVa
 
   const go = useCallback(
     (next: ListView<S, F>, opts: { replace?: boolean; stack?: string[] } = {}) => {
+      if (write) return write(list.write(search, next));
       void navigate({
         to: ".",
         search: ((prev: Record<string, unknown>) => list.write(prev, next)) as never,
@@ -70,7 +77,7 @@ export function useListState<S extends string, F extends Record<string, FilterVa
         })) as never,
       });
     },
-    [navigate, list, id],
+    [navigate, list, id, write, search],
   );
 
   // A change to what is listed starts again at page 1 with an empty stack (FR-006).
@@ -88,14 +95,23 @@ export function useListState<S extends string, F extends Record<string, FilterVa
       setDraftQ(view.q);
     }
   }, [view.q]);
+  // The latest `restart` through a ref: it changes every render (it closes over the view and the writer), and
+  // a timer re-armed on every render would never fire while anything else on the screen re-renders.
+  const restartRef = useRef(restart);
+  restartRef.current = restart;
   useEffect(() => {
     if (draftQ === view.q) return;
     const t = setTimeout(() => {
       lastWritten.current = draftQ;
-      restart({ q: draftQ }, true);
+      restartRef.current({ q: draftQ }, true);
     }, SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(t);
-  }, [draftQ, view.q, restart]);
+  }, [draftQ, view.q]);
+
+  // Telemetry (103 T059): once per list shown, and on each change to what it lists. No text, no ids.
+  useEffect(() => {
+    emitListEvent({ name: "list_viewed", list: id, mode });
+  }, [id, mode]);
 
   // A keyset page past 1 with no stack cannot be re-read; start again at 1 and say so.
   const orphaned = mode === "keyset" && snapshotPage > 1 && stack.length < snapshotPage - 1;
@@ -110,8 +126,14 @@ export function useListState<S extends string, F extends Record<string, FilterVa
     view,
     draftQ,
     setQ: setDraftQ,
-    setFilter: (key, value) => restart({ filters: { ...view.filters, [key]: value } }),
-    setFilters: (patch) => restart({ filters: { ...view.filters, ...patch } }),
+    setFilter: (key, value) => {
+      emitListEvent({ name: "list_filtered", list: id });
+      restart({ filters: { ...view.filters, [key]: value } });
+    },
+    setFilters: (patch) => {
+      emitListEvent({ name: "list_filtered", list: id });
+      restart({ filters: { ...view.filters, ...patch } });
+    },
     toggleSort: (sort) =>
       restart({
         sort,

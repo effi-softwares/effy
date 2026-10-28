@@ -1,6 +1,9 @@
+import { setFullText } from "@effy/web-kit/data-table"
 import { isDomainError } from "@effy/api-client"
 
 export function deliveryMutationError(err: unknown, conflictMessage?: string): string {
+  const full = setFullText(err)
+  if (full) return full
   if (isDomainError(err)) {
     if (err.kind === "forbidden") return "You don't have permission to change delivery configuration."
     if (err.kind === "not-found") return "That item no longer exists."
@@ -76,7 +79,7 @@ const COURIER_SERVICE_FIELD_COPY: Record<string, string> = {
   status: "The default service can't be retired — make another the default first.",
 }
 
-export const courierServiceError = (err: unknown): string => coverageError(err)
+export const courierServiceError = (err: unknown): string => setFullText(err) ?? coverageError(err)
 
 export function courierServiceFieldErrors(err: unknown): Record<string, string> {
   const out: Record<string, string> = {}

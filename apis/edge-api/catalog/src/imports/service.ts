@@ -1,7 +1,7 @@
 // Imports (102): start one from a sheet the browser parsed, read where it stands, and ask for its ready
 // products to be created. The checking and the creating are the worker's (worker.ts).
 
-import { emitMetric, metricNamespace, pooled, withTransaction } from "@effy/edge-shared";
+import { emitMetric, metricNamespace, offsetListPage, pooled, withTransaction } from "@effy/edge-shared";
 import { readFormRows } from "@effy/edge-shared/catalog";
 import { announce } from "@effy/edge-shared/live";
 import {
@@ -14,6 +14,7 @@ import {
 } from "@effy/shared-types";
 
 import { requireMargin } from "../products/effy";
+import type { ImportListRequest } from "./list";
 import { ProductAdminError } from "../products/errors";
 import { requireVersion } from "../products/holds";
 import { enqueue } from "./aws";
@@ -21,7 +22,6 @@ import * as repo from "./repository";
 import { cell, DETAIL_PREFIX, IMPORT_COLUMNS, readHeader, type Header } from "./rows";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const PAGE = 25;
 
 function requireImportId(raw: string | undefined): string {
   if (!raw || !UUID.test(raw)) throw new ProductAdminError("not_found", "no such import");
@@ -93,11 +93,9 @@ export async function start(body: Record<string, unknown>, sub: string): Promise
   return get(id);
 }
 
-export async function list(params: Record<string, string | undefined>): Promise<ProductImportListDTO> {
-  const shopId = params.shopId && UUID.test(params.shopId) ? params.shopId : null;
-  const offset = params.cursor && /^\d{1,5}$/.test(params.cursor) ? Number(params.cursor) : 0;
-  const rows = await repo.listImports(shopId, offset, PAGE + 1);
-  return { items: rows.slice(0, PAGE).map(summaryOf), nextCursor: rows.length > PAGE ? String(offset + PAGE) : null };
+export async function list(req: ImportListRequest): Promise<ProductImportListDTO> {
+  const r = await repo.listImports(req);
+  return offsetListPage(r.rows.map(summaryOf), req, r);
 }
 
 export async function get(rawId: string | undefined): Promise<ProductImportDTO> {

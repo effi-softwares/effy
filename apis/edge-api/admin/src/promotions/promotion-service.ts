@@ -1,6 +1,7 @@
 // Each field is checked here, naming its field, before the database's CHECKs see it. Once used, a
 // change to what a promotion gives or who it is for is 409 `promotion_used`; dates, limits, words and
 // groups stay editable.
+import { offsetListPage, parseListQuery } from "@effy/edge-shared";
 import { announce } from "@effy/edge-shared/live";
 import { givesOf, offerLabelOf, type PromotionRecord, termsOf } from "@effy/edge-shared/promotions";
 import type {
@@ -10,8 +11,9 @@ import type {
   AuditEntryDTO,
 } from "@effy/shared-types";
 
+import { PROMOTION_LIST_SPEC } from "./list";
 import * as repo from "./promotion-repository";
-import { type PromotionState, PROMOTION_STATES, type PromotionWrite, type PromotionWriteExtras } from "./promotion-repository";
+import { type PromotionWrite, type PromotionWriteExtras } from "./promotion-repository";
 import { type FieldIssue, PromoError } from "./types";
 
 const KINDS = ["cart", "item", "bxgy", "delivery"] as const;
@@ -283,22 +285,10 @@ export function toDetailDTO(r: PromotionRecord, x: repo.DetailExtras): AdminProm
   };
 }
 
-const clampPage = (n: unknown) => (typeof n === "number" && n > 0 ? Math.floor(n) : 1);
-const clampSize = (n: unknown) => (typeof n === "number" && n > 0 ? Math.min(Math.floor(n), 100) : 25);
-
-export async function listPromotions(q: Record<string, string | undefined>, now = new Date()): Promise<AdminPromotionListDTO> {
-  const page = clampPage(q.page ? Number(q.page) : undefined);
-  const pageSize = clampSize(q.pageSize ? Number(q.pageSize) : undefined);
-  const res = await repo.listPromotions({
-    q: q.q?.trim() || null,
-    state: isOneOf(PROMOTION_STATES, q.state) ? (q.state as PromotionState) : null,
-    kind: isOneOf(KINDS, q.kind) ? q.kind : null,
-    trigger: isOneOf(TRIGGERS, q.trigger) ? q.trigger : null,
-    groupId: q.groupId && UUID.test(q.groupId) ? q.groupId : null,
-    page,
-    pageSize,
-    now,
-  });
+/** Promotions as a console list (103); the state counts ride along for the view select. */
+export async function listPromotions(q: Readonly<Record<string, string | undefined>> | null | undefined, now = new Date()): Promise<AdminPromotionListDTO> {
+  const req = parseListQuery(q, PROMOTION_LIST_SPEC);
+  const res = await repo.listPromotions(req, now);
   const items: AdminPromotionListItemDTO[] = res.rows.map((row) => {
     const rec = res.records.get(row.id);
     const singles = Number(row.single_use);
@@ -319,7 +309,7 @@ export async function listPromotions(q: Record<string, string | undefined>, now 
       updatedAt: row.updated_at.toISOString(),
     };
   });
-  return { items, counts: res.counts, total: res.total, page, pageSize };
+  return { ...offsetListPage(items, req, res), counts: res.counts };
 }
 
 export async function readPromotion(id: string, now = new Date()): Promise<AdminPromotionDTO> {

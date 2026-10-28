@@ -1,15 +1,77 @@
 import type { ReviewVariantDTO } from "@effy/shared-types"
 
+import { StaticTable, type EffyColumnDef } from "@effy/web-kit/data-table"
 import { Panel, StatusWord, type StatusTone } from "@effy/web-kit/patterns"
 
 import { previewCustomerPrice, type MarginEntry } from "./model"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@effy/design-system/ui"
 
 const CHANGE_WORD: Record<ReviewVariantDTO["change"], { word: string; tone: StatusTone } | null> = {
   added: { word: "New", tone: "info" },
   changed: { word: "Changed", tone: "waiting" },
   removed: { word: "Removed", tone: "muted" },
   unchanged: null,
+}
+
+/** The sizes under review, each as it will be after the decision (103: a bounded table, no pager). */
+function variantColumns(named: boolean, entry: MarginEntry): EffyColumnDef<ReviewVariantDTO>[] {
+  return [
+    ...(named
+      ? [
+          {
+            id: "size",
+            header: "Size",
+            cell: ({ row }) => <span className="font-medium">{row.original.label ?? "—"}</span>,
+            meta: { label: "Size", identifying: true, phone: "primary" },
+          } satisfies EffyColumnDef<ReviewVariantDTO>,
+        ]
+      : []),
+    { id: "code", header: "Effy code", cell: ({ row }) => <span className="text-xs">{row.original.code ?? "On approval"}</span>, meta: { label: "Effy code", align: "mono", priority: 2 } },
+    { id: "sku", header: "Shop code", cell: ({ row }) => <span className="text-xs">{row.original.sku ?? "—"}</span>, meta: { label: "Shop code", align: "mono", priority: 2 } },
+    { id: "gtin", header: "Barcode", cell: ({ row }) => <span className="text-xs">{row.original.gtin ?? "—"}</span>, meta: { label: "Barcode", align: "mono", priority: 3 } },
+    {
+      id: "shopPrice",
+      header: "Shop price",
+      cell: ({ row }) => (
+        <>
+          {row.original.shopPriceAmount}
+          {row.original.shopCompareAtAmount ? (
+            <span className="block text-xs text-muted-foreground line-through">{row.original.shopCompareAtAmount}</span>
+          ) : null}
+        </>
+      ),
+      meta: { label: "Shop price", align: "numeric" },
+    },
+    {
+      id: "customerPrice",
+      header: "Customers pay",
+      cell: ({ row }) => {
+        const v = row.original
+        const preview = v.change === "removed" ? null : previewCustomerPrice(v.shopPriceAmount, entry.kind, entry.value)
+        return <span className="font-medium">{preview ?? v.customerPriceAmount}</span>
+      },
+      meta: { label: "Customers pay", align: "numeric", phone: "trail" },
+    },
+    { id: "weight", header: "Weight", cell: ({ row }) => `${row.original.weightGrams} g`, meta: { label: "Weight", align: "numeric", priority: 3 } },
+    {
+      id: "pack",
+      header: "Pack",
+      cell: ({ row }) => (row.original.packQuantity ? `${Number(row.original.packQuantity)} ${row.original.packUnit ?? ""}` : "—"),
+      meta: { label: "Pack", priority: 2 },
+    },
+    {
+      id: "change",
+      header: () => <span className="sr-only">Change</span>,
+      cell: ({ row }) => {
+        const change = CHANGE_WORD[row.original.change]
+        return change ? (
+          <StatusWord tone={change.tone}>{change.word}</StatusWord>
+        ) : row.original.state === "inactive" ? (
+          <StatusWord tone="muted">Off sale</StatusWord>
+        ) : null
+      },
+      meta: { label: "Change", phone: "badge" },
+    },
+  ]
 }
 
 export function ReviewVariants({ variants, entry }: { variants: readonly ReviewVariantDTO[]; entry: MarginEntry }) {
@@ -26,62 +88,14 @@ export function ReviewVariants({ variants, entry }: { variants: readonly ReviewV
       }
       flush
     >
-      <div className="min-w-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              {named ? <TableHead>Size</TableHead> : null}
-              <TableHead>Effy code</TableHead>
-              <TableHead>Shop code</TableHead>
-              <TableHead>Barcode</TableHead>
-              <TableHead className="text-right">Shop price</TableHead>
-              <TableHead className="text-right">Customers pay</TableHead>
-              <TableHead className="text-right">Weight</TableHead>
-              <TableHead>Pack</TableHead>
-              <TableHead>
-                <span className="sr-only">Change</span>
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {variants.map((v) => {
-              const preview =
-                v.change === "removed" ? null : previewCustomerPrice(v.shopPriceAmount, entry.kind, entry.value)
-              const change = CHANGE_WORD[v.change]
-              return (
-                <TableRow key={v.id} className={v.change === "removed" ? "text-muted-foreground" : undefined}>
-                  {named ? (
-                    <TableHead scope="row" className="text-left font-medium">
-                      {v.label ?? "—"}
-                    </TableHead>
-                  ) : null}
-                  <TableCell className="font-mono text-xs">{v.code ?? "On approval"}</TableCell>
-                  <TableCell className="font-mono text-xs">{v.sku ?? "—"}</TableCell>
-                  <TableCell className="font-mono text-xs">{v.gtin ?? "—"}</TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {v.shopPriceAmount}
-                    {v.shopCompareAtAmount ? (
-                      <span className="block text-xs text-muted-foreground line-through">{v.shopCompareAtAmount}</span>
-                    ) : null}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums font-medium">
-                    {preview ?? v.customerPriceAmount}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">{v.weightGrams} g</TableCell>
-                  <TableCell>{v.packQuantity ? `${Number(v.packQuantity)} ${v.packUnit ?? ""}` : "—"}</TableCell>
-                  <TableCell>
-                    {change ? (
-                      <StatusWord tone={change.tone}>{change.word}</StatusWord>
-                    ) : v.state === "inactive" ? (
-                      <StatusWord tone="muted">Off sale</StatusWord>
-                    ) : null}
-                  </TableCell>
-                </TableRow>
-              )
-            })}
-          </TableBody>
-        </Table>
-      </div>
+      <StaticTable
+        label="Sizes and prices"
+        columns={variantColumns(named, entry)}
+        rows={variants}
+        getRowId={(v) => v.id}
+        rowClassName={(v) => (v.change === "removed" ? "text-muted-foreground" : undefined)}
+        framed={false}
+      />
       {perSize.length > 0 ? (
         <div className="space-y-3 border-t border-border px-5 py-4">
           <h3 className="text-base font-semibold">Details that differ by size</h3>

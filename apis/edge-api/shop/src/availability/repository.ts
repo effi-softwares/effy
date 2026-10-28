@@ -1,6 +1,6 @@
 // Availability (099): every size of this shop's live or unavailable products, with its stock and
 // whether it is on sale. Read only — a size goes on or off sale through the variant state route.
-import { query, stockState, type Queryable } from "@effy/edge-shared";
+import { likePattern, prefixPattern, query, stockState, type Queryable } from "@effy/edge-shared";
 import { variantLabelSql } from "@effy/edge-shared/catalog";
 import type { AvailabilityFilter, ProductStockDTO } from "@effy/shared-types";
 
@@ -20,9 +20,9 @@ export interface AvailabilityRow {
   storageKey: string | null;
 }
 
-export interface AvailabilityPage {
+export interface AvailabilityResult {
+  /** Every size under the search and the filter, by product name and the sizes' own order. */
   rows: AvailabilityRow[];
-  hasMore: boolean;
   counts: { needsLook: number; outOfStock: number; lowStock: number; offSale: number; all: number };
 }
 
@@ -62,11 +62,11 @@ WITH sizes AS (
 SELECT *
   FROM sizes
  WHERE $2::text IS NULL
-    OR product_name ILIKE '%' || $2 || '%'
-    OR brand ILIKE '%' || $2 || '%'
-    OR label ILIKE '%' || $2 || '%'
-    OR code ILIKE $2 || '%'
-    OR sku ILIKE '%' || $2 || '%'
+    OR product_name ILIKE $3
+    OR brand ILIKE $3
+    OR label ILIKE $3
+    OR code ILIKE $4
+    OR sku ILIKE $3
     OR gtin = $2
  ORDER BY lower(product_name), product_id, "position", variant_id
 `;
@@ -132,23 +132,19 @@ function matches(row: AvailabilityRow, filter: AvailabilityFilter): boolean {
 }
 
 /**
- * One page under the search and filter. A shop sells hundreds of sizes, not millions, so the search
- * runs in SQL and the filter and counts over its result; `offset` pages through the filtered list.
+ * Every size under the search and filter. A shop sells hundreds of sizes, not millions, so the search
+ * runs in SQL and the filter and counts over its result (the user's wildcards taken literally).
  */
 export async function readAvailability(
   shopId: string,
   q: string | null,
   filter: AvailabilityFilter,
-  offset: number,
-  limit: number,
   db: Queryable = { query },
-): Promise<AvailabilityPage> {
-  const res = await db.query<SizeDbRow>(SIZES, [shopId, q]);
+): Promise<AvailabilityResult> {
+  const res = await db.query<SizeDbRow>(SIZES, [shopId, q, q ? likePattern(q) : null, q ? prefixPattern(q) : null]);
   const all = res.rows.map(toRow);
-  const filtered = all.filter((r) => matches(r, filter));
   return {
-    rows: filtered.slice(offset, offset + limit),
-    hasMore: filtered.length > offset + limit,
+    rows: all.filter((r) => matches(r, filter)),
     counts: {
       needsLook: all.filter((r) => matches(r, "needs_look")).length,
       outOfStock: all.filter((r) => matches(r, "out_of_stock")).length,

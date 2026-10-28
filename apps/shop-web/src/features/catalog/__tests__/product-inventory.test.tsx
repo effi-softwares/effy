@@ -1,10 +1,12 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { render, screen, waitFor, within } from "@testing-library/react"
+import { act, render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import type { ReactNode } from "react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import type { ProductStockDetailDTO } from "@effy/shared-types"
+
+import { onePage, renderList } from "@/test/renderList"
 
 const getVariantStock = vi.hoisted(() => vi.fn())
 const setStockCount = vi.hoisted(() => vi.fn())
@@ -20,7 +22,7 @@ vi.mock("../stockRepo", () => ({
   setStockThreshold,
   getStockSettings: vi.fn(),
   setStockSettings: vi.fn(),
-  getLowStock: vi.fn(),
+  fetchMovementPage: async () => onePage([]),
 }))
 
 const { InventorySection, ReceiveStockButton } = await import("../InventorySection")
@@ -62,6 +64,15 @@ const PRODUCT = {
   missingMandatoryAttributes: [],
   updatedAt: "2026-09-02T00:00:00.123456Z",
 } as unknown as ProductDetail
+
+/** The Inventory section lists the size's history from the address (103), so it renders inside a router. */
+async function wrapRouted(children: ReactNode) {
+  const r = renderList(() => children, "/catalog/p1")
+  await act(async () => {
+    await r.router.load()
+  })
+  return r
+}
 
 function wrap(children: ReactNode) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -109,7 +120,7 @@ const SIZED = {
 
 describe("the Inventory section — every size in one table (098)", () => {
   it("shows each size's count and its state in words", async () => {
-    wrap(<InventorySection detail={SIZED} variantId="v1" onVariantChange={() => {}} />)
+    await wrapRouted(<InventorySection detail={SIZED} variantId="v1" onVariantChange={() => {}} />)
     const table = screen.getAllByRole("table")[0]!
     expect(within(table).getByText("500 g")).toBeInTheDocument()
     expect(within(table).getByText("In stock")).toBeInTheDocument()
@@ -119,7 +130,7 @@ describe("the Inventory section — every size in one table (098)", () => {
   })
 
   it("adds a delivery to several sizes in one Save, starting the count of an uncounted one", async () => {
-    wrap(<InventorySection detail={SIZED} variantId="v1" onVariantChange={() => {}} />)
+    await wrapRouted(<InventorySection detail={SIZED} variantId="v1" onVariantChange={() => {}} />)
     await userEvent.type(screen.getByLabelText(/units received for 500 g/i), "24")
     await userEvent.type(screen.getByLabelText(/units received for 5 kg/i), "6")
     // The new totals are shown before anything is written.
@@ -133,7 +144,7 @@ describe("the Inventory section — every size in one table (098)", () => {
   })
 
   it("a stocktake replaces counts, and writes nothing for a count that is already right", async () => {
-    wrap(<InventorySection detail={SIZED} variantId="v1" onVariantChange={() => {}} />)
+    await wrapRouted(<InventorySection detail={SIZED} variantId="v1" onVariantChange={() => {}} />)
     await userEvent.click(screen.getByRole("tab", { name: /set count/i }))
     await userEvent.type(screen.getByLabelText(/units counted for 500 g/i), "12") // unchanged
     await userEvent.type(screen.getByLabelText(/units counted for 1 kg/i), "7")
@@ -147,7 +158,7 @@ describe("the Inventory section — every size in one table (098)", () => {
       if (id === "v2") throw { kind: "conflict", status: 409, title: "Conflict" }
       return stockDetail()
     })
-    wrap(<InventorySection detail={SIZED} variantId="v1" onVariantChange={() => {}} />)
+    await wrapRouted(<InventorySection detail={SIZED} variantId="v1" onVariantChange={() => {}} />)
     await userEvent.type(screen.getByLabelText(/units received for 500 g/i), "3")
     await userEvent.type(screen.getByLabelText(/units received for 1 kg/i), "4")
     await userEvent.click(screen.getByRole("button", { name: /save stock for 2 sizes/i }))
@@ -158,20 +169,20 @@ describe("the Inventory section — every size in one table (098)", () => {
   })
 
   it("refuses to save while any number is not a whole number", async () => {
-    wrap(<InventorySection detail={SIZED} variantId="v1" onVariantChange={() => {}} />)
+    await wrapRouted(<InventorySection detail={SIZED} variantId="v1" onVariantChange={() => {}} />)
     await userEvent.type(screen.getByLabelText(/units received for 500 g/i), "2.5")
     expect(screen.getByRole("button", { name: /save stock/i })).toBeDisabled()
   })
 
   it("names a per-size threshold as this size's own in its rules (history below the table)", async () => {
     getVariantStock.mockResolvedValue(stockDetail({ onHand: 9, threshold: null, effectiveThreshold: 8 }))
-    wrap(<InventorySection detail={SIZED} variantId="v1" onVariantChange={() => {}} />)
+    await wrapRouted(<InventorySection detail={SIZED} variantId="v1" onVariantChange={() => {}} />)
     expect(await screen.findByText(/stock movements — 500 g/i)).toBeInTheDocument()
   })
 
   it("withholds the adjustment when the chosen size is not counted", async () => {
     getVariantStock.mockResolvedValue(stockDetail({ variantId: "v3", tracked: false, onHand: null }))
-    wrap(<InventorySection detail={SIZED} variantId="v3" onVariantChange={() => {}} />)
+    await wrapRouted(<InventorySection detail={SIZED} variantId="v3" onVariantChange={() => {}} />)
     expect(await screen.findByText(/this size is not counted/i)).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /adjust stock/i })).toBeDisabled()
   })

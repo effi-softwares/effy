@@ -1,3 +1,4 @@
+import type { ListPage } from "./list"
 /**
  * The catalogue taxonomy (101): one category tree of at most five levels; a product is filed in exactly one
  * leaf, and that leaf's resolved form — attributes attached to it and its ancestors, tightened or hidden on
@@ -336,7 +337,5 @@ export interface MissingDetailsItemDTO {
   missing: string[]
 }
 
-export interface MissingDetailsPageDTO {
-  items: MissingDetailsItemDTO[]
-  nextCursor: string | null
-}
+/** A console list page (103). */
+export type MissingDetailsPageDTO = ListPage<MissingDetailsItemDTO>

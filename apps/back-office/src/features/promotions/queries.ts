@@ -16,15 +16,13 @@ import {
   addChosenCustomers,
   generateCodes,
   getPerformance,
-  listChosenCustomers,
-  listCodes,
   removeChosenCustomer,
   addPromotionImage,
   removePromotionImage,
   updatePromotionImage,
 } from "./repo"
 
-const PROMO_ROOT = ["back-office", "promotions"] as const
+export const PROMO_ROOT = ["back-office", "promotions"] as const
 
 export const promotionListQuery = (params: PromotionListParams) =>
   queryOptions({ queryKey: [...PROMO_ROOT, "list", params] as const, queryFn: () => listPromotions(params) })
@@ -51,16 +49,6 @@ export const usePromotionAction = (id: string) =>
 export const useDeletePromotion = () => useInvalidating((id: string) => deletePromotion(id))
 export const useUpdateOrderPolicy = () => useInvalidating((body: UpdateOrderPolicyRequest) => putOrderPolicy(body))
 
-export const chosenCustomersQuery = (id: string, page: number) =>
-  queryOptions({
-    queryKey: [...PROMO_ROOT, "customers", id, page] as const,
-    queryFn: () => listChosenCustomers(id, page),
-  })
-export const codesQuery = (id: string, page: number, state?: string) =>
-  queryOptions({
-    queryKey: [...PROMO_ROOT, "codes", id, page, state ?? ""] as const,
-    queryFn: () => listCodes(id, page, state),
-  })
 export const performanceQuery = (id: string) =>
   queryOptions({ queryKey: [...PROMO_ROOT, "performance", id] as const, queryFn: () => getPerformance(id) })
 

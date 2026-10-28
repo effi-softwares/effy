@@ -1,5 +1,6 @@
 // Validation, the details form and the presign boundary (keys → short-lived urls). `shopId` is always the resolved actor shop.
-import { emitMetric, metricNamespace, query, withTransaction } from "@effy/edge-shared";
+import { emitMetric, metricNamespace, offsetListPage, query, withTransaction } from "@effy/edge-shared";
+import type { ListPage } from "@effy/shared-types";
 import {
   FACT_KEYS, leafOrError, optText, parseCreateInput, parseDetails, parseFacts, parseUnitBasis, parseVariantSet, readForm,
   readFormRows, requireNonEmpty, setVariantState as writeVariantState, type AuthoringDeps,
@@ -11,37 +12,24 @@ import {
 } from "@effy/shared-types";
 
 import * as media from "./media";
+import type { ShopProductListRequest } from "./list";
 import * as repo from "./repository";
 import * as change from "./change";
 import {
   type FieldIssue,
-  type ListParams,
-  type Paged,
   type ProductDetail,
   ProductError,
   type ProductListItem,
   PRODUCT_STATUSES,
   type ProductStatus,
-  type ShopReviewState,
 } from "./types";
 
-const REVIEW_STATES: readonly ShopReviewState[] = [
-  "draft",
-  "in_review",
-  "sent_back",
-  "live",
-  "live_change_pending",
-  "live_change_sent_back",
-];
-
-const PRICE_RE = /^\d+(\.\d{1,2})?$/;
 
 /** Validation reads the leaf through this service's repository, so its tests decide what a leaf is. */
 const authoringDeps: AuthoringDeps = {
   checkLeaf: (id) => repo.checkLeaf(id),
   formRows: async (id) => (await readFormRows({ query }, [id])).get(id) ?? [],
 };
-const SORTS = ["name", "price", "recent"] as const;
 
 export function getShopTaxonomy(shopId: string): Promise<ShopTaxonomyDTO> {
   return repo.readShopTaxonomy(shopId);
@@ -111,57 +99,16 @@ export async function registerMedia(
   return { ...registered, url: await media.presignRead(registered.storageKey) };
 }
 
-export async function listProducts(
-  shopId: string,
-  params: {
-    page?: unknown;
-    pageSize?: unknown;
-    q?: unknown;
-    missing?: unknown;
-    category?: unknown;
-    section?: unknown;
-    status?: unknown;
-    reviewState?: unknown;
-    priceMin?: unknown;
-    priceMax?: unknown;
-    sort?: unknown;
-    order?: unknown;
-  },
-): Promise<Paged<ProductListItem>> {
-  const page = toPositiveInt(params.page, 1);
-  const pageSize = Math.min(toPositiveInt(params.pageSize, 20), 100);
-  const status =
-    typeof params.status === "string" && (PRODUCT_STATUSES as readonly string[]).includes(params.status)
-      ? (params.status as ProductStatus)
-      : null;
-  const sort = typeof params.sort === "string" && (SORTS as readonly string[]).includes(params.sort)
-    ? (params.sort as ListParams["sort"])
-    : "recent";
-  const order = params.order === "asc" ? "asc" : "desc";
-  const clean: ListParams = {
-    page,
-    pageSize,
-    q: optText(params.q),
-    category: optText(params.category),
-    section: optText(params.section),
-    status,
-    reviewState: REVIEW_STATES.includes(params.reviewState as ShopReviewState)
-      ? (params.reviewState as ShopReviewState)
-      : null,
-    priceMin: numericStr(params.priceMin),
-    priceMax: numericStr(params.priceMax),
-    missing: params.missing === "true" || params.missing === true,
-    sort,
-    order,
-  };
-  const paged = await repo.listProducts(shopId, clean);
+/** The shop's catalogue, a console list (103): one page, pictures presigned. */
+export async function listProducts(shopId: string, req: ShopProductListRequest): Promise<ListPage<ProductListItem>> {
+  const r = await repo.listProducts(shopId, req);
   const items = await Promise.all(
-    paged.items.map(async (item) => ({
+    r.items.map(async (item) => ({
       ...item,
       primaryImageUrl: item.primaryImageUrl ? await media.presignRead(item.primaryImageUrl) : null,
     })),
   );
-  return { ...paged, items };
+  return offsetListPage(items, req, r);
 }
 
 export async function updateProduct(
@@ -495,12 +442,4 @@ export async function withdraw(shopId: string, id: string): Promise<ProductDetai
   return getProduct(shopId, id);
 }
 
-function toPositiveInt(value: unknown, fallback: number): number {
-  const n = typeof value === "string" ? Number(value) : typeof value === "number" ? value : NaN;
-  return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
-}
 
-function numericStr(value: unknown): string | null {
-  const s = typeof value === "string" ? value.trim() : typeof value === "number" ? String(value) : "";
-  return PRICE_RE.test(s) ? s : null;
-}

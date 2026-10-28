@@ -1,6 +1,7 @@
 import type {
   CustomerDetailDTO,
-  CustomerSearchResultDTO,
+  CustomerListDTO,
+  CustomerListItemDTO,
   PointsChangeResultDTO,
   PointsCreditRequest,
   PointsDebitRequest,
@@ -10,9 +11,14 @@ import type {
 
 import { api } from "@/lib/api"
 
-export async function searchCustomers(q: string): Promise<CustomerSearchResultDTO[]> {
-  return (await api.get<{ customers: CustomerSearchResultDTO[] }>(`/orders/v1/customers?q=${encodeURIComponent(q)}`))
-    .customers
+/** A quick search (the command palette): the first page of matches. */
+export async function searchCustomers(q: string): Promise<CustomerListItemDTO[]> {
+  return (await api.get<CustomerListDTO>(`/orders/v1/customers?q=${encodeURIComponent(q)}`)).items
+}
+
+/** One page of Customers for the address's view (103). */
+export function fetchCustomerPage(qs: URLSearchParams, signal: AbortSignal): Promise<CustomerListDTO> {
+  return api.get<CustomerListDTO>(`/orders/v1/customers?${qs}`, { signal })
 }
 
 export function getCustomer(id: string): Promise<CustomerDetailDTO> {

@@ -3,21 +3,10 @@ import { useMemo, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Plus } from "lucide-react"
 
-import {
-  Badge,
-  Button,
-  Input,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-  ToggleGroup,
-  ToggleGroupItem,
-} from "@effy/design-system/ui"
-import { INPUT_TYPE_WORDS, UNIT_FAMILIES, type AttributeDTO } from "@effy/shared-types"
+import { Badge, Button, ToggleGroup, ToggleGroupItem } from "@effy/design-system/ui"
+import { CAPPED_SET_LIMIT, INPUT_TYPE_WORDS, listFullSentence, UNIT_FAMILIES, type AttributeDTO } from "@effy/shared-types"
 import { ErrorState } from "@effy/web-kit/console"
+import { SearchBox, StaticTable, type EffyColumnDef } from "@effy/web-kit/data-table"
 
 import { AttributeDialog } from "./AttributeDialog"
 import { taxonomyErrorText } from "./errorText"
@@ -25,7 +14,11 @@ import { attributesQuery, useSetAttributeStatus } from "./queries"
 
 type StatusView = "active" | "retired" | "all"
 
-/** The attribute library: each attribute defined once, reused by any category, one filter everywhere. */
+/**
+ * The attribute library: each attribute defined once, reused by any category, one filter everywhere. A set
+ * staff make and the category editor's picker reads whole, so it is shown whole (103 FR-024): searched and
+ * sorted here, capped on the server.
+ */
 export function AttributeLibrary({ canManage }: { canManage: boolean }) {
   const { data, error, isPending, isError, refetch } = useQuery(attributesQuery())
   const [q, setQ] = useState("")
@@ -37,16 +30,92 @@ export function AttributeLibrary({ canManage }: { canManage: boolean }) {
     return (data ?? []).filter((a) => (view === "all" || a.status === view) && (!w || a.name.toLowerCase().includes(w)))
   }, [data, q, view])
 
+  const columns = useMemo<EffyColumnDef<AttributeDTO>[]>(
+    () => [
+      {
+        id: "name",
+        accessorFn: (a) => a.name.toLowerCase(),
+        header: "Name",
+        cell: ({ row }) => (
+          <>
+            <span className="font-medium">{row.original.name}</span>
+            {row.original.variantOption ? (
+              <span className="block text-xs text-muted-foreground">Can be a variant option</span>
+            ) : null}
+          </>
+        ),
+        meta: { label: "Name", identifying: true, phone: "primary" },
+      },
+      {
+        id: "input",
+        accessorFn: (a) => INPUT_TYPE_WORDS[a.inputType],
+        header: "Input",
+        cell: ({ row }) => INPUT_TYPE_WORDS[row.original.inputType],
+        meta: { label: "Input" },
+      },
+      {
+        id: "unit",
+        header: "Unit",
+        enableSorting: false,
+        cell: ({ row }) =>
+          row.original.unitFamily ? `${UNIT_FAMILIES[row.original.unitFamily].label} (${row.original.units.join(", ")})` : "—",
+        meta: { label: "Unit", priority: 2 },
+      },
+      {
+        id: "filter",
+        header: "Filter",
+        enableSorting: false,
+        cell: ({ row }) => (row.original.filterable ? "Yes" : "—"),
+        meta: { label: "Filter", priority: 2 },
+      },
+      {
+        id: "visible",
+        header: "Shown to customers",
+        enableSorting: false,
+        cell: ({ row }) => (row.original.customerVisible ? "Yes" : "Internal"),
+        meta: { label: "Shown to customers", priority: 2 },
+      },
+      {
+        id: "perSize",
+        header: "Per size",
+        enableSorting: false,
+        cell: ({ row }) => (row.original.variesByVariant ? "Yes" : "—"),
+        meta: { label: "Per size", priority: 3 },
+      },
+      {
+        id: "usedBy",
+        accessorFn: (a) => a.usage.products,
+        sortDescFirst: true,
+        header: "Used by",
+        cell: ({ row }) => `${row.original.usage.categories} categories · ${row.original.usage.products} products`,
+        meta: { label: "Used by", align: "numeric", phone: "trail" },
+      },
+      {
+        id: "status",
+        header: "Status",
+        enableSorting: false,
+        cell: ({ row }) =>
+          row.original.status === "active" ? <Badge variant="success">Active</Badge> : <Badge variant="muted">Retired</Badge>,
+        meta: { label: "Status", phone: "badge" },
+      },
+      ...(canManage
+        ? [
+            {
+              id: "actions",
+              header: () => <span className="sr-only">Actions</span>,
+              enableSorting: false,
+              cell: ({ row }) => <RowActions attribute={row.original} onEdit={() => setEditing(row.original)} />,
+              meta: { label: "Actions", phone: "full" },
+            } satisfies EffyColumnDef<AttributeDTO>,
+          ]
+        : []),
+    ],
+    [canManage],
+  )
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        <Input
-          className="max-w-xs"
-          aria-label="Search attributes"
-          placeholder="Search attributes…"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-        />
         <ToggleGroup
           type="single"
           variant="outline"
@@ -62,11 +131,12 @@ export function AttributeLibrary({ canManage }: { canManage: boolean }) {
           ))}
         </ToggleGroup>
         {canManage ? (
-          <Button size="sm" className="ml-auto" onClick={() => setEditing("new")}>
+          <Button size="sm" onClick={() => setEditing("new")}>
             <Plus />
             New attribute
           </Button>
         ) : null}
+        <SearchBox label="Search attributes" placeholder="Search attributes…" value={q} onChange={setQ} />
       </div>
 
       {isError ? (
@@ -74,67 +144,18 @@ export function AttributeLibrary({ canManage }: { canManage: boolean }) {
       ) : isPending ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
       ) : (
-        <div className="overflow-hidden rounded-xl border bg-card">
-          <div className="min-w-0">
-            <Table className="ef-rtable">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Input</TableHead>
-                  <TableHead>Unit</TableHead>
-                  <TableHead>Filter</TableHead>
-                  <TableHead>Shown to customers</TableHead>
-                  <TableHead>Per size</TableHead>
-                  <TableHead className="text-right">Used by</TableHead>
-                  <TableHead>Status</TableHead>
-                  {canManage ? <TableHead className="sr-only">Actions</TableHead> : null}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rows.map((a) => (
-                  <TableRow key={a.id}>
-                    <TableCell data-m="title">
-                      <span className="font-medium">{a.name}</span>
-                      {a.variantOption ? (
-                        <span className="block text-xs text-muted-foreground">Can be a variant option</span>
-                      ) : null}
-                    </TableCell>
-                    <TableCell>{INPUT_TYPE_WORDS[a.inputType]}</TableCell>
-                    <TableCell>
-                      {a.unitFamily ? `${UNIT_FAMILIES[a.unitFamily].label} (${a.units.join(", ")})` : "—"}
-                    </TableCell>
-                    <TableCell>{a.filterable ? "Yes" : "—"}</TableCell>
-                    <TableCell>{a.customerVisible ? "Yes" : "Internal"}</TableCell>
-                    <TableCell>{a.variesByVariant ? "Yes" : "—"}</TableCell>
-                    <TableCell className="text-right tabular-nums" data-m="trail">
-                      {a.usage.categories} categories · {a.usage.products} products
-                    </TableCell>
-                    <TableCell>
-                      {a.status === "active" ? (
-                        <Badge variant="success">Active</Badge>
-                      ) : (
-                        <Badge variant="muted">Retired</Badge>
-                      )}
-                    </TableCell>
-                    {canManage ? (
-                      <TableCell>
-                        <RowActions attribute={a} onEdit={() => setEditing(a)} />
-                      </TableCell>
-                    ) : null}
-                  </TableRow>
-                ))}
-                {rows.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={canManage ? 9 : 8} className="text-center text-muted-foreground">
-                      No attributes match.
-                    </TableCell>
-                  </TableRow>
-                ) : null}
-              </TableBody>
-            </Table>
-          </div>
-        </div>
+        <StaticTable
+          label="Attribute library"
+          columns={columns}
+          rows={rows}
+          getRowId={(a) => a.id}
+          initialSort={{ id: "name" }}
+          empty="No attributes match."
+        />
       )}
+      {(data?.length ?? 0) >= CAPPED_SET_LIMIT ? (
+        <p className="text-sm text-muted-foreground">{listFullSentence(CAPPED_SET_LIMIT)}</p>
+      ) : null}
       {editing ? (
         <AttributeDialog attribute={editing === "new" ? undefined : editing} onClose={() => setEditing(null)} />
       ) : null}

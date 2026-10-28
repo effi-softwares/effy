@@ -11,7 +11,10 @@ import { EDGE_API_DIR, functionsOf, listStacks } from "./serverless-stacks";
  * empty as the lists are converted; T058 asserts they are empty.
  */
 
-/** Every console list route (contracts/list-contract.md). Method GET. */
+/**
+ * Every console list route (contracts/list-contract.md). Method GET. Not here, on purpose: a customer's points
+ * history — a keyset ledger the customer app reads too, paged once in `@effy/edge-shared/points` (`history`).
+ */
 const LIST_ROUTES = [
   "/orders/v1/orders",
   "/catalog/v1/products",
@@ -19,7 +22,6 @@ const LIST_ROUTES = [
   "/catalog/v1/products/missing-details",
   "/catalog/v1/review/margin-not-set",
   "/catalog/v1/imports",
-  "/catalog/v1/taxonomy/attributes",
   "/admin/v1/promotions",
   "/admin/v1/promotions/{id}/codes",
   "/admin/v1/promotions/{id}/customers",
@@ -27,10 +29,11 @@ const LIST_ROUTES = [
   "/admin/v1/shops/{shopId}/audit",
   "/inventory/v1/admin/shops/{shopId}/low-stock",
   "/inventory/v1/low-stock",
+  "/inventory/v1/variants/{variantId}/stock",
+  "/inventory/v1/admin/shops/{shopId}/variants/{variantId}/stock",
   "/fleet/v1/drivers",
   "/fleet/v1/vehicles",
   "/orders/v1/customers",
-  "/orders/v1/customers/{customerId}/points/history",
   "/admin/v1/feedback",
   "/admin/v1/deliverability",
   "/admin/v1/delivery/coverage",
@@ -43,46 +46,16 @@ const LIST_ROUTES = [
 
 /** Lists not converted yet, with the task that converts them. Must be empty when 103 is done. */
 export const PENDING_LIST_ROUTES: Readonly<Record<string, string>> = {
-  "/catalog/v1/products": "T028",
-  "/catalog/v1/review": "T029",
-  "/catalog/v1/products/missing-details": "T030",
-  "/catalog/v1/review/margin-not-set": "T030",
-  "/catalog/v1/imports": "T031",
-  "/catalog/v1/taxonomy/attributes": "T032",
-  "/admin/v1/promotions": "T038",
-  "/admin/v1/promotions/{id}/codes": "T038",
-  "/admin/v1/promotions/{id}/customers": "T038",
-  "/admin/v1/shops/{shopId}/audit": "T041",
-  "/inventory/v1/admin/shops/{shopId}/low-stock": "T047",
-  "/inventory/v1/low-stock": "T047",
-  "/fleet/v1/drivers": "T033",
-  "/fleet/v1/vehicles": "T034",
-  "/orders/v1/customers": "T039",
-  "/orders/v1/customers/{customerId}/points/history": "T040",
-  "/admin/v1/feedback": "T035",
-  "/admin/v1/deliverability": "T036",
-  "/admin/v1/delivery/coverage": "T037",
-  "/orders/v1/handovers": "T045",
-  "/fleet/v1/exceptions": "T046",
-  "/shop/v1/orders": "T042",
-  "/shop/v1/products": "T043",
-  "/shop/v1/availability": "T044",
 };
 
 /** Files that still build their own ORDER BY from a variable, with the task that removes it. */
 export const PENDING_ORDER_BY: Readonly<Record<string, string>> = {
-  "catalog/src/products/repository.ts": "T028",
-  "shop/src/products/repository.ts": "T043",
-  "shop/src/orders/repository.ts": "T042",
 };
 
 /** Fixed caps of 200+ rows that are NOT console lists (research R14), and the console caps still to remove. */
 export const ALLOWED_LIMITS: Readonly<Record<string, string>> = {
   "driver/src/work/delivery.ts": "driver app work, not a console list (R14)",
   "catalog/src/products/repository.ts": "a product's staff history on its own page, bounded by the product",
-  "inventory/src/stock/repository.ts": "pending T047",
-  "orders/src/orders/repository.ts": "pending T045",
-  "fleet/src/exceptions/sql.ts": "pending T046",
 };
 
 function sourceFiles(dir: string): string[] {
@@ -120,11 +93,19 @@ function handlerFileOf(path: string): string {
 }
 
 describe("console lists go through parseListQuery (103)", () => {
+  it("103 is done: nothing is left pending (T058)", () => {
+    expect(PENDING_LIST_ROUTES).toEqual({});
+    expect(PENDING_ORDER_BY).toEqual({});
+  });
+
   it.each(LIST_ROUTES.filter((p) => !PENDING_LIST_ROUTES[p]))("%s parses its request with parseListQuery", (path) => {
     const file = handlerFileOf(path);
     const text = readFileSync(resolve(EDGE_API_DIR, file), "utf8");
-    // The handler, or the service it calls, uses the helper; the handler is where the query string is read.
-    expect(text, `${file} must call parseListQuery`).toMatch(/\bparseListQuery\(/);
+    // The handler, or a module it imports from its own service, parses the request with the helper.
+    const dir = file.slice(0, file.lastIndexOf("/"));
+    const imported = [...text.matchAll(/from "(\.{1,2}\/[^"]+)"/g)].map((m) => resolve(EDGE_API_DIR, dir, `${m[1]}.ts`));
+    const texts = [text, ...imported.flatMap((f) => { try { return [readFileSync(f, "utf8")]; } catch { return []; } })];
+    expect(texts.some((t) => /\bparseListQuery\(/.test(t)), `${file} (or what it imports) must call parseListQuery`).toBe(true);
   });
 
   it("every pending list names a route that exists", () => {

@@ -4,8 +4,10 @@
 
 import type pg from "pg";
 
-import { LOW_STOCK_PREDICATE, query } from "@effy/edge-shared";
-import type { BackOfficeProductSort, BackOfficeProductState, Storage } from "@effy/shared-types";
+import { limitOffsetClause, LOW_STOCK_PREDICATE, orderBy, query } from "@effy/edge-shared";
+import type { BackOfficeProductState, Storage } from "@effy/shared-types";
+
+import { PRODUCT_LIST, type ProductListRequest } from "./list";
 
 /** Needs `p` (product) and a left join `pc` (product_change). Precedence: a hold says the most. */
 export const BACKOFFICE_STATE_SQL = `CASE
@@ -56,14 +58,6 @@ const filterParams = (f: ListFilters): unknown[] => [
   f.q, f.shopId, f.categoryId, f.storage, f.margin, f.missingDetails, f.lowStock,
 ];
 
-const SORTS: Record<BackOfficeProductSort, { col: string; defaultDir: "ASC" | "DESC" }> = {
-  updated: { col: "p.updated_at", defaultDir: "DESC" },
-  name: { col: "lower(p.name)", defaultDir: "ASC" },
-  // The customer's "from" price (the listing summary); never-approved products have none and sort last.
-  price: { col: "p.list_price_amount", defaultDir: "ASC" },
-  shop: { col: "lower(sh.name)", defaultDir: "ASC" },
-};
-
 export interface ListRow {
   id: string;
   name: string;
@@ -88,16 +82,23 @@ export interface ListRow {
   version: string;
 }
 
-export async function listProducts(
-  f: ListFilters,
-  state: BackOfficeProductState | null,
-  sort: BackOfficeProductSort,
-  dir: "asc" | "desc" | null,
-  offset: number,
-  limit: number,
-): Promise<ListRow[]> {
-  const s = SORTS[sort];
-  const d = dir === null ? s.defaultDir : dir === "asc" ? "ASC" : "DESC";
+/** The shared filters of a list request; the state tab is the list's own (counts ignore it). */
+export function filtersOf(req: ProductListRequest): ListFilters {
+  const f = req.filters;
+  return {
+    q: req.q,
+    shopId: f.shopId ?? null,
+    categoryId: f.categoryId ?? null,
+    storage: f.storage ?? null,
+    margin: f.margin ?? null,
+    missingDetails: f.missingDetails ?? false,
+    lowStock: f.lowStock ?? false,
+  };
+}
+
+export async function listProducts(req: ProductListRequest, read: { limit: number; offset: number }): Promise<ListRow[]> {
+  const args = [...filterParams(filtersOf(req)), req.filters.state ?? null];
+  const paging = limitOffsetClause(read, args);
   const res = await query<ListRow>(
     `WITH f AS (${FILTERED})
      SELECT p.id::text, p.name, p.brand,
@@ -127,9 +128,9 @@ export async function listProducts(
            FROM public.product_variant v WHERE v.product_id = p.id
        ) agg
       WHERE ($8::text IS NULL OR f.state = $8)
-      ORDER BY ${s.col} ${d} NULLS LAST, p.id ${d}
-      LIMIT $9 OFFSET $10`,
-    [...filterParams(f), state, limit, offset],
+      ${orderBy(PRODUCT_LIST, req)}
+      ${paging}`,
+    args,
   );
   return res.rows;
 }

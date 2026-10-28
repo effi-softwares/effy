@@ -1,14 +1,9 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { render, screen, within } from "@testing-library/react"
-import type { ReactNode } from "react"
+import { screen, within } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 
 import type { ProductList, ShopTaxonomy } from "./model"
 
-vi.mock("@tanstack/react-router", () => ({
-  Link: ({ children }: { children: ReactNode }) => <a>{children}</a>,
-  useNavigate: () => () => {},
-}))
+import { onePage, renderList } from "@/test/renderList"
 
 vi.mock("@/features/auth/queries", () => ({
   sessionQuery: { queryKey: ["auth", "session"], queryFn: async () => ({ status: "signed-out" }) },
@@ -24,6 +19,7 @@ const listSections = vi.hoisted(() => vi.fn(async () => []))
 vi.mock("./repo", () => ({
   getShopTaxonomy,
   listProducts,
+  fetchProductPage: listProducts,
   listSections,
   getProduct: vi.fn(),
   createProduct: vi.fn(),
@@ -35,6 +31,7 @@ import { CatalogListScreen } from "./CatalogListScreen"
 const SCHEMA: ShopTaxonomy = { categories: [], recentLeafIds: [] }
 
 const ONE_PAGE: ProductList = {
+  ...onePage([]),
   items: [
     {
       id: "p1",
@@ -54,14 +51,9 @@ const ONE_PAGE: ProductList = {
     },
   ],
   total: 1,
-  page: 1,
-  pageSize: 20,
 }
 
-function wrap(children: ReactNode) {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  return render(<QueryClientProvider client={qc}>{children}</QueryClientProvider>)
-}
+const wrap = (_: unknown) => renderList(CatalogListScreen, "/catalog")
 
 describe("CatalogListScreen columns", () => {
   it("renders name/type/category/price/status/sizes from the paged response", async () => {
@@ -74,17 +66,15 @@ describe("CatalogListScreen columns", () => {
     expect(screen.getByText("Effy Roastery")).toBeInTheDocument()
     expect(screen.getByText("Coffee")).toBeInTheDocument()
     expect(screen.getByText("$4.50")).toBeInTheDocument()
-    expect(within(screen.getByRole("table")).getByText("Live")).toBeInTheDocument()
+    expect(within(screen.getByRole("table", { name: "Products" })).getByText("Live")).toBeInTheDocument()
     expect(screen.getByText("One size")).toBeInTheDocument() // Codes are each size's
     // What is on screen, and of how many.
-    expect(
-      screen.getAllByText((_, el) => (el?.textContent ?? "").trim().startsWith("1–1 of 1 product ·"))[0],
-    ).toBeInTheDocument()
+    expect(screen.getByText("1–1 of 1")).toBeInTheDocument()
   })
 
   it("shows the empty state when the shop has no products", async () => {
     getShopTaxonomy.mockResolvedValue(SCHEMA)
-    listProducts.mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 })
+    listProducts.mockResolvedValue(onePage([]))
 
     wrap(<CatalogListScreen />)
 

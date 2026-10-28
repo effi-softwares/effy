@@ -1,8 +1,9 @@
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";
-import { json, preamble } from "@effy/edge-shared";
+import { json, listProblem, parseListQuery, preamble } from "@effy/edge-shared";
 
+import { EXCEPTION_LIST_SPEC } from "../exceptions/list";
 import { listExceptions } from "../exceptions/service";
 import { mapDispatchError } from "../shared/dispatch-handler-support";
 import { denied, guard } from "../shared/handler-support";
@@ -13,9 +14,8 @@ export const handler = async (event: AuthedEvent, context: Context): Promise<API
   const g = await guard(event, scope, "read");
   if (denied(g)) return g.deny;
   try {
-    const includeResolved = event.queryStringParameters?.includeResolved === "true";
-    return json(200, await listExceptions(includeResolved), scope);
+    return json(200, await listExceptions(parseListQuery(event.queryStringParameters, EXCEPTION_LIST_SPEC)), scope);
   } catch (err) {
-    return mapDispatchError(err, scope);
+    return listProblem(err, scope) ?? mapDispatchError(err, scope);
   }
 };

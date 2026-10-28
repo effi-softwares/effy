@@ -1,9 +1,9 @@
 import { Link } from "@tanstack/react-router"
-import type { EffyColumnDef as ColumnDef } from "@effy/web-kit/data-table"
+import { StaticTable, type EffyColumnDef as ColumnDef } from "@effy/web-kit/data-table"
 
 import { POINTS_REASON_LABELS, type StaffPointsHistoryEntryDTO } from "@effy/shared-types"
 import { Button } from "@effy/design-system/ui"
-import { DataTable, ErrorState } from "@effy/web-kit/console"
+import { ErrorState } from "@effy/web-kit/console"
 
 import { usePointsHistory } from "../queries"
 import { formatDay, formatPoints } from "./points-format"
@@ -69,7 +69,7 @@ export function PointsHistoryTable({ customerId }: { customerId: string }) {
   const rows = history.data.pages.flatMap((p) => p.entries)
   return (
     <div className="space-y-3">
-      <DataTable columns={columns} data={rows} emptyMessage="No points yet." />
+      <StaticTable label="Points history" columns={columns} rows={rows} getRowId={(r) => r.id} empty="No points yet." />
       {history.hasNextPage ? (
         <Button variant="outline" disabled={history.isFetchingNextPage} onClick={() => void history.fetchNextPage()}>
           {history.isFetchingNextPage ? "Loading…" : "Show older"}

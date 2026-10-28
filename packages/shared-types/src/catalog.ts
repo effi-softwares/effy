@@ -1,3 +1,4 @@
+import type { ListPage } from "./list";
 /**
  * Shop-facing product contracts (products, media, sections), served by the shop service. The taxonomy —
  * categories, the attribute library and each leaf's form — is in taxonomy.ts (101). Enum unions mirror the
@@ -5,12 +6,10 @@
  */
 import type { GstStatus } from "./documents";
 import type { FactKey } from "./product-form";
-import type { PagedDTO } from "./shop";
 import type { DetailInput, FactDefaults, Storage } from "./taxonomy";
 import type { UnitBasis } from "./unit-price";
 import type { OptionDTO, OptionInputDTO, ShopVariantDTO, VariantInputDTO } from "./variants";
 
-export type { PagedDTO };
 
 // Enums (mirror the SQL check sets)
 
@@ -274,9 +273,5 @@ export interface UpdateShopSectionRequest {
 }
 
 /** Paged product list, declared concretely (not a generic alias) so the Kotlin generator can name it. */
-export interface ProductListDTO {
-  items: ProductListItemDTO[];
-  total: number;
-  page: number;
-  pageSize: number;
-}
+/** The shop's catalogue as a console list page (103). */
+export type ProductListDTO = ListPage<ProductListItemDTO>;

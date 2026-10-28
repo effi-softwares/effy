@@ -42,7 +42,7 @@ import { migrationSql } from "@effy/edge-shared/testing";
 import {
   changeStatus,
   getProduct,
-  listProducts,
+  listProducts as listProductsReq,
   patchMedia,
   registerMedia,
   removeMedia,
@@ -51,6 +51,11 @@ import {
   updateProduct,
   withdraw,
 } from "./service";
+import { parseListQuery } from "@effy/edge-shared";
+import { SHOP_PRODUCT_LIST_SPEC } from "./list";
+
+/** The catalogue as its route parses it (103). */
+const listProducts = (shopId: string, qs: Record<string, string>) => listProductsReq(shopId, parseListQuery({ pageSize: "100", ...qs }, SHOP_PRODUCT_LIST_SPEC));
 import { isProductError } from "./types";
 
 const RUN = process.env.CONTAINER_TESTS === "1";

@@ -43,9 +43,14 @@ vi.mock("./media", () => ({
 import { migrationSql } from "@effy/edge-shared/testing";
 
 import {
-  changeStatus, createProduct, deleteProduct, getProduct, listProducts, presignUpload, registerMedia, setSections,
+  changeStatus, createProduct, deleteProduct, getProduct, listProducts as listProductsReq, presignUpload, registerMedia, setSections,
   setVariantState, submitForReview, updateProduct, withdraw,
 } from "./service";
+import { parseListQuery } from "@effy/edge-shared";
+import { SHOP_PRODUCT_LIST_SPEC } from "./list";
+
+/** The catalogue as its route parses it (103). */
+const listProducts = (shopId: string, qs: Record<string, string>) => listProductsReq(shopId, parseListQuery({ pageSize: "100", ...qs }, SHOP_PRODUCT_LIST_SPEC));
 import { isProductError } from "./types";
 
 /** A product Effy is still setting up (102) is the shop's to see and nothing else, until it goes on sale. */

@@ -27,3 +27,20 @@ describe("LIVE_ROUTES", () => {
     expect(Object.keys(LIVE_ROUTES).sort()).toEqual(["attention", "orders", "products", "stock", "taxonomy"])
   })
 })
+
+// 103: each console list's cache key sits under the root its live kind refreshes.
+describe("console lists sit under their live roots (103 T049)", () => {
+  const under = (key: readonly unknown[], kind: keyof typeof LIVE_ROUTES) =>
+    (LIVE_ROUTES[kind] ?? []).some((root) => (root as unknown[]).every((part, i) => key[i] === part))
+
+  it("orders, products, availability and stock movements", async () => {
+    const { PRODUCTS_ROOT } = await import("@/features/catalog/queries")
+    const { AVAILABILITY_ROOT } = await import("@/features/catalog/availability")
+    const { STOCK_ROOT } = await import("@/features/catalog/stockQueries")
+
+    expect(under(["shop", "fulfillment", "orders", "list"], "orders")).toBe(true)
+    expect(under(PRODUCTS_ROOT, "products")).toBe(true)
+    expect(under(AVAILABILITY_ROOT, "stock")).toBe(true)
+    expect(under([...STOCK_ROOT, "variant", "v1", "movements"], "stock")).toBe(true)
+  })
+})

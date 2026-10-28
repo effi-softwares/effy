@@ -1,19 +1,21 @@
 import { api } from "@/lib/api"
 
-import type { DeliveryDetail, DeliveryList, DeliveryListParams } from "./model"
+import type { ListViews } from "@effy/shared-types"
 
-function encodeListQuery({ state, q, limit, offset }: DeliveryListParams): string {
-  const params = new URLSearchParams()
-  if (state) params.set("state", state)
-  if (q) params.set("q", q)
-  if (limit) params.set("limit", String(limit))
-  if (offset) params.set("offset", String(offset))
-  const s = params.toString()
-  return s ? `?${s}` : ""
+import type { DeliverabilityView, DeliveryDetail, DeliveryList, DeliveryListParams } from "./model"
+
+/** A quick read: the addresses needing attention (the rail's and the overview's count is its total). */
+export async function listDeliverability(_: DeliveryListParams = {}): Promise<DeliveryList> {
+  return api.get<DeliveryList>("/admin/v1/deliverability")
 }
 
-export async function listDeliverability(p: DeliveryListParams): Promise<DeliveryList> {
-  return api.get<DeliveryList>(`/admin/v1/deliverability${encodeListQuery(p)}`)
+/** One page for the address's view (103). */
+export function fetchDeliverabilityPage(qs: URLSearchParams, signal: AbortSignal): Promise<DeliveryList> {
+  return api.get<DeliveryList>(`/admin/v1/deliverability?${qs}`, { signal })
+}
+
+export function fetchDeliverabilityViews(qs: URLSearchParams, signal: AbortSignal): Promise<ListViews<DeliverabilityView>> {
+  return api.get<ListViews<DeliverabilityView>>(`/admin/v1/deliverability?${qs}`, { signal })
 }
 
 export async function getDeliverability(address: string): Promise<DeliveryDetail> {

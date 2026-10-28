@@ -1,16 +1,17 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { render, screen, waitFor } from "@testing-library/react"
+import { screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import type { ReactNode } from "react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import type { LowStockRowDTO } from "@effy/shared-types"
+
+import { onePage, renderList } from "@/test/renderList"
 
 const getShopLowStock = vi.hoisted(() => vi.fn())
 const setShopStockSettings = vi.hoisted(() => vi.fn())
 
 vi.mock("./stockRepo", () => ({
-  getShopLowStock,
+  fetchShopLowStockPage: (_shopId: string, qs: URLSearchParams) => getShopLowStock(qs),
+  getShopLowStockCounts: vi.fn(),
   setShopStockSettings,
   getShopVariantStock: vi.fn(),
   setShopVariantStock: vi.fn(),
@@ -33,26 +34,24 @@ function row(over: Partial<LowStockRowDTO> = {}): LowStockRowDTO {
   }
 }
 
-function renderPanel(canManage = true) {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  const wrapper = ({ children }: { children: ReactNode }) => (
-    <QueryClientProvider client={qc}>{children}</QueryClientProvider>
-  )
-  return render(<ShopStockPanel shopId="shop-1" canManage={canManage} />, { wrapper })
+function renderPanel(canManage = true, url = "/shops/shop-1") {
+  return renderList(() => <ShopStockPanel shopId="shop-1" canManage={canManage} />, url)
 }
 
 beforeEach(() => {
   vi.clearAllMocks()
-  getShopLowStock.mockResolvedValue([row()])
+  getShopLowStock.mockResolvedValue(onePage([row()]))
   setShopStockSettings.mockResolvedValue({ defaultThreshold: 5 })
 })
 
 describe("the restock list", () => {
   it("tells OUT apart from LOW in words, not by colour (Principle V, 041)", async () => {
-    getShopLowStock.mockResolvedValue([
-      row({ productId: "p1", variantId: "v1", name: "Milk", variantLabel: "2 L", onHand: 0, severity: "out" }),
-      row({ productId: "p2", variantId: "v2", name: "Bread", onHand: 2, severity: "low" }),
-    ])
+    getShopLowStock.mockResolvedValue(
+      onePage([
+        row({ productId: "p1", variantId: "v1", name: "Milk", variantLabel: "2 L", onHand: 0, severity: "out" }),
+        row({ productId: "p2", variantId: "v2", name: "Bread", onHand: 2, severity: "low" }),
+      ]),
+    )
     renderPanel()
 
     expect(await screen.findByText("Out of stock")).toBeInTheDocument()
@@ -62,16 +61,27 @@ describe("the restock list", () => {
   })
 
   it("says plainly that untracked products never appear, rather than showing an ambiguous blank", async () => {
-    getShopLowStock.mockResolvedValue([])
+    getShopLowStock.mockResolvedValue(onePage([]))
     renderPanel()
 
-    expect(await screen.findByText(/nothing needs restocking.*does not track.*never appear/is)).toBeInTheDocument()
+    expect(await screen.findByText("Nothing needs restocking")).toBeInTheDocument()
+    expect(screen.getByText(/does not track never appear/)).toBeInTheDocument()
   })
 
   it("shows the count and the threshold it is being judged against", async () => {
     renderPanel()
     expect(await screen.findByText("Milk")).toBeInTheDocument()
     expect(screen.getByText("MLK-1")).toBeInTheDocument()
+  })
+})
+
+describe("the restock list's view (103)", () => {
+  it("sends its prefixed status and search to the server", async () => {
+    renderPanel(true, "/shops/shop-1?stk.severity=out&stk.q=milk")
+    await screen.findByText("Milk")
+    const qs = getShopLowStock.mock.calls[0]![0] as URLSearchParams
+    expect(qs.get("severity")).toBe("out")
+    expect(qs.get("q")).toBe("milk")
   })
 })
 

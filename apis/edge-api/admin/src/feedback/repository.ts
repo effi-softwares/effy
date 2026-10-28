@@ -1,52 +1,75 @@
-import { query, withTransaction } from "@effy/edge-shared"
+import { dayRangeCondition, likePattern, limitOffsetClause, orderBy, query, runOffsetPage, withTransaction } from "@effy/edge-shared"
 import type { FeedbackStatus } from "@effy/shared-types"
 
-import type { ListParams, NoteRow, ReplyRow, StaffActor, SubmissionRow } from "./types"
+import { FEEDBACK_LIST, FEEDBACK_VIEWS, VIEW_STATUSES, type FeedbackListRequest, type FeedbackView } from "./list"
+import type { NoteRow, ReplyRow, StaffActor, SubmissionRow } from "./types"
 
-/** Each filter appends a bound parameter, never interpolated. Search is ILIKE over message + email (trigram index on message). */
+/** Each filter appends a bound parameter, never interpolated. Search is ILIKE over message, email and reference (trigram index on message). */
 
 const SUBMISSION_COLUMNS = `
   reference_code, category, status, rating, message, submitter_name, submitter_email,
   email_verified, customer_id, source, platform, created_at, updated_at
 `
 
-function buildWhere(params: ListParams): { where: string; values: unknown[] } {
+/** Search and every filter but the view, shared by the page and its view counts. */
+function filterWhere(req: Pick<FeedbackListRequest, "q" | "filters">, values: unknown[]): string[] {
   const conds: string[] = []
-  const values: unknown[] = []
   const p = (v: unknown) => `$${values.push(v)}`
-
-  if (params.q) {
-    const term = `%${params.q}%`
-    // Two params so the planner can use the trigram index on message.
-    conds.push(`(message ILIKE ${p(term)} OR submitter_email ILIKE ${p(term)})`)
+  const f = req.filters
+  if (req.q) {
+    const term = likePattern(req.q)
+    // Separate params so the planner can use the trigram index on message.
+    conds.push(`(message ILIKE ${p(term)} OR submitter_email ILIKE ${p(term)} OR reference_code ILIKE ${p(term)})`)
   }
-  if (params.category) conds.push(`category = ${p(params.category)}`)
-  if (params.status) conds.push(`status = ${p(params.status)}`)
-  if (params.rating !== null) conds.push(`rating = ${p(params.rating)}`)
-  if (params.from) conds.push(`created_at >= ${p(params.from)}`)
-  if (params.to) conds.push(`created_at <= ${p(params.to)}`)
-
-  return { where: conds.length ? `WHERE ${conds.join(" AND ")}` : "", values }
+  if (f.category) conds.push(`category = ${p(f.category)}`)
+  if (f.rating) conds.push(`rating = ${p(Number(f.rating))}`)
+  const received = dayRangeCondition("created_at", { from: f.receivedFrom, to: f.receivedTo }, values)
+  if (received) conds.push(received)
+  return conds
 }
 
-export async function list(params: ListParams): Promise<{ items: SubmissionRow[]; total: number }> {
-  const { where, values } = buildWhere(params)
+function viewWhere(view: FeedbackView, values: unknown[]): string | null {
+  const statuses = VIEW_STATUSES[view]
+  if (!statuses) return null
+  values.push(statuses)
+  return `status = ANY($${values.length}::text[])`
+}
 
-  const totalRes = await query<{ n: string }>(
-    `SELECT count(*)::text AS n FROM public.feedback_submission ${where}`,
+/** One page with its exact total (103). */
+export async function list(req: FeedbackListRequest) {
+  return runOffsetPage(req, async (read) => {
+    const values: unknown[] = []
+    const conds = filterWhere(req, values)
+    const v = viewWhere(req.filters.view ?? "open", values)
+    if (v) conds.push(v)
+    const paging = limitOffsetClause(read, values)
+    const res = await query<SubmissionRow & { full_count: string }>(
+      `SELECT ${SUBMISSION_COLUMNS}, count(*) OVER () AS full_count
+         FROM public.feedback_submission
+         ${conds.length ? `WHERE ${conds.join(" AND ")}` : ""}
+         ${orderBy(FEEDBACK_LIST, req)}
+         ${paging}`,
+      values,
+    )
+    return res.rows
+  })
+}
+
+/** Every view's count for the search and filters, in one statement (103 FR-017; it was one request per view). */
+export async function viewCounts(req: Pick<FeedbackListRequest, "q" | "filters">): Promise<Record<FeedbackView, number>> {
+  const values: unknown[] = []
+  const conds = filterWhere(req, values)
+  const col = (v: FeedbackView) => {
+    const s = VIEW_STATUSES[v]
+    return `count(*) ${s ? `FILTER (WHERE status IN (${s.map((x) => `'${x}'`).join(", ")}))` : ""}::int AS ${v}`
+  }
+  const res = await query<Record<FeedbackView, number>>(
+    `SELECT ${FEEDBACK_VIEWS.map(col).join(", ")}
+       FROM public.feedback_submission
+       ${conds.length ? `WHERE ${conds.join(" AND ")}` : ""}`,
     values,
   )
-  const total = Number(totalRes.rows[0]?.n ?? "0")
-
-  const itemsRes = await query<SubmissionRow>(
-    `SELECT ${SUBMISSION_COLUMNS}
-       FROM public.feedback_submission
-       ${where}
-      ORDER BY created_at DESC
-      LIMIT $${values.length + 1} OFFSET $${values.length + 2}`,
-    [...values, params.limit, params.offset],
-  )
-  return { items: itemsRes.rows, total }
+  return res.rows[0]!
 }
 
 export async function getByReference(referenceCode: string): Promise<SubmissionRow | null> {

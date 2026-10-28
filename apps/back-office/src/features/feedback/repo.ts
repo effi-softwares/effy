@@ -1,23 +1,22 @@
 import { api } from "@/lib/api"
 
-import type { FeedbackDetailDTO, FeedbackListDTO, FeedbackListParams } from "./model"
+import type { ListViews } from "@effy/shared-types"
 
-function encodeListQuery({ q, category, status, rating, from, to, cursor, limit }: FeedbackListParams): string {
-  const params = new URLSearchParams()
-  if (q) params.set("q", q)
-  if (category) params.set("category", category)
-  if (status) params.set("status", status)
-  if (rating) params.set("rating", String(rating))
-  if (from) params.set("from", from)
-  if (to) params.set("to", to)
-  if (cursor) params.set("cursor", cursor)
-  if (limit) params.set("limit", String(limit))
-  const s = params.toString()
-  return s ? `?${s}` : ""
+import type { FeedbackDetailDTO, FeedbackListDTO, FeedbackListParams, FeedbackView } from "./model"
+
+/** A quick read: how many are in one status (the rail's and the overview's count). */
+export async function listFeedback(p: FeedbackListParams): Promise<FeedbackListDTO> {
+  return api.get<FeedbackListDTO>(`/admin/v1/feedback?view=${p.status ?? "all"}`)
 }
 
-export async function listFeedback(p: FeedbackListParams): Promise<FeedbackListDTO> {
-  return api.get<FeedbackListDTO>(`/admin/v1/feedback${encodeListQuery(p)}`)
+/** One page of feedback for the address's view (103). */
+export function fetchFeedbackPage(qs: URLSearchParams, signal: AbortSignal): Promise<FeedbackListDTO> {
+  return api.get<FeedbackListDTO>(`/admin/v1/feedback?${qs}`, { signal })
+}
+
+/** Every view's count for the search and filters, in one request. */
+export function fetchFeedbackViews(qs: URLSearchParams, signal: AbortSignal): Promise<ListViews<FeedbackView>> {
+  return api.get<ListViews<FeedbackView>>(`/admin/v1/feedback?${qs}`, { signal })
 }
 
 export async function getFeedback(referenceCode: string): Promise<FeedbackDetailDTO> {

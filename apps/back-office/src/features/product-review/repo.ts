@@ -1,5 +1,6 @@
 import type {
   ApproveReviewRequest,
+  ListViews,
   MarginNotSetDTO,
   MissingDetailsPageDTO,
   PlacementsDTO,
@@ -17,23 +18,30 @@ export interface QueueParams {
   q?: string
   kind?: ReviewKind | null
   shopId?: string | null
-  cursor?: string | null
 }
 
-export async function listQueue({ q, kind, shopId, cursor }: QueueParams): Promise<ReviewQueueDTO> {
+/** A quick read of the queue's first page (the rail's count, the overview's oldest item). */
+export async function listQueue({ q, kind, shopId }: QueueParams): Promise<ReviewQueueDTO> {
   const params = new URLSearchParams()
   if (q && q.trim()) params.set("q", q.trim())
   if (kind) params.set("kind", kind)
   if (shopId) params.set("shopId", shopId)
-  if (cursor) params.set("cursor", cursor)
   const qs = params.toString()
   return api.get<ReviewQueueDTO>(`/catalog/v1/review${qs ? `?${qs}` : ""}`)
 }
 
-export async function listMarginNotSet(cursor?: string | null): Promise<MarginNotSetDTO> {
-  return api.get<MarginNotSetDTO>(
-    `/catalog/v1/review/margin-not-set${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`,
-  )
+/** One page of the queue for the address's view (103). */
+export function fetchQueuePage(qs: URLSearchParams, signal: AbortSignal): Promise<ReviewQueueDTO> {
+  return api.get<ReviewQueueDTO>(`/catalog/v1/review?${qs}`, { signal })
+}
+
+/** The queue's kinds counted under the search and shop, in one request. */
+export function fetchQueueViews(qs: URLSearchParams, signal: AbortSignal): Promise<ListViews<"all" | ReviewKind>> {
+  return api.get<ListViews<"all" | ReviewKind>>(`/catalog/v1/review?${qs}`, { signal })
+}
+
+export function fetchMarginNotSetPage(qs: URLSearchParams, signal: AbortSignal): Promise<MarginNotSetDTO> {
+  return api.get<MarginNotSetDTO>(`/catalog/v1/review/margin-not-set?${qs}`, { signal })
 }
 
 export async function getItem(productId: string): Promise<ReviewItemDetailDTO> {
@@ -53,10 +61,8 @@ export async function setMargin(productId: string, body: SetMarginRequest): Prom
 }
 
 /** Products on sale with a required detail empty (101): a requirement added after they were approved. */
-export async function listMissingDetails(cursor?: string | null): Promise<MissingDetailsPageDTO> {
-  return api.get<MissingDetailsPageDTO>(
-    `/catalog/v1/products/missing-details${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`,
-  )
+export function fetchMissingDetailsPage(qs: URLSearchParams, signal: AbortSignal): Promise<MissingDetailsPageDTO> {
+  return api.get<MissingDetailsPageDTO>(`/catalog/v1/products/missing-details?${qs}`, { signal })
 }
 
 /** Replace a product's extra "also shown in" leaves (101). */

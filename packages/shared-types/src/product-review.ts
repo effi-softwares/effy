@@ -1,3 +1,4 @@
+import type { ListPage } from "./list";
 /**
  * Product review, the back-office half (catalog service): the queue, one item with its before and
  * after, and the decisions. These types carry Effy's margin, so nothing here is returned by a shop route.
@@ -27,12 +28,8 @@ export interface ReviewQueueItemDTO {
   waitingHours: WireInt;
 }
 
-export interface ReviewQueueDTO {
-  items: ReviewQueueItemDTO[];
-  nextCursor: string | null;
-  /** How many items the filtered queue holds across pages (the rail's count). Optional for an older deploy. */
-  total?: number;
-}
+/** The review queue as a console list (103); `total` is the filtered queue's size (the rail's count). */
+export type ReviewQueueDTO = ListPage<ReviewQueueItemDTO>;
 
 /** A live product with no margin set. It sells at its shop price until one is. */
 export interface MarginNotSetItemDTO {
@@ -43,12 +40,11 @@ export interface MarginNotSetItemDTO {
   /** The lowest shop price among its active variants. */
   shopPriceAmount: string;
   status: string;
+  /** When it went on sale without a margin. */
+  approvedAt: string;
 }
 
-export interface MarginNotSetDTO {
-  items: MarginNotSetItemDTO[];
-  nextCursor: string | null;
-}
+export type MarginNotSetDTO = ListPage<MarginNotSetItemDTO>;
 
 export interface ReviewImageDTO {
   url: string;

@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query"
 
-import { Skeleton, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@effy/design-system/ui"
+import { Skeleton } from "@effy/design-system/ui"
+import { StaticTable, type EffyColumnDef } from "@effy/web-kit/data-table"
 import { ErrorState } from "@effy/web-kit/console"
 
 import { PageHeader, Panel } from "@effy/web-kit/patterns"
@@ -11,8 +12,29 @@ import { sessionQuery } from "@/features/auth/queries"
 import { canRepairDelivery } from "./access"
 import { RepairDialog } from "./components/RepairDialog"
 import { StateLabel } from "./DeliverabilityListScreen"
-import { STATE_MEANING } from "./model"
+import { STATE_MEANING, type DeliveryEvent } from "./model"
 import { deliverabilityDetailQuery } from "./queries"
+
+/** The service answers this address's newest events, up to this many (`listEvents`). */
+const EVENTS_SHOWN = 50
+
+const EVENT_COLUMNS: EffyColumnDef<DeliveryEvent>[] = [
+  { id: "when", header: "When", cell: ({ row }) => moment(row.original.occurredAt), meta: { label: "When", phone: "primary" } },
+  { id: "outcome", header: "Outcome", cell: ({ row }) => row.original.eventType.replace("_", " "), meta: { label: "Outcome", phone: "badge" } },
+  { id: "detail", header: "Detail", cell: ({ row }) => <span className="text-xs">{row.original.subType ?? "—"}</span>, meta: { label: "Detail", align: "mono" } },
+  {
+    id: "template",
+    header: "Template",
+    cell: ({ row }) => <span className="text-xs">{row.original.templateId ?? <span className="text-muted-foreground">Cognito / pre-038</span>}</span>,
+    meta: { label: "Template", align: "mono", priority: 2 },
+  },
+  {
+    id: "message",
+    header: "Message",
+    cell: ({ row }) => <span className="text-xs text-muted-foreground">{row.original.messageId}</span>,
+    meta: { label: "Message", align: "mono", priority: 3, phone: "hide" },
+  },
+]
 
 export function DeliverabilityDetailScreen({ address }: { address: string }) {
   const { data, isPending, isError, error, refetch } = useQuery(deliverabilityDetailQuery(address))
@@ -48,39 +70,17 @@ export function DeliverabilityDetailScreen({ address }: { address: string }) {
             description="Every send to this address the platform heard back about, newest first."
             flush
           >
-            <div className="min-w-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>When</TableHead>
-                    <TableHead>Outcome</TableHead>
-                    <TableHead>Detail</TableHead>
-                    <TableHead>Template</TableHead>
-                    <TableHead>Message</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {data.events.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-muted-foreground">
-                        No events recorded.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                  {data.events.map((e) => (
-                    <TableRow key={`${e.messageId}-${e.eventType}`}>
-                      <TableCell className="whitespace-nowrap">{moment(e.occurredAt)}</TableCell>
-                      <TableCell>{e.eventType.replace("_", " ")}</TableCell>
-                      <TableCell className="font-mono text-xs">{e.subType ?? "—"}</TableCell>
-                      <TableCell className="font-mono text-xs">
-                        {e.templateId ?? <span className="text-muted-foreground">Cognito / pre-038</span>}
-                      </TableCell>
-                      <TableCell className="font-mono text-xs text-muted-foreground">{e.messageId}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+            <StaticTable
+              label="History"
+              columns={EVENT_COLUMNS}
+              rows={data.events}
+              getRowId={(e) => `${e.messageId}-${e.eventType}`}
+              empty="No events recorded."
+              framed={false}
+            />
+            {data.events.length >= EVENTS_SHOWN ? (
+              <p className="px-5 py-3 text-sm text-muted-foreground">The latest {EVENTS_SHOWN} events.</p>
+            ) : null}
           </Panel>
         </div>
         <aside className="ef-detail__aside is-first">

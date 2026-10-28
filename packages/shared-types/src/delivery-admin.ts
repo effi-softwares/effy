@@ -1,3 +1,4 @@
+import type { ListPage } from "./list";
 /**
  * Delivery: back-office configuration contracts, shared by the admin delivery domain and the console.
  * This surface validates a plan but never computes a customer fee (that is `@effy/edge-shared/delivery`).
@@ -256,9 +257,8 @@ export interface CourierExclusionDTO {
 }
 
 /** `GET /admin/v1/delivery/coverage`: everything the Coverage screen shows, in one read. */
-export interface CoverageListDTO {
-  postcodes: CoveragePostcodeDTO[];
-  nextCursor?: string;
+/** One page of the postcode list (a console list, 103) with the groups, totals and courier state beside it. */
+export interface CoverageListDTO extends ListPage<CoveragePostcodeDTO> {
   groups: CoverageGroupDTO[];
   /** Listed postcodes in no group, and the drivers cleared for everywhere who can deliver them. */
   ungrouped: { postcodeCount: number; driverCount: number };

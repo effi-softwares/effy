@@ -8,12 +8,23 @@ import {
   EFFECTIVE_LOW_STOCK_THRESHOLD,
   LOW_STOCK_PREDICATE,
   LOW_STOCK_SEVERITY,
+  cappedCountSql,
+  keysetColumns,
+  keysetCondition,
+  keysetListPage,
+  likePattern,
+  limitOffsetClause,
+  offsetListPage,
+  orderBy,
+  pageClause,
   query,
+  runOffsetPage,
   withTransaction,
 } from "@effy/edge-shared";
 import { variantLabelSql } from "@effy/edge-shared/catalog";
-import type { LowStockRowDTO, StockMovementReason } from "@effy/shared-types";
+import type { ListPage, LowStockRowDTO, StockMovementReason } from "@effy/shared-types";
 
+import { LOW_STOCK_LIST, MOVEMENT_LIST, type LowStockListRequest, type MovementListRequest } from "./list";
 import { notFound, type Actor, type MovementRow, type StockRow } from "./types";
 
 interface StockDbRow {
@@ -58,8 +69,8 @@ export async function readStock(variantId: string, shopId: string): Promise<Stoc
   return row ? toStockRow(row) : null;
 }
 
-/** Newest first. `actorLabel` is a name, never an email; left JOINs because `actor_sub` is a snapshot, not an FK. */
-const SELECT_MOVEMENTS = `
+/** `actorLabel` is a name, never an email; left JOINs because `actor_sub` is a snapshot, not an FK. */
+const MOVEMENT_COLUMNS = `
 SELECT m.id::text          AS id,
        m.quantity_delta    AS quantity_delta,
        m.quantity_before   AS quantity_before,
@@ -69,15 +80,16 @@ SELECT m.id::text          AS id,
        coalesce(ss.name, ast.name) AS actor_label,
        o.order_number      AS order_number,
        m.note              AS note,
-       m.created_at        AS created_at
+       m.created_at        AS created_at`;
+
+const MOVEMENT_FROM = `
   FROM public.stock_movement m
   LEFT JOIN public.shop_staff ss ON ss.cognito_sub = m.actor_sub
   LEFT JOIN admin.staff     ast ON ast.cognito_sub = m.actor_sub
-  LEFT JOIN public."order"    o ON o.id = m.order_id
- WHERE m.variant_id = $1
- ORDER BY m.created_at DESC, m.id DESC
- LIMIT $2
-`;
+  LEFT JOIN public."order"    o ON o.id = m.order_id`;
+
+/** The variant's own movements, optionally of one reason. Rides `stock_movement_variant_idx`. */
+const MOVEMENT_WHERE = `WHERE m.variant_id = $1 AND ($2::text IS NULL OR m.reason = $2)`;
 
 interface MovementDbRow {
   id: string;
@@ -92,9 +104,8 @@ interface MovementDbRow {
   created_at: Date;
 }
 
-export async function readMovements(variantId: string, limit = 50): Promise<MovementRow[]> {
-  const res = await query<MovementDbRow>(SELECT_MOVEMENTS, [variantId, limit]);
-  return res.rows.map((r) => ({
+function toMovementRow(r: MovementDbRow): MovementRow {
+  return {
     id: r.id,
     quantityDelta: r.quantity_delta,
     quantityBefore: r.quantity_before,
@@ -105,7 +116,33 @@ export async function readMovements(variantId: string, limit = 50): Promise<Move
     orderNumber: r.order_number,
     note: r.note,
     createdAt: r.created_at.toISOString(),
-  }));
+  };
+}
+
+/**
+ * One page of a variant's movements, newest first (103). The caller has already proved the variant is its
+ * shop's (`readStock`); the count is capped, as on every keyset list.
+ */
+export async function readMovementPage(variantId: string, req: MovementListRequest): Promise<ListPage<MovementRow>> {
+  const args: unknown[] = [variantId, req.filters.reason ?? null];
+  const after = keysetCondition(MOVEMENT_LIST, req, args);
+  const paging = pageClause(req, args);
+  const [res, count] = await Promise.all([
+    query<MovementDbRow & { list_sort_key: string; list_row_id: string }>(
+      `${MOVEMENT_COLUMNS}, ${keysetColumns(MOVEMENT_LIST, req)}
+       ${MOVEMENT_FROM}
+       ${MOVEMENT_WHERE}
+       ${after ? `AND ${after}` : ""}
+       ${orderBy(MOVEMENT_LIST, req)}
+       ${paging}`,
+      args,
+    ),
+    query<{ n: number }>(cappedCountSql(`SELECT 1 FROM public.stock_movement m ${MOVEMENT_WHERE}`), [
+      variantId,
+      req.filters.reason ?? null,
+    ]),
+  ]);
+  return keysetListPage(res.rows, req, count.rows[0]?.n ?? 0, toMovementRow);
 }
 
 /** The state after the write, so the caller never re-reads. */
@@ -267,7 +304,8 @@ export async function writeSettings(
  * `product_variant_low_stock_idx`.
  */
 const SELECT_LOW_STOCK = `
-SELECT v.product_id::text AS product_id,
+SELECT count(*) OVER () AS full_count,
+       v.product_id::text AS product_id,
        v.id::text AS variant_id,
        p.name     AS name,
        ${variantLabelSql("v")} AS variant_label,
@@ -280,13 +318,12 @@ SELECT v.product_id::text AS product_id,
   LEFT JOIN public.shop_stock_settings s ON s.shop_id = v.shop_id
  WHERE v.shop_id = $1
    AND ${LOW_STOCK_PREDICATE}
- -- ⚠ Most urgent first — the order IS the guarantee. Any presentation grouping is the
- -- client's job, over a list that is already urgency-ordered.
- ORDER BY (v.stock_on_hand <= 0) DESC, v.stock_on_hand ASC, p.name ASC, v.position ASC
- LIMIT 500
+   AND ($2::text IS NULL OR (${LOW_STOCK_SEVERITY}) = $2)
+   AND ($3::text IS NULL OR p.name ILIKE $3 OR v.sku ILIKE $3)
 `;
 
 interface LowStockDbRow {
+  full_count: string;
   product_id: string;
   variant_id: string;
   name: string;
@@ -297,16 +334,26 @@ interface LowStockDbRow {
   severity: "out" | "low";
 }
 
-export async function readLowStock(shopId: string): Promise<LowStockRowDTO[]> {
-  const res = await query<LowStockDbRow>(SELECT_LOW_STOCK, [shopId]);
-  return res.rows.map((r) => ({
-    productId: r.product_id,
-    variantId: r.variant_id,
-    name: r.name,
-    variantLabel: r.variant_label,
-    sku: r.sku,
-    onHand: r.on_hand,
-    effectiveThreshold: r.effective_threshold,
-    severity: r.severity,
-  }));
+/** One page of the restock list (103): searched by name or SKU, narrowed to out or low, least stock first. */
+export async function readLowStock(shopId: string, req: LowStockListRequest): Promise<ListPage<LowStockRowDTO>> {
+  const result = await runOffsetPage(req, async (read) => {
+    const args: unknown[] = [shopId, req.filters.severity ?? null, req.q ? likePattern(req.q) : null];
+    const paging = limitOffsetClause(read, args);
+    const res = await query<LowStockDbRow>(`${SELECT_LOW_STOCK} ${orderBy(LOW_STOCK_LIST, req)} ${paging}`, args);
+    return res.rows;
+  });
+  return offsetListPage(
+    result.rows.map((r) => ({
+      productId: r.product_id,
+      variantId: r.variant_id,
+      name: r.name,
+      variantLabel: r.variant_label,
+      sku: r.sku,
+      onHand: r.on_hand,
+      effectiveThreshold: r.effective_threshold,
+      severity: r.severity,
+    })),
+    req,
+    result,
+  );
 }

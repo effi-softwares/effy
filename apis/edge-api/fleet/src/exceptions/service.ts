@@ -1,4 +1,4 @@
-import { query, withTransaction } from "@effy/edge-shared";
+import { likePattern, limitOffsetClause, offsetListPage, orderBy, query, runOffsetPage, withTransaction } from "@effy/edge-shared";
 import { EXCEPTION_OUTCOMES } from "@effy/shared-types";
 import type {
   ExceptionOutcome,
@@ -10,7 +10,8 @@ import type {
 
 import { heldPackages, overdueRuns, vehicleChecksToday } from "../sequence/service";
 import { recordAudit } from "../shared/audit";
-import { EXCEPTION_BY_ID, LIST_EXCEPTIONS, RESOLVE_EXCEPTION } from "./sql";
+import { EXCEPTION_LIST, type ExceptionListRequest } from "./list";
+import { EXCEPTION_BY_ID, EXCEPTION_FILTERS, LIST_EXCEPTIONS, RESOLVE_EXCEPTION } from "./sql";
 
 export class ExceptionNotFoundError extends Error {
   constructor() {
@@ -39,11 +40,29 @@ interface ExceptionRow {
 
 const iso = (v: Date | string) => (v instanceof Date ? v.toISOString() : new Date(v).toISOString());
 
-/** @param includeResolved false (default) shows only what needs a decision; records are never deleted. */
-export async function listExceptions(includeResolved = false): Promise<DeliveryExceptionListDTO> {
-  const res = await query<ExceptionRow>(LIST_EXCEPTIONS, [includeResolved]);
+/**
+ * The exceptions board: one page of failed deliveries (open by default — records are never deleted), the
+ * open count, and what else needs a dispatcher.
+ */
+export async function listExceptions(req: ExceptionListRequest): Promise<DeliveryExceptionListDTO> {
+  const view = req.filters.view ?? "open";
+  const [page, open] = await Promise.all([
+    runOffsetPage(req, async (read) => {
+      const args: unknown[] = [view, req.q ? likePattern(req.q) : null];
+      const paging = limitOffsetClause(read, args);
+      const r = await query<ExceptionRow & { full_count: string }>(
+        `${LIST_EXCEPTIONS.replace("SELECT f.id ", "SELECT count(*) OVER () AS full_count, f.id ")}
+         ${EXCEPTION_FILTERS}
+         ${orderBy(EXCEPTION_LIST, req)}
+         ${paging}`,
+        args,
+      );
+      return r.rows;
+    }),
+    query<{ n: number }>(`SELECT count(*)::int AS n FROM public.delivery_attempt_failure WHERE resolved_at IS NULL`),
+  ]);
 
-  const exceptions: DeliveryExceptionDTO[] = res.rows.map((r) => ({
+  const exceptions: DeliveryExceptionDTO[] = page.rows.map((r) => ({
     exceptionId: r.exception_id,
     stopId: r.stop_id,
     orderNumber: r.order_number,
@@ -64,8 +83,8 @@ export async function listExceptions(includeResolved = false): Promise<DeliveryE
   const [held, overdue, vehicleChecks] = await Promise.all([heldPackages(), overdueRuns(), vehicleChecksToday()]);
 
   return {
-    exceptions,
-    openCount: exceptions.filter((e) => e.resolvedAt === null).length,
+    exceptions: offsetListPage(exceptions, req, page),
+    openCount: open.rows[0]?.n ?? 0,
     held,
     overdue,
     vehicleChecks,

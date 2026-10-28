@@ -1,37 +1,21 @@
-import { useMemo, useState } from "react"
-
 import { useQuery } from "@tanstack/react-query"
-import { Link } from "@tanstack/react-router"
-
+import { useNavigate, useSearch } from "@tanstack/react-router"
 import { CircleAlert, UserX } from "lucide-react"
 
+import { Avatar, AvatarFallback } from "@effy/design-system/ui"
+import type { AdminDriverListItem } from "@effy/shared-types"
 import {
-  Avatar,
-  AvatarFallback,
-  Checkbox,
-  Skeleton,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@effy/design-system/ui"
-import { ErrorState } from "@effy/web-kit/console"
-import type { AdminDriverListItem, DriverEmploymentStatus } from "@effy/shared-types"
-
-import {
-  DotWord,
-  EmptyState,
+  DataTable,
   Facet,
-  PageHeader,
-  Pager,
+  ListPage,
+  listQueryOptions,
   SearchBox,
-  StatusWord,
-  Toolbar,
-  ToolbarSpacer,
+  useListState,
+  viewsQueryOptions,
   ViewSelect,
-} from "@effy/web-kit/patterns"
+  type EffyColumnDef,
+} from "@effy/web-kit/data-table"
+import { DotWord, PageHeader, StatusWord } from "@effy/web-kit/patterns"
 import { initialsOf } from "@/components/shell/identity"
 import { useSessionRoles } from "@/features/auth/useSessionRoles"
 
@@ -39,212 +23,174 @@ import { CreateDriverDialog } from "./components/CreateDriverDialog"
 import { DutyPanel } from "./components/DutyPanel"
 import { ReadinessPanel } from "./components/ReadinessPanel"
 import { canManageDrivers } from "./access"
-import { BLOCKED_LABEL, STATUS_LABEL, type DriverListParams } from "./model"
-import { driversListQuery, readinessQuery, zonesQuery } from "./queries"
+import { BLOCKED_LABEL, DRIVER_LIST_VIEWS, driversList, STATUS_LABEL, type DriverListView } from "./model"
+import { readinessQuery, zonesQuery } from "./queries"
+import { fetchDriverPage, fetchDriverViews } from "./repo"
+
+/** `readiness` is not a slice of the register but its own panel, chosen from the same select. */
+type View = DriverListView | "readiness"
+
+const VIEW_LABEL: Record<View, string> = {
+  employed: "All employed",
+  active: "Active",
+  suspended: "Suspended",
+  offboarded: "Offboarded",
+  everyone: "Everyone, incl. leavers",
+  readiness: "Readiness",
+}
+
+const KEY = ["drivers"] as const
 
 function blockedSummary(d: AdminDriverListItem): string | null {
   if (d.blockedReasons.length === 0) return null
   return d.blockedReasons.map((r) => BLOCKED_LABEL[r]).join(" · ")
 }
 
-type View = "all" | "active" | "suspended" | "offboarded" | "readiness"
-const VIEWS: readonly { key: View; label: string }[] = [
-  { key: "all", label: "All employed" },
-  { key: "active", label: "Active" },
-  { key: "suspended", label: "Suspended" },
-  { key: "offboarded", label: "Offboarded" },
-  { key: "readiness", label: "Readiness" },
-]
-
-export function DriversListScreen() {
-  const roles = useSessionRoles()
-  const canManage = canManageDrivers(roles)
-
-  const [view, setView] = useState<View>("all")
-  const [search, setSearch] = useState("")
-  const [zoneId, setZoneId] = useState<string | null>(null)
-  const [includeOffboarded, setIncludeOffboarded] = useState(false)
-  const [cursors, setCursors] = useState<string[]>([])
-
-  const status = view === "all" || view === "readiness" ? "" : (view as DriverEmploymentStatus)
-  const params: DriverListParams = useMemo(
-    () => ({
-      q: search.trim() || undefined,
-      status,
-      zoneId: zoneId ?? undefined,
-      // Offboarded drivers are hidden by default; the Offboarded view asks for them.
-      includeOffboarded: includeOffboarded || view === "offboarded",
-      cursor: cursors[cursors.length - 1],
-    }),
-    [search, status, zoneId, includeOffboarded, view, cursors],
-  )
-
-  const { data, error, isPending, isError, refetch } = useQuery({
-    ...driversListQuery(params),
-    enabled: view !== "readiness",
-  })
-  const zones = useQuery(zonesQuery())
-  const readiness = useQuery(readinessQuery())
-  const blockedCount = readiness.data?.blocked.length
-
-  function resetPaging<T>(set: (v: T) => void) {
-    return (v: T) => {
-      set(v)
-      setCursors([])
-    }
-  }
-
-  return (
-    <>
-      <PageHeader
-        title="Drivers"
-        description="Effy's drivers, whether they are cleared to work, and any incidents on the road."
-        actions={canManage ? <CreateDriverDialog /> : undefined}
-      />
-
-      <DutyPanel />
-
-      <Toolbar>
-        <ViewSelect
-          label="Driver views"
-          value={view}
-          onChange={resetPaging(setView)}
-          options={VIEWS.map((v) => ({
-            value: v.key,
-            label: v.label,
-            count: v.key === "readiness" && blockedCount ? blockedCount : undefined,
-            attention: v.key === "readiness",
-          }))}
-        />
-        {view !== "readiness" ? (
-          <>
-            <SearchBox
-              label="Search drivers"
-              placeholder="Search by name or work email…"
-              value={search}
-              onChange={resetPaging(setSearch)}
-            />
-            <Facet
-              label="Zone"
-              anyLabel="Any zone"
-              value={zoneId}
-              onChange={resetPaging(setZoneId)}
-              options={(zones.data ?? []).map((z) => ({ value: z.id, label: z.name }))}
-            />
-            <ToolbarSpacer />
-            {view === "all" ? (
-              <label className="flex items-center gap-2 text-sm">
-                <Checkbox
-                  checked={includeOffboarded}
-                  onCheckedChange={(v) => resetPaging(setIncludeOffboarded)(v === true)}
-                />
-                Include people who have left
-              </label>
-            ) : null}
-          </>
-        ) : null}
-      </Toolbar>
-
-      {view === "readiness" ? (
-        <ReadinessPanel />
-      ) : isError ? (
-        <ErrorState error={error} onRetry={() => void refetch()} />
-      ) : isPending ? (
-        <div className="overflow-hidden rounded-xl border bg-card p-4" aria-busy="true">
-          <Skeleton className="mb-3 h-10" />
-          <Skeleton className="mb-3 h-10" />
-          <Skeleton className="h-10" />
-        </div>
-      ) : data.items.length === 0 ? (
-        <EmptyState
-          icon={UserX}
-          title={search || zoneId || view !== "all" ? "No drivers match your filter." : "No drivers yet."}
-          description={
-            search || zoneId || view !== "all"
-              ? undefined
-              : "Add the first one to give them a sign-in for the driver app."
-          }
-        />
-      ) : (
-        <div className="overflow-hidden rounded-xl border bg-card">
-          <div className="min-w-0">
-            <Table className="ef-rtable">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Driver</TableHead>
-                  <TableHead>Work email</TableHead>
-                  <TableHead>Cleared for</TableHead>
-                  <TableHead>Duty</TableHead>
-                  <TableHead>Employment</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data.items.map((d) => (
-                  <DriverRow key={d.id} driver={d} />
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-          {cursors.length > 0 || data.nextCursor ? (
-            <Pager
-              summary={`${data.items.length} driver${data.items.length === 1 ? "" : "s"} · page ${cursors.length + 1}`}
-              canBack={cursors.length > 0}
-              canNext={Boolean(data.nextCursor)}
-              onBack={() => setCursors((c) => c.slice(0, -1))}
-              onNext={() => setCursors((c) => (data.nextCursor ? [...c, data.nextCursor] : c))}
-            />
-          ) : null}
-        </div>
-      )}
-    </>
-  )
-}
-
-function DriverRow({ driver: d }: { driver: AdminDriverListItem }) {
-  const blocked = blockedSummary(d)
-  const c = d.capabilitySummary
-  const what = c.functions.length === 2 ? "Collect + deliver" : c.functions[0] === "collection" ? "Collect" : "Deliver"
-  const where = c.coversEveryZone ? "every zone" : `${c.total} grant${c.total === 1 ? "" : "s"}`
-  return (
-    <TableRow>
-      <TableCell data-m="primary">
-        <div className="flex items-center gap-3">
+const columns: EffyColumnDef<AdminDriverListItem>[] = [
+  {
+    id: "driver",
+    header: "Driver",
+    cell: ({ row }) => {
+      const d = row.original
+      const blocked = blockedSummary(d)
+      return (
+        <span className="flex items-center gap-3">
           <Avatar aria-hidden="true" className="rounded-lg max-md:hidden">
             <AvatarFallback className="rounded-lg">{initialsOf(d.name)}</AvatarFallback>
           </Avatar>
-          <div className="min-w-0">
-            <Link to="/drivers/$driverId" params={{ driverId: d.id }} className="link">
-              {d.name}
-            </Link>
+          <span className="min-w-0">
+            <span className="block">{d.name}</span>
             {blocked ? (
-              <span className="mt-0.5 block text-sm text-muted-foreground flex items-center gap-1 font-medium text-foreground">
+              <span className="mt-0.5 flex items-center gap-1 text-sm font-medium text-foreground">
                 <CircleAlert aria-hidden="true" className="size-3 shrink-0" />
                 {blocked}
               </span>
             ) : null}
-          </div>
-        </div>
-      </TableCell>
-      <TableCell data-m="meta" className="text-muted-foreground">
-        {d.workEmail}
-      </TableCell>
-      <TableCell data-m="meta" data-label="Cleared for">
-        {c.total === 0 ? (
-          <span className="font-medium">Nothing yet</span>
-        ) : (
-          <>
-            {what} <span className="text-muted-foreground">· {where}</span>
-          </>
-        )}
-      </TableCell>
-      <TableCell data-m="trail">
-        {d.dutyState === "on_duty" ? <DotWord tone="busy">On duty</DotWord> : <DotWord tone="off">Off duty</DotWord>}
-      </TableCell>
-      <TableCell data-m="badge">
-        <StatusWord tone={d.status === "active" ? "done" : d.status === "suspended" ? "problem" : "quiet"}>
-          {STATUS_LABEL[d.status]}
-        </StatusWord>
-      </TableCell>
-    </TableRow>
+          </span>
+        </span>
+      )
+    },
+    meta: { label: "Driver", identifying: true, phone: "primary", sortKey: "name" },
+  },
+  {
+    id: "email",
+    header: "Work email",
+    cell: ({ row }) => <span className="text-muted-foreground">{row.original.workEmail}</span>,
+    meta: { label: "Work email", priority: 2 },
+  },
+  {
+    id: "cleared",
+    header: "Cleared for",
+    cell: ({ row }) => {
+      const c = row.original.capabilitySummary
+      if (c.total === 0) return <span className="font-medium">Nothing yet</span>
+      const what = c.functions.length === 2 ? "Collect + deliver" : c.functions[0] === "collection" ? "Collect" : "Deliver"
+      const where = c.coversEveryZone ? "every zone" : `${c.total} grant${c.total === 1 ? "" : "s"}`
+      return (
+        <>
+          {what} <span className="text-muted-foreground">· {where}</span>
+        </>
+      )
+    },
+    meta: { label: "Cleared for" },
+  },
+  {
+    id: "duty",
+    header: "Duty",
+    cell: ({ row }) =>
+      row.original.dutyState === "on_duty" ? <DotWord tone="busy">On duty</DotWord> : <DotWord tone="off">Off duty</DotWord>,
+    meta: { label: "Duty", phone: "trail" },
+  },
+  {
+    id: "employment",
+    header: "Employment",
+    cell: ({ row }) => {
+      const s = row.original.status
+      return <StatusWord tone={s === "active" ? "done" : s === "suspended" ? "problem" : "quiet"}>{STATUS_LABEL[s]}</StatusWord>
+    },
+    meta: { label: "Employment", priority: 2, phone: "badge" },
+  },
+]
+
+export function DriversListScreen() {
+  const canManage = canManageDrivers(useSessionRoles())
+  const search = useSearch({ strict: false }) as Record<string, unknown>
+  const navigate = useNavigate()
+  const readiness = search.panel === "readiness"
+  const state = useListState(driversList, search)
+  const input = { key: KEY, list: driversList, view: state.view, fetch: fetchDriverPage }
+  const query = useQuery({ ...listQueryOptions(input), enabled: !readiness })
+  const views = useQuery({
+    ...viewsQueryOptions({ key: KEY, list: driversList, view: state.view, except: ["view"], fetch: fetchDriverViews }),
+    enabled: !readiness,
+  })
+  const zones = useQuery(zonesQuery())
+  const blocked = useQuery(readinessQuery()).data?.blocked.length
+  const view: View = readiness ? "readiness" : (state.view.filters.view ?? "employed")
+
+  const viewSelect = (
+    <ViewSelect
+      label="Driver views"
+      value={view}
+      onChange={(v) => {
+        if (v === "readiness") return void navigate({ to: ".", search: { panel: "readiness" } as never })
+        if (readiness) return void navigate({ to: ".", search: (v === "employed" ? {} : { view: v }) as never })
+        state.setFilter("view", v === "employed" ? undefined : v)
+      }}
+      options={([...DRIVER_LIST_VIEWS, "readiness"] as const).map((v) => ({
+        value: v,
+        label: VIEW_LABEL[v],
+        count: v === "readiness" ? blocked || undefined : views.data?.views[v],
+        attention: v === "readiness",
+      }))}
+    />
+  )
+
+  return (
+    <ListPage
+      header={
+        <>
+          <PageHeader
+            title="Drivers"
+            description="Effy's drivers, whether they are cleared to work, and any incidents on the road."
+            actions={canManage ? <CreateDriverDialog /> : undefined}
+          />
+          <DutyPanel />
+        </>
+      }
+    >
+      {readiness ? (
+        <>
+          <div className="flex flex-wrap items-center gap-2">{viewSelect}</div>
+          <ReadinessPanel />
+        </>
+      ) : (
+        <DataTable
+          app="back-office"
+          label="Drivers"
+          list={driversList}
+          state={state}
+          columns={columns}
+          query={query}
+          queryInput={input}
+          viewFilters={["view"]}
+          rowHref={(d) => ({ to: "/drivers/$driverId", params: { driverId: d.id } })}
+          empty={{ icon: UserX, title: "No drivers yet", description: "Add the first one to give them a sign-in for the driver app." }}
+          toolbar={
+            <>
+              {viewSelect}
+              <Facet
+                label="Zone"
+                anyLabel="Any zone"
+                value={state.view.filters.zoneId ?? null}
+                onChange={(v) => state.setFilter("zoneId", v ?? undefined)}
+                options={(zones.data ?? []).map((z) => ({ value: z.id, label: z.name }))}
+              />
+              <SearchBox label="Search drivers" placeholder="Search by name or work email…" value={state.draftQ} onChange={state.setQ} />
+            </>
+          }
+        />
+      )}
+    </ListPage>
   )
 }

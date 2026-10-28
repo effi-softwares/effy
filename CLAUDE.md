@@ -295,6 +295,10 @@ The spine in five rules:
   web treats the server-state cache as the source of truth, with a client store only for genuine
   client state. Never hand-cache server data in component state.
 - **One event language** (when the event backbone is built) — one envelope; consumers are idempotent.
+- ⚠ **EVERY CONSOLE LIST IS `@effy/web-kit/data-table` AND `parseListQuery` (103); THE URL IS A LIST'S STATE.** A
+  list is `DataTable` over a route that parses with `@effy/edge-shared` `parseListQuery` (whitelisted sort ending in
+  the id, no fixed `LIMIT`); a bounded or capped set is `StaticTable`. The raw `Table` is for named boards, editors,
+  reviews and timelines only (`list-screens.guard.test.ts`, `list-query.guard.test.ts`).
 
 ## Observability & telemetry
 Observable and measurable from day one (constitution Principle VII; full detail in
@@ -626,6 +630,7 @@ the entries carry gotchas and deploy-ordering rules that the code does not. Slic
 
 Features recorded:
 
+- **103-console-data-tables** — One Data Table for Every Console List (server-driven search/filter/sort/paging in the address; fills the window; capped sets refuse past 500; no silent truncation) — MVP deployed to dev; the rest built 2026-10-28, not deployed or walked
 - **102-backoffice-product-catalogue** — Back-Office Product Catalogue (every shop's products in one list; holds; Effy creates products for a shop and imports a shop's list; one writer of a new product) — built 2026-10-27; not applied, migrated, deployed or walked
 - **101-category-driven-catalogue** — Category-Driven Catalogue (no product types; one ≤5-level tree; attribute library and attachments; facts as columns; per-variant details; library options; placements; 18+ label) — built 2026-10-26; not migrated, deployed or walked
 - **099-shop-floor-signals** — Shop Floor Signals (next collection per shop and order, pick list in walking order, Availability, quality figures on Insights) — built 2026-10-24, spec signed off; not migrated, deployed or walked

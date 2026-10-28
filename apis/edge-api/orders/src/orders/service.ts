@@ -9,6 +9,7 @@ import type {
   ConsignmentDTO,
   ConsignmentState,
   CourierView,
+  CourierParcelListDTO,
   HandoverRowDTO,
   OrderAwaiting,
   OrderStatus,
@@ -16,11 +17,11 @@ import type {
   RefundRequestDTO,
 } from "@effy/shared-types";
 
-import { COUNTED_REFUND_STATUSES, imageUrlOrNull, keysetListPage, operatingStamp, packageStatuses, query, stageFor, type Queryable } from "@effy/edge-shared";
+import { COUNTED_REFUND_STATUSES, imageUrlOrNull, keysetListPage, offsetListPage, operatingStamp, packageStatuses, query, stageFor, type Queryable } from "@effy/edge-shared";
 import type { ListPage } from "@effy/shared-types";
 
-import type { OrderListRequest } from "./list";
-import { CONSIGNMENT_PROBLEMS, leastAdvanced, parcelCustodyOf, type AdminPackageHandoverDTO, type OrderAssignment, type PackageStatusView, type ParcelZone } from "@effy/shared-types";
+import type { CourierListRequest, OrderListRequest } from "./list";
+import { CONSIGNMENT_PROBLEMS, COURIER_VIEWS, leastAdvanced, parcelCustodyOf, type AdminPackageHandoverDTO, type OrderAssignment, type PackageStatusView, type ParcelZone } from "@effy/shared-types";
 
 import { judgePromise } from "./promise";
 import { consignmentsFor, deliveryMovesFor, nextCourierPickup, parseClock } from "@effy/edge-shared/delivery";
@@ -580,7 +581,36 @@ export async function courierLateCounts(now: Date = new Date()): Promise<{ hub: 
   return out;
 }
 
+/** At risk first, then by when it must leave, then by order: a total order (the fulfilment id breaks the last tie). */
+const byDue = (a: ReturnType<typeof toCourierRow>, b: ReturnType<typeof toCourierRow>) =>
+  Number(b.atRisk) - Number(a.atRisk) || a._sort - b._sort || a.orderNumber.localeCompare(b.orderNumber) || a.fulfillmentId.localeCompare(b.fulfillmentId);
+
+/** Every parcel in one stage, most urgent first. No cap (103): nothing in flight is left off. */
 export async function listCourierParcels(view: CourierView, now: Date = new Date()): Promise<HandoverRowDTO[]> {
   const rows = (await repo.courierParcels()).map((r) => toCourierRow(r, now)).filter((r) => r._view === view);
-  return rows.sort((a, b) => Number(b.atRisk) - Number(a.atRisk) || a._sort - b._sort || a.orderNumber.localeCompare(b.orderNumber)).slice(0, 200).map(strip);
+  return rows.sort(byDue).map(strip);
+}
+
+/**
+ * Courier parcels as a console list (103): a parcel's stage is worked out here (`toCourierRow`), so the
+ * search, service filter, sort, page and every stage's count run over the in-flight set — never a capped one.
+ */
+export async function courierParcelPage(req: CourierListRequest, now: Date = new Date()): Promise<CourierParcelListDTO> {
+  const all = (await repo.courierParcels()).map((r) => toCourierRow(r, now));
+  const q = req.q?.toLowerCase() ?? null;
+  const matches = all.filter(
+    (r) =>
+      (!q || r.orderNumber.toLowerCase().includes(q) || (r.service ?? "").toLowerCase().includes(q)) &&
+      (!req.filters.service || r.service === req.filters.service),
+  );
+  const views = Object.fromEntries(COURIER_VIEWS.map((v) => [v, matches.filter((r) => r._view === v).length])) as Record<CourierView, number>;
+  const view = req.filters.view ?? "hub_due";
+  const inView = matches.filter((r) => r._view === view).sort(byDue);
+  // Both sorts read ascending first (most urgent, or order number); descending is the same order reversed.
+  const sorted = req.sort === "order" ? [...inView].sort((a, b) => a.orderNumber.localeCompare(b.orderNumber) || a.fulfillmentId.localeCompare(b.fulfillmentId)) : inView;
+  const ordered = req.dir === "desc" ? [...sorted].reverse() : sorted;
+  const total = ordered.length;
+  const page = Math.min(req.page, Math.max(1, Math.ceil(total / req.pageSize)));
+  const start = (page - 1) * req.pageSize;
+  return { ...offsetListPage(ordered.slice(start, start + req.pageSize).map(strip), req, { total, page }), views };
 }

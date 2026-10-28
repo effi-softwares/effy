@@ -29,6 +29,7 @@ import {
   type UnitFamily,
 } from "@effy/shared-types";
 
+import { LIMIT_REACHED, SET_FULL_SENTENCE, setIsFull } from "../lib/capped-set";
 import type { Queryable } from "../lib/db";
 
 export type TaxonomyRefusalKind = "validation" | "conflict" | "not_found";
@@ -503,6 +504,8 @@ async function writeValues(tx: Queryable, attributeId: string, values: CleanAttr
 
 export async function createAttribute(tx: Queryable, raw: Partial<AttributeInput>): Promise<string> {
   await lock(tx);
+  // 103 FR-024: the library is shown whole, so it is capped; checked under the taxonomy lock.
+  if (await setIsFull("FROM public.attribute_definition", [], tx)) throw new TaxonomyRefusal("conflict", LIMIT_REACHED, SET_FULL_SENTENCE);
   const a = cleanAttribute(raw);
   await requireAttributeNameFree(tx, a.name, null);
   const key = await freeKey(tx, "attribute_definition", slug(a.name, "_"), null, "_");

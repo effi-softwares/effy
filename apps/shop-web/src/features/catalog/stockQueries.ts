@@ -18,7 +18,7 @@ import {
   setStockTracking,
 } from "./stockRepo"
 
-const STOCK_ROOT = ["shop", "stock"] as const
+export const STOCK_ROOT = ["shop", "stock"] as const
 
 export const variantStockQuery = (variantId: string) =>
   queryOptions({

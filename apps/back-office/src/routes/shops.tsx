@@ -1,7 +1,7 @@
 import { createRoute } from "@tanstack/react-router"
 
 import { ShopDetailScreen } from "@/features/shops/ShopDetailScreen"
-import { shopsList } from "@/features/shops/list"
+import { shopHistoryList, shopsList, shopStockList } from "@/features/shops/list"
 import { ShopsListScreen } from "@/features/shops/ShopsListScreen"
 
 import { appRoute } from "./app"
@@ -16,6 +16,10 @@ export const shopsIndexRoute = createRoute({
 export const shopDetailRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "shops/$shopId",
+  validateSearch: (raw: Record<string, unknown>) => ({
+    ...shopHistoryList.validateSearch(raw),
+    ...shopStockList.validateSearch(raw),
+  }),
   component: ShopDetailRouteComponent,
 })
 

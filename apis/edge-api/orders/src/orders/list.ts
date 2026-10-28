@@ -1,5 +1,5 @@
 import { listFilter, type ListOrder, type ListRequest, type ListSpec } from "@effy/edge-shared";
-import { ADMIN_ORDER_DELIVERY_FILTERS, ADMIN_ORDER_PROMISE_FILTERS } from "@effy/shared-types";
+import { ADMIN_ORDER_DELIVERY_FILTERS, ADMIN_ORDER_PROMISE_FILTERS, COURIER_VIEWS, type CourierView } from "@effy/shared-types";
 import type { AdminOrderDeliveryFilter } from "@effy/shared-types";
 
 /**
@@ -48,3 +48,30 @@ export const ORDER_LIST_SPEC: ListSpec<keyof typeof ORDER_LIST.sorts, OrderListF
 };
 
 export type OrderListRequest = ListRequest<keyof typeof ORDER_LIST.sorts, OrderListFilters>;
+
+/**
+ * Courier parcels as a console list (103). A parcel's stage and due time are worked out in code, so the
+ * service sorts in code too; these name what each sort compares.
+ */
+export const COURIER_LIST = {
+  mode: "offset",
+  sorts: {
+    due: { sql: "at risk, then when it must leave", dir: "asc" },
+    order: { sql: "order number", dir: "asc" },
+  },
+  defaultSort: "due",
+  idSql: "fulfilment id",
+} as const satisfies ListOrder<"due" | "order">;
+
+export interface CourierListFilters {
+  view: CourierView;
+  /** A service's label ("Courier · Service"), as the parcels carry it. */
+  service: string;
+}
+
+export const COURIER_LIST_SPEC: ListSpec<keyof typeof COURIER_LIST.sorts, CourierListFilters> = {
+  ...COURIER_LIST,
+  filters: { view: listFilter.oneOf(COURIER_VIEWS), service: listFilter.text },
+};
+
+export type CourierListRequest = ListRequest<keyof typeof COURIER_LIST.sorts, CourierListFilters>;

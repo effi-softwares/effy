@@ -3,7 +3,6 @@ import type {
   ConsignmentInput,
   ConsignmentLabelUploadDTO,
   CourierCollectionInput,
-  CourierView,
   AdminOrderDetailDTO,
   AdminOrdersTodayDTO,
   AdminOrderViewCountsDTO,
@@ -12,8 +11,7 @@ import type {
   DeliveryMoveResponse,
   DeliveryType,
   AdminOrderListResponse,
-  HandoverListResponse,
-  HandoverRowDTO,
+  CourierParcelListDTO,
   RecordArrivalRequest,
   RecordHandoffRequest,
   AdminLookupDTO,
@@ -116,8 +114,9 @@ export function changeCourierCollection(orderId: string, body: CourierCollection
   return api.put(`/orders/v1/orders/${orderId}/courier-collection`, body)
 }
 
-export async function listCourierParcels(view: CourierView): Promise<HandoverRowDTO[]> {
-  return (await api.get<HandoverListResponse>(`/orders/v1/handovers?view=${view}`)).items
+/** One page of courier parcels for the address's view (103), with every stage's count. */
+export function fetchCourierPage(qs: URLSearchParams, signal: AbortSignal): Promise<CourierParcelListDTO> {
+  return api.get<CourierParcelListDTO>(`/orders/v1/handovers?${qs}`, { signal })
 }
 
 export function previewDeliveryMove(orderId: string, to: DeliveryType): Promise<DeliveryMovePreviewDTO> {

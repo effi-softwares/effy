@@ -1,7 +1,5 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { render, screen, waitFor, within } from "@testing-library/react"
+import { screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import type { ReactNode } from "react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import type { CourierReachDTO, CourierServiceDTO, CoverageListDTO, CoveragePlaceResultDTO } from "@effy/shared-types"
@@ -25,6 +23,7 @@ const repo = vi.hoisted(() => ({
 }))
 vi.mock("../repo", async () => ({ ...(await vi.importActual<object>("../repo")), ...repo }))
 
+const { renderList } = await import("@/test/renderList")
 const { CoveragePanel } = await import("./CoveragePanel")
 const { CourierPage } = await import("./CourierPage")
 
@@ -56,7 +55,13 @@ const ready = courier({
 })
 
 const list = (over: Partial<CoverageListDTO> = {}): CoverageListDTO => ({
-  postcodes: [
+  pageSize: 25,
+  total: 2,
+  totalCapped: false,
+  page: 1,
+  nextCursor: null,
+  ignored: [],
+  items: [
     {
       postcode: "3121",
       places: ["RICHMOND", "BURNLEY", "CREMORNE"],
@@ -100,21 +105,11 @@ const place = (over: Partial<CoveragePlaceResultDTO> = {}): CoveragePlaceResultD
 
 const refusal = (status: number, code: string) => ({ kind: "unknown", status, title: "Refused", code })
 
-function renderPanel(canManage = true) {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  const wrapper = ({ children }: { children: ReactNode }) => (
-    <QueryClientProvider client={qc}>{children}</QueryClientProvider>
-  )
-  return render(<CoveragePanel canManage={canManage} />, { wrapper })
-}
+const renderPanel = (canManage = true) => renderList(() => <CoveragePanel canManage={canManage} />, "/delivery")
+const renderCourier = (canManage = true) => renderList(() => <CourierPage canManage={canManage} />, "/delivery")
 
-function renderCourier(canManage = true) {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  const wrapper = ({ children }: { children: ReactNode }) => (
-    <QueryClientProvider client={qc}>{children}</QueryClientProvider>
-  )
-  return render(<CourierPage canManage={canManage} />, { wrapper })
-}
+/** The query string the list last asked the service for (103: the view is in the address, then on the wire). */
+const lastQs = () => new URLSearchParams(String(repo.listCoverage.mock.lastCall?.[0] ?? ""))
 
 async function openGroups() {
   await userEvent.click(await screen.findByRole("tab", { name: /groups/i }))
@@ -180,19 +175,13 @@ describe("Coverage — the list of postcodes Effy delivers to (076)", () => {
     await screen.findByText("3121")
     await user.click(screen.getByRole("button", { name: "Group" }))
     await user.click(await screen.findByRole("menuitem", { name: "No group" }))
-    await waitFor(() =>
-      expect(repo.listCoverage).toHaveBeenLastCalledWith(expect.objectContaining({ group: "none" }), undefined),
-    )
+    await waitFor(() => expect(lastQs().get("group")).toBe("none"))
     // The filter comes before the rows' own "Distance" buttons.
     await user.click(screen.getAllByRole("button", { name: "Distance" })[0]!)
     await user.click(await screen.findByRole("menuitem", { name: "To review" }))
-    await waitFor(() =>
-      expect(repo.listCoverage).toHaveBeenLastCalledWith(expect.objectContaining({ review: true }), undefined),
-    )
-    await user.type(screen.getByPlaceholderText("Place or postcode"), "rich{Enter}")
-    await waitFor(() =>
-      expect(repo.listCoverage).toHaveBeenLastCalledWith(expect.objectContaining({ q: "rich" }), undefined),
-    )
+    await waitFor(() => expect(lastQs().get("review")).toBe("true"))
+    await user.type(screen.getByPlaceholderText("Place or postcode"), "rich")
+    await waitFor(() => expect(lastQs().get("q")).toBe("rich"))
   })
 
   it("removing a postcode says what stops and that placed orders are not affected", async () => {
@@ -223,17 +212,10 @@ describe("Coverage — the list of postcodes Effy delivers to (076)", () => {
     await screen.findByText("3121")
     await user.click(screen.getByRole("button", { name: "Farther than" }))
     await user.click(await screen.findByRole("menuitem", { name: "25 km" }))
-    await waitFor(() =>
-      expect(repo.listCoverage).toHaveBeenLastCalledWith(expect.objectContaining({ minKm: "25" }), undefined),
-    )
+    await waitFor(() => expect(lastQs().get("minKm")).toBe("25"))
     await user.click(screen.getByRole("button", { name: /^Delivery today/ }))
     await user.click(await screen.findByRole("menuitem", { name: "Not offered" }))
-    await waitFor(() =>
-      expect(repo.listCoverage).toHaveBeenLastCalledWith(
-        expect.objectContaining({ minKm: "25", today: "not_offered" }),
-        undefined,
-      ),
-    )
+    await waitFor(() => expect([lastQs().get("minKm"), lastQs().get("today")]).toEqual(["25", "not_offered"]))
   })
 
   it("097 — select all shown, then stop offering delivery today: one request for every selected postcode", async () => {
@@ -241,7 +223,7 @@ describe("Coverage — the list of postcodes Effy delivers to (076)", () => {
     repo.patchCoveragePostcodes.mockResolvedValue(undefined)
     renderPanel()
     await screen.findByText("3121")
-    await user.click(screen.getByRole("checkbox", { name: "Select all shown" }))
+    await user.click(screen.getByRole("checkbox", { name: "Select all on this page" }))
     expect(screen.getByTestId("coverage-bulk")).toHaveTextContent("2 selected")
     await user.click(screen.getByRole("combobox", { name: "Delivery today" }))
     await user.click(screen.getByRole("option", { name: "Don't offer" }))

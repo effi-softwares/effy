@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const repo = vi.hoisted(() => ({
   listGroups: vi.fn(),
+  isFull: vi.fn(async () => false),
   readGroup: vi.fn(),
   createGroup: vi.fn(),
   updateGroup: vi.fn(),
@@ -53,5 +54,17 @@ describe("095 — groups carry a size and skins", () => {
   it("refuses a promotion twice or a malformed skin id", async () => {
     await expect(putMembers(G, { members: [{ promotionId: P1 }, { promotionId: P1 }] }, "s")).rejects.toMatchObject({ status: 422 });
     await expect(putMembers(G, { members: [{ promotionId: P1, skinId: "x" }] }, "s")).rejects.toMatchObject({ status: 422 });
+  });
+});
+
+describe("103 — the set of groups is capped", () => {
+  it("refuses a new group once the set is full, with the one sentence, and writes nothing", async () => {
+    repo.isFull.mockResolvedValueOnce(true);
+    await expect(createGroup({ key: "one-more", name: "One more" }, "s")).rejects.toMatchObject({
+      status: 409,
+      code: "limit_reached",
+      message: "This list is full (500). Remove one before adding another.",
+    });
+    expect(repo.createGroup).not.toHaveBeenCalled();
   });
 });

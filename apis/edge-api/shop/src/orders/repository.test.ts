@@ -14,7 +14,7 @@ vi.mock("@effy/edge-shared", async (importOriginal) => ({
 }));
 
 import { __test, actorLabel, addNote, listOrders, readActivity, replaceTags } from "./repository";
-import { parseListQuery } from "./service";
+import { parseOrderListQuery } from "./service";
 
 const sql = (call: unknown[] | undefined): string => String(call?.[0] ?? "").replace(/\s+/g, " ");
 
@@ -26,7 +26,7 @@ afterEach(() => {
 describe("shop scoping — every read is bound to the caller-resolved shop", () => {
   it("binds the list AND the counts to $1 = the shop", async () => {
     query.mockResolvedValue({ rows: [] });
-    await listOrders("shop-1", parseListQuery(null));
+    await listOrders("shop-1", parseOrderListQuery(null));
     expect(query).toHaveBeenCalledTimes(2);
     for (const call of query.mock.calls) {
       expect(sql(call)).toContain("WHERE sf.shop_id = $1");
@@ -45,7 +45,7 @@ describe("shop scoping — every read is bound to the caller-resolved shop", () 
 describe("the sort column is never the client's string", () => {
   it("maps each sort key to a fixed expression and ends with the id tiebreaker", async () => {
     query.mockResolvedValue({ rows: [] });
-    await listOrders("shop-1", { ...parseListQuery(null), sort: "customer", dir: "desc" });
+    await listOrders("shop-1", { ...parseOrderListQuery(null), sort: "customer", dir: "desc" });
     expect(sql(query.mock.calls[0])).toContain("ORDER BY lower(customer_name) DESC, id DESC");
   });
 });
@@ -61,7 +61,7 @@ describe("counts cover every state, under every filter except the tab", () => {
           { tab: "delivered", n: "7" },
         ],
       });
-    const out = await listOrders("shop-1", { ...parseListQuery(null), tab: "picking" });
+    const out = await listOrders("shop-1", { ...parseOrderListQuery(null), tab: "picking" });
     expect(out.counts).toMatchObject({ all: 12, new: 3, picking: 2, delivered: 7, withdrawn: 0 });
     // The counts query takes the filters but not the tab.
     expect(query.mock.calls[1]![1]).toHaveLength(6);
@@ -72,7 +72,7 @@ describe("counts cover every state, under every filter except the tab", () => {
     query
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ tab: "picking", n: "4" }] });
-    const out = await listOrders("shop-1", { ...parseListQuery(null), tab: "picking", page: 9 });
+    const out = await listOrders("shop-1", { ...parseOrderListQuery(null), tab: "picking", page: 9 });
     expect(out.total).toBe(4);
   });
 });
@@ -80,7 +80,7 @@ describe("counts cover every state, under every filter except the tab", () => {
 describe("search", () => {
   it("escapes LIKE wildcards so a search means the characters typed", () => {
     expect(__test.likePattern("50%_off\\")).toBe("%50\\%\\_off\\\\%");
-    expect(__test.likePattern("   ")).toBeNull();
+    // A blank search never reaches SQL: the list helper reads it as no search (103).
   });
 });
 

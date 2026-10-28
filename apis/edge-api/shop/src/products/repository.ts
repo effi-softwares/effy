@@ -1,6 +1,8 @@
 // Every product query is scoped `where shop_id =:actorShopId` (the authz-resolved value). Returns
 // storage keys; the service swaps them for presigned URLs before the DTO leaves the process.
-import { query, withTransaction, type Queryable } from "@effy/edge-shared";
+import { likePattern, limitOffsetClause, orderBy, query, runOffsetPage, withTransaction, type Queryable } from "@effy/edge-shared";
+
+import { SHOP_FROM_PRICE, SHOP_PRODUCT_LIST, type ShopProductListRequest } from "./list";
 import {
   applyVariantSet, DetailsInvalid, insertProduct, type LeafCheck, missingRequired, readProductDetails, readResolved, readVariantSets, reconcileDetails,
   VariantSetInvalid, writeProductDetails,
@@ -12,8 +14,6 @@ import type {
 
 import {
   type CreateProductInput,
-  type ListParams,
-  type Paged,
   type ProductDetail,
   ProductError,
   type ProductListItem,
@@ -424,24 +424,26 @@ interface ProductListRow {
   currency: string;
   status: ProductStatus;
   updated_at: Date;
-  total: string;
 }
 
-/** The lowest shop price among active variants ("From"). */
-const SHOP_FROM_PRICE = `(SELECT min(v.shop_price_amount) FROM public.product_variant v
-                           WHERE v.product_id = p.id AND v.state = 'active')`;
-
-const SORT_COLUMNS: Record<ListParams["sort"], string> = {
-  name: "p.name",
-  price: SHOP_FROM_PRICE,
-  recent: "p.created_at",
-};
-
-/** Server-side filtering, sorting and paging; `total` from `count(*) over`. */
-export async function listProducts(shopId: string, params: ListParams): Promise<Paged<ProductListItem>> {
-  const sortCol = SORT_COLUMNS[params.sort];
-  const dir = params.order === "asc" ? "ASC" : "DESC";
-  const res = await query<ProductListRow>(
+/** Server-side filtering, sorting and paging (103); the total from `count(*) over`. */
+export async function listProducts(shopId: string, req: ShopProductListRequest): Promise<{ items: ProductListItem[]; total: number; page: number }> {
+  const f = req.filters;
+  const r = await runOffsetPage(req, async (read) => {
+  const args: unknown[] = [
+      shopId,
+      req.q ? likePattern(req.q) : null,
+      f.missing ?? false,
+      f.category ?? null,
+      f.status ?? null,
+      f.priceMin ?? null,
+      f.priceMax ?? null,
+      f.section ?? null,
+      f.reviewState ?? null,
+      req.q,
+    ];
+  const paging = limitOffsetClause(read, args);
+  const res = await query<ProductListRow & { full_count: string }>(
     `SELECT p.id, p.name, p.brand,
             (SELECT storage_key FROM public.product_media m
               WHERE m.product_id = p.id AND m.is_primary LIMIT 1) AS primary_storage_key,
@@ -458,19 +460,18 @@ export async function listProducts(shopId: string, params: ListParams): Promise<
             ${REVIEW_STATE_SQL} AS review_state_shown,
             p.held_reason, p.held_at, p.created_via,
             p.currency, p.status, p.updated_at,
-            count(*) OVER() AS total
+            count(*) OVER() AS full_count
        FROM public.product p
        JOIN public.category c ON c.id = p.primary_category_id
        LEFT JOIN public.product_change pc ON pc.product_id = p.id
       WHERE p.shop_id = $1
-        AND ($11::text IS NULL OR ${REVIEW_STATE_SQL} = $11)
+        AND ($9::text IS NULL OR ${REVIEW_STATE_SQL} = $9)
         AND ($2::text IS NULL OR
-             lower(p.name || ' ' || coalesce(p.brand, '') || ' ' || p.short_description)
-               LIKE '%' || lower($2) || '%'
+             lower(p.name || ' ' || coalesce(p.brand, '') || ' ' || p.short_description) LIKE lower($2)
              -- A variant's stock code or barcode finds its product.
              OR EXISTS (SELECT 1 FROM public.product_variant sv
                          WHERE sv.product_id = p.id AND sv.state <> 'removed'
-                           AND (lower(sv.sku) LIKE '%' || lower($2) || '%' OR sv.gtin = $2 OR sv.code = upper($2))))
+                           AND (sv.sku ILIKE $2 OR sv.gtin = $10 OR sv.code = upper($10))))
         AND (NOT $3::boolean OR EXISTS (SELECT 1 FROM public.product_missing_required(p.id)))
         AND ($4::uuid IS NULL OR p.primary_category_id IN (SELECT ca.category_id FROM public.category_ancestor ca WHERE ca.ancestor_id = $4))
         AND ($5::text IS NULL OR p.status = $5)
@@ -479,25 +480,14 @@ export async function listProducts(shopId: string, params: ListParams): Promise<
         AND ($8::uuid IS NULL OR EXISTS (
               SELECT 1 FROM public.product_section ps
                WHERE ps.product_id = p.id AND ps.shop_section_id = $8))
-      ORDER BY ${sortCol} ${dir} NULLS LAST, p.id
-      LIMIT $9 OFFSET $10`,
-    [
-      shopId,
-      params.q,
-      params.missing,
-      params.category,
-      params.status,
-      params.priceMin,
-      params.priceMax,
-      params.section,
-      params.pageSize,
-      (params.page - 1) * params.pageSize,
-      params.reviewState,
-    ],
+      ${orderBy(SHOP_PRODUCT_LIST, req)}
+      ${paging}`,
+    args,
   );
-  const total = res.rows[0] ? Number(res.rows[0].total) : 0;
+  return res.rows;
+  });
   return {
-    items: res.rows.map((r) => ({
+    items: r.rows.map((r) => ({
       id: r.id,
       name: r.name,
       brand: r.brand,
@@ -515,9 +505,8 @@ export async function listProducts(shopId: string, params: ListParams): Promise<
       hold: holdOf(r),
       createdBy: r.created_via === "shop" ? "shop" : "effy",
     })),
-    total,
-    page: params.page,
-    pageSize: params.pageSize,
+    total: r.total,
+    page: r.page,
   };
 }
 

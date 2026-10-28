@@ -2,9 +2,10 @@
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";
-import { json } from "@effy/edge-shared";
+import { json, listProblem, parseListQuery } from "@effy/edge-shared";
 
 import { backOfficeGate, mapStockError } from "../stock/handler-support";
+import { LOW_STOCK_LIST_SPEC } from "../stock/list";
 import * as service from "../stock/service";
 
 export const handler = async (
@@ -14,8 +15,8 @@ export const handler = async (
   const g = await backOfficeGate(event, context, "read");
   if (!g.ok) return g.response;
   try {
-    return json(200, await service.listLowStock(g.actor), g.scope);
+    return json(200, await service.listLowStock(g.actor, parseListQuery(event.queryStringParameters, LOW_STOCK_LIST_SPEC)), g.scope);
   } catch (err) {
-    return mapStockError(err, g.scope);
+    return listProblem(err, g.scope) ?? mapStockError(err, g.scope);
   }
 };

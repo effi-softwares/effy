@@ -1,10 +1,10 @@
-import type { AuditEntryDTO, PagedDTO, ShopDetailDTO, ShopListItemDTO, ShopUserDTO } from "@effy/shared-types"
+import type { AuditEntryDTO, ListPage, ShopDetailDTO, ShopListItemDTO, ShopUserDTO } from "@effy/shared-types"
 
 export type ShopListItem = ShopListItemDTO
 export type ShopDetail = ShopDetailDTO
 export type ShopUser = ShopUserDTO
 export type AuditEntry = AuditEntryDTO
-export type Paged<T> = PagedDTO<T>
+export type Paged<T> = ListPage<T>
 
 export interface ShopListParams {
   page: number

@@ -4,6 +4,7 @@ import { stockState } from "@effy/edge-shared";
 import { announce } from "@effy/edge-shared/live";
 import {
   OPERATOR_STOCK_REASONS,
+  type ListPage,
   type LowStockRowDTO,
   type ProductStockDTO,
   type ProductStockDetailDTO,
@@ -11,6 +12,7 @@ import {
   type StockMovementDTO,
 } from "@effy/shared-types";
 
+import { FIRST_MOVEMENTS, type LowStockListRequest, type MovementListRequest } from "./list";
 import * as repo from "./repository";
 import { notFound, StockError, type Actor, type MovementRow, type StockRow } from "./types";
 
@@ -66,17 +68,32 @@ function toMovementDTO(m: MovementRow): StockMovementDTO {
   return { ...m };
 }
 
-export async function getStock(actor: Actor, variantId: string): Promise<ProductStockDetailDTO> {
+/** The variant's stock and the first page of its movements (the same page `?movements=page` starts with). */
+export async function getStock(
+  actor: Actor,
+  variantId: string,
+  req: MovementListRequest = FIRST_MOVEMENTS,
+): Promise<ProductStockDetailDTO> {
   const row = await repo.readStock(variantId, actor.shopId);
   if (!row) throw notFound();
-  return {
-    stock: toStockDTO(row),
-    movements: (await repo.readMovements(variantId)).map(toMovementDTO),
-  };
+  const page = await repo.readMovementPage(variantId, { ...req, cursor: null });
+  return { stock: toStockDTO(row), movements: page.items.map(toMovementDTO) };
 }
 
-export async function listLowStock(actor: Actor): Promise<LowStockRowDTO[]> {
-  return repo.readLowStock(actor.shopId);
+/** One page of the variant's movements, newest first (103): `?movements=page`. */
+export async function getMovementPage(
+  actor: Actor,
+  variantId: string,
+  req: MovementListRequest,
+): Promise<ListPage<StockMovementDTO>> {
+  const row = await repo.readStock(variantId, actor.shopId);
+  if (!row) throw notFound();
+  const page = await repo.readMovementPage(variantId, req);
+  return { ...page, items: page.items.map(toMovementDTO) };
+}
+
+export async function listLowStock(actor: Actor, req: LowStockListRequest): Promise<ListPage<LowStockRowDTO>> {
+  return repo.readLowStock(actor.shopId, req);
 }
 
 export async function getSettings(actor: Actor) {

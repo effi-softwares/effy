@@ -5,8 +5,6 @@ import type { ApproveReviewRequest, SendBackReviewRequest, SetMarginRequest } fr
 import {
   approve,
   getItem,
-  listMarginNotSet,
-  listMissingDetails,
   setPlacements,
   listQueue,
   sendBack,
@@ -17,19 +15,11 @@ import {
 const reviewKeys = {
   all: ["product-review"] as const,
   queue: (params: QueueParams) => ["product-review", "queue", params] as const,
-  marginNotSet: ["product-review", "margin-not-set"] as const,
   item: (productId: string) => ["product-review", "item", productId] as const,
-  missingDetails: ["product-review", "missing-details"] as const,
 }
 
 export const reviewQueueQuery = (params: QueueParams) =>
   queryOptions({ queryKey: reviewKeys.queue(params), queryFn: () => listQueue(params) })
-
-export const marginNotSetQuery = (cursor: string | null = null) =>
-  queryOptions({
-    queryKey: [...reviewKeys.marginNotSet, cursor] as const,
-    queryFn: () => listMarginNotSet(cursor),
-  })
 
 export const reviewItemQuery = (productId: string) =>
   queryOptions({
@@ -68,8 +58,6 @@ export function useSetMargin() {
   })
 }
 
-export const missingDetailsQuery = (cursor: string | null = null) =>
-  queryOptions({ queryKey: [...reviewKeys.missingDetails, cursor] as const, queryFn: () => listMissingDetails(cursor) })
 
 export function useSetPlacements(productId: string) {
   const qc = useQueryClient()

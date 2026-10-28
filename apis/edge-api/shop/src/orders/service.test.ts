@@ -14,7 +14,7 @@ const fulfillmentsRepo = vi.hoisted(() => ({ acknowledge: vi.fn(), readStatus: v
 vi.mock("../fulfillments/repository", () => fulfillmentsRepo);
 
 import type { ActivityRecord } from "./repository";
-import { addNote, getActivity, getOrder, parseListQuery, setPicks, setTags, toEntry } from "./service";
+import { addNote, getActivity, getOrder, parseOrderListQuery, setPicks, setTags, toEntry } from "./service";
 
 const ACTOR = { sub: "sub-1", shopId: "shop-1", staffId: "staff-1" };
 
@@ -22,9 +22,9 @@ afterEach(() => {
   vi.resetAllMocks();
 });
 
-describe("parseListQuery — the wire is optional, the query never is", () => {
+describe("parseOrderListQuery — the wire is optional, the query never is", () => {
   it("defaults every field", () => {
-    expect(parseListQuery(null)).toEqual({
+    expect(parseOrderListQuery(null)).toEqual({
       tab: "all",
       q: "",
       attention: "any",
@@ -40,17 +40,17 @@ describe("parseListQuery — the wire is optional, the query never is", () => {
 
   /** Newest first by default; FIFO is one click away and unopened orders are marked. */
   it("opens newest-first", () => {
-    const q = parseListQuery({});
+    const q = parseOrderListQuery({});
     expect(q.sort).toBe("placed");
     expect(q.dir).toBe("desc");
   });
 
   it("still takes an explicit ascending direction — the FIFO read", () => {
-    expect(parseListQuery({ dir: "asc" }).dir).toBe("asc");
+    expect(parseOrderListQuery({ dir: "asc" }).dir).toBe("asc");
   });
 
   it("treats an unrecognised value as its default, never as a wider match", () => {
-    const q = parseListQuery({
+    const q = parseOrderListQuery({
       tab: "everything",
       attention: "urgent",
       payment: "free",
@@ -71,7 +71,7 @@ describe("parseListQuery — the wire is optional, the query never is", () => {
   });
 
   it("accepts every documented value", () => {
-    const q = parseListQuery({
+    const q = parseOrderListQuery({
       tab: "ready_for_pickup",
       attention: "short",
       payment: "partially_refunded",

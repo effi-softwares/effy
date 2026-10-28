@@ -81,6 +81,8 @@ interface Row {
   order_number: string | null;
   expires_at: Date | null;
   created_at: Date;
+  /** The same instant as Postgres writes it — the cursor's value (a JS Date keeps only milliseconds). */
+  created_at_text: string;
   note?: string | null;
   author_kind?: "staff" | "system" | "customer";
   author_flow?: string | null;
@@ -89,14 +91,17 @@ interface Row {
   refund_id?: string | null;
 }
 
-/** An opaque page cursor: the last line's time and id. */
-export const encodeCursor = (at: Date, id: string) => Buffer.from(`${at.toISOString()}|${id}`).toString("base64url");
-export function decodeCursor(cursor: string | undefined): { at: Date; id: string } | null {
+/**
+ * An opaque page cursor: the last line's time and id. ⚠ The time is Postgres's own text, never a JS Date: a
+ * Date keeps milliseconds, Postgres microseconds, and every entry in the same millisecond after the cursor's
+ * would be skipped (103).
+ */
+export const encodeCursor = (at: string, id: string) => Buffer.from(`${at}|${id}`).toString("base64url");
+export function decodeCursor(cursor: string | undefined): { at: string; id: string } | null {
   if (!cursor) return null;
   const [at, id] = Buffer.from(cursor, "base64url").toString("utf8").split("|");
-  const when = new Date(at ?? "");
-  if (!id || Number.isNaN(when.getTime()) || !/^[0-9a-f-]{36}$/i.test(id)) return null;
-  return { at: when, id };
+  if (!at || !id || Number.isNaN(Date.parse(at)) || !/^[0-9a-f-]{36}$/i.test(id)) return null;
+  return { at, id };
 }
 
 const FLOW_NAMES: Readonly<Record<string, string>> = {
@@ -125,7 +130,7 @@ export async function history(
     loadSettings(q),
     q.query<Row>(
       `
-SELECT e.id::text AS id, e.kind, e.points, e.reason, o.order_number, e.expires_at, e.created_at${staffCols}
+SELECT e.id::text AS id, e.kind, e.points, e.reason, o.order_number, e.expires_at, e.created_at, e.created_at::text AS created_at_text${staffCols}
   FROM public.points_entry e
   LEFT JOIN public."order" o ON o.id = e.order_id
   ${staffJoin}
@@ -152,6 +157,6 @@ SELECT e.id::text AS id, e.kind, e.points, e.reason, o.order_number, e.expires_a
       orderId: r.order_id ?? null, refundId: r.refund_id ?? null,
     } satisfies StaffHistoryLine;
   });
-  const last = lines[lines.length - 1];
-  return { lines, ...(more && last ? { nextCursor: encodeCursor(last.at, last.id) } : {}) };
+  const last = rows.rows[Math.min(rows.rows.length, limit) - 1];
+  return { lines, ...(more && last ? { nextCursor: encodeCursor(last.created_at_text, last.id) } : {}) };
 }

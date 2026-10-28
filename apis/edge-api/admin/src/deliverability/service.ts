@@ -4,15 +4,15 @@ import {
   SESv2Client,
 } from "@aws-sdk/client-sesv2"
 
-import { logger } from "@effy/edge-shared"
+import { logger, offsetListPage } from "@effy/edge-shared"
 
+import type { DeliverabilityListRequest } from "./list"
 import * as repo from "./repository"
 import {
   type DeliveryDetailDTO,
   type DeliveryEvent,
   type DeliveryEventType,
   type DeliveryListDTO,
-  type DeliveryListParams,
   DeliverabilityError,
   type EmailDeliveryState,
   REPAIR_NOTE_MAX,
@@ -53,15 +53,13 @@ export async function recordOutcome(event: DeliveryEvent): Promise<{ recorded: b
   return { recorded: isNew, state }
 }
 
-export async function list(params: DeliveryListParams): Promise<DeliveryListDTO> {
-  const { items, total } = await repo.listStatuses(params)
-
-  const withSubjects = await Promise.all(
-    items.map(async (s) => repo.toListItemDTO(s, await repo.findSubject(s.address))),
-  )
-
-  return { items: withSubjects, total }
+export async function list(req: DeliverabilityListRequest): Promise<DeliveryListDTO> {
+  const r = await repo.listStatuses(req)
+  const withSubjects = await Promise.all(r.items.map(async (s) => repo.toListItemDTO(s, await repo.findSubject(s.address))))
+  return offsetListPage(withSubjects, req, r)
 }
+
+export const viewCounts = (req: DeliverabilityListRequest) => repo.statusViewCounts(req)
 
 export async function detail(address: string): Promise<DeliveryDetailDTO> {
   const status = await repo.getStatus(address)

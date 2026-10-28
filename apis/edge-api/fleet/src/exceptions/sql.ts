@@ -1,7 +1,7 @@
 import { TO_RETURN_SQL } from "@effy/edge-shared/delivery";
 
 /**
- * Open and recently resolved. `package_location` (with the driver until a hub check-in or arrival,
+ * Failed deliveries, open and resolved — filtered, ordered and paged by the caller (103; it stopped at 200). `package_location` (with the driver until a hub check-in or arrival,
  * as `CUSTODY_BY_DRIVER`) makes the list triageable. The destination is a suburb, never a street.
  */
 export const LIST_EXCEPTIONS = `
@@ -39,9 +39,12 @@ export const LIST_EXCEPTIONS = `
     JOIN public.driver     d ON d.id = f.driver_id
     JOIN public.round_stop rs ON rs.id = f.stop_id
     JOIN public."order"    o ON o.id = rs.order_id
-   WHERE ($1::boolean IS TRUE OR f.resolved_at IS NULL)
-   ORDER BY f.resolved_at NULLS FIRST, f.failed_at DESC
-   LIMIT 200
+`;
+
+/** The view (open, resolved or both) and the search, over `LIST_EXCEPTIONS`' columns: $1 view, $2 search pattern. */
+export const EXCEPTION_FILTERS = `
+   WHERE ($1::text = 'all' OR ($1::text = 'open') = (f.resolved_at IS NULL))
+     AND ($2::text IS NULL OR o.order_number ILIKE $2 OR d.name ILIKE $2 OR (o.delivery_address ->> 'city') ILIKE $2)
 `;
 
 /** Guarded on `resolved_at IS NULL`, so resolving twice never re-stamps who and when. */

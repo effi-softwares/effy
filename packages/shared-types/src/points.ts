@@ -98,13 +98,20 @@ export interface StaffPointsHistoryPageDTO {
   nextCursor?: string
 }
 
-export interface CustomerSearchResultDTO {
+/** A row of back-office › Customers, a console list (103). */
+export interface CustomerListItemDTO {
   id: string
   name: string
   email: string
+  phone: string | null
+  joinedAt: string
   points: WireInt
   orderCount: WireInt
+  /** The latest paid order; null when there is none. */
+  lastOrderAt: string | null
 }
+
+export type CustomerListDTO = import("./list").ListPage<CustomerListItemDTO>
 
 export interface CustomerPointsSummaryDTO {
   usable: WireInt

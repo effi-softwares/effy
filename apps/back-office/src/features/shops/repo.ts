@@ -5,7 +5,6 @@ import type {
   ChangeShopStatusRequest,
   CreateShopRequest,
   CreateShopUserRequest,
-  PagedDTO,
   ShopDetailDTO,
   ShopListItemDTO,
   ShopUserDTO,
@@ -32,7 +31,7 @@ export async function setPackScanning(id: string, required: boolean): Promise<{ 
 }
 
 export async function listShops(params: ShopListParams): Promise<Paged<ShopListItem>> {
-  return api.get<PagedDTO<ShopListItemDTO>>(`/admin/v1/shops?${encodeListQuery(params)}`)
+  return api.get<ListPage<ShopListItemDTO>>(`/admin/v1/shops?${encodeListQuery(params)}`)
 }
 
 /** The register as a console list (103): one page for the address's view. */
@@ -49,8 +48,9 @@ export async function getShop(id: string): Promise<ShopDetail> {
   return api.get<ShopDetailDTO>(`/admin/v1/shops/${id}`)
 }
 
-export async function getShopHistory(id: string, page: number, pageSize: number): Promise<Paged<AuditEntry>> {
-  return api.get<PagedDTO<AuditEntryDTO>>(`/admin/v1/shops/${id}/audit?page=${page}&pageSize=${pageSize}`)
+/** One page of a shop's history, newest first (103, keyset). */
+export function fetchShopHistoryPage(id: string, qs: URLSearchParams, signal: AbortSignal): Promise<ListPage<AuditEntry>> {
+  return api.get<ListPage<AuditEntryDTO>>(`/admin/v1/shops/${id}/audit?${qs}`, { signal })
 }
 
 export async function createShop(body: CreateShopRequest): Promise<ShopDetail> {
