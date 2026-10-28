@@ -1,5 +1,6 @@
+import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { CalendarClock, ChevronDown, ChevronUp, Clock, Route, Undo2, UserRound } from "lucide-react"
+import { CalendarClock, ChevronDown, ChevronUp, Clock, FastForward, Route, Undo2, UserRound } from "lucide-react"
 
 import {
   AlertDialog,
@@ -10,7 +11,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
   Avatar,
   AvatarFallback,
   Badge,
@@ -19,7 +19,7 @@ import {
 } from "@effy/design-system/ui"
 import type { DeliveryWindow } from "@effy/shared-types"
 
-import { PageHeader, Panel, Callout, EmptyState, StatusWord } from "@effy/web-kit/patterns"
+import { Callout, EmptyState, MoreActions, PageHeader, Panel, StatusWord } from "@effy/web-kit/patterns"
 import { useHeaderDetail } from "@effy/web-kit/console"
 import { useSessionRoles } from "@/features/auth/useSessionRoles"
 
@@ -62,6 +62,8 @@ export function RoundDetailScreen({ roundId }: { roundId: string }) {
   const round = data as RoundDetail | undefined
   const editing = useRoundEditing(roundId, round?.stops.map((s) => s.stopId) ?? [], round?.updatedAt ?? "")
   useHeaderDetail(round ? (round.kind === "collection" ? "Collection run" : "Delivery round") : null)
+  const [waiving, setWaiving] = useState(false)
+  const [takingBackOpen, setTakingBackOpen] = useState(false)
 
   if (isPending) {
     return (
@@ -126,14 +128,24 @@ export function RoundDetailScreen({ roundId }: { roundId: string }) {
                 expectedUpdatedAt={round.updatedAt}
                 drivers={drivers.filter((d) => d.driverId !== round.driverId)}
               />
-              {!round.waiver ? <WaiveSequenceButton roundId={round.id} driverName={holder} /> : null}
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="outline" disabled={editing.takingBack}>
-                    <Undo2 aria-hidden="true" />
-                    {editing.takingBack ? "Taking back…" : "Take this round back"}
-                  </Button>
-                </AlertDialogTrigger>
+              <MoreActions
+                actions={[
+                  !round.waiver
+                    ? { label: "Let this run go ahead", icon: FastForward, onSelect: () => setWaiving(true) }
+                    : null,
+                  {
+                    label: editing.takingBack ? "Taking back…" : "Take this round back",
+                    icon: Undo2,
+                    destructive: true,
+                    disabled: editing.takingBack,
+                    onSelect: () => setTakingBackOpen(true),
+                  },
+                ]}
+              />
+              {!round.waiver ? (
+                <WaiveSequenceButton roundId={round.id} driverName={holder} open={waiving} onOpenChange={setWaiving} />
+              ) : null}
+              <AlertDialog open={takingBackOpen} onOpenChange={setTakingBackOpen}>
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>Take this round back from {holder}?</AlertDialogTitle>

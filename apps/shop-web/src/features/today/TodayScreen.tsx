@@ -4,7 +4,7 @@ import { useStore } from "@tanstack/react-store"
 
 import { ErrorState } from "@effy/web-kit/console"
 import { Button, Card, Skeleton } from "@effy/design-system/ui"
-import { PageHeader } from "@effy/web-kit/patterns"
+import { MoreActions, PageHeader } from "@effy/web-kit/patterns"
 import { History, Printer, Zap } from "lucide-react"
 
 import { LiveOrders } from "./LiveOrders"
@@ -60,10 +60,6 @@ export function TodayScreen() {
               <Zap aria-hidden="true" />
               Quick actions
             </Button>
-            <Button variant="outline" onClick={() => setTeamActivityOpen(true)}>
-              <History aria-hidden="true" />
-              Team activity
-            </Button>
             <Button
               disabled={awaitingPick === 0}
               title={awaitingPick === 0 ? "Nothing is waiting to be picked" : undefined}
@@ -72,6 +68,9 @@ export function TodayScreen() {
               <Printer aria-hidden="true" />
               Print pick lists
             </Button>
+            <MoreActions
+              actions={[{ label: "Team activity", icon: History, onSelect: () => setTeamActivityOpen(true) }]}
+            />
           </>
         }
       />

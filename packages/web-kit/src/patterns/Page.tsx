@@ -1,9 +1,7 @@
 import type { ReactNode } from "react";
 
-import { Link, type LinkProps } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
-
-import { Tabs, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui";
 
 import { useHeaderBack, type HeaderBack } from "../console/StaffHeader";
 
@@ -54,37 +52,5 @@ export function PageHeader({
         <div className="flex flex-wrap items-center gap-2 max-md:w-full max-md:[&>[data-slot=button]]:grow">{actions}</div>
       ) : null}
     </div>
-  );
-}
-
-/**
- * Saved views of one list, as shadcn Tabs with counts (Patterns board) — the same tabs as a record's
- * sections. Views are links, so the view is in the URL and its link opens the same list for anyone.
- */
-export interface ViewTab {
-  key: string;
-  label: string;
-  link: LinkProps;
-  count?: number;
-  /** A queue that needs a person: its count is blue. */
-  attention?: boolean;
-}
-
-export function ViewTabs({ views, active, label }: { views: readonly ViewTab[]; active: string; label: string }) {
-  return (
-    <Tabs value={active} activationMode="manual">
-      <TabsList aria-label={label}>
-        {views.map((v) => (
-          <TabsTrigger key={v.key} value={v.key} asChild>
-            <Link {...v.link} aria-current={v.key === active ? "page" : undefined}>
-              {v.label}
-              {typeof v.count === "number" ? (
-                <TabsCount tone={v.attention ? "primary" : undefined}>{v.count}</TabsCount>
-              ) : null}
-            </Link>
-          </TabsTrigger>
-        ))}
-      </TabsList>
-    </Tabs>
   );
 }

@@ -26,10 +26,6 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-  Tabs,
-  TabsCount,
-  TabsList,
-  TabsTrigger,
 } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 import {
@@ -41,6 +37,7 @@ import {
   StatusWord,
   Toolbar,
   ToolbarSpacer,
+  ViewSelect,
 } from "@effy/web-kit/patterns"
 
 import { useSessionRoles } from "@/features/auth/useSessionRoles"
@@ -161,83 +158,77 @@ export function ProductsListScreen({ search }: { search: ProductSearch }) {
         }
       />
 
-      <div className="space-y-3">
-        <Tabs value={tab} onValueChange={(v) => set({ state: v === "all" ? undefined : (v as typeof tab) })}>
-          <TabsList aria-label="Product states">
-            {BACKOFFICE_PRODUCT_TABS.map((t) => (
-              <TabsTrigger key={t} value={t}>
-                {BACKOFFICE_PRODUCT_STATE_WORDS[t]}
-                {first ? (
-                  <TabsCount tone={t === "held" && first.counts.held > 0 ? "primary" : undefined}>
-                    {first.counts[t]}
-                  </TabsCount>
-                ) : null}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
-
-        <Toolbar>
-          <SearchBox label="Search products" placeholder="Name, SKU or barcode" value={q} onChange={setQ} />
-          <Facet
-            label="Shop"
-            anyLabel="All shops"
-            value={search.shopId ?? null}
-            onChange={(v) => set({ shopId: v ?? undefined })}
-            options={(shops.data?.items ?? []).map((s) => ({ value: s.id, label: s.name }))}
+      <Toolbar>
+        <ViewSelect
+          label="Product states"
+          value={tab}
+          onChange={(v) => set({ state: v === "all" ? undefined : v })}
+          options={BACKOFFICE_PRODUCT_TABS.map((t) => ({
+            value: t,
+            label: BACKOFFICE_PRODUCT_STATE_WORDS[t],
+            count: first?.counts[t],
+            attention: t === "held",
+          }))}
+        />
+        <SearchBox label="Search products" placeholder="Name, SKU or barcode" value={q} onChange={setQ} />
+        <Facet
+          label="Shop"
+          anyLabel="All shops"
+          value={search.shopId ?? null}
+          onChange={(v) => set({ shopId: v ?? undefined })}
+          options={(shops.data?.items ?? []).map((s) => ({ value: s.id, label: s.name }))}
+        />
+        <Facet
+          label="Aisle"
+          anyLabel="Every aisle"
+          value={search.categoryId ?? null}
+          onChange={(v) => set({ categoryId: v ?? undefined })}
+          options={aisles}
+        />
+        <Facet
+          label="Storage"
+          value={search.storage ?? null}
+          onChange={(v) => set({ storage: v ?? undefined })}
+          options={STORAGES.map((s) => ({ value: s, label: STORAGE_WORDS[s] }))}
+        />
+        <Facet
+          label="Margin"
+          value={search.margin ?? null}
+          onChange={(v) => set({ margin: v ?? undefined })}
+          options={[
+            { value: "set" as const, label: "Set" },
+            { value: "not_set" as const, label: "Not set" },
+          ]}
+        />
+        <Facet
+          label="Needs attention"
+          anyLabel="Anything"
+          value={search.lowStock ? "low" : search.missingDetails ? "missing" : null}
+          onChange={(v) =>
+            set({ lowStock: v === "low" ? true : undefined, missingDetails: v === "missing" ? true : undefined })
+          }
+          options={[
+            { value: "low" as const, label: "Low stock" },
+            { value: "missing" as const, label: "Missing details" },
+          ]}
+        />
+        {hasFilters(search) ? (
+          <ResetFilters
+            onReset={() => {
+              setQ("")
+              go(clearFilters(search))
+            }}
           />
-          <Facet
-            label="Aisle"
-            anyLabel="Every aisle"
-            value={search.categoryId ?? null}
-            onChange={(v) => set({ categoryId: v ?? undefined })}
-            options={aisles}
-          />
-          <Facet
-            label="Storage"
-            value={search.storage ?? null}
-            onChange={(v) => set({ storage: v ?? undefined })}
-            options={STORAGES.map((s) => ({ value: s, label: STORAGE_WORDS[s] }))}
-          />
-          <Facet
-            label="Margin"
-            value={search.margin ?? null}
-            onChange={(v) => set({ margin: v ?? undefined })}
-            options={[
-              { value: "set" as const, label: "Set" },
-              { value: "not_set" as const, label: "Not set" },
-            ]}
-          />
-          <Facet
-            label="Needs attention"
-            anyLabel="Anything"
-            value={search.lowStock ? "low" : search.missingDetails ? "missing" : null}
-            onChange={(v) =>
-              set({ lowStock: v === "low" ? true : undefined, missingDetails: v === "missing" ? true : undefined })
-            }
-            options={[
-              { value: "low" as const, label: "Low stock" },
-              { value: "missing" as const, label: "Missing details" },
-            ]}
-          />
-          {hasFilters(search) ? (
-            <ResetFilters
-              onReset={() => {
-                setQ("")
-                go(clearFilters(search))
-              }}
-            />
-          ) : null}
-          <ToolbarSpacer />
-          <Facet
-            label="Sort"
-            anyLabel={SORT_WORDS.updated}
-            value={search.sort ?? null}
-            onChange={(v) => set({ sort: v ?? undefined, dir: undefined })}
-            options={(["name", "price", "shop"] as const).map((s) => ({ value: s, label: SORT_WORDS[s] }))}
-          />
-        </Toolbar>
-      </div>
+        ) : null}
+        <ToolbarSpacer />
+        <Facet
+          label="Sort"
+          anyLabel={SORT_WORDS.updated}
+          value={search.sort ?? null}
+          onChange={(v) => set({ sort: v ?? undefined, dir: undefined })}
+          options={(["name", "price", "shop"] as const).map((s) => ({ value: s, label: SORT_WORDS[s] }))}
+        />
+      </Toolbar>
 
       {result ? <BulkResult result={result} names={names} onDismiss={() => setResult(null)} /> : null}
 

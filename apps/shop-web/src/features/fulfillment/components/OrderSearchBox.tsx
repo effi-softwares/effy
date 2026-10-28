@@ -14,7 +14,7 @@ export function OrderSearchBox({ value, onChange }: { value: string; onChange: (
   }, [text])
 
   return (
-    <label className="relative flex w-80 max-w-full items-center max-md:w-full">
+    <label className="relative flex w-72 max-w-full items-center max-md:w-full md:order-last md:ml-auto">
       <Search aria-hidden="true" className="pointer-events-none absolute left-3 size-4 text-muted-foreground" />
       <Input
         aria-label="Search"

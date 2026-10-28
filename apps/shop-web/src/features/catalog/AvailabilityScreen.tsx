@@ -3,24 +3,12 @@ import { useDebouncedValue } from "@effy/web-kit"
 
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
-import { ArrowDown, CircleAlert, CircleSlash, ImageOff, Search, SearchX, ToggleRight } from "lucide-react"
+import { ArrowDown, CircleAlert, CircleSlash, ImageOff, SearchX, ToggleRight } from "lucide-react"
 
 import type { AvailabilityFilter, ShopAvailabilityDTO, ShopAvailabilityRowDTO } from "@effy/shared-types"
-import {
-  Badge,
-  Button,
-  Input,
-  Label,
-  Skeleton,
-  Switch,
-  Tabs,
-  TabsCount,
-  TabsList,
-  TabsTrigger,
-  toast,
-} from "@effy/design-system/ui"
+import { Badge, Button, Label, Skeleton, Switch, toast } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
-import { EmptyState, PageHeader } from "@effy/web-kit/patterns"
+import { EmptyState, PageHeader, SearchBox, ViewSelect } from "@effy/web-kit/patterns"
 
 import { Page } from "@/components/console/primitives"
 import { track } from "@/lib/telemetry"
@@ -60,32 +48,20 @@ export function AvailabilityScreen() {
         description="Switch products off sale instantly when you run out, with no review needed."
       />
 
-      <Tabs value={filter} onValueChange={(v) => setFilter(v as AvailabilityFilter)}>
-        <TabsList aria-label="Show">
-          {VIEWS.map((v) => (
-            <TabsTrigger key={v.key} value={v.key}>
-              {v.label}
-              {data ? (
-                <TabsCount tone={v.key === "out_of_stock" && data.counts.outOfStock > 0 ? "primary" : undefined}>
-                  {data.counts[v.count]}
-                </TabsCount>
-              ) : null}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
-
-      <label className="relative flex w-80 max-w-full items-center max-md:w-full">
-        <Search aria-hidden="true" className="pointer-events-none absolute left-3 size-4 text-muted-foreground" />
-        <Input
-          aria-label="Search sizes"
-          type="search"
-          placeholder="Product, size or barcode…"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          className="pl-9"
+      <div className="flex flex-wrap items-center gap-2">
+        <ViewSelect
+          label="Show"
+          value={filter}
+          onChange={setFilter}
+          options={VIEWS.map((v) => ({
+            value: v.key,
+            label: v.label,
+            count: data?.counts[v.count],
+            attention: v.key === "out_of_stock",
+          }))}
         />
-      </label>
+        <SearchBox label="Search sizes" placeholder="Product, size or barcode…" value={text} onChange={setText} />
+      </div>
 
       {isError ? (
         <ErrorState error={error} onRetry={() => void refetch()} />

@@ -16,24 +16,21 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-  Tabs,
-  TabsCount,
-  TabsList,
-  TabsTrigger,
 } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 import type { AdminDriverListItem, DriverEmploymentStatus } from "@effy/shared-types"
 
 import {
-  PageHeader,
-  EmptyState,
   DotWord,
-  StatusWord,
+  EmptyState,
   Facet,
+  PageHeader,
   Pager,
   SearchBox,
+  StatusWord,
   Toolbar,
   ToolbarSpacer,
+  ViewSelect,
 } from "@effy/web-kit/patterns"
 import { initialsOf } from "@/components/shell/identity"
 import { useSessionRoles } from "@/features/auth/useSessionRoles"
@@ -107,19 +104,20 @@ export function DriversListScreen() {
 
       <DutyPanel />
 
-      <div className="space-y-3">
-        <Tabs value={view} onValueChange={(v) => resetPaging(setView)(v as View)}>
-          <TabsList aria-label="Driver views">
-            {VIEWS.map((v) => (
-              <TabsTrigger key={v.key} value={v.key}>
-                {v.label}
-                {v.key === "readiness" && blockedCount ? <TabsCount tone="primary">{blockedCount}</TabsCount> : null}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
+      <Toolbar>
+        <ViewSelect
+          label="Driver views"
+          value={view}
+          onChange={resetPaging(setView)}
+          options={VIEWS.map((v) => ({
+            value: v.key,
+            label: v.label,
+            count: v.key === "readiness" && blockedCount ? blockedCount : undefined,
+            attention: v.key === "readiness",
+          }))}
+        />
         {view !== "readiness" ? (
-          <Toolbar>
+          <>
             <SearchBox
               label="Search drivers"
               placeholder="Search by name or work email…"
@@ -143,9 +141,9 @@ export function DriversListScreen() {
                 Include people who have left
               </label>
             ) : null}
-          </Toolbar>
+          </>
         ) : null}
-      </div>
+      </Toolbar>
 
       {view === "readiness" ? (
         <ReadinessPanel />

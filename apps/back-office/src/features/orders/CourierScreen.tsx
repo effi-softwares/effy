@@ -6,22 +6,10 @@ import { Link } from "@tanstack/react-router"
 import type { CourierView, HandoverRowDTO } from "@effy/shared-types"
 import { CircleAlert, CircleCheck, Clock, Forward, PackageOpen, Settings2, Store, Truck, Warehouse } from "lucide-react"
 
-import {
-  Button,
-  Skeleton,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-  Tabs,
-  TabsList,
-  TabsTrigger,
-} from "@effy/design-system/ui"
+import { Button, Skeleton, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 
-import { PageHeader, EmptyState, StatusWord } from "@effy/web-kit/patterns"
+import { EmptyState, PageHeader, StatusWord, Toolbar, ViewSelect } from "@effy/web-kit/patterns"
 
 import { CONSIGNMENT_STATE_LABEL } from "./components/ConsignmentBlock"
 import { courierParcelsQuery } from "./queries"
@@ -62,15 +50,14 @@ export function CourierScreen() {
           </Button>
         }
       />
-      <Tabs value={view} onValueChange={(v) => setView(v as CourierView)}>
-        <TabsList aria-label="Courier stages">
-          {VIEWS.map((v) => (
-            <TabsTrigger key={v.value} value={v.value}>
-              {v.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
+      <Toolbar>
+        <ViewSelect
+          label="Courier stages"
+          value={view}
+          onChange={setView}
+          options={VIEWS.map((v) => ({ value: v.value, label: v.label }))}
+        />
+      </Toolbar>
       {isError ? (
         <ErrorState error={error} onRetry={() => void refetch()} />
       ) : isPending ? (

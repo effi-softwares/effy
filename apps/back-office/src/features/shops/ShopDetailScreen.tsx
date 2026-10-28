@@ -1,7 +1,7 @@
 import { useState } from "react"
 
 import { useQuery } from "@tanstack/react-query"
-import { Link, useNavigate } from "@tanstack/react-router"
+import { useNavigate } from "@tanstack/react-router"
 import { Boxes, Pencil, ScanLine, UserPlus, Users } from "lucide-react"
 
 import type { ShopLifecycleStatus } from "@effy/shared-types"
@@ -18,7 +18,7 @@ import {
 } from "@effy/design-system/ui"
 import { ErrorState, useHeaderDetail } from "@effy/web-kit/console"
 
-import { PageHeader, DetailRows, Panel } from "@effy/web-kit/patterns"
+import { DetailRows, MoreActions, PageHeader, Panel } from "@effy/web-kit/patterns"
 import { sessionQuery } from "@/features/auth/queries"
 import { track } from "@/lib/telemetry"
 
@@ -108,13 +108,6 @@ export function ShopDetailScreen({ shopId }: { shopId: string }) {
         }
         actions={
           <>
-            {/* Every product of this shop, in Catalogue › Products (102). Read by anyone who sees the shop. */}
-            <Button variant="outline" asChild>
-              <Link to="/products" search={{ shopId: shop.id }}>
-                <Boxes aria-hidden="true" />
-                Products
-              </Link>
-            </Button>
             {canManage ? (
               <>
                 <Button variant="outline" onClick={() => setEditOpen(true)}>
@@ -127,6 +120,12 @@ export function ShopDetailScreen({ shopId }: { shopId: string }) {
                 </Button>
               </>
             ) : null}
+            {/* Every product of this shop, in Catalogue › Products (102). Read by anyone who sees the shop. */}
+            <MoreActions
+              actions={[
+                { label: "Products", icon: Boxes, link: { to: "/products", search: { shopId: shop.id } } as never },
+              ]}
+            />
           </>
         }
       />

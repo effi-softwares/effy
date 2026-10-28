@@ -5,6 +5,7 @@
  * (`@effy/design-system/console.css`), so the two consoles cannot drift.
  */
 export * from "./Kbd";
+export * from "./MoreActions";
 export * from "./Page";
 export * from "./Panel";
 export * from "./ResponsiveSheet";

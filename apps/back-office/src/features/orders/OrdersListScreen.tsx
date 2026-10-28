@@ -21,16 +21,16 @@ import { ADMIN_ORDER_DELIVERY_FILTERS, ADMIN_ORDER_PROMISE_FILTERS, type Deliver
 import { ErrorState, PackageStatusPill } from "@effy/web-kit/console"
 
 import {
-  Kbd,
-  PageHeader,
-  ViewTabs,
   EmptyState,
   Facet,
+  Kbd,
+  PageHeader,
   Pager,
   ResetFilters,
   SearchBox,
   Toolbar,
   ToolbarSpacer,
+  ViewSelect,
 } from "@effy/web-kit/patterns"
 import { moment, money } from "@/lib/format"
 
@@ -157,54 +157,49 @@ export function OrdersListScreen() {
         }
       />
 
-      <div className="space-y-3">
-        <ViewTabs
+      <Toolbar>
+        <ViewSelect
           label="Order views"
-          active={view}
-          views={ORDER_VIEWS.map((v) => ({
-            key: v,
+          value={view}
+          onChange={(v) => setSearch({ view: v === "all" ? undefined : v })}
+          options={ORDER_VIEWS.map((v) => ({
+            value: v,
             label: VIEW_LABEL[v],
-            link: {
-              to: "/orders",
-              search: (prev: OrdersSearch) => clean({ ...prev, view: v === "all" ? undefined : v }),
-            } as never,
             count: countOf[v],
             attention: v !== "all",
           }))}
         />
-        <Toolbar>
-          <SearchBox
-            label="Search orders"
-            placeholder="Order number or customer email…"
-            value={q}
-            onChange={(v) => {
-              setQ(v)
-              setCursors([])
+        <SearchBox
+          label="Search orders"
+          placeholder="Order number or customer email…"
+          value={q}
+          onChange={(v) => {
+            setQ(v)
+            setCursors([])
+          }}
+        />
+        <Facet
+          label="Delivery"
+          value={search.delivery ?? null}
+          onChange={(v) => setSearch({ delivery: v ?? undefined, sold: v === "effy" ? search.sold : undefined })}
+          options={ADMIN_ORDER_DELIVERY_FILTERS.map((f) => ({ value: f, label: DELIVERY_FILTER_LABEL[f] }))}
+        />
+        <Facet
+          label="Sold as"
+          value={search.sold ?? null}
+          onChange={(v) => setSearch({ sold: v ?? undefined, delivery: v ? "effy" : search.delivery })}
+          options={ADMIN_ORDER_PROMISE_FILTERS.map((p) => ({ value: p, label: PROMISE_LABEL[p] }))}
+        />
+        {filtered ? (
+          <ResetFilters
+            onReset={() => {
+              setQ("")
+              setSearch({ delivery: undefined, sold: undefined })
             }}
           />
-          <Facet
-            label="Delivery"
-            value={search.delivery ?? null}
-            onChange={(v) => setSearch({ delivery: v ?? undefined, sold: v === "effy" ? search.sold : undefined })}
-            options={ADMIN_ORDER_DELIVERY_FILTERS.map((f) => ({ value: f, label: DELIVERY_FILTER_LABEL[f] }))}
-          />
-          <Facet
-            label="Sold as"
-            value={search.sold ?? null}
-            onChange={(v) => setSearch({ sold: v ?? undefined, delivery: v ? "effy" : search.delivery })}
-            options={ADMIN_ORDER_PROMISE_FILTERS.map((p) => ({ value: p, label: PROMISE_LABEL[p] }))}
-          />
-          {filtered ? (
-            <ResetFilters
-              onReset={() => {
-                setQ("")
-                setSearch({ delivery: undefined, sold: undefined })
-              }}
-            />
-          ) : null}
-          <ToolbarSpacer />
-        </Toolbar>
-      </div>
+        ) : null}
+        <ToolbarSpacer />
+      </Toolbar>
 
       {isError ? (
         <ErrorState error={error} onRetry={() => void refetch()} />

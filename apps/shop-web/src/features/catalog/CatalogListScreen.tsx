@@ -13,7 +13,6 @@ import {
   ImageOff,
   Package,
   Plus,
-  Search,
   SearchX,
   Tags,
   ToggleRight,
@@ -35,13 +34,18 @@ import {
   TableFooter,
   TableHeader,
   TableRow,
-  Tabs,
   TabsCount,
-  TabsList,
-  TabsTrigger,
 } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
-import { EmptyState, Facet, PageHeader, ToolbarSpacer } from "@effy/web-kit/patterns"
+import {
+  EmptyState,
+  Facet,
+  MoreActions,
+  PageHeader,
+  SearchBox,
+  ToolbarSpacer,
+  ViewSelect,
+} from "@effy/web-kit/patterns"
 
 import { Page, TableFrame, Td, Th, Tr } from "@/components/console/primitives"
 import { cn } from "@/lib/utils"
@@ -165,46 +169,30 @@ export function CatalogListScreen() {
                 Availability
               </Link>
             </Button>
-            <Button variant="outline" onClick={() => setSectionsOpen(true)}>
-              <Tags aria-hidden="true" />
-              Manage sections
-            </Button>
-            <Button variant="outline" onClick={() => setStockSettingsOpen(true)}>
-              <Boxes aria-hidden="true" />
-              Stock settings
-            </Button>
             <Button asChild>
               <Link to="/catalog/new">
                 <Plus aria-hidden="true" />
                 New product
               </Link>
             </Button>
+            <MoreActions
+              actions={[
+                { label: "Manage sections", icon: Tags, onSelect: () => setSectionsOpen(true) },
+                { label: "Stock settings", icon: Boxes, onSelect: () => setStockSettingsOpen(true) },
+              ]}
+            />
           </>
         }
       />
 
-      <Tabs value={status} onValueChange={(v) => onFilter(setStatus, v as ProductStatus | typeof ALL)}>
-        <TabsList aria-label="Filter by status">
-          {STATUS_TABS.map((t) => (
-            <TabsTrigger key={t.value} value={t.value}>
-              {t.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
-
       <div className="flex flex-wrap items-center gap-2">
-        <label className="relative flex w-80 max-w-full items-center max-md:w-full">
-          <Search aria-hidden="true" className="pointer-events-none absolute left-3 size-4 text-muted-foreground" />
-          <Input
-            aria-label="Search products"
-            type="search"
-            placeholder="Name, brand, SKU or barcode…"
-            value={q}
-            onChange={(e) => onSearch(e.target.value)}
-            className="pl-9"
-          />
-        </label>
+        <ViewSelect
+          label="Filter by status"
+          value={status}
+          onChange={(v) => onFilter(setStatus, v)}
+          options={STATUS_TABS}
+        />
+        <SearchBox label="Search products" placeholder="Name, brand, SKU or barcode…" value={q} onChange={onSearch} />
         <Facet
           label="Category"
           value={category === ALL ? null : category}

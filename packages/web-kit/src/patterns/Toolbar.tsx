@@ -20,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
   Separator,
+  TabsCount,
 } from "@effy/design-system/ui";
 
 /** The row above a list: search, faceted filters, and the list's own controls (Patterns board). */
@@ -31,7 +32,10 @@ export function ToolbarSpacer() {
   return <span className="flex-auto" />;
 }
 
-/** The list's search. "/" focuses it from anywhere on the page (not while typing in another field). */
+/**
+ * The list's search, always at the right end of the toolbar (after any filters, with the gap between them);
+ * full width on a phone. "/" focuses it from anywhere on the page (not while typing in another field).
+ */
 export function SearchBox({
   value,
   onChange,
@@ -56,7 +60,7 @@ export function SearchBox({
     return () => window.removeEventListener("keydown", onKey);
   }, []);
   return (
-    <label className="relative flex w-80 max-w-full items-center max-md:w-full">
+    <label className="relative flex w-72 max-w-full items-center max-md:w-full md:order-last md:ml-auto">
       <Search aria-hidden="true" className="pointer-events-none absolute left-3 size-4 text-muted-foreground" />
       <span className="sr-only">{label}</span>
       <Input
@@ -130,6 +134,60 @@ export function Facet<T extends string>({
         })}
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+/** One view of a list ("Needs a driver", "Archived"): its words, its count, and whether it needs a person. */
+export interface ViewOption<T extends string> {
+  value: T;
+  label: string;
+  /** A number, or words such as "25+" when the list stops counting. */
+  count?: number | string;
+  /** A queue that needs a person: its count is blue, and the closed select shows a dot while it has any. */
+  attention?: boolean;
+}
+
+/**
+ * Which slice of a list is on screen, as a select beside the other filters (not tabs: tabs are for the
+ * sections of one record). Counts show in the menu; a view that needs a person and has items puts a blue
+ * dot on the closed select, so the queue is not hidden behind it.
+ */
+export function ViewSelect<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+  className,
+}: {
+  label: string;
+  value: T;
+  options: readonly ViewOption<T>[];
+  onChange: (value: T) => void;
+  className?: string;
+}) {
+  const has = (o: ViewOption<T>) => Number.parseInt(String(o.count ?? 0), 10) > 0;
+  const waiting = options.some((o) => o.value !== value && o.attention && has(o));
+  return (
+    <Select value={value} onValueChange={(v) => onChange(v as T)}>
+      <SelectTrigger aria-label={label} className={cn("min-w-44 font-medium", className)}>
+        <SelectValue />
+        {waiting ? (
+          <span aria-label="Another view needs attention" className="ml-auto size-2 shrink-0 rounded-full bg-primary-fill" />
+        ) : null}
+      </SelectTrigger>
+      <SelectContent align="start" className="min-w-56">
+        {options.map((o) => (
+          <SelectItem key={o.value} value={o.value}>
+            {o.label}
+            {o.count !== undefined ? (
+              <TabsCount tone={o.attention && has(o) ? "primary" : undefined} className="ml-auto">
+                {o.count}
+              </TabsCount>
+            ) : null}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 

@@ -13,23 +13,21 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-  Tabs,
-  TabsList,
-  TabsTrigger,
 } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 import type { VehicleListItem, VehicleOwnership, VehicleStatus } from "@effy/shared-types"
 
 import {
-  PageHeader,
   EmptyState,
-  StatusWord,
   Facet,
+  PageHeader,
   Pager,
   ResetFilters,
   SearchBox,
+  StatusWord,
   Toolbar,
   ToolbarSpacer,
+  ViewSelect,
 } from "@effy/web-kit/patterns"
 import { useSessionRoles } from "@/features/auth/useSessionRoles"
 
@@ -97,55 +95,49 @@ export function VehiclesListScreen() {
         description="The vans and cars drivers use, their capacity, roadworthiness, and who has each one."
         actions={canManage ? <CreateVehicleDialog /> : undefined}
       />
-
-      <div className="space-y-3">
-        <Tabs value={view} onValueChange={(v) => reset(setView)(v as View)}>
-          <TabsList aria-label="Vehicle views">
-            {VIEWS.map((v) => (
-              <TabsTrigger key={v.key} value={v.key}>
-                {v.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
-        <Toolbar>
-          <SearchBox label="Search vehicles" placeholder="Plate, make or model…" value={search} onChange={setSearch} />
-          <Facet
-            label="Refrigeration"
-            value={refrigeration}
-            onChange={reset(setRefrigeration)}
-            options={[
-              { value: "chilled", label: "Carries chilled" },
-              { value: "frozen", label: "Carries frozen" },
-            ]}
+      <Toolbar>
+        <ViewSelect
+          label="Vehicle views"
+          value={view}
+          onChange={reset(setView)}
+          options={VIEWS.map((v) => ({ value: v.key, label: v.label }))}
+        />
+        <SearchBox label="Search vehicles" placeholder="Plate, make or model…" value={search} onChange={setSearch} />
+        <Facet
+          label="Refrigeration"
+          value={refrigeration}
+          onChange={reset(setRefrigeration)}
+          options={[
+            { value: "chilled", label: "Carries chilled" },
+            { value: "frozen", label: "Carries frozen" },
+          ]}
+        />
+        <Facet
+          label="Owner"
+          value={owner}
+          onChange={setOwner}
+          options={(Object.keys(OWNERSHIP_LABEL) as VehicleOwnership[]).map((o) => ({
+            value: o,
+            label: OWNERSHIP_LABEL[o],
+          }))}
+        />
+        {filtered ? (
+          <ResetFilters
+            onReset={() => {
+              setSearch("")
+              setOwner(null)
+              setRefrigeration(null)
+              setNonCompliantOnly(false)
+              setCursorStack([])
+            }}
           />
-          <Facet
-            label="Owner"
-            value={owner}
-            onChange={setOwner}
-            options={(Object.keys(OWNERSHIP_LABEL) as VehicleOwnership[]).map((o) => ({
-              value: o,
-              label: OWNERSHIP_LABEL[o],
-            }))}
-          />
-          {filtered ? (
-            <ResetFilters
-              onReset={() => {
-                setSearch("")
-                setOwner(null)
-                setRefrigeration(null)
-                setNonCompliantOnly(false)
-                setCursorStack([])
-              }}
-            />
-          ) : null}
-          <ToolbarSpacer />
-          <label className="flex items-center gap-2 text-sm">
-            <Checkbox checked={nonCompliantOnly} onCheckedChange={(v) => reset(setNonCompliantOnly)(v === true)} />
-            Non-compliant only
-          </label>
-        </Toolbar>
-      </div>
+        ) : null}
+        <ToolbarSpacer />
+        <label className="flex items-center gap-2 text-sm">
+          <Checkbox checked={nonCompliantOnly} onCheckedChange={(v) => reset(setNonCompliantOnly)(v === true)} />
+          Non-compliant only
+        </label>
+      </Toolbar>
 
       {query.isError ? (
         <ErrorState error={query.error} onRetry={() => void query.refetch()} />

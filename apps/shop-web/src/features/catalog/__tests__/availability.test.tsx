@@ -69,7 +69,8 @@ describe("Availability (099)", () => {
     wrap()
     expect(await screen.findByText("Out of stock", { selector: "[data-slot=badge]" })).toBeInTheDocument()
     expect(get).toHaveBeenCalledWith("/shop/v1/availability?filter=needs_look")
-    expect(screen.getByRole("tab", { name: /Everything/ })).toHaveTextContent("9")
+    await userEvent.click(screen.getByRole("combobox", { name: "Show" }))
+    expect(screen.getByRole("option", { name: /Everything/ })).toHaveTextContent("9")
   })
 
   it("takes a size off sale in one tap, through the product's own route", async () => {
@@ -90,7 +91,8 @@ describe("Availability (099)", () => {
   it("asks the server for the chosen view", async () => {
     get.mockResolvedValue(page([row()]))
     wrap()
-    await userEvent.click(await screen.findByRole("tab", { name: /Off sale/ }))
+    await userEvent.click(await screen.findByRole("combobox", { name: "Show" }))
+    await userEvent.click(screen.getByRole("option", { name: /Off sale/ }))
     await waitFor(() => expect(get).toHaveBeenLastCalledWith("/shop/v1/availability?filter=off_sale"))
   })
 })

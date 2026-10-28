@@ -24,7 +24,7 @@ import {
 } from "@effy/design-system/ui"
 import { ErrorState, useHeaderDetail } from "@effy/web-kit/console"
 
-import { PageHeader, DetailRows, Panel, Callout } from "@effy/web-kit/patterns"
+import { Callout, DetailRows, MoreActions, PageHeader, Panel } from "@effy/web-kit/patterns"
 import { sessionQuery } from "@/features/auth/queries"
 import { track } from "@/lib/telemetry"
 
@@ -146,22 +146,27 @@ export function PromotionDetailScreen({ promoId }: { promoId: string }) {
                   </Link>
                 </Button>
               ) : null}
-              {moves.map((m, i) => (
+              {moves[0] ? (
                 <Button
-                  key={m.action}
-                  variant={i === 0 && m.action === "publish" ? "default" : "outline"}
+                  variant={moves[0].action === "publish" || moves[0].action === "resume" ? "default" : "outline"}
                   disabled={act.isPending}
-                  onClick={() => ask(m.action)}
+                  onClick={() => ask(moves[0]!.action)}
                 >
-                  {m.label}
-                </Button>
-              ))}
-              {!p.used ? (
-                <Button variant="outline" onClick={() => setConfirming("delete")}>
-                  <Trash2 aria-hidden="true" />
-                  Delete
+                  {moves[0].label}
                 </Button>
               ) : null}
+              <MoreActions
+                actions={[
+                  ...moves.slice(1).map((m) => ({
+                    label: m.label,
+                    disabled: act.isPending,
+                    onSelect: () => ask(m.action),
+                  })),
+                  !p.used
+                    ? { label: "Delete", icon: Trash2, destructive: true, onSelect: () => setConfirming("delete") }
+                    : null,
+                ]}
+              />
             </>
           ) : null
         }

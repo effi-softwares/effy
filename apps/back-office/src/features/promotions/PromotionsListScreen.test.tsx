@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { render, screen } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import type { ReactNode } from "react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
@@ -69,12 +70,13 @@ describe("PromotionsListScreen (094)", () => {
     expect(screen.getByText("Home hero")).toBeInTheDocument()
   })
 
-  it("counts every state on its tab, and keeps archived ones out of All", async () => {
+  it("counts every state in its view, and keeps archived ones out of All", async () => {
     listPromotions.mockResolvedValue(page([ROW]))
     wrap(<PromotionsListScreen />)
     await screen.findByText("Spring sale")
-    expect(screen.getByRole("tab", { name: /^All\s*2$/ })).toBeInTheDocument()
-    expect(screen.getByRole("tab", { name: /^Archived\s*2$/ })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole("combobox", { name: "Promotion views" }))
+    expect(screen.getByRole("option", { name: /^All\s*2$/ })).toBeInTheDocument()
+    expect(screen.getByRole("option", { name: /^Archived\s*2$/ })).toBeInTheDocument()
   })
 
   it("says an automatic promotion has no code", async () => {

@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
 import {
   Button,
@@ -19,12 +19,33 @@ interface Props {
   fieldLabel: string
   confirmLabel: string
   onConfirm: (text: string) => Promise<string | null>
+  /** Opened from elsewhere (a "More" menu): no button of its own. */
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
-export function ReasonDialog({ label, title, description, fieldLabel, confirmLabel, onConfirm }: Props) {
-  const [open, setOpen] = useState(false)
+export function ReasonDialog({
+  label,
+  title,
+  description,
+  fieldLabel,
+  confirmLabel,
+  onConfirm,
+  open: openProp,
+  onOpenChange,
+}: Props) {
+  const [ownOpen, setOwnOpen] = useState(false)
+  const controlled = openProp !== undefined
+  const open = controlled ? openProp : ownOpen
+  const setOpen = (next: boolean) => (controlled ? onOpenChange?.(next) : setOwnOpen(next))
   const [text, setText] = useState("")
   const [error, setError] = useState<string | null>(null)
+  useEffect(() => {
+    if (open) {
+      setText("")
+      setError(null)
+    }
+  }, [open])
   const [busy, setBusy] = useState(false)
 
   async function confirm() {
@@ -38,17 +59,11 @@ export function ReasonDialog({ label, title, description, fieldLabel, confirmLab
 
   return (
     <>
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => {
-          setText("")
-          setError(null)
-          setOpen(true)
-        }}
-      >
-        {label}
-      </Button>
+      {controlled ? null : (
+        <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+          {label}
+        </Button>
+      )}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>

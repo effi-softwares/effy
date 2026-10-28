@@ -5,31 +5,20 @@ import { Link } from "@tanstack/react-router"
 import { LayoutList, Palette, Plus, SlidersHorizontal, TicketPercent } from "lucide-react"
 
 import { PROMOTION_STATES, type PromotionKind, type PromotionState, type PromotionTrigger } from "@effy/shared-types"
-import {
-  Button,
-  Skeleton,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-  Tabs,
-  TabsCount,
-  TabsList,
-  TabsTrigger,
-} from "@effy/design-system/ui"
+import { Button, Skeleton, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 
 import {
-  PageHeader,
   EmptyState,
-  StatusWord,
   Facet,
+  MoreActions,
+  PageHeader,
   Pager,
   ResetFilters,
   SearchBox,
+  StatusWord,
   Toolbar,
+  ViewSelect,
 } from "@effy/web-kit/patterns"
 import { sessionQuery } from "@/features/auth/queries"
 import { promotionGroupsQuery } from "@/features/promotion-groups/queries"
@@ -117,18 +106,6 @@ export function PromotionsListScreen() {
                 Display groups
               </Link>
             </Button>
-            <Button variant="outline" asChild>
-              <Link to="/promotions/skins">
-                <Palette aria-hidden="true" />
-                Skins
-              </Link>
-            </Button>
-            <Button variant="outline" asChild>
-              <Link to="/promotions/order-rules">
-                <SlidersHorizontal aria-hidden="true" />
-                Order rules
-              </Link>
-            </Button>
             {canManage ? (
               <Button asChild>
                 <Link to="/promotions/new">
@@ -137,58 +114,57 @@ export function PromotionsListScreen() {
                 </Link>
               </Button>
             ) : null}
+            <MoreActions
+              actions={[
+                { label: "Skins", icon: Palette, link: { to: "/promotions/skins" } },
+                { label: "Order rules", icon: SlidersHorizontal, link: { to: "/promotions/order-rules" } },
+              ]}
+            />
           </>
         }
       />
-
-      <div className="space-y-3">
-        <Tabs value={view} onValueChange={(v) => reset(setView)(v as View)}>
-          <TabsList aria-label="Promotion views">
-            {views.map((v) => (
-              <TabsTrigger key={v} value={v}>
-                {v === "all" ? "All" : STATE_WORD[v]}
-                {countOf(v) !== undefined ? <TabsCount>{countOf(v)}</TabsCount> : null}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
-        <Toolbar>
-          <SearchBox label="Search promotions" placeholder="Name or code…" value={search} onChange={reset(setSearch)} />
-          <Facet
-            label="Kind"
-            value={kind}
-            onChange={reset(setKind)}
-            options={(Object.keys(KIND_WORD) as PromotionKind[]).map((k) => ({ value: k, label: KIND_WORD[k] }))}
+      <Toolbar>
+        <ViewSelect
+          label="Promotion views"
+          value={view}
+          onChange={reset(setView)}
+          options={views.map((v) => ({ value: v, label: v === "all" ? "All" : STATE_WORD[v], count: countOf(v) }))}
+        />
+        <SearchBox label="Search promotions" placeholder="Name or code…" value={search} onChange={reset(setSearch)} />
+        <Facet
+          label="Kind"
+          value={kind}
+          onChange={reset(setKind)}
+          options={(Object.keys(KIND_WORD) as PromotionKind[]).map((k) => ({ value: k, label: KIND_WORD[k] }))}
+        />
+        <Facet
+          label="Applies"
+          value={trigger}
+          onChange={reset(setTrigger)}
+          options={[
+            { value: "automatic", label: "Automatically" },
+            { value: "code", label: "With a code" },
+          ]}
+        />
+        <Facet
+          label="Group"
+          anyLabel="Any group"
+          value={groupId}
+          onChange={reset(setGroupId)}
+          options={(groups.data ?? []).map((g) => ({ value: g.id, label: g.name }))}
+        />
+        {filtered ? (
+          <ResetFilters
+            onReset={() => {
+              setSearch("")
+              setKind(null)
+              setTrigger(null)
+              setGroupId(null)
+              setPage(1)
+            }}
           />
-          <Facet
-            label="Applies"
-            value={trigger}
-            onChange={reset(setTrigger)}
-            options={[
-              { value: "automatic", label: "Automatically" },
-              { value: "code", label: "With a code" },
-            ]}
-          />
-          <Facet
-            label="Group"
-            anyLabel="Any group"
-            value={groupId}
-            onChange={reset(setGroupId)}
-            options={(groups.data ?? []).map((g) => ({ value: g.id, label: g.name }))}
-          />
-          {filtered ? (
-            <ResetFilters
-              onReset={() => {
-                setSearch("")
-                setKind(null)
-                setTrigger(null)
-                setGroupId(null)
-                setPage(1)
-              }}
-            />
-          ) : null}
-        </Toolbar>
-      </div>
+        ) : null}
+      </Toolbar>
 
       {isError ? (
         <ErrorState error={error} onRetry={() => void refetch()} />

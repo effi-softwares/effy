@@ -4,22 +4,10 @@ import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import { MailCheck } from "lucide-react"
 
-import {
-  Skeleton,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-  Tabs,
-  TabsCount,
-  TabsList,
-  TabsTrigger,
-} from "@effy/design-system/ui"
+import { Skeleton, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 
-import { PageHeader, EmptyState, StatusWord, Pager, SearchBox, Toolbar } from "@effy/web-kit/patterns"
+import { EmptyState, PageHeader, Pager, SearchBox, StatusWord, Toolbar, ViewSelect } from "@effy/web-kit/patterns"
 import { moment } from "@/lib/format"
 
 import { STATE_LABEL, type EmailDeliveryState } from "./model"
@@ -60,36 +48,30 @@ export function DeliverabilityListScreen() {
         title="Email deliverability"
         description="Email addresses that are bouncing or rejected, which can stop people receiving sign-in codes."
       />
-
-      <div className="space-y-3">
-        <Tabs
+      <Toolbar>
+        <ViewSelect
+          label="Deliverability views"
           value={state}
-          onValueChange={(v) => {
+          onChange={(v) => {
             setState(v)
             setPage(0)
           }}
-        >
-          <TabsList aria-label="Deliverability views">
-            {VIEWS.map((v) => (
-              <TabsTrigger key={v.key} value={v.key}>
-                {v.label}
-                {v.key === state && data ? <TabsCount>{data.total}</TabsCount> : null}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
-        <Toolbar>
-          <SearchBox
-            label="Search address"
-            placeholder="Search address…"
-            value={q}
-            onChange={(v) => {
-              setQ(v)
-              setPage(0)
-            }}
-          />
-        </Toolbar>
-      </div>
+          options={VIEWS.map((v) => ({
+            value: v.key,
+            label: v.label,
+            count: v.key === state ? data?.total : undefined,
+          }))}
+        />
+        <SearchBox
+          label="Search address"
+          placeholder="Search address…"
+          value={q}
+          onChange={(v) => {
+            setQ(v)
+            setPage(0)
+          }}
+        />
+      </Toolbar>
 
       {isError ? (
         <ErrorState error={error} onRetry={() => void refetch()} />

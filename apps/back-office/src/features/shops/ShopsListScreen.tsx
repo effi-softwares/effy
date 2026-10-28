@@ -5,23 +5,10 @@ import { Link } from "@tanstack/react-router"
 import { Plus, Store } from "lucide-react"
 
 import type { ShopLifecycleStatus } from "@effy/shared-types"
-import {
-  Button,
-  Skeleton,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-  Tabs,
-  TabsCount,
-  TabsList,
-  TabsTrigger,
-} from "@effy/design-system/ui"
+import { Button, Skeleton, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 
-import { PageHeader, EmptyState, Pager, SearchBox, Toolbar } from "@effy/web-kit/patterns"
+import { EmptyState, PageHeader, Pager, SearchBox, Toolbar, ViewSelect } from "@effy/web-kit/patterns"
 import { sessionQuery } from "@/features/auth/queries"
 
 import { canManageShops } from "./access"
@@ -71,36 +58,30 @@ export function ShopsListScreen() {
           ) : undefined
         }
       />
-
-      <div className="space-y-3">
-        <Tabs
+      <Toolbar>
+        <ViewSelect
+          label="Shop views"
           value={view}
-          onValueChange={(v) => {
-            setView(v as View)
+          onChange={(v) => {
+            setView(v)
             setPage(1)
           }}
-        >
-          <TabsList aria-label="Shop views">
-            {VIEWS.map((v) => (
-              <TabsTrigger key={v.key} value={v.key}>
-                {v.label}
-                {v.key === view && data ? <TabsCount>{data.total}</TabsCount> : null}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
-        <Toolbar>
-          <SearchBox
-            label="Search shops"
-            placeholder="Search by code or name…"
-            value={search}
-            onChange={(v) => {
-              setSearch(v)
-              setPage(1)
-            }}
-          />
-        </Toolbar>
-      </div>
+          options={VIEWS.map((v) => ({
+            value: v.key,
+            label: v.label,
+            count: v.key === view ? data?.total : undefined,
+          }))}
+        />
+        <SearchBox
+          label="Search shops"
+          placeholder="Search by code or name…"
+          value={search}
+          onChange={(v) => {
+            setSearch(v)
+            setPage(1)
+          }}
+        />
+      </Toolbar>
 
       {isError ? (
         <ErrorState error={error} onRetry={() => void refetch()} />

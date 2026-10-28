@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { render, screen, within } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import type { ReactNode } from "react"
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest"
 
@@ -134,8 +135,9 @@ describe("Today (US1)", () => {
     expect(screen.getByText("Open queue →")).toBeInTheDocument()
     expect(screen.getByText("All orders →")).toBeInTheDocument()
     expect(screen.getByText("Quick actions")).toBeInTheDocument()
-    expect(screen.getByText("Team activity")).toBeInTheDocument()
     expect(screen.getByText("Print pick lists")).toBeInTheDocument()
+    await userEvent.click(screen.getByRole("button", { name: "More actions" }))
+    expect(screen.getByRole("menuitem", { name: "Team activity" })).toBeInTheDocument()
   })
 
   it("shows the backlog row with its units and the oldest age", async () => {

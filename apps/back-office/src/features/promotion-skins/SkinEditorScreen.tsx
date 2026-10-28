@@ -41,7 +41,7 @@ import {
 } from "@effy/shared-types"
 import { ErrorState, useHeaderDetail } from "@effy/web-kit/console"
 
-import { Callout, PageHeader, Panel } from "@effy/web-kit/patterns"
+import { Callout, MoreActions, PageHeader, Panel } from "@effy/web-kit/patterns"
 import { useSessionRoles } from "@/features/auth/useSessionRoles"
 import { canManagePromotions } from "@/features/promotions/access"
 import { inUseError, promotionMutationError } from "@/features/promotions/errorText"
@@ -139,25 +139,28 @@ function Editor({ current }: { current: AdminSkinDTO | null }) {
           canManage ? (
             <>
               {current ? (
-                <>
-                  <Button variant="outline" onClick={() => setDuplicating(true)}>
-                    <Copy aria-hidden="true" />
-                    Duplicate
-                  </Button>
-                  <Button
-                    variant="outline"
-                    disabled={inUse}
-                    title={inUse ? "In use — choose another skin where it is used first" : undefined}
-                    onClick={() => setDeleting(true)}
-                  >
-                    <Trash2 aria-hidden="true" />
-                    Delete
-                  </Button>
-                </>
+                <Button variant="outline" onClick={() => setDuplicating(true)}>
+                  <Copy aria-hidden="true" />
+                  Duplicate
+                </Button>
               ) : null}
               <Button disabled={!saveable || pending} onClick={() => (inUse ? setConfirming(true) : save())}>
                 {pending ? "Saving…" : current ? "Save skin" : "Create skin"}
               </Button>
+              {current ? (
+                <MoreActions
+                  actions={[
+                    {
+                      label: "Delete",
+                      icon: Trash2,
+                      destructive: true,
+                      disabled: inUse,
+                      hint: "In use — choose another skin where it is used first",
+                      onSelect: () => setDeleting(true),
+                    },
+                  ]}
+                />
+              ) : null}
             </>
           ) : undefined
         }

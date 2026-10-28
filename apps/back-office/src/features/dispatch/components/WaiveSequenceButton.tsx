@@ -3,7 +3,17 @@ import { sequenceActionError } from "@/features/exceptions/SequenceSections"
 
 import { useWaiveSequence } from "../queries"
 
-export function WaiveSequenceButton({ roundId, driverName }: { roundId: string; driverName: string }) {
+export function WaiveSequenceButton({
+  roundId,
+  driverName,
+  open,
+  onOpenChange,
+}: {
+  roundId: string
+  driverName: string
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+}) {
   const waive = useWaiveSequence(roundId)
   return (
     <ReasonDialog
@@ -12,6 +22,8 @@ export function WaiveSequenceButton({ roundId, driverName }: { roundId: string; 
       description="Only when the driver can't do the step before it in the app — for example, their phone died at the hub. The run can then be loaded, or collected, out of order."
       fieldLabel="Why"
       confirmLabel="Let it go ahead"
+      open={open}
+      onOpenChange={onOpenChange}
       onConfirm={async (reason) => {
         try {
           await waive.mutateAsync(reason)

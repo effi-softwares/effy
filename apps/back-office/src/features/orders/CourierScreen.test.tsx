@@ -80,19 +80,23 @@ describe("080 — the Courier tab", () => {
 
   it("late says so in words; supplier pickups show the booked window; problems show where it is", async () => {
     renderScreen()
-    await userEvent.click(screen.getByRole("tab", { name: "Late at the hub" }))
+    await userEvent.click(screen.getByRole("combobox", { name: "Courier stages" }))
+    await userEvent.click(screen.getByRole("option", { name: "Late at the hub" }))
     expect(within((await screen.findByText("EFY-0002")).closest("tr")!).getByText("Late")).toBeInTheDocument()
-    await userEvent.click(screen.getByRole("tab", { name: "Supplier pickups" }))
+    await userEvent.click(screen.getByRole("combobox", { name: "Courier stages" }))
+    await userEvent.click(screen.getByRole("option", { name: "Supplier pickups" }))
     const s = (await screen.findByText("EFY-0003")).closest("tr")!
     expect(within(s).getByText("Pickup 2026-10-12, 13:00–15:00")).toBeInTheDocument()
     expect(within(s).getByText("Booked")).toBeInTheDocument()
-    await userEvent.click(screen.getByRole("tab", { name: "Problems" }))
+    await userEvent.click(screen.getByRole("combobox", { name: "Courier stages" }))
+    await userEvent.click(screen.getByRole("option", { name: "Problems" }))
     expect(within((await screen.findByText("EFY-0004")).closest("tr")!).getByText("Lost")).toBeInTheDocument()
   })
 
   it("an empty view says what it means", async () => {
     renderScreen()
-    await userEvent.click(screen.getByRole("tab", { name: "With the courier" }))
+    await userEvent.click(screen.getByRole("combobox", { name: "Courier stages" }))
+    await userEvent.click(screen.getByRole("option", { name: "With the courier" }))
     await waitFor(() => expect(screen.getByText("Nothing is with a courier right now.")).toBeInTheDocument())
   })
 })

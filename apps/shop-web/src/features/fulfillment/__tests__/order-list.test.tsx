@@ -88,10 +88,10 @@ describe("the Orders list (057 A3)", () => {
     )
     wrap()
     await screen.findByRole("table")
-    const tab = screen.getByRole("tab", { name: /Delivered/ })
-    expect(tab).toHaveTextContent("20")
-    expect(screen.getByRole("tab", { name: /All/ })).toHaveTextContent("41")
-    expect(screen.getByRole("tab", { name: /Can't supply/ })).toHaveTextContent("1")
+    await userEvent.click(screen.getByRole("combobox", { name: "Order status" }))
+    expect(screen.getByRole("option", { name: /Delivered/ })).toHaveTextContent("20")
+    expect(screen.getByRole("option", { name: /All/ })).toHaveTextContent("41")
+    expect(screen.getByRole("option", { name: /Can't supply/ })).toHaveTextContent("1")
   })
 
   it("marks an at-risk order and a short one in the row", async () => {
@@ -116,11 +116,12 @@ describe("the Orders list (057 A3)", () => {
     expect(listOrders).toHaveBeenCalledWith({ q: "maya", deliveredBy: "courier", payment: "refunded", tab: "picking" })
   })
 
-  it("changing the tab returns to page one", async () => {
+  it("changing the view returns to page one", async () => {
     listOrders.mockResolvedValue(orderList([orderRow()], { total: 60, page: 2 }))
     const { onSearchChange } = wrap({ page: 2 })
     await screen.findByRole("table")
-    await userEvent.click(screen.getByRole("tab", { name: /Picking/ }))
+    await userEvent.click(screen.getByRole("combobox", { name: "Order status" }))
+    await userEvent.click(screen.getByRole("option", { name: /Picking/ }))
     expect(onSearchChange).toHaveBeenCalledWith({ tab: "picking" })
   })
 
@@ -138,7 +139,7 @@ describe("the Orders list (057 A3)", () => {
     expect(onSearchChange).toHaveBeenLastCalledWith({ q: "EFY-1" })
   })
 
-  it("has no saved views, no Fulfilment select and no labels above body selects", async () => {
+  it("has no saved views and no Fulfilment select — the status is the one select", async () => {
     listOrders.mockResolvedValue(orderList([orderRow()]))
     wrap()
     await screen.findByRole("table")
@@ -146,7 +147,7 @@ describe("the Orders list (057 A3)", () => {
       expect(screen.queryByText(gone)).not.toBeInTheDocument()
     }
     expect(screen.queryByLabelText("Fulfilment")).not.toBeInTheDocument()
-    expect(screen.queryByRole("combobox")).not.toBeInTheDocument()
+    expect(screen.getAllByRole("combobox").map((c) => c.getAttribute("aria-label"))).toEqual(["Order status"])
   })
 
   it("badges Filters with the number set — and shows no badge at zero", async () => {

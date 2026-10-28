@@ -7,7 +7,7 @@ import { Badge, Button, Skeleton, Tabs, TabsContent, TabsCount, TabsList, TabsTr
 import { leastAdvanced, type PackageStatusView } from "@effy/shared-types"
 import { ErrorState, PackageStatusPill, useHeaderDetail } from "@effy/web-kit/console"
 
-import { PageHeader, Panel, Callout } from "@effy/web-kit/patterns"
+import { Callout, MoreActions, PageHeader, Panel } from "@effy/web-kit/patterns"
 import { AssignmentActions } from "@/features/assign/AssignmentActions"
 import { sessionQuery } from "@/features/auth/queries"
 import { canDispatch } from "@/features/dispatch/access"
@@ -142,24 +142,26 @@ export function OrderDetailScreen({
         }
         actions={
           <>
-            {movable && order.deliveryType === "effy" ? (
-              <Button variant="outline" onClick={() => setMoving("retime")}>
-                <CalendarClock aria-hidden="true" />
-                Change day or time…
-              </Button>
-            ) : null}
-            {movable ? (
-              <Button variant="outline" onClick={() => setMoving(order.deliveryType === "effy" ? "courier" : "effy")}>
-                {order.deliveryType === "effy" ? <Truck aria-hidden="true" /> : <Package aria-hidden="true" />}
-                {order.deliveryType === "effy" ? "Send by courier…" : "Deliver by Effy…"}
-              </Button>
-            ) : null}
             {canRecord ? (
               <Button variant="outline" onClick={() => setSection("refunds")}>
                 <ReceiptText aria-hidden="true" />
                 Issue a refund…
               </Button>
             ) : null}
+            <MoreActions
+              actions={[
+                movable && order.deliveryType === "effy"
+                  ? { label: "Change day or time…", icon: CalendarClock, onSelect: () => setMoving("retime") }
+                  : null,
+                movable
+                  ? {
+                      label: order.deliveryType === "effy" ? "Send by courier…" : "Deliver by Effy…",
+                      icon: order.deliveryType === "effy" ? Truck : Package,
+                      onSelect: () => setMoving(order.deliveryType === "effy" ? "courier" : "effy"),
+                    }
+                  : null,
+              ]}
+            />
           </>
         }
       />

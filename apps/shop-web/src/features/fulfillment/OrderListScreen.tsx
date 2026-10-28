@@ -9,9 +9,9 @@ import {
   SHOP_ORDER_RANGES,
   SHOP_ORDER_TABS,
 } from "@effy/shared-types"
-import { Button, Skeleton, Tabs, TabsCount, TabsList, TabsTrigger, toast } from "@effy/design-system/ui"
+import { Button, Skeleton, TabsCount, toast } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
-import { EmptyState as PatternEmptyState, Facet, PageHeader } from "@effy/web-kit/patterns"
+import { EmptyState as PatternEmptyState, Facet, PageHeader, ViewSelect } from "@effy/web-kit/patterns"
 
 import { track } from "@/lib/telemetry"
 
@@ -162,22 +162,18 @@ export function OrderListScreen({
         <OrderQueue search={search} now={now} />
       ) : (
         <>
-          <Tabs value={tab} onValueChange={(v) => update({ tab: v as typeof tab })}>
-            <TabsList aria-label="Order status">
-              {SHOP_ORDER_TABS.map((t) => (
-                <TabsTrigger key={t} value={t}>
-                  {TAB_LABEL[t]}
-                  {data ? (
-                    <TabsCount tone={t === "new" && data.counts[t] > 0 ? "primary" : undefined}>
-                      {data.counts[t]}
-                    </TabsCount>
-                  ) : null}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
-
           <div className="flex flex-wrap items-center gap-2">
+            <ViewSelect
+              label="Order status"
+              value={tab}
+              onChange={(t) => update({ tab: t })}
+              options={SHOP_ORDER_TABS.map((t) => ({
+                value: t,
+                label: TAB_LABEL[t],
+                count: data?.counts[t],
+                attention: t === "new",
+              }))}
+            />
             <OrderSearchBox value={search.q ?? ""} onChange={(q) => update({ q })} />
             <Facet
               label="Placed"

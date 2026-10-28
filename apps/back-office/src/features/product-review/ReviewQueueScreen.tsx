@@ -14,24 +14,21 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-  Tabs,
-  TabsCount,
-  TabsList,
-  TabsTrigger,
   ToggleGroup,
   ToggleGroupItem,
 } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 
 import {
-  PageHeader,
   EmptyState,
-  StatusWord,
   Facet,
+  PageHeader,
   Pager,
   SearchBox,
+  StatusWord,
   Toolbar,
   ToolbarSpacer,
+  ViewSelect,
 } from "@effy/web-kit/patterns"
 
 import { useSessionRoles } from "@/features/auth/useSessionRoles"
@@ -83,24 +80,23 @@ export function ReviewQueueScreen() {
         }
       />
 
-      <div className="space-y-3">
-        <Tabs value={view} onValueChange={(v) => setView(v as typeof view)}>
-          <TabsList aria-label="Review views">
-            {(
-              [
-                { key: "waiting", label: "Waiting for review", count: oldest.data?.total ?? oldest.data?.items.length },
-                { key: "margin", label: "Margin not set", count: marginCount },
-              ] as const
-            ).map((v) => (
-              <TabsTrigger key={v.key} value={v.key}>
-                {v.label}
-                {v.count !== undefined ? <TabsCount tone="primary">{v.count}</TabsCount> : null}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
+      <Toolbar>
+        <ViewSelect
+          label="Review views"
+          value={view}
+          onChange={setView}
+          options={[
+            {
+              value: "waiting" as const,
+              label: "Waiting for review",
+              count: oldest.data?.total ?? oldest.data?.items.length,
+              attention: true,
+            },
+            { value: "margin" as const, label: "Margin not set", count: marginCount, attention: true },
+          ]}
+        />
         {view === "waiting" ? (
-          <Toolbar>
+          <>
             <SearchBox
               label="Search by product name"
               placeholder="Search by product name"
@@ -128,9 +124,9 @@ export function ReviewQueueScreen() {
                 </ToggleGroupItem>
               ))}
             </ToggleGroup>
-          </Toolbar>
+          </>
         ) : null}
-      </div>
+      </Toolbar>
 
       {view === "margin" ? (
         <MarginNotSet />

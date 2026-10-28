@@ -1,7 +1,8 @@
 import { useState } from "react"
 
+import { MoreActions } from "@effy/web-kit/patterns"
 import type { ProductStatus } from "@effy/shared-types"
-import { History } from "lucide-react"
+import { History, Trash2 } from "lucide-react"
 
 import { Button } from "@effy/design-system/ui"
 
@@ -43,6 +44,8 @@ export function ProductHeaderActions({
   const submit = useSubmitForReview(detail.id)
   const withdraw = useWithdrawReview(detail.id)
   const action = visibilityAction(detail.status, detail.reviewState, detail.hold !== null)
+  const removal = removalAction(detail.status, detail.reviewState, detail.hold !== null)
+  const [removing, setRemoving] = useState(false)
   const busy = changeStatus.isPending || submit.isPending || withdraw.isPending
 
   function review(kind: "submit" | "withdraw") {
@@ -106,12 +109,13 @@ export function ProductHeaderActions({
         </Button>
       ) : null}
 
-      <Button variant="outline" onClick={onOpenActivity}>
-        <History aria-hidden="true" />
-        Activity
-      </Button>
-
-      <ProductRemovalControl detail={detail} onDeleted={onDeleted} />
+      <MoreActions
+        actions={[
+          { label: "Activity", icon: History, onSelect: onOpenActivity },
+          removal ? { label: removal.label, icon: Trash2, destructive: true, onSelect: () => setRemoving(true) } : null,
+        ]}
+      />
+      <ProductRemovalControl detail={detail} onDeleted={onDeleted} open={removing} onOpenChange={setRemoving} />
 
       {error ? (
         <span role="alert" className="text-sm font-medium">
@@ -160,10 +164,20 @@ export function ProductHeaderActions({
   )
 }
 
-function ProductRemovalControl({ detail, onDeleted }: { detail: ProductDetail; onDeleted: () => void }) {
+/** The confirm for archiving or deleting the product; it opens from the page's "More" menu. */
+function ProductRemovalControl({
+  detail,
+  onDeleted,
+  open: confirm,
+  onOpenChange: setConfirm,
+}: {
+  detail: ProductDetail
+  onDeleted: () => void
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
   const changeStatus = useChangeStatus(detail.id)
   const deleteProduct = useDeleteProduct(detail.id)
-  const [confirm, setConfirm] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const action = removalAction(detail.status, detail.reviewState, detail.hold !== null)
@@ -197,10 +211,6 @@ function ProductRemovalControl({ detail, onDeleted }: { detail: ProductDetail; o
 
   return (
     <>
-      <Button variant="outline" disabled={busy} onClick={() => setConfirm(true)}>
-        {action.label}
-      </Button>
-
       {error ? (
         <span role="alert" className="text-sm font-medium">
           {error}

@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useState } from "react"
 
-import { useQuery } from "@tanstack/react-query"
+import { useQueries, useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import { useHotkey } from "@tanstack/react-hotkeys"
 import { MessageSquareText, Star } from "lucide-react"
 
 import { cn } from "@effy/design-system"
-import { Badge, Skeleton, Tabs, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui"
+import { Badge, Skeleton } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 
-import { Kbd, PageHeader, EmptyState, Facet, Pager, SearchBox, Toolbar } from "@effy/web-kit/patterns"
+import { EmptyState, Facet, Kbd, PageHeader, Pager, SearchBox, Toolbar, ViewSelect } from "@effy/web-kit/patterns"
 import { sessionQuery } from "@/features/auth/queries"
 import { dayWord, moment } from "@/lib/format"
 
@@ -68,6 +68,8 @@ export function FeedbackListScreen() {
     [q, category, view, rating, received, page],
   )
   const { data, isPending, isError, error, refetch } = useQuery(feedbackListQuery(params))
+  const counts = useQueries({ queries: COUNTED.map((status) => feedbackListQuery({ status, limit: 1 })) })
+  const countOf = (status: FeedbackStatus) => counts[COUNTED.indexOf(status)]?.data?.total
   const items = data?.items ?? []
   const selected = open ?? items[0]?.referenceCode ?? null
   const index = items.findIndex((i) => i.referenceCode === selected)
@@ -84,67 +86,61 @@ export function FeedbackListScreen() {
         title="Customer feedback"
         description="Bugs, ideas, complaints and compliments sent by customers, ready to read and answer."
       />
-
-      <div className="space-y-3">
-        <Tabs
+      <Toolbar>
+        <ViewSelect
+          label="Status"
           value={view}
-          onValueChange={(v) => {
-            setView(v as FeedbackStatus | "all")
+          onChange={(v) => {
+            setView(v)
             reset()
           }}
-        >
-          <TabsList aria-label="Status">
-            {VIEWS.map((v) => (
-              <TabsTrigger key={v} value={v}>
-                {v === "all" ? "All" : FEEDBACK_STATUS_LABELS[v]}
-                {v !== "all" && COUNTED.includes(v) ? <StatusCount status={v} /> : null}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
-        <Toolbar>
-          <SearchBox
-            label="Search feedback"
-            placeholder="Search message or email…"
-            value={q}
-            onChange={(v) => {
-              setQ(v)
-              reset()
-            }}
-          />
-          <Facet
-            label="Category"
-            value={category}
-            onChange={(v) => {
-              setCategory(v)
-              reset()
-            }}
-            options={FEEDBACK_CATEGORIES.map((c) => ({ value: c, label: FEEDBACK_CATEGORY_LABELS[c] }))}
-          />
-          <Facet
-            label="Rating"
-            value={rating}
-            onChange={(v) => {
-              setRating(v)
-              reset()
-            }}
-            options={["1", "2", "3", "4", "5"].map((r) => ({ value: r, label: `${r}/5` }))}
-          />
-          <Facet
-            label="Received"
-            value={received}
-            onChange={(v) => {
-              setReceived(v)
-              reset()
-            }}
-            options={[
-              { value: "today" as const, label: "Today" },
-              { value: "7d" as const, label: "Last 7 days" },
-              { value: "30d" as const, label: "Last 30 days" },
-            ]}
-          />
-        </Toolbar>
-      </div>
+          options={VIEWS.map((v) => ({
+            value: v,
+            label: v === "all" ? "All" : FEEDBACK_STATUS_LABELS[v],
+            count: v === "all" ? undefined : countOf(v),
+          }))}
+        />
+        <SearchBox
+          label="Search feedback"
+          placeholder="Search message or email…"
+          value={q}
+          onChange={(v) => {
+            setQ(v)
+            reset()
+          }}
+        />
+        <Facet
+          label="Category"
+          value={category}
+          onChange={(v) => {
+            setCategory(v)
+            reset()
+          }}
+          options={FEEDBACK_CATEGORIES.map((c) => ({ value: c, label: FEEDBACK_CATEGORY_LABELS[c] }))}
+        />
+        <Facet
+          label="Rating"
+          value={rating}
+          onChange={(v) => {
+            setRating(v)
+            reset()
+          }}
+          options={["1", "2", "3", "4", "5"].map((r) => ({ value: r, label: `${r}/5` }))}
+        />
+        <Facet
+          label="Received"
+          value={received}
+          onChange={(v) => {
+            setReceived(v)
+            reset()
+          }}
+          options={[
+            { value: "today" as const, label: "Today" },
+            { value: "7d" as const, label: "Last 7 days" },
+            { value: "30d" as const, label: "Last 30 days" },
+          ]}
+        />
+      </Toolbar>
 
       {isError ? (
         <ErrorState error={error} onRetry={() => void refetch()} />
@@ -193,11 +189,6 @@ export function FeedbackListScreen() {
       )}
     </>
   )
-}
-
-function StatusCount({ status }: { status: FeedbackStatus }) {
-  const { data } = useQuery(feedbackListQuery({ status, limit: 1 }))
-  return typeof data?.total === "number" ? <TabsCount>{data.total}</TabsCount> : null
 }
 
 function InboxItem({
