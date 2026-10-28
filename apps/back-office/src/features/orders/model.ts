@@ -19,15 +19,12 @@ export type OrderDetail = AdminOrderDetailDTO
 export type OrderPackage = AdminOrderPackageDTO
 export type OrderHistoryEntry = AdminOrderHistoryEntryDTO
 
+/** A quick read of the list outside its screen (the command palette, the overview's counts). */
 export interface OrderListParams {
   q?: string
   status?: string
-  awaiting?: OrderAwaiting
-  needsDriver?: boolean
   deliveryType?: AdminOrderDeliveryFilter
   promise?: DeliveryPromise
-  cursor?: string
-  limit?: number
 }
 
 export const PROMISE_LABEL: Record<DeliveryPromise, string> = {

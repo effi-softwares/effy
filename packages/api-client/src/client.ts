@@ -14,8 +14,9 @@ export interface ApiClientConfig {
 export class ApiClient {
   constructor(private readonly config: ApiClientConfig) {}
 
-  get<T>(path: string): Promise<T> {
-    return this.request<T>("GET", path);
+  /** `signal` cancels a read that has been superseded (a list's next search), so a stale answer never lands. */
+  get<T>(path: string, opts: { signal?: AbortSignal } = {}): Promise<T> {
+    return this.request<T>("GET", path, undefined, opts.signal);
   }
 
   post<T>(path: string, body?: unknown): Promise<T> {
@@ -35,7 +36,7 @@ export class ApiClient {
     return this.request<T>("DELETE", path);
   }
 
-  private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
+  private async request<T>(method: string, path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
     const token = await this.config.getToken();
     const headers: Record<string, string> = { Accept: "application/json" };
     if (token) headers.Authorization = `Bearer ${token}`;
@@ -47,8 +48,11 @@ export class ApiClient {
         method,
         headers,
         body: body === undefined ? undefined : JSON.stringify(body),
+        signal,
       });
-    } catch {
+    } catch (err) {
+      // Cancelled by the caller: rethrown as-is, so the server-state cache treats it as cancelled, not failed.
+      if (signal?.aborted) throw err;
       // Network failure, CORS or offline: a uniform "unavailable".
       throw toDomainError(0);
     }

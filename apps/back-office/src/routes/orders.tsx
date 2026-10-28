@@ -2,7 +2,8 @@ import { createRoute } from "@tanstack/react-router"
 
 import { CourierScreen } from "@/features/orders/CourierScreen"
 import { OrderDetailScreen } from "@/features/orders/OrderDetailScreen"
-import { ORDER_VIEWS, OrdersListScreen, type OrdersSearch, type OrderView } from "@/features/orders/OrdersListScreen"
+import { ordersList } from "@/features/orders/list"
+import { OrdersListScreen } from "@/features/orders/OrdersListScreen"
 import { DispatchDayScreen } from "@/features/dispatch/DispatchDayScreen"
 import { RoundDetailScreen } from "@/features/dispatch/RoundDetailScreen"
 
@@ -11,13 +12,7 @@ import { appRoute } from "./app"
 export const ordersIndexRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "orders",
-  validateSearch: (search: Record<string, unknown>): OrdersSearch => ({
-    ...(typeof search.view === "string" && (ORDER_VIEWS as readonly string[]).includes(search.view)
-      ? { view: search.view as OrderView }
-      : {}),
-    ...(search.delivery === "effy" || search.delivery === "courier" ? { delivery: search.delivery } : {}),
-    ...(search.sold === "window" || search.sold === "day" || search.sold === "asap" ? { sold: search.sold } : {}),
-  }),
+  validateSearch: (raw: Record<string, unknown>) => ordersList.validateSearch(raw),
   component: OrdersListScreen,
 })
 

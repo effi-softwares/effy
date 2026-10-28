@@ -475,10 +475,8 @@ export interface AdminOrderViewCountsDTO {
   courierProblem: WireInt;
 }
 
-export interface AdminOrderListResponse {
-  items: AdminOrderSummaryDTO[];
-  nextCursor: string | null;
-}
+/** Back-office Orders (103): a keyset console list. */
+export type AdminOrderListResponse = import("./list").ListPage<AdminOrderSummaryDTO>;
 
 /**
  * Who has one package for one stage (collection or delivery), and how. `assignmentId` is the

@@ -1,9 +1,4 @@
-import {
-  flexRender,
-  getCoreRowModel,
-  useReactTable,
-  type ColumnDef,
-} from "@tanstack/react-table";
+import { useTable, type RowData } from "@tanstack/react-table";
 
 import {
   Table,
@@ -14,26 +9,26 @@ import {
   TableRow,
 } from "@effy/design-system/ui";
 
+import { effyFeatures, type EffyColumnDef } from "../data-table/column-meta";
+
 /**
  * A presentational TanStack table on the design-system primitives. It renders exactly the rows it is
  * given: search, filtering and pagination are the parent's (server-side) job.
+ *
+ * @deprecated Use `@effy/web-kit/data-table` (`DataTable` for lists, `StaticTable` for bounded tables).
  */
-export interface DataTableProps<TData, TValue> {
-  columns: ColumnDef<TData, TValue>[];
+export interface DataTableProps<TData extends RowData> {
+  columns: EffyColumnDef<TData>[];
   data: TData[];
   emptyMessage?: string;
 }
 
-export function DataTable<TData, TValue>({
+export function DataTable<TData extends RowData>({
   columns,
   data,
   emptyMessage = "No results.",
-}: DataTableProps<TData, TValue>) {
-  const table = useReactTable({
-    data,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-  });
+}: DataTableProps<TData>) {
+  const table = useTable({ features: effyFeatures, columns, data });
 
   return (
     <div className="rounded-md border">
@@ -43,12 +38,7 @@ export function DataTable<TData, TValue>({
             <TableRow key={headerGroup.id}>
               {headerGroup.headers.map((header) => (
                 <TableHead key={header.id}>
-                  {header.isPlaceholder
-                    ? null
-                    : flexRender(
-                        header.column.columnDef.header,
-                        header.getContext()
-                      )}
+                  {header.isPlaceholder ? null : <table.FlexRender header={header} />}
                 </TableHead>
               ))}
             </TableRow>
@@ -63,7 +53,7 @@ export function DataTable<TData, TValue>({
               >
                 {row.getVisibleCells().map((cell) => (
                   <TableCell key={cell.id}>
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    <table.FlexRender cell={cell} />
                   </TableCell>
                 ))}
               </TableRow>

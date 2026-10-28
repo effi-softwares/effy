@@ -16,7 +16,10 @@ import type {
   RefundRequestDTO,
 } from "@effy/shared-types";
 
-import { COUNTED_REFUND_STATUSES, imageUrlOrNull, operatingStamp, packageStatuses, query, stageFor, type Queryable } from "@effy/edge-shared";
+import { COUNTED_REFUND_STATUSES, imageUrlOrNull, keysetListPage, operatingStamp, packageStatuses, query, stageFor, type Queryable } from "@effy/edge-shared";
+import type { ListPage } from "@effy/shared-types";
+
+import type { OrderListRequest } from "./list";
 import { CONSIGNMENT_PROBLEMS, leastAdvanced, parcelCustodyOf, type AdminPackageHandoverDTO, type OrderAssignment, type PackageStatusView, type ParcelZone } from "@effy/shared-types";
 
 import { judgePromise } from "./promise";
@@ -24,10 +27,6 @@ import { consignmentsFor, deliveryMovesFor, nextCourierPickup, parseClock } from
 import * as refundRepo from "./refunds";
 import { assignmentsFor } from "./assignments";
 import * as repo from "./repository";
-
-/** Capped so a mistyped `limit` cannot ask for the whole table. */
-export const MAX_LIMIT = 100;
-export const DEFAULT_LIMIT = 25;
 
 // The stage word and refund statuses come from the shared library, as the shopper's page does.
 export { COUNTED_REFUND_STATUSES, stageFor };
@@ -88,7 +87,7 @@ export function toSummary(
 }
 
 export async function orderViewCounts(
-  filters: import("./filters").BaseFilters,
+  filters: repo.ListParams,
 ): Promise<import("@effy/shared-types").AdminOrderViewCountsDTO> {
   const r = await repo.viewCounts(filters);
   return {
@@ -111,20 +110,13 @@ export async function ordersToday(): Promise<import("@effy/shared-types").AdminO
   };
 }
 
-export async function listOrders(params: repo.ListParams): Promise<{
-  items: AdminOrderSummaryDTO[];
-  nextCursor: string | null;
-}> {
-  const rows = await repo.list({ ...params, limit: params.limit + 1 });
-  const page = rows.slice(0, params.limit);
-  // The cursor is `created_at`, the column the query orders by (see `OrderSummaryRow.created_at`).
-  const nextCursor =
-    rows.length > params.limit && page.length > 0
-      ? page[page.length - 1]!.created_at.toISOString()
-      : null;
+/** One page of the Orders list (103): keyset-paged, with a capped count of everything it holds. */
+export async function listOrders(req: OrderListRequest): Promise<ListPage<AdminOrderSummaryDTO>> {
+  const [rows, count] = await Promise.all([repo.list(req), repo.countList(req)]);
+  const page = rows.slice(0, req.pageSize);
   const ids = page.flatMap((r) => r.package_ids ?? []);
   const [statuses, assignments] = await Promise.all([packageStatuses(db, ids), assignmentsFor(ids)]);
-  return { items: page.map((r) => toSummary(r, statuses, assignments)), nextCursor };
+  return keysetListPage(rows, req, count, (r) => toSummary(r, statuses, assignments));
 }
 
 /** The label is a short-lived presigned read, never public. */

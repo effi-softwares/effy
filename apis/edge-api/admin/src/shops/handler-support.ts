@@ -88,13 +88,8 @@ export function toDetailDTO(d: ShopDetail): ShopDetailDTO {
   };
 }
 
-export function toListDTO(p: Paged<ShopListItem>): PagedDTO<ShopListItemDTO> {
-  return {
-    items: p.items.map((i) => ({ id: i.id, code: i.code, name: i.name, status: i.status, userCount: i.userCount, hasAddress: i.hasAddress, labelScanning: i.labelScanning })),
-    total: p.total,
-    page: p.page,
-    pageSize: p.pageSize,
-  };
+export function toListItemDTO(i: ShopListItem): ShopListItemDTO {
+  return { id: i.id, code: i.code, name: i.name, status: i.status, userCount: i.userCount, hasAddress: i.hasAddress, labelScanning: i.labelScanning };
 }
 
 export function toAuditDTO(p: Paged<AuditEntry>): PagedDTO<AuditEntryDTO> {

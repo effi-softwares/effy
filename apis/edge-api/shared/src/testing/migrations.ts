@@ -15,7 +15,9 @@ export function migrationSql(): string {
       const up = sql.indexOf("-- +goose Up");
       const down = sql.indexOf("-- +goose Down");
       if (up === -1) throw new Error(`${f} has no "-- +goose Up" section`);
-      return sql.slice(up, down === -1 ? undefined : down);
+      // A `NO TRANSACTION` migration builds indexes CONCURRENTLY, which cannot run inside the one multi-statement
+      // query this returns; on a test database's empty tables a plain build is the same index.
+      return sql.slice(up, down === -1 ? undefined : down).replace(/\bINDEX CONCURRENTLY\b/g, "INDEX");
     })
     .join("\n\n");
 }

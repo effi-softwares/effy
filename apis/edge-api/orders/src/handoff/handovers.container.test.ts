@@ -17,6 +17,11 @@ vi.mock("@effy/edge-shared", async () => {
 });
 
 import { migrationSql } from "@effy/edge-shared/testing";
+import { parseListQuery } from "@effy/edge-shared";
+import { ORDER_LIST_SPEC } from "../orders/list";
+
+/** A list request as the route parses it (103). */
+const req = (qs: Record<string, string | undefined>) => parseListQuery({ pageSize: "100", ...qs }, ORDER_LIST_SPEC);
 import { recordDeliveryType } from "@effy/edge-shared/delivery";
 import { deliveryTypeHistory, findOrder, packages } from "../orders/repository";
 import { listCourierParcels, listOrders, toPackage } from "../orders/service";
@@ -321,12 +326,12 @@ d("079 — who delivers a package is one answer, for old orders and new (P12, P1
     await sell(courier.orderId, "courier", "no_window", "2–4 business days");
 
     const numbers = async (deliveryType?: "effy" | "courier") =>
-      (await listOrders({ limit: 50, deliveryType })).items.map((o) => `${o.orderNumber}:${o.deliveryType}`).sort();
+      (await listOrders(req({ deliveryType }))).items.map((o) => `${o.orderNumber}:${o.deliveryType}`).sort();
     expect(await numbers()).toEqual([`${effy.orderNumber}:effy`, `${courier.orderNumber}:courier`].sort());
     expect(await numbers("effy")).toEqual([`${effy.orderNumber}:effy`]);
     expect(await numbers("courier")).toEqual([`${courier.orderNumber}:courier`]);
     // "Awaiting handover" finds the courier's package, never Effy's.
-    expect((await listOrders({ limit: 50, awaiting: "handover" })).items.map((o) => o.orderNumber).sort()).toEqual([courier.orderNumber]);
+    expect((await listOrders(req({ view: "handover" }))).items.map((o) => o.orderNumber).sort()).toEqual([courier.orderNumber]);
   });
 
   it("the order detail: type, why, the estimate as sold, and the history", async () => {

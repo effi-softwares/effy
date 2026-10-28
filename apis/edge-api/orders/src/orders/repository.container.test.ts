@@ -17,6 +17,11 @@ vi.mock("@effy/edge-shared", async (importOriginal) => ({
 }));
 
 import { migrationSql } from "@effy/edge-shared/testing";
+import { parseListQuery } from "@effy/edge-shared";
+import { ORDER_LIST_SPEC } from "../orders/list";
+
+/** A list request as the route parses it (103). */
+const req = (qs: Record<string, string | undefined>) => parseListQuery({ pageSize: "100", ...qs }, ORDER_LIST_SPEC);
 import { history, list, packages, viewCounts } from "./repository";
 import { listOrders } from "./service";
 
@@ -145,15 +150,15 @@ describe.skipIf(!RUN)("order reads — against real PostgreSQL", () => {
   describe("the list's `awaiting` filter", () => {
     it("finds a collected courier package with no handover", async () => {
       await seed("courier");
-      const rows = await list({ awaiting: "handover", limit: 10 });
+      const rows = await list(req({ view: "handover" }));
       expect(rows).toHaveLength(1);
       expect(rows[0]!.awaiting_handover).toBe(1);
     });
 
     it("does NOT list an Effy package as awaiting handover: Effy delivers it", async () => {
       await seed("effy");
-      expect(await list({ awaiting: "handover", limit: 10 })).toHaveLength(0);
-      const [row] = await list({ limit: 10 });
+      expect(await list(req({ view: "handover" }))).toHaveLength(0);
+      const [row] = await list(req({}));
       expect(row!.awaiting_handover).toBe(0);
     });
 
@@ -164,8 +169,8 @@ describe.skipIf(!RUN)("order reads — against real PostgreSQL", () => {
         [fulfillmentId],
       );
 
-      expect(await list({ awaiting: "handover", limit: 10 })).toHaveLength(0);
-      expect(await list({ awaiting: "arrival", limit: 10 })).toHaveLength(1);
+      expect(await list(req({ view: "handover" }))).toHaveLength(0);
+      expect(await list(req({ view: "arrival" }))).toHaveLength(1);
     });
 
     it("drops a fully arrived order out of both queues", async () => {
@@ -180,9 +185,9 @@ describe.skipIf(!RUN)("order reads — against real PostgreSQL", () => {
         [fulfillmentId],
       );
 
-      expect(await list({ awaiting: "handover", limit: 10 })).toHaveLength(0);
-      expect(await list({ awaiting: "arrival", limit: 10 })).toHaveLength(0);
-      const all = await list({ limit: 10 });
+      expect(await list(req({ view: "handover" }))).toHaveLength(0);
+      expect(await list(req({ view: "arrival" }))).toHaveLength(0);
+      const all = await list(req({}));
       expect(all[0]!.awaiting_arrival).toBe(0);
     });
 
@@ -195,12 +200,12 @@ describe.skipIf(!RUN)("order reads — against real PostgreSQL", () => {
         [fulfillmentId],
       );
       const counts = await viewCounts({});
-      expect(Number(counts.total)).toBe((await list({ limit: 50 })).length);
-      expect(Number(counts.handover)).toBe((await list({ awaiting: "handover", limit: 50 })).length);
-      expect(Number(counts.arrival)).toBe((await list({ awaiting: "arrival", limit: 50 })).length);
-      expect(Number(counts.needs_driver)).toBe((await list({ needsDriver: true, limit: 50 })).length);
-      expect(Number(counts.refund_decision)).toBe((await list({ awaiting: "refund_decision", limit: 50 })).length);
-      expect(Number(counts.courier_problem)).toBe((await list({ awaiting: "courier_problem", limit: 50 })).length);
+      expect(Number(counts.total)).toBe((await list(req({}))).length);
+      expect(Number(counts.handover)).toBe((await list(req({ view: "handover" }))).length);
+      expect(Number(counts.arrival)).toBe((await list(req({ view: "arrival" }))).length);
+      expect(Number(counts.needs_driver)).toBe((await list(req({ view: "driver" }))).length);
+      expect(Number(counts.refund_decision)).toBe((await list(req({ view: "refund" }))).length);
+      expect(Number(counts.courier_problem)).toBe((await list(req({ view: "courier" }))).length);
       expect(Number(counts.handover)).toBe(1);
     });
   });
@@ -229,39 +234,99 @@ describe.skipIf(!RUN)("order reads — against real PostgreSQL", () => {
 
     /** Through `listOrders`, where the cursor is minted; a test that builds its own cursor cannot catch this. */
     it("pages without repeating or skipping an order", async () => {
-      await seedAged(6);
+      await seedAged(30);
 
-      const page1 = await listOrders({ limit: 3 });
-      expect(page1.items).toHaveLength(3);
+      const page1 = await listOrders(req({ pageSize: "25" }));
+      expect(page1.items).toHaveLength(25);
+      expect(page1).toMatchObject({ total: 30, totalCapped: false, page: null });
       expect(page1.nextCursor, "there is a second page, so a cursor must be offered").not.toBeNull();
 
-      const page2 = await listOrders({ cursor: page1.nextCursor!, limit: 3 });
+      const page2 = await listOrders(req({ pageSize: "25", cursor: page1.nextCursor! }));
 
       const first = page1.items.map((r) => r.orderNumber);
       const second = page2.items.map((r) => r.orderNumber);
 
-      expect(second).toHaveLength(3);
+      expect(second).toHaveLength(5);
       expect(
         second.filter((n) => first.includes(n)),
         "page 2 repeated an order from page 1 — the minted cursor and the ORDER BY column disagree",
       ).toEqual([]);
-      expect(new Set([...first, ...second]).size).toBe(6);
+      expect(new Set([...first, ...second]).size).toBe(30);
+      expect(page2.nextCursor).toBeNull();
+    });
+
+    it("⚠ 103 — two orders written in the same instant on either side of a page edge are both listed", async () => {
+      const c = await pool.query<{ id: string }>(`INSERT INTO public.customer (cognito_sub, email) VALUES ('tie', 'tie@example.com') RETURNING id`);
+      // 30 orders sharing ONE created_at: the old `created_at < cursor` skipped every one after page 1.
+      for (let i = 0; i < 30; i++) {
+        await pool.query(
+          `INSERT INTO public."order" (customer_id, order_number, status, created_at, placed_at, delivery_address,
+                                       item_subtotal_amount, grand_total_amount, delivery_type, delivery_type_reason, delivery_promise)
+           VALUES ($1, $2, 'paid', '2026-10-01T10:00:00.123456Z', '2026-10-01T10:05:00Z', '{}', 10, 10, 'effy', 'in_coverage', 'day')`,
+          [c.rows[0]!.id, `EFY-T${i}`],
+        );
+      }
+      const p1 = await listOrders(req({ pageSize: "25" }));
+      const p2 = await listOrders(req({ pageSize: "25", cursor: p1.nextCursor! }));
+      const all = [...p1.items, ...p2.items].map((o) => o.orderNumber);
+      expect(all).toHaveLength(30);
+      expect(new Set(all).size).toBe(30);
+    });
+
+    it("⚠ 103 — orders arriving while paging push nothing off and repeat nothing", async () => {
+      await seedAged(30);
+      const p1 = await listOrders(req({ pageSize: "25" }));
+      // New orders arrive at the top between the two reads.
+      const c = await pool.query<{ id: string }>(`SELECT id FROM public.customer LIMIT 1`);
+      for (let i = 0; i < 5; i++) {
+        await pool.query(
+          `INSERT INTO public."order" (customer_id, order_number, status, delivery_address, item_subtotal_amount, grand_total_amount, delivery_type, delivery_type_reason, delivery_promise)
+           VALUES ($1, $2, 'paid', '{}', 10, 10, 'effy', 'in_coverage', 'day')`,
+          [c.rows[0]!.id, `EFY-NEW${i}`],
+        );
+      }
+      const p2 = await listOrders(req({ pageSize: "25", cursor: p1.nextCursor! }));
+      const seen = [...p1.items, ...p2.items].map((o) => o.orderNumber);
+      expect(seen).toHaveLength(30);
+      expect(new Set(seen).size).toBe(30);
+      expect(seen.some((n) => n.startsWith("EFY-NEW"))).toBe(false);
+    });
+
+    it("sorts by total, still a total order", async () => {
+      await seedAged(30);
+      const p1 = await listOrders(req({ pageSize: "25", sort: "total" }));
+      const p2 = await listOrders(req({ pageSize: "25", sort: "total", cursor: p1.nextCursor! }));
+      expect(new Set([...p1.items, ...p2.items].map((o) => o.id)).size).toBe(30);
     });
 
     it("stops offering a cursor on the last page", async () => {
       await seedAged(4);
-      const page = await listOrders({ limit: 4 });
+      const page = await listOrders(req({ pageSize: "25" }));
       expect(page.items).toHaveLength(4);
       expect(page.nextCursor).toBeNull();
+    });
+  });
+
+  describe("filters added in 103", () => {
+    it("narrows to one shop's orders and to a placed-day range (operating time zone)", async () => {
+      const a = await seed("courier");
+      await seed("effy");
+      const shop = (await pool.query<{ shop_id: string }>(`SELECT shop_id FROM public.shop_fulfillment WHERE id = $1`, [a.fulfillmentId])).rows[0]!.shop_id;
+      const mine = await listOrders(req({ shopId: shop }));
+      expect(mine.items.length).toBeGreaterThan(0);
+      expect(mine.total).toBe(mine.items.length);
+      const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Australia/Melbourne" }).format(new Date());
+      expect((await listOrders(req({ placedFrom: today, placedTo: today }))).total).toBeGreaterThan(0);
+      expect((await listOrders(req({ placedTo: "2000-01-01" }))).total).toBe(0);
     });
   });
 
   describe("search", () => {
     it("finds an order by its reference and by customer email", async () => {
       await seed();
-      expect(await list({ q: (await pool.query(`SELECT order_number FROM public."order"`)).rows[0].order_number, limit: 10 })).toHaveLength(1);
-      expect(await list({ q: (await pool.query(`SELECT email FROM public.customer`)).rows[0].email, limit: 10 })).toHaveLength(1);
-      expect(await list({ q: "nothing-like-this", limit: 10 })).toHaveLength(0);
+      expect(await list(req({ q: (await pool.query(`SELECT order_number FROM public."order"`)).rows[0].order_number }))).toHaveLength(1);
+      expect(await list(req({ q: (await pool.query(`SELECT email FROM public.customer`)).rows[0].email }))).toHaveLength(1);
+      expect(await list(req({ q: "nothing-like-this" }))).toHaveLength(0);
     });
 
     it("never lists an order that was never paid for", async () => {
@@ -274,7 +339,7 @@ describe.skipIf(!RUN)("order reads — against real PostgreSQL", () => {
          VALUES ($1, 'EFY-PEND', 'pending_payment', '{}', 10, 10)`,
         [c.rows[0]!.id],
       );
-      expect(await list({ limit: 10 })).toHaveLength(0);
+      expect(await list(req({}))).toHaveLength(0);
     });
   });
 });

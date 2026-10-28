@@ -1,7 +1,9 @@
 // Every mutation writes its audit row in the same transaction.
 import type { PoolClient } from "pg";
 
-import { query, withTransaction } from "@effy/edge-shared";
+import { likePattern, limitOffsetClause, orderBy, query, runOffsetPage, withTransaction } from "@effy/edge-shared";
+
+import { SHOP_LIST, type ShopListRequest } from "./list";
 
 import {
   type AuditEntry,
@@ -14,6 +16,7 @@ import {
   type ShopRole,
   type ShopStaffStatus,
   type ShopUser,
+  SHOP_LIFECYCLE_STATUSES,
   SHOP_ROLES,
 } from "./types";
 
@@ -143,42 +146,40 @@ export async function shopExistsByCode(code: string): Promise<boolean> {
   return res.rows[0]?.ok ?? false;
 }
 
-export async function listShops(params: {
-  page: number;
-  pageSize: number;
-  status: ShopLifecycleStatus | null;
-  q: string | null;
-}): Promise<Paged<ShopListItem>> {
-  const { page, pageSize, status, q } = params;
-  const res = await query<ShopListRow>(
-    `SELECT s.id, s.code, s.name, s.status,
-            -- ⚠ whether a driver could be sent here at all. The address itself is NOT
-            -- selected — a register does not need a street, and a shop's location should not travel
-            -- further than it has to.
-            (s.address_line1 IS NOT NULL) AS has_address,
-            count(ss.id) AS user_count,
-            -- The register shows each shop's label-scanning rate, the same count the shop page reads.
-            (SELECT count(*) FILTER (WHERE ph.handover_method = 'scan')::int
-               FROM public.package_handover ph
-               JOIN public.shop_fulfillment sf ON sf.id = ph.shop_fulfillment_id
-              WHERE sf.shop_id = s.id AND ph.recorded_at >= now() - make_interval(days => $5)) AS scanned,
-            (SELECT count(*) FILTER (WHERE ph.handover_method <> 'scan')::int
-               FROM public.package_handover ph
-               JOIN public.shop_fulfillment sf ON sf.id = ph.shop_fulfillment_id
-              WHERE sf.shop_id = s.id AND ph.recorded_at >= now() - make_interval(days => $5)) AS not_scanned,
-            count(*) OVER() AS total
-       FROM public.shop s
-       LEFT JOIN public.shop_staff ss ON ss.shop_id = s.id
-      WHERE ($1::text IS NULL OR s.status = $1)
-        AND ($2::text IS NULL OR s.code ILIKE '%' || $2 || '%' OR s.name ILIKE '%' || $2 || '%')
-      GROUP BY s.id
-      ORDER BY s.code
-      LIMIT $3 OFFSET $4`,
-    [status, q, pageSize, (page - 1) * pageSize, LABEL_SCAN_DAYS],
-  );
-  const total = res.rows[0] ? Number(res.rows[0].total) : 0;
+export async function listShops(req: ShopListRequest): Promise<{ items: ShopListItem[]; total: number; page: number }> {
+  const result = await runOffsetPage(req, async (read) => {
+    const args: unknown[] = [req.filters.status ?? null, req.q ? likePattern(req.q) : null, LABEL_SCAN_DAYS];
+    const paging = limitOffsetClause(read, args);
+    const res = await query<ShopListRow & { full_count: string }>(
+      `SELECT s.id, s.code, s.name, s.status,
+              -- ⚠ whether a driver could be sent here at all. The address itself is NOT
+              -- selected — a register does not need a street, and a shop's location should not travel
+              -- further than it has to.
+              (s.address_line1 IS NOT NULL) AS has_address,
+              count(ss.id) AS user_count,
+              -- The register shows each shop's label-scanning rate, the same count the shop page reads.
+              (SELECT count(*) FILTER (WHERE ph.handover_method = 'scan')::int
+                 FROM public.package_handover ph
+                 JOIN public.shop_fulfillment sf ON sf.id = ph.shop_fulfillment_id
+                WHERE sf.shop_id = s.id AND ph.recorded_at >= now() - make_interval(days => $3)) AS scanned,
+              (SELECT count(*) FILTER (WHERE ph.handover_method <> 'scan')::int
+                 FROM public.package_handover ph
+                 JOIN public.shop_fulfillment sf ON sf.id = ph.shop_fulfillment_id
+                WHERE sf.shop_id = s.id AND ph.recorded_at >= now() - make_interval(days => $3)) AS not_scanned,
+              count(*) OVER() AS full_count
+         FROM public.shop s
+         LEFT JOIN public.shop_staff ss ON ss.shop_id = s.id
+        WHERE ($1::text IS NULL OR s.status = $1)
+          AND ($2::text IS NULL OR s.code ILIKE $2 OR s.name ILIKE $2)
+        GROUP BY s.id
+        ${orderBy(SHOP_LIST, req)}
+        ${paging}`,
+      args,
+    );
+    return res.rows;
+  });
   return {
-    items: res.rows.map((r) => ({
+    items: result.rows.map((r) => ({
       id: r.id,
       code: r.code,
       name: r.name,
@@ -187,10 +188,21 @@ export async function listShops(params: {
       hasAddress: r.has_address,
       labelScanning: { scanned: Number(r.scanned ?? 0), notScanned: Number(r.not_scanned ?? 0), sinceDays: LABEL_SCAN_DAYS },
     })),
-    total,
-    page,
-    pageSize,
+    total: result.total,
+    page: result.page,
   };
+}
+
+/** The register's view counts (status), for the search (103 FR-017). */
+export async function shopViewCounts(q: string | null): Promise<Record<"all" | ShopLifecycleStatus, number>> {
+  const res = await query<Record<string, number>>(
+    `SELECT count(*)::int AS all,
+            ${SHOP_LIFECYCLE_STATUSES.map((st) => `count(*) FILTER (WHERE s.status = '${st}')::int AS "${st}"`).join(",\n            ")}
+       FROM public.shop s
+      WHERE ($1::text IS NULL OR s.code ILIKE $1 OR s.name ILIKE $1)`,
+    [q ? likePattern(q) : null],
+  );
+  return res.rows[0] as Record<"all" | ShopLifecycleStatus, number>;
 }
 
 async function readShop(shopId: string): Promise<Shop | null> {

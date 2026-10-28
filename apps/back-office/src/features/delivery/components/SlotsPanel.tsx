@@ -1,7 +1,7 @@
 import { useState } from "react"
 
 import { useQuery } from "@tanstack/react-query"
-import type { ColumnDef } from "@tanstack/react-table"
+import type { EffyColumnDef as ColumnDef } from "@effy/web-kit/data-table"
 import { Plus } from "lucide-react"
 
 import { formatDeliveryDay, type DeliverySlotDayDTO, type DeliverySlotDTO } from "@effy/shared-types"

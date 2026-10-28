@@ -2,9 +2,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const query = vi.hoisted(() => vi.fn());
 const withTransaction = vi.hoisted(() => vi.fn());
-vi.mock("@effy/edge-shared", () => ({ query, withTransaction }));
+vi.mock("@effy/edge-shared", async (orig) => ({ ...(await orig<typeof import("@effy/edge-shared")>()), query, withTransaction }));
+
+import { parseListQuery } from "@effy/edge-shared";
 
 import { deleteShop, getShopUserForUpdate, listShops } from "./repository";
+import { SHOP_LIST_SPEC } from "./list";
 import { isShopError } from "./types";
 
 async function kindOf(p: Promise<unknown>): Promise<string> {
@@ -25,11 +28,15 @@ describe("repository reads", () => {
   it("listShops maps rows and reads the window total", async () => {
     query.mockResolvedValue({
       rows: [
-        { id: "1", code: "CMB-01", name: "Colombo 01", status: "active", user_count: "3", total: "1" },
+        { id: "1", code: "CMB-01", name: "Colombo 01", status: "active", user_count: "3", full_count: "1" },
       ],
     });
-    const page = await listShops({ page: 1, pageSize: 20, status: null, q: null });
+    const page = await listShops(parseListQuery({ q: "cmb_", sort: "name", dir: "desc", status: "active" }, SHOP_LIST_SPEC));
     expect(page.total).toBe(1);
+    const [sql, args] = query.mock.calls[0]!;
+    // Whitelisted sort with the id tie-break; the search's wildcard is taken literally.
+    expect(sql).toContain("ORDER BY lower(s.name) DESC, s.id DESC");
+    expect(args).toEqual(["active", "%cmb\\_%", 30, 25, 0]);
     expect(page.items[0]).toEqual({
       id: "1",
       code: "CMB-01",

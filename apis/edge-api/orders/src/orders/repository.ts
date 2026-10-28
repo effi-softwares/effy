@@ -1,7 +1,18 @@
 import { COURIER_COLLECTION_SQL } from "@effy/edge-shared/delivery";
 import type { DeliveryFeeBreakdownDTO, HandoverPreference, OrderAwaiting } from "@effy/shared-types";
 
-import { query } from "@effy/edge-shared";
+import {
+  cappedCountSql,
+  dayRangeCondition,
+  keysetColumns,
+  keysetCondition,
+  likePattern,
+  orderBy,
+  pageClause,
+  query,
+} from "@effy/edge-shared";
+
+import { ORDER_LIST, type OrderListRequest, type OrderListView } from "./list";
 
 import { DELIVERY_DUE_SQL } from "./assignments";
 
@@ -38,7 +49,7 @@ export interface OrderSummaryRow {
   order_number: string;
   status: string;
   placed_at: Date | null;
-  /** The pagination key, the same not null column the query orders and filters on. */
+  /** When the order row was written; the list orders and filters on it (placed_at is null before payment). */
   created_at: Date;
   customer_email: string;
   item_count: number;
@@ -56,28 +67,27 @@ export interface OrderSummaryRow {
   delivery_promise?: "window" | "day" | "asap" | null;
 }
 
+/** The filters the list and its view counts share (everything but the view and the paging). */
 export interface ListParams {
   q?: string;
   status?: string;
-  awaiting?: OrderAwaiting;
-  /** Only orders with a package waiting for a driver nobody has. */
-  needsDriver?: boolean;
   deliveryType?: "effy" | "courier";
   promise?: "window" | "day" | "asap";
-  cursor?: string;
-  limit: number;
+  shopId?: string;
+  placedFrom?: string;
+  placedTo?: string;
 }
 
 /**
  * `awaiting` is derived from the absence of handoff or arrival rows, never stored. Keyset paging, so
  * orders arriving while paging cause no repeats. The non-view filters are shared with `viewCounts`.
  */
-function baseWhere(params: Omit<ListParams, "limit" | "cursor" | "awaiting" | "needsDriver">): { where: string[]; args: unknown[] } {
+function baseWhere(params: ListParams): { where: string[]; args: unknown[] } {
   const where: string[] = ["o.status <> 'pending_payment'"];
   const args: unknown[] = [];
 
   if (params.q) {
-    args.push(`%${params.q}%`);
+    args.push(likePattern(params.q));
     const like = args.length;
     // Or a package's label code exactly, upper-cased like its alphabet.
     args.push(params.q.trim().toUpperCase());
@@ -99,6 +109,13 @@ function baseWhere(params: Omit<ListParams, "limit" | "cursor" | "awaiting" | "n
     args.push(params.promise);
     where.push(`o.delivery_type = 'effy' AND COALESCE(o.delivery_promise, 'window') = $${args.length}`);
   }
+  if (params.shopId) {
+    // An order is in a shop's list when one of its packages is that shop's.
+    args.push(params.shopId);
+    where.push(`EXISTS (SELECT 1 FROM public.shop_fulfillment ps WHERE ps.order_id = o.id AND ps.shop_id = $${args.length}::uuid)`);
+  }
+  const placed = dayRangeCondition("o.created_at", { from: params.placedFrom, to: params.placedTo }, args);
+  if (placed) where.push(placed);
   return { where, args };
 }
 
@@ -154,7 +171,7 @@ export interface ViewCountsRow {
   courier_problem: string;
 }
 
-export async function viewCounts(params: Omit<ListParams, "limit" | "cursor" | "awaiting" | "needsDriver">): Promise<ViewCountsRow> {
+export async function viewCounts(params: ListParams): Promise<ViewCountsRow> {
   const { where, args } = baseWhere(params);
   const res = await query<ViewCountsRow>(
     `SELECT count(*)::text AS total,
@@ -171,19 +188,52 @@ export async function viewCounts(params: Omit<ListParams, "limit" | "cursor" | "
   return res.rows[0]!;
 }
 
-export async function list(params: ListParams): Promise<OrderSummaryRow[]> {
-  const { where, args } = baseWhere(params);
-
-  if (params.cursor) {
-    args.push(params.cursor);
-    where.push(`o.created_at < $${args.length}::timestamptz`);
+/** What a view adds to the shared filters. */
+function viewWhere(view: OrderListView | undefined): string | null {
+  switch (view) {
+    case "driver":
+      return NEEDS_DRIVER_SQL;
+    case "handover":
+      return AWAITING_SQL.handover;
+    case "arrival":
+      return AWAITING_SQL.arrival;
+    case "refund":
+      return AWAITING_SQL.refund_decision;
+    case "courier":
+      return AWAITING_SQL.courier_problem;
+    default:
+      return null;
   }
-  if (params.needsDriver) where.push(NEEDS_DRIVER_SQL);
-  if (params.awaiting) where.push(AWAITING_SQL[params.awaiting]);
+}
 
-  args.push(params.limit);
+/** The shared filters of a list request (the view and paging are the list's own). */
+export function baseOf(req: OrderListRequest): ListParams {
+  const f = req.filters;
+  return { q: req.q ?? undefined, status: f.status, deliveryType: f.deliveryType, promise: f.promise, shopId: f.shopId, placedFrom: f.placedFrom, placedTo: f.placedTo };
+}
 
-  const res = await query<OrderSummaryRow>(
+/** How many orders the list holds under its filters and view, counted to the cap ("10,000+"). */
+export async function countList(req: OrderListRequest): Promise<number> {
+  const { where, args } = baseWhere(baseOf(req));
+  const v = viewWhere(req.filters.view);
+  if (v) where.push(v);
+  const res = await query<{ n: number }>(
+    cappedCountSql(`SELECT 1 FROM public."order" o JOIN public.customer c ON c.id = o.customer_id WHERE ${where.join(" AND ")}`),
+    args,
+  );
+  return res.rows[0]?.n ?? 0;
+}
+
+/** One page, newest first (or by total), `pageSize + 1` rows so the caller knows whether there is a next. */
+export async function list(req: OrderListRequest): Promise<(OrderSummaryRow & { list_sort_key: string; list_row_id: string })[]> {
+  const { where, args } = baseWhere(baseOf(req));
+  const v = viewWhere(req.filters.view);
+  if (v) where.push(v);
+  const after = keysetCondition(ORDER_LIST, req, args);
+  if (after) where.push(after);
+  const paging = pageClause(req, args);
+
+  const res = await query<OrderSummaryRow & { list_sort_key: string; list_row_id: string }>(
     `SELECT o.id,
             o.order_number,
             o.status,
@@ -194,6 +244,7 @@ export async function list(params: ListParams): Promise<OrderSummaryRow[]> {
             o.currency,
             o.delivery_type,
             o.delivery_promise,
+            ${keysetColumns(ORDER_LIST, req)},
             COALESCE((SELECT SUM(oi.quantity)::int FROM public.order_item oi WHERE oi.order_id = o.id), 0) AS item_count,
             COALESCE(p.package_count, 0)     AS package_count,
             COALESCE(p.awaiting_handover, 0) AS awaiting_handover,
@@ -222,8 +273,8 @@ export async function list(params: ListParams): Promise<OrderSummaryRow[]> {
              WHERE sf.order_id = o.id
             ) p ON TRUE
       WHERE ${where.join("\n        AND ")}
-   ORDER BY o.created_at DESC
-      LIMIT $${args.length}`,
+   ${orderBy(ORDER_LIST, req)}
+      ${paging}`,
     args,
   );
   return res.rows;

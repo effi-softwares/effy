@@ -18,6 +18,11 @@ vi.mock("@effy/edge-shared", async () => {
 vi.mock("@effy/edge-shared/live", () => ({ announceOrder: async (id: string) => void holder.announced.push(id) }));
 
 import { migrationSql } from "@effy/edge-shared/testing";
+import { parseListQuery } from "@effy/edge-shared";
+import { ORDER_LIST_SPEC } from "../orders/list";
+
+/** A list request as the route parses it (103). */
+const req = (qs: Record<string, string | undefined>) => parseListQuery({ pageSize: "100", ...qs }, ORDER_LIST_SPEC);
 
 import { packages } from "../orders/repository";
 import { getOrder, listCourierParcels, listOrders, toPackage } from "../orders/service";
@@ -147,8 +152,8 @@ d("080 — courier work in back-office", () => {
   it("⚠ 080 P6 — a courier problem reaches the order list (badge and filter agree) until it is resolved", async () => {
     const o = await courierOrder("hub");
     await recordHandoff({ fulfillmentId: o.pkg, actorSub: STAFF, changeId: "c6" });
-    const awaitingOf = async () => (await listOrders({ limit: 50 })).items.find((x) => x.id === o.order)?.awaiting;
-    const filtered = async () => (await listOrders({ limit: 50, awaiting: "courier_problem" })).items.map((x) => x.id);
+    const awaitingOf = async () => (await listOrders(req({}))).items.find((x) => x.id === o.order)?.awaiting;
+    const filtered = async () => (await listOrders(req({ view: "courier" }))).items.map((x) => x.id);
 
     expect(await filtered()).toEqual([]);
     await recordStep(o.pkg, { kind: "lost", note: "Courier cannot find it" }, STAFF);

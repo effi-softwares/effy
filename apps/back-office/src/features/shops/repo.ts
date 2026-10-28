@@ -1,4 +1,6 @@
 import type {
+  ListPage,
+  ListViews,
   AuditEntryDTO,
   ChangeShopStatusRequest,
   CreateShopRequest,
@@ -14,6 +16,7 @@ import type {
 import { api } from "@/lib/api"
 
 import type { AuditEntry, Paged, ShopDetail, ShopListItem, ShopListParams, ShopUser } from "./model"
+import type { ShopView } from "./list"
 
 function encodeListQuery({ page, pageSize, status, q }: ShopListParams): string {
   const params = new URLSearchParams()
@@ -30,6 +33,16 @@ export async function setPackScanning(id: string, required: boolean): Promise<{ 
 
 export async function listShops(params: ShopListParams): Promise<Paged<ShopListItem>> {
   return api.get<PagedDTO<ShopListItemDTO>>(`/admin/v1/shops?${encodeListQuery(params)}`)
+}
+
+/** The register as a console list (103): one page for the address's view. */
+export function fetchShopPage(qs: URLSearchParams, signal: AbortSignal): Promise<ListPage<ShopListItem>> {
+  return api.get<ListPage<ShopListItemDTO>>(`/admin/v1/shops?${qs}`, { signal })
+}
+
+/** The register's status counts for the search, in one request. */
+export function fetchShopViews(qs: URLSearchParams, signal: AbortSignal): Promise<ListViews<ShopView>> {
+  return api.get<ListViews<ShopView>>(`/admin/v1/shops?${qs}`, { signal })
 }
 
 export async function getShop(id: string): Promise<ShopDetail> {

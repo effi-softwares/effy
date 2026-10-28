@@ -14,6 +14,11 @@ vi.mock("@effy/edge-shared", async (importOriginal) => ({
 }));
 
 import { migrationSql } from "@effy/edge-shared/testing";
+import { parseListQuery } from "@effy/edge-shared";
+import { ORDER_LIST_SPEC } from "./list";
+
+/** A list request as the route parses it (103). */
+const req = (qs: Record<string, string | undefined>) => parseListQuery({ pageSize: "100", ...qs }, ORDER_LIST_SPEC);
 
 import { getOrder, listOrders } from "./service";
 
@@ -101,7 +106,7 @@ describe.skipIf(!RUN)("073 — package status on the order reads (real migration
     await onRound("collection", p, await aDriver("Ada"), "picked_up", "done");
 
     expect(await statusOf(p.orderId)).toEqual({ status: "with_driver", word: "With driver", detail: null, driverName: "Ada" });
-    const { items } = await listOrders({ limit: 10 });
+    const { items } = await listOrders(req({}));
     expect(items.find((i) => i.id === p.orderId)!.statusView!.status).toBe("with_driver");
   });
 
@@ -170,7 +175,7 @@ describe.skipIf(!RUN)("073 — package status on the order reads (real migration
     const pkg = (await getOrder(p.orderId))!.packages[0]!;
     expect(pkg.collect).toMatchObject({ driver: { id: ada, name: "Ada" }, how: "Auto-assigned — fewest packages today (2)", movable: true });
     expect(pkg.deliver).toBeNull();
-    const row = (await listOrders({ limit: 10 })).items.find((i) => i.id === p.orderId)!;
+    const row = (await listOrders(req({}))).items.find((i) => i.id === p.orderId)!;
     expect(row.drivers.collect).toEqual(["Ada"]);
     expect(row.needsDriver).toBe(false);
   });
@@ -193,7 +198,7 @@ describe.skipIf(!RUN)("073 — package status on the order reads (real migration
     const pkg = (await getOrder(waiting.orderId))!.packages[0]!;
     expect(pkg.collect).toMatchObject({ assignmentId: null, unassignedReason: "No driver is on duty", movable: true });
 
-    const filtered = (await listOrders({ limit: 10, needsDriver: true })).items.map((i) => i.id);
+    const filtered = (await listOrders(req({ view: "driver" }))).items.map((i) => i.id);
     expect(filtered).toEqual([waiting.orderId]);
   });
 
@@ -206,7 +211,7 @@ describe.skipIf(!RUN)("073 — package status on the order reads (real migration
     const pkg = (await getOrder(p.orderId))!.packages[0]!;
     expect(pkg.collect).toMatchObject({ movable: false, driver: { name: "Ada" } });
     expect(pkg.deliver).toMatchObject({ assignmentId: null, unassignedReason: "Waiting for auto-assign (every 5 minutes)" });
-    expect((await listOrders({ limit: 10, needsDriver: true })).items.map((i) => i.id)).toEqual([p.orderId]);
+    expect((await listOrders(req({ view: "driver" }))).items.map((i) => i.id)).toEqual([p.orderId]);
   });
   /** "Needs a driver" lists an Effy parcel once its round opens; one waiting for a later day is not listed. */
   it("082 P8 — a later-day window at the hub needs a driver only once its round has opened", async () => {
@@ -235,7 +240,7 @@ describe.skipIf(!RUN)("073 — package status on the order reads (real migration
 
     expect((await getOrder(due.orderId))!.packages[0]!.deliver).toMatchObject({ assignmentId: null, movable: true });
     expect((await getOrder(waiting.orderId))!.packages[0]!.deliver).toBeNull();
-    const listed = (await listOrders({ limit: 50, needsDriver: true })).items.map((i) => i.id);
+    const listed = (await listOrders(req({ view: "driver" }))).items.map((i) => i.id);
     expect(listed).toContain(due.orderId);
     expect(listed).not.toContain(waiting.orderId);
   });

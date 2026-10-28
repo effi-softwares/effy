@@ -1,4 +1,8 @@
+import { offsetListPage } from "@effy/edge-shared";
+import type { ListPage } from "@effy/shared-types";
+
 import * as cognito from "./cognito";
+import type { ShopListRequest } from "./list";
 import * as repo from "./repository";
 import {
   type AuditEntry,
@@ -28,21 +32,12 @@ function optionalText(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
 }
 
-export async function listShops(params: {
-  page?: number;
-  pageSize?: number;
-  status?: string;
-  q?: string;
-}): Promise<Paged<ShopListItem>> {
-  const page = params.page && params.page > 0 ? Math.floor(params.page) : 1;
-  const pageSize = params.pageSize && params.pageSize > 0 ? Math.min(Math.floor(params.pageSize), 100) : 20;
-  const status =
-    params.status && (SHOP_LIFECYCLE_STATUSES as readonly string[]).includes(params.status)
-      ? (params.status as ShopLifecycleStatus)
-      : null;
-  const q = params.q && params.q.trim().length > 0 ? params.q.trim() : null;
-  return repo.listShops({ page, pageSize, status, q });
+export async function listShops(req: ShopListRequest): Promise<ListPage<ShopListItem>> {
+  const r = await repo.listShops(req);
+  return offsetListPage(r.items, req, r);
 }
+
+export const shopViewCounts = (req: ShopListRequest) => repo.shopViewCounts(req.q);
 
 export async function getShop(shopId: string): Promise<ShopDetail> {
   const detail = await repo.getShopDetail(shopId);

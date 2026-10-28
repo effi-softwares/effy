@@ -37,6 +37,12 @@
     opacity: 0.35;
   }
 }
+@keyframes ef-dt-progress {
+  0% { opacity: 0.25; }
+  50% { opacity: 1; }
+  100% { opacity: 0.25; }
+}
+
 @keyframes effy-spin {
   to {
     transform: rotate(360deg);
@@ -189,6 +195,27 @@ html * { @apply overscroll-x-none; }
     .ef-rtable td[data-m="check"] { @apply hidden; }
     .ef-rtable td[data-m="full"] { @apply col-span-full pt-2!; }
   }
+
+  /* Console lists (103, @effy/web-kit/data-table). From md up a list page holds the main area to the window and
+     its frame takes what is left: column names stick, rows scroll inside, the pager sits on the bottom edge. */
+  @media (min-width: 768px) {
+    .ef-main:has(> .ef-listpage) { @apply h-[calc(100svh-var(--header-h))] pb-(--pad); }
+    .ef-listpage { @apply min-h-0 flex-1; }
+    .ef-listpage > .ef-dt { @apply min-h-0 flex-1; }
+    .ef-dt-frame { @apply min-h-80 flex-1; }
+    .ef-dt-scroll { @apply min-h-0 flex-1 overflow-auto; }
+    .ef-dt-head { @apply sticky top-0 z-10 bg-card shadow-[inset_0_-1px_0_var(--border)]; }
+  }
+  .ef-listpage { @apply flex flex-col gap-6 max-md:gap-4; }
+  .ef-dt { @apply flex flex-col gap-3; }
+  .ef-dt-frame { @apply relative flex flex-col overflow-hidden rounded-lg border bg-card; }
+  .ef-dt-scroll { @apply flex flex-col; }
+  .ef-dt-scroll > table { @apply flex-none; }
+  .ef-dt-state { @apply flex flex-1 items-center justify-center px-4 py-10; }
+  .ef-dt-stale > table { @apply opacity-70 transition-opacity; }
+  .ef-dt-progress { @apply pointer-events-none absolute inset-x-0 top-0 z-20 h-0.5 bg-primary-fill; animation: ef-dt-progress 1.2s ease-in-out infinite; }
+  .ef-dt-link { @apply font-medium text-foreground no-underline hover:underline; }
+  .ef-dt tr[data-focused] { @apply bg-(--row-hover) shadow-[inset_2px_0_0_var(--primary-fill)]; }
 
   .ef-dl { @apply flex flex-col; }
   .ef-dl__row { @apply grid grid-cols-[160px_minmax(0,1fr)] gap-x-4 gap-y-1 border-b border-b-border px-0 py-2.5 text-sm leading-5; }

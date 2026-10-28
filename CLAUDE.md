@@ -705,5 +705,5 @@ Features recorded:
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/102-backoffice-product-catalogue/plan.md
+at specs/103-console-data-tables/plan.md
 <!-- SPECKIT END -->

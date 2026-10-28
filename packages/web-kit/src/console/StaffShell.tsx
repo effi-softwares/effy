@@ -101,7 +101,7 @@ export function StaffShell({
             account={userMenu}
             detail={headerDetail}
           />
-          <main className="flex w-full min-w-0 flex-col gap-6 px-(--pad) pt-(--pad) pb-10 max-md:gap-4 max-md:pb-8">{children}</main>
+          <main className="ef-main flex w-full min-w-0 flex-col gap-6 px-(--pad) pt-(--pad) pb-10 max-md:gap-4 max-md:pb-8">{children}</main>
         </HeaderDetailProvider>
       </SidebarInset>
       {overlays}

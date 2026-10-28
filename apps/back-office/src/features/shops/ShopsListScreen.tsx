@@ -1,135 +1,141 @@
-import { useMemo, useState } from "react"
+import { useState } from "react"
 
 import { useQuery } from "@tanstack/react-query"
-import { Link } from "@tanstack/react-router"
+import { useSearch } from "@tanstack/react-router"
 import { Plus, Store } from "lucide-react"
 
-import type { ShopLifecycleStatus } from "@effy/shared-types"
-import { Button, Skeleton, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@effy/design-system/ui"
-import { ErrorState } from "@effy/web-kit/console"
-
-import { EmptyState, PageHeader, Pager, SearchBox, Toolbar, ViewSelect } from "@effy/web-kit/patterns"
+import { Button } from "@effy/design-system/ui"
+import {
+  DataTable,
+  ListPage,
+  listQueryOptions,
+  SearchBox,
+  useListState,
+  viewsQueryOptions,
+  ViewSelect,
+  type EffyColumnDef,
+} from "@effy/web-kit/data-table"
+import { PageHeader } from "@effy/web-kit/patterns"
 import { sessionQuery } from "@/features/auth/queries"
 
 import { canManageShops } from "./access"
 import { CreateShopDialog } from "./components/CreateShopDialog"
 import { ShopStatusBadge } from "./components/StatusBadge"
+import { SHOP_STATUSES, SHOPS_LIST_KEY, shopsList, type ShopView } from "./list"
 import type { ShopListItem } from "./model"
-import { shopListQuery } from "./queries"
+import { fetchShopPage, fetchShopViews } from "./repo"
 
-const PAGE_SIZE = 20
+const VIEW_LABEL: Record<ShopView, string> = {
+  all: "All shops",
+  active: "Active",
+  suspended: "Suspended",
+  disabled: "Disabled",
+}
 
-type View = "all" | ShopLifecycleStatus
-const VIEWS: readonly { key: View; label: string }[] = [
-  { key: "all", label: "All" },
-  { key: "active", label: "Active" },
-  { key: "suspended", label: "Suspended" },
-  { key: "disabled", label: "Disabled" },
+const columns: EffyColumnDef<ShopListItem>[] = [
+  {
+    id: "code",
+    header: "Code",
+    cell: ({ row }) => row.original.code,
+    meta: { label: "Code", identifying: true, phone: "primary", align: "mono", sortKey: "code" },
+  },
+  {
+    id: "name",
+    header: "Name",
+    cell: ({ row }) => row.original.name,
+    meta: { label: "Name", phone: "meta", sortKey: "name" },
+  },
+  {
+    id: "address",
+    header: "Address",
+    cell: ({ row }) =>
+      row.original.hasAddress ? (
+        <span className="text-muted-foreground">Recorded</span>
+      ) : (
+        <span className="font-medium">Not recorded</span>
+      ),
+    meta: { label: "Address", priority: 2 },
+  },
+  {
+    id: "status",
+    header: "Status",
+    cell: ({ row }) => <ShopStatusBadge status={row.original.status} />,
+    meta: { label: "Status", phone: "badge" },
+  },
+  {
+    id: "users",
+    header: "Users",
+    cell: ({ row }) => row.original.userCount,
+    meta: { label: "Users", align: "numeric", priority: 2 },
+  },
+  {
+    id: "scanning",
+    header: "Label scanning",
+    cell: ({ row }) => <ScanRate scanning={row.original.labelScanning} />,
+    meta: { label: "Label scanning", priority: 3, phone: "hide" },
+  },
 ]
 
 export function ShopsListScreen() {
   const { data: session } = useQuery(sessionQuery)
   const roles = session?.status === "signed-in" ? session.identity.roles : []
   const canManage = canManageShops(roles)
-
-  const [page, setPage] = useState(1)
-  const [view, setView] = useState<View>("all")
-  const [search, setSearch] = useState("")
   const [createOpen, setCreateOpen] = useState(false)
 
-  const params = useMemo(
-    () => ({ page, pageSize: PAGE_SIZE, status: view === "all" ? undefined : view, q: search.trim() || undefined }),
-    [page, view, search],
+  const state = useListState(shopsList, useSearch({ strict: false }))
+  const input = { key: SHOPS_LIST_KEY, list: shopsList, view: state.view, fetch: fetchShopPage }
+  const query = useQuery(listQueryOptions(input))
+  const views = useQuery(
+    viewsQueryOptions({ key: SHOPS_LIST_KEY, list: shopsList, view: state.view, except: ["status"], fetch: fetchShopViews }),
   )
-  const { data, error, isPending, isError, refetch } = useQuery(shopListQuery(params))
-  const totalPages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1
+  const view: ShopView = state.view.filters.status ?? "all"
 
   return (
-    <>
-      <PageHeader
-        title="Shops"
-        description="The fulfilment shops that pack Effy orders, and the operators who run them."
-        actions={
-          canManage ? (
-            <Button onClick={() => setCreateOpen(true)}>
-              <Plus aria-hidden="true" />
-              Create shop
-            </Button>
-          ) : undefined
+    <ListPage
+      header={
+        <PageHeader
+          title="Shops"
+          description="The fulfilment shops that pack Effy orders, and the operators who run them."
+          actions={
+            canManage ? (
+              <Button onClick={() => setCreateOpen(true)}>
+                <Plus aria-hidden="true" />
+                Create shop
+              </Button>
+            ) : undefined
+          }
+        />
+      }
+    >
+      <DataTable
+        app="back-office"
+        label="Shops"
+        list={shopsList}
+        state={state}
+        columns={columns}
+        query={query}
+        queryInput={input}
+        viewFilters={["status"]}
+        rowHref={(s) => ({ to: "/shops/$shopId", params: { shopId: s.id } })}
+        empty={{ icon: Store, title: "No shops yet", description: "Create the first shop to give its operators a sign-in." }}
+        toolbar={
+          <>
+            <ViewSelect
+              label="Shop views"
+              value={view}
+              onChange={(v) => state.setFilter("status", v === "all" ? undefined : v)}
+              options={(["all", ...SHOP_STATUSES] as const).map((v) => ({
+                value: v,
+                label: VIEW_LABEL[v],
+                count: views.data?.views[v],
+              }))}
+            />
+            <SearchBox label="Search shops" placeholder="Search by code or name…" value={state.draftQ} onChange={state.setQ} />
+          </>
         }
       />
-      <Toolbar>
-        <ViewSelect
-          label="Shop views"
-          value={view}
-          onChange={(v) => {
-            setView(v)
-            setPage(1)
-          }}
-          options={VIEWS.map((v) => ({
-            value: v.key,
-            label: v.label,
-            count: v.key === view ? data?.total : undefined,
-          }))}
-        />
-        <SearchBox
-          label="Search shops"
-          placeholder="Search by code or name…"
-          value={search}
-          onChange={(v) => {
-            setSearch(v)
-            setPage(1)
-          }}
-        />
-      </Toolbar>
-
-      {isError ? (
-        <ErrorState error={error} onRetry={() => void refetch()} />
-      ) : isPending ? (
-        <div className="overflow-hidden rounded-xl border bg-card p-4" aria-busy="true">
-          <Skeleton className="mb-3 h-10" />
-          <Skeleton className="mb-3 h-10" />
-          <Skeleton className="h-10" />
-        </div>
-      ) : data.items.length === 0 ? (
-        <EmptyState
-          icon={Store}
-          title={search || view !== "all" ? "No shops match your filter." : "No shops yet."}
-          description={search || view !== "all" ? undefined : "Create the first shop to give its operators a sign-in."}
-        />
-      ) : (
-        <div className="overflow-hidden rounded-xl border bg-card">
-          <div className="min-w-0">
-            <Table className="ef-rtable">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Code</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Address</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Users</TableHead>
-                  <TableHead>Label scanning</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data.items.map((s) => (
-                  <ShopRow key={s.id} shop={s} />
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-          <Pager
-            summary={`${data.total} shop${data.total === 1 ? "" : "s"} · page ${data.page} of ${totalPages}`}
-            canBack={page > 1}
-            canNext={page < totalPages}
-            onBack={() => setPage((p) => Math.max(1, p - 1))}
-            onNext={() => setPage((p) => p + 1)}
-          />
-        </div>
-      )}
-
       {canManage ? <CreateShopDialog open={createOpen} onOpenChange={setCreateOpen} /> : null}
-    </>
+    </ListPage>
   )
 }
 
@@ -137,9 +143,7 @@ function ScanRate({ scanning }: { scanning?: { scanned: number; notScanned: numb
   if (!scanning) return <span className="text-muted-foreground">—</span>
   const total = scanning.scanned + scanning.notScanned
   if (total === 0) {
-    return (
-      <span className="mt-0.5 block text-sm text-muted-foreground">No scanning yet · {scanning.sinceDays} days</span>
-    )
+    return <span className="text-sm text-muted-foreground">No scanning yet · {scanning.sinceDays} days</span>
   }
   const pct = Math.round((scanning.scanned / total) * 100)
   return (
@@ -156,34 +160,5 @@ function ScanRate({ scanning }: { scanning?: { scanned: number; notScanned: numb
         <i className={`block h-full ${pct < 70 ? "bg-foreground" : "bg-primary-fill"}`} style={{ width: `${pct}%` }} />
       </div>
     </div>
-  )
-}
-
-function ShopRow({ shop: s }: { shop: ShopListItem }) {
-  return (
-    <TableRow>
-      <TableCell data-m="primary">
-        <Link to="/shops/$shopId" params={{ shopId: s.id }} className="link font-mono">
-          {s.code}
-        </Link>
-      </TableCell>
-      <TableCell data-m="meta">{s.name}</TableCell>
-      <TableCell data-m="meta" data-label="Address">
-        {s.hasAddress ? (
-          <span className="text-muted-foreground">Recorded</span>
-        ) : (
-          <span className="font-medium">Not recorded</span>
-        )}
-      </TableCell>
-      <TableCell data-m="badge">
-        <ShopStatusBadge status={s.status} />
-      </TableCell>
-      <TableCell data-m="meta" data-label="Users" className="text-right tabular-nums">
-        {s.userCount}
-      </TableCell>
-      <TableCell data-m="trail">
-        <ScanRate scanning={s.labelScanning} />
-      </TableCell>
-    </TableRow>
   )
 }

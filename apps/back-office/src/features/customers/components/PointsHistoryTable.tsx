@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router"
-import type { ColumnDef } from "@tanstack/react-table"
+import type { EffyColumnDef as ColumnDef } from "@effy/web-kit/data-table"
 
 import { POINTS_REASON_LABELS, type StaffPointsHistoryEntryDTO } from "@effy/shared-types"
 import { Button } from "@effy/design-system/ui"

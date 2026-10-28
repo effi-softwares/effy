@@ -25,25 +25,13 @@ import { api } from "@/lib/api"
 
 import type { OrderListParams } from "./model"
 
-function encodeListQuery({
-  q,
-  status,
-  awaiting,
-  needsDriver,
-  deliveryType,
-  promise,
-  cursor,
-  limit,
-}: OrderListParams): string {
+/** For the quick reads outside the list (the command palette's search, the overview's counts). */
+function encodeListQuery({ q, status, deliveryType, promise }: OrderListParams): string {
   const params = new URLSearchParams()
-  if (needsDriver) params.set("needsDriver", "true")
   if (q && q.trim()) params.set("q", q.trim())
   if (status) params.set("status", status)
-  if (awaiting) params.set("awaiting", awaiting)
   if (deliveryType) params.set("deliveryType", deliveryType)
   if (promise) params.set("promise", promise)
-  if (cursor) params.set("cursor", cursor)
-  if (limit) params.set("limit", String(limit))
   return params.toString()
 }
 
@@ -56,6 +44,16 @@ export async function getOrderViewCounts(params: OrderListParams): Promise<Admin
 export async function listOrders(params: OrderListParams): Promise<AdminOrderListResponse> {
   const qs = encodeListQuery(params)
   return api.get<AdminOrderListResponse>(`/orders/v1/orders${qs ? `?${qs}` : ""}`)
+}
+
+/** One page of the Orders list for the address's view (103). */
+export function fetchOrderPage(qs: URLSearchParams, signal: AbortSignal): Promise<AdminOrderListResponse> {
+  return api.get<AdminOrderListResponse>(`/orders/v1/orders?${qs}`, { signal })
+}
+
+/** Every view's count under the list's other filters, in one request. */
+export function fetchOrderViews(qs: URLSearchParams, signal: AbortSignal): Promise<{ views: AdminOrderViewCountsDTO }> {
+  return api.get<{ views: AdminOrderViewCountsDTO }>(`/orders/v1/orders?${qs}`, { signal })
 }
 
 export async function getOrdersToday(): Promise<AdminOrdersTodayDTO> {

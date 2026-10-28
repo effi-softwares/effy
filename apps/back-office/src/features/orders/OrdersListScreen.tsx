@@ -1,59 +1,44 @@
-import { useEffect, useMemo, useState } from "react"
-
 import { useQuery } from "@tanstack/react-query"
-import { Link, useNavigate, useSearch } from "@tanstack/react-router"
-import { useHotkey } from "@tanstack/react-hotkeys"
-import { Route, SearchX, Truck, UserX } from "lucide-react"
+import { Link, useSearch } from "@tanstack/react-router"
+import { Package, Route, Truck, UserX } from "lucide-react"
 
-import { cn } from "@effy/design-system"
+import { Badge, Button } from "@effy/design-system/ui"
 import {
-  Badge,
-  Button,
-  Skeleton,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@effy/design-system/ui"
-import { ADMIN_ORDER_DELIVERY_FILTERS, ADMIN_ORDER_PROMISE_FILTERS, type DeliveryPromise } from "@effy/shared-types"
-import { ErrorState, PackageStatusPill } from "@effy/web-kit/console"
-
+  ADMIN_ORDER_DELIVERY_FILTERS,
+  ADMIN_ORDER_PROMISE_FILTERS,
+  type AdminOrderViewCountsDTO,
+} from "@effy/shared-types"
+import { PackageStatusPill } from "@effy/web-kit/console"
 import {
-  EmptyState,
+  DataTable,
+  DateRangeFacet,
   Facet,
-  Kbd,
-  PageHeader,
-  Pager,
+  ListPage,
+  listQueryOptions,
   ResetFilters,
   SearchBox,
-  Toolbar,
-  ToolbarSpacer,
+  useListState,
+  viewsQueryOptions,
   ViewSelect,
-} from "@effy/web-kit/patterns"
+  isFiltered,
+  type EffyColumnDef,
+} from "@effy/web-kit/data-table"
+import { Kbd, PageHeader } from "@effy/web-kit/patterns"
 import { moment, money } from "@/lib/format"
+import { shopListQuery } from "@/features/shops/queries"
 
 import {
-  AWAITING_LABEL,
-  DELIVERY_FILTER_LABEL,
-  deliveryTypeText,
-  PROMISE_LABEL,
-  STAGE_LABEL,
-  type OrderListParams,
-  type OrderSummary,
-} from "./model"
-import { orderViewCountsQuery, ordersListQuery } from "./queries"
+  ORDER_LIST_STATUSES,
+  ORDER_LIST_VIEWS,
+  ORDER_STATUS_LABEL,
+  ORDERS_LIST_KEY,
+  ordersList,
+  type OrderListView,
+} from "./list"
+import { AWAITING_LABEL, DELIVERY_FILTER_LABEL, deliveryTypeText, PROMISE_LABEL, STAGE_LABEL, type OrderSummary } from "./model"
+import { fetchOrderPage, fetchOrderViews } from "./repo"
 
-export const ORDER_VIEWS = ["all", "driver", "handover", "arrival", "refund", "courier"] as const
-export type OrderView = (typeof ORDER_VIEWS)[number]
-export interface OrdersSearch {
-  view?: OrderView
-  delivery?: "effy" | "courier"
-  sold?: DeliveryPromise
-}
-
-const VIEW_LABEL: Record<OrderView, string> = {
+const VIEW_LABEL: Record<OrderListView, string> = {
   all: "All orders",
   driver: "Needs a driver",
   handover: AWAITING_LABEL.handover,
@@ -62,273 +47,190 @@ const VIEW_LABEL: Record<OrderView, string> = {
   courier: AWAITING_LABEL.courier_problem,
 }
 
-function viewParams(view: OrderView): Pick<OrderListParams, "awaiting" | "needsDriver"> {
-  switch (view) {
-    case "driver":
-      return { needsDriver: true }
-    case "handover":
-      return { awaiting: "handover" }
-    case "arrival":
-      return { awaiting: "arrival" }
-    case "refund":
-      return { awaiting: "refund_decision" }
-    case "courier":
-      return { awaiting: "courier_problem" }
-    default:
-      return {}
-  }
+/** Which count answers which view. */
+const VIEW_COUNT: Record<OrderListView, keyof AdminOrderViewCountsDTO> = {
+  all: "all",
+  driver: "needsDriver",
+  handover: "handover",
+  arrival: "arrival",
+  refund: "refundDecision",
+  courier: "courierProblem",
 }
 
-export function OrdersListScreen() {
-  const search = useSearch({ strict: false }) as OrdersSearch
-  const navigate = useNavigate()
-  const view: OrderView = search.view ?? "all"
-  const [q, setQ] = useState("")
-  const [rows, setRows] = useState(25)
-  const [cursors, setCursors] = useState<string[]>([])
-  const [focus, setFocus] = useState(-1)
-
-  const setSearch = (patch: Partial<OrdersSearch>) => {
-    setCursors([])
-    setFocus(-1)
-    void navigate({ to: "/orders", search: (prev: OrdersSearch) => clean({ ...prev, ...patch }) })
-  }
-
-  const base = useMemo<OrderListParams>(
-    () => ({
-      q: q.trim() || undefined,
-      deliveryType: search.sold ? undefined : search.delivery,
-      promise: search.sold,
-    }),
-    [q, search.delivery, search.sold],
-  )
-  const params = useMemo<OrderListParams>(
-    () => ({ ...base, ...viewParams(view), cursor: cursors[cursors.length - 1], limit: rows }),
-    [base, view, cursors, rows],
-  )
-
-  const { data, error, isPending, isError, refetch } = useQuery(ordersListQuery(params))
-  const counts = useQuery(orderViewCountsQuery(base))
-  const items = data?.items ?? []
-
-  useEffect(() => setFocus(-1), [data])
-  useHotkey("J", () => setFocus((i) => Math.min(i + 1, items.length - 1)), { ignoreInputs: true })
-  useHotkey("K", () => setFocus((i) => Math.max(i - 1, 0)), { ignoreInputs: true })
-  useHotkey(
-    "Enter",
-    () => {
-      const o = items[focus]
-      if (o) void navigate({ to: "/orders/$orderId", params: { orderId: o.id } })
+const columns: EffyColumnDef<OrderSummary>[] = [
+  {
+    id: "order",
+    header: "Order",
+    cell: ({ row }) => (
+      <>
+        {row.original.orderNumber}
+        <span className="mt-0.5 block font-sans text-sm font-normal text-muted-foreground">
+          {row.original.itemCount} {row.original.itemCount === 1 ? "item" : "items"}
+        </span>
+      </>
+    ),
+    meta: { label: "Order", identifying: true, phone: "primary", align: "mono" },
+  },
+  {
+    id: "placed",
+    header: "Placed",
+    cell: ({ row }) => <span className="text-muted-foreground">{moment(row.original.placedAt)}</span>,
+    meta: { label: "Placed", sortKey: "placed", phone: "meta" },
+  },
+  {
+    id: "customer",
+    header: "Customer",
+    cell: ({ row }) => <span className="block max-w-[28ch] truncate" title={row.original.customerEmail}>{row.original.customerEmail}</span>,
+    meta: { label: "Customer", priority: 2, phone: "meta" },
+  },
+  {
+    id: "delivery",
+    header: "Delivery",
+    cell: ({ row }) => {
+      const o = row.original
+      return (
+        <>
+          <span>{deliveryTypeText(o.deliveryType)}</span>
+          {o.promise && o.promise !== "window" ? (
+            <span className="mt-0.5 block text-sm text-muted-foreground">{PROMISE_LABEL[o.promise]}</span>
+          ) : null}
+        </>
+      )
     },
-    { ignoreInputs: true, enabled: focus >= 0 },
-  )
+    meta: { label: "Delivery", phone: "meta" },
+  },
+  {
+    id: "status",
+    header: "Status",
+    cell: ({ row }) => (row.original.statusView ? <PackageStatusPill view={row.original.statusView} showDetail={false} icons /> : "—"),
+    meta: { label: "Status", phone: "badge" },
+  },
+  {
+    id: "driver",
+    header: "Driver",
+    cell: ({ row }) => <DriverCell order={row.original} />,
+    meta: { label: "Driver", priority: 2, phone: "meta" },
+  },
+  {
+    id: "next",
+    header: "Next step",
+    cell: ({ row }) => {
+      const o = row.original
+      return (
+        <>
+          {o.awaiting ? <span className="font-medium">{AWAITING_LABEL[o.awaiting]}</span> : <span className="text-muted-foreground">Complete</span>}
+          <span className="mt-0.5 block text-sm text-muted-foreground">Customer sees: {STAGE_LABEL[o.stage] ?? o.stage}</span>
+        </>
+      )
+    },
+    meta: { label: "Next step", priority: 2, phone: "meta" },
+  },
+  {
+    id: "total",
+    header: "Total",
+    cell: ({ row }) => <span className="font-medium">{money(row.original.grandTotalAmount, row.original.currency)}</span>,
+    meta: { label: "Total", align: "numeric", sortKey: "total", phone: "trail" },
+  },
+]
 
-  const c = counts.data
-  const countOf: Record<OrderView, number | undefined> = {
-    all: c?.all,
-    driver: c?.needsDriver,
-    handover: c?.handover,
-    arrival: c?.arrival,
-    refund: c?.refundDecision,
-    courier: c?.courierProblem,
-  }
-  const filtered = Boolean(q || search.delivery || search.sold)
+export function OrdersListScreen() {
+  const state = useListState(ordersList, useSearch({ strict: false }))
+  const f = state.view.filters
+  const input = { key: ORDERS_LIST_KEY, list: ordersList, view: state.view, cursor: state.cursor, fetch: fetchOrderPage }
+  const query = useQuery(listQueryOptions(input))
+  const counts = useQuery(viewsQueryOptions({ key: ORDERS_LIST_KEY, list: ordersList, view: state.view, except: ["view"], fetch: fetchOrderViews }))
+  const shops = useQuery(shopListQuery({ page: 1, pageSize: 100 }))
+  const view: OrderListView = f.view ?? "all"
 
   return (
-    <>
-      <PageHeader
-        title="Orders"
-        description="Every paid order with its current status, delivery details and who is handling it."
-        actions={
+    <ListPage
+      header={
+        <PageHeader
+          title="Orders"
+          description="Every paid order with its current status, delivery details and who is handling it."
+          actions={
+            <>
+              <Button variant="outline" asChild>
+                <Link to="/orders/assignments">
+                  <Route aria-hidden="true" />
+                  Dispatch
+                </Link>
+              </Button>
+              <Button variant="outline" asChild>
+                <Link to="/orders/handover">
+                  <Truck aria-hidden="true" />
+                  Courier parcels
+                </Link>
+              </Button>
+            </>
+          }
+        />
+      }
+    >
+      <DataTable
+        app="back-office"
+        label="Orders"
+        list={ordersList}
+        state={state}
+        columns={columns}
+        query={query}
+        viewFilters={["view"]}
+        rowHref={(o) => ({ to: "/orders/$orderId", params: { orderId: o.id } })}
+        empty={{ icon: Package, title: "No orders yet", description: "Paid orders appear here as they arrive." }}
+        toolbar={
           <>
-            <Button variant="outline" asChild>
-              <Link to="/orders/assignments">
-                <Route aria-hidden="true" />
-                Dispatch
-              </Link>
-            </Button>
-            <Button variant="outline" asChild>
-              <Link to="/orders/handover">
-                <Truck aria-hidden="true" />
-                Courier parcels
-              </Link>
-            </Button>
+            <ViewSelect
+              label="Order views"
+              value={view}
+              onChange={(v) => state.setFilter("view", v === "all" ? undefined : v)}
+              options={(["all", ...ORDER_LIST_VIEWS] as const).map((v) => ({
+                value: v,
+                label: VIEW_LABEL[v],
+                count: counts.data?.views[VIEW_COUNT[v]],
+                attention: v !== "all",
+              }))}
+            />
+            <Facet
+              label="Status"
+              value={f.status ?? null}
+              onChange={(v) => state.setFilter("status", v ?? undefined)}
+              options={ORDER_LIST_STATUSES.map((s) => ({ value: s, label: ORDER_STATUS_LABEL[s] }))}
+            />
+            <Facet
+              label="Delivery"
+              value={f.deliveryType ?? null}
+              onChange={(v) => state.setFilters({ deliveryType: v ?? undefined, promise: v === "effy" ? f.promise : undefined })}
+              options={ADMIN_ORDER_DELIVERY_FILTERS.map((d) => ({ value: d, label: DELIVERY_FILTER_LABEL[d] }))}
+            />
+            <Facet
+              label="Sold as"
+              value={f.promise ?? null}
+              onChange={(v) => state.setFilters({ promise: v ?? undefined, deliveryType: v ? "effy" : f.deliveryType })}
+              options={ADMIN_ORDER_PROMISE_FILTERS.map((p) => ({ value: p, label: PROMISE_LABEL[p] }))}
+            />
+            <Facet
+              label="Shop"
+              value={f.shopId ?? null}
+              onChange={(v) => state.setFilter("shopId", v ?? undefined)}
+              options={(shops.data?.items ?? []).map((s) => ({ value: s.id, label: `${s.code} · ${s.name}` }))}
+            />
+            <DateRangeFacet
+              label="Placed"
+              from={f.placedFrom}
+              to={f.placedTo}
+              onChange={(r) => state.setFilters({ placedFrom: r.from, placedTo: r.to })}
+            />
+            {isFiltered(state.view, ["view"]) ? <ResetFilters onReset={state.reset} /> : null}
+            <SearchBox label="Search orders" placeholder="Order number, customer email or bag code…" value={state.draftQ} onChange={state.setQ} />
           </>
         }
       />
-
-      <Toolbar>
-        <ViewSelect
-          label="Order views"
-          value={view}
-          onChange={(v) => setSearch({ view: v === "all" ? undefined : v })}
-          options={ORDER_VIEWS.map((v) => ({
-            value: v,
-            label: VIEW_LABEL[v],
-            count: countOf[v],
-            attention: v !== "all",
-          }))}
-        />
-        <SearchBox
-          label="Search orders"
-          placeholder="Order number or customer email…"
-          value={q}
-          onChange={(v) => {
-            setQ(v)
-            setCursors([])
-          }}
-        />
-        <Facet
-          label="Delivery"
-          value={search.delivery ?? null}
-          onChange={(v) => setSearch({ delivery: v ?? undefined, sold: v === "effy" ? search.sold : undefined })}
-          options={ADMIN_ORDER_DELIVERY_FILTERS.map((f) => ({ value: f, label: DELIVERY_FILTER_LABEL[f] }))}
-        />
-        <Facet
-          label="Sold as"
-          value={search.sold ?? null}
-          onChange={(v) => setSearch({ sold: v ?? undefined, delivery: v ? "effy" : search.delivery })}
-          options={ADMIN_ORDER_PROMISE_FILTERS.map((p) => ({ value: p, label: PROMISE_LABEL[p] }))}
-        />
-        {filtered ? (
-          <ResetFilters
-            onReset={() => {
-              setQ("")
-              setSearch({ delivery: undefined, sold: undefined })
-            }}
-          />
-        ) : null}
-        <ToolbarSpacer />
-      </Toolbar>
-
-      {isError ? (
-        <ErrorState error={error} onRetry={() => void refetch()} />
-      ) : isPending ? (
-        <div className="overflow-hidden rounded-xl border bg-card space-y-0 p-4">
-          {Array.from({ length: 6 }, (_, i) => (
-            <Skeleton key={i} className="mb-3 h-10" />
-          ))}
-        </div>
-      ) : items.length === 0 ? (
-        <EmptyState
-          icon={SearchX}
-          title={filtered || view !== "all" ? "No orders match your filter." : "No orders yet."}
-          description={
-            filtered || view !== "all"
-              ? "Try a different view, or clear the filters."
-              : "Paid orders appear here as they arrive."
-          }
-          action={
-            filtered || view !== "all" ? (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setQ("")
-                  setSearch({ view: undefined, delivery: undefined, sold: undefined })
-                }}
-              >
-                Clear filters
-              </Button>
-            ) : undefined
-          }
-        />
-      ) : (
-        <div className="overflow-hidden rounded-xl border bg-card">
-          <div className="min-w-0">
-            <Table className="ef-rtable">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Order</TableHead>
-                  <TableHead>Placed</TableHead>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Delivery</TableHead>
-                  <TableHead>Driver</TableHead>
-                  <TableHead>Next step</TableHead>
-                  <TableHead numeric>Total</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {items.map((o, i) => (
-                  <OrderRow key={o.id} order={o} focused={i === focus} />
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-          <Pager
-            summary={`${items.length} order${items.length === 1 ? "" : "s"} · page ${cursors.length + 1}`}
-            canBack={cursors.length > 0}
-            canNext={Boolean(data.nextCursor)}
-            onBack={() => setCursors((s) => s.slice(0, -1))}
-            onNext={() => setCursors((s) => (data.nextCursor ? [...s, data.nextCursor] : s))}
-            rows={rows}
-            onRows={(n) => {
-              setRows(n)
-              setCursors([])
-            }}
-          />
-        </div>
-      )}
-
       <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground max-md:hidden">
         <Kbd>J</Kbd>
         <Kbd>K</Kbd> move through rows · <Kbd>↵</Kbd> opens the order · Status is the order's least-advanced package;
         Problem always wins.
       </p>
-    </>
-  )
-}
-
-function clean(s: OrdersSearch): OrdersSearch {
-  const out: OrdersSearch = {}
-  if (s.view && s.view !== "all") out.view = s.view
-  if (s.delivery) out.delivery = s.delivery
-  if (s.sold) out.sold = s.sold
-  return out
-}
-
-function OrderRow({ order: o, focused }: { order: OrderSummary; focused: boolean }) {
-  return (
-    <TableRow className={cn(focused && "is-selected")} aria-selected={focused || undefined}>
-      <TableCell data-m="primary">
-        <Link to="/orders/$orderId" params={{ orderId: o.id }} className="link font-mono">
-          {o.orderNumber}
-        </Link>
-        <span className="mt-0.5 block text-sm text-muted-foreground md:hidden">{o.customerEmail}</span>
-      </TableCell>
-      <TableCell data-m="hide" className="text-muted-foreground whitespace-nowrap">
-        {moment(o.placedAt)}
-      </TableCell>
-      <TableCell data-m="hide">
-        <span className="line-clamp-1">{o.customerEmail}</span>
-      </TableCell>
-      <TableCell data-m="badge">
-        {o.statusView ? <PackageStatusPill view={o.statusView} showDetail={false} icons /> : "—"}
-      </TableCell>
-      <TableCell data-m="meta">
-        <span className="whitespace-nowrap">{deliveryTypeText(o.deliveryType)}</span>
-        {o.promise && o.promise !== "window" ? (
-          <span className="mt-0.5 block text-sm text-muted-foreground">{PROMISE_LABEL[o.promise]}</span>
-        ) : null}
-      </TableCell>
-      <TableCell data-m="hide">
-        <DriverCell order={o} />
-      </TableCell>
-      <TableCell data-m="meta" data-label="Next step">
-        {o.awaiting ? (
-          <span className="font-medium">{AWAITING_LABEL[o.awaiting]}</span>
-        ) : (
-          <span className="text-muted-foreground">Complete</span>
-        )}
-        <span className="mt-0.5 block text-sm text-muted-foreground">
-          Customer sees: {STAGE_LABEL[o.stage] ?? o.stage}
-        </span>
-      </TableCell>
-      <TableCell numeric data-m="trail" className="font-medium">
-        {money(o.grandTotalAmount, o.currency)}
-      </TableCell>
-    </TableRow>
+    </ListPage>
   )
 }
 
