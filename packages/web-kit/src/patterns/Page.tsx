@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { Link, type LinkProps } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 
-import { cn } from "@effy/design-system";
+import { Tabs, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui";
 
 import { useHeaderBack, type HeaderBack } from "../console/StaffHeader";
 
@@ -58,9 +58,8 @@ export function PageHeader({
 }
 
 /**
- * Saved views of one list, as underlined tabs with counts (Patterns board). Views are links, so the
- * view is in the URL and its link opens the same list for anyone. For independent sections of one
- * record, use shadcn Tabs instead.
+ * Saved views of one list, as shadcn Tabs with counts (Patterns board) — the same tabs as a record's
+ * sections. Views are links, so the view is in the URL and its link opens the same list for anyone.
  */
 export interface ViewTab {
   key: string;
@@ -73,20 +72,19 @@ export interface ViewTab {
 
 export function ViewTabs({ views, active, label }: { views: readonly ViewTab[]; active: string; label: string }) {
   return (
-    <nav className="ef-tabs" aria-label={label}>
-      {views.map((v) => (
-        <Link
-          key={v.key}
-          {...v.link}
-          className={cn("ef-tabs__tab", v.key === active && "is-active")}
-          aria-current={v.key === active ? "page" : undefined}
-        >
-          {v.label}
-          {typeof v.count === "number" ? (
-            <span className={cn("ef-tabs__count", v.attention && v.key !== active && "ef-tabs__count--primary")}>{v.count}</span>
-          ) : null}
-        </Link>
-      ))}
-    </nav>
+    <Tabs value={active} activationMode="manual">
+      <TabsList aria-label={label}>
+        {views.map((v) => (
+          <TabsTrigger key={v.key} value={v.key} asChild>
+            <Link {...v.link} aria-current={v.key === active ? "page" : undefined}>
+              {v.label}
+              {typeof v.count === "number" ? (
+                <TabsCount tone={v.attention ? "primary" : undefined}>{v.count}</TabsCount>
+              ) : null}
+            </Link>
+          </TabsTrigger>
+        ))}
+      </TabsList>
+    </Tabs>
   );
 }

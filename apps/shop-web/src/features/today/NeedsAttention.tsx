@@ -4,7 +4,7 @@ import type { ShopAttentionItemDTO } from "@effy/shared-types"
 import { ArrowDown, ChevronRight, ClipboardList, PackageX, ReceiptText, type LucideIcon } from "lucide-react"
 
 import { cn } from "@effy/design-system"
-import { Button } from "@effy/design-system/ui"
+import { Button, TabsCount } from "@effy/design-system/ui"
 
 import { TodayEmptyState } from "./EmptyState"
 import { track } from "@/lib/telemetry"
@@ -30,7 +30,7 @@ export function NeedsAttention({
         <div className="min-w-0 flex-1">
           <h2 className="ef-panel__title">
             Needs attention
-            {openCount > 0 ? <span className="ef-tabs__count ef-tabs__count--primary">{openCount}</span> : null}
+            {openCount > 0 ? <TabsCount tone="primary">{openCount}</TabsCount> : null}
           </h2>
           <p className="ef-panel__desc">
             {oldestWaitingAt ? `Oldest item waiting ${formatAge(oldestWaitingAt, now)}` : "Nothing is waiting"}

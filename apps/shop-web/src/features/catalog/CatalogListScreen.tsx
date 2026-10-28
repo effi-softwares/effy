@@ -29,6 +29,9 @@ import {
   DropdownMenuTrigger,
   Input,
   Skeleton,
+  Tabs,
+  TabsList,
+  TabsTrigger,
 } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 import { Facet, PageHeader, ToolbarSpacer } from "@effy/web-kit/patterns"
@@ -173,20 +176,15 @@ export function CatalogListScreen() {
         }
       />
 
-      <div role="tablist" aria-label="Filter by status" className="ef-tabs">
-        {STATUS_TABS.map((t) => (
-          <button
-            key={t.value}
-            type="button"
-            role="tab"
-            aria-selected={t.value === status}
-            onClick={() => onFilter(setStatus, t.value)}
-            className={cn("ef-tabs__tab", t.value === status && "is-active")}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <Tabs value={status} onValueChange={(v) => onFilter(setStatus, v as ProductStatus | typeof ALL)}>
+        <TabsList aria-label="Filter by status">
+          {STATUS_TABS.map((t) => (
+            <TabsTrigger key={t.value} value={t.value}>
+              {t.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
 
       <div className="ef-toolbar">
         <label className="ef-toolbar__search">

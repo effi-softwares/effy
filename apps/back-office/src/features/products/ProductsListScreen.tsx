@@ -16,7 +16,7 @@ import {
   type BulkProductsResultDTO,
 } from "@effy/shared-types"
 import { cn } from "@effy/design-system"
-import { Button, Checkbox, Skeleton } from "@effy/design-system/ui"
+import { Button, Checkbox, Skeleton, Tabs, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 import {
   EmptyState,
@@ -148,29 +148,20 @@ export function ProductsListScreen({ search }: { search: ProductSearch }) {
       />
 
       <div className="space-y-3">
-        <nav className="ef-tabs" aria-label="Product states">
-          {BACKOFFICE_PRODUCT_TABS.map((t) => (
-            <button
-              key={t}
-              type="button"
-              aria-current={t === tab ? "page" : undefined}
-              className={cn("ef-tabs__tab", t === tab && "is-active")}
-              onClick={() => set({ state: t === "all" ? undefined : t })}
-            >
-              {BACKOFFICE_PRODUCT_STATE_WORDS[t]}
-              {first ? (
-                <span
-                  className={cn(
-                    "ef-tabs__count",
-                    t === "held" && first.counts.held > 0 && t !== tab && "ef-tabs__count--primary",
-                  )}
-                >
-                  {first.counts[t]}
-                </span>
-              ) : null}
-            </button>
-          ))}
-        </nav>
+        <Tabs value={tab} onValueChange={(v) => set({ state: v === "all" ? undefined : (v as typeof tab) })}>
+          <TabsList aria-label="Product states">
+            {BACKOFFICE_PRODUCT_TABS.map((t) => (
+              <TabsTrigger key={t} value={t}>
+                {BACKOFFICE_PRODUCT_STATE_WORDS[t]}
+                {first ? (
+                  <TabsCount tone={t === "held" && first.counts.held > 0 ? "primary" : undefined}>
+                    {first.counts[t]}
+                  </TabsCount>
+                ) : null}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
 
         <Toolbar>
           <SearchBox label="Search products" placeholder="Name, SKU or barcode" value={q} onChange={setQ} />

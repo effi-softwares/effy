@@ -6,7 +6,7 @@ import { Link } from "@tanstack/react-router"
 import { ArrowDown, CircleAlert, CircleSlash, ImageOff, Search, SearchX, ToggleRight } from "lucide-react"
 
 import type { AvailabilityFilter, ShopAvailabilityDTO, ShopAvailabilityRowDTO } from "@effy/shared-types"
-import { Button, Input, Skeleton, Switch, toast } from "@effy/design-system/ui"
+import { Button, Input, Skeleton, Switch, Tabs, TabsCount, TabsList, TabsTrigger, toast } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 import { PageHeader } from "@effy/web-kit/patterns"
 
@@ -48,33 +48,20 @@ export function AvailabilityScreen() {
         description="Switch products off sale instantly when you run out, with no review needed."
       />
 
-      <div role="tablist" aria-label="Show" className="ef-tabs">
-        {VIEWS.map((v) => (
-          <button
-            key={v.key}
-            type="button"
-            role="tab"
-            aria-selected={v.key === filter}
-            onClick={() => setFilter(v.key)}
-            className={cn("ef-tabs__tab", v.key === filter && "is-active")}
-          >
-            {v.label}
-            {data ? (
-              <span
-                className={cn(
-                  "ef-tabs__count",
-                  v.key === "out_of_stock" &&
-                    v.key !== filter &&
-                    data.counts.outOfStock > 0 &&
-                    "ef-tabs__count--primary",
-                )}
-              >
-                {data.counts[v.count]}
-              </span>
-            ) : null}
-          </button>
-        ))}
-      </div>
+      <Tabs value={filter} onValueChange={(v) => setFilter(v as AvailabilityFilter)}>
+        <TabsList aria-label="Show">
+          {VIEWS.map((v) => (
+            <TabsTrigger key={v.key} value={v.key}>
+              {v.label}
+              {data ? (
+                <TabsCount tone={v.key === "out_of_stock" && data.counts.outOfStock > 0 ? "primary" : undefined}>
+                  {data.counts[v.count]}
+                </TabsCount>
+              ) : null}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
 
       <div className="ef-toolbar">
         <label className="ef-toolbar__search">

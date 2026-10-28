@@ -21,6 +21,9 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Tabs,
+  TabsList,
+  TabsTrigger,
 } from "@effy/design-system/ui"
 import {
   CATEGORY_ICONS,
@@ -90,19 +93,15 @@ export function CategoryPanel({
         {canManage ? <StatusControl category={category} categories={categories} /> : null}
       </header>
       <div className="ef-panel__body space-y-4">
-        <nav className="ef-tabs" aria-label="Category views">
-          {tabs.map((t) => (
-            <button
-              key={t.key}
-              type="button"
-              aria-current={t.key === tab ? "page" : undefined}
-              className={cn("ef-tabs__tab", t.key === tab && "is-active")}
-              onClick={() => setTab(t.key)}
-            >
-              {t.label}
-            </button>
-          ))}
-        </nav>
+        <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
+          <TabsList aria-label="Category views">
+            {tabs.map((t) => (
+              <TabsTrigger key={t.key} value={t.key}>
+                {t.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
         {tab === "general" ? (
           <GeneralTab key={category.id} category={category} editable={editable} />
         ) : tab === "defaults" ? (

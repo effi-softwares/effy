@@ -4,8 +4,7 @@ import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import { MailCheck } from "lucide-react"
 
-import { cn } from "@effy/design-system"
-import { Skeleton } from "@effy/design-system/ui"
+import { Skeleton, Tabs, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 
 import { PageHeader, EmptyState, StatusWord, Pager, SearchBox, Toolbar } from "@effy/web-kit/patterns"
@@ -51,23 +50,22 @@ export function DeliverabilityListScreen() {
       />
 
       <div className="space-y-3">
-        <nav className="ef-tabs" aria-label="Deliverability views">
-          {VIEWS.map((v) => (
-            <button
-              key={v.key}
-              type="button"
-              aria-current={v.key === state ? "page" : undefined}
-              className={cn("ef-tabs__tab", v.key === state && "is-active")}
-              onClick={() => {
-                setState(v.key)
-                setPage(0)
-              }}
-            >
-              {v.label}
-              {v.key === state && data ? <span className="ef-tabs__count">{data.total}</span> : null}
-            </button>
-          ))}
-        </nav>
+        <Tabs
+          value={state}
+          onValueChange={(v) => {
+            setState(v)
+            setPage(0)
+          }}
+        >
+          <TabsList aria-label="Deliverability views">
+            {VIEWS.map((v) => (
+              <TabsTrigger key={v.key} value={v.key}>
+                {v.label}
+                {v.key === state && data ? <TabsCount>{data.total}</TabsCount> : null}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
         <Toolbar>
           <SearchBox
             label="Search address"

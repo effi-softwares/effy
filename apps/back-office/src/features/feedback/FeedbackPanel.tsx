@@ -4,7 +4,17 @@ import { Link } from "@tanstack/react-router"
 import { ExternalLink, Lock, Reply, Send } from "lucide-react"
 
 import { cn } from "@effy/design-system"
-import { Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@effy/design-system/ui"
+import {
+  Button,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+} from "@effy/design-system/ui"
 
 import { StatusWord, type StatusTone } from "@effy/web-kit/patterns"
 import { moment } from "@/lib/format"
@@ -181,28 +191,18 @@ function Composer({ detail, mayReply }: { detail: FeedbackDetailDTO; mayReply: b
 
   return (
     <div className="space-y-2">
-      <div className="ef-seg" role="tablist" aria-label="Write">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={mode === "reply"}
-          className={mode === "reply" ? "is-active" : undefined}
-          onClick={() => setMode("reply")}
-        >
-          <Reply aria-hidden="true" />
-          Reply
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={mode === "note"}
-          className={mode === "note" ? "is-active" : undefined}
-          onClick={() => setMode("note")}
-        >
-          <Lock aria-hidden="true" />
-          Internal note
-        </button>
-      </div>
+      <Tabs value={mode} onValueChange={(v) => setMode(v as "reply" | "note")}>
+        <TabsList aria-label="Write">
+          <TabsTrigger value="reply">
+            <Reply aria-hidden="true" />
+            Reply
+          </TabsTrigger>
+          <TabsTrigger value="note">
+            <Lock aria-hidden="true" />
+            Internal note
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
       {mode === "reply" && !mayReply ? (
         <p className="text-sm text-muted-foreground">Only a manager or admin can send a reply.</p>
       ) : mode === "reply" && !detail.canReply ? (

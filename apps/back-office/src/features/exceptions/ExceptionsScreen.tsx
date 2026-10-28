@@ -89,31 +89,26 @@ export function ExceptionsScreen() {
 
           <TabsContent value="failed" className="ef-tabpanel">
             <section className="space-y-3" aria-labelledby="failed-h">
-              <div className="ef-tabs" role="tablist" aria-label="Show">
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={!showResolved}
-                  className={`ef-tabs__tab${!showResolved ? " is-active" : ""}`}
-                  onClick={() => setShowResolved(false)}
+              <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+                <div className="min-w-0">
+                  <h2 id="failed-h" className="ef-section-title">
+                    Failed deliveries
+                  </h2>
+                  <p className="text-xs text-muted-foreground">Open first, then newest · live</p>
+                </div>
+                <Tabs
+                  value={showResolved ? "resolved" : "open"}
+                  onValueChange={(v) => setShowResolved(v === "resolved")}
                 >
-                  Open<span className="ef-tabs__count">{data.openCount}</span>
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={showResolved}
-                  className={`ef-tabs__tab${showResolved ? " is-active" : ""}`}
-                  onClick={() => setShowResolved(true)}
-                >
-                  Dealt with{all.data ? <span className="ef-tabs__count">{resolved.length}</span> : null}
-                </button>
-              </div>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <h2 id="failed-h" className="ef-section-title">
-                  Failed deliveries
-                </h2>
-                <span className="text-xs text-muted-foreground">Open first, then newest · live</span>
+                  <TabsList aria-label="Show">
+                    <TabsTrigger value="open">
+                      Open<TabsCount>{data.openCount}</TabsCount>
+                    </TabsTrigger>
+                    <TabsTrigger value="resolved">
+                      Dealt with{all.data ? <TabsCount>{resolved.length}</TabsCount> : null}
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
               </div>
               {showResolved && all.isPending ? (
                 <Skeleton className="h-40" />

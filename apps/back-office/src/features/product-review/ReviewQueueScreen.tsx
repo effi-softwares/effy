@@ -6,7 +6,7 @@ import { CircleCheck } from "lucide-react"
 
 import type { MarginNotSetItemDTO, ReviewKind } from "@effy/shared-types"
 import { cn } from "@effy/design-system"
-import { Button, Skeleton } from "@effy/design-system/ui"
+import { Button, Skeleton, Tabs, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 
 import {
@@ -70,27 +70,21 @@ export function ReviewQueueScreen() {
       />
 
       <div className="space-y-3">
-        <nav className="ef-tabs" aria-label="Review views">
-          {(
-            [
-              { key: "waiting", label: "Waiting for review", count: oldest.data?.total ?? oldest.data?.items.length },
-              { key: "margin", label: "Margin not set", count: marginCount },
-            ] as const
-          ).map((v) => (
-            <button
-              key={v.key}
-              type="button"
-              aria-current={v.key === view ? "page" : undefined}
-              className={cn("ef-tabs__tab", v.key === view && "is-active")}
-              onClick={() => setView(v.key)}
-            >
-              {v.label}
-              {v.count !== undefined ? (
-                <span className={cn("ef-tabs__count", v.key !== view && "ef-tabs__count--primary")}>{v.count}</span>
-              ) : null}
-            </button>
-          ))}
-        </nav>
+        <Tabs value={view} onValueChange={(v) => setView(v as typeof view)}>
+          <TabsList aria-label="Review views">
+            {(
+              [
+                { key: "waiting", label: "Waiting for review", count: oldest.data?.total ?? oldest.data?.items.length },
+                { key: "margin", label: "Margin not set", count: marginCount },
+              ] as const
+            ).map((v) => (
+              <TabsTrigger key={v.key} value={v.key}>
+                {v.label}
+                {v.count !== undefined ? <TabsCount tone="primary">{v.count}</TabsCount> : null}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
         {view === "waiting" ? (
           <Toolbar>
             <SearchBox

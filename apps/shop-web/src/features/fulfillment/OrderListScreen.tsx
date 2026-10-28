@@ -9,12 +9,11 @@ import {
   SHOP_ORDER_RANGES,
   SHOP_ORDER_TABS,
 } from "@effy/shared-types"
-import { Button, Skeleton, toast } from "@effy/design-system/ui"
+import { Button, Skeleton, Tabs, TabsCount, TabsList, TabsTrigger, toast } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 import { Facet, PageHeader } from "@effy/web-kit/patterns"
 
 import { track } from "@/lib/telemetry"
-import { cn } from "@/lib/utils"
 
 import { Segmented } from "@/components/console/primitives"
 
@@ -163,30 +162,20 @@ export function OrderListScreen({
         <OrderQueue search={search} now={now} />
       ) : (
         <>
-          <div role="tablist" aria-label="Order status" className="ef-tabs">
-            {SHOP_ORDER_TABS.map((t) => (
-              <button
-                key={t}
-                type="button"
-                role="tab"
-                aria-selected={t === tab}
-                onClick={() => update({ tab: t })}
-                className={cn("ef-tabs__tab", t === tab && "is-active")}
-              >
-                {TAB_LABEL[t]}
-                {data ? (
-                  <span
-                    className={cn(
-                      "ef-tabs__count",
-                      t === "new" && t !== tab && data.counts[t] > 0 && "ef-tabs__count--primary",
-                    )}
-                  >
-                    {data.counts[t]}
-                  </span>
-                ) : null}
-              </button>
-            ))}
-          </div>
+          <Tabs value={tab} onValueChange={(v) => update({ tab: v as typeof tab })}>
+            <TabsList aria-label="Order status">
+              {SHOP_ORDER_TABS.map((t) => (
+                <TabsTrigger key={t} value={t}>
+                  {TAB_LABEL[t]}
+                  {data ? (
+                    <TabsCount tone={t === "new" && data.counts[t] > 0 ? "primary" : undefined}>
+                      {data.counts[t]}
+                    </TabsCount>
+                  ) : null}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
 
           <div className="ef-toolbar">
             <OrderSearchBox value={search.q ?? ""} onChange={(q) => update({ q })} />
@@ -219,7 +208,7 @@ export function OrderListScreen({
             <Button variant="outline" className="lg:hidden" onClick={() => setFiltersOpen(true)}>
               <SlidersHorizontal aria-hidden="true" />
               Filters
-              {filterCount > 0 ? <span className="ef-tabs__count ef-tabs__count--primary">{filterCount}</span> : null}
+              {filterCount > 0 ? <TabsCount tone="primary">{filterCount}</TabsCount> : null}
             </Button>
             {dirty ? (
               <Button variant="ghost" onClick={clearAll}>

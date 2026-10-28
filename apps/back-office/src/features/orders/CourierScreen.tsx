@@ -6,8 +6,7 @@ import { Link } from "@tanstack/react-router"
 import type { CourierView, HandoverRowDTO } from "@effy/shared-types"
 import { CircleAlert, CircleCheck, Clock, Forward, PackageOpen, Settings2, Store, Truck, Warehouse } from "lucide-react"
 
-import { cn } from "@effy/design-system"
-import { Button, Skeleton } from "@effy/design-system/ui"
+import { Button, Skeleton, Tabs, TabsList, TabsTrigger } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 
 import { PageHeader, EmptyState, StatusWord } from "@effy/web-kit/patterns"
@@ -51,20 +50,15 @@ export function CourierScreen() {
           </Button>
         }
       />
-      <div className="ef-tabs" role="tablist" aria-label="Courier stages">
-        {VIEWS.map((v) => (
-          <button
-            key={v.value}
-            type="button"
-            role="tab"
-            aria-selected={v.value === view}
-            className={cn("ef-tabs__tab", v.value === view && "is-active")}
-            onClick={() => setView(v.value)}
-          >
-            {v.label}
-          </button>
-        ))}
-      </div>
+      <Tabs value={view} onValueChange={(v) => setView(v as CourierView)}>
+        <TabsList aria-label="Courier stages">
+          {VIEWS.map((v) => (
+            <TabsTrigger key={v.value} value={v.value}>
+              {v.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
       {isError ? (
         <ErrorState error={error} onRetry={() => void refetch()} />
       ) : isPending ? (

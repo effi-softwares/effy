@@ -1,5 +1,7 @@
 import type { ReactNode } from "react"
 
+import { Tabs, TabsList, TabsTrigger } from "@effy/design-system/ui"
+
 import { cn } from "@/lib/utils"
 
 export function Page({ children, className }: { children: ReactNode; className?: string }) {
@@ -129,22 +131,14 @@ export function Segmented<T extends string>({
   ariaLabel: string
 }) {
   return (
-    <div role="tablist" aria-label={ariaLabel} className="ef-seg">
-      {options.map((o) => {
-        const active = o.value === value
-        return (
-          <button
-            key={o.value}
-            type="button"
-            role="tab"
-            aria-selected={active}
-            onClick={() => onChange(o.value)}
-            className={cn(active && "is-active")}
-          >
+    <Tabs value={value} onValueChange={(v) => onChange(v as T)}>
+      <TabsList aria-label={ariaLabel}>
+        {options.map((o) => (
+          <TabsTrigger key={o.value} value={o.value}>
             {o.label}
-          </button>
-        )
-      })}
-    </div>
+          </TabsTrigger>
+        ))}
+      </TabsList>
+    </Tabs>
   )
 }

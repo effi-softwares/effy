@@ -3,7 +3,7 @@ import { useMemo, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Link, useNavigate } from "@tanstack/react-router"
 
-import { cn } from "@effy/design-system"
+import { Tabs, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 import { PageHeader } from "@effy/web-kit/patterns"
 import { sessionQuery } from "@/features/auth/queries"
@@ -42,20 +42,22 @@ export function TaxonomyScreen({ tab, categoryId }: { tab: "categories" | "attri
         description="The category tree shops file products in and customers browse, and the details each category asks for."
       />
       <div className="space-y-4">
-        <nav className="ef-tabs" aria-label="Taxonomy views">
-          {views.map((v) => (
-            <Link
-              key={v.key}
-              to="/taxonomy"
-              search={v.key === "attributes" ? { tab: "attributes" } : { category: categoryId ?? undefined }}
-              aria-current={v.key === tab ? "page" : undefined}
-              className={cn("ef-tabs__tab", v.key === tab && "is-active")}
-            >
-              {v.label}
-              {v.count !== undefined ? <span className="ef-tabs__count">{v.count}</span> : null}
-            </Link>
-          ))}
-        </nav>
+        <Tabs value={tab} activationMode="manual">
+          <TabsList aria-label="Taxonomy views">
+            {views.map((v) => (
+              <TabsTrigger key={v.key} value={v.key} asChild>
+                <Link
+                  to="/taxonomy"
+                  search={v.key === "attributes" ? { tab: "attributes" } : { category: categoryId ?? undefined }}
+                  aria-current={v.key === tab ? "page" : undefined}
+                >
+                  {v.label}
+                  {v.count !== undefined ? <TabsCount>{v.count}</TabsCount> : null}
+                </Link>
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
         {tab === "attributes" ? (
           <AttributeLibrary canManage={canManage} />
         ) : tree.isError ? (

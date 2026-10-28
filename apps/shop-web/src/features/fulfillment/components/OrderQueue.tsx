@@ -5,7 +5,7 @@ import { Link, useNavigate } from "@tanstack/react-router"
 import { ArrowRight, BellRing, Loader2, PackageCheck, Truck } from "lucide-react"
 
 import type { ShopOrderTab } from "@effy/shared-types"
-import { Button, Skeleton, toast } from "@effy/design-system/ui"
+import { Button, Skeleton, TabsCount, toast } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 
 import { cn } from "@/lib/utils"
@@ -71,9 +71,7 @@ function Lane({ lane, q, now }: { lane: (typeof LANES)[number]; q: string | unde
       <h2 className="flex h-10 items-center gap-2 text-base font-semibold">
         {lane.title}
         {list.data ? (
-          <span className={cn("ef-tabs__count", lane.tab === "new" && total > 0 && "ef-tabs__count--primary")}>
-            {total}
-          </span>
+          <TabsCount tone={lane.tab === "new" && total > 0 ? "primary" : undefined}>{total}</TabsCount>
         ) : null}
         {lane.hint ? <span className="ml-auto text-sm font-normal text-muted-foreground">{lane.hint}</span> : null}
       </h2>

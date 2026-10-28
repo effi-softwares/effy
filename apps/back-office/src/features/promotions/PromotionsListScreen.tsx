@@ -5,8 +5,7 @@ import { Link } from "@tanstack/react-router"
 import { LayoutList, Palette, Plus, SlidersHorizontal, TicketPercent } from "lucide-react"
 
 import { PROMOTION_STATES, type PromotionKind, type PromotionState, type PromotionTrigger } from "@effy/shared-types"
-import { cn } from "@effy/design-system"
-import { Button, Skeleton } from "@effy/design-system/ui"
+import { Button, Skeleton, Tabs, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 
 import {
@@ -130,20 +129,16 @@ export function PromotionsListScreen() {
       />
 
       <div className="space-y-3">
-        <nav className="ef-tabs" aria-label="Promotion views">
-          {views.map((v) => (
-            <button
-              key={v}
-              type="button"
-              aria-current={v === view ? "page" : undefined}
-              className={cn("ef-tabs__tab", v === view && "is-active")}
-              onClick={() => reset(setView)(v)}
-            >
-              {v === "all" ? "All" : STATE_WORD[v]}
-              {countOf(v) !== undefined ? <span className="ef-tabs__count">{countOf(v)}</span> : null}
-            </button>
-          ))}
-        </nav>
+        <Tabs value={view} onValueChange={(v) => reset(setView)(v as View)}>
+          <TabsList aria-label="Promotion views">
+            {views.map((v) => (
+              <TabsTrigger key={v} value={v}>
+                {v === "all" ? "All" : STATE_WORD[v]}
+                {countOf(v) !== undefined ? <TabsCount>{countOf(v)}</TabsCount> : null}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
         <Toolbar>
           <SearchBox label="Search promotions" placeholder="Name or code…" value={search} onChange={reset(setSearch)} />
           <Facet

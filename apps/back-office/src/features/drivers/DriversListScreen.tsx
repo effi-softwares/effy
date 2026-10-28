@@ -5,8 +5,7 @@ import { Link } from "@tanstack/react-router"
 
 import { CircleAlert, UserX } from "lucide-react"
 
-import { cn } from "@effy/design-system"
-import { Checkbox, Skeleton } from "@effy/design-system/ui"
+import { Checkbox, Skeleton, Tabs, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 import type { AdminDriverListItem, DriverEmploymentStatus } from "@effy/shared-types"
 
@@ -94,24 +93,16 @@ export function DriversListScreen() {
       <DutyPanel />
 
       <div className="space-y-3">
-        <nav className="ef-tabs" aria-label="Driver views">
-          {VIEWS.map((v) => (
-            <button
-              key={v.key}
-              type="button"
-              aria-current={v.key === view ? "page" : undefined}
-              className={cn("ef-tabs__tab", v.key === view && "is-active")}
-              onClick={() => resetPaging(setView)(v.key)}
-            >
-              {v.label}
-              {v.key === "readiness" && blockedCount ? (
-                <span className={cn("ef-tabs__count", view !== "readiness" && "ef-tabs__count--primary")}>
-                  {blockedCount}
-                </span>
-              ) : null}
-            </button>
-          ))}
-        </nav>
+        <Tabs value={view} onValueChange={(v) => resetPaging(setView)(v as View)}>
+          <TabsList aria-label="Driver views">
+            {VIEWS.map((v) => (
+              <TabsTrigger key={v.key} value={v.key}>
+                {v.label}
+                {v.key === "readiness" && blockedCount ? <TabsCount tone="primary">{blockedCount}</TabsCount> : null}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
         {view !== "readiness" ? (
           <Toolbar>
             <SearchBox

@@ -3,6 +3,14 @@ import { Tabs as TabsPrimitive } from "radix-ui"
 
 import { cn } from "../cn"
 
+/**
+ * shadcn Tabs, its default look, and the ONE tab design in both consoles: a `--muted` trough with
+ * the active tab raised on it. Sections of a record, saved views of a list and mode switches all use
+ * it. A view that lives in the URL renders its trigger `asChild` around a `Link`, under a
+ * `<Tabs value>` that names the active view.
+ */
+const InTabsList = React.createContext(false)
+
 function Tabs({
   className,
   ...props
@@ -21,15 +29,18 @@ function TabsList({
   ...props
 }: React.ComponentProps<typeof TabsPrimitive.List>) {
   return (
-    <TabsPrimitive.List
-      data-slot="tabs-list"
-      className={cn(
-        // A `--muted` trough, so the active segment sits in a track.
-        "inline-flex h-12 w-fit items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground dark:bg-[#18181b]",
-        className,
-      )}
-      {...props}
-    />
+    <InTabsList.Provider value={true}>
+      <TabsPrimitive.List
+        data-slot="tabs-list"
+        className={cn(
+          // shadcn's list at touch size (48 bar, 40 tabs — the console's small button); it scrolls
+          // sideways (no bar) rather than overflow a narrow page.
+          "inline-flex h-12 w-fit max-w-full items-center justify-start overflow-x-auto rounded-lg bg-muted p-1 text-muted-foreground [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+          className,
+        )}
+        {...props}
+      />
+    </InTabsList.Provider>
   )
 }
 
@@ -41,8 +52,9 @@ function TabsTrigger({
     <TabsPrimitive.Trigger
       data-slot="tabs-trigger"
       className={cn(
-        // The active segment is a raised chip on the trough; the others sit at 70%.
-        "group/tab inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-md border border-transparent px-4 text-base font-medium text-foreground opacity-70 [transition:background-color_var(--dur-standard)_var(--ease-move),opacity_var(--dur-fast)_ease] outline-none hover:opacity-100 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:opacity-100 data-[state=active]:shadow-xs dark:data-[state=active]:bg-[#27272a] [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg]:size-4",
+        // Inactive tabs are muted until hovered; the active one is a raised chip — white on the
+        // light trough, a solid zinc-700 in dark (no outline: shadcn's dark border read as a box).
+        "group/tab inline-flex h-[calc(100%-1px)] flex-1 cursor-pointer items-center justify-center gap-2 rounded-md border border-transparent px-4 py-1 text-base font-medium whitespace-nowrap text-muted-foreground no-underline transition-[color,background-color,box-shadow] duration-(--dur-fast) hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm dark:data-[state=active]:bg-input [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         className,
       )}
       {...props}
@@ -63,13 +75,27 @@ function TabsContent({
   )
 }
 
-/** The count inside a segment: a grey tag, inverted on the active segment. */
-function TabsCount({ className, ...props }: React.ComponentProps<"span">) {
+/**
+ * The count inside a tab: a soft tag in the tab's own text colour. `tone="primary"` marks a queue
+ * that needs a person (blue). Also used on its own beside a heading or a button.
+ */
+function TabsCount({
+  className,
+  tone,
+  ...props
+}: React.ComponentProps<"span"> & { tone?: "primary" }) {
+  const inList = React.useContext(InTabsList)
   return (
     <span
       data-slot="tabs-count"
       className={cn(
-        "inline-flex h-5 items-center rounded-sm bg-muted px-2 text-xs font-medium tabular-nums text-muted-foreground group-data-[state=active]/tab:bg-foreground group-data-[state=active]/tab:text-background",
+        "inline-flex items-center justify-center rounded-sm font-medium tabular-nums",
+        inList ? "h-6 min-w-6 px-1.5 text-xs" : "h-6 px-2 text-sm",
+        tone === "primary"
+          ? "bg-primary-muted text-primary"
+          : inList
+            ? "bg-foreground/10 text-current"
+            : "bg-muted text-muted-foreground",
         className,
       )}
       {...props}

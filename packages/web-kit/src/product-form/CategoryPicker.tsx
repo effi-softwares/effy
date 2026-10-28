@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { Check, ChevronRight, Search } from "lucide-react";
 
 import { cn } from "@effy/design-system";
-import { Input } from "@effy/design-system/ui";
+import { Input, Tabs, TabsList, TabsTrigger } from "@effy/design-system/ui";
 import {
   searchLeaves,
   suggestCategories,
@@ -101,26 +101,21 @@ export function CategoryPicker({
         )}
       </div>
 
-      <div role="tablist" aria-label="Find a category" className="ef-seg w-fit">
-        {(
-          [
-            ["suggested", "Suggested"],
-            ["search", "Search"],
-            ["browse", "Browse"],
-          ] as const
-        ).map(([m, label]) => (
-          <button
-            key={m}
-            type="button"
-            role="tab"
-            aria-selected={mode === m}
-            className={mode === m ? "is-active" : undefined}
-            onClick={() => setMode(m)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      <Tabs value={mode} onValueChange={(v) => setMode(v as Mode)}>
+        <TabsList aria-label="Find a category">
+          {(
+            [
+              ["suggested", "Suggested"],
+              ["search", "Search"],
+              ["browse", "Browse"],
+            ] as const
+          ).map(([m, label]) => (
+            <TabsTrigger key={m} value={m}>
+              {label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
 
       {mode === "suggested" ? (
         <div className="grid gap-4">

@@ -4,8 +4,7 @@ import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import { CircleAlert, Truck } from "lucide-react"
 
-import { cn } from "@effy/design-system"
-import { Checkbox, Skeleton } from "@effy/design-system/ui"
+import { Checkbox, Skeleton, Tabs, TabsList, TabsTrigger } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 import type { VehicleListItem, VehicleOwnership, VehicleStatus } from "@effy/shared-types"
 
@@ -88,19 +87,15 @@ export function VehiclesListScreen() {
       />
 
       <div className="space-y-3">
-        <nav className="ef-tabs" aria-label="Vehicle views">
-          {VIEWS.map((v) => (
-            <button
-              key={v.key}
-              type="button"
-              aria-current={v.key === view ? "page" : undefined}
-              className={cn("ef-tabs__tab", v.key === view && "is-active")}
-              onClick={() => reset(setView)(v.key)}
-            >
-              {v.label}
-            </button>
-          ))}
-        </nav>
+        <Tabs value={view} onValueChange={(v) => reset(setView)(v as View)}>
+          <TabsList aria-label="Vehicle views">
+            {VIEWS.map((v) => (
+              <TabsTrigger key={v.key} value={v.key}>
+                {v.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
         <Toolbar>
           <SearchBox label="Search vehicles" placeholder="Plate, make or model…" value={search} onChange={setSearch} />
           <Facet

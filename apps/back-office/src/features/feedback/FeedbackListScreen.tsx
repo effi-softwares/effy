@@ -6,7 +6,7 @@ import { useHotkey } from "@tanstack/react-hotkeys"
 import { MessageSquareText, Star } from "lucide-react"
 
 import { cn } from "@effy/design-system"
-import { Skeleton } from "@effy/design-system/ui"
+import { Skeleton, Tabs, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 
 import { Kbd, PageHeader, EmptyState, Facet, Pager, SearchBox, Toolbar } from "@effy/web-kit/patterns"
@@ -86,23 +86,22 @@ export function FeedbackListScreen() {
       />
 
       <div className="space-y-3">
-        <nav className="ef-tabs" aria-label="Status">
-          {VIEWS.map((v) => (
-            <button
-              key={v}
-              type="button"
-              aria-current={v === view ? "page" : undefined}
-              className={cn("ef-tabs__tab", v === view && "is-active")}
-              onClick={() => {
-                setView(v)
-                reset()
-              }}
-            >
-              {v === "all" ? "All" : FEEDBACK_STATUS_LABELS[v]}
-              {v !== "all" && COUNTED.includes(v) ? <StatusCount status={v} /> : null}
-            </button>
-          ))}
-        </nav>
+        <Tabs
+          value={view}
+          onValueChange={(v) => {
+            setView(v as FeedbackStatus | "all")
+            reset()
+          }}
+        >
+          <TabsList aria-label="Status">
+            {VIEWS.map((v) => (
+              <TabsTrigger key={v} value={v}>
+                {v === "all" ? "All" : FEEDBACK_STATUS_LABELS[v]}
+                {v !== "all" && COUNTED.includes(v) ? <StatusCount status={v} /> : null}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
         <Toolbar>
           <SearchBox
             label="Search feedback"
@@ -198,7 +197,7 @@ export function FeedbackListScreen() {
 
 function StatusCount({ status }: { status: FeedbackStatus }) {
   const { data } = useQuery(feedbackListQuery({ status, limit: 1 }))
-  return typeof data?.total === "number" ? <span className="ef-tabs__count">{data.total}</span> : null
+  return typeof data?.total === "number" ? <TabsCount>{data.total}</TabsCount> : null
 }
 
 function InboxItem({

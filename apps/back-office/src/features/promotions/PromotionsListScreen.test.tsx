@@ -73,8 +73,8 @@ describe("PromotionsListScreen (094)", () => {
     listPromotions.mockResolvedValue(page([ROW]))
     wrap(<PromotionsListScreen />)
     await screen.findByText("Spring sale")
-    expect(screen.getByRole("button", { name: /^All\s*2$/ })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: /^Archived\s*2$/ })).toBeInTheDocument()
+    expect(screen.getByRole("tab", { name: /^All\s*2$/ })).toBeInTheDocument()
+    expect(screen.getByRole("tab", { name: /^Archived\s*2$/ })).toBeInTheDocument()
   })
 
   it("says an automatic promotion has no code", async () => {

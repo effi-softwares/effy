@@ -5,8 +5,7 @@ import { Link } from "@tanstack/react-router"
 import { Plus, Store } from "lucide-react"
 
 import type { ShopLifecycleStatus } from "@effy/shared-types"
-import { cn } from "@effy/design-system"
-import { Button, Skeleton } from "@effy/design-system/ui"
+import { Button, Skeleton, Tabs, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 
 import { PageHeader, EmptyState, Pager, SearchBox, Toolbar } from "@effy/web-kit/patterns"
@@ -61,23 +60,22 @@ export function ShopsListScreen() {
       />
 
       <div className="space-y-3">
-        <nav className="ef-tabs" aria-label="Shop views">
-          {VIEWS.map((v) => (
-            <button
-              key={v.key}
-              type="button"
-              aria-current={v.key === view ? "page" : undefined}
-              className={cn("ef-tabs__tab", v.key === view && "is-active")}
-              onClick={() => {
-                setView(v.key)
-                setPage(1)
-              }}
-            >
-              {v.label}
-              {v.key === view && data ? <span className="ef-tabs__count">{data.total}</span> : null}
-            </button>
-          ))}
-        </nav>
+        <Tabs
+          value={view}
+          onValueChange={(v) => {
+            setView(v as View)
+            setPage(1)
+          }}
+        >
+          <TabsList aria-label="Shop views">
+            {VIEWS.map((v) => (
+              <TabsTrigger key={v.key} value={v.key}>
+                {v.label}
+                {v.key === view && data ? <TabsCount>{data.total}</TabsCount> : null}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
         <Toolbar>
           <SearchBox
             label="Search shops"

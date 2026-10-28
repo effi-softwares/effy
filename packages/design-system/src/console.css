@@ -126,21 +126,8 @@ html * { @apply overscroll-x-none; }
 
 @layer components {
 
-  .ef-tabs {
-    @apply flex gap-1 overflow-x-auto border-b border-b-border;
-    scrollbar-width: none;
-  }
-  .ef-tabs__tab {
-    font: inherit;
-    @apply -mb-px inline-flex h-13 cursor-pointer items-center gap-2 border-0 border-b-2 border-b-transparent bg-transparent px-4 py-0 text-base font-medium whitespace-nowrap text-muted-foreground no-underline;
-  }
-  .ef-tabs__tab:hover { @apply text-foreground; }
-  .ef-tabs__tab.is-active { @apply border-b-foreground text-foreground; }
-  .ef-tabs__count { @apply inline-flex h-6 items-center rounded-sm bg-muted px-2 py-0 text-sm font-medium tabular-nums text-muted-foreground; }
-  [data-slot="tabs-trigger"] .ef-tabs__count { @apply h-5 text-xs; }
-  .ef-tabs__tab.is-active .ef-tabs__count { @apply bg-foreground text-background; }
-  .ef-tabs__count--primary { @apply bg-primary-muted text-primary; }
-
+  /* Tabs are shadcn `Tabs` (`ui/tabs.tsx`, its default look, the one tab design). This is only the
+     row a record's tab list sits in, with its side note or actions. */
   .ef-tabsbar { @apply flex flex-wrap items-center justify-between gap-x-4 gap-y-2; }
   .ef-tabsbar__list {
     @apply max-w-full overflow-x-auto;
