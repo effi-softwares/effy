@@ -351,7 +351,7 @@ functions:
 
   productGetV1:
     handler: src/functions/product-get-v1-get.handler
-    description: One product with its sizes, stock, details and aisles (102; history: /activity, 104). Read = any active staff incl. csa.
+    description: One product with its sizes, stock, details and aisles (102; its history is /activity, 104). Read = any active staff incl. csa.
     events:
       - httpApi:
           method: GET

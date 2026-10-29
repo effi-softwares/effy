@@ -343,7 +343,7 @@ functions:
 
   deliverabilityDetailV1:
     handler: src/functions/deliverability-detail-v1-get.handler
-    description: One address's delivery state and live suppression state — 037 (its events: /activity, 104)
+    description: One address's delivery state and live suppression state — 037 (its events are /activity, 104)
     events:
       - httpApi:
           method: GET
