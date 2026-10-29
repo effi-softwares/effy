@@ -410,16 +410,17 @@ cm-apk: ## customer-mobile: build a signed DEV release APK for sideloading (need
 	@echo "cm-apk: APK ready → apps/customer-mobile/androidApp/build/outputs/apk/release/androidApp-release.apk"
 	@echo "        install:  adb install -r <that path>   (or share the file and open it on the phone)"
 
-# --- run the mobile apps. Pick a simulator / emulator / phone from a list (arrow keys + Enter, or its
-# number), then the app is built, installed and launched there. DEVICE="<name>" skips the list.
-customer-ios: ## customer app: build + run on an iOS simulator you pick ([DEVICE="iPhone 17 Pro"])
-	@bash scripts/run-mobile.sh customer ios
-customer-android: ## customer app: build + run on an Android emulator or phone you pick ([DEVICE=Pixel_7_Pro])
-	@bash scripts/run-mobile.sh customer android
-driver-ios: ## driver app: build + run on an iOS simulator you pick ([DEVICE="iPhone 17 Pro"])
-	@bash scripts/run-mobile.sh driver ios
-driver-android: ## driver app: build + run on an Android emulator or phone you pick ([DEVICE=Pixel_7_Pro])
-	@bash scripts/run-mobile.sh driver android
+# --- run the mobile apps: pick a simulator, emulator or phone from a numbered list (Enter = the default),
+# then the debug build is built, installed and launched, and the app's output streams here until Ctrl+C
+# stops it. IOS_SIMULATOR="<name or udid>" / ANDROID_DEVICE=<avd or serial> skip the question.
+customer-ios: ## customer app on an iOS simulator you pick, its output in this terminal ([IOS_SIMULATOR="iPhone Air"])
+	@sh scripts/mobile/ios.sh customer
+customer-android: ## customer app on an Android emulator/phone you pick, its output in this terminal ([ANDROID_DEVICE=Pixel_7_Pro])
+	@sh scripts/mobile/android.sh customer
+driver-ios: ## driver app on an iOS simulator you pick, its output in this terminal ([IOS_SIMULATOR="iPhone Air"])
+	@sh scripts/mobile/ios.sh driver
+driver-android: ## driver app on an Android emulator/phone you pick, its output in this terminal ([ANDROID_DEVICE=Pixel_7_Pro])
+	@sh scripts/mobile/android.sh driver
 
 # --- brand marks. One authored vector -> every icon/splash/favicon on all six surfaces.
 # Same shape as the tokens generator above: an authored source, committed derived artifacts, and a
