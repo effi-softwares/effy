@@ -4,14 +4,7 @@ import { useQuery } from "@tanstack/react-query"
 
 import { CAPPED_SET_LIMIT, listFullSentence, type CourierServiceDTO, type CourierServiceInput } from "@effy/shared-types"
 import { StaticTable, type EffyColumnDef } from "@effy/web-kit/data-table"
-import {
-  Badge,
-  Button,
-  Checkbox,
-  Input,
-  Label,
-  TimeField,
-} from "@effy/design-system/ui"
+import { Badge, Button, Checkbox, Input, Label, TimeField } from "@effy/design-system/ui"
 
 import { courierServiceError, courierServiceFieldErrors } from "../errorText"
 import { courierServicesQuery, useCreateCourierService, useUpdateCourierService } from "../queries"
@@ -192,7 +185,7 @@ export function CourierServicesPanel({ canManage }: { canManage: boolean }) {
       </div>
 
       {services.isPending ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
+        <StaticTable label="Courier services" columns={columns} rows={[]} getRowId={(c) => c.id} loading loadingRows={2} />
       ) : items.length === 0 ? (
         <p className="text-sm text-muted-foreground" data-testid="courier-services-empty">
           No courier services yet. Add the one Effy uses — courier delivery can't be switched on until there is a

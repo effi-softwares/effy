@@ -3,6 +3,8 @@ package com.effyshopping.customer.mobile.features.checkout.presentation
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -19,7 +21,9 @@ import com.effyshopping.customer.mobile.core.presentation.EffyStatusPill
 import com.effyshopping.customer.mobile.core.presentation.EffyCard
 import com.effyshopping.customer.mobile.core.presentation.EffySnackbarHost
 import com.effyshopping.customer.mobile.core.presentation.EffyErrorState
-import com.effyshopping.customer.mobile.core.presentation.EffyRowSkeleton
+import com.effyshopping.customer.mobile.core.presentation.EffyLoading
+import com.effyshopping.customer.mobile.core.presentation.EffySkeletonBlock
+import com.effyshopping.customer.mobile.core.presentation.EffySkeletonText
 import com.effyshopping.customer.mobile.core.presentation.rememberEffyCollapse
 import com.effyshopping.customer.mobile.core.presentation.EffyScreenHeader
 import androidx.compose.foundation.clickable
@@ -180,7 +184,7 @@ fun OrdersScreen(
         )
 
         when (val s = state) {
-            OrdersUiState.Loading -> Column(Modifier.padding(top = EffySpacing.md)) { repeat(5) { EffyRowSkeleton() } }
+            OrdersUiState.Loading -> OrdersSkeleton()
 
             OrdersUiState.Error -> EffyErrorState(
                 title = "We couldn’t load your orders",
@@ -221,6 +225,34 @@ fun OrdersScreen(
     }
     // The reorder outcome is announced here — at the bottom, above the tab bar (Patterns board).
     EffySnackbarHost(snackbarHost, modifier = Modifier.align(Alignment.BottomCenter))
+    }
+}
+
+/** The list before it reads: the same padded column of order cards, each laid out as [OrderRow] lays it out. */
+@Composable
+private fun OrdersSkeleton() {
+    val type = MaterialTheme.typography
+    EffyLoading(Modifier.fillMaxSize(), label = "Loading your orders") {
+        Column(Modifier.fillMaxSize().padding(EffySpacing.lg), verticalArrangement = Arrangement.spacedBy(EffySpacing.md)) {
+            repeat(3) { i ->
+                EffyCard {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        EffySkeletonText(type.titleSmall, Modifier.weight(1f), widthFraction = 0.4f)
+                        EffySkeletonBlock(Modifier.width(72.dp).height(24.dp), radius = 12.dp)
+                    }
+                    EffySkeletonText(type.bodyLarge, Modifier.padding(top = EffySpacing.xs).fillMaxWidth(), widthFraction = if (i % 2 == 0) 0.7f else 0.55f)
+                    EffySkeletonText(type.bodySmall, Modifier.fillMaxWidth(), widthFraction = 0.45f)
+                    Row(Modifier.padding(top = EffySpacing.md), horizontalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
+                        repeat(3) { EffySkeletonBlock(Modifier.size(44.dp)) }
+                    }
+                    HorizontalDivider(Modifier.padding(vertical = EffySpacing.md), color = MaterialTheme.colorScheme.outlineVariant)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        EffySkeletonText(type.bodyMedium, Modifier.weight(1f), widthFraction = 0.4f)
+                        EffySkeletonText(type.labelLarge, Modifier.width(140.dp))
+                    }
+                }
+            }
+        }
     }
 }
 

@@ -5,21 +5,19 @@ import { useNavigate } from "@tanstack/react-router"
 import { Boxes, Pencil, ScanLine, UserPlus, Users } from "lucide-react"
 
 import type { ShopLifecycleStatus } from "@effy/shared-types"
-import {
-  Button,
-  Progress,
-  Skeleton,
-  Switch,
-  Tabs,
-  TabsContent,
-  TabsCount,
-  TabsList,
-  TabsTrigger,
-} from "@effy/design-system/ui"
+import { Button, Progress, Switch, Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui"
 import { ActivityLogDrawer, useActivityAction } from "@effy/web-kit/activity-log"
 import { ErrorState, useHeaderDetail } from "@effy/web-kit/console"
 
-import { DetailRows, MoreActions, PageHeader, Panel } from "@effy/web-kit/patterns"
+import {
+  DetailPageSkeleton,
+  DetailRows,
+  DetailRowsSkeleton,
+  MoreActions,
+  PageHeader,
+  Panel,
+  PanelSkeleton,
+} from "@effy/web-kit/patterns"
 import { sessionQuery } from "@/features/auth/queries"
 import { api } from "@/lib/api"
 import { track } from "@/lib/telemetry"
@@ -54,14 +52,7 @@ export function ShopDetailScreen({ shopId }: { shopId: string }) {
   const activity = useActivityAction()
 
   if (isError) return <ErrorState error={error} onRetry={() => void refetch()} />
-  if (isPending) {
-    return (
-      <div className="space-y-4" aria-busy="true">
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-60" />
-      </div>
-    )
-  }
+  if (isPending) return <ShopSkeleton />
 
   const shop = data
   const active = shop.users.filter((u) => u.status === "active")
@@ -359,5 +350,32 @@ function DangerRow({
         {action}
       </Button>
     </li>
+  )
+}
+
+function ShopSkeleton() {
+  return (
+    <DetailPageSkeleton
+      back={{ label: "Shops", link: { to: "/shops" } }}
+      actions={3}
+      tabs={["Overview", "Team", "Stock"]}
+      main={
+        <>
+          <PanelSkeleton title="Details" description="The address is for drivers only and is never shown to customers.">
+            <DetailRowsSkeleton labels={["Code", "Address", "Contact phone", "Notes", "Created", "Updated"]} />
+          </PanelSkeleton>
+          <PanelSkeleton
+            title="Packing"
+            description="What this shop must do before an order can be marked ready."
+            rows={1}
+          />
+        </>
+      }
+      aside={
+        <PanelSkeleton title="At a glance">
+          <DetailRowsSkeleton tight labels={["Managers", "Staff", "Low stock", "Address"]} />
+        </PanelSkeleton>
+      }
+    />
   )
 }

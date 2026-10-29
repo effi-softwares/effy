@@ -1,9 +1,12 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { render, screen } from "@testing-library/react"
+import { render, screen, waitFor } from "@testing-library/react"
 import type { ReactNode } from "react"
 import { describe, expect, it, vi } from "vitest"
 
 import type { HandoverReportDTO } from "@effy/shared-types"
+
+/** Every loading shape has gone — a skeleton writes the page's real titles, so a title alone does not mean loaded. */
+const loaded = () => waitFor(() => expect(screen.queryAllByRole("status", { busy: true })).toHaveLength(0))
 
 const getHandoverReport = vi.hoisted(() => vi.fn())
 vi.mock("./repo", () => ({ getHandoverReport }))
@@ -32,7 +35,8 @@ describe("Hand-over report (096 US6)", () => {
       <QueryClientProvider client={qc}>{children}</QueryClientProvider>
     )
     render(<HandoverReportScreen />, { wrapper })
-    expect(await screen.findByText("Exceptions per 1,000 hand-overs")).toBeInTheDocument()
+    await loaded()
+    expect(screen.getByText("Exceptions per 1,000 hand-overs")).toBeInTheDocument()
     expect(screen.getByText("400")).toBeInTheDocument()
     expect(screen.getByRole("table", { name: "By shop" })).toHaveTextContent("Green Grocer")
     expect(screen.getByRole("table", { name: "By shop" })).toHaveTextContent("25%")

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { render, screen, within } from "@testing-library/react"
+import { render, screen, within, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import type { ReactNode } from "react"
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest"
@@ -21,6 +21,9 @@ import type { ShopTodayDTO } from "@effy/shared-types"
 import { attentionHref, attentionRow, openItemCount, unitsToPack } from "../model"
 import { TodayScreen } from "../TodayScreen"
 import { useNavBadges } from "../useNavBadges"
+
+/** Every loading shape has gone — a skeleton writes the page's real titles, so a title alone does not mean loaded. */
+const loaded = () => waitFor(() => expect(screen.queryAllByRole("status", { busy: true })).toHaveLength(0))
 
 const NOW = "2026-09-14T04:00:00.000Z"
 const nowMs = new Date(NOW).getTime()
@@ -128,7 +131,8 @@ describe("Today (US1)", () => {
     getToday.mockResolvedValue(today())
     wrap(<TodayScreen />)
 
-    expect(await screen.findByText("Needs attention")).toBeInTheDocument()
+    await loaded()
+    expect(screen.getByText("Needs attention")).toBeInTheDocument()
     expect(screen.getByText("Live orders")).toBeInTheDocument()
     expect(screen.getByText("Updating as orders arrive")).toBeInTheDocument()
     expect(screen.getByText("Cleared items drop off automatically")).toBeInTheDocument()

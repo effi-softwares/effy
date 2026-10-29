@@ -6,7 +6,7 @@ import { useSearch } from "@tanstack/react-router"
 import { Button, Input, Label } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 
-import { PageHeader, Panel } from "@effy/web-kit/patterns"
+import { Bone, boneWidth, Loading, PageHeader, Panel } from "@effy/web-kit/patterns"
 
 import { sessionQuery } from "@/features/auth/queries"
 
@@ -109,7 +109,16 @@ function SchedulePanel({ canManage }: { canManage: boolean }) {
         {runs.isError ? (
           <ErrorState error={runs.error} onRetry={() => void runs.refetch()} />
         ) : runs.isPending ? (
-          <p className="text-sm text-muted-foreground">Loading…</p>
+          <Loading label="Loading collection runs">
+            <div className="divide-y divide-border rounded-md border border-border">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="flex h-12 items-center gap-3 px-3">
+                  <Bone className="w-12" />
+                  <Bone className={`max-w-40 ${boneWidth(i)}`} />
+                </div>
+              ))}
+            </div>
+          </Loading>
         ) : runs.data.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             No runs yet — no delivery window today can be offered until one is added.

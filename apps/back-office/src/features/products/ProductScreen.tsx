@@ -13,11 +13,23 @@ import {
   type BackOfficeProductDTO,
   type BackOfficeVariantDTO,
 } from "@effy/shared-types"
-import { Skeleton, Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui"
+import { Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui"
 import { ActivityButton, ActivityLogDrawer } from "@effy/web-kit/activity-log"
 import { ErrorState, useHeaderBack } from "@effy/web-kit/console"
 import { StaticTable, type EffyColumnDef } from "@effy/web-kit/data-table"
-import { Callout, DetailRows, PageHeader, Panel, StatusWord } from "@effy/web-kit/patterns"
+import {
+  Bone,
+  Callout,
+  DetailRows,
+  DetailRowsSkeleton,
+  Loading,
+  PageHeader,
+  PageHeaderSkeleton,
+  Panel,
+  PanelSkeleton,
+  StatusWord,
+  TabsSkeleton,
+} from "@effy/web-kit/patterns"
 
 import { useSessionRoles } from "@/features/auth/useSessionRoles"
 import { marginLabel } from "@/features/product-review/model"
@@ -47,14 +59,7 @@ export function ProductScreen({
   useHeaderBack(BACK)
 
   if (product.isError) return <ErrorState error={product.error} onRetry={() => void product.refetch()} />
-  if (product.isPending) {
-    return (
-      <div className="space-y-4" aria-busy="true">
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-60" />
-      </div>
-    )
-  }
+  if (product.isPending) return <ProductSkeleton />
   return <Product p={product.data} actions={actions} sizeAction={sizeAction} />
 }
 
@@ -336,4 +341,24 @@ function sizeColumns(
         ]
       : []),
   ]
+}
+
+function ProductSkeleton() {
+  return (
+    <Loading>
+      <PageHeaderSkeleton back={BACK} description={false} meta={3} actions={1} />
+      <TabsSkeleton tabs={["Overview", "Sizes & stock", "Details", "Aisles"]} />
+      <PanelSkeleton title="Pictures">
+        <div className="flex flex-wrap gap-3">
+          <Bone kind="block" className="size-28" />
+          <Bone kind="block" className="size-28" />
+        </div>
+      </PanelSkeleton>
+      <PanelSkeleton title="At a glance">
+        <DetailRowsSkeleton
+          labels={["Shop", "Home aisle", "State", "Sizes", "Margin", "Storage", "GST", "18+", "Came from", "Created"]}
+        />
+      </PanelSkeleton>
+    </Loading>
+  )
 }

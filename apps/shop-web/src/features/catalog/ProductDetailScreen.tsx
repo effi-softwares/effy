@@ -10,7 +10,6 @@ import {
   AlertTitle,
   Badge,
   Button,
-  Skeleton,
   Tabs,
   TabsContent,
   TabsList,
@@ -19,7 +18,17 @@ import {
 import { formatAttributeValue, GST_STATUS_WORDS, STORAGE_WORDS, type CategoryFormDTO } from "@effy/shared-types"
 import { ActivityLogDrawer } from "@effy/web-kit/activity-log"
 import { ErrorState } from "@effy/web-kit/console"
-import { DetailRows, PageHeader } from "@effy/web-kit/patterns"
+import {
+  Bone,
+  DetailRows,
+  DetailRowsSkeleton,
+  ListSkeleton,
+  Loading,
+  PageHeader,
+  PageHeaderSkeleton,
+  PanelSkeleton,
+  TabsSkeleton,
+} from "@effy/web-kit/patterns"
 
 import { DetailSection, Page, SectionAction } from "@/components/console/primitives"
 import { api } from "@/lib/api"
@@ -75,16 +84,36 @@ function ProductDetailBody({ productId, initialSize }: { productId: string; init
   if (isPending) {
     return (
       <Page>
-        <div className="flex items-start gap-4" aria-busy="true" aria-label="Loading product">
-          <Skeleton className="size-24 rounded-lg" />
-          <div className="grid flex-1 gap-3">
-            <Skeleton className="h-4 w-20" />
-            <Skeleton className="h-8 w-64" />
-            <Skeleton className="h-4 w-80 max-w-full" />
+        <Loading label="Loading product">
+          <div className="flex items-start gap-4 max-md:flex-col">
+            <Bone kind="block" className="size-20 rounded-xl max-md:size-16" />
+            <div className="min-w-0 flex-1">
+              <PageHeaderSkeleton
+                back={{ label: "Catalog", link: { to: "/catalog" } }}
+                description={false}
+                meta={4}
+                actions={2}
+              />
+            </div>
           </div>
-        </div>
-        <Skeleton className="h-12 w-96 max-w-full rounded-lg" />
-        <Skeleton className="h-64 w-full rounded-lg" />
+          <TabsSkeleton
+            tabs={TABS.map((t) => (
+              <>
+                <t.icon aria-hidden="true" />
+                {t.label}
+              </>
+            ))}
+          />
+          <PanelSkeleton title="Sizes and prices" description flush>
+            <ListSkeleton rows={2} lines={2} trailing="text" inset />
+          </PanelSkeleton>
+          <PanelSkeleton
+            title="Product details"
+            description="Name, brand and descriptions. Codes and weights are each size's."
+          >
+            <DetailRowsSkeleton labels={["Name", "Brand", "Short description", "Long description"]} />
+          </PanelSkeleton>
+        </Loading>
       </Page>
     )
   }
@@ -330,7 +359,13 @@ function ProductThumb({ detail }: { detail: ProductDetail }) {
 function FormSections({ detail, onEdit }: { detail: ProductDetail; onEdit?: (section: string) => void }) {
   const form = useQuery(categoryFormQuery(detail.primaryCategoryId))
   if (form.isError) return <ErrorState error={form.error} onRetry={() => void form.refetch()} />
-  if (!form.data) return <Skeleton className="h-32 w-full rounded-lg" />
+  if (!form.data) {
+    return (
+      <Loading label="Loading the category's details">
+        <PanelSkeleton description={`What ${detail.categoryPath[detail.categoryPath.length - 1]} asks for.`} rows={3} />
+      </Loading>
+    )
+  }
   const options = new Set(detail.options.flatMap((o) => (o.attributeId ? [o.attributeId] : [])))
   const sections = form.data.sections
     .map((s) => ({ ...s, rows: s.rows.filter((r) => !options.has(r.attributeId)) }))

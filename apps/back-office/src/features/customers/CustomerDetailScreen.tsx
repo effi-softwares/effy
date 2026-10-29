@@ -4,11 +4,20 @@ import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import { CircleMinus, CirclePlus, Coins, Mail, ShoppingBag } from "lucide-react"
 
-import { Avatar, AvatarFallback, Button, Skeleton } from "@effy/design-system/ui"
+import { Avatar, AvatarFallback, Button } from "@effy/design-system/ui"
 import { ActivityLogDrawer, useActivityAction } from "@effy/web-kit/activity-log"
 import { ErrorState, useHeaderDetail } from "@effy/web-kit/console"
 
-import { MoreActions, PageHeader, Panel } from "@effy/web-kit/patterns"
+import {
+  Bone,
+  DetailPageSkeleton,
+  DetailRowsSkeleton,
+  ListSkeleton,
+  MoreActions,
+  PageHeader,
+  Panel,
+  PanelSkeleton,
+} from "@effy/web-kit/patterns"
 import { initialsOf } from "@/components/shell/identity"
 import { sessionQuery } from "@/features/auth/queries"
 import { api } from "@/lib/api"
@@ -31,14 +40,7 @@ export function CustomerDetailScreen({ customerId }: { customerId: string }) {
   useHeaderDetail(detail.data ? detail.data.name || detail.data.email : null)
 
   if (detail.isError) return <ErrorState error={detail.error} onRetry={() => void detail.refetch()} />
-  if (detail.isPending) {
-    return (
-      <div className="space-y-4" aria-busy="true">
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-40" />
-      </div>
-    )
-  }
+  if (detail.isPending) return <CustomerSkeleton />
 
   const c = detail.data
   const centsPerPoint = settings.data?.centsPerPoint ?? 1
@@ -204,5 +206,39 @@ export function CustomerDetailScreen({ customerId }: { customerId: string }) {
         fileName={`points-${c.email}-activity`}
       />
     </>
+  )
+}
+
+function CustomerSkeleton() {
+  return (
+    <DetailPageSkeleton
+      back={{ label: "Customers", link: { to: "/customers" } }}
+      actions={2}
+      asideFirst
+      main={
+        <>
+          <PanelSkeleton title="Points" icon={<Coins aria-hidden="true" />} description>
+            <DetailRowsSkeleton labels={["Usable", "Held at checkout", "Next to expire"]} />
+          </PanelSkeleton>
+          <PanelSkeleton title="Recent orders" icon={<ShoppingBag aria-hidden="true" />} description flush>
+            <ListSkeleton rows={3} lines={1} trailing="text" inset />
+          </PanelSkeleton>
+        </>
+      }
+      aside={
+        <PanelSkeleton title="Customer">
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <Bone kind="avatar" className="size-12" />
+              <div className="flex min-w-0 flex-1 flex-col gap-2">
+                <Bone className="w-32" />
+                <Bone kind="small" className="w-44" />
+              </div>
+            </div>
+            <Bone kind="control" />
+          </div>
+        </PanelSkeleton>
+      }
+    />
   )
 }

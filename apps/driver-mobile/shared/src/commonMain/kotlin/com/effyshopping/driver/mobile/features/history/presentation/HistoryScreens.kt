@@ -34,7 +34,8 @@ import com.effyshopping.driver.mobile.core.presentation.DriverRow
 import com.effyshopping.driver.mobile.core.presentation.DriverNumberCircle
 import com.effyshopping.driver.mobile.core.presentation.DriverSectionLabel
 import com.effyshopping.driver.mobile.core.presentation.DriverSize
-import com.effyshopping.driver.mobile.core.presentation.DriverSkeleton
+import com.effyshopping.driver.mobile.core.presentation.DriverDetailSkeleton
+import com.effyshopping.driver.mobile.core.presentation.DriverHistorySkeleton
 import com.effyshopping.driver.mobile.core.presentation.DriverState
 import com.effyshopping.driver.mobile.core.presentation.DriverStatus
 import com.effyshopping.driver.mobile.core.presentation.DriverStatusPill
@@ -81,9 +82,7 @@ fun HistoryScreen(
         ) {
             val history = state.history
             when {
-                history == null && state.isLoading -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    DriverSkeleton(Modifier.fillMaxWidth(0.4f)); repeat(4) { DriverSkeleton(Modifier.fillMaxWidth(), height = 64.dp) }
-                }
+                history == null && state.isLoading -> DriverHistorySkeleton()
                 history == null -> DriverState(
                     Res.drawable.lucide_circle_alert, "Your history didn't load", state.message ?: "That's on us. Check your signal and try again.",
                     actionLabel = "Try again", onAction = onRefresh,
@@ -222,9 +221,7 @@ fun HistoryDetailScreen(
         ) {
             val detail = state.detail
             when {
-                detail == null && state.isLoading -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    DriverSkeleton(Modifier.fillMaxWidth(0.6f), height = 28.dp); DriverSkeleton(Modifier.fillMaxWidth(), height = 200.dp)
-                }
+                detail == null && state.isLoading -> DriverDetailSkeleton("Proof", label = "Loading the record")
                 detail == null -> DriverState(Res.drawable.lucide_circle_alert, "This record didn't load", state.message ?: "That's on us. Try again in a moment.")
                 kind == "run" -> PastRun(detail, title, hubName, onOpenDrop)
                 else -> PastDrop(detail)

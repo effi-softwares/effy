@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query"
 
 import { Button, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@effy/design-system/ui"
 import type { CapabilityFunction, DriverCapability } from "@effy/shared-types"
+import { Bone, Loading } from "@effy/web-kit/patterns"
 
 import { useSessionRoles } from "@/features/auth/useSessionRoles"
 
@@ -32,7 +33,24 @@ export function CapabilityEditor({ driverId }: { driverId: string }) {
 
   return (
     <div className="space-y-5">
-      {items.length === 0 ? (
+      {capabilities.isPending ? (
+        // Not "not cleared": nothing is known until the clearances are read.
+        <Loading label="Loading clearances">
+          <div className="space-y-4">
+            {(Object.keys(FUNCTION_HEADING) as CapabilityFunction[]).map((f) => (
+              <section key={f} className="space-y-2">
+                <h3 className="text-sm font-medium">{FUNCTION_HEADING[f]}</h3>
+                <div className="divide-y border-y">
+                  <div className="flex items-center justify-between gap-3 py-2.5">
+                    <Bone className="w-40" />
+                    <Bone kind="control" className="h-9 w-20" />
+                  </div>
+                </div>
+              </section>
+            ))}
+          </div>
+        </Loading>
+      ) : items.length === 0 ? (
         <p className="text-sm font-medium">
           Not cleared for any work. Until something is granted below, this driver cannot be given anything to do.
         </p>

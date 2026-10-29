@@ -4,11 +4,11 @@ import { useQuery } from "@tanstack/react-query"
 import { Warehouse } from "lucide-react"
 
 import { PARCEL_ZONE_WORDS, type HubCheckinResultDTO } from "@effy/shared-types"
-import { Skeleton, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@effy/design-system/ui"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 import { ScanField } from "@effy/web-kit/scanner"
 
-import { PageHeader, Panel, EmptyState } from "@effy/web-kit/patterns"
+import { EmptyState, Loading, PageHeader, Panel, PanelSkeleton, TableSkeleton } from "@effy/web-kit/patterns"
 import { track } from "@/lib/telemetry"
 
 import { hubExpectedQuery, useHubCheckin } from "./queries"
@@ -84,7 +84,11 @@ export function HubStationScreen() {
         {isError ? (
           <ErrorState error={error} onRetry={() => void refetch()} />
         ) : isPending ? (
-          <Skeleton className="h-48" />
+          <Loading label="Loading runs on the way in">
+            <PanelSkeleton description flush>
+              <TableSkeleton columns={["Code", "Bag", "Zone", "Order", "Goes to", "Checked in"]} rows={4} />
+            </PanelSkeleton>
+          </Loading>
         ) : runs.length === 0 ? (
           <EmptyState
             icon={Warehouse}

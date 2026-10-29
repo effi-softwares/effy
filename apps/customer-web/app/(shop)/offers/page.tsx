@@ -7,7 +7,8 @@ import { PROMOTION_GROUP_KEYS } from "@effy/shared-types"
 import { EmptyState } from "@/components/storefront/kit"
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
-import { Breadcrumb, Skeleton } from "@/components/ui/misc"
+import { Breadcrumb } from "@/components/ui/misc"
+import { Bone, boneWidth, Loading } from "@/components/ui/skeletons"
 
 import { getPromotionGroups, type PlacedBanner } from "../promotion-groups"
 import { CopyCodeButton } from "../_components/CopyCodeButton"
@@ -36,11 +37,23 @@ export default function OffersPage() {
       <div className="mt-6">
         <Suspense
           fallback={
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3" aria-hidden="true">
-              {[0, 1, 2].map((i) => (
-                <Skeleton key={i} className="h-44 rounded-lg" />
-              ))}
-            </div>
+            <Loading label="Loading offers">
+              <ul className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {[0, 1, 2].map((i) => (
+                  <li key={i}>
+                    <Card className="h-full gap-3 p-5">
+                      <Bone kind="chip" className="w-12" />
+                      <Bone kind="heading" className={boneWidth(i + 3)} />
+                      <Bone className="w-full" />
+                      <div className="mt-auto flex items-center gap-2 pt-2">
+                        <Bone kind="control" className="h-8 w-24" />
+                        <Bone kind="control" className="h-8 w-16" />
+                      </div>
+                    </Card>
+                  </li>
+                ))}
+              </ul>
+            </Loading>
           }
         >
           <OfferList />

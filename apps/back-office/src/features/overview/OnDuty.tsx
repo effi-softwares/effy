@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 
-import { Avatar, AvatarFallback, Button, Skeleton } from "@effy/design-system/ui"
-import { Panel, DotWord } from "@effy/web-kit/patterns"
+import { Avatar, AvatarFallback, Button } from "@effy/design-system/ui"
+import { DotWord, ListSkeleton, Loading, Panel } from "@effy/web-kit/patterns"
 import { initialsOf } from "@/components/shell/identity"
 import { dispatchDayQuery } from "@/features/dispatch/queries"
 import { dutyQuery } from "@/features/drivers/queries"
@@ -53,10 +53,9 @@ export function OnDuty() {
       flush
     >
       {duty.isPending ? (
-        <div className="space-y-3 px-5 py-4">
-          <Skeleton className="h-9" />
-          <Skeleton className="h-9" />
-        </div>
+        <Loading label="Loading who is on duty">
+          <ListSkeleton rows={3} media="avatar" inset />
+        </Loading>
       ) : onDuty.length === 0 ? (
         <p className="px-5 py-4 text-sm text-muted-foreground">
           Nobody is on duty. Drivers go on duty in the driver app.

@@ -15,11 +15,21 @@ import {
   AvatarFallback,
   Badge,
   Button,
-  Skeleton,
 } from "@effy/design-system/ui"
 import type { DeliveryWindow } from "@effy/shared-types"
 
-import { Callout, EmptyState, MoreActions, PageHeader, Panel, StatusWord } from "@effy/web-kit/patterns"
+import {
+  Callout,
+  EmptyState,
+  ListSkeleton,
+  Loading,
+  MoreActions,
+  PageHeader,
+  PageHeaderSkeleton,
+  Panel,
+  PanelSkeleton,
+  StatusWord,
+} from "@effy/web-kit/patterns"
 import { useHeaderDetail } from "@effy/web-kit/console"
 import { useSessionRoles } from "@/features/auth/useSessionRoles"
 
@@ -65,14 +75,7 @@ export function RoundDetailScreen({ roundId }: { roundId: string }) {
   const [waiving, setWaiving] = useState(false)
   const [takingBackOpen, setTakingBackOpen] = useState(false)
 
-  if (isPending) {
-    return (
-      <div className="space-y-4" aria-busy="true">
-        <Skeleton className="h-8 w-72" />
-        <Skeleton className="h-64" />
-      </div>
-    )
-  }
+  if (isPending) return <RoundSkeleton />
   if (isError || !round) return <Callout tone="destructive" title="That round could not be loaded." />
 
   const mayChange = canDispatch(roles)
@@ -284,4 +287,20 @@ export function handoverCounts(h: { scan: number; typed: number; manual: number 
   ]
     .filter(Boolean)
     .join(" · ")
+}
+
+function RoundSkeleton() {
+  return (
+    <Loading>
+      <PageHeaderSkeleton
+        back={{ label: "Dispatch", link: { to: "/orders/assignments" } }}
+        description={false}
+        meta={3}
+        actions={2}
+      />
+      <PanelSkeleton title="Stops" icon={<Route aria-hidden="true" />} flush>
+        <ListSkeleton rows={6} media="icon" trailing="text" inset />
+      </PanelSkeleton>
+    </Loading>
+  )
 }

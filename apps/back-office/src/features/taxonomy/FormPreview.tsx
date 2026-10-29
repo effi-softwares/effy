@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query"
 import { Badge } from "@effy/design-system/ui"
 import { GST_STATUS_WORDS, STORAGE_WORDS, type CategoryFormRow } from "@effy/shared-types"
 import { ErrorState } from "@effy/web-kit/console"
+import { Bone, FormSkeleton, Loading } from "@effy/web-kit/patterns"
 
 import { formQuery } from "./queries"
 
@@ -10,7 +11,21 @@ import { formQuery } from "./queries"
 export function FormPreview({ categoryId }: { categoryId: string }) {
   const form = useQuery(formQuery(categoryId))
   if (form.isError) return <ErrorState error={form.error} onRetry={() => void form.refetch()} />
-  if (form.isPending) return null
+  if (form.isPending) {
+    return (
+      <Loading label="Loading the form preview">
+        <section className="space-y-3">
+          <div className="space-y-2">
+            <h3 className="text-base font-semibold">Shop form preview</h3>
+            <Bone className="w-3/4" />
+          </div>
+          <div className="rounded-md border border-border p-4">
+            <FormSkeleton fields={3} submit={false} />
+          </div>
+        </section>
+      </Loading>
+    )
+  }
   const d = form.data.defaults
   return (
     <section className="space-y-3" aria-label="Shop form preview">

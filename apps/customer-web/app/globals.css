@@ -4,6 +4,7 @@
 @source "../../../packages/design-system/src/ui";
 
 @import "@effy/design-system/tokens.css";
+@import "@effy/design-system/skeleton.css";
 
 @utility container {
   width: 100%;
@@ -87,9 +88,6 @@
     @apply size-10 p-0;
   }
 
-  .sf-skeleton {
-    @apply block animate-pulse rounded-md bg-muted;
-  }
   .sf-media-frame {
     @apply relative w-full overflow-hidden bg-muted;
   }

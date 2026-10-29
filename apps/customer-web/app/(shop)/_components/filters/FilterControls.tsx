@@ -6,6 +6,7 @@ import { useEffect, useState } from "react"
 import { ActionButton, btnClass } from "@/components/storefront/actions"
 
 import { RangeFilter } from "./RangeFilter"
+import { FilterRailSkeleton } from "./FilterRailSkeleton"
 
 /**
  * The advanced filter controls, shared by the desktop side panel and the phone filter sheet. Loaded via
@@ -130,7 +131,7 @@ export default function FilterControls({
         ),
       )}
 
-      {loading && !facetSet && <p className="text-sm text-muted-foreground">Loading filters…</p>}
+      {loading && !facetSet && <FilterRailSkeleton />}
       {!loading && facetSet && facetSet.facets.length === 0 && (
         <p className="text-sm text-muted-foreground">No filters for this result set.</p>
       )}
@@ -143,6 +144,7 @@ export default function FilterControls({
     </div>
   )
 }
+
 
 /** The category list reads as radios: the chosen one fills its dot blue. */
 function radio(on: boolean): string {

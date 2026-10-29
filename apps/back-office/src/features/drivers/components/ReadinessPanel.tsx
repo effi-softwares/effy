@@ -2,9 +2,9 @@ import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import { CircleAlert, IdCard, MapPinned, UserX } from "lucide-react"
 
-import { Avatar, AvatarFallback, Skeleton } from "@effy/design-system/ui"
+import { Avatar, AvatarFallback } from "@effy/design-system/ui"
 
-import { Panel, EmptyState, StatusWord } from "@effy/web-kit/patterns"
+import { EmptyState, ListSkeleton, Loading, Panel, PanelSkeleton, StatusWord } from "@effy/web-kit/patterns"
 import { initialsOf } from "@/components/shell/identity"
 
 import { BLOCKED_LABEL, formatDate } from "../model"
@@ -14,7 +14,30 @@ import { CoveragePanel } from "./CoveragePanel"
 export function ReadinessPanel() {
   const { data, isPending } = useQuery(readinessQuery())
 
-  if (isPending) return <Skeleton className="h-64" />
+  if (isPending) {
+    return (
+      <Loading>
+        <div className="grid items-start gap-6 xl:grid-cols-2">
+          <PanelSkeleton
+            title="Drivers who cannot be given work"
+            icon={<UserX aria-hidden="true" />}
+            description="Fix the cause on their record — the next assignment pass picks them up."
+            flush
+          >
+            <ListSkeleton rows={3} media="icon" inset />
+          </PanelSkeleton>
+          <PanelSkeleton
+            title="Licences and registrations to renew"
+            icon={<IdCard aria-hidden="true" />}
+            description="Once a date passes, the driver cannot be given work."
+            flush
+          >
+            <ListSkeleton rows={3} trailing="chip" inset />
+          </PanelSkeleton>
+        </div>
+      </Loading>
+    )
+  }
   if (!data) return null
 
   const uncovered = data.uncoveredZones.filter((z) => z.activeDrivers === 0)

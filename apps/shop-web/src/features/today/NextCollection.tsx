@@ -3,8 +3,8 @@ import { useEffect } from "react"
 import { Truck } from "lucide-react"
 
 import type { ShopNextCollectionDTO } from "@effy/shared-types"
-import { Progress, Skeleton } from "@effy/design-system/ui"
-import { Panel } from "@effy/web-kit/patterns"
+import { Progress } from "@effy/design-system/ui"
+import { Bone, Loading, Panel } from "@effy/web-kit/patterns"
 
 import { track } from "@/lib/telemetry"
 import { cn } from "@/lib/utils"
@@ -25,11 +25,11 @@ export function NextCollection({
     <Panel icon={<Truck aria-hidden="true" />} title="Next collection">
       <div className="grid gap-3">
         {loading ? (
-          <>
-            <Skeleton className="h-7 w-32" />
-            <Skeleton className="h-2 w-full rounded-full" />
-            <Skeleton className="h-4 w-48" />
-          </>
+          <Loading label="Loading the next collection">
+            <Bone kind="title" className="w-32" />
+            <Bone kind="small" className="h-2 w-full rounded-full" />
+            <Bone className="w-48" />
+          </Loading>
         ) : next ? (
           <Body next={next} timezone={timezone} now={now} />
         ) : (

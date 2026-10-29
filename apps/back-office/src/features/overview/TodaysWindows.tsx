@@ -2,20 +2,10 @@ import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import { ArrowRight, CircleSlash, Clock } from "lucide-react"
 
-import {
-  Badge,
-  Button,
-  Skeleton,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@effy/design-system/ui"
+import { Badge, Button, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@effy/design-system/ui"
 import { leastAdvanced, type DispatchWindowDTO, type DeliverySlotDTO } from "@effy/shared-types"
 import { PackageStatusPill } from "@effy/web-kit/console"
-import { Panel, Meter, StatusWord } from "@effy/web-kit/patterns"
+import { Meter, Panel, SkeletonRows, StatusWord } from "@effy/web-kit/patterns"
 import { slotGridQuery } from "@/features/delivery/queries"
 import { dispatchWindowsQuery } from "@/features/dispatch/queries"
 import { ampm, at12, hhmm } from "./overviewFormat"
@@ -58,13 +48,7 @@ export function TodaysWindows() {
           </TableHeader>
           <TableBody>
             {grid.isPending ? (
-              [0, 1, 2].map((i) => (
-                <TableRow key={i}>
-                  <TableCell colSpan={5}>
-                    <Skeleton className="h-6" />
-                  </TableCell>
-                </TableRow>
-              ))
+              <SkeletonRows rows={3} columns={5} />
             ) : slots.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} className="text-muted-foreground">

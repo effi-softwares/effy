@@ -3,10 +3,10 @@ import { Link } from "@tanstack/react-router"
 
 import { Clock, Radio } from "lucide-react"
 
-import { Button, Skeleton, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@effy/design-system/ui"
+import { Button, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 
-import { Panel, Callout } from "@effy/web-kit/patterns"
+import { Callout, Loading, Panel, PanelSkeleton, TableSkeleton } from "@effy/web-kit/patterns"
 import { useSessionRoles } from "@/features/auth/useSessionRoles"
 import { dispatchDayQuery } from "@/features/dispatch/queries"
 
@@ -26,7 +26,15 @@ export function DutyPanel() {
   const day = useQuery(dispatchDayQuery())
 
   if (isError) return <ErrorState error={queryError} onRetry={() => void refetch()} />
-  if (isPending) return <Skeleton className="h-40" />
+  if (isPending) {
+    return (
+      <Loading label="Loading who is on duty">
+        <PanelSkeleton title="On duty now" icon={<Radio aria-hidden="true" />} description flush>
+          <TableSkeleton columns={["Driver", "Doing now", "Zone", "On duty", "Finish", ""]} rows={3} />
+        </PanelSkeleton>
+      </Loading>
+    )
+  }
 
   const waiting = data.unassigned.readyToCollect + data.unassigned.readyToDeliver
   const roundOf = (driverId: string) => day.data?.rounds.find((r) => r.driverId === driverId)

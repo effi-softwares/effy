@@ -8,6 +8,7 @@ import {
   type CourierReachUpdateDTO,
 } from "@effy/shared-types"
 import { Button, Input, Label, RadioGroup, RadioGroupItem, Switch } from "@effy/design-system/ui"
+import { Bone, Loading } from "@effy/web-kit/patterns"
 
 import { coverageError } from "../errorText"
 import { useAddCourierExclusion, useRemoveCourierExclusion, useUpdateCourier } from "../queries"
@@ -223,5 +224,35 @@ export function CourierPanel({ courier, canManage }: { courier: CourierReachDTO;
         </p>
       ) : null}
     </section>
+  )
+}
+
+/** The section while coverage reads: its fixed heading and words, a bone for each setting. */
+export function CourierPanelSkeleton() {
+  return (
+    <Loading>
+      <section className="space-y-4">
+        <div className="space-y-1">
+          <h2 className="text-base font-semibold">Courier delivery</h2>
+          <p className="max-w-2xl text-sm text-muted-foreground">
+            An address that is not on Effy's list is offered courier delivery — everywhere in the country except the
+            postcodes excluded below.
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Bone className="h-5 w-9 rounded-full" />
+          <span className="text-sm font-medium">Offer courier delivery</span>
+        </div>
+        <div className="space-y-2">
+          <p className="text-sm font-medium">What a courier customer is told</p>
+          <Bone className="w-full max-w-xl" />
+        </div>
+        <div className="space-y-2">
+          <p className="text-sm font-medium">How courier parcels reach the courier</p>
+          <Bone className="w-3/4 max-w-lg" />
+          <Bone className="w-2/3 max-w-lg" />
+        </div>
+      </section>
+    </Loading>
   )
 }

@@ -11,6 +11,7 @@
     "./hooks/use-mobile": "./src/hooks/use-mobile.ts",
     "./tokens.css": "./src/tokens.css",
     "./console.css": "./src/console.css",
+    "./skeleton.css": "./src/skeleton.css",
     "./stripe-storefront-appearance": "./stripe/storefront-appearance.ts"
   },
   "types": "./src/index.ts",

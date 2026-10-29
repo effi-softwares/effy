@@ -6,6 +6,7 @@ import { ArrowRight } from "lucide-react"
 import { btnClass } from "@/components/storefront/actions"
 import { HERO_THEME, PromoBanner, PromoBubbles, SIDE_THEMES, type PromoTheme } from "@/components/storefront/PromoBanner"
 import { cn } from "@/lib/utils"
+import { Bone, Loading } from "@/components/ui/skeletons"
 
 import type { PlacedBanner } from "../promotion-groups"
 
@@ -27,8 +28,10 @@ const BAND_HEIGHT = "min-h-80"
 
 export function PromoHeroSkeleton() {
   return (
-    <div className="container pt-6" aria-hidden="true">
-      <div className={`w-full animate-pulse rounded-xl bg-muted ${BAND_HEIGHT}`} />
+    <div className="container pt-6">
+      <Loading label="Loading promotions">
+        <Bone kind="block" className={`rounded-xl ${BAND_HEIGHT}`} />
+      </Loading>
     </div>
   )
 }

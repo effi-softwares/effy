@@ -2,7 +2,9 @@ import type { StorefrontProductCardDTO } from "@effy/shared-types"
 
 import { SectionHeader, sectionSpacing } from "@/components/storefront/kit"
 
-import { FIRST_ROW, ProductCard } from "./ProductCard"
+import { Bone } from "@/components/ui/skeletons"
+
+import { FIRST_ROW, ProductCard, ProductCardSkeleton } from "./ProductCard"
 import { SaveControl } from "./SaveControl"
 
 /**
@@ -11,6 +13,10 @@ import { SaveControl } from "./SaveControl"
  */
 /** How many cards a rail shows before "See all" takes over. Two desktop screens' worth. */
 export const RAIL_CAP = 12
+
+const RAIL_LIST =
+  "-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-px-4 px-4 pb-2 [scrollbar-width:none] sm:-mx-6 sm:scroll-px-6 sm:px-6 lg:mx-0 lg:scroll-px-0 lg:px-0 [&::-webkit-scrollbar]:hidden"
+const RAIL_ITEM = "w-[calc((100%-2rem)/2.2)] shrink-0 snap-start md:w-[calc((100%-3rem)/4)] xl:w-[calc((100%-5rem)/6)]"
 
 /**
  * One merchandised row (reference: Home · "Today's deals", aisle rails, "New arrivals").
@@ -45,18 +51,34 @@ export function ProductRail({
       <ul
         tabIndex={0}
         aria-label={title}
-        className="-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-px-4 px-4 pb-2 [scrollbar-width:none] sm:-mx-6 sm:scroll-px-6 sm:px-6 lg:mx-0 lg:scroll-px-0 lg:px-0 [&::-webkit-scrollbar]:hidden"
+        className={RAIL_LIST}
       >
         {products.slice(0, RAIL_CAP).map((p, i) => (
-          <li
-            key={p.id}
-            className="w-[calc((100%-2rem)/2.2)] shrink-0 snap-start md:w-[calc((100%-3rem)/4)] xl:w-[calc((100%-5rem)/6)]"
-          >
+          <li key={p.id} className={RAIL_ITEM}>
             <ProductCard
               product={p}
               saveControl={<SaveControl productId={p.id} />}
               priority={priority && i < FIRST_ROW}
             />
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+/** A rail before its products arrive: the same section, header and scrolling row, so nothing moves when it lands. */
+export function ProductRailSkeleton({ title, className }: { title?: string; className?: string }) {
+  return (
+    <section className={`container ${sectionSpacing} ${className ?? ""}`}>
+      <div className="mb-4 flex min-h-9 items-center justify-between gap-4">
+        {title ? <h2 className="text-xl font-semibold tracking-tight">{title}</h2> : <Bone kind="heading" className="w-48" />}
+        <Bone className="w-16" />
+      </div>
+      <ul className={`${RAIL_LIST} overflow-x-hidden`}>
+        {Array.from({ length: 6 }, (_, i) => (
+          <li key={i} className={RAIL_ITEM}>
+            <ProductCardSkeleton index={i} />
           </li>
         ))}
       </ul>

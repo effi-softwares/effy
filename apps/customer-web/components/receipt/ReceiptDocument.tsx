@@ -7,6 +7,7 @@ import { AgeBadge } from "@/components/storefront/AgeBadge"
 import { CatalogImage } from "@/components/storefront/CatalogImage"
 import { BuyLineAgain, PrintReceipt } from "@/components/receipt/ReceiptActions"
 import { Badge } from "@/components/ui/badge"
+import { Bone, boneWidth } from "@/components/ui/skeletons"
 import { formatMoney } from "@/lib/money"
 import { cn } from "@/lib/utils"
 
@@ -77,6 +78,57 @@ export function ReceiptDocument({
 }
 
 /** Who sold it, to which order, and when. The seller identity comes from `@effy/legal-content`; anything unrecorded is omitted. */
+/** The document while its order reads: the same masthead, table head and totals, a bone for each value. */
+export function ReceiptDocumentSkeleton({ rows = 3 }: { rows?: number }) {
+  return (
+    <section className="rounded-lg border bg-card shadow-xs">
+      <div className="flex flex-col gap-3 p-6">
+        <h2 className="leading-none font-semibold">Receipt</h2>
+        <Bone className="w-64 max-w-full" />
+      </div>
+      <div className="px-6 pb-6">
+        <table className="w-full border-collapse text-sm">
+          <thead>
+            <tr className="border-b text-muted-foreground">
+              <th scope="col" className="h-10 px-2 text-left font-medium">Item</th>
+              <th scope="col" className="h-10 px-2 text-right font-medium">Qty</th>
+              <th scope="col" className="h-10 px-2 text-right font-medium">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {Array.from({ length: rows }, (_, i) => (
+              <tr key={i} className="border-b last:border-b-0">
+                <td className="px-2 py-3">
+                  <div className="flex items-center gap-3">
+                    <Bone kind="thumb" className="size-10 rounded-md" />
+                    <Bone className={cn("max-w-56", boneWidth(i))} />
+                  </div>
+                </td>
+                <td className="px-2 py-3">
+                  <Bone className="ml-auto w-6" />
+                </td>
+                <td className="px-2 py-3">
+                  <Bone className="ml-auto w-14" />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <dl className="mt-4 ml-auto flex max-w-sm flex-col gap-2">
+          {["Items subtotal", "Delivery", "Total paid"].map((label, i) => (
+            <div key={label} className="flex items-center justify-between gap-4">
+              <dt className={i === 2 ? "text-base font-semibold" : "text-sm"}>{label}</dt>
+              <dd>
+                <Bone className="w-16" />
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+    </section>
+  )
+}
+
 function Masthead({ order }: { order: OrderDTO }) {
   const paid = order.paymentStatus === "succeeded" || order.status === "paid"
   const seller = sellerIdentity()

@@ -28,6 +28,7 @@ import {
   type VariantSetDraft,
   variantSetErrors,
 } from "@effy/web-kit/product-form"
+import { FormSkeleton, Loading } from "@effy/web-kit/patterns"
 import { FocusedEditDialog, FocusedEditForm } from "./FocusedEditDialog"
 import { buildProductUpdate, diffScalarFields } from "./focusedEdit"
 import { pathText, type ProductDetail } from "./model"
@@ -352,7 +353,9 @@ function DetailsForm({ detail, section, onClose }: FormProps & { section: string
       {form.isError ? (
         <ErrorState error={form.error} onRetry={() => void form.refetch()} />
       ) : !form.data ? (
-        <p className="text-sm text-muted-foreground">Loading the form…</p>
+        <Loading label="Loading the form">
+          <FormSkeleton fields={4} submit={false} />
+        </Loading>
       ) : (
         <div className="grid gap-6">
           {sections.map((s) => (

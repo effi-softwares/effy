@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 
 import { Button, Checkbox, Label } from "@effy/design-system/ui"
+import { Bone, boneWidth, Loading } from "@effy/web-kit/patterns"
 
 import { productMutationError } from "./errorText"
 import type { ProductDetail } from "./model"
@@ -41,7 +42,18 @@ export function SectionAssignment({ detail }: { detail: ProductDetail }) {
 
   return (
     <div className="space-y-3">
-      {all.length === 0 ? (
+      {sections.isPending ? (
+        <Loading label="Loading sections">
+          <div className="space-y-2">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="flex items-center gap-2">
+                <Bone className="size-4 rounded-sm" />
+                <Bone className={`max-w-40 ${boneWidth(i)}`} />
+              </div>
+            ))}
+          </div>
+        </Loading>
+      ) : all.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           This shop has no sections yet. Create one from “Manage sections” on the catalog.
         </p>

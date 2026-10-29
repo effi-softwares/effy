@@ -1,10 +1,9 @@
 import { useQuery } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
 
-import { Skeleton } from "@effy/design-system/ui"
 import { ErrorState, useHeaderBack } from "@effy/web-kit/console"
 
-import { EffyProductForm } from "./EffyProductForm"
+import { EffyProductForm, EffyProductFormSkeleton } from "./EffyProductForm"
 import { productQuery } from "./queries"
 
 const BACK = { label: "Products", link: { to: "/products" } } as const
@@ -30,7 +29,7 @@ export function FinishProductScreen({ productId }: { productId: string }) {
   const back = () => void navigate({ to: "/products/$productId", params: { productId } })
 
   if (product.isError) return <ErrorState error={product.error} onRetry={() => void product.refetch()} />
-  if (product.isPending) return <Skeleton className="h-60" />
+  if (product.isPending) return <EffyProductFormSkeleton />
   if (!product.data.effySettingUp) {
     return <ErrorState error={new Error("This product is the shop's now; Effy can no longer edit its content.")} />
   }

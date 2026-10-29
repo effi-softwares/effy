@@ -1,10 +1,16 @@
 import { useQuery } from "@tanstack/react-query"
 
-import { Skeleton } from "@effy/design-system/ui"
 import { ActivityButton, ActivityLogDrawer } from "@effy/web-kit/activity-log"
 import { ErrorState } from "@effy/web-kit/console"
 
-import { PageHeader, Panel } from "@effy/web-kit/patterns"
+import {
+  DetailRowsSkeleton,
+  Loading,
+  PageHeader,
+  PageHeaderSkeleton,
+  Panel,
+  PanelSkeleton,
+} from "@effy/web-kit/patterns"
 import { api } from "@/lib/api"
 import { moment } from "@/lib/format"
 
@@ -23,7 +29,18 @@ export function DeliverabilityDetailScreen({ address }: { address: string }) {
   const mayRepair = canRepairDelivery(roles)
 
   if (isError) return <ErrorState error={error} onRetry={() => void refetch()} />
-  if (isPending) return <Skeleton className="h-60" aria-busy="true" />
+  if (isPending) {
+    return (
+      <Loading>
+        <PageHeaderSkeleton back={{ label: "All delivery problems", link: { to: "/deliverability" } }} actions={2} />
+        <div className="max-w-220">
+          <PanelSkeleton title="Address">
+            <DetailRowsSkeleton tight labels={["State", "Account", "Reason", "Server said", "Since", "Last checked"]} />
+          </PanelSkeleton>
+        </div>
+      </Loading>
+    )
+  }
 
   return (
     <>

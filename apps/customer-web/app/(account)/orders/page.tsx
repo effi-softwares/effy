@@ -16,6 +16,7 @@ import { EmptyState } from "@/components/storefront/kit"
 import { Badge } from "@/components/ui/badge"
 import { Breadcrumb } from "@/components/ui/misc"
 
+import { Bone, Loading } from "@/components/ui/skeletons"
 import { inPeriod, matchesFilter, ORDER_FILTERS, orderRowWords, periodsFor, type OrderFilter } from "@/lib/order-summary"
 import { cn } from "@/lib/utils"
 
@@ -248,13 +249,49 @@ function Fact({ label, className, children }: { label: string; className?: strin
   )
 }
 
+/** The list while it reads: the real filter names, then order cards with the same facts row and body. */
 function ListSkeleton() {
   return (
-    <div className="space-y-4" aria-hidden="true">
-      <div className="h-9 w-full max-w-md animate-pulse rounded-lg bg-muted" />
-      {[0, 1, 2].map((i) => (
-        <div key={i} className="h-40 w-full animate-pulse rounded-lg bg-muted" />
-      ))}
-    </div>
+    <Loading label="Loading your orders">
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="inline-flex max-w-full gap-1 overflow-x-auto rounded-lg bg-muted p-1">
+            {ORDER_FILTERS.map((f, i) => (
+              <span
+                key={f.key}
+                className={cn(
+                  "inline-flex h-7 shrink-0 items-center rounded-md px-3 text-sm font-medium whitespace-nowrap text-muted-foreground",
+                  i === 0 && "bg-background text-foreground shadow-xs",
+                )}
+              >
+                {f.label}
+              </span>
+            ))}
+          </div>
+          <Bone kind="control" className="h-9 w-36" />
+        </div>
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="rounded-lg border bg-card shadow-xs">
+            <dl className="flex flex-wrap gap-x-6 gap-y-2 border-b px-4 py-4 text-sm sm:px-6">
+              {["Order", "Placed", "Total"].map((label) => (
+                <Fact key={label} label={label}>
+                  <Bone className="mt-1 w-20" />
+                </Fact>
+              ))}
+            </dl>
+            <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-6">
+              <div className="min-w-0 space-y-3">
+                <Bone className={cn("w-56", i % 2 && "w-44")} />
+                <div className="flex items-center gap-2">
+                  <Bone kind="thumb" className="size-14 rounded-md" />
+                  <Bone kind="thumb" className="size-14 rounded-md" />
+                </div>
+              </div>
+              <Bone kind="control" className="w-28" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </Loading>
   )
 }

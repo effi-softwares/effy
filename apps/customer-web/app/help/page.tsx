@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card"
 import { Breadcrumb } from "@/components/ui/misc"
 import { edgeApi, perCustomer } from "@/lib/api/edge"
 import { getSession } from "@/lib/dal"
+import { Bone, Loading } from "@/components/ui/skeletons"
 
 import { HelpAnswers } from "./HelpAnswers"
 
@@ -74,13 +75,29 @@ async function FeedbackFormSection({
   )
 }
 
-/** A quiet placeholder while the session/prefill resolves — no layout shift beyond the form area. */
+/** The form while the session and its prefill resolve: the same fields, labelled, with bones for the controls. */
 function FormFallback() {
   return (
-    <div className="mt-8 space-y-5" aria-hidden>
-      <div className="h-10 w-full animate-pulse rounded-md bg-muted" />
-      <div className="h-40 w-full animate-pulse rounded-lg bg-muted" />
-      <div className="h-10 w-40 animate-pulse rounded-md bg-muted" />
-    </div>
+    <Loading label="Loading the form">
+      <div className="mt-8 flex flex-col gap-5">
+        <div className="flex flex-col gap-2">
+          <span className="text-sm font-medium">What kind of feedback is this?</span>
+          <Bone kind="control" />
+        </div>
+        <div className="flex flex-col gap-2">
+          <span className="text-sm font-medium">Your message</span>
+          <Bone kind="block" className="h-32 rounded-md" />
+        </div>
+        <div className="flex flex-col gap-2">
+          <span className="text-sm font-medium">How would you rate your experience? (optional)</span>
+          <div className="flex gap-2">
+            {[0, 1, 2, 3, 4].map((i) => (
+              <Bone key={i} kind="control" className="w-11" />
+            ))}
+          </div>
+        </div>
+        <Bone kind="control" className="w-40" />
+      </div>
+    </Loading>
   )
 }

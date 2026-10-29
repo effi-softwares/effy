@@ -8,7 +8,6 @@ import {
   Alert,
   AlertDescription,
   AlertTitle,
-  Skeleton,
   Tabs,
   TabsContent,
   TabsCount,
@@ -17,7 +16,7 @@ import {
 } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 
-import { PageHeader } from "@effy/web-kit/patterns"
+import { Loading, PageHeader, PanelSkeleton, TableSkeleton, TabsSkeleton } from "@effy/web-kit/patterns"
 import { AssignmentActions } from "@/features/assign/AssignmentActions"
 import { useSessionRoles } from "@/features/auth/useSessionRoles"
 
@@ -44,10 +43,32 @@ export function DispatchDayScreen() {
       {isError ? (
         <ErrorState error={error} onRetry={() => void refetch()} />
       ) : isPending ? (
-        <div className="space-y-3" aria-busy="true">
-          <Skeleton className="h-9 w-96 max-w-full" />
-          <Skeleton className="h-64" />
-        </div>
+        <Loading>
+          <TabsSkeleton
+            tabs={[
+              <>
+                <UserX aria-hidden="true" />
+                Needs a driver
+              </>,
+              <>
+                <CalendarClock aria-hidden="true" />
+                Delivery windows
+              </>,
+              <>
+                <Truck aria-hidden="true" />
+                Rounds
+              </>,
+            ]}
+          />
+          <PanelSkeleton
+            title="Needs a driver"
+            icon={<UserX aria-hidden="true" />}
+            description="Ready at a shop or waiting at the hub. Each says why auto-assign couldn't place it."
+            flush
+          >
+            <TableSkeleton columns={["Package", "Why nobody has it", "Where it is", "Area", ""]} />
+          </PanelSkeleton>
+        </Loading>
       ) : (
         <>
           {data.failedParcels &&

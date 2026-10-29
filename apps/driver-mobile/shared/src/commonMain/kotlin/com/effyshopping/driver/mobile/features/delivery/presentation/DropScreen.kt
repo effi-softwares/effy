@@ -41,7 +41,7 @@ import com.effyshopping.driver.mobile.core.presentation.DriverGroup
 import com.effyshopping.driver.mobile.core.presentation.DriverIcon
 import com.effyshopping.driver.mobile.core.presentation.DriverInlineBar
 import com.effyshopping.driver.mobile.core.presentation.DriverSize
-import com.effyshopping.driver.mobile.core.presentation.DriverSkeleton
+import com.effyshopping.driver.mobile.core.presentation.DriverDetailSkeleton
 import com.effyshopping.driver.mobile.core.presentation.DriverState
 import com.effyshopping.driver.mobile.core.presentation.DriverStatus
 import com.effyshopping.driver.mobile.core.presentation.DriverStatusPill
@@ -107,9 +107,7 @@ fun DropScreen(
             DriverInlineBar("Drop", backLabel = "Run", onBack = onBack)
             Column(Modifier.padding(DriverSize.gutter), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (state.isLoading) {
-                    DriverSkeleton(Modifier.fillMaxWidth(0.4f))
-                    DriverSkeleton(Modifier.fillMaxWidth(0.8f), height = 32.dp)
-                    DriverSkeleton(Modifier.fillMaxWidth(), height = 120.dp)
+                    DriverDetailSkeleton("Bags", label = "Loading the drop")
                 } else {
                     DriverState(
                         Res.drawable.lucide_circle_alert, "This drop didn't load", state.message ?: "That's on us. Check your signal and try again.",

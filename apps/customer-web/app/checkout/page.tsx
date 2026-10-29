@@ -11,6 +11,7 @@ import { edgeApi } from "@/lib/api/edge"
 import { getSession, requireCustomer } from "@/lib/dal"
 
 import { CheckoutFlow } from "./CheckoutFlow"
+import { CheckoutSkeleton } from "./CheckoutSkeleton"
 
 export const metadata: Metadata = {
   title: "Checkout",
@@ -60,14 +61,4 @@ async function CheckoutGate() {
   }
 
   return <CheckoutFlow initialAddresses={addresses} />
-}
-
-function CheckoutSkeleton() {
-  return (
-    <div className="space-y-4" aria-hidden="true">
-      <div className="h-40 w-full animate-pulse rounded-lg bg-muted" />
-      <div className="h-64 w-full animate-pulse rounded-lg bg-muted" />
-      <div className="h-12 w-full animate-pulse rounded-md bg-muted" />
-    </div>
-  )
 }

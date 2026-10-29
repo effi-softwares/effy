@@ -17,9 +17,9 @@ import {
 } from "lucide-react"
 
 import { cn } from "@effy/design-system"
-import { Badge, Button, Skeleton } from "@effy/design-system/ui"
+import { Badge, Button } from "@effy/design-system/ui"
 
-import { Kbd, PageHeader, Panel, Callout } from "@effy/web-kit/patterns"
+import { Bone, Callout, Kbd, PageHeader, Panel } from "@effy/web-kit/patterns"
 import { displayName } from "@/components/shell/identity"
 import { sessionQuery } from "@/features/auth/queries"
 import { deliverabilityListQuery } from "@/features/deliverability/queries"
@@ -186,7 +186,7 @@ export function OverviewScreen() {
                     <span className="block text-muted-foreground">{a.desc}</span>
                   </span>
                   <span className="min-w-10 text-right text-xl leading-7 font-semibold tracking-[-0.02em] tabular-nums max-md:min-w-7 max-md:text-lg">
-                    {a.n === undefined ? <Skeleton className="ml-auto h-6 w-8" /> : a.n}
+                    {a.n === undefined ? <Bone kind="heading" className="ml-auto h-6 w-8" /> : a.n}
                   </span>
                   <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
                 </Link>

@@ -18,6 +18,8 @@ import com.effyshopping.customer.mobile.core.theme.EffyRoles
 import com.effyshopping.customer.mobile.core.presentation.money
 import com.effyshopping.customer.mobile.core.presentation.EffySize
 import com.effyshopping.customer.mobile.core.presentation.EffyCard
+import com.effyshopping.customer.mobile.core.presentation.EffyLoading
+import com.effyshopping.customer.mobile.core.presentation.EffySkeletonText
 import com.effyshopping.customer.mobile.core.presentation.EffyNotice
 import com.effyshopping.customer.mobile.core.presentation.EffyTextLink
 import com.effyshopping.customer.mobile.core.presentation.EffyPrimaryButton
@@ -60,7 +62,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -160,9 +161,7 @@ fun CheckoutScreen(
         EffyAppBar(title = "Checkout", onBack = onBack)
 
         when (val s = state) {
-            CheckoutUiState.Loading -> Column(Modifier.padding(EffySpacing.lg), verticalArrangement = Arrangement.spacedBy(EffySpacing.md)) {
-                repeat(3) { EffySkeletonBlock(Modifier.fillMaxWidth().height(110.dp), radius = EffyStorefrontShape.lg) }
-            }
+            CheckoutUiState.Loading -> CheckoutSkeleton()
 
             is CheckoutUiState.Ready -> {
                 val cart by container.cart.state.collectAsState()
@@ -467,6 +466,45 @@ private fun OrderSummaryCard(cart: CartSnapshot, s: CheckoutUiState.Ready, pay: 
  * One numbered checkout section — "1. Delivery address" with its one-line purpose and an optional
  * blue action ("Change") on the right (Checkout board).
  */
+/** Checkout before the cart and addresses are read: the same numbered cards and the summary, values as bones. */
+@Composable
+private fun CheckoutSkeleton() {
+    val type = MaterialTheme.typography
+    EffyLoading(Modifier.fillMaxSize(), label = "Loading checkout") {
+        Column(Modifier.fillMaxSize().padding(EffySpacing.lg), verticalArrangement = Arrangement.spacedBy(EffySpacing.md)) {
+            NumberedCard(number = 1, title = "Delivery address", subtitle = "Where should we bring your order?") {
+                EffySkeletonText(type.bodyLarge, Modifier.fillMaxWidth(), widthFraction = 0.5f)
+                EffySkeletonText(type.bodyMedium, Modifier.fillMaxWidth(), widthFraction = 0.8f)
+            }
+            NumberedCard(number = 2, title = "Delivery", subtitle = null) { DeliveryOptionsSkeleton() }
+            EffyCard(padding = EffySpacing.lg) {
+                Text("Order summary", style = type.titleMedium)
+                Row(Modifier.padding(vertical = EffySpacing.s), horizontalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
+                    repeat(3) { EffySkeletonBlock(Modifier.size(48.dp)) }
+                }
+                repeat(2) { i ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        EffySkeletonText(type.bodyMedium, Modifier.weight(1f), widthFraction = if (i == 0) 0.3f else 0.25f)
+                        EffySkeletonText(type.bodyMedium, Modifier.width(64.dp))
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Step 2's choices while the quote is worked out: a two-by-two of option tiles. */
+@Composable
+private fun DeliveryOptionsSkeleton() {
+    Column(verticalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
+        repeat(2) {
+            Row(horizontalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
+                repeat(2) { EffySkeletonBlock(Modifier.weight(1f).height(56.dp), radius = EffyStorefrontShape.md) }
+            }
+        }
+    }
+}
+
 @Composable
 private fun NumberedCard(
     number: Int,
@@ -514,10 +552,8 @@ private fun DeliverySection(s: CheckoutUiState.Ready, vm: CheckoutViewModel) {
     }
     NumberedCard(2, heading, subtitle) {
     when {
-        s.quoting || quote == null -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
-            CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
-            Text("Checking delivery…", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
+        // The options' places while the quote is worked out; who delivers is not known yet.
+        s.quoting || quote == null -> EffyLoading(label = "Checking delivery") { DeliveryOptionsSkeleton() }
         // The one refusal sentence (CoverageWords), the same the address book shows. No red.
         !quote.serviced -> EffyInlineError(CoverageWords.REFUSAL)
         // A courier delivers: Nothing to choose.

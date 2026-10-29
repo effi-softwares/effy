@@ -61,7 +61,8 @@ import com.effyshopping.driver.mobile.core.presentation.DriverRow
 import com.effyshopping.driver.mobile.core.presentation.DriverSectionLabel
 import com.effyshopping.driver.mobile.core.presentation.DriverSheet
 import com.effyshopping.driver.mobile.core.presentation.DriverSize
-import com.effyshopping.driver.mobile.core.presentation.DriverSkeleton
+import com.effyshopping.driver.mobile.core.presentation.DriverDetailSkeleton
+import com.effyshopping.driver.mobile.core.presentation.DriverRunSkeleton
 import com.effyshopping.driver.mobile.core.presentation.DriverState
 import com.effyshopping.driver.mobile.core.presentation.DriverStatus
 import com.effyshopping.driver.mobile.core.presentation.DriverStatusPill
@@ -142,10 +143,7 @@ fun CollectionRunScreen(
         ) {
             state.message?.let { DriverAlert(DriverAlertKind.Problem, Res.drawable.lucide_circle_alert, title = it) }
             when {
-                run == null && state.isLoading -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    DriverSkeleton(Modifier.fillMaxWidth(0.6f), height = 28.dp); DriverSkeleton(Modifier.fillMaxWidth(), height = 210.dp)
-                    repeat(4) { DriverSkeleton(Modifier.fillMaxWidth(), height = 64.dp) }
-                }
+                run == null && state.isLoading -> DriverRunSkeleton("Stops, in order")
                 run == null -> DriverState(
                     Res.drawable.lucide_circle_alert, "We couldn't load your run", "This is on us, not you. Try again, or call dispatch if it keeps happening.",
                     actionLabel = "Try again", onAction = onRefresh, actionIcon = Res.drawable.lucide_refresh_ccw,
@@ -291,7 +289,7 @@ fun ShopStopScreen(
             DriverInlineBar(title, backLabel = "Run", onBack = onBack)
             Column(Modifier.padding(DriverSize.gutter), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (state.isLoading) {
-                    DriverSkeleton(Modifier.fillMaxWidth(0.7f), height = 32.dp); repeat(3) { DriverSkeleton(Modifier.fillMaxWidth(), height = 72.dp) }
+                    DriverDetailSkeleton("Bags", label = "Loading the stop")
                 } else {
                     DriverState(Res.drawable.lucide_circle_alert, "This stop didn't load", state.message ?: "That's on us. Check your signal and try again.", actionLabel = "Try again", onAction = onRetry, actionIcon = Res.drawable.lucide_refresh_ccw)
                 }

@@ -6,6 +6,7 @@ import type { StorefrontProductCardDTO } from "@effy/shared-types"
 import { AgeBadge } from "@/components/storefront/AgeBadge"
 import { CatalogImage } from "@/components/storefront/CatalogImage"
 import { Badge } from "@/components/ui/badge"
+import { Bone, boneWidth, Loading } from "@/components/ui/skeletons"
 import { formatMoney, isDiscounted } from "@/lib/money"
 
 import { CardAdd } from "./CardAdd"
@@ -34,18 +35,31 @@ export const productGrid = `grid items-stretch ${gutters} grid-cols-2 md:grid-co
  */
 export const productGridNarrow = `grid items-stretch ${gutters} grid-cols-2 md:grid-cols-3 xl:grid-cols-4`
 
+/** One tile before its product arrives: picture, name, price and the add button, each where the card puts them. */
+export function ProductCardSkeleton({ index = 0 }: { index?: number }) {
+  return (
+    <div className="flex h-full w-full flex-col" aria-hidden="true">
+      <Bone kind="thumb" className="w-full" />
+      <Bone className={`mt-3 ${index % 3 === 1 ? "w-2/3" : "w-11/12"}`} />
+      <Bone className={`mt-2 ${boneWidth(index)}`} />
+      <div className="mt-auto flex items-end justify-between gap-2 pt-3">
+        <Bone kind="price" />
+        <Bone kind="control" className="h-8 w-16" />
+      </div>
+    </div>
+  )
+}
+
 /** The grid before its products arrive — the same tiles, so the swap-in moves nothing. */
 export function ProductGridSkeleton({ className, count = 8 }: { className: string; count?: number }) {
   return (
-    <div className={className} aria-hidden="true">
-      {Array.from({ length: count }, (_, i) => (
-        <div key={i} className="space-y-3">
-          <div className="aspect-square w-full animate-pulse rounded-lg bg-muted" />
-          <div className="h-4 w-3/4 animate-pulse rounded-md bg-muted" />
-          <div className="h-5 w-1/3 animate-pulse rounded-md bg-muted" />
-        </div>
-      ))}
-    </div>
+    <Loading label="Loading products">
+      <div className={className}>
+        {Array.from({ length: count }, (_, i) => (
+          <ProductCardSkeleton key={i} index={i} />
+        ))}
+      </div>
+    </Loading>
   )
 }
 

@@ -1,5 +1,7 @@
 package com.effyshopping.customer.mobile.features.account.presentation
 
+import com.effyshopping.customer.mobile.core.presentation.EffyLoading
+import com.effyshopping.customer.mobile.core.presentation.EffySkeletonText
 import com.effyshopping.customer.mobile.core.presentation.EffyTextLink
 import com.effyshopping.customer.mobile.core.presentation.EffyInlineError
 import com.effyshopping.mobile.kit.ui.OtpInput
@@ -15,7 +17,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -176,7 +177,14 @@ fun DeleteAccountScreen(container: AppContainer) {
             val preview = state.preview
 
             if (state.loading && preview == null) {
-                CircularProgressIndicator()
+                // What the preview card says, in its place, while the server checks what deleting would mean.
+                EffyLoading(label = "Checking your account") {
+                    EffyCard {
+                        Text("What happens when you delete", style = MaterialTheme.typography.titleMedium)
+                        EffySkeletonText(MaterialTheme.typography.bodyMedium, Modifier.fillMaxWidth())
+                        EffySkeletonText(MaterialTheme.typography.bodyMedium, Modifier.fillMaxWidth(), widthFraction = 0.6f)
+                    }
+                }
                 return@Column
             }
 

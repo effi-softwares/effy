@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import { Suspense } from "react"
 
+import { AuthFormSkeleton } from "../_components/AuthFormSkeleton"
 import { SignInForm } from "./SignInForm"
 
 export const metadata: Metadata = {
@@ -23,16 +24,5 @@ export default function SignInPage() {
 }
 
 function FormSkeleton() {
-  return (
-    <div className="space-y-8" aria-hidden="true">
-      <div className="space-y-2">
-        <div className="h-10 w-64 animate-pulse rounded-md bg-muted" />
-        <div className="h-5 w-48 animate-pulse rounded-md bg-muted" />
-      </div>
-      <div className="space-y-4">
-        <div className="h-11 w-full animate-pulse rounded-md bg-muted" />
-        <div className="h-11 w-full animate-pulse rounded-md bg-muted" />
-      </div>
-    </div>
-  )
+  return <AuthFormSkeleton title="Sign in to Effy" subtitle="It's good to see you again." google />
 }

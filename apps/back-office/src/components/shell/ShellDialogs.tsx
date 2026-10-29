@@ -9,11 +9,10 @@ import {
   ResponsiveModalDescription,
   ResponsiveModalHeader,
   ResponsiveModalTitle,
-  Skeleton,
 } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 
-import { Kbd } from "@effy/web-kit/patterns"
+import { Bone, boneWidth, Kbd, Loading } from "@effy/web-kit/patterns"
 import { meQuery } from "@/features/staff-identity/queries"
 
 import { CHORDS } from "./chords"
@@ -73,11 +72,15 @@ export function StaffRecordDialog({ open, onOpenChange }: { open: boolean; onOpe
           </ResponsiveModalDescription>
         </ResponsiveModalHeader>
         {me.isPending ? (
-          <div className="space-y-2" aria-busy="true">
-            <Skeleton className="h-5 w-1/2" />
-            <Skeleton className="h-5 w-3/4" />
-            <Skeleton className="h-5 w-2/3" />
-          </div>
+          <Loading label="Loading your record">
+            <dl className="divide-y divide-border text-sm">
+              {["Name", "Email", "Role", "Status", "Reference"].map((k, i) => (
+                <Row key={k} k={k}>
+                  <Bone className={boneWidth(i)} />
+                </Row>
+              ))}
+            </dl>
+          </Loading>
         ) : me.isError ? (
           <ErrorState error={me.error} onRetry={() => void me.refetch()} />
         ) : (

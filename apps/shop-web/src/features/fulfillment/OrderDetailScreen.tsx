@@ -15,10 +15,21 @@ import {
   Truck,
 } from "lucide-react"
 
-import { Alert, AlertTitle, Badge, Button, Card, Skeleton } from "@effy/design-system/ui"
+import { Alert, AlertTitle, Badge, Button, Card } from "@effy/design-system/ui"
 import { ActivityButton, ActivityLogDrawer } from "@effy/web-kit/activity-log"
 import { ErrorState, PackageStatusPill } from "@effy/web-kit/console"
-import { DetailRows, PageHeader, Panel, Timeline, TimelineItem } from "@effy/web-kit/patterns"
+import {
+  Bone,
+  boneWidth,
+  DetailPageSkeleton,
+  DetailRows,
+  DetailRowsSkeleton,
+  PageHeader,
+  Panel,
+  PanelSkeleton,
+  Timeline,
+  TimelineItem,
+} from "@effy/web-kit/patterns"
 
 import { sessionQuery } from "@/features/auth/queries"
 import { api } from "@/lib/api"
@@ -352,34 +363,46 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
 
 function DetailSkeleton() {
   return (
-    <div className="flex flex-col gap-6" aria-busy="true" aria-label="Loading order">
-      <div className="grid gap-3">
-        <Skeleton className="h-4 w-20" />
-        <Skeleton className="h-8 w-56" />
-        <Skeleton className="h-4 w-96 max-w-full" />
-      </div>
-      <div className="ef-detail">
-        <div className="ef-detail__main">
-          <Card className="gap-0 py-0">
+    <DetailPageSkeleton
+      label="Loading order"
+      back={{ label: "Orders", link: { to: "/orders" } }}
+      meta={3}
+      actions={2}
+      main={
+        <section className="min-w-0">
+          <Card className="gap-0 overflow-hidden py-0">
+            <div className="grid gap-2 border-b px-5 py-4 max-md:px-4">
+              <h2 className="leading-6 font-semibold">Items and fulfilment</h2>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                <Bone kind="small" className="h-2 w-full max-w-65 rounded-full" />
+                <Bone kind="small" className="w-40" />
+              </div>
+            </div>
             {Array.from({ length: 4 }, (_, i) => (
               <div key={i} className="pick">
-                <Skeleton className="size-11 rounded-lg" />
-                <Skeleton className="pick__img" />
+                <Bone kind="thumb" />
+                <Bone kind="block" className="pick__img" />
                 <div className="grid gap-2">
-                  <Skeleton className="h-4 w-2/3" />
-                  <Skeleton className="h-4 w-1/3" />
+                  <Bone className={boneWidth(i)} />
+                  <Bone kind="small" className="w-1/3" />
                 </div>
-                <Skeleton className="h-6 w-10" />
+                <Bone className="w-10" />
               </div>
             ))}
           </Card>
-        </div>
-        <div className="ef-detail__aside">
-          <Skeleton className="h-48 w-full rounded-xl" />
-          <Skeleton className="h-56 w-full rounded-xl" />
-        </div>
-      </div>
-    </div>
+        </section>
+      }
+      aside={
+        <>
+          <PanelSkeleton title="Payment">
+            <DetailRowsSkeleton tight labels={["Your items", "Refunded", "Net"]} />
+          </PanelSkeleton>
+          <PanelSkeleton title="Customer and delivery" description>
+            <DetailRowsSkeleton tight labels={["Customer", "Ship to", "Bill to"]} />
+          </PanelSkeleton>
+        </>
+      }
+    />
   )
 }
 

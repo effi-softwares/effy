@@ -4,9 +4,9 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { ArrowLeft, CircleAlert } from "lucide-react"
 
 import { formRows, recategorise, type CreateProductRequest, type FactKey, type ProductFacts } from "@effy/shared-types"
-import { Alert, AlertTitle, Button, Card, CardContent, Skeleton } from "@effy/design-system/ui"
+import { Alert, AlertTitle, Button, Card, CardContent } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
-import { PageHeader } from "@effy/web-kit/patterns"
+import { Bone, FormSkeleton, Loading, PageHeader } from "@effy/web-kit/patterns"
 
 import { Page } from "@/components/console/primitives"
 import { sessionQuery } from "@/features/auth/queries"
@@ -53,11 +53,31 @@ interface Props {
 
 function LoadingBlock() {
   return (
-    <div className="grid gap-3" aria-busy="true" aria-label="Loading catalog">
-      <Skeleton className="h-14 w-full rounded-lg" />
-      <Skeleton className="h-14 w-full rounded-lg" />
-      <Skeleton className="h-14 w-2/3 rounded-lg" />
-    </div>
+    <Loading label="Loading catalog">
+      <FormSkeleton fields={3} submit={false} />
+    </Loading>
+  )
+}
+
+/** The flow's page before the shop is known: the first step's head, the steps, the card and the preview. */
+function FlowSkeleton() {
+  return (
+    <Loading>
+      <PageHeader title={STEPS[0]!.title} description={STEPS[0]!.hint} meta={<Bone className="w-56" />} />
+      <div inert>
+        <StepTabs step={0} disabled onStep={() => {}} />
+      </div>
+      <div className="ef-detail">
+        <Card className="ef-detail__main min-h-70 py-5">
+          <CardContent className="flex h-full flex-col gap-4">
+            <FormSkeleton fields={3} submit={false} />
+          </CardContent>
+        </Card>
+        <aside className="ef-detail__aside">
+          <Bone kind="block" className="h-72" />
+        </aside>
+      </div>
+    </Loading>
   )
 }
 
@@ -77,7 +97,7 @@ export function ProductCreateFlow(props: Props) {
   if (!shopId || !subject) {
     return (
       <Page>
-        <LoadingBlock />
+        <FlowSkeleton />
       </Page>
     )
   }

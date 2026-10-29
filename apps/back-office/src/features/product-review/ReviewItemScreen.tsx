@@ -15,7 +15,6 @@ import {
   DialogHeader,
   DialogTitle,
   Label,
-  Skeleton,
   Table,
   TableBody,
   TableCell,
@@ -31,7 +30,17 @@ import {
 } from "@effy/design-system/ui"
 import { ErrorState, useHeaderBack, useHeaderDetail } from "@effy/web-kit/console"
 
-import { Callout, Kbd, PageHeader, DetailRows, Panel, StatusWord } from "@effy/web-kit/patterns"
+import {
+  Bone,
+  Callout,
+  DetailPageSkeleton,
+  DetailRows,
+  Kbd,
+  PageHeader,
+  Panel,
+  PanelSkeleton,
+  StatusWord,
+} from "@effy/web-kit/patterns"
 
 import { useSessionRoles } from "@/features/auth/useSessionRoles"
 import { track } from "@/lib/telemetry"
@@ -51,14 +60,7 @@ export function ReviewItemScreen({ productId }: { productId: string }) {
   if (item.isError) {
     return <ErrorState error={item.error} onRetry={() => void item.refetch()} />
   }
-  if (item.isPending) {
-    return (
-      <div className="space-y-4" aria-busy="true">
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-60" />
-      </div>
-    )
-  }
+  if (item.isPending) return <ReviewSkeleton />
   return <ReviewItem key={item.data.version} item={item.data} onChanged={() => void item.refetch()} />
 }
 
@@ -372,5 +374,26 @@ function Images({ title, images }: { title: string; images: ReviewImageDTO[] }) 
         </ul>
       )}
     </div>
+  )
+}
+
+function ReviewSkeleton() {
+  return (
+    <DetailPageSkeleton
+      back={BACK}
+      actions={0}
+      asideFirst
+      tabs={["Details", "Images"]}
+      main={<PanelSkeleton rows={8} />}
+      aside={
+        <PanelSkeleton title="Decision">
+          <div className="space-y-4">
+            <Bone className="w-3/4" />
+            <Bone kind="control" />
+            <Bone kind="control" />
+          </div>
+        </PanelSkeleton>
+      }
+    />
   )
 }

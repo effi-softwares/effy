@@ -5,6 +5,7 @@ import { AuthSync } from "@/components/header/AuthSync"
 import { btnClass } from "@/components/storefront/actions"
 import { getPoints } from "@/lib/customer-reads"
 import { getSession } from "@/lib/session"
+import { Bone } from "@/components/ui/skeletons"
 
 /**
  * The personalized corner of the header — a streamed server island.
@@ -51,10 +52,8 @@ export async function UserIsland() {
 
 export function UserIslandSkeleton() {
   return (
-    <div
-      className="h-11 w-28 animate-pulse rounded-md bg-muted"
-      aria-hidden="true"
-      data-testid="user-island-skeleton"
-    />
+    <span aria-hidden="true" data-testid="user-island-skeleton">
+      <Bone kind="control" className="w-28" />
+    </span>
   )
 }

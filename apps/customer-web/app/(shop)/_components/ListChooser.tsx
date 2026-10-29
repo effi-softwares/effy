@@ -16,6 +16,7 @@ import {
   refusalText,
   removeFromList,
 } from "@/lib/list-actions"
+import { Bone, boneWidth, Loading } from "@/components/ui/skeletons"
 
 export function openListChooser(productId: string, onClose?: () => void, variantId?: string | null): void {
   const host = document.createElement("div")
@@ -119,7 +120,19 @@ export function ListChooser({
       }
     >
       <div>
-        {state.phase === "loading" && <p className="text-sm text-muted-foreground">Loading your lists…</p>}
+        {state.phase === "loading" && (
+          <Loading label="Loading your lists">
+            <ul className="divide-y">
+              {[0, 1, 2].map((i) => (
+                <li key={i} className="flex min-h-11 items-center gap-3 py-2">
+                  <Bone className="size-4 rounded-sm" />
+                  <Bone className={`max-w-40 flex-1 ${boneWidth(i)}`} />
+                  <Bone className="w-4" />
+                </li>
+              ))}
+            </ul>
+          </Loading>
+        )}
 
         {state.phase === "failed" && (
           <p role="alert" className="text-sm">

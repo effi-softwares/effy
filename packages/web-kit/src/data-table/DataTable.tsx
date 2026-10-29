@@ -11,7 +11,6 @@ import type { ListPage } from "@effy/shared-types";
 import {
   Button,
   Checkbox,
-  Skeleton,
   TableBody,
   TableCell,
   TableHead,
@@ -21,6 +20,7 @@ import {
 } from "@effy/design-system/ui";
 
 import { ErrorState } from "../console/ErrorState";
+import { SkeletonRows } from "../patterns/Skeletons";
 import { EmptyState } from "../patterns/States";
 import { ColumnMenu } from "./ColumnMenu";
 import { effyFeatures, phoneAttrs, priorityClass, type EffyColumnDef, type EffyFeatures } from "./column-meta";
@@ -304,15 +304,14 @@ export function DataTable<T extends RowData, S extends string, F extends Record<
             </TableHeader>
             <TableBody>
               {query.isPending
-                ? Array.from({ length: Math.min(view.size, SKELETON_ROWS) }, (_, i) => (
-                    <TableRow key={`s${i}`} className="hover:bg-transparent">
-                      {Array.from({ length: colSpan }, (_, j) => (
-                        <TableCell key={j} {...(j === 0 ? { "data-m": "primary" } : { "data-m": "meta" })}>
-                          <Skeleton className={cn("h-4", j === 0 ? "w-40" : "w-20")} />
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))
+                ? <SkeletonRows
+                    rows={Math.min(view.size, SKELETON_ROWS)}
+                    columns={colSpan}
+                    cellClassName={[
+                      ...(selection ? ["w-12 pr-0"] : []),
+                      ...visibleColumns.map((c) => cn(priorityClass(c.columnDef.meta?.priority), c.columnDef.meta?.className)),
+                    ]}
+                  />
                 : table.getRowModel().rows.map((row, i) => {
                     const r = row.original;
                     const sel = selection?.selected.has(rowId(r)) ?? false;

@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 
 import type { CoverageGap } from "@effy/shared-types"
+import { Bone, Loading } from "@effy/web-kit/patterns"
 
 import { COVERAGE_REASON_LABEL, FUNCTION_SHORT } from "../capabilityModel"
 import { coverageQuery } from "../capabilityQueries"
@@ -11,7 +12,23 @@ export function CoveragePanel() {
   const query = useQuery(coverageQuery())
   const gaps = query.data?.gaps ?? []
 
-  if (query.isPending) return null
+  if (query.isPending) {
+    return (
+      <Loading label="Loading coverage">
+        <div className="space-y-4">
+          <Bone className="w-48" />
+          <div className="divide-y border-y">
+            {[0, 1].map((i) => (
+              <div key={i} className="space-y-2 py-3">
+                <Bone className="w-32" />
+                <Bone className="w-3/5" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </Loading>
+    )
+  }
 
   if (gaps.length === 0) {
     return <p className="text-sm text-muted-foreground">Every zone can be served for every kind of work it offers.</p>

@@ -10,16 +10,17 @@ import { RefundBlock } from "./RefundBlock"
 import { RequestRefund } from "./RequestRefund"
 
 import { OrderAddresses } from "@/components/OrderAddresses"
-import { ArrivalPanel } from "@/components/receipt/ArrivalPanel"
+import { ArrivalPanel, ArrivalPanelSkeleton } from "@/components/receipt/ArrivalPanel"
 import { DocumentStatusNote } from "@/components/receipt/DocumentStatusNote"
 import { OrderDocuments } from "@/components/receipt/OrderDocuments"
-import { ReceiptDocument } from "@/components/receipt/ReceiptDocument"
+import { ReceiptDocument, ReceiptDocumentSkeleton } from "@/components/receipt/ReceiptDocument"
 import { ResendReceipt } from "@/components/receipt/ResendReceipt"
 import { LiveRefresh } from "@/components/live/LiveRefresh"
 
 import { Alert } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Breadcrumb } from "@/components/ui/misc"
+import { Bone, Loading } from "@/components/ui/skeletons"
 import { edgeApi, uncached } from "@/lib/api/edge"
 import { getSession, requireCustomer } from "@/lib/dal"
 import { shortfallsFrom } from "@/lib/fulfillment-progress"
@@ -39,7 +40,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
     <div>
       {/* Re-reads when this order changes; outside Suspense so it is not remounted on each render. */}
       <LiveRefresh />
-      <Suspense fallback={<div className="h-64 w-full animate-pulse rounded-lg bg-muted" />}>
+      <Suspense fallback={<OrderSkeleton />}>
         <OrderDetail params={params} />
       </Suspense>
     </div>
@@ -196,5 +197,36 @@ function Unavailable({ shortfalls }: { shortfalls: { productName: string; quanti
       </Link>{" "}
       if something doesn&apos;t look right.
     </Alert>
+  )
+}
+
+/** The order while it reads: its breadcrumb, head, arrival panel, receipt and help, each in place. */
+function OrderSkeleton() {
+  return (
+    <Loading label="Loading your order">
+      <div className="space-y-6">
+        <Breadcrumb items={[{ label: "Account", href: "/account" }, { label: "Orders", href: "/orders" }, { label: "Order" }]} />
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div className="space-y-2">
+            <Bone kind="title" className="w-64" />
+            <Bone className="w-80 max-w-full" />
+          </div>
+          <Bone kind="control" className="w-32" />
+        </div>
+        <div className="grid items-start gap-6 lg:grid-cols-3">
+          <div className="min-w-0 space-y-6 lg:col-span-2">
+            <ArrivalPanelSkeleton />
+            <ReceiptDocumentSkeleton />
+          </div>
+          <section className="flex flex-col gap-4 rounded-lg border bg-card p-6 shadow-xs">
+            <div className="flex flex-col gap-2">
+              <h2 className="leading-none font-semibold">Something wrong with this order?</h2>
+              <p className="text-sm text-muted-foreground">Tell us what happened and we&apos;ll sort it out.</p>
+            </div>
+            <Bone kind="control" />
+          </section>
+        </div>
+      </div>
+    </Loading>
   )
 }

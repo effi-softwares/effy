@@ -11,6 +11,7 @@ import {
   Input,
 } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
+import { Bone, boneWidth, Loading } from "@effy/web-kit/patterns"
 
 import { CatalogModal } from "./CatalogModal"
 import { productMutationError } from "./errorText"
@@ -88,6 +89,16 @@ export function SectionsManager({ open, onOpenChange }: { open: boolean; onOpenC
 
       {sections.isError ? (
         <ErrorState error={sections.error} onRetry={() => void sections.refetch()} />
+      ) : sections.isPending ? (
+        <Loading label="Loading sections">
+          <div className="divide-y rounded-md border">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="flex h-15 items-center gap-2 p-3">
+                <Bone className={`max-w-48 ${boneWidth(i)}`} />
+              </div>
+            ))}
+          </div>
+        </Loading>
       ) : list.length === 0 ? (
         <p className="text-sm text-muted-foreground">No sections yet.</p>
       ) : (

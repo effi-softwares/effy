@@ -21,7 +21,8 @@ import com.effyshopping.customer.mobile.core.presentation.ProductImage
 import com.effyshopping.customer.mobile.core.presentation.EffySurface
 import com.effyshopping.customer.mobile.core.presentation.EffyTextLink
 import com.effyshopping.customer.mobile.core.presentation.EffyPrimaryButton
-import com.effyshopping.customer.mobile.core.presentation.EffyRowSkeleton
+import com.effyshopping.customer.mobile.core.presentation.EffyLoading
+import com.effyshopping.customer.mobile.core.presentation.EffySkeletonText
 import com.effyshopping.customer.mobile.core.presentation.EffySkeletonBlock
 import com.effyshopping.customer.mobile.core.presentation.EffySuccessTick
 import com.effyshopping.customer.mobile.core.presentation.EffyStatusKind
@@ -221,10 +222,7 @@ fun ReceiptScreen(
             verticalArrangement = Arrangement.spacedBy(EffySpacing.md),
         ) {
             when (val s = state) {
-                ReceiptUiState.Loading -> Column(verticalArrangement = Arrangement.spacedBy(EffySpacing.md)) {
-                    EffySkeletonBlock(Modifier.fillMaxWidth().height(120.dp), radius = EffyStorefrontShape.lg)
-                    repeat(4) { EffyRowSkeleton() }
-                }
+                ReceiptUiState.Loading -> ReceiptSkeleton()
                 ReceiptUiState.Pending -> Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
                     Text("We’re confirming your payment", style = MaterialTheme.typography.titleMedium)
                     Text(
@@ -689,6 +687,44 @@ internal fun arrivalLabel(a: ArrivalEstimate?): String {
         windowEnd = a.windowEnd,
         nowEpochMillis = kotlin.time.Clock.System.now().toEpochMilliseconds(),
     )
+}
+
+/** The receipt before it reads: its head, the arrival card and the document with its fixed labels, values as bones. */
+@Composable
+private fun ReceiptSkeleton() {
+    val type = MaterialTheme.typography
+    EffyLoading(label = "Loading your receipt") {
+        Column(verticalArrangement = Arrangement.spacedBy(EffySpacing.md)) {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                EffySkeletonText(type.headlineSmall, Modifier.fillMaxWidth(), widthFraction = 0.55f)
+                EffySkeletonText(type.bodySmall, Modifier.fillMaxWidth(), widthFraction = 0.4f)
+            }
+            EffyCard(padding = EffySpacing.lg) {
+                EffySkeletonText(type.titleMedium, Modifier.fillMaxWidth(), widthFraction = 0.6f)
+                EffySkeletonText(type.bodyMedium, Modifier.fillMaxWidth(), widthFraction = 0.45f)
+                Spacer(Modifier.height(EffySpacing.md))
+                EffySkeletonBlock(Modifier.fillMaxWidth().height(8.dp), radius = 4.dp)
+            }
+            EffyCard(padding = EffySpacing.lg) {
+                Text("Receipt", style = type.titleMedium)
+                repeat(3) { i ->
+                    Row(Modifier.fillMaxWidth().padding(vertical = EffySpacing.s), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(EffySpacing.md)) {
+                        EffySkeletonBlock(Modifier.size(44.dp))
+                        EffySkeletonText(type.bodyMedium, Modifier.weight(1f), widthFraction = if (i % 2 == 0) 0.7f else 0.5f)
+                        EffySkeletonText(type.bodyMedium, Modifier.width(56.dp))
+                    }
+                }
+                HorizontalDivider(Modifier.padding(vertical = EffySpacing.s), color = MaterialTheme.colorScheme.outlineVariant)
+                listOf("Items subtotal", "Delivery", "Total paid").forEachIndexed { i, label ->
+                    val style = if (i == 2) type.titleMedium else type.bodyMedium
+                    Row(Modifier.fillMaxWidth().padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(label, style = style, color = if (i == 2) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+                        EffySkeletonText(style, Modifier.width(64.dp))
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable

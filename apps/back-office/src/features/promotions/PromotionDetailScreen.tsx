@@ -15,7 +15,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   Button,
-  Skeleton,
   Tabs,
   TabsContent,
   TabsCount,
@@ -25,7 +24,17 @@ import {
 import { ActivityLogDrawer, useActivityAction } from "@effy/web-kit/activity-log"
 import { ErrorState, useHeaderDetail } from "@effy/web-kit/console"
 
-import { Callout, DetailRows, MoreActions, PageHeader, Panel } from "@effy/web-kit/patterns"
+import {
+  Bone,
+  Callout,
+  DetailPageSkeleton,
+  DetailRows,
+  DetailRowsSkeleton,
+  MoreActions,
+  PageHeader,
+  Panel,
+  PanelSkeleton,
+} from "@effy/web-kit/patterns"
 import { sessionQuery } from "@/features/auth/queries"
 import { api } from "@/lib/api"
 import { track } from "@/lib/telemetry"
@@ -85,14 +94,7 @@ export function PromotionDetailScreen({ promoId }: { promoId: string }) {
   useHeaderDetail(p?.name ?? null)
 
   if (isError) return <ErrorState error={error} onRetry={() => void refetch()} />
-  if (isPending) {
-    return (
-      <div className="space-y-4" aria-busy="true">
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-60" />
-      </div>
-    )
-  }
+  if (isPending) return <PromotionSkeleton promotionId={promoId} />
 
   const run = (action: PromotionAction) => {
     setActionError(null)
@@ -421,5 +423,41 @@ function Overview({ p }: { p: Promotion }) {
         />
       </Panel>
     </>
+  )
+}
+
+function PromotionSkeleton({ promotionId }: { promotionId: string }) {
+  return (
+    <DetailPageSkeleton
+      back={{ label: "Promotions", link: { to: "/promotions" } }}
+      actions={2}
+      asideFirst
+      tabs={["Overview", "Shown in", "Pictures"]}
+      main={
+        <>
+          <PerformancePanel promotionId={promotionId} />
+          <PanelSkeleton title="What it gives">
+            <DetailRowsSkeleton labels={["Gives", "Applies", "Minimum spend", "Combines"]} />
+          </PanelSkeleton>
+          <PanelSkeleton title="Who and when" description="Times are Melbourne time.">
+            <DetailRowsSkeleton labels={["Who", "Delivery", "Starts", "Ends", "Conditions"]} />
+          </PanelSkeleton>
+        </>
+      }
+      aside={
+        <>
+          <PanelSkeleton title="What shoppers read">
+            <div className="space-y-2">
+              <Bone kind="small" className="w-20" />
+              <Bone kind="heading" className="w-3/4" />
+              <Bone className="w-full" />
+            </div>
+          </PanelSkeleton>
+          <PanelSkeleton title="Attribution">
+            <DetailRowsSkeleton tight labels={["Created", "By", "Published", "Last updated"]} />
+          </PanelSkeleton>
+        </>
+      }
+    />
   )
 }

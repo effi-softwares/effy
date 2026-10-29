@@ -21,7 +21,9 @@ import com.effyshopping.customer.mobile.core.presentation.EffyGroup
 import com.effyshopping.customer.mobile.core.presentation.EffyInlineError
 import com.effyshopping.customer.mobile.core.presentation.EffyEmptyState
 import com.effyshopping.customer.mobile.core.presentation.EffyErrorState
-import com.effyshopping.customer.mobile.core.presentation.EffyRowSkeleton
+import com.effyshopping.customer.mobile.core.presentation.EffyLoading
+import com.effyshopping.customer.mobile.core.presentation.EffySkeletonBlock
+import com.effyshopping.customer.mobile.core.presentation.EffySkeletonText
 import com.effyshopping.customer.mobile.core.presentation.EffyAppBar
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -64,7 +66,7 @@ fun PaymentMethodsScreen(container: AppContainer, onBack: () -> Unit) {
     Column(Modifier.fillMaxSize()) {
         EffyAppBar(title = "Payment methods")
         when {
-            state.loading -> Column(Modifier.padding(EffySpacing.lg)) { repeat(3) { EffyRowSkeleton(image = false) } }
+            state.loading -> CardsSkeleton()
 
             // A failed read is not an empty list.
             state.loadFailed -> EffyErrorState(
@@ -117,6 +119,32 @@ fun PaymentMethodsScreen(container: AppContainer, onBack: () -> Unit) {
             },
             onDismiss = { confirming = null },
         )
+    }
+}
+
+/** The kept cards before they read: the same group, rows laid out as [CardRow] lays them out. */
+@Composable
+private fun CardsSkeleton() {
+    val type = MaterialTheme.typography
+    EffyLoading(Modifier.fillMaxSize(), label = "Loading your cards") {
+        Column(Modifier.fillMaxSize().padding(EffySpacing.lg)) {
+            EffyGroup {
+                repeat(2) { i ->
+                    Row(
+                        Modifier.fillMaxWidth().heightIn(min = EffySize.rowWithSubtitle).padding(horizontal = EffySpacing.lg, vertical = EffySpacing.s),
+                        horizontalArrangement = Arrangement.spacedBy(EffySpacing.md),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        EffySkeletonBlock(Modifier.size(22.dp), radius = 4.dp)
+                        Column(Modifier.weight(1f)) {
+                            EffySkeletonText(type.bodyLarge, Modifier.fillMaxWidth(), widthFraction = 0.45f)
+                            EffySkeletonText(type.bodySmall, Modifier.fillMaxWidth(), widthFraction = 0.3f)
+                        }
+                    }
+                    if (i == 0) EffyGroupDivider()
+                }
+            }
+        }
     }
 }
 

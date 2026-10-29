@@ -7,11 +7,12 @@ import { Suspense } from "react"
 import type { OrderDTO } from "@effy/shared-types"
 
 import { OrderAddresses } from "@/components/OrderAddresses"
-import { ArrivalPanel } from "@/components/receipt/ArrivalPanel"
+import { ArrivalPanel, ArrivalPanelSkeleton } from "@/components/receipt/ArrivalPanel"
 import { DocumentStatusNote } from "@/components/receipt/DocumentStatusNote"
-import { ReceiptDocument } from "@/components/receipt/ReceiptDocument"
+import { ReceiptDocument, ReceiptDocumentSkeleton } from "@/components/receipt/ReceiptDocument"
 import { ResendReceipt } from "@/components/receipt/ResendReceipt"
 import { ActionLink } from "@/components/storefront/actions"
+import { Bone, Loading } from "@/components/ui/skeletons"
 import { edgeApi, uncached } from "@/lib/api/edge"
 import { getSession, requireCustomer } from "@/lib/dal"
 
@@ -188,14 +189,39 @@ async function Receipt({ searchParams }: { searchParams: Promise<ReturnParams> }
   )
 }
 
+/** The receipt while the payment's outcome is read: the band (its words wait for the outcome), the document, the rail. */
 function ReceiptSkeleton() {
   return (
-    <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,1fr)_380px]" aria-hidden="true">
-      <div className="flex flex-col gap-5">
-        <div className="h-96 w-full animate-pulse rounded-lg bg-muted" />
-        <div className="h-32 w-full animate-pulse rounded-lg bg-muted" />
+    <Loading label="Loading your receipt">
+      <div className="flex flex-col gap-4 pb-8 sm:flex-row sm:items-center sm:gap-5">
+        <Bone className="size-12 rounded-full" />
+        <div className="flex flex-1 flex-col gap-2">
+          <Bone className="w-32" />
+          <Bone kind="title" className="w-40" />
+        </div>
       </div>
-      <div className="h-72 w-full animate-pulse rounded-lg bg-muted" />
-    </div>
+      <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,1fr)_380px]">
+        <div className="flex min-w-0 flex-col gap-5">
+          <ReceiptDocumentSkeleton />
+          <section className="grid gap-6 rounded-lg border bg-card p-6 shadow-xs sm:grid-cols-3">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="flex flex-col gap-2">
+                <Bone className="w-24" />
+                <Bone kind="small" className="w-36" />
+                <Bone kind="small" className="w-28" />
+              </div>
+            ))}
+          </section>
+        </div>
+        <div className="flex flex-col gap-5">
+          <ArrivalPanelSkeleton />
+          <div className="flex flex-col gap-3">
+            <Bone kind="control" className="h-12" />
+            <Bone kind="control" className="h-12" />
+            <Bone kind="control" className="h-12" />
+          </div>
+        </div>
+      </div>
+    </Loading>
   )
 }

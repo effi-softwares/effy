@@ -8,6 +8,7 @@ import { CatalogImage } from "@/components/storefront/CatalogImage"
 import { ActionLink, Rule } from "@/components/storefront/kit"
 import { Breadcrumb } from "@/components/ui/misc"
 import { edgeApiPublic, uncached } from "@/lib/api/edge"
+import { Bone, BoneLines, Loading } from "@/components/ui/skeletons"
 
 import { CopyCodeButton } from "../../_components/CopyCodeButton"
 
@@ -145,14 +146,31 @@ async function PromotionDetail({ params }: { params: Promise<{ id: string }> }) 
 }
 
 /** The streamed shell. Same shape as the content, so nothing jumps when the promotion lands. */
+/** The offer before it reads: picture, title, the fixed facts rows and "How to use it", in their places. */
 function PromotionSkeleton() {
   return (
-    <div className="container max-w-3xl! py-6" aria-hidden="true">
-      <div className="mb-6 h-5 w-32 rounded bg-muted" />
-      <div className="mb-6 aspect-2/1 w-full rounded-xl bg-muted" />
-      <div className="h-8 w-2/3 rounded bg-muted" />
-      <div className="mt-3 h-5 w-1/2 rounded bg-muted" />
-      <div className="mt-8 h-12 w-44 rounded bg-muted" />
+    <div className="container max-w-3xl! py-6">
+      <Loading label="Loading the offer">
+        <Bone className="mb-6 w-32" />
+        <Bone kind="block" className="mb-6 aspect-2/1 rounded-xl" />
+        <Bone kind="title" className="w-2/3" />
+        <Bone className="mt-3 w-1/2" />
+        <Rule className="my-6" />
+        <dl className="grid items-center gap-4 text-sm sm:grid-cols-[10rem_1fr]">
+          <dt className="text-muted-foreground">Conditions</dt>
+          <dd>
+            <Bone className="w-3/4" />
+          </dd>
+          <dt className="text-muted-foreground">Availability</dt>
+          <dd>
+            <Bone className="w-1/2" />
+          </dd>
+        </dl>
+        <Rule className="my-6" />
+        <h2 className="text-base font-semibold">How to use it</h2>
+        <BoneLines count={2} className="mt-3" />
+        <Bone kind="control" className="mt-8 w-44" />
+      </Loading>
     </div>
   )
 }

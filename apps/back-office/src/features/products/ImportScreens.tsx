@@ -21,7 +21,6 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Skeleton,
   Table,
   TableBody,
   TableCell,
@@ -40,7 +39,17 @@ import {
   useListState,
   type EffyColumnDef,
 } from "@effy/web-kit/data-table"
-import { Callout, PageHeader, Panel, StatusWord, type StatusTone } from "@effy/web-kit/patterns"
+import {
+  Callout,
+  Loading,
+  PageHeader,
+  PageHeaderSkeleton,
+  Panel,
+  PanelSkeleton,
+  StatusWord,
+  TableSkeleton,
+  type StatusTone,
+} from "@effy/web-kit/patterns"
 
 import { useSessionRoles } from "@/features/auth/useSessionRoles"
 import { MarginField } from "@/features/product-review/MarginField"
@@ -348,7 +357,16 @@ export function ImportScreen({ importId }: { importId: string }) {
   useHeaderBack({ label: "Imports", link: { to: "/products/imports" } } as never)
   const imp = useQuery(importQuery(importId))
   if (imp.isError) return <ErrorState error={imp.error} onRetry={() => void imp.refetch()} />
-  if (imp.isPending) return <Skeleton className="h-60" />
+  if (imp.isPending) {
+    return (
+      <Loading>
+        <PageHeaderSkeleton description={false} meta={2} actions={1} />
+        <PanelSkeleton flush>
+          <TableSkeleton columns={["Product", "Rows", "Pictures", "What is wrong"]} />
+        </PanelSkeleton>
+      </Loading>
+    )
+  }
   return <Import key={imp.data.version} i={imp.data} />
 }
 

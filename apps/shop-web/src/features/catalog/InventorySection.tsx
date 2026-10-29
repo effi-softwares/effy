@@ -3,18 +3,10 @@ import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { PackagePlus } from "lucide-react"
 
-import {
-  Button,
-  Label,
-  Skeleton,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@effy/design-system/ui"
+import { Button, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@effy/design-system/ui"
 import { useActivityLog } from "@effy/web-kit/activity-log"
 import { ErrorState } from "@effy/web-kit/console"
+import { BoneLines, Loading } from "@effy/web-kit/patterns"
 
 import { DetailSection, SectionAction } from "@/components/console/primitives"
 
@@ -80,11 +72,9 @@ export function InventorySection({
             />
           </div>
         ) : isPending || !stock ? (
-          <div className="grid gap-3" aria-busy="true" aria-label="Loading stock">
-            <Skeleton className="h-5 w-1/2" />
-            <Skeleton className="h-5 w-2/3" />
-            <Skeleton className="h-5 w-1/3" />
-          </div>
+          <Loading label="Loading stock">
+            <BoneLines count={2} className="max-w-xl" />
+          </Loading>
         ) : stock.tracked ? (
           <p className="text-muted-foreground">
             {stock.onHand === null ? "Counted." : `${stock.onHand} on hand.`} Adjust it here, or receive stock from the

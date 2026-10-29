@@ -13,13 +13,12 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Skeleton,
   Switch,
   toast,
 } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 
-import { PageHeader, Panel } from "@effy/web-kit/patterns"
+import { Bone, FormSkeleton, Loading, PageHeader, Panel, PanelSkeleton } from "@effy/web-kit/patterns"
 
 import { getTaxSettings, putTaxSettings } from "./repo"
 
@@ -62,15 +61,50 @@ export function TaxSettingsScreen() {
   })
 
   if (settings.isError) return <ErrorState error={settings.error} onRetry={() => void settings.refetch()} />
-  if (settings.isPending) return <Skeleton className="h-64" />
+  const head = (
+    <PageHeader
+      title="Tax"
+      description="The business details printed on customer tax invoices, and whether invoices are issued."
+    />
+  )
+  if (settings.isPending) {
+    return (
+      <>
+        {head}
+        <Loading>
+          <div className="space-y-6">
+            <PanelSkeleton
+              title="Effy's tax details"
+              description="Printed on every tax invoice and adjustment note. Enter them exactly as registered with the ABR."
+            >
+              <FormSkeleton
+                className="max-w-xl"
+                labels={["Legal name", "ABN", "Delivery and order fees"]}
+                submit={false}
+              />
+            </PanelSkeleton>
+            <PanelSkeleton
+              title="Tax invoices"
+              description="Customers can view and download a tax invoice for any paid order once this is on."
+            >
+              <div className="flex items-start justify-between gap-4">
+                <span className="flex flex-1 flex-col gap-2">
+                  <span className="text-sm font-medium">Tax invoices on</span>
+                  <Bone kind="small" className="w-3/4" />
+                </span>
+                <Bone className="h-5 w-9 rounded-full" />
+              </div>
+            </PanelSkeleton>
+          </div>
+        </Loading>
+      </>
+    )
+  }
   const unclassified = settings.data.unclassifiedProducts
 
   return (
     <>
-      <PageHeader
-        title="Tax"
-        description="The business details printed on customer tax invoices, and whether invoices are issued."
-      />
+      {head}
       <div className="space-y-6">
         <Panel
           title="Effy's tax details"

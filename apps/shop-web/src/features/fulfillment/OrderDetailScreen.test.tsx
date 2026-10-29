@@ -41,6 +41,9 @@ vi.mock("@/features/auth/queries", () => ({ sessionQuery }))
 
 import { OrderDetailScreen } from "./OrderDetailScreen"
 
+/** Every loading shape has gone — a skeleton writes the page's real titles, so a title alone does not mean loaded. */
+const loaded = () => waitFor(() => expect(screen.queryAllByRole("status", { busy: true })).toHaveLength(0))
+
 const EGGS = orderDetail().lines[0]!
 function line(over: Partial<OrderLine> = {}): OrderLine {
   return { ...EGGS, ...over }
@@ -108,7 +111,7 @@ describe("the summary bar", () => {
 
   it("carries no previous/next of its own", async () => {
     open()
-    await screen.findByText("Items and fulfilment")
+    await loaded()
     expect(screen.queryByRole("button", { name: /previous order|next order/i })).not.toBeInTheDocument()
   })
 
@@ -123,7 +126,7 @@ describe("the summary bar", () => {
 describe("layout", () => {
   it("puts Items and fulfilment, Bags & labels (096) and Internal notes in the main column, then Payment and Customer and delivery on the rail", async () => {
     open()
-    await screen.findByText("Items and fulfilment")
+    await loaded()
     const titles = screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent)
     expect(titles).toEqual([
       "Items and fulfilment",
@@ -147,7 +150,8 @@ describe("layout", () => {
 
   it("shows the four blocks of Customer and delivery, with the second address withheld", async () => {
     open(orderDetail({ tags: ["fragile"] }))
-    const section = (await screen.findByRole("heading", { name: "Customer and delivery" })).closest("section")!
+    await loaded()
+    const section = screen.getByRole("heading", { name: "Customer and delivery" }).closest("section")!
     for (const label of ["Customer", "Ship to", "Bill to", "Tags"]) {
       expect(within(section).getByText(label)).toBeInTheDocument()
     }
@@ -163,7 +167,7 @@ describe("layout", () => {
 
   it("shows this shop's items only on a two-shop order, with no tax row", async () => {
     open()
-    await screen.findByText("Items and fulfilment")
+    await loaded()
     expect(screen.queryByText("Items from other shops")).not.toBeInTheDocument()
     expect(screen.queryByText("$30.00")).not.toBeInTheDocument()
     expect(document.body.textContent ?? "").not.toMatch(/\b(VAT|GST)\b/)
@@ -360,7 +364,7 @@ describe("Fulfil", () => {
 describe("the activity drawer (104)", () => {
   it("opens from the action row through the address, and reads nothing before", async () => {
     open()
-    await screen.findByText("Items and fulfilment")
+    await loaded()
     expect(apiGet).not.toHaveBeenCalled()
 
     await userEvent.click(screen.getByRole("button", { name: "Activity" }))

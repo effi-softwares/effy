@@ -2,6 +2,7 @@ package com.effyshopping.customer.mobile.features.points.presentation
 
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.PaddingValues
 import com.effyshopping.customer.mobile.resources.lucide_info
@@ -16,7 +17,8 @@ import com.effyshopping.customer.mobile.core.presentation.EffyNotice
 import com.effyshopping.customer.mobile.core.presentation.EffyNumberRoll
 import com.effyshopping.customer.mobile.core.presentation.EffyCard
 import com.effyshopping.customer.mobile.core.presentation.EffyErrorState
-import com.effyshopping.customer.mobile.core.presentation.EffyRowSkeleton
+import com.effyshopping.customer.mobile.core.presentation.EffyLoading
+import com.effyshopping.customer.mobile.core.presentation.EffySkeletonText
 import com.effyshopping.customer.mobile.core.presentation.EffySkeletonBlock
 import com.effyshopping.customer.mobile.core.presentation.EffyAppBar
 import androidx.compose.foundation.layout.Arrangement
@@ -68,10 +70,7 @@ fun PointsScreen(container: AppContainer, onBack: () -> Unit) {
         EffyAppBar(title = "Effy points")
         val balance = state.balance
         when {
-            state.loading -> Column(Modifier.padding(EffySpacing.lg), verticalArrangement = Arrangement.spacedBy(EffySpacing.md)) {
-                EffySkeletonBlock(Modifier.fillMaxWidth().height(120.dp), radius = EffyStorefrontShape.lg)
-                repeat(4) { EffyRowSkeleton(image = false) }
-            }
+            state.loading -> PointsSkeleton()
             state.loadFailed || balance == null -> EffyErrorState(
                 title = "We couldn't load your points",
                 onRetry = vm::load,
@@ -136,6 +135,41 @@ fun PointsScreen(container: AppContainer, onBack: () -> Unit) {
                                 )
                             }
                         }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** The page before it reads: the balance card (its label is fixed), the notice, and history rows as [LineRow] draws them. */
+@Composable
+private fun PointsSkeleton() {
+    val type = MaterialTheme.typography
+    EffyLoading(Modifier.fillMaxSize(), label = "Loading your points") {
+        Column(Modifier.fillMaxSize().padding(EffySpacing.lg), verticalArrangement = Arrangement.spacedBy(EffySpacing.md)) {
+            EffyCard {
+                Text("Your balance", style = type.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                EffySkeletonText(type.displaySmall, Modifier.fillMaxWidth(), widthFraction = 0.55f)
+                EffySkeletonText(type.bodyLarge, Modifier.fillMaxWidth(), widthFraction = 0.3f)
+            }
+            EffyNotice(
+                "Points are credit from Effy. Use them on anything at checkout, delivery included. They have no cash value.",
+                icon = Res.drawable.lucide_info,
+            )
+            Column {
+                Text("History", style = type.titleSmall, modifier = Modifier.padding(top = EffySpacing.s))
+                repeat(4) { i ->
+                    Row(
+                        Modifier.fillMaxWidth().heightIn(min = EffySize.row).padding(vertical = EffySpacing.md),
+                        horizontalArrangement = Arrangement.spacedBy(EffySpacing.md),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            EffySkeletonText(type.bodyLarge, Modifier.fillMaxWidth(), widthFraction = if (i % 2 == 0) 0.6f else 0.45f)
+                            EffySkeletonText(type.bodySmall, Modifier.fillMaxWidth(), widthFraction = 0.3f)
+                        }
+                        EffySkeletonText(type.bodyLarge, Modifier.width(48.dp))
                     }
                 }
             }

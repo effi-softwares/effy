@@ -32,7 +32,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.effyshopping.customer.mobile.app.AppContainer
 import com.effyshopping.customer.mobile.core.presentation.EffyAppBar
 import com.effyshopping.customer.mobile.core.presentation.EffyErrorState
-import com.effyshopping.customer.mobile.core.presentation.EffyRowSkeleton
+import com.effyshopping.customer.mobile.core.presentation.EffyLoading
+import com.effyshopping.customer.mobile.core.presentation.EffySkeletonShape
+import com.effyshopping.customer.mobile.core.presentation.EffySkeletonText
 import com.effyshopping.customer.mobile.core.presentation.EffySurface
 import com.effyshopping.customer.mobile.features.catalog.domain.BrowseTarget
 import com.effyshopping.customer.mobile.features.catalog.domain.Category
@@ -62,7 +64,7 @@ fun CategoryBrowseScreen(
     Column(Modifier.fillMaxSize()) {
         EffyAppBar(title = title)
         when (val s = state) {
-            CategoryBrowseUiState.Loading -> Column(Modifier.padding(EffySpacing.lg)) { repeat(6) { EffyRowSkeleton() } }
+            CategoryBrowseUiState.Loading -> BrowseSkeleton()
             CategoryBrowseUiState.Error -> EffyErrorState(title = "Couldn't load the aisles", onRetry = vm::load)
             is CategoryBrowseUiState.Ready -> LazyColumn(Modifier.fillMaxSize()) {
                 s.level.parent?.let { parent ->
@@ -86,6 +88,29 @@ fun CategoryBrowseScreen(
                         },
                     )
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                }
+            }
+        }
+    }
+}
+
+/** The aisle list before it reads: rows laid out as [BrowseRow] lays them out — round icon, name, count. */
+@Composable
+private fun BrowseSkeleton() {
+    val type = MaterialTheme.typography
+    EffyLoading(Modifier.fillMaxSize(), label = "Loading aisles") {
+        Column(Modifier.fillMaxSize()) {
+            repeat(7) { i ->
+                Row(
+                    Modifier.fillMaxWidth().heightIn(min = 64.dp).padding(horizontal = EffySpacing.lg, vertical = EffySpacing.s),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(EffySpacing.md),
+                ) {
+                    EffySkeletonShape(CircleShape, Modifier.size(44.dp))
+                    Column(Modifier.weight(1f)) {
+                        EffySkeletonText(type.bodyLarge, Modifier.fillMaxWidth(), widthFraction = listOf(0.5f, 0.35f, 0.6f)[i % 3])
+                        EffySkeletonText(type.bodySmall, Modifier.fillMaxWidth(), widthFraction = 0.25f)
+                    }
                 }
             }
         }

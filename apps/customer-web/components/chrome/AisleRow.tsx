@@ -10,6 +10,7 @@ import { SkinnedPromotion } from "@/app/(shop)/_components/SkinnedPromotion"
 import { chromePrefetch } from "@/lib/account-routes"
 import { offerHref } from "@/app/(shop)/_components/OffersPanels"
 import { MENU_THEMES, PromoBanner, type PromoTheme } from "@/components/storefront/PromoBanner"
+import { Bone } from "@/components/ui/skeletons"
 import { btnClass } from "@/components/storefront/actions"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/misc"
@@ -307,6 +308,14 @@ export function AisleRowFallback() {
         <Tag aria-hidden="true" />
         Deals
       </AisleLinkFallback>
+      {/* The aisles' own links arrive with the category read; until then, their places. */}
+      <span className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden" aria-hidden="true">
+        {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+          <span key={i} className="flex h-9 shrink-0 items-center px-3">
+            <Bone className={i % 2 ? "w-20" : "w-16"} />
+          </span>
+        ))}
+      </span>
     </nav>
   )
 }

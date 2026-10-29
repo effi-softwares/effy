@@ -142,7 +142,7 @@ export function AttributeLibrary({ canManage }: { canManage: boolean }) {
       {isError ? (
         <ErrorState error={error} onRetry={() => void refetch()} />
       ) : isPending ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
+        <StaticTable label="Attribute library" columns={columns} rows={[]} getRowId={(a) => a.id} loading loadingRows={8} />
       ) : (
         <StaticTable
           label="Attribute library"

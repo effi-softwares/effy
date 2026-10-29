@@ -1,12 +1,22 @@
 import { useQuery } from "@tanstack/react-query"
 import { Gauge, Pencil, ShieldCheck, Snowflake, Truck, UserRound } from "lucide-react"
 
-import { Skeleton, Tabs, TabsContent, TabsList, TabsTrigger } from "@effy/design-system/ui"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@effy/design-system/ui"
 import { ActivityButton, ActivityLogDrawer } from "@effy/web-kit/activity-log"
 import { ErrorState, useHeaderDetail } from "@effy/web-kit/console"
 import type { VehicleDetail } from "@effy/shared-types"
 
-import { PageHeader, DetailRows, Panel, Callout, StatusWord } from "@effy/web-kit/patterns"
+import {
+  Bone,
+  Callout,
+  DetailPageSkeleton,
+  DetailRows,
+  DetailRowsSkeleton,
+  PageHeader,
+  Panel,
+  PanelSkeleton,
+  StatusWord,
+} from "@effy/web-kit/patterns"
 import { useSessionRoles } from "@/features/auth/useSessionRoles"
 import { api } from "@/lib/api"
 
@@ -44,14 +54,7 @@ export function VehicleDetailScreen({ vehicleId }: { vehicleId: string }) {
   useHeaderDetail(query.data?.registrationPlate ?? null)
 
   if (query.isError) return <ErrorState error={query.error} onRetry={() => void query.refetch()} />
-  if (!query.data) {
-    return (
-      <div className="space-y-4" aria-busy="true">
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-60" />
-      </div>
-    )
-  }
+  if (!query.data) return <VehicleSkeleton />
 
   const v: VehicleDetail = query.data
   const regDays = inDays(v.registrationExpiresOn)
@@ -212,5 +215,49 @@ export function VehicleDetailScreen({ vehicleId }: { vehicleId: string }) {
         fileName={`vehicle-${v.registrationPlate}-activity`}
       />
     </>
+  )
+}
+
+function VehicleSkeleton() {
+  return (
+    <DetailPageSkeleton
+      back={{ label: "All vehicles", link: { to: "/vehicles" } }}
+      actions={1}
+      asideFirst
+      tabs={[
+        <>
+          <Gauge aria-hidden="true" />
+          Details
+        </>,
+      ]}
+      main={
+        <PanelSkeleton title="Details" icon={<Truck aria-hidden="true" />}>
+          <DetailRowsSkeleton
+            labels={[
+              "Status",
+              "Reason",
+              "Year",
+              "Fuel",
+              "Carries",
+              "Payload",
+              "Load volume",
+              "Crates",
+              "Odometer",
+              "Notes",
+            ]}
+          />
+        </PanelSkeleton>
+      }
+      aside={
+        <>
+          <PanelSkeleton title="Who has it" icon={<UserRound aria-hidden="true" />}>
+            <Bone className="w-3/4" />
+          </PanelSkeleton>
+          <PanelSkeleton title="Compliance" icon={<ShieldCheck aria-hidden="true" />}>
+            <DetailRowsSkeleton tight labels={["Registration", "Insurance", "Roadworthy"]} />
+          </PanelSkeleton>
+        </>
+      }
+    />
   )
 }

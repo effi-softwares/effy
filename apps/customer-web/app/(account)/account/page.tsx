@@ -9,7 +9,8 @@ import { CoverageNote } from "@/app/(account)/addresses/_components/CoverageNote
 import { btnClass } from "@/components/storefront/actions"
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
-import { Breadcrumb, Skeleton } from "@/components/ui/misc"
+import { Breadcrumb } from "@/components/ui/misc"
+import { Bone, Loading } from "@/components/ui/skeletons"
 import { edgeApi, perCustomer } from "@/lib/api/edge"
 import { defaultAddress, getAddresses, getOrders, getPoints, getSavedItems } from "@/lib/customer-reads"
 import { getSession, requireCustomer } from "@/lib/dal"
@@ -27,7 +28,7 @@ export default function AccountPage({ searchParams }: { searchParams: Promise<{ 
   return (
     <>
       <Breadcrumb items={[{ label: "Account", href: "/account" }, { label: "Overview" }]} className="mb-6" />
-      <Suspense fallback={<Skeleton className="h-96 w-full rounded-lg" />}>
+      <Suspense fallback={<OverviewSkeleton />}>
         <Overview searchParams={searchParams} />
       </Suspense>
     </>
@@ -277,5 +278,59 @@ function Tile({
       </h2>
       <div className="text-sm text-muted-foreground">{children}</div>
     </Card>
+  )
+}
+
+/** The overview while its five reads run: the same greeting, cards, tiles and orders table, with bones for values. */
+function OverviewSkeleton() {
+  return (
+    <Loading label="Loading your account">
+      <div className="space-y-6">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div className="space-y-2">
+            <Bone kind="title" className="w-48" />
+            <Bone className="w-64 max-w-full" />
+          </div>
+          <Bone kind="control" className="w-32" />
+        </div>
+        <div className="grid gap-4 lg:grid-cols-3">
+          <Card className="gap-2 p-6 lg:col-span-2">
+            <Bone kind="small" className="w-36" />
+            <Bone kind="heading" className="w-48" />
+            <Bone kind="control" className="mt-3 w-24" />
+          </Card>
+          <Card className="gap-1 p-6">
+            <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Effy points</p>
+            <Bone className="my-1 h-10 w-24" />
+            <Bone className="w-40" />
+          </Card>
+        </div>
+        <div className="grid gap-4 md:grid-cols-3">
+          {[
+            { Icon: Heart, title: "Saved items" },
+            { Icon: MapPin, title: "Default address" },
+            { Icon: CreditCard, title: "Default card" },
+          ].map(({ Icon, title }) => (
+            <Card key={title} className="gap-2 p-6">
+              <Icon aria-hidden="true" className="size-5" />
+              <h2 className="font-semibold">{title}</h2>
+              <Bone className="w-3/4" />
+            </Card>
+          ))}
+        </div>
+        <Card padded={false} className="p-6">
+          <h2 className="font-semibold">Recent orders</h2>
+          <ul className="mt-4 divide-y">
+            {[0, 1, 2].map((i) => (
+              <li key={i} className="flex items-center justify-between gap-4 py-3">
+                <Bone className="w-28" />
+                <Bone className="w-20 max-sm:hidden" />
+                <Bone kind="price" />
+              </li>
+            ))}
+          </ul>
+        </Card>
+      </div>
+    </Loading>
   )
 }

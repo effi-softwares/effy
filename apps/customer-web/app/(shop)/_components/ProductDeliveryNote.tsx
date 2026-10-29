@@ -6,6 +6,7 @@ import type { AddressDTO, PointsBalanceDTO } from "@effy/shared-types"
 import { defaultAddress, getAddresses, getPoints } from "@/lib/customer-reads"
 import { formatMoney } from "@/lib/money"
 import { getSession } from "@/lib/session"
+import { Bone, Loading } from "@/components/ui/skeletons"
 
 import { PaymentMarks } from "./PaymentMarks"
 
@@ -85,6 +86,30 @@ export async function ProductDeliveryNote() {
   )
 }
 
+/** The card while the shopper's address is read: the same card and its fixed links row, a bone for who delivers. */
 export function ProductDeliveryNoteFallback() {
-  return <div aria-hidden="true" className="h-36 animate-pulse rounded-lg bg-muted" />
+  return (
+    <Loading label="Checking who delivers to you">
+      <div className="rounded-lg border shadow-xs">
+        <div className="flex gap-3 p-4">
+          <Truck aria-hidden="true" className="mt-1 size-4 shrink-0 text-muted-foreground" />
+          <div className="flex min-w-0 flex-1 flex-col gap-2 py-0.5">
+            <Bone className="w-3/4" />
+            <Bone className="w-1/2" />
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t p-4">
+          <PaymentMarks />
+          <span className="flex gap-4 text-sm">
+            <Link href="/legal/delivery-policy" className="underline underline-offset-4">
+              Delivery policy
+            </Link>
+            <Link href="/legal/refunds-returns" className="underline underline-offset-4">
+              Refunds &amp; returns
+            </Link>
+          </span>
+        </div>
+      </div>
+    </Loading>
+  )
 }

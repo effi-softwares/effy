@@ -13,11 +13,10 @@ import {
   Badge,
   Button,
   Input,
-  Skeleton,
   toast,
 } from "@effy/design-system/ui"
 
-import { ResponsiveSheet, Callout } from "@effy/web-kit/patterns"
+import { Bone, Callout, ListSkeleton, Loading, ResponsiveSheet } from "@effy/web-kit/patterns"
 import { initialsOf } from "@/components/shell/identity"
 
 import { assignErrorLine, driversForQuery, useAssignTo } from "./queries"
@@ -119,11 +118,14 @@ export function AssignSheet({
       ) : null}
 
       {drivers.isPending ? (
-        <div className="space-y-2" aria-busy="true">
-          <Skeleton className="h-14" />
-          <Skeleton className="h-14" />
-          <Skeleton className="h-14" />
-        </div>
+        <Loading label="Loading drivers">
+          <div className="space-y-2">
+            <Bone kind="small" className="w-32" />
+            <div className="rounded-lg border border-border px-4">
+              <ListSkeleton rows={3} media="icon" lines={1} trailing="chip" />
+            </div>
+          </div>
+        </Loading>
       ) : null}
       {drivers.isError ? <Callout tone="destructive" title={assignErrorLine(drivers.error).line} /> : null}
       {groups.map(({ fit, title: heading }) => {

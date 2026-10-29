@@ -10,6 +10,7 @@ import { CircleX } from "lucide-react"
 
 import { Alert } from "@/components/ui/alert"
 import { Breadcrumb } from "@/components/ui/misc"
+import { Bone, BoneLines, Loading } from "@/components/ui/skeletons"
 import { edgeApiPublic, uncached } from "@/lib/api/edge"
 import { CACHE_LIFE } from "@/lib/cache-life"
 import { siteUrl } from "@/lib/config"
@@ -19,6 +20,7 @@ import { initialVariantId } from "@/lib/variant-selection"
 import { ProductGallery } from "../../_components/ProductGallery"
 import { RecordView } from "../../_components/RecordView"
 import { ProductDeliveryNote, ProductDeliveryNoteFallback } from "../../_components/ProductDeliveryNote"
+import { ProductRailSkeleton } from "../../_components/ProductRail"
 import { MoreFromBrand, RelatedProducts } from "../../_components/RelatedProducts"
 import { VariantBuyBox } from "../../_components/VariantBuyBox"
 import { VariantDetails } from "../../_components/VariantDetails"
@@ -165,7 +167,7 @@ async function ProductDetail({ params, searchParams }: { params: Promise<{ id: s
       <ProductSections product={product} searchParams={searchParams} />
 
       {product.categoryKey && (
-        <Suspense fallback={<div className="h-72" aria-hidden="true" />}>
+        <Suspense fallback={<ProductRailSkeleton title="You might also like" className="px-0!" />}>
           <RelatedProducts categoryKey={product.categoryKey} excludeProductId={product.id} />
         </Suspense>
       )}
@@ -223,12 +225,23 @@ async function LiveBuy({ product, searchParams }: { product: ProductContent; sea
   )
 }
 
+/** The buy box while the live tier reads: price, availability, then the add-to-cart row and its two buttons. */
 function PriceSkeleton() {
   return (
-    <div className="mt-4 space-y-3" aria-hidden="true">
-      <div className="h-9 w-1/3 animate-pulse rounded-md bg-muted" />
-      <div className="h-5 w-32 animate-pulse rounded-md bg-muted" />
-    </div>
+    <Loading label="Loading price and sizes">
+      <div className="mt-4 flex flex-col gap-2">
+        <Bone className="h-9 w-28" />
+        <Bone kind="small" className="w-24" />
+      </div>
+      <Bone className="mt-4 w-32" />
+      <div className="mt-6 border-t pt-6">
+        <Bone kind="control" className="h-12" />
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          <Bone kind="control" />
+          <Bone kind="control" />
+        </div>
+      </div>
+    </Loading>
   )
 }
 
@@ -282,20 +295,32 @@ async function LiveDetails({ productId, searchParams }: { productId: string; sea
   )
 }
 
+/** The page before its product reads: breadcrumb, the gallery (thumbnails beside the picture), the title and buy box. */
 function ProductSkeleton() {
   return (
-    <div className="container py-6" aria-hidden="true">
-      <div className="h-4 w-56 animate-pulse rounded-md bg-muted" />
-      <div className="mt-6 grid gap-8 lg:grid-cols-2 lg:gap-12">
-        <div className="aspect-square w-full animate-pulse rounded-lg bg-muted" />
-        <div className="space-y-4">
-          <div className="h-8 w-3/4 animate-pulse rounded-md bg-muted" />
-          <div className="h-9 w-1/3 animate-pulse rounded-md bg-muted" />
-          <div className="h-16 w-full animate-pulse rounded-md bg-muted" />
-          <div className="h-12 w-full animate-pulse rounded-md bg-muted" />
-          <div className="h-36 w-full animate-pulse rounded-lg bg-muted" />
+    <div className="container py-6">
+      <Loading label="Loading product">
+        <Bone className="w-56" />
+        <div className="mt-6 grid gap-8 lg:grid-cols-2 lg:gap-12">
+          <div className="flex flex-col-reverse gap-3 md:flex-row">
+            <div className="flex shrink-0 gap-3 md:w-16 md:flex-col">
+              {[0, 1, 2].map((i) => (
+                <Bone key={i} kind="thumb" className="size-16" />
+              ))}
+            </div>
+            <Bone kind="thumb" className="w-full min-w-0 flex-1" />
+          </div>
+          <div className="flex min-w-0 flex-col">
+            <Bone kind="small" className="w-20" />
+            <Bone kind="title" className="mt-2 w-3/4" />
+            <PriceSkeleton />
+            <BoneLines count={3} className="mt-6" />
+            <div className="mt-6">
+              <ProductDeliveryNoteFallback />
+            </div>
+          </div>
         </div>
-      </div>
+      </Loading>
     </div>
   )
 }

@@ -23,10 +23,9 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Skeleton,
 } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
-import { PageHeader } from "@effy/web-kit/patterns"
+import { Bone, FormSkeleton, Loading, PageHeader, PageHeaderSkeleton } from "@effy/web-kit/patterns"
 import {
   DetailsStep,
   detailErrors,
@@ -241,9 +240,9 @@ export function EffyProductForm({
 
   function stepBody() {
     if (taxonomy.isError) return <ErrorState error={taxonomy.error} onRetry={taxonomy.refetch} />
-    if (!taxonomy.data) return <Skeleton className="h-40" />
+    if (!taxonomy.data) return <StepBodySkeleton />
     if (step > 0 && form.isError) return <ErrorState error={form.error} onRetry={() => void form.refetch()} />
-    if (step > 0 && !form.data) return <Skeleton className="h-40" />
+    if (step > 0 && !form.data) return <StepBodySkeleton />
     const rows = form.data ? formRows(form.data) : []
     switch (step) {
       case 0:
@@ -421,5 +420,35 @@ export function EffyProductForm({
         </div>
       </div>
     </>
+  )
+}
+
+function StepBodySkeleton() {
+  return (
+    <Loading>
+      <FormSkeleton fields={4} submit={false} />
+    </Loading>
+  )
+}
+
+/** The form's page while the product it finishes is read: the same head, steps, card and preview. */
+export function EffyProductFormSkeleton() {
+  return (
+    <Loading>
+      <PageHeaderSkeleton meta={1} actions={1} />
+      <div inert>
+        <StepTabs step={0} disabled onStep={() => {}} />
+      </div>
+      <div className="ef-detail">
+        <Card className="ef-detail__main min-h-70 py-5">
+          <CardContent className="flex h-full flex-col gap-4">
+            <FormSkeleton fields={4} submit={false} />
+          </CardContent>
+        </Card>
+        <aside className="ef-detail__aside">
+          <Bone kind="block" className="h-72" />
+        </aside>
+      </div>
+    </Loading>
   )
 }

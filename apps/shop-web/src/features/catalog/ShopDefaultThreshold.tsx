@@ -10,15 +10,36 @@ import {
   Input,
   Label,
 } from "@effy/design-system/ui"
+import { Bone, BoneLines, Loading } from "@effy/web-kit/patterns"
 
 import { CatalogModal } from "./CatalogModal"
 import { stockErrorText } from "./stockErrorText"
 import { stockSettingsQuery, useSetStockSettings } from "./stockQueries"
 
 function ShopDefaultThresholdControl() {
-  const { data } = useQuery(stockSettingsQuery)
+  const { data, isPending } = useQuery(stockSettingsQuery)
+  // Not an empty field while it reads: what is typed there would be replaced when the saved value arrives.
+  if (isPending) return <ThresholdSkeleton />
   const saved = data?.defaultThreshold == null ? "" : String(data.defaultThreshold)
   return <ThresholdForm key={saved} saved={saved} />
+}
+
+function ThresholdSkeleton() {
+  return (
+    <Loading label="Loading the threshold">
+      <section className="space-y-2">
+        <h2 className="text-sm font-semibold">Default low-stock threshold</h2>
+        <BoneLines count={2} />
+        <div className="flex items-end gap-3">
+          <div className="space-y-2">
+            <span className="text-sm leading-none font-medium">Threshold</span>
+            <Bone kind="control" className="w-32" />
+          </div>
+          <Bone kind="control" className="w-20" />
+        </div>
+      </section>
+    </Loading>
+  )
 }
 
 function ThresholdForm({ saved }: { saved: string }) {

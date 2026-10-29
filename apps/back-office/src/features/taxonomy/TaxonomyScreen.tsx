@@ -5,7 +5,7 @@ import { Link, useNavigate } from "@tanstack/react-router"
 
 import { Card, CardContent, Tabs, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
-import { PageHeader } from "@effy/web-kit/patterns"
+import { Bone, boneWidth, Loading, PageHeader } from "@effy/web-kit/patterns"
 import { sessionQuery } from "@/features/auth/queries"
 
 import { canManageTaxonomy } from "./access"
@@ -63,7 +63,25 @@ export function TaxonomyScreen({ tab, categoryId }: { tab: "categories" | "attri
         ) : tree.isError ? (
           <ErrorState error={tree.error} onRetry={() => void tree.refetch()} />
         ) : tree.isPending ? (
-          <p className="text-sm text-muted-foreground">Loading…</p>
+          <Loading label="Loading categories">
+            <div className="grid gap-4 lg:grid-cols-[minmax(320px,2fr)_3fr]">
+              <Card className="py-4">
+                <CardContent className="flex flex-col gap-1 px-4">
+                  {[0, 1, 1, 2, 2, 1, 0, 1, 0].map((depth, i) => (
+                    <div key={i} className="flex h-9 items-center gap-2" style={{ paddingLeft: depth * 20 }}>
+                      <Bone kind="small" className="size-4" />
+                      <Bone className={`max-w-48 ${boneWidth(i)}`} />
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+              <Card className="py-4">
+                <CardContent className="text-sm text-muted-foreground">
+                  Choose a category to see its details, defaults and attributes.
+                </CardContent>
+              </Card>
+            </div>
+          </Loading>
         ) : (
           <Categories
             categories={tree.data}

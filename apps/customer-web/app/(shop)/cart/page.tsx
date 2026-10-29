@@ -11,6 +11,7 @@ import { CatalogImage } from "@/components/storefront/CatalogImage"
 import { ActionLink, btnClass } from "@/components/storefront/actions"
 import { Alert } from "@/components/ui/alert"
 import { Breadcrumb } from "@/components/ui/misc"
+import { Bone, boneWidth, Loading } from "@/components/ui/skeletons"
 import {
   addItem,
   clearAll,
@@ -26,6 +27,7 @@ import { refreshCart } from "@/lib/cart-sync"
 import { edgeApiBaseUrl } from "@/lib/config"
 import { formatMoney } from "@/lib/money"
 import { toast } from "@/lib/toast-store"
+import { useHydrated } from "@/lib/use-hydrated"
 import { useOnDemand } from "@/lib/use-on-demand"
 
 import { PaymentMarks } from "../_components/PaymentMarks"
@@ -60,6 +62,7 @@ export default function CartPage() {
   const currency = cart.currency || lines[0]?.currency || "AUD"
   const count = lines.reduce((n, l) => n + l.quantity, 0)
   const { Overlay: Confirm, open: confirming, setOpen: setConfirming, want: wantConfirm } = useLazyOverlay(loadDialog)
+  const hydrated = useHydrated()
 
   /** Empty the cart, and hand back a way to undo it. The emptied lines live only as long as
    *  the toast: nothing is stored anywhere to make this possible. */
@@ -76,7 +79,9 @@ export default function CartPage() {
     <div className="container py-6">
       <Breadcrumb items={[{ label: "Home", href: "/" }, { label: "Cart" }]} />
 
-      {lines.length === 0 ? (
+      {!hydrated ? (
+        <CartSkeleton />
+      ) : lines.length === 0 ? (
         <div className="mt-6 flex flex-col items-center gap-2 rounded-lg border border-dashed px-6 py-16 text-center">
           <span className="mb-2 grid size-12 place-items-center rounded-lg bg-muted">
             <ShoppingCart aria-hidden="true" className="size-6" />
@@ -397,4 +402,55 @@ function OnSaleRail() {
 function parseFloatSafe(s: string): number {
   const n = Number(s)
   return Number.isFinite(n) ? n : 0
+}
+
+/** The cart before the browser's copy of it is read: the same head, line list and summary rail. */
+function CartSkeleton() {
+  return (
+    <Loading label="Loading your cart">
+      <div className="mt-6 flex flex-wrap items-end justify-between gap-3">
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Your cart</h1>
+      </div>
+      <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
+        <ul className="divide-y rounded-lg border shadow-xs">
+          {[0, 1, 2].map((i) => (
+            <li key={i} className="flex gap-4 p-4">
+              <Bone kind="thumb" className="size-20" />
+              <div className="flex min-w-0 flex-1 flex-col gap-2">
+                <div className="flex items-start justify-between gap-4">
+                  <Bone className={`max-w-56 ${boneWidth(i)}`} />
+                  <Bone kind="price" />
+                </div>
+                <Bone kind="small" className="w-24" />
+                <Bone kind="control" className="mt-2 h-9 w-28" />
+              </div>
+            </li>
+          ))}
+        </ul>
+        <aside className="rounded-lg border p-6 shadow-xs">
+          <h2 className="font-semibold">Order summary</h2>
+          <dl className="mt-4 space-y-3 text-sm">
+            <div className="flex items-center justify-between">
+              <dt>Items</dt>
+              <dd>
+                <Bone className="w-16" />
+              </dd>
+            </div>
+            <div className="flex items-center justify-between">
+              <dt>Delivery</dt>
+              <dd className="text-muted-foreground">Calculated at checkout</dd>
+            </div>
+            <div className="flex items-baseline justify-between border-t pt-3">
+              <dt className="text-base font-semibold">Total</dt>
+              <dd>
+                <Bone kind="price" className="w-20" />
+              </dd>
+            </div>
+          </dl>
+          <Bone kind="control" className="mt-4" />
+          <Bone kind="control" className="mt-4 h-12" />
+        </aside>
+      </div>
+    </Loading>
+  )
 }

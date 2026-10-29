@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query"
 import type { DeliveryDaysDTO } from "@effy/shared-types"
 import { Button, Checkbox, DateField, Input, Label, Toggle } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
+import { FormSkeleton, Loading } from "@effy/web-kit/patterns"
 
 import { deliveryMutationError, fieldErrors, HUB_NOT_SET } from "../errorText"
 import { deliveryDaysQuery, useAddNonDeliveryDate, usePutDeliveryDays, useRemoveNonDeliveryDate } from "../queries"
@@ -23,7 +24,31 @@ export function DeliveryDaysPanel({ canManage }: { canManage: boolean }) {
   const days = useQuery(deliveryDaysQuery())
 
   if (days.isError) return <ErrorState error={days.error} onRetry={() => void days.refetch()} />
-  if (days.isPending) return <p className="text-sm text-muted-foreground">Loading…</p>
+  if (days.isPending) {
+    return (
+      <Loading label="Loading delivery days">
+        <div className="flex max-w-3xl flex-col gap-6">
+          <section className="space-y-4">
+            <h2 className="text-base font-semibold">Delivery days</h2>
+            <FormSkeleton
+              labels={["Days offered after today", "“Standard” delivery tile — the timeframe customers are shown"]}
+              submit={false}
+            />
+            <fieldset disabled>
+              <legend className="text-sm font-medium">No delivery on</legend>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {WEEKDAYS.map(([day, name]) => (
+                  <Toggle key={day} variant="outline" size="sm" className="px-3" tabIndex={-1}>
+                    {name}
+                  </Toggle>
+                ))}
+              </div>
+            </fieldset>
+          </section>
+        </div>
+      </Loading>
+    )
+  }
 
   return (
     <div className="flex max-w-3xl flex-col gap-6">

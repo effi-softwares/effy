@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
 
-import { Skeleton } from "@effy/design-system/ui"
-import { DetailRows, Panel } from "@effy/web-kit/patterns"
+import { DetailRows, DetailRowsSkeleton, Loading, Panel } from "@effy/web-kit/patterns"
 import { ordersTodayQuery } from "@/features/orders/queries"
 import { money } from "./overviewFormat"
 
@@ -11,11 +10,9 @@ export function OrdersToday() {
   return (
     <Panel title="Orders today" description="Placed since midnight, by who delivers them.">
       {today.isPending ? (
-        <div className="space-y-2">
-          <Skeleton className="h-5" />
-          <Skeleton className="h-5" />
-          <Skeleton className="h-5" />
-        </div>
+        <Loading label="Loading today's orders">
+          <DetailRowsSkeleton tight labels={["Delivered by Effy", "Courier delivery", "Refunded"]} />
+        </Loading>
       ) : today.isError || !t ? (
         <p className="text-sm text-muted-foreground">
           Couldn't load today's figures. They come back when the orders service answers.

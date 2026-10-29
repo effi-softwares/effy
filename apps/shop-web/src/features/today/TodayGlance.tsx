@@ -3,8 +3,8 @@ import { useQuery } from "@tanstack/react-query"
 
 import type { ShopBacklogDTO } from "@effy/shared-types"
 import { cn } from "@effy/design-system"
-import { Button, Skeleton } from "@effy/design-system/ui"
-import { DetailRows, Panel } from "@effy/web-kit/patterns"
+import { Button } from "@effy/design-system/ui"
+import { Bone, DetailRows, Panel } from "@effy/web-kit/patterns"
 
 import { deltaText, money } from "@/features/insights/model"
 import { insightsQuery } from "@/features/insights/queries"
@@ -57,7 +57,7 @@ export function TodayGlance({ backlog }: { backlog: ShopBacklogDTO | undefined }
           value: (
             <>
               {r.value === null ? (
-                <Skeleton className="h-5 w-20" />
+                <Bone className="h-5 w-20" />
               ) : (
                 <span className={cn("font-semibold tabular-nums", r.live && "text-primary")}>{r.value}</span>
               )}

@@ -3,12 +3,22 @@ import { useEffect, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { CalendarClock, Calendar, CreditCard, Eye, List, Package, ReceiptText, Truck } from "lucide-react"
 
-import { Badge, Button, Skeleton, Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui"
+import { Badge, Button, Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui"
 import { leastAdvanced, type PackageStatusView } from "@effy/shared-types"
 import { ActivityLogDrawer, useActivityAction } from "@effy/web-kit/activity-log"
 import { ErrorState, PackageStatusPill, useHeaderDetail } from "@effy/web-kit/console"
 
-import { Callout, MoreActions, PageHeader, Panel } from "@effy/web-kit/patterns"
+import {
+  Bone,
+  Callout,
+  DetailPageSkeleton,
+  DetailRowsSkeleton,
+  ListSkeleton,
+  MoreActions,
+  PageHeader,
+  Panel,
+  PanelSkeleton,
+} from "@effy/web-kit/patterns"
 import { AssignmentActions } from "@/features/assign/AssignmentActions"
 import { sessionQuery } from "@/features/auth/queries"
 import { canDispatch } from "@/features/dispatch/access"
@@ -312,22 +322,55 @@ export function OrderDetailScreen({
 
 function DetailSkeleton() {
   return (
-    <div className="space-y-6" aria-busy="true">
-      <div className="space-y-2">
-        <Skeleton className="h-4 w-20" />
-        <Skeleton className="h-8 w-72" />
-        <Skeleton className="h-4 w-96 max-w-full" />
-      </div>
-      <div className="ef-detail">
-        <div className="ef-detail__main">
-          <Skeleton className="h-9 w-96 max-w-full" />
-          <Skeleton className="h-64" />
-        </div>
-        <div className="ef-detail__aside">
-          <Skeleton className="h-40" />
-          <Skeleton className="h-64" />
-        </div>
-      </div>
-    </div>
+    <DetailPageSkeleton
+      back={{ label: "Orders", link: { to: "/orders" } }}
+      meta={3}
+      actions={2}
+      asideFirst
+      tabs={[
+        <>
+          <Package aria-hidden="true" />
+          Packages
+        </>,
+        <>
+          <List aria-hidden="true" />
+          Items
+        </>,
+        <>
+          <CreditCard aria-hidden="true" />
+          Payment
+        </>,
+        <>
+          <ReceiptText aria-hidden="true" />
+          Refunds
+        </>,
+      ]}
+      main={
+        <PanelSkeleton
+          title="Packages"
+          icon={<Package aria-hidden="true" />}
+          description="Each package is packed by one shop and moves on its own. The customer only ever sees one order."
+          flush
+        >
+          <ListSkeleton rows={2} media="icon" trailing="chip" inset />
+        </PanelSkeleton>
+      }
+      aside={
+        <>
+          <PanelSkeleton title="Customer">
+            <div className="flex items-center gap-3">
+              <Bone kind="avatar" className="size-12" />
+              <div className="flex min-w-0 flex-1 flex-col gap-2">
+                <Bone className="w-32" />
+                <Bone kind="small" className="w-44" />
+              </div>
+            </div>
+          </PanelSkeleton>
+          <PanelSkeleton title="Delivery">
+            <DetailRowsSkeleton tight labels={["Delivered by", "Sold as", "Delivering to"]} />
+          </PanelSkeleton>
+        </>
+      }
+    />
   )
 }

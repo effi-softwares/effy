@@ -14,12 +14,21 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   Button,
-  Skeleton,
 } from "@effy/design-system/ui"
 import { layoutFits } from "@effy/shared-types"
 import { ErrorState, useHeaderDetail } from "@effy/web-kit/console"
 
-import { PageHeader, Panel, Callout, StatusWord } from "@effy/web-kit/patterns"
+import {
+  Bone,
+  Callout,
+  DetailPageSkeleton,
+  ListSkeleton,
+  Loading,
+  PageHeader,
+  Panel,
+  PanelSkeleton,
+  StatusWord,
+} from "@effy/web-kit/patterns"
 import { useSessionRoles } from "@/features/auth/useSessionRoles"
 import { track } from "@/lib/telemetry"
 import { canManagePromotions } from "@/features/promotions/access"
@@ -55,7 +64,7 @@ export function PromotionGroupScreen({ groupId }: { groupId: string }) {
   useHeaderDetail(group.data?.name ?? null)
 
   if (group.isError) return <ErrorState error={group.error} onRetry={() => void group.refetch()} />
-  if (!group.data) return <Skeleton className="h-60" aria-busy="true" />
+  if (!group.data) return <GroupSkeleton />
   const g = group.data
   const ids = g.members.map((m) => m.promotionId)
   const choices: MemberChoice[] = g.members.map((m) => ({
@@ -207,7 +216,12 @@ export function PromotionGroupScreen({ groupId }: { groupId: string }) {
             description={`Signed out, in each promotion's skin (${SIZE_WORD[g.size].toLowerCase()} place). Personal offers appear only to the shoppers they are for.`}
           >
             {preview.isPending ? (
-              <Skeleton className="h-24" />
+              <Loading label="Loading the preview">
+                <div className="space-y-3">
+                  <Bone kind="block" className="h-24" />
+                  <Bone kind="block" className="h-24" />
+                </div>
+              </Loading>
             ) : preview.data ? (
               <div className="space-y-4">
                 {preview.data.shown.length === 0 ? (
@@ -275,5 +289,36 @@ export function PromotionGroupScreen({ groupId }: { groupId: string }) {
         </AlertDialogContent>
       </AlertDialog>
     </>
+  )
+}
+
+function GroupSkeleton() {
+  return (
+    <DetailPageSkeleton
+      back={{ label: "Display groups", link: { to: "/promotions/groups" } }}
+      description
+      meta={0}
+      actions={1}
+      main={
+        <>
+          <PanelSkeleton title="How this place looks" rows={2} />
+          <PanelSkeleton
+            title="Promotions, in order"
+            description="Shoppers see them in this order, and only the ones they can use right now."
+            flush
+          >
+            <ListSkeleton rows={4} trailing="chip" inset />
+          </PanelSkeleton>
+        </>
+      }
+      aside={
+        <PanelSkeleton title="What a shopper sees now" description>
+          <div className="space-y-3">
+            <Bone kind="block" className="h-24" />
+            <Bone kind="block" className="h-24" />
+          </div>
+        </PanelSkeleton>
+      }
+    />
   )
 }

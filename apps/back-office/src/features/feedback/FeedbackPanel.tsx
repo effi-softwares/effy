@@ -17,7 +17,7 @@ import {
   Textarea,
 } from "@effy/design-system/ui"
 
-import { StatusWord, Timeline, TimelineItem, type StatusTone } from "@effy/web-kit/patterns"
+import { Bone, BoneLines, Loading, StatusWord, Timeline, TimelineItem, type StatusTone } from "@effy/web-kit/patterns"
 import { moment } from "@/lib/format"
 
 import {
@@ -134,6 +134,41 @@ export function FeedbackPanel({
         </div>
       </div>
     </div>
+  )
+}
+
+/** The panel while its feedback reads: the same head, message, composer and details column. */
+export function FeedbackPanelSkeleton() {
+  return (
+    <Loading label="Loading feedback">
+      <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-6 py-4 max-md:px-4">
+          <div className="flex min-w-0 flex-col gap-2">
+            <Bone kind="heading" className="w-40" />
+            <Bone kind="small" className="w-56" />
+          </div>
+          <Bone kind="control" className="w-36" />
+        </div>
+        <div className="grid flex-1 xl:grid-cols-3">
+          <div className="min-w-0 space-y-6 border-border p-6 max-md:p-4 xl:col-span-2 xl:border-r">
+            <div className="rounded-lg bg-muted/50 p-4">
+              <BoneLines count={3} />
+            </div>
+            <Bone kind="block" className="h-28" />
+          </div>
+          <div className="min-w-0 space-y-4 p-6 max-md:p-4">
+            <h3 className="text-xs font-medium text-muted-foreground">Details</h3>
+            <dl className="ef-dl [&_.ef-dl__row]:grid-cols-[minmax(0,1fr)] [&_.ef-dl__row]:gap-1">
+              {["Category", "Rating", "From", "Email", "Source", "Platform", "Received"].map((label, i) => (
+                <Row key={label} label={label}>
+                  <Bone className={i % 2 ? "w-1/2" : "w-2/3"} />
+                </Row>
+              ))}
+            </dl>
+          </div>
+        </div>
+      </div>
+    </Loading>
   )
 }
 

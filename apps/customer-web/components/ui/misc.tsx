@@ -18,9 +18,10 @@ export function Separator({
   )
 }
 
-/** A loading placeholder. Decorative: the region it stands in for carries the `aria-busy`. */
+/** One loading placeholder (`@effy/design-system/skeleton.css`). Decorative: screens draw it through the
+ * shapes in `@/components/ui/skeletons`, inside their `Loading` region. */
 export function Skeleton({ className }: { className?: string }) {
-  return <span aria-hidden="true" className={clsx("sf-skeleton", className)} />
+  return <span aria-hidden="true" data-slot="skeleton" className={clsx("ef-bone", className)} />
 }
 
 export function Avatar({

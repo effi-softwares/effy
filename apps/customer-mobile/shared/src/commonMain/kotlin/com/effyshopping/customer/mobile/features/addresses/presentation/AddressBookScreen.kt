@@ -20,7 +20,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
@@ -32,6 +31,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import com.effyshopping.customer.mobile.core.presentation.EffyAppBar
 import com.effyshopping.customer.mobile.core.presentation.EffyEmptyState
+import com.effyshopping.customer.mobile.core.presentation.EffyLoading
+import com.effyshopping.customer.mobile.core.presentation.EffySkeletonText
 import com.effyshopping.mobile.design.EffySpacing
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -95,8 +96,7 @@ fun AddressBookScreen(container: AppContainer, onBack: () -> Unit) {
             // this screen was the last place one survived).
             EffyAppBar(title = "Address book", onBack = onBack)
             when {
-                state.loading ->
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+                state.loading -> AddressBookSkeleton()
 
                 state.addresses.isEmpty() -> EffyEmptyState(
                     title = "No saved addresses",
@@ -186,6 +186,34 @@ fun AddressBookScreen(container: AppContainer, onBack: () -> Unit) {
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        }
+    }
+}
+
+/** The book before it reads: its fixed line, then rows laid out as [AddressRow] lays them out, ruled the same. */
+@Composable
+private fun AddressBookSkeleton() {
+    val type = MaterialTheme.typography
+    EffyLoading(Modifier.fillMaxSize(), label = "Loading your addresses") {
+        Column(Modifier.fillMaxSize()) {
+            Text(
+                "Where we deliver. Each address shows who can deliver there.",
+                style = type.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = EffySpacing.lg, vertical = EffySpacing.md),
+            )
+            repeat(3) { i ->
+                Column(
+                    Modifier.fillMaxWidth().padding(horizontal = EffySpacing.lg, vertical = EffySpacing.md),
+                    verticalArrangement = Arrangement.spacedBy(EffySpacing.xs),
+                ) {
+                    EffySkeletonText(type.titleSmall, Modifier.fillMaxWidth(), widthFraction = 0.3f)
+                    EffySkeletonText(type.bodyMedium, Modifier.fillMaxWidth(), widthFraction = if (i % 2 == 0) 0.5f else 0.4f)
+                    EffySkeletonText(type.bodySmall, Modifier.fillMaxWidth(), widthFraction = 0.75f)
+                    EffySkeletonText(type.bodySmall, Modifier.fillMaxWidth(), widthFraction = 0.35f)
+                }
+                EffyHairline()
+            }
         }
     }
 }

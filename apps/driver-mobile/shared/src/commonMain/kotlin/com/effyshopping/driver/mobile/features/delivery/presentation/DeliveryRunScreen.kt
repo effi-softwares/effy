@@ -41,7 +41,7 @@ import com.effyshopping.driver.mobile.core.presentation.DriverProgress
 import com.effyshopping.driver.mobile.core.presentation.DriverRow
 import com.effyshopping.driver.mobile.core.presentation.DriverSectionLabel
 import com.effyshopping.driver.mobile.core.presentation.DriverSize
-import com.effyshopping.driver.mobile.core.presentation.DriverSkeleton
+import com.effyshopping.driver.mobile.core.presentation.DriverRunSkeleton
 import com.effyshopping.driver.mobile.core.presentation.DriverState
 import com.effyshopping.driver.mobile.core.presentation.DriverStatus
 import com.effyshopping.driver.mobile.core.presentation.DriverStatusPill
@@ -188,10 +188,7 @@ fun DeliveryRunScreen(
         ) {
             state.message?.let { DriverAlert(DriverAlertKind.Problem, Res.drawable.lucide_circle_alert, title = it) }
             when {
-                run == null && state.isLoading -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    DriverSkeleton(Modifier.fillMaxWidth(0.6f), height = 28.dp); DriverSkeleton(Modifier.fillMaxWidth(), height = 210.dp)
-                    repeat(5) { DriverSkeleton(Modifier.fillMaxWidth(), height = 64.dp) }
-                }
+                run == null && state.isLoading -> DriverRunSkeleton("Drops, in order")
                 run == null -> DriverState(
                     Res.drawable.lucide_circle_alert, "We couldn't load your run", "This is on us, not you. Try again, or call dispatch if it keeps happening.",
                     actionLabel = "Try again", onAction = onRefresh, actionIcon = Res.drawable.lucide_refresh_ccw,

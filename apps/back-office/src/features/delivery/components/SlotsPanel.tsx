@@ -160,7 +160,7 @@ export function SlotsPanel({ canManage }: { canManage: boolean }) {
       {slots.isError ? (
         <ErrorState error={slots.error} onRetry={() => void slots.refetch()} />
       ) : slots.isPending ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
+        <StaticTable label="Delivery windows" columns={columns} rows={[]} getRowId={(w) => w.id} loading />
       ) : (
         <>
           {!anyActive ? (

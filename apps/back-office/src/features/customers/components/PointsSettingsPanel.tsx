@@ -7,7 +7,7 @@ import type { PointsSettingsDTO } from "@effy/shared-types"
 import { Button, Input, Label, toast } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 
-import { Panel } from "@effy/web-kit/patterns"
+import { Bone, Loading, Panel, PanelSkeleton } from "@effy/web-kit/patterns"
 import { sessionQuery } from "@/features/auth/queries"
 
 import { canEditPointsSettings } from "../access"
@@ -54,7 +54,25 @@ export function PointsSettingsPanel() {
   }, [settings.data, draft])
 
   if (settings.isError) return <ErrorState error={settings.error} onRetry={() => void settings.refetch()} />
-  if (settings.isPending || draft === null) return <p className="text-sm text-muted-foreground">Loading…</p>
+  if (settings.isPending || draft === null) {
+    return (
+      <Loading label="Loading points settings">
+        <PanelSkeleton title="Rules" icon={<Coins aria-hidden="true" />} description={true}>
+          <div>
+            {FIELDS.map((f) => (
+              <div key={f.key} className="flex items-center justify-between gap-4 border-b py-3 last:border-b-0">
+                <div className="min-w-0">
+                  <span className="text-sm leading-none font-medium">{f.label}</span>
+                  <p className="mt-1 text-sm text-muted-foreground">{f.help}</p>
+                </div>
+                <Bone kind="control" className="w-32" />
+              </div>
+            ))}
+          </div>
+        </PanelSkeleton>
+      </Loading>
+    )
+  }
 
   const s: PointsSettingsDTO = settings.data
   const patch: Partial<PointsSettingsDTO> = {}

@@ -38,6 +38,13 @@ import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.isSpecified
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -56,6 +63,31 @@ import org.jetbrains.compose.resources.DrawableResource
 @Composable
 fun EffySkeletonBlock(modifier: Modifier = Modifier, radius: Dp = EffyStorefrontShape.md) {
     Box(modifier = modifier.clip(RoundedCornerShape(radius)).effyShimmer())
+}
+
+/**
+ * A line of placeholder text as tall as [style] sets that text — its line box, the bar the height of its
+ * letters — so a skeleton built from these has its screen's vertical rhythm by construction. Pass the
+ * same style the loaded `Text` uses; vary [widthFraction], or a stack of lines reads as stripes.
+ */
+@Composable
+fun EffySkeletonText(style: TextStyle, modifier: Modifier = Modifier, widthFraction: Float = 1f) {
+    val density = LocalDensity.current
+    val line = with(density) { (if (style.lineHeight.isSpecified) style.lineHeight else style.fontSize * 1.3f).toDp() }
+    val ink = with(density) { style.fontSize.toDp() } * 0.8f
+    Box(modifier.height(line), contentAlignment = Alignment.CenterStart) {
+        EffySkeletonBlock(Modifier.fillMaxWidth(widthFraction).height(ink), radius = EffyStorefrontShape.sm)
+    }
+}
+
+/**
+ * The region a screen's skeleton is drawn in: announced once as [label], every placeholder inside hidden
+ * from TalkBack and VoiceOver. A loading screen is the loaded screen's own containers (`EffyCard`, the same
+ * `LazyColumn` padding) with [EffySkeletonText] / [EffySkeletonBlock] where values will be, inside this.
+ */
+@Composable
+fun EffyLoading(modifier: Modifier = Modifier, label: String = "Loading", content: @Composable () -> Unit) {
+    Box(modifier.clearAndSetSemantics { contentDescription = label; liveRegion = LiveRegionMode.Polite }) { content() }
 }
 
 /** A skeleton in any shape (a circle for an aisle). */
@@ -216,21 +248,5 @@ fun EffyProductCardSkeleton(modifier: Modifier = Modifier) {
         EffySkeletonBlock(Modifier.padding(top = EffySpacing.md).fillMaxWidth(0.5f).height(12.dp), radius = EffyStorefrontShape.sm)
         EffySkeletonBlock(Modifier.padding(top = EffySpacing.s).fillMaxWidth(0.85f).height(16.dp), radius = EffyStorefrontShape.sm)
         EffySkeletonBlock(Modifier.padding(top = EffySpacing.s).width(64.dp).height(18.dp), radius = EffyStorefrontShape.sm)
-    }
-}
-
-/** A list-row-shaped skeleton (orders, saved items, cart). */
-@Composable
-fun EffyRowSkeleton(modifier: Modifier = Modifier, image: Boolean = true) {
-    Row(
-        modifier = modifier.fillMaxWidth().padding(horizontal = EffySpacing.lg, vertical = EffySpacing.md),
-        horizontalArrangement = Arrangement.spacedBy(EffySpacing.md),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        if (image) EffySkeletonBlock(Modifier.size(56.dp), radius = EffyStorefrontShape.lg)
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
-            EffySkeletonBlock(Modifier.fillMaxWidth(0.7f).height(14.dp), radius = EffyStorefrontShape.sm)
-            EffySkeletonBlock(Modifier.fillMaxWidth(0.4f).height(12.dp), radius = EffyStorefrontShape.sm)
-        }
     }
 }

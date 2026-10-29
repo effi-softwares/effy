@@ -4,8 +4,8 @@ import { useStore } from "@tanstack/react-store"
 
 import { ActivityLogDrawer, useActivityAction } from "@effy/web-kit/activity-log"
 import { ErrorState } from "@effy/web-kit/console"
-import { Button, Card, Skeleton } from "@effy/design-system/ui"
-import { MoreActions, PageHeader } from "@effy/web-kit/patterns"
+import { Button } from "@effy/design-system/ui"
+import { ListSkeleton, Loading, MoreActions, PageHeader, PanelSkeleton } from "@effy/web-kit/patterns"
 import { Printer, Zap } from "lucide-react"
 
 import { LiveOrders } from "./LiveOrders"
@@ -77,10 +77,14 @@ export function TodayScreen() {
       <div className="ef-detail">
         <div className="ef-detail__main">
           {today.isPending || !data ? (
-            <>
-              <PanelSkeleton rows={4} />
-              <PanelSkeleton rows={5} />
-            </>
+            <Loading>
+              <PanelSkeleton title="Needs attention" description flush footer>
+                <ListSkeleton rows={4} media="icon" inset />
+              </PanelSkeleton>
+              <PanelSkeleton title="Live orders" description="Updating as orders arrive" flush>
+                <ListSkeleton rows={5} media="icon" trailing="chip" inset />
+              </PanelSkeleton>
+            </Loading>
           ) : (
             <>
               <NeedsAttention
@@ -111,25 +115,5 @@ export function TodayScreen() {
         fileName="team-activity"
       />
     </div>
-  )
-}
-
-function PanelSkeleton({ rows }: { rows: number }) {
-  return (
-    <Card className="gap-0 py-0" aria-busy="true" aria-label="Loading">
-      <div className="grid gap-2 border-b px-5 py-4">
-        <Skeleton className="h-5 w-40" />
-        <Skeleton className="h-4 w-64" />
-      </div>
-      {Array.from({ length: rows }, (_, i) => (
-        <div key={i} className="flex min-h-16 items-center gap-4 px-5 py-3">
-          <Skeleton className="size-9 rounded-lg" />
-          <div className="grid flex-1 gap-2">
-            <Skeleton className="h-4 w-2/3" />
-            <Skeleton className="h-4 w-1/3" />
-          </div>
-        </div>
-      ))}
-    </Card>
   )
 }

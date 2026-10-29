@@ -4,12 +4,18 @@ import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import { Palette, Plus } from "lucide-react"
 
-import { Button, Skeleton } from "@effy/design-system/ui"
+import { Button } from "@effy/design-system/ui"
 import { CAPPED_SET_LIMIT, defaultSize, listFullSentence, type AdminSkinListItemDTO } from "@effy/shared-types"
 import { ErrorState } from "@effy/web-kit/console"
 import { SearchBox, StaticTable, type EffyColumnDef } from "@effy/web-kit/data-table"
 
-import { PageHeader, EmptyState, StatusWord } from "@effy/web-kit/patterns"
+import {
+  Bone,
+  EmptyState,
+  Loading,
+  PageHeader,
+  StatusWord,
+} from "@effy/web-kit/patterns"
 import { useSessionRoles } from "@/features/auth/useSessionRoles"
 import { canManagePromotions } from "@/features/promotions/access"
 
@@ -46,7 +52,12 @@ export function SkinsListScreen() {
       {isError ? (
         <ErrorState error={error} onRetry={() => void refetch()} />
       ) : isPending ? (
-        <Skeleton className="h-40" aria-busy="true" />
+        <Loading>
+          <div className="flex flex-wrap items-center gap-2">
+            <Bone kind="control" className="w-72 max-w-full" />
+          </div>
+          <StaticTable label="Skins" columns={SKIN_COLUMNS} rows={[]} getRowId={(s) => s.id} loading />
+        </Loading>
       ) : data.length === 0 ? (
         <EmptyState icon={Palette} title="No skins yet." description="Create one to give promotions their own look." />
       ) : (

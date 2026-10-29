@@ -1,0 +1,32 @@
+/* Loading shapes, for every web surface (the consoles through console.css, customer-web directly). A bone
+   is drawn by `@effy/web-kit/patterns` Skeletons in the consoles and customer-web's own skeleton kit; both
+   use this one rule, so a placeholder has one look and one timing everywhere.
+
+   A bone waits 120ms, fades in, then pulses — so a quick read never flashes grey. Reduced motion
+   (tokens.css) leaves it still. Flat fill only, no sweeping gradient (no gradients on the platform). */
+@keyframes effy-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+@keyframes effy-bone-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@layer components {
+  .ef-bone {
+    @apply block shrink-0 rounded-md bg-muted;
+    animation:
+      effy-bone-in 160ms ease-out 120ms both,
+      effy-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) 280ms infinite;
+  }
+}

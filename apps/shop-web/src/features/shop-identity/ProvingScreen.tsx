@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
+import { Bone, boneWidth, Loading } from "@effy/web-kit/patterns"
 
 import { track } from "@/lib/telemetry"
 
@@ -27,7 +28,13 @@ export function ProvingScreen() {
       </CardHeader>
       <CardContent>
         {isPending ? (
-          <p className="text-sm text-muted-foreground">Loading…</p>
+          <Loading>
+            <dl className="space-y-2 text-sm">
+              {["Subject", "Email", "Roles", "Status", "Shop"].map((label, i) => (
+                <Row key={label} label={label} value={<Bone className={`max-w-48 ${boneWidth(i)}`} />} />
+              ))}
+            </dl>
+          </Loading>
         ) : isError ? (
           <ErrorState error={error} onRetry={() => void refetch()} />
         ) : (

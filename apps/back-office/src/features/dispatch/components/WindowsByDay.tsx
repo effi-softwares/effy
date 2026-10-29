@@ -6,7 +6,6 @@ import { CalendarClock, Clock, Route, Snowflake } from "lucide-react"
 import type { DispatchWindowDTO } from "@effy/shared-types"
 import {
   Badge,
-  Skeleton,
   Table,
   TableBody,
   TableCaption,
@@ -17,7 +16,7 @@ import {
 } from "@effy/design-system/ui"
 import { PackageStatusPill } from "@effy/web-kit/console"
 
-import { Panel } from "@effy/web-kit/patterns"
+import { Bone, boneWidth, Loading, Panel } from "@effy/web-kit/patterns"
 
 import { dispatchWindowsQuery } from "../queries"
 
@@ -65,10 +64,25 @@ export function WindowsByDay() {
           The delivery windows could not be loaded.
         </p>
       ) : isPending ? (
-        <div className="space-y-3 px-5 py-4" aria-busy="true">
-          <Skeleton className="h-6 w-1/3" />
-          <Skeleton className="h-24" />
-        </div>
+        <Loading label="Loading delivery windows">
+          <div className="divide-y divide-border">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="space-y-3 px-5 py-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <Bone className="w-28" />
+                    <Bone kind="small" className="w-16" />
+                  </div>
+                  <div className="flex min-w-55 items-center gap-3">
+                    <Bone kind="small" className="h-2 min-w-16 flex-1 rounded-full" />
+                    <Bone kind="small" className="w-16" />
+                  </div>
+                </div>
+                <Bone className={boneWidth(i)} />
+              </div>
+            ))}
+          </div>
+        </Loading>
       ) : data.windows.length === 0 ? (
         <p className="px-5 py-4 text-sm text-muted-foreground">No deliveries are booked for this day yet.</p>
       ) : (

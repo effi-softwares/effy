@@ -4,9 +4,9 @@ import { useQuery } from "@tanstack/react-query"
 import type { InsightsRange } from "@effy/shared-types"
 import { Download } from "lucide-react"
 
-import { Button, Skeleton, ToggleGroup, ToggleGroupItem } from "@effy/design-system/ui"
+import { Button, ToggleGroup, ToggleGroupItem } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
-import { PageHeader } from "@effy/web-kit/patterns"
+import { Bone, Loading, PageHeader, PanelSkeleton } from "@effy/web-kit/patterns"
 
 import { todayQuery } from "@/features/today/queries"
 import { useNow } from "@/features/today/useNow"
@@ -14,7 +14,7 @@ import { track } from "@/lib/telemetry"
 
 import { BarChart } from "./BarChart"
 import { downloadInsightsCsv } from "./exportCsv"
-import { GRAIN_LABEL, money, RANGE_TITLE, windowSubtitle } from "./model"
+import { GRAIN_LABEL, metricLabel, money, RANGE_TITLE, windowSubtitle } from "./model"
 import { MetricStrip } from "./MetricStrip"
 import { QualityStrip } from "./QualityStrip"
 import { insightsQuery } from "./queries"
@@ -84,13 +84,7 @@ export function InsightsScreen() {
       />
 
       {!dto ? (
-        <div className="grid gap-6" aria-busy="true" aria-label="Loading insights">
-          <Skeleton className="h-28 w-full rounded-lg" />
-          <div className="grid gap-6 lg:grid-cols-2">
-            <Skeleton className="h-64 rounded-lg" />
-            <Skeleton className="h-64 rounded-lg" />
-          </div>
-        </div>
+        <InsightsSkeleton range={range} />
       ) : (
         <>
           <MetricStrip dto={dto} backlog={today.data?.backlog} />
@@ -129,5 +123,44 @@ export function InsightsScreen() {
         </>
       )}
     </div>
+  )
+}
+
+/** The page while a range reads: the same figure strip (its labels are known) and the two charts. */
+function InsightsSkeleton({ range }: { range: InsightsRange }) {
+  const labels = [
+    metricLabel("Revenue", range),
+    metricLabel("Orders", range),
+    "Average order value",
+    "Awaiting pick",
+    "Unfulfilled units",
+  ]
+  return (
+    <Loading label="Loading insights">
+      <dl className="kpis">
+        {labels.map((label, i) => (
+          <div key={label} className={i >= 3 ? "kpi is-live" : "kpi"}>
+            <dt className="kpi__label">{label}</dt>
+            <dd className="kpi__value">
+              <Bone kind="title" className="w-24" />
+            </dd>
+            <dd className="kpi__sub">
+              <Bone kind="small" className="w-20" />
+            </dd>
+          </div>
+        ))}
+      </dl>
+      <div className="grid items-start gap-6 lg:grid-cols-2">
+        {["Revenue", "Order volume"].map((title) => (
+          <PanelSkeleton key={title} title={title} description flush>
+            <div className="flex h-50 items-end gap-1 px-5 pt-5 pb-4">
+              {[40, 65, 30, 80, 55, 70, 45].map((h, i) => (
+                <Bone key={i} kind="block" className="min-w-0 flex-1 rounded-sm" style={{ height: `${h}%` }} />
+              ))}
+            </div>
+          </PanelSkeleton>
+        ))}
+      </div>
+    </Loading>
   )
 }

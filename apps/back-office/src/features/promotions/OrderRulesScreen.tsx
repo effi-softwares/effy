@@ -3,10 +3,10 @@ import { useState } from "react"
 import { useForm } from "@tanstack/react-form"
 import { useQuery } from "@tanstack/react-query"
 
-import { Button, Input, Label, Skeleton } from "@effy/design-system/ui"
+import { Button, Input, Label } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 
-import { PageHeader, Panel } from "@effy/web-kit/patterns"
+import { FormSkeleton, Loading, PageHeader, Panel, PanelSkeleton } from "@effy/web-kit/patterns"
 
 import { sessionQuery } from "@/features/auth/queries"
 
@@ -22,15 +22,35 @@ export function OrderRulesScreen() {
   const { data: policy, error, isPending, isError, refetch } = useQuery(orderPolicyQuery())
 
   if (isError) return <ErrorState error={error} onRetry={() => void refetch()} />
-  if (isPending) return <Skeleton className="h-60" aria-busy="true" />
+  const head = (
+    <PageHeader
+      back={{ label: "Promotion codes", link: { to: "/promotions" } }}
+      title="Order rules"
+      description="The minimum spend needed to check out and the limits on a single cart."
+    />
+  )
+  if (isPending) {
+    return (
+      <>
+        {head}
+        <Loading>
+          <div className="max-w-2xl">
+            <PanelSkeleton
+              title="Every cart is checked against these"
+              description="A change applies to the next cart a shopper opens. Carts already paid are not affected."
+              footer
+            >
+              <FormSkeleton labels={["Minimum spend", "Most of any one item", "Most different items"]} submit={false} />
+            </PanelSkeleton>
+          </div>
+        </Loading>
+      </>
+    )
+  }
 
   return (
     <>
-      <PageHeader
-        back={{ label: "Promotion codes", link: { to: "/promotions" } }}
-        title="Order rules"
-        description="The minimum spend needed to check out and the limits on a single cart."
-      />
+      {head}
 
       <OrderRulesForm
         key={policy.updatedAt}

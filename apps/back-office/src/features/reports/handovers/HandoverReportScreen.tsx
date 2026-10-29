@@ -3,14 +3,18 @@ import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 
 import { PARCEL_MISSING_REASON_WORDS, READ_OUTCOME_WORDS, type HandoverMixDTO, type HandoverReportDTO } from "@effy/shared-types"
-import {
-  DateField,
-  Skeleton,
-} from "@effy/design-system/ui"
+import { DateField } from "@effy/design-system/ui"
 import { StaticTable, type EffyColumnDef } from "@effy/web-kit/data-table"
 import { ErrorState } from "@effy/web-kit/console"
 
-import { PageHeader, DetailRows, Panel } from "@effy/web-kit/patterns"
+import {
+  DetailRows,
+  DetailRowsSkeleton,
+  Loading,
+  PageHeader,
+  Panel,
+  PanelSkeleton,
+} from "@effy/web-kit/patterns"
 
 import { handoverReportQuery } from "./queries"
 
@@ -50,7 +54,32 @@ export function HandoverReportScreen() {
       {isError ? (
         <ErrorState error={error} onRetry={() => void refetch()} />
       ) : isPending ? (
-        <Skeleton className="h-64" />
+        <Loading>
+          <div className="space-y-6">
+            <PanelSkeleton title="Summary">
+              <DetailRowsSkeleton
+                labels={[
+                  "Hand-overs",
+                  "Scanned",
+                  "Exceptions per 1,000 hand-overs",
+                  "Exceptions",
+                  "Phone and server disagreed",
+                ]}
+              />
+            </PanelSkeleton>
+            <PanelSkeleton title="By who handed over" flush>
+              <StaticTable
+                label="By who handed over"
+                columns={mixColumns("Who")}
+                rows={[]}
+                getRowId={(r) => r.key}
+                framed={false}
+                loading
+                loadingRows={3}
+              />
+            </PanelSkeleton>
+          </div>
+        </Loading>
       ) : (
         <div className="space-y-6">
           <Panel title="Summary">

@@ -14,14 +14,18 @@ import {
   DialogTitle,
   Input,
   Label,
-  Skeleton,
   Textarea,
 } from "@effy/design-system/ui"
 import { CAPPED_SET_LIMIT, listFullSentence, type AdminPromotionGroupDTO } from "@effy/shared-types"
 import { ErrorState } from "@effy/web-kit/console"
 import { SearchBox, StaticTable, type EffyColumnDef } from "@effy/web-kit/data-table"
 
-import { PageHeader, EmptyState } from "@effy/web-kit/patterns"
+import {
+  Bone,
+  EmptyState,
+  Loading,
+  PageHeader,
+} from "@effy/web-kit/patterns"
 import { useSessionRoles } from "@/features/auth/useSessionRoles"
 import { canManagePromotions } from "@/features/promotions/access"
 import { promotionMutationError } from "@/features/promotions/errorText"
@@ -91,7 +95,12 @@ export function PromotionGroupsScreen() {
       {isError ? (
         <ErrorState error={error} onRetry={() => void refetch()} />
       ) : isPending ? (
-        <Skeleton className="h-40" aria-busy="true" />
+        <Loading>
+          <div className="flex flex-wrap items-center gap-2">
+            <Bone kind="control" className="w-72 max-w-full" />
+          </div>
+          <StaticTable label="Display groups" columns={GROUP_COLUMNS} rows={[]} getRowId={(g) => g.id} loading />
+        </Loading>
       ) : data.length === 0 ? (
         <EmptyState
           icon={LayoutList}

@@ -126,7 +126,14 @@ export function PricingPanel({ canManage }: { canManage: boolean }) {
         {plans.isError ? (
           <ErrorState error={plans.error} onRetry={() => void plans.refetch()} />
         ) : plans.isPending ? (
-          <p className="text-sm text-muted-foreground">Loading…</p>
+          <StaticTable
+            label={kind === "courier" ? "Courier tables" : "Fee plans"}
+            columns={columns}
+            rows={[]}
+            getRowId={(p) => p.id}
+            loading
+            loadingRows={3}
+          />
         ) : (
           <>
             {kind === "courier" && !active ? <p className="text-sm">No courier table is active.</p> : null}

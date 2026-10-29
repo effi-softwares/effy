@@ -5,19 +5,18 @@ import { Link, useSearch } from "@tanstack/react-router"
 import { CircleCheck, Hourglass, PackageSearch, PackageX, Route, ShieldAlert, Undo2, Warehouse } from "lucide-react"
 
 import type { DeliveryExceptionDTO } from "@effy/shared-types"
-import {
-  Button,
-  Skeleton,
-  Tabs,
-  TabsContent,
-  TabsCount,
-  TabsList,
-  TabsTrigger,
-} from "@effy/design-system/ui"
+import { Button, Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 
 import { DataTable, listQueryOptions, SearchBox, useListState, ViewSelect, type EffyColumnDef } from "@effy/web-kit/data-table"
-import { PageHeader, StatusWord } from "@effy/web-kit/patterns"
+import {
+  Bone,
+  Loading,
+  PageHeader,
+  StatusWord,
+  TableSkeleton,
+  TabsSkeleton,
+} from "@effy/web-kit/patterns"
 import { useSessionRoles } from "@/features/auth/useSessionRoles"
 import { moment } from "@/lib/format"
 
@@ -61,10 +60,33 @@ export function ExceptionsScreen() {
       {open.isError && !data ? (
         <ErrorState error={open.error} onRetry={() => void open.refetch()} />
       ) : !data ? (
-        <div className="space-y-3" aria-busy="true">
-          <Skeleton className="h-9 w-112 max-w-full" />
-          <Skeleton className="h-64" />
-        </div>
+        <Loading>
+          <TabsSkeleton
+            tabs={[
+              <>
+                <PackageX aria-hidden="true" />
+                Failed deliveries
+              </>,
+              <>
+                <Hourglass aria-hidden="true" />
+                Runs waiting
+              </>,
+              <>
+                <ShieldAlert aria-hidden="true" />
+                Vehicle checks
+              </>,
+              <>
+                <PackageSearch aria-hidden="true" />
+                Missing packages
+              </>,
+            ]}
+          />
+          <div className="flex flex-wrap gap-2">
+            <Bone kind="control" className="w-36" />
+            <Bone kind="control" className="w-72 max-w-full" />
+          </div>
+          <TableSkeleton framed columns={["Order", "Reason", "Driver", "Destination", "Package", "When", ""]} />
+        </Loading>
       ) : (
         <Tabs value={section} onValueChange={(v) => setSection(v as Section)}>
           <div className="ef-tabsbar">

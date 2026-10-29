@@ -12,6 +12,7 @@ import {
   TableSortHead,
 } from "@effy/design-system/ui";
 
+import { SkeletonRows } from "../patterns/Skeletons";
 import { effyFeatures, phoneAttrs, priorityClass, type EffyColumnDef } from "./column-meta";
 
 /**
@@ -30,6 +31,8 @@ export function StaticTable<T extends RowData>({
   onRowClick,
   className,
   framed = true,
+  loading = false,
+  loadingRows = 4,
 }: {
   columns: EffyColumnDef<T>[];
   rows: readonly T[];
@@ -44,6 +47,9 @@ export function StaticTable<T extends RowData>({
   className?: string;
   /** Draw the bordered frame; off when the table already sits in a panel. */
   framed?: boolean;
+  /** Still reading: the real column heads over `loadingRows` bone rows. */
+  loading?: boolean;
+  loadingRows?: number;
 }) {
   const [sorting, setSorting] = useState<SortingState>(initialSort ? [{ id: initialSort.id, desc: initialSort.desc ?? false }] : []);
   const data = useMemo(() => [...rows], [rows]);
@@ -91,8 +97,14 @@ export function StaticTable<T extends RowData>({
               </TableRow>
             ))}
           </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows.length === 0 && empty ? (
+          <TableBody aria-busy={loading || undefined}>
+            {loading ? (
+              <SkeletonRows
+                rows={loadingRows}
+                columns={columns.length}
+                cellClassName={columns.map((c) => cn(priorityClass(c.meta?.priority), c.meta?.className))}
+              />
+            ) : table.getRowModel().rows.length === 0 && empty ? (
               <TableRow className="hover:bg-transparent">
                 <TableCell colSpan={columns.length} data-m="full" className="h-20 text-center text-muted-foreground">
                   {empty}

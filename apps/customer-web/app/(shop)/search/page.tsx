@@ -6,7 +6,9 @@ import type { FacetSetDTO, ProductSearchResultDTO } from "@effy/shared-types"
 import { edgeApiPublic, uncached } from "@/lib/api/edge"
 import { getCategoriesSafe } from "@/lib/categories"
 import { facetsQuery, productsQuery, readRefinement, type SearchInitial } from "@/lib/search-query"
+import { Bone, Loading } from "@/components/ui/skeletons"
 
+import { FilterRailSkeleton } from "../_components/filters/FilterRailSkeleton"
 import { ProductGridSkeleton, productGridNarrow } from "../_components/ProductCard"
 import { SearchExperience } from "../_components/SearchExperience"
 
@@ -72,20 +74,27 @@ async function firstPage(search: Awaited<Search>): Promise<SearchInitial | null>
   }
 }
 
-/** The page before its results: the heading's place, the filter rail's, and the grid's own tiles. */
+/** The page before its results: the breadcrumb, heading, filter rail groups, the sort row and the grid's own tiles. */
 function SearchSkeleton() {
   return (
-    <div className="container py-6" aria-hidden="true">
-      <div className="h-4 w-32 animate-pulse rounded-md bg-muted" />
-      <div className="mt-6 h-8 w-56 animate-pulse rounded-md bg-muted" />
-      <div className="mt-1 h-5" />
-      <div className="mt-6 grid gap-8 lg:grid-cols-[15rem_minmax(0,1fr)] lg:items-start">
-        <div className="hidden h-80 animate-pulse rounded-lg bg-muted lg:block" />
-        <div className="min-w-0">
-          <div className="h-10 lg:h-9" />
-          <ProductGridSkeleton className={`mt-6 ${productGridNarrow}`} />
+    <div className="container py-6">
+      <Loading label="Loading results">
+        <Bone className="w-32" />
+        <Bone kind="title" className="mt-6 w-56" />
+        <div className="mt-1 h-5" />
+        <div className="mt-6 grid gap-8 lg:grid-cols-[15rem_minmax(0,1fr)] lg:items-start">
+          <div className="hidden lg:block">
+            <FilterRailSkeleton />
+          </div>
+          <div className="min-w-0">
+            <div className="flex h-10 items-center gap-2 lg:h-9">
+              <Bone kind="control" className="h-10 w-24 lg:hidden" />
+              <Bone kind="control" className="ml-auto h-10 w-40 lg:h-9" />
+            </div>
+            <ProductGridSkeleton className={`mt-6 ${productGridNarrow}`} />
+          </div>
         </div>
-      </div>
+      </Loading>
     </div>
   )
 }

@@ -1,19 +1,20 @@
 import { useQuery } from "@tanstack/react-query"
 
-import { Panel } from "@effy/web-kit/patterns"
+import { Bone, Panel } from "@effy/web-kit/patterns"
 
 import { performanceQuery } from "../queries"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@effy/design-system/ui"
 
 export function PerformancePanel({ promotionId }: { promotionId: string }) {
-  const { data } = useQuery(performanceQuery(promotionId))
-  if (!data) return null
+  const { data, isError } = useQuery(performanceQuery(promotionId))
+  if (isError) return null
+  // While it reads, the same matrix with a bone in each figure.
   const cols = [
-    ["Last 7 days", data.last7],
-    ["Last 30 days", data.last30],
-    ["Lifetime", data.lifetime],
+    ["Last 7 days", data?.last7],
+    ["Last 30 days", data?.last30],
+    ["Lifetime", data?.lifetime],
   ] as const
-  const rows: { label: string; value: (w: (typeof cols)[number][1]) => string }[] = [
+  const rows: { label: string; value: (w: NonNullable<(typeof cols)[number][1]>) => string }[] = [
     { label: "Uses", value: (w) => w.uses.toLocaleString("en-AU") },
     { label: "Customers", value: (w) => w.customers.toLocaleString("en-AU") },
     { label: "Discount given", value: (w) => `$${w.discount}` },
@@ -23,10 +24,18 @@ export function PerformancePanel({ promotionId }: { promotionId: string }) {
   return (
     <Panel
       title="Performance"
-      description={data.budgetLeft ? `$${data.budgetLeft} of its budget left.` : "Paid orders only."}
+      description={
+        !data ? (
+          <Bone kind="small" className="mt-1 w-40" />
+        ) : data.budgetLeft ? (
+          `$${data.budgetLeft} of its budget left.`
+        ) : (
+          "Paid orders only."
+        )
+      }
       flush
     >
-      <div className="min-w-0">
+      <div className="min-w-0" aria-busy={!data || undefined}>
         <Table>
           <TableHeader>
             <TableRow>
@@ -44,7 +53,7 @@ export function PerformancePanel({ promotionId }: { promotionId: string }) {
                 <TableCell>{r.label}</TableCell>
                 {cols.map(([l, w]) => (
                   <TableCell key={l} className="text-right tabular-nums">
-                    {r.value(w)}
+                    {w ? r.value(w) : <Bone className="ml-auto w-12" />}
                   </TableCell>
                 ))}
               </TableRow>

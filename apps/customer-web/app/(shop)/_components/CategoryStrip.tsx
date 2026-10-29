@@ -3,6 +3,7 @@ import Link from "next/link"
 import type { StorefrontCategoryDTO } from "@effy/shared-types"
 
 import { MediaFrame, SectionShell } from "@/components/storefront/kit"
+import { Bone } from "@/components/ui/skeletons"
 
 /**
  * The category shortcut row: circular image tiles and a "Shop all products" action into `/search`.
@@ -52,6 +53,22 @@ export function CategoryStrip({ categories }: { categories: StorefrontCategoryDT
           ))}
         </ul>
       ) : null}
+    </SectionShell>
+  )
+}
+
+/** The aisle strip before its aisles arrive: the same heading and row of round tiles. */
+export function CategoryStripSkeleton() {
+  return (
+    <SectionShell title="Shop by aisle" href="/search" linkLabel="All products">
+      <ul className="-mx-4 flex gap-2 overflow-hidden px-4 pb-2 sm:-mx-6 sm:px-6 lg:mx-0 lg:px-0">
+        {Array.from({ length: 8 }, (_, i) => (
+          <li key={i} className="flex w-22 shrink-0 flex-col items-center gap-3 py-2 sm:w-28">
+            <Bone className="aspect-square w-18 rounded-full sm:w-24" />
+            <Bone kind="small" className="w-14" />
+          </li>
+        ))}
+      </ul>
     </SectionShell>
   )
 }

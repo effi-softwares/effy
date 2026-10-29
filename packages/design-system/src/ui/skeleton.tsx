@@ -2,7 +2,8 @@ import type * as React from "react"
 
 import { cn } from "../cn"
 
-// Uses tokens.css's `effy-pulse` rather than `animate-pulse`, so it shares one timing and the reduced-motion rule.
+// Uses skeleton.css's `effy-pulse` rather than `animate-pulse`, so it shares one timing and the reduced-motion rule.
+// Screens draw `@effy/web-kit/patterns` Skeletons (built from this look) rather than this slab.
 function Skeleton({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div

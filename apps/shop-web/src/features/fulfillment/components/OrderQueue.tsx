@@ -5,8 +5,9 @@ import { Link, useNavigate } from "@tanstack/react-router"
 import { ArrowRight, BellRing, Loader2, PackageCheck, Truck } from "lucide-react"
 
 import type { ShopOrderTab } from "@effy/shared-types"
-import { Badge, Button, Progress, Skeleton, TabsCount, toast } from "@effy/design-system/ui"
+import { Badge, Button, Progress, TabsCount, toast } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
+import { Bone, boneWidth, Loading } from "@effy/web-kit/patterns"
 
 import { cn } from "@/lib/utils"
 
@@ -79,13 +80,18 @@ function Lane({ lane, q, now }: { lane: (typeof LANES)[number]; q: string | unde
       {list.isError ? (
         <ErrorState error={list.error} onRetry={() => void list.refetch()} />
       ) : list.isPending ? (
-        Array.from({ length: 2 }, (_, i) => (
-          <div key={i} className="ticket" aria-busy="true">
-            <Skeleton className="h-5 w-28" />
-            <Skeleton className="h-4 w-44" />
-            <Skeleton className="h-10 w-full" />
-          </div>
-        ))
+        <Loading label={`Loading ${lane.title.toLowerCase()}`}>
+          {Array.from({ length: quiet ? 3 : 2 }, (_, i) => (
+            <div key={i} className={cn("ticket", quiet && "is-quiet")}>
+              <div className="ticket__top">
+                <Bone className="w-24" />
+                <Bone kind="chip" className="ml-auto" />
+              </div>
+              <Bone kind="small" className={cn("max-w-44", boneWidth(i))} />
+              {quiet ? null : <Bone kind="control" />}
+            </div>
+          ))}
+        </Loading>
       ) : rows.length === 0 ? (
         <p className="rounded-xl border border-dashed px-4 py-5 text-center text-sm text-muted-foreground">
           {EMPTY[lane.tab] ?? "Nothing here"}

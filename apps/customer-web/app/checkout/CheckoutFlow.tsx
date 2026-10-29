@@ -50,8 +50,10 @@ import { getStripe, paymentElementsOptions } from "@/lib/stripe"
 import { capture } from "@/lib/telemetry"
 
 import { AgeBadge } from "@/components/storefront/AgeBadge"
+import { Bone, Loading } from "@/components/ui/skeletons"
 
 import { AddressPicker } from "./AddressPicker"
+import { DeliveryStepSkeleton } from "./CheckoutSkeleton"
 import { BillingSection } from "./BillingSection"
 import { DeliveryInstructions } from "./DeliveryInstructions"
 import { CourierDelivery } from "./CourierDelivery"
@@ -496,6 +498,9 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
           <div className="rounded-lg border bg-card p-5 shadow-xs sm:p-6">
             <EffyWindowOptions windows={effyWindows} chosen={chosenWindow} onChoose={setChosenWindow} currency={currency} disabled={busy} />
           </div>
+        ) : quoting && selectedId ? (
+          // Step 2 keeps its place while the quote is worked out, rather than appearing once it answers.
+          <DeliveryStepSkeleton />
         ) : null}
 
         {selectedId && (
@@ -634,7 +639,9 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
                 {!selectedId ? (
                   <span className="text-muted-foreground">Select an address</span>
                 ) : quoting ? (
-                  <span className="text-muted-foreground">Calculating…</span>
+                  <Loading label="Working out the delivery fee">
+                    <Bone className="w-16" />
+                  </Loading>
                 ) : quote && !serviced ? (
                   <span className="font-medium">Not available</span>
                 ) : serviced && !deliveryFee ? (

@@ -28,6 +28,7 @@ import {
   type OwnAttachmentDTO,
 } from "@effy/shared-types"
 import { ErrorState } from "@effy/web-kit/console"
+import { Loading, TableSkeleton } from "@effy/web-kit/patterns"
 
 import { taxonomyErrorText } from "./errorText"
 import { attributesQuery, formQuery, useDeleteAttachment, usePutAttachment } from "./queries"
@@ -58,7 +59,20 @@ export function AttachmentEditor({
   }, [parentForm.data])
 
   if (form.isError) return <ErrorState error={form.error} onRetry={() => void form.refetch()} />
-  if (form.isPending) return <p className="text-sm text-muted-foreground">Loading…</p>
+  if (form.isPending) {
+    return (
+      <Loading label="Loading attributes">
+        <div className="space-y-6">
+          {["Inherited", "Set on this category"].map((h) => (
+            <section key={h} className="space-y-2">
+              <h3 className="text-base font-semibold">{h}</h3>
+              <TableSkeleton framed columns={["Attribute", "From", "Level"]} rows={3} />
+            </section>
+          ))}
+        </div>
+      </Loading>
+    )
+  }
 
   const rows = form.data.sections.flatMap((s) => s.rows)
   const own = form.data.own ?? []

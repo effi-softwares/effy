@@ -53,6 +53,7 @@ import com.effyshopping.driver.mobile.core.presentation.DriverRow
 import com.effyshopping.driver.mobile.core.presentation.DriverSectionLabel
 import com.effyshopping.driver.mobile.core.presentation.DriverSheet
 import com.effyshopping.driver.mobile.core.presentation.DriverSize
+import com.effyshopping.driver.mobile.core.presentation.DriverLoading
 import com.effyshopping.driver.mobile.core.presentation.DriverSkeleton
 import com.effyshopping.driver.mobile.core.presentation.DriverState
 import com.effyshopping.driver.mobile.core.presentation.DriverStatus
@@ -635,7 +636,7 @@ private fun NotificationsOffAlert() {
 
 /** Loading: the shape of Today (redesign States — "Loading, the shape of Today"). */
 @Composable
-private fun TodaySkeleton() {
+private fun TodaySkeleton() = DriverLoading(label = "Loading today") {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         val shape = EffyStorefrontShape.banner
         Column(

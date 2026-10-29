@@ -299,6 +299,13 @@ The spine in five rules:
   (More menu, else an Activity button), answered by `@effy/edge-shared` `activityResponse` over an *activity source*
   (raw SQL + server-side words). No page draws a log inline (`activity-logs.guard.test.ts`; conversations — feedback
   threads, order notes — are named exceptions); no route answers a log another way (`activity.guard.test.ts`).
+- ⚠ **A LOADING STATE IS THE PAGE'S OWN SHAPE (2026-10-29).** A skeleton is drawn from the same containers the loaded
+  screen uses, with every label it already knows written out and a bone where a value will be — never one grey slab,
+  never "Loading…". Consoles: `@effy/web-kit/patterns` Skeletons (`DetailPageSkeleton`, `PanelSkeleton`,
+  `DetailRowsSkeleton`, `TableSkeleton`, `StaticTable loading`). customer-web: `@/components/ui/skeletons` (plus each
+  component's own `…Skeleton` beside it). One bone rule for both: `@effy/design-system/skeleton.css`. Mobile:
+  `EffySkeletonText` / `EffyLoading` (customer), `DriverSkeletonText` / `DriverLoading` / `DriverRunSkeleton` (driver).
+  Guards: `skeletons.guard.test.ts` in back-office, shop-web and customer-web.
 - ⚠ **EVERY CONSOLE LIST IS `@effy/web-kit/data-table` AND `parseListQuery` (103); THE URL IS A LIST'S STATE.** A
   list is `DataTable` over a route that parses with `@effy/edge-shared` `parseListQuery` (whitelisted sort ending in
   the id, no fixed `LIMIT`); a bounded or capped set is `StaticTable`. The raw `Table` is for named boards, editors,

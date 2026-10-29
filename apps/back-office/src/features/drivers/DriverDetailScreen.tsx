@@ -8,7 +8,6 @@ import {
   Avatar,
   AvatarFallback,
   Button,
-  Skeleton,
   Tabs,
   TabsContent,
   TabsCount,
@@ -19,7 +18,19 @@ import { ActivityButton, ActivityLogDrawer } from "@effy/web-kit/activity-log"
 import { ErrorState, useHeaderDetail } from "@effy/web-kit/console"
 import type { AdminDriverProfile } from "@effy/shared-types"
 
-import { PageHeader, DetailRows, Panel, ResponsiveSheet, Callout, DotWord, StatusWord } from "@effy/web-kit/patterns"
+import {
+  Bone,
+  Callout,
+  DetailPageSkeleton,
+  DetailRows,
+  DetailRowsSkeleton,
+  DotWord,
+  PageHeader,
+  Panel,
+  PanelSkeleton,
+  ResponsiveSheet,
+  StatusWord,
+} from "@effy/web-kit/patterns"
 import { initialsOf } from "@/components/shell/identity"
 import { useSessionRoles } from "@/features/auth/useSessionRoles"
 import { api } from "@/lib/api"
@@ -55,14 +66,7 @@ export function DriverDetailScreen({ driverId }: { driverId: string }) {
   useHeaderDetail(data?.name ?? null)
 
   if (isError) return <ErrorState error={error} onRetry={() => void refetch()} />
-  if (isPending) {
-    return (
-      <div className="space-y-4" aria-busy="true">
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-60" />
-      </div>
-    )
-  }
+  if (isPending) return <DriverSkeleton />
 
   const d: AdminDriverProfile = data
   const onDuty = d.dutyState === "on_duty"
@@ -292,5 +296,62 @@ export function DriverDetailScreen({ driverId }: { driverId: string }) {
         fileName={`driver-${d.name}-activity`}
       />
     </>
+  )
+}
+
+function DriverSkeleton() {
+  return (
+    <DetailPageSkeleton
+      back={{ label: "All drivers", link: { to: "/drivers" } }}
+      title={
+        <span className="flex items-center gap-3">
+          <Bone kind="avatar" className="size-12" />
+          <span className="flex flex-col gap-2">
+            <Bone kind="title" className="w-48" />
+            <Bone kind="small" className="w-36" />
+          </span>
+        </span>
+      }
+      meta={3}
+      actions={2}
+      tabs={[
+        <>
+          <UserRound aria-hidden="true" />
+          Profile
+        </>,
+        <>
+          <ShieldCheck aria-hidden="true" />
+          Clearances
+        </>,
+      ]}
+      main={
+        <>
+          <PanelSkeleton title="Identity and contact" icon={<IdCard aria-hidden="true" />}>
+            <DetailRowsSkeleton labels={["Name", "Work email", "Phone", "Emergency contact"]} />
+          </PanelSkeleton>
+          <PanelSkeleton title="Work assignment" icon={<Car aria-hidden="true" />}>
+            <DetailRowsSkeleton
+              labels={["Hub", "Vehicle", "Registration plate", "Licence", "Licence class", "Licence expires"]}
+            />
+          </PanelSkeleton>
+        </>
+      }
+      aside={
+        <>
+          <PanelSkeleton title="Employment">
+            <div className="space-y-4">
+              <Bone kind="chip" />
+              <DetailRowsSkeleton tight labels={["Since", "Reason", "Started on", "Notes"]} />
+            </div>
+          </PanelSkeleton>
+          <PanelSkeleton title="Today">
+            <div className="space-y-3">
+              <Bone kind="chip" />
+              <Bone className="w-4/5" />
+            </div>
+          </PanelSkeleton>
+        </>
+      }
+    />
   )
 }

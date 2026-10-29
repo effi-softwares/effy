@@ -18,7 +18,6 @@ import {
   Label,
   RadioGroup,
   RadioGroupItem,
-  Skeleton,
 } from "@effy/design-system/ui"
 import {
   AUTO,
@@ -41,7 +40,16 @@ import {
 } from "@effy/shared-types"
 import { ErrorState, useHeaderDetail } from "@effy/web-kit/console"
 
-import { Callout, MoreActions, PageHeader, Panel } from "@effy/web-kit/patterns"
+import {
+  Bone,
+  Callout,
+  DetailPageSkeleton,
+  FormSkeleton,
+  MoreActions,
+  PageHeader,
+  Panel,
+  PanelSkeleton,
+} from "@effy/web-kit/patterns"
 import { useSessionRoles } from "@/features/auth/useSessionRoles"
 import { canManagePromotions } from "@/features/promotions/access"
 import { inUseError, promotionMutationError } from "@/features/promotions/errorText"
@@ -60,7 +68,7 @@ export function SkinEditorScreen({ skinId }: { skinId?: string }) {
   useHeaderDetail(skin.data?.name ?? (skinId ? null : "New skin"))
   if (!skinId) return <Editor current={null} />
   if (skin.isError) return <ErrorState error={skin.error} onRetry={() => void skin.refetch()} />
-  if (!skin.data) return <Skeleton className="h-96" aria-busy="true" />
+  if (!skin.data) return <SkinEditorSkeleton />
   if (skin.data.builtIn) return <ClassicScreen skin={skin.data} />
   return <Editor key={skin.data.version} current={skin.data} />
 }
@@ -676,5 +684,31 @@ function Editor({ current }: { current: AdminSkinDTO | null }) {
 
       {current ? <DuplicateSkinDialog skin={current} open={duplicating} onOpenChange={setDuplicating} /> : null}
     </>
+  )
+}
+
+function SkinEditorSkeleton() {
+  return (
+    <DetailPageSkeleton
+      back={{ label: "Skins", link: { to: "/promotions/skins" } }}
+      description
+      meta={0}
+      actions={2}
+      main={
+        <>
+          <PanelSkeleton title="Name and layout">
+            <FormSkeleton fields={2} submit={false} />
+          </PanelSkeleton>
+          <PanelSkeleton title="Background">
+            <FormSkeleton fields={2} submit={false} />
+          </PanelSkeleton>
+        </>
+      }
+      aside={
+        <PanelSkeleton title="Preview" description="Exactly as the website draws it.">
+          <Bone kind="block" className="h-40" />
+        </PanelSkeleton>
+      }
+    />
   )
 }

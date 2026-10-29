@@ -6,6 +6,7 @@ import { PROMOTION_GROUP_KEYS, type StorefrontCategoryDTO, type StorefrontHomeDT
 import { CloudOff, PackageOpen } from "lucide-react"
 
 import { EmptyState } from "@/components/storefront/kit"
+import { Loading } from "@/components/ui/skeletons"
 import { getCategories } from "@/lib/categories"
 import { siteUrl } from "@/lib/config"
 import { JsonLd, organizationLd } from "@/lib/json-ld"
@@ -15,12 +16,11 @@ import { getHome } from "./home-data"
 import { getPromotionGroups, type GroupBanner } from "./promotion-groups"
 
 import { AppPromo } from "./_components/AppPromo"
-import { CategoryStrip } from "./_components/CategoryStrip"
+import { CategoryStrip, CategoryStripSkeleton } from "./_components/CategoryStrip"
 import { HomeShortcuts } from "./_components/HomeShortcuts"
 import { PromoHero, PromoHeroSkeleton } from "./_components/PromoHero"
 import { OffersPanels } from "./_components/OffersPanels"
-import { productGrid } from "./_components/ProductCard"
-import { ProductRail } from "./_components/ProductRail"
+import { ProductRail, ProductRailSkeleton } from "./_components/ProductRail"
 import { RecentlyViewedRail } from "./_components/RecentlyViewedRail"
 
 export const metadata: Metadata = {
@@ -175,38 +175,14 @@ function sectionKey(section: HomeSection): string {
   return section.kind === "rail" ? `rail:${section.key}` : section.kind
 }
 
-/** The streaming fallback, built from the content's own primitives (circles, then two rails on `productGrid`) so the swap does not jump. */
+/** The streaming fallback: the aisle strip and two rails, drawn by those components' own skeletons so the swap does not jump. */
 function HomeSkeleton() {
   return (
-    <div className="container py-8" aria-hidden="true">
-      {/* The category strip — circles, matching CategoryStrip's tiles rather than generic bars. */}
-      <div className="mb-10 space-y-5">
-        <div className="h-7 w-48 animate-pulse rounded-md bg-muted" />
-        <div className="flex gap-6 sm:gap-8">
-          {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
-            <div key={i} className="flex w-24 shrink-0 flex-col items-center gap-3 sm:w-28">
-              <div className="w-20 animate-pulse rounded-full bg-muted pb-[100%] sm:w-24" />
-              <div className="h-4 w-16 animate-pulse rounded bg-muted" />
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {[0, 1].map((row) => (
-        <div key={row} className="mb-10 space-y-5">
-          <div className="h-7 w-48 animate-pulse rounded-md bg-muted" />
-          <div className={productGrid}>
-            {[0, 1, 2, 3, 4].map((i) => (
-              <div key={i} className="space-y-3">
-                <div className="aspect-square w-full animate-pulse rounded-lg bg-muted" />
-                <div className="h-4 w-3/4 animate-pulse rounded bg-muted" />
-                <div className="h-5 w-1/3 animate-pulse rounded bg-muted" />
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
+    <Loading label="Loading the store">
+      <CategoryStripSkeleton />
+      <ProductRailSkeleton />
+      <ProductRailSkeleton />
+    </Loading>
   )
 }
 

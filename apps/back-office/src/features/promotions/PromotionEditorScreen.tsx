@@ -11,7 +11,6 @@ import {
   Checkbox,
   Input,
   Label,
-  Skeleton,
   Switch,
   Textarea,
   TimeField,
@@ -19,7 +18,7 @@ import {
   ToggleGroupItem,
 } from "@effy/design-system/ui"
 import { ErrorState, useHeaderDetail } from "@effy/web-kit/console"
-import { Callout, PageHeader, Panel } from "@effy/web-kit/patterns"
+import { Callout, DetailPageSkeleton, FormSkeleton, PageHeader, Panel, PanelSkeleton } from "@effy/web-kit/patterns"
 
 import { useSessionRoles } from "@/features/auth/useSessionRoles"
 import { promotionGroupsQuery } from "@/features/promotion-groups/queries"
@@ -46,7 +45,7 @@ const toggleIn = <T,>(list: T[], item: T, on: boolean): T[] => (on ? [...list, i
 export function PromotionEditorScreen({ promoId }: { promoId?: string }) {
   const existing = useQuery({ ...promotionQuery(promoId ?? ""), enabled: Boolean(promoId) })
   if (promoId && existing.isError) return <ErrorState error={existing.error} onRetry={() => void existing.refetch()} />
-  if (promoId && !existing.data) return <Skeleton className="h-96" aria-busy="true" />
+  if (promoId && !existing.data) return <EditorSkeleton promoId={promoId} />
   return <Editor key={existing.data?.updatedAt ?? "new"} current={existing.data ?? null} />
 }
 
@@ -655,5 +654,28 @@ function MoneyInput({ className, ...props }: ComponentProps<typeof Input>) {
       <span className="text-sm text-muted-foreground">$</span>
       <Input inputMode="decimal" {...props} />
     </div>
+  )
+}
+
+function EditorSkeleton({ promoId }: { promoId: string }) {
+  return (
+    <DetailPageSkeleton
+      back={{ label: "Promotion", link: { to: "/promotions/$promoId", params: { promoId } } }}
+      title="Edit promotion"
+      description
+      meta={0}
+      actions={0}
+      main={
+        <>
+          <PanelSkeleton title="Basics">
+            <FormSkeleton labels={["Name", "How it applies"]} submit={false} />
+          </PanelSkeleton>
+          <PanelSkeleton title="What it gives">
+            <FormSkeleton labels={["Kind", "Takes off", "Minimum spend"]} submit={false} />
+          </PanelSkeleton>
+        </>
+      }
+      aside={<PanelSkeleton rows={4} />}
+    />
   )
 }

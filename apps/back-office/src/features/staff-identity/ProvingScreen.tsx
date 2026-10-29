@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query"
 
 import { ErrorState } from "@effy/web-kit/console"
 
-import { DetailRows, Panel } from "@effy/web-kit/patterns"
+import { DetailRows, DetailRowsSkeleton, Loading, Panel } from "@effy/web-kit/patterns"
 
 import { meQuery } from "./queries"
 
@@ -15,7 +15,9 @@ export function ProvingScreen() {
       description="The platform's own record of you — proves this console reaches the backend as you."
     >
       {isPending ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
+        <Loading>
+          <DetailRowsSkeleton tight labels={["Subject", "Email", "Roles", "Status"]} />
+        </Loading>
       ) : isError ? (
         <ErrorState error={error} onRetry={() => void refetch()} />
       ) : data.roles.length === 0 ? (

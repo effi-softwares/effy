@@ -6,6 +6,7 @@ import { Package, Truck } from "lucide-react"
 
 import { ProgressTrack } from "@/components/receipt/ProgressTrack"
 import { TrackingLink } from "@/components/receipt/TrackingLink"
+import { Bone } from "@/components/ui/skeletons"
 
 /**
  * When the order arrives, and how far along it is. A time only when a window was sold; a day sold with
@@ -137,4 +138,20 @@ function methodLabel(method: string): string {
 /** The arrival in `formatArrival`'s words, shared with the emailed receipt and both apps. */
 export function arrivalLabel(a: ArrivalEstimateDTO, now: Date = new Date()): string {
   return formatArrival(a, now)
+}
+
+/** The panel while its order reads: who delivers, when, and the progress track, each a bone. */
+export function ArrivalPanelSkeleton() {
+  return (
+    <section className="rounded-lg border bg-card shadow-xs">
+      <div className="flex flex-col gap-3 px-6 pt-6">
+        <Bone className="w-32" />
+        <Bone kind="title" className="w-56" />
+        <Bone className="w-48" />
+      </div>
+      <div className="p-6">
+        <Bone className="h-2 w-full rounded-full" />
+      </div>
+    </section>
+  )
 }

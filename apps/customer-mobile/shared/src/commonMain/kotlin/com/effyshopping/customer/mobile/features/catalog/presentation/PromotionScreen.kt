@@ -8,6 +8,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.animation.AnimatedContent
 import com.effyshopping.customer.mobile.resources.lucide_copy
 import com.effyshopping.customer.mobile.resources.lucide_check
+import com.effyshopping.customer.mobile.core.presentation.EffyLoading
+import com.effyshopping.customer.mobile.core.presentation.EffyMinTouchTarget
+import com.effyshopping.customer.mobile.core.presentation.EffySkeletonBlock
+import com.effyshopping.customer.mobile.core.presentation.EffySkeletonText
 import com.effyshopping.customer.mobile.core.presentation.EffyTextLink
 import com.effyshopping.customer.mobile.core.presentation.EffySecondaryButton
 import androidx.compose.foundation.background
@@ -16,6 +20,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -26,7 +31,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -79,8 +83,7 @@ fun PromotionScreen(
         EffyAppBar(title = "Offer", onBack = onBack)
 
         when (val s = state) {
-            PromotionUiState.Loading ->
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+            PromotionUiState.Loading -> PromotionSkeleton()
 
             // NO "Try again" here, and that is the whole reason this state is separate from [Failed].
             // The promotion is genuinely gone; retrying would fail forever, and inviting it would keep
@@ -109,6 +112,52 @@ fun PromotionScreen(
                 onBrowse = onBrowse,
                 onCart = onCart,
             )
+        }
+    }
+}
+
+/** The offer before it reads: artwork, title, the code row, the terms table and its fixed words, in place. */
+@Composable
+private fun PromotionSkeleton() {
+    val type = MaterialTheme.typography
+    EffyLoading(Modifier.fillMaxSize(), label = "Loading the offer") {
+        Column(Modifier.fillMaxSize()) {
+            EffySkeletonBlock(Modifier.fillMaxWidth().aspectRatio(EffyBanner.ratio), radius = 0.dp)
+            Column(Modifier.padding(EffySpacing.lg), verticalArrangement = Arrangement.spacedBy(EffySpacing.xs)) {
+                EffySkeletonText(type.headlineSmall, Modifier.fillMaxWidth(), widthFraction = 0.7f)
+                EffySkeletonText(type.bodyLarge, Modifier.fillMaxWidth(), widthFraction = 0.5f)
+            }
+            EffyHairline()
+            Row(
+                Modifier.fillMaxWidth().padding(EffySpacing.lg),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(EffySpacing.md),
+            ) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(EffySpacing.xs)) {
+                    Text("Code", style = type.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    EffySkeletonBlock(Modifier.width(120.dp).height(40.dp), radius = EffyStorefrontShape.md)
+                }
+                EffySkeletonBlock(Modifier.width(150.dp).height(EffyMinTouchTarget), radius = EffyStorefrontShape.md)
+            }
+            EffyHairline()
+            Column(
+                Modifier
+                    .padding(EffySpacing.lg)
+                    .fillMaxWidth()
+                    .clip(EffyStorefrontShape.card)
+                    .border(1.dp, MaterialTheme.colorScheme.outline, EffyStorefrontShape.card),
+            ) {
+                listOf("Conditions", "Availability").forEachIndexed { i, label ->
+                    if (i > 0) EffyHairline(inset = false)
+                    Row(
+                        Modifier.fillMaxWidth().padding(horizontal = EffySpacing.lg, vertical = EffySpacing.md),
+                        horizontalArrangement = Arrangement.spacedBy(EffySpacing.md),
+                    ) {
+                        Text(label, Modifier.weight(1f), style = type.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        EffySkeletonText(type.bodyMedium, Modifier.weight(1f), widthFraction = 0.8f)
+                    }
+                }
+            }
         }
     }
 }

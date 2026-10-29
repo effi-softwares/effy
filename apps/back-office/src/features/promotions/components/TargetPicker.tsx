@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query"
 import { X } from "lucide-react"
 
 import { Button, Checkbox, Input, ToggleGroup, ToggleGroupItem } from "@effy/design-system/ui"
+import { Bone, boneWidth, Loading } from "@effy/web-kit/patterns"
 
 import { index, pathOf, pathText } from "@/features/taxonomy/model"
 import { treeQuery } from "@/features/taxonomy/queries"
@@ -142,7 +143,20 @@ export function TargetPicker({
                 </label>
               </li>
             ))}
-            {shownCategories.length === 0 ? (
+            {tree.isPending && value.categoryIds.length + words.length > 0 ? (
+              <li>
+                <Loading label="Loading categories">
+                  <div className="space-y-2">
+                    {[0, 1, 2].map((i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <Bone className="size-4 rounded-sm" />
+                        <Bone className={`max-w-64 ${boneWidth(i)}`} />
+                      </div>
+                    ))}
+                  </div>
+                </Loading>
+              </li>
+            ) : shownCategories.length === 0 ? (
               <li className="text-sm text-muted-foreground">
                 {words.length > 0 ? "No category matches." : "Type to find categories."}
               </li>

@@ -16,8 +16,9 @@ import { Breadcrumb, type Crumb } from "@/components/ui/misc"
 import { edgeApiBaseUrl } from "@/lib/config"
 import { facetsQuery, productsQuery, rangeValue, readRefinement, type SearchInitial } from "@/lib/search-query"
 
-import { FIRST_ROW, ProductCard, ProductGridSkeleton, productGridNarrow } from "./ProductCard"
+import { FIRST_ROW, ProductCard, ProductCardSkeleton, ProductGridSkeleton, productGridNarrow } from "./ProductCard"
 import { SaveControl } from "./SaveControl"
+import { FilterRailSkeleton } from "./filters/FilterRailSkeleton"
 import type { SelectedFilters } from "./filters/FilterControls"
 
 /**
@@ -388,7 +389,7 @@ export function SearchExperience({
       activeCount={activeCount}
     />
   ) : (
-    <p className="text-sm text-muted-foreground">Loading filters…</p>
+    <FilterRailSkeleton />
   )
 
   const aisleName = category ? (categoryTrail.at(-1)?.name ?? facetLabel.category?.[category] ?? null) : null
@@ -554,13 +555,19 @@ export function SearchExperience({
                   priority={i < FIRST_ROW}
                 />
               ))}
+              {/* The next page's tiles, in the grid where they will land. */}
+              {loading && items.length > 0
+                ? Array.from({ length: FIRST_ROW }, (_, i) => <ProductCardSkeleton key={`more-${i}`} index={i} />)
+                : null}
             </div>
           )}
+          {loading && items.length > 0 ? (
+            <p role="status" className="sr-only">
+              Loading more products
+            </p>
+          ) : null}
 
           <div ref={sentinelRef} className="h-10" aria-hidden="true" />
-          {loading && items.length > 0 && (
-            <p className="border-t py-4 text-center text-sm text-muted-foreground">Loading more…</p>
-          )}
           {moreFailed && (
             <div className="flex flex-col items-center gap-3 border-t py-6">
               <p role="status" className="text-sm text-muted-foreground">We couldn’t load more just now.</p>

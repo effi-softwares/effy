@@ -1,4 +1,5 @@
 @import "./tokens.css";
+@import "./skeleton.css";
 @import "@ncdai/react-wheel-picker/style.css";
 
 /* A tap area of at least 44px on a touch screen, without changing how the control looks: an invisible
@@ -26,15 +27,6 @@
   to {
     opacity: 1;
     transform: none;
-  }
-}
-@keyframes effy-pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.35;
   }
 }
 @keyframes ef-dt-progress {

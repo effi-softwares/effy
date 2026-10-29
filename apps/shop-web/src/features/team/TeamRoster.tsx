@@ -5,7 +5,6 @@ import { UserPlus } from "lucide-react"
 import { CAPPED_SET_LIMIT, isShopManager, listFullSentence, SHOP_ROLES, type ShopRole, type ShopTeamMemberDTO } from "@effy/shared-types"
 import {
   Badge,
-  Skeleton,
   InitialsAvatar,
   Button,
   Input,
@@ -67,15 +66,13 @@ export function TeamRoster() {
           forbiddenMessage="Your account can't see this shop's team."
         />
       ) : isPending ? (
-        <div className="overflow-hidden rounded-xl border bg-card" aria-busy="true" aria-label="Loading the team">
-          {Array.from({ length: 4 }, (_, i) => (
-            <div key={i} className="flex items-center gap-3 border-b px-4 py-3 last:border-b-0">
-              <Skeleton className="size-8 rounded-full" />
-              <Skeleton className="h-4 w-40" />
-              <Skeleton className="ml-auto h-6 w-20 rounded-md" />
-            </div>
-          ))}
-        </div>
+        <StaticTable
+          label="Team"
+          columns={teamColumns(canManage)}
+          rows={[]}
+          getRowId={(m) => m.staffId}
+          loading
+        />
       ) : (
         <>
           <StaticTable
