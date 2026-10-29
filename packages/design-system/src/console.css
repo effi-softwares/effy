@@ -203,7 +203,7 @@ html * { @apply overscroll-x-none; }
     .ef-listpage { @apply min-h-0 flex-1; }
     .ef-listpage > .ef-dt { @apply min-h-0 flex-1; }
     .ef-dt-frame { @apply min-h-80 flex-1; }
-    .ef-dt-scroll { @apply min-h-0 flex-1 overflow-auto; }
+    .ef-dt-scroll { @apply min-h-0 flex-1 overflow-auto overscroll-contain; }
     .ef-dt-head { @apply sticky top-0 z-10 bg-card shadow-[inset_0_-1px_0_var(--border)]; }
   }
   .ef-listpage { @apply flex flex-col gap-6 max-md:gap-4; }
@@ -231,7 +231,11 @@ html * { @apply overscroll-x-none; }
   .ef-selbar[data-density="tight"] .ef-selbar__actions, .ef-selbar[data-density="scroll"] .ef-selbar__actions { @apply gap-1; }
   .ef-selbar[data-density="scroll"] .ef-selbar__actions { @apply overflow-x-auto [scrollbar-width:none]; }
   @media (prefers-reduced-motion: reduce) { .ef-selbar { transition: opacity 120ms; } .ef-selbar[data-state="closed"] { translate: -50% 0; } }
-  .ef-dt-pull { @apply flex-none border-t px-4 py-1.5 text-center text-xs text-muted-foreground; }
+  /* Scroll paging's hint (103): floats over the rows, never takes their space (a hint that moved them would
+     take them off the edge and cancel the pull). */
+  .ef-dt-pull { @apply pointer-events-none absolute left-1/2 z-20 -translate-x-1/2 rounded-md bg-foreground px-3 py-1 text-xs font-medium whitespace-nowrap text-background shadow-md; }
+  .ef-dt-pull[data-dir="next"] { @apply bottom-16; }
+  .ef-dt-pull[data-dir="back"] { @apply top-12; }
   .ef-dt-progress { @apply pointer-events-none absolute inset-x-0 top-0 z-20 h-0.5 bg-primary-fill; animation: ef-dt-progress 1.2s ease-in-out infinite; }
   .ef-dt-link { @apply font-medium text-foreground no-underline hover:underline; }
   .ef-dt tr[data-focused] { @apply bg-(--row-hover) shadow-[inset_2px_0_0_var(--primary-fill)]; }

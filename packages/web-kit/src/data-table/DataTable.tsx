@@ -345,7 +345,8 @@ export function DataTable<T extends RowData, S extends string, F extends Record<
           {body ? <div className="ef-dt-state">{body}</div> : null}
         </div>
         {pull ? (
-          <p className="ef-dt-pull" role="status">
+          // Floats over the rows: a hint that took space would move them off the edge and undo the pull.
+          <p className="ef-dt-pull" data-dir={pull} role="status">
             {pull === "next" ? "Keep scrolling for the next page" : "Keep scrolling for the previous page"}
           </p>
         ) : null}
