@@ -108,7 +108,7 @@ describe("product edit and persist", () => {
 
     wrap(<SizesEditDialog detail={DETAIL} open onOpenChange={() => {}} />)
 
-    const price = await screen.findByLabelText(/^price for/i)
+    const price = await screen.findByLabelText(/^your price/i)
     await userEvent.clear(price)
     await userEvent.type(price, "9.00")
     await userEvent.click(screen.getByRole("button", { name: /^save$/i }))
@@ -131,7 +131,7 @@ describe("product edit and persist", () => {
 
     wrap(<SizesEditDialog detail={DETAIL} open onOpenChange={() => {}} />)
 
-    const price = await screen.findByLabelText(/^price for/i)
+    const price = await screen.findByLabelText(/^your price/i)
     await userEvent.clear(price)
     await userEvent.type(price, "9.99")
     await userEvent.click(screen.getByRole("button", { name: /^save$/i }))
@@ -146,7 +146,7 @@ describe("product edit and persist", () => {
 
     wrap(<SizesEditDialog detail={DETAIL} open onOpenChange={() => {}} />)
 
-    const price = await screen.findByLabelText(/^price for/i)
+    const price = await screen.findByLabelText(/^your price/i)
     await userEvent.clear(price)
     await userEvent.type(price, "-3")
     // Not while typing: a cell says what is wrong once the operator leaves it…
@@ -167,7 +167,7 @@ describe("product edit and persist", () => {
 
     wrap(<SizesEditDialog detail={DETAIL} open onOpenChange={() => {}} onDropped={onDropped} />)
 
-    const price = await screen.findByLabelText(/^price for/i)
+    const price = await screen.findByLabelText(/^your price/i)
     await userEvent.clear(price)
     await userEvent.type(price, "9.10")
     await userEvent.click(screen.getByRole("button", { name: /^save$/i }))

@@ -75,7 +75,6 @@ describe("CategoryPicker (101)", () => {
 
   it("searches leaves by name and synonym", async () => {
     const onChange = setup();
-    await userEvent.click(screen.getByRole("tab", { name: "Search" }));
     await userEvent.type(screen.getByLabelText("Search categories"), "usb");
     const results = screen.getAllByRole("option");
     expect(results).toHaveLength(1);
@@ -86,7 +85,7 @@ describe("CategoryPicker (101)", () => {
 
   it("browses column by column; only a leaf is chosen, a parent opens the next column", async () => {
     const onChange = setup();
-    await userEvent.click(screen.getByRole("tab", { name: "Browse" }));
+    await userEvent.click(screen.getByRole("button", { name: "Browse" }));
     await userEvent.click(
       screen.getByRole("button", { name: /Dairy, Eggs & Fridge/ }),
     );
@@ -96,11 +95,12 @@ describe("CategoryPicker (101)", () => {
     expect(onChange).toHaveBeenCalledWith("kids");
   });
 
-  it("keeps the choice's full path in view, and lists recently used leaves", () => {
+  it("keeps the choice's full path in view; Change lists recently used leaves", async () => {
     setup({ value: "chargers", recentLeafIds: ["greek"] });
     expect(
       screen.getByText("Electronics › Chargers & Cables"),
     ).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Change" }));
     expect(
       screen.getByRole("listbox", { name: "Recently used" }),
     ).toHaveTextContent("Greek & Natural Yoghurt");

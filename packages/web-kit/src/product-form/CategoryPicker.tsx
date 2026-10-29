@@ -1,14 +1,16 @@
 import { useMemo, useState } from "react";
 
-import { Check, ChevronRight, Search } from "lucide-react";
+import { Check, ChevronRight, Layers, Search } from "lucide-react";
 
 import { cn } from "@effy/design-system";
 import {
   Button,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
   Input,
-  Tabs,
-  TabsList,
-  TabsTrigger,
 } from "@effy/design-system/ui";
 import {
   searchLeaves,
@@ -18,7 +20,7 @@ import {
 
 import { CategoryGlyph } from "../category-icon";
 
-import { pathText, type ShopCategory } from "./model";
+import { type ShopCategory } from "./model";
 
 interface Props {
   categories: readonly ShopCategory[];
@@ -28,6 +30,8 @@ interface Props {
   value: string | null;
   onChange: (leafId: string) => void;
   disabled?: boolean;
+  /** Next was tried without a category. */
+  invalid?: boolean;
   /** How the leaf was found, for the console's analytics. */
   onEvent?: (event: CategoryPickerEvent) => void;
 }
@@ -37,11 +41,10 @@ export type CategoryPickerEvent =
   | { name: "category_searched" }
   | { name: "category_browsed"; depth: number };
 
-type Mode = "suggested" | "search" | "browse";
-
 /**
- * The home category: suggested from the product's name, found by search, or browsed column by column.
- * Only a category with no sub-categories (a leaf) can be chosen; its full path stays in view.
+ * The home category. Once chosen it shows its full path with a way to change it; until then, suggestions from
+ * the product's name, the leaves used recently, a search, and Browse (column by column). Only a category with
+ * no sub-categories (a leaf) can be chosen.
  */
 export function CategoryPicker({
   categories,
@@ -50,6 +53,7 @@ export function CategoryPicker({
   value,
   onChange,
   disabled,
+  invalid,
   onEvent,
 }: Props) {
   const track = (e: CategoryPickerEvent) => onEvent?.(e);
@@ -76,119 +80,137 @@ export function CategoryPicker({
   const recent = recentLeafIds
     .map((id) => byId.get(id))
     .filter((c): c is ShopCategory => !!c && c.isLeaf);
-  const [mode, setMode] = useState<Mode>("suggested");
+  const [changing, setChanging] = useState(false);
+  const [browsing, setBrowsing] = useState(false);
   const [q, setQ] = useState("");
   const found = useMemo(() => searchLeaves(q, leaves, 40), [q, leaves]);
   const chosen = value ? byId.get(value) : undefined;
 
   const choose = (id: string) => {
-    if (!disabled) onChange(id);
+    if (disabled) return;
+    onChange(id);
+    setChanging(false);
+    setBrowsing(false);
+    setQ("");
   };
 
-  return (
-    <div className="grid gap-3">
-      <div className="flex items-center gap-2 text-sm" aria-live="polite">
-        {chosen ? (
-          <>
-            <CategoryGlyph
-              icon={chosen.icon ?? rootOf(chosen, byId)?.icon}
-              className="size-4 text-muted-foreground"
-            />
-            <span>
-              <span className="text-muted-foreground">Filed in </span>
-              <span className="font-medium">{pathText(chosen.path)}</span>
-            </span>
-          </>
-        ) : (
-          <span className="text-muted-foreground">
-            Choose where shoppers find it. Only the most specific categories can
-            be chosen.
+  if (chosen && !changing) {
+    return (
+      <div className="flex items-center gap-4 rounded-lg border px-4 py-3" aria-live="polite">
+        <span className="grid size-10 shrink-0 place-items-center rounded-md bg-primary-muted text-primary">
+          <CategoryGlyph icon={chosen.icon ?? rootOf(chosen, byId)?.icon} className="size-5" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block font-semibold">{chosen.name}</span>
+          <span className="block truncate text-sm text-muted-foreground">
+            {chosen.path.join(" › ")}
           </span>
-        )}
+        </span>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={disabled}
+          onClick={() => setChanging(true)}
+        >
+          Change
+        </Button>
       </div>
+    );
+  }
 
-      <Tabs value={mode} onValueChange={(v) => setMode(v as Mode)}>
-        <TabsList aria-label="Find a category">
-          {(
-            [
-              ["suggested", "Suggested"],
-              ["search", "Search"],
-              ["browse", "Browse"],
-            ] as const
-          ).map(([m, label]) => (
-            <TabsTrigger key={m} value={m}>
-              {label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
-
-      {mode === "suggested" ? (
-        <div className="grid gap-4">
-          <LeafList
-            title="From the product's name"
-            empty={
-              productName.trim()
-                ? "No suggestion for this name. Search or browse instead."
-                : "Type the product's name to see suggestions."
-            }
-            items={suggestions.map((l) => ({ id: l.id, path: l.path }))}
-            value={value}
-            disabled={disabled}
-            onPick={(id, rank) => {
-              track({ name: "category_suggestion_chosen", rank });
-              choose(id);
-            }}
-          />
-          {recent.length > 0 ? (
-            <LeafList
-              title="Recently used"
-              items={recent.map((c) => ({ id: c.id, path: c.path }))}
-              value={value}
-              disabled={disabled}
-              onPick={(id) => choose(id)}
-            />
-          ) : null}
-        </div>
-      ) : mode === "search" ? (
-        <div className="grid gap-2">
-          <div className="relative max-w-md">
-            <Search
-              aria-hidden
-              className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
-            />
-            <Input
-              aria-label="Search categories"
-              placeholder="e.g. yoghurt, charger, dog food"
-              className="pl-9"
-              value={q}
-              autoFocus
-              disabled={disabled}
-              onChange={(e) => setQ(e.target.value)}
-            />
-          </div>
-          {q.trim() ? (
-            <LeafList
-              items={found.map((l) => ({ id: l.id, path: l.path }))}
-              empty="No category matches. Try another word, or browse."
-              value={value}
-              disabled={disabled}
-              onPick={(id) => {
-                track({ name: "category_searched" });
-                choose(id);
-              }}
-            />
-          ) : null}
-        </div>
-      ) : (
-        <Columns
-          categories={categories}
+  const name = productName.trim();
+  return (
+    <div className="grid gap-4">
+      {name ? (
+        <LeafList
+          title={`Suggested for “${name}”`}
+          empty="No suggestion for this name. Search or browse instead."
+          items={suggestions.map((l) => ({ id: l.id, path: l.path }))}
           value={value}
           disabled={disabled}
-          onPick={choose}
-          onBrowse={(depth) => track({ name: "category_browsed", depth })}
+          onPick={(id, rank) => {
+            track({ name: "category_suggestion_chosen", rank });
+            choose(id);
+          }}
         />
+      ) : (
+        <p className="text-sm text-muted-foreground">
+          Type the product&apos;s name above and suggestions appear here.
+        </p>
       )}
+      {recent.length > 0 ? (
+        <LeafList
+          title="Recently used"
+          items={recent.map((c) => ({ id: c.id, path: c.path }))}
+          value={value}
+          disabled={disabled}
+          onPick={(id) => choose(id)}
+        />
+      ) : null}
+
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative min-w-60 flex-1">
+          <Search
+            aria-hidden
+            className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+          />
+          <Input
+            aria-label="Search categories"
+            placeholder="Search categories, e.g. yoghurt, charger, dog food"
+            className="pl-9"
+            value={q}
+            disabled={disabled}
+            aria-invalid={invalid || undefined}
+            onChange={(e) => setQ(e.target.value)}
+          />
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={disabled}
+          onClick={() => setBrowsing(true)}
+        >
+          <Layers aria-hidden="true" />
+          Browse
+        </Button>
+        {chosen ? (
+          <Button type="button" variant="ghost" onClick={() => setChanging(false)}>
+            Cancel
+          </Button>
+        ) : null}
+      </div>
+      {q.trim() ? (
+        <LeafList
+          title="Results"
+          items={found.map((l) => ({ id: l.id, path: l.path }))}
+          empty="No category matches. Try another word, or browse."
+          value={value}
+          disabled={disabled}
+          onPick={(id) => {
+            track({ name: "category_searched" });
+            choose(id);
+          }}
+        />
+      ) : null}
+
+      <Dialog open={browsing} onOpenChange={setBrowsing}>
+        <DialogContent className="sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Browse categories</DialogTitle>
+            <DialogDescription>
+              Open a department, then the aisle. Only the last level holds products.
+            </DialogDescription>
+          </DialogHeader>
+          <Columns
+            categories={categories}
+            value={value}
+            disabled={disabled}
+            onPick={choose}
+            onBrowse={(depth) => track({ name: "category_browsed", depth })}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -220,7 +242,7 @@ function LeafList({
   return (
     <div className="grid gap-1.5">
       {title ? (
-        <p className="text-xs font-medium text-muted-foreground uppercase">
+        <p className="text-sm font-medium text-muted-foreground">
           {title}
         </p>
       ) : null}

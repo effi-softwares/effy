@@ -57,6 +57,7 @@ function SidebarProvider({
   open: openProp,
   onOpenChange: setOpenProp,
   mobileBreakpoint,
+  keyboardShortcut = SIDEBAR_KEYBOARD_SHORTCUT,
   className,
   style,
   children,
@@ -67,6 +68,8 @@ function SidebarProvider({
   onOpenChange?: (open: boolean) => void
   /** Width (px) below which the sidebar is the off-canvas sheet. Omitted = shadcn's 768. */
   mobileBreakpoint?: number
+  /** ⌘/Ctrl + this key toggles it; `null` for a second sidebar on the page, so one key moves one sidebar. */
+  keyboardShortcut?: string | null
 }) {
   const isMobile = useIsMobile(mobileBreakpoint)
   const [openMobile, setOpenMobile] = React.useState(false)
@@ -95,9 +98,10 @@ function SidebarProvider({
 
   // Keyboard shortcut to toggle the sidebar.
   React.useEffect(() => {
+    if (!keyboardShortcut) return
     const handleKeyDown = (event: KeyboardEvent) => {
       if (
-        event.key === SIDEBAR_KEYBOARD_SHORTCUT &&
+        event.key === keyboardShortcut &&
         (event.metaKey || event.ctrlKey)
       ) {
         event.preventDefault()
@@ -107,7 +111,7 @@ function SidebarProvider({
 
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [toggleSidebar])
+  }, [toggleSidebar, keyboardShortcut])
 
   // data-state="expanded" | "collapsed", for styling.
   const state = open ? "expanded" : "collapsed"

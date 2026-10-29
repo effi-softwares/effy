@@ -35,6 +35,11 @@
   100% { opacity: 0.25; }
 }
 
+@keyframes ef-flash {
+  from { background-color: var(--primary-muted); }
+  to { background-color: transparent; }
+}
+
 @keyframes effy-spin {
   to {
     transform: rotate(360deg);
@@ -257,6 +262,57 @@ html * { @apply overscroll-x-none; }
     .ef-detail__main,
     .ef-detail__aside { @apply gap-4; }
   }
+
+  /* The product editor (@effy/web-kit/product-form ProductEditor): steps · the step · the shopper preview, filling the
+     console's content area edge to edge (no frame); the step's button bar is fixed along the middle column's bottom.
+     The preview is shadcn's right Sidebar, held under the console header; from md up the area is held to the window
+     and the columns scroll on their own. */
+  .ef-main:has(.ef-editor) { @apply gap-0! p-0!; }
+  .ef-editor { @apply flex min-w-0; }
+  .ef-editor__rail { @apply hidden min-h-0 w-[220px] shrink-0 overflow-y-auto border-r p-2.5; }
+  .ef-editor__main { @apply relative flex min-h-0 min-w-0 flex-1 flex-col; }
+  .ef-editor__scroll { @apply flex min-w-0 flex-col; }
+  .ef-editor__step { @apply flex flex-col gap-8 px-8 py-8 max-md:px-4 max-md:py-5; animation: effy-fade 200ms ease-out; }
+  .ef-editor__head { @apply flex flex-col gap-1; }
+  .ef-editor__eyebrow { @apply text-sm font-medium text-primary; }
+  .ef-editor__title { @apply text-2xl leading-8 font-semibold tracking-tight; }
+  .ef-editor__hint { @apply max-w-[64ch] text-sm leading-6 text-muted-foreground; }
+  .ef-editor__compact { @apply flex flex-col gap-2 border-b px-4 py-3 pr-8 md:hidden; }
+  .ef-editor__bar { @apply sticky bottom-0 z-20 flex flex-wrap items-center gap-2 border-t bg-background px-8 py-3 max-md:px-4 max-md:pb-[calc(12px+env(safe-area-inset-bottom))]; }
+  .ef-editor__note { @apply ml-auto text-sm text-muted-foreground max-md:hidden; }
+  .ef-editor__preview-bones { @apply hidden w-[360px] shrink-0 border-l bg-sidebar p-5; }
+  .ef-editor__body { @apply flex flex-col gap-8; }
+  .ef-editor__section { @apply flex flex-col gap-5 border-t pt-8 first:border-t-0 first:pt-0; }
+  .ef-editor__section-head { @apply flex flex-col gap-0.5; }
+  .ef-editor__section-title { @apply flex items-center gap-2 text-base leading-6 font-semibold; }
+  .ef-editor__section-desc { @apply text-sm text-muted-foreground; }
+  @media (min-width: 768px) {
+    .ef-main:has(.ef-editor) { @apply h-[calc(100svh-var(--header-h))]; }
+    .ef-editor { @apply min-h-0 flex-1; }
+    .ef-editor__rail { @apply block; }
+    .ef-editor__scroll { @apply min-h-0 flex-1 overflow-y-auto overscroll-contain; }
+  }
+  @media (min-width: 1280px) {
+    .ef-editor__rail { @apply w-[236px]; }
+    .ef-editor__preview-bones { @apply block; }
+  }
+
+  /* The editor's steps rail: a dot per step on one line that turns green as steps are done. */
+  .ef-steps { @apply m-0 flex list-none flex-col gap-0.5 p-0; }
+  .ef-steps__item { @apply relative; }
+  .ef-steps__item:not(:last-child)::before { content: ""; @apply absolute top-10 -bottom-3 left-[25px] w-0.5 rounded-full bg-border; }
+  .ef-steps__item[data-line="done"]::before { @apply bg-brand-fill; }
+  .ef-steps__dot { @apply relative z-10 grid size-7 shrink-0 place-items-center rounded-full border-[1.5px] border-border bg-card text-xs font-semibold text-muted-foreground transition-colors; }
+  .ef-steps__item[data-status="current"] .ef-steps__dot { @apply border-primary-fill bg-primary-fill text-primary-foreground; }
+  .ef-steps__item[data-status="done"] .ef-steps__dot { @apply border-brand-fill bg-brand-fill text-brand-foreground; }
+  .ef-steps__item[data-status="issue"] .ef-steps__dot { @apply border-destructive bg-destructive-soft text-destructive; }
+  .ef-steps__title { @apply block text-sm leading-5 font-medium; }
+  .ef-steps__item[data-status="current"] .ef-steps__title { @apply font-semibold; }
+  .ef-steps__sub { @apply block truncate text-xs leading-5 font-normal text-muted-foreground; }
+  .ef-steps__item[data-status="issue"] .ef-steps__sub { @apply text-destructive; }
+
+  /* A preview value that just changed lights up once (re-keyed on its value). */
+  .ef-flash { @apply rounded-sm; animation: ef-flash 900ms ease-out; }
 
 }
 

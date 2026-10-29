@@ -302,7 +302,7 @@ function Control({
           <SelectTrigger
             id={id}
             {...named}
-            className="max-w-sm"
+            className="w-full max-w-sm"
             aria-invalid={invalid}
           >
             <SelectValue placeholder="Choose…" />

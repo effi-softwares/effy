@@ -1,45 +1,53 @@
 import { useEffect, useState } from "react"
 
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { ArrowLeft, CircleAlert } from "lucide-react"
+import { ArrowLeft, ArrowRight, CircleAlert } from "lucide-react"
 
 import { formRows, recategorise, type CreateProductRequest, type FactKey, type ProductFacts } from "@effy/shared-types"
-import { Alert, AlertTitle, Button, Card, CardContent } from "@effy/design-system/ui"
+import { Alert, AlertTitle, Button } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
-import { Bone, FormSkeleton, Loading, PageHeader } from "@effy/web-kit/patterns"
-
-import { Page } from "@/components/console/primitives"
-import { sessionQuery } from "@/features/auth/queries"
-import { meQuery } from "@/features/shop-identity/queries"
-import { track } from "@/lib/telemetry"
+import { FormSkeleton, Loading } from "@effy/web-kit/patterns"
 import {
-  canAdvance,
+  ChooseCategoryFirst,
   clearDraft,
   detailErrors,
-  DETAILS_STEP,
   DetailsStep,
   draftMissing,
   draftVariants,
   emptyDraft,
-  ImageDropzone,
+  LivePreview,
   loadDraft,
   NameCategoryStep,
   optionAttributeIds,
+  PhotoStep,
+  previewPrice,
+  ProductEditor,
+  ProductEditorSkeleton,
   type ProductDraft,
+  readiness,
+  ReadinessBanner,
+  type ReadinessItem,
   RecategoriseDialog,
   ReviewStep,
   saveDraft,
   sendableDetails,
   setDetail,
-  ShopperPreview,
-  SIZES_STEP,
-  STEPS,
-  StepTabs,
+  SHOP_STEPS,
+  STEP_WORDS,
+  stepComplete,
+  type StepKey,
+  stepStates,
   toInputs,
   useObjectUrl,
   VariantEditor,
   variantSetErrors,
+  WhatHappensNext,
 } from "@effy/web-kit/product-form"
+
+import { Page } from "@/components/console/primitives"
+import { sessionQuery } from "@/features/auth/queries"
+import { meQuery } from "@/features/shop-identity/queries"
+import { track } from "@/lib/telemetry"
 
 import { productMutationError } from "./errorText"
 import { pathText } from "./model"
@@ -51,32 +59,19 @@ interface Props {
   onCreated: (productId: string) => void
 }
 
-function LoadingBlock() {
-  return (
-    <Loading label="Loading catalog">
-      <FormSkeleton fields={3} submit={false} />
-    </Loading>
-  )
-}
+const STEPS = SHOP_STEPS
+const STEP_TITLES = STEPS.map((k) => STEP_WORDS[k].title)
 
-/** The flow's page before the shop is known: the first step's head, the steps, the card and the preview. */
-function FlowSkeleton() {
+const NEXT_STEPS = [
+  { title: "You send it", text: "It appears in your catalog as “In review”. You can still change it." },
+  { title: "Effy checks it", text: "And sets what shoppers pay. If something needs changing, you'll get a note." },
+  { title: "It goes on sale", text: "You'll get a notification, and orders for it start coming in." },
+]
+
+function StepLoading() {
   return (
-    <Loading>
-      <PageHeader title={STEPS[0]!.title} description={STEPS[0]!.hint} meta={<Bone className="w-56" />} />
-      <div inert>
-        <StepTabs step={0} disabled onStep={() => {}} />
-      </div>
-      <div className="ef-detail">
-        <Card className="ef-detail__main min-h-70 py-5">
-          <CardContent className="flex h-full flex-col gap-4">
-            <FormSkeleton fields={3} submit={false} />
-          </CardContent>
-        </Card>
-        <aside className="ef-detail__aside">
-          <Bone kind="block" className="h-72" />
-        </aside>
-      </div>
+    <Loading label="Loading the category's form">
+      <FormSkeleton fields={3} submit={false} />
     </Loading>
   )
 }
@@ -94,13 +89,7 @@ export function ProductCreateFlow(props: Props) {
       </Page>
     )
   }
-  if (!shopId || !subject) {
-    return (
-      <Page>
-        <FlowSkeleton />
-      </Page>
-    )
-  }
+  if (!shopId || !subject) return <ProductEditorSkeleton steps={STEP_TITLES} />
   return <CreateFlow key={`${shopId}:${subject}`} shopId={shopId} subject={subject} {...props} />
 }
 
@@ -109,7 +98,10 @@ function CreateFlow({ shopId, subject, onCancel, onCreated }: Props & { shopId: 
   const queryClient = useQueryClient()
   const createProduct = useCreateProduct()
 
-  const [draft, setDraft] = useState<ProductDraft>(() => loadDraft(shopId, subject) ?? emptyDraft())
+  const [draft, setDraft] = useState<ProductDraft>(() => {
+    const saved = loadDraft(shopId, subject) ?? emptyDraft()
+    return { ...saved, step: Math.min(Math.max(saved.step, 0), STEPS.length - 1) }
+  })
   const form = useQuery({
     ...categoryFormQuery(draft.primaryCategoryId ?? ""),
     enabled: draft.primaryCategoryId !== null,
@@ -117,8 +109,11 @@ function CreateFlow({ shopId, subject, onCancel, onCreated }: Props & { shopId: 
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [uploadProgress, setUploadProgress] = useState<number | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
-  const [variantsAttempted, setVariantsAttempted] = useState(false)
-  const [detailsAttempted, setDetailsAttempted] = useState(false)
+  const [savedAt, setSavedAt] = useState<Date | null>(null)
+  // Steps left at least once (an incomplete one shows "to fix"), and steps Next was tried on (errors show).
+  const [visited, setVisited] = useState<ReadonlySet<StepKey>>(() => new Set([STEPS[draft.step]!]))
+  const [attempted, setAttempted] = useState<ReadonlySet<StepKey>>(new Set())
+  const [reveal, setReveal] = useState(0)
   const [pendingMove, setPendingMove] = useState<{
     leafId: string
     path: string
@@ -137,9 +132,9 @@ function CreateFlow({ shopId, subject, onCancel, onCreated }: Props & { shopId: 
       saveDraft(shopId, subject, updated)
       return updated
     })
+    setSavedAt(new Date())
   }
   const update = (patch: Partial<ProductDraft>) => change((d) => ({ ...d, ...patch }))
-  const goToStep = (step: number) => update({ step })
 
   // Facts the shop has not changed follow the leaf's defaults.
   useEffect(() => {
@@ -178,24 +173,49 @@ function CreateFlow({ shopId, subject, onCancel, onCreated }: Props & { shopId: 
     }
   }
 
-  const { step } = draft
+  const step = draft.step
+  const key = STEPS[step]!
   const last = step === STEPS.length - 1
-  const advanceable = canAdvance(step, draft, form.data, !!imageFile)
+  const ctx = { form: form.data, hasImage: !!imageFile }
   const busy = createProduct.isPending || uploadProgress != null
   const missing = form.data ? draftMissing(form.data, draft) : []
+  const ready = readiness(draft, ctx)
+  const allReady = ready.every((r) => r.ok)
+
+  function goTo(i: number) {
+    if (i < 0 || i >= STEPS.length) return
+    setVisited((v) => new Set(v).add(key).add(STEPS[i]!))
+    update({ step: i })
+  }
+
+  /** Open the step that holds something missing, with its errors showing. */
+  function fix(item: Pick<ReadinessItem, "step">) {
+    setAttempted((a) => new Set(a).add(item.step))
+    goTo(STEPS.indexOf(item.step))
+    setReveal((r) => r + 1)
+  }
+
+  function next() {
+    if (!stepComplete(key, draft, ctx)) {
+      setAttempted((a) => new Set(a).add(key))
+      setReveal((r) => r + 1)
+      return
+    }
+    goTo(step + 1)
+  }
 
   function discard() {
     clearDraft(shopId, subject)
     onCancel()
   }
 
-  function next() {
-    if (step === SIZES_STEP && !advanceable) setVariantsAttempted(true)
-    else if (step === DETAILS_STEP && !advanceable) setDetailsAttempted(true)
-    else goToStep(step + 1)
-  }
-
   async function publish() {
+    const first = ready.find((r) => !r.ok)
+    if (first) {
+      setAttempted(new Set(STEPS))
+      fix(first)
+      return
+    }
     const f = draft.facts
     if (
       !draft.primaryCategoryId ||
@@ -244,12 +264,15 @@ function CreateFlow({ shopId, subject, onCancel, onCreated }: Props & { shopId: 
 
   function stepBody() {
     if (taxonomy.isError) return <ErrorState error={taxonomy.error} onRetry={() => void taxonomy.refetch()} />
-    if (taxonomy.isPending) return <LoadingBlock />
-    if (step > 0 && form.isError) return <ErrorState error={form.error} onRetry={() => void form.refetch()} />
-    if (step > 0 && !form.data) return <LoadingBlock />
+    if (taxonomy.isPending) return <StepLoading />
+    const needsForm = key === "details" || key === "sizes" || key === "review"
+    if (needsForm && draft.primaryCategoryId && form.isError)
+      return <ErrorState error={form.error} onRetry={() => void form.refetch()} />
+    if (needsForm && draft.primaryCategoryId && !form.data) return <StepLoading />
     const rows = form.data ? formRows(form.data) : []
-    switch (step) {
-      case 0:
+    const tried = attempted.has(key)
+    switch (key) {
+      case "basics":
         return (
           <NameCategoryStep
             onPickerEvent={track}
@@ -257,93 +280,161 @@ function CreateFlow({ shopId, subject, onCancel, onCreated }: Props & { shopId: 
             taxonomy={taxonomy.data}
             onField={update}
             onCategory={(id) => void chooseCategory(id)}
+            errors={
+              tried
+                ? {
+                    name: draft.name.trim() ? undefined : "Give it a name",
+                    category: draft.primaryCategoryId ? undefined : "Choose where shoppers find it",
+                    shortDescription: draft.shortDescription.trim() ? undefined : "Write a line or two for shoppers",
+                  }
+                : {}
+            }
             disabled={busy}
           />
         )
-      case 1:
+      case "image":
+        return (
+          <PhotoStep
+            file={imageFile}
+            onChange={setImageFile}
+            imageUrl={imageUrl}
+            error={tried && !imageFile ? "Add a photo. Every product needs one." : null}
+            disabled={busy}
+          />
+        )
+      case "sizes":
         return (
           <VariantEditor
             value={draft.variantSet}
             onChange={(variantSet) => update({ variantSet })}
             rows={rows}
             errors={variantSetErrors(draft.variantSet)}
-            showErrors={variantsAttempted}
+            showErrors={tried}
             disabled={busy}
           />
         )
-      case 2:
-        return <ImageDropzone file={imageFile} onChange={setImageFile} disabled={busy} />
-      case 3:
+      case "details":
+        if (!form.data) return <ChooseCategoryFirst onGo={() => fix({ step: "basics" })} />
         return (
-          <>
-            <DetailsStep
-              form={form.data!}
-              details={draft.details}
-              variants={draftVariants(draft, form.data!)}
-              optionAttributeIds={optionAttributeIds(draft)}
-              errors={detailsAttempted ? detailErrors(form.data!, draft) : {}}
-              facts={draft.facts}
-              factsTouched={draft.factsTouched}
-              onDetail={(attributeId, entry) =>
-                change((d) => ({ ...d, details: setDetail(d.details, entry, attributeId) }))
-              }
-              onFacts={(facts, factsTouched) => update({ facts, factsTouched })}
-              disabled={busy}
-            />
-            {detailsAttempted && missing.length > 0 ? (
-              <p role="alert" className="text-sm font-medium">
-                Still required: {missing.join(", ")}.
-              </p>
-            ) : null}
-          </>
+          <DetailsStep
+            form={form.data}
+            details={draft.details}
+            variants={draftVariants(draft, form.data)}
+            optionAttributeIds={optionAttributeIds(draft)}
+            errors={tried ? detailErrors(form.data, draft) : {}}
+            facts={draft.facts}
+            factsTouched={draft.factsTouched}
+            onDetail={(attributeId, entry) =>
+              change((d) => ({ ...d, details: setDetail(d.details, entry, attributeId) }))
+            }
+            onFacts={(facts, factsTouched) => update({ facts, factsTouched })}
+            disabled={busy}
+          />
         )
-      default:
+      default: {
+        const left = ready.filter((r) => !r.ok)
         return (
           <ReviewStep
             draft={draft}
             form={form.data}
             imageUrl={imageUrl}
             uploadProgress={uploadProgress}
-            missing={missing}
+            steps={STEPS}
+            onEdit={(k) => goTo(STEPS.indexOf(k))}
+            banner={
+              allReady ? (
+                <ReadinessBanner
+                  tone="ready"
+                  title="Ready to send to Effy"
+                  description="Everything this category needs is filled in."
+                />
+              ) : (
+                <ReadinessBanner
+                  tone="missing"
+                  title={left.length === 1 ? "1 thing to finish first" : `${left.length} things to finish first`}
+                  items={left}
+                  onFix={fix}
+                />
+              )
+            }
+            after={<WhatHappensNext steps={NEXT_STEPS} />}
           />
         )
+      }
     }
   }
 
+  const nextKey = STEPS[step + 1]
   return (
-    <Page>
-      <PageHeader
-        title={STEPS[step]!.title}
-        description={STEPS[step]!.hint}
-        meta={
-          <span>
-            Step {step + 1} of {STEPS.length} · your draft saves as you go
-          </span>
+    <>
+      <ProductEditor
+        steps={stepStates(STEPS, step, visited, draft, ctx)}
+        current={step}
+        onStep={goTo}
+        stepTitle={last ? "Check it, then send to Effy" : STEP_WORDS[key].title}
+        stepHint={
+          last
+            ? "Effy checks every new product and sets what shoppers pay before it goes on sale."
+            : STEP_WORDS[key].hint
         }
-        actions={
-          <Button type="button" variant="ghost" onClick={discard} disabled={busy}>
-            Discard draft
-          </Button>
+        reveal={reveal}
+        busy={busy}
+        preview={
+          <LivePreview
+            draft={draft}
+            form={form.data}
+            imageUrl={imageUrl}
+            price={previewPrice(draft)}
+            description="Sold under Effy's name. Shoppers never see which shop supplies it."
+            note="Shown at your price. Effy sets what shoppers pay when it approves the product."
+          />
         }
-      />
-
-      <StepTabs step={step} disabled={busy} onStep={goToStep} />
-
-      <div className="ef-detail">
-        <Card className="ef-detail__main min-h-70 py-5">
-          <CardContent className="flex h-full flex-col gap-4">{stepBody()}</CardContent>
-        </Card>
-        <aside className="ef-detail__aside">
-          <ShopperPreview draft={draft} path={form.data?.path ?? null} imageUrl={imageUrl} />
-        </aside>
-      </div>
-
-      {formError ? (
-        <Alert variant="destructive">
-          <CircleAlert aria-hidden="true" />
-          <AlertTitle>{formError}</AlertTitle>
-        </Alert>
-      ) : null}
+        start={
+          <>
+            {step > 0 ? (
+              <Button type="button" variant="outline" onClick={() => goTo(step - 1)} disabled={busy}>
+                <ArrowLeft aria-hidden="true" />
+                Back
+              </Button>
+            ) : null}
+            <Button type="button" variant="ghost" onClick={discard} disabled={busy}>
+              Discard draft
+            </Button>
+          </>
+        }
+        note={
+          last
+            ? "You can still change it while it's in review."
+            : savedAt
+              ? `Draft saved ${savedAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`
+              : null
+        }
+        end={
+          last ? (
+            <Button type="button" onClick={() => void publish()} disabled={busy}>
+              {busy ? "Sending to Effy…" : "Send to Effy for review"}
+            </Button>
+          ) : (
+            <Button type="button" onClick={next} disabled={busy}>
+              Next: {STEP_WORDS[nextKey!].title}
+              <ArrowRight aria-hidden="true" />
+            </Button>
+          )
+        }
+      >
+        {stepBody()}
+        {key === "details" && attempted.has("details") && missing.length > 0 ? (
+          <p role="alert" className="text-sm font-medium text-destructive">
+            Still required: {missing.join(", ")}.
+          </p>
+        ) : null}
+        {formError ? (
+          <Alert variant="destructive">
+            <CircleAlert aria-hidden="true" />
+            <AlertTitle>{formError}</AlertTitle>
+          </Alert>
+        ) : null}
+      </ProductEditor>
 
       {pendingMove ? (
         <RecategoriseDialog
@@ -356,38 +447,6 @@ function CreateFlow({ shopId, subject, onCancel, onCreated }: Props & { shopId: 
           }}
         />
       ) : null}
-
-      <div className="ef-actionbar">
-        <div className="ef-actionbar__text">
-          <div className="ef-actionbar__title">
-            {last ? "Ready to send to Effy" : `Next: ${STEPS[step + 1]!.title}`}
-          </div>
-          <div className="ef-actionbar__desc">
-            {last ? "It goes on sale once Effy approves it." : "Your draft saves as you go."}
-          </div>
-        </div>
-        <div className="ef-actionbar__actions">
-          {step > 0 ? (
-            <Button type="button" variant="outline" onClick={() => goToStep(step - 1)} disabled={busy}>
-              <ArrowLeft aria-hidden="true" />
-              Back
-            </Button>
-          ) : null}
-          {last ? (
-            <Button type="button" onClick={() => void publish()} disabled={busy || missing.length > 0}>
-              {busy ? "Submitting…" : "Submit for review"}
-            </Button>
-          ) : (
-            <Button
-              type="button"
-              onClick={next}
-              disabled={!advanceable && step !== SIZES_STEP && step !== DETAILS_STEP}
-            >
-              Next
-            </Button>
-          )}
-        </div>
-      </div>
-    </Page>
+    </>
   )
 }
