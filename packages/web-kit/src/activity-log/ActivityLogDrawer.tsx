@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { useQuery, type QueryKey } from "@tanstack/react-query";
 import { useSearch } from "@tanstack/react-router";
-import { ArrowRight, Check, CircleAlert, Dot, Download, History, XIcon } from "lucide-react";
+import { ArrowRight, Check, CircleAlert, Dot, Download, History, LoaderCircle, XIcon } from "lucide-react";
 
 import { isDomainError } from "@effy/api-client";
 import { cn } from "@effy/design-system";
@@ -34,6 +34,7 @@ import { emitListEvent } from "../data-table/list-events";
 import { listQueryOptions } from "../data-table/list-query";
 import { useListState } from "../data-table/use-list-state";
 import { Facet, ResetFilters, SearchBox } from "../patterns/Toolbar";
+import { useDrawerWidth } from "./resize";
 import { activityLogSearch, useActivityLog } from "./search";
 
 /** What the drawer needs to read a log: the app's API client (its `get`) and the log's route. */
@@ -62,13 +63,15 @@ export interface ActivityLogDrawerProps extends ActivityLogSource {
 
 /**
  * A record's activity log (104): one drawer, the same on every page of both consoles. From the right and half the
- * window wide (never narrower than a readable table; a bottom sheet on a phone), it pages through every entry the
+ * window wide (never narrower than a readable table; a bottom sheet on a phone) — or as wide as its left edge is
+ * dragged, kept on the device — it pages through every entry the
  * log holds, newest or oldest first, searched, filtered by type, date and — where a log covers several things —
  * what it was on, and exports what it shows as CSV. Its state is in the address; Back closes it.
  */
 export function ActivityLogDrawer(props: ActivityLogDrawerProps) {
   const { open, close } = useActivityLog();
   const isMobile = useIsMobile();
+  const resize = useDrawerWidth();
   // Once each time it opens, by whatever route (a click, a shared link, Forward).
   const wasOpen = useRef(false);
   useEffect(() => {
@@ -84,6 +87,7 @@ export function ActivityLogDrawer(props: ActivityLogDrawerProps) {
     >
       <DrawerContent
         aria-label={props.title}
+        style={isMobile ? undefined : resize.style}
         className={
           isMobile
             ? "data-[vaul-drawer-direction=bottom]:max-h-[92dvh]"
@@ -94,7 +98,27 @@ export function ActivityLogDrawer(props: ActivityLogDrawerProps) {
               )
         }
       >
-        {isMobile ? <DrawerHandle /> : null}
+        {isMobile ? (
+          <DrawerHandle />
+        ) : (
+          // Drag the left edge to resize; the arrow keys do the same, Enter or a double-click goes back to half.
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize the activity log"
+            aria-valuemin={448}
+            aria-valuenow={resize.width ?? undefined}
+            title="Drag to resize · double-click to reset"
+            tabIndex={0}
+            {...resize.handle}
+            className="group absolute inset-y-0 left-0 z-30 w-2.5 cursor-col-resize touch-none outline-none"
+          >
+            <span
+              aria-hidden="true"
+              className="absolute top-1/2 left-1 h-12 w-1 -translate-y-1/2 rounded-full bg-muted-foreground/30 transition-colors group-hover:bg-primary group-focus-visible:bg-primary group-active:bg-primary"
+            />
+          </div>
+        )}
         <div className={cn("flex items-start gap-3", isMobile ? "px-4 pt-3 pb-2" : "px-5 pt-4 pb-3")}>
           <div className="flex min-w-0 flex-1 flex-col gap-1">
             <DrawerTitle className="flex items-center gap-2">
@@ -199,11 +223,23 @@ function ActivityLogBody({ app, log, api, path, queryKey, subjects, fileName }: 
         />
       ) : null}
       {filtered ? <ResetFilters onReset={state.reset} /> : null}
-      <Button variant="outline" onClick={() => void exportCsv()} disabled={exporting || query.isPending}>
-        <Download aria-hidden="true" />
-        {exporting ? "Exporting…" : "Export CSV"}
+      <Button
+        variant="outline"
+        size="icon"
+        onClick={() => void exportCsv()}
+        disabled={exporting || query.isPending}
+        aria-label={exporting ? "Exporting…" : "Export CSV"}
+        title="Export CSV — what this log shows, every page"
+      >
+        {exporting ? <LoaderCircle aria-hidden="true" className="animate-spin" /> : <Download aria-hidden="true" />}
       </Button>
-      <SearchBox value={state.draftQ} onChange={state.setQ} placeholder="Search this log" label="Search this log" />
+      <SearchBox
+        value={state.draftQ}
+        onChange={state.setQ}
+        placeholder="Search this log"
+        label="Search this log"
+        className="md:w-auto md:min-w-40 md:flex-1"
+      />
     </>
   );
 
@@ -218,6 +254,7 @@ function ActivityLogBody({ app, log, api, path, queryKey, subjects, fileName }: 
           columns={columns}
           query={query}
           toolbar={toolbar}
+          denseToolbar
           above={
             notice ? (
               <p role="status" className={cn("text-sm", notice.problem ? "text-destructive" : "text-muted-foreground")}>

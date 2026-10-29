@@ -52,6 +52,8 @@ export interface DataTableProps<T extends RowData, S extends string, F extends R
   queryInput?: ListQueryInput<T, S, F, any>;
   /** The toolbar's controls (views, facets, search); the column menu is added at its end. */
   toolbar?: ReactNode;
+  /** The toolbar stays on one row from `md` up and the column menu is an icon (a drawer's narrow width, 104). */
+  denseToolbar?: boolean;
   /** Where a row leads: the identifying cell becomes a link to it, the whole row opens it, and Enter too. */
   rowHref?: (row: T) => RowHref;
   rowClassName?: (row: T) => string | undefined;
@@ -245,9 +247,10 @@ export function DataTable<T extends RowData, S extends string, F extends Record<
   return (
     <div className="ef-dt">
       {props.toolbar !== undefined ? (
-        <div className="flex flex-wrap items-center gap-2">
+        <div className={cn("flex flex-wrap items-center gap-2", props.denseToolbar && "md:flex-nowrap")}>
           {props.toolbar}
           <ColumnMenu
+            compact={props.denseToolbar}
             columns={columns
               .filter((c) => c.id && c.meta?.label)
               .map((c) => ({

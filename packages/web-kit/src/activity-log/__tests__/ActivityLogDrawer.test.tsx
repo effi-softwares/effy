@@ -98,7 +98,10 @@ function renderAt(url: string) {
   return router;
 }
 
-afterEach(() => get.mockClear());
+afterEach(() => {
+  get.mockClear();
+  window.localStorage.clear();
+});
 
 describe("the activity drawer (104)", () => {
   it("reads nothing while closed, and opens through the address", async () => {
@@ -175,5 +178,35 @@ describe("the activity drawer (104)", () => {
     await within(drawer).findByText("Team member added");
     await userEvent.click(within(drawer).getByRole("button", { name: "Close" }));
     await waitFor(() => expect(router.state.location.search).toEqual({}));
+  });
+
+  it("keeps its controls on one row: Export and Columns are icons named by their tooltips", async () => {
+    renderAt("/?log=1");
+    const drawer = await screen.findByRole("dialog");
+    await within(drawer).findByText("Status changed");
+    const exportButton = within(drawer).getByRole("button", { name: "Export CSV" });
+    expect(exportButton).toHaveAttribute("data-size", "icon");
+    expect(exportButton).not.toHaveTextContent("Export CSV");
+    expect(within(drawer).getByRole("button", { name: "Columns" })).toHaveAttribute("data-size", "icon");
+    expect(exportButton.parentElement!.className).toContain("md:flex-nowrap");
+  });
+
+  it("resizes from its left edge by keyboard, keeps the width, and goes back to half", async () => {
+    renderAt("/?log=1");
+    const drawer = await screen.findByRole("dialog");
+    const edge = within(drawer).getByRole("separator", { name: "Resize the activity log" });
+    const before = window.innerWidth;
+    Object.defineProperty(window, "innerWidth", { value: 1600, configurable: true });
+    edge.focus();
+    // Starts from the measured width (0 in jsdom → the minimum), then one step wider.
+    await userEvent.keyboard("{ArrowLeft}");
+    expect(drawer.style.width).toBe("480px");
+    expect(window.localStorage.getItem("effy.activity-drawer.width")).toBe("480");
+    await userEvent.keyboard("{ArrowLeft}");
+    expect(drawer.style.width).toBe("512px");
+    await userEvent.dblClick(edge);
+    expect(drawer.style.width).toBe("");
+    expect(window.localStorage.getItem("effy.activity-drawer.width")).toBeNull();
+    Object.defineProperty(window, "innerWidth", { value: before, configurable: true });
   });
 });

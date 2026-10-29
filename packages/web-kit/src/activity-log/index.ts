@@ -2,3 +2,4 @@
 export { ActivityLogDrawer, type ActivityLogDrawerProps, type ActivityLogSource } from "./ActivityLogDrawer";
 export { ActivityButton, useActivityAction } from "./ActivityButton";
 export { activityLogSearch, ACTIVITY_OPEN_PARAM, useActivityLog, withActivityLog } from "./search";
+export { MIN_DRAWER_WIDTH, useDrawerWidth } from "./resize";

@@ -18,15 +18,32 @@ export interface ColumnChoice {
   locked: boolean;
 }
 
-/** Show or hide a list's columns (103 FR-014); the choice is kept on this device. */
-export function ColumnMenu({ columns, onToggle }: { columns: readonly ColumnChoice[]; onToggle: (id: string, visible: boolean) => void }) {
+/**
+ * Show or hide a list's columns (103 FR-014); the choice is kept on this device. `compact` is an icon button with its
+ * name as a tooltip, for a toolbar that must stay on one row (the activity drawer, 104).
+ */
+export function ColumnMenu({
+  columns,
+  onToggle,
+  compact = false,
+}: {
+  columns: readonly ColumnChoice[];
+  onToggle: (id: string, visible: boolean) => void;
+  compact?: boolean;
+}) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" className="max-md:hidden">
-          <Columns3 aria-hidden="true" />
-          Columns
-        </Button>
+        {compact ? (
+          <Button variant="outline" size="icon" className="max-md:hidden" aria-label="Columns" title="Columns">
+            <Columns3 aria-hidden="true" />
+          </Button>
+        ) : (
+          <Button variant="outline" className="max-md:hidden">
+            <Columns3 aria-hidden="true" />
+            Columns
+          </Button>
+        )}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-52">
         <DropdownMenuLabel>Show columns</DropdownMenuLabel>

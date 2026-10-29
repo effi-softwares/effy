@@ -41,11 +41,14 @@ export function SearchBox({
   onChange,
   placeholder,
   label,
+  className,
 }: {
   value: string;
   onChange: (value: string) => void;
   placeholder: string;
   label: string;
+  /** Overrides its width (the activity drawer's search takes what the row leaves). */
+  className?: string;
 }) {
   const ref = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -60,7 +63,7 @@ export function SearchBox({
     return () => window.removeEventListener("keydown", onKey);
   }, []);
   return (
-    <label className="relative flex w-72 max-w-full items-center max-md:w-full md:order-last md:ml-auto">
+    <label className={cn("relative flex w-72 max-w-full items-center max-md:w-full md:order-last md:ml-auto", className)}>
       <Search aria-hidden="true" className="pointer-events-none absolute left-3 size-4 text-muted-foreground" />
       <span className="sr-only">{label}</span>
       <Input
