@@ -16,7 +16,7 @@ import type {
 
 import { api } from "@/lib/api"
 
-import type { AuditEntry, OrderPolicy, PromotionListParams, UpdateOrderPolicyRequest } from "./model"
+import type { OrderPolicy, PromotionListParams, UpdateOrderPolicyRequest } from "./model"
 
 function encode(p: PromotionListParams): string {
   const params = new URLSearchParams({ page: String(p.page), pageSize: String(p.pageSize) })
@@ -40,7 +40,6 @@ export const updatePromotion = (id: string, body: Partial<AdminPromotionWriteDTO
 export const actOnPromotion = (id: string, body: AdminPromotionActionRequest) =>
   api.post<AdminPromotionDTO>(`/admin/v1/promotions/${id}/actions`, body)
 export const deletePromotion = (id: string) => api.delete<void>(`/admin/v1/promotions/${id}`)
-export const getPromotionHistory = (id: string) => api.get<AuditEntry[]>(`/admin/v1/promotions/${id}/audit`)
 
 export const getOrderPolicy = () => api.get<OrderPolicyDTO>("/admin/v1/order-policy")
 export const putOrderPolicy = (body: UpdateOrderPolicyRequest): Promise<OrderPolicy> =>

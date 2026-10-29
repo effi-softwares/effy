@@ -16,16 +16,6 @@ export interface Paged<T> {
   pageSize: number;
 }
 
-export interface AuditEntry {
-  id: string;
-  actorSub: string;
-  action: string;
-  targetType: string;
-  targetId: string | null;
-  detail: Record<string, unknown>;
-  createdAt: string;
-}
-
 export interface FieldIssue {
   field: string;
   message: string;

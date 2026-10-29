@@ -1,5 +1,7 @@
 import { createRoute } from "@tanstack/react-router"
 
+import { withActivityLog } from "@effy/web-kit/activity-log"
+
 import { productsList } from "@/features/products/model"
 import { FinishProductScreen, NewProductScreen } from "@/features/products/EffyProductScreens"
 import { ImportScreen, ImportsScreen, importsList } from "@/features/products/ImportScreens"
@@ -18,6 +20,7 @@ export const productsIndexRoute = createRoute({
 export const productDetailRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "products/$productId",
+  validateSearch: (raw: Record<string, unknown>) => withActivityLog(raw),
   component: ProductDetailRouteComponent,
 })
 

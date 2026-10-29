@@ -2,7 +2,7 @@ import { useState } from "react"
 
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
-import { BadgeCheck, Car, History, IdCard, Mail, Pencil, ShieldCheck, Truck, UserRound, Warehouse } from "lucide-react"
+import { BadgeCheck, Car, IdCard, Mail, Pencil, ShieldCheck, Truck, UserRound, Warehouse } from "lucide-react"
 
 import {
   Avatar,
@@ -15,20 +15,21 @@ import {
   TabsList,
   TabsTrigger,
 } from "@effy/design-system/ui"
+import { ActivityButton, ActivityLogDrawer } from "@effy/web-kit/activity-log"
 import { ErrorState, useHeaderDetail } from "@effy/web-kit/console"
 import type { AdminDriverProfile } from "@effy/shared-types"
 
 import { PageHeader, DetailRows, Panel, ResponsiveSheet, Callout, DotWord, StatusWord } from "@effy/web-kit/patterns"
 import { initialsOf } from "@/components/shell/identity"
 import { useSessionRoles } from "@/features/auth/useSessionRoles"
+import { api } from "@/lib/api"
 
-import { AuditTrail } from "./components/AuditTrail"
 import { CapabilityEditor } from "./components/CapabilityEditor"
 import { ProfileEditForm } from "./components/ProfileEditForm"
 import { StatusControl } from "./components/StatusControl"
 import { canManageDrivers } from "./access"
 import { BLOCKED_LABEL, formatDate, formatDateTime, STATUS_LABEL, STATUS_MEANING } from "./model"
-import { driverDetailQuery } from "./queries"
+import { driverDetailQuery, driverKeys } from "./queries"
 
 const dash = <span className="text-muted-foreground">—</span>
 
@@ -107,12 +108,15 @@ export function DriverDetailScreen({ driverId }: { driverId: string }) {
           </>
         }
         actions={
-          canManage ? (
-            <Button variant="outline" onClick={() => setEditing(true)}>
-              <Pencil aria-hidden="true" />
-              Edit profile
-            </Button>
-          ) : null
+          <>
+            {canManage ? (
+              <Button variant="outline" onClick={() => setEditing(true)}>
+                <Pencil aria-hidden="true" />
+                Edit profile
+              </Button>
+            ) : null}
+            <ActivityButton />
+          </>
         }
       />
 
@@ -144,10 +148,6 @@ export function DriverDetailScreen({ driverId }: { driverId: string }) {
                     <ShieldCheck aria-hidden="true" />
                     Clearances
                     <TabsCount>{d.capabilities.length}</TabsCount>
-                  </TabsTrigger>
-                  <TabsTrigger value="history">
-                    <History aria-hidden="true" />
-                    Change history
                   </TabsTrigger>
                 </TabsList>
               </div>
@@ -238,16 +238,6 @@ export function DriverDetailScreen({ driverId }: { driverId: string }) {
                 <CapabilityEditor driverId={driverId} />
               </Panel>
             </TabsContent>
-
-            <TabsContent value="history" className="ef-tabpanel">
-              <Panel
-                title="Change history"
-                icon={<History aria-hidden="true" />}
-                description="Who changed what, newest first."
-              >
-                <AuditTrail driverId={driverId} />
-              </Panel>
-            </TabsContent>
           </Tabs>
         </div>
 
@@ -291,6 +281,16 @@ export function DriverDetailScreen({ driverId }: { driverId: string }) {
           <ProfileEditForm driver={d} onDone={() => setEditing(false)} />
         </ResponsiveSheet>
       ) : null}
+      <ActivityLogDrawer
+        app="back-office"
+        log="bo-driver"
+        title="Driver activity"
+        description={`${d.name} — who changed what: profile, status, clearances, duty and work.`}
+        api={api}
+        path={`/fleet/v1/drivers/${d.id}/audit`}
+        queryKey={driverKeys.detail(d.id)}
+        fileName={`driver-${d.name}-activity`}
+      />
     </>
   )
 }

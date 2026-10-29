@@ -1,4 +1,4 @@
-// One product, everything about it, with its history (102). Read = any active staff, csa included.
+// One product, everything about it (102; its history is /activity, 104). Read = any active staff, csa included.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

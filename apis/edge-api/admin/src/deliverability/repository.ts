@@ -6,8 +6,6 @@ import { DELIVERABILITY_LIST, DELIVERABILITY_VIEWS, VIEW_SQL, type Deliverabilit
 
 import {
   type DeliveryEvent,
-  type DeliveryEventDTO,
-  type DeliveryEventType,
   type DeliveryListItemDTO,
   type DeliveryStatusRow,
   type DeliverySubject,
@@ -150,31 +148,6 @@ export async function statusViewCounts(req: Pick<DeliverabilityListRequest, "q">
     args,
   )
   return res.rows[0]!
-}
-
-export async function listEvents(address: string, limit = 50): Promise<DeliveryEventDTO[]> {
-  const res = await query<{
-    event_type: DeliveryEventType
-    sub_type: string | null
-    message_id: string
-    template_id: string | null
-    occurred_at: Date
-  }>(
-    `SELECT event_type, sub_type, message_id, template_id, occurred_at
-       FROM public.email_delivery_event
-      WHERE address = $1
-      ORDER BY occurred_at DESC
-      LIMIT $2`,
-    [address, limit],
-  )
-
-  return res.rows.map((r) => ({
-    eventType: r.event_type,
-    subType: r.sub_type,
-    messageId: r.message_id,
-    templateId: r.template_id,
-    occurredAt: r.occurred_at.toISOString(),
-  }))
 }
 
 /**

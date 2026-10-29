@@ -1,5 +1,7 @@
 import { createRoute } from "@tanstack/react-router"
 
+import { withActivityLog } from "@effy/web-kit/activity-log"
+
 import { courierList, CourierScreen } from "@/features/orders/CourierScreen"
 import { OrderDetailScreen } from "@/features/orders/OrderDetailScreen"
 import { ordersList } from "@/features/orders/list"
@@ -48,6 +50,8 @@ export const orderDetailRoute = createRoute({
   validateSearch: (search: Record<string, unknown>): { parcel?: string; package?: string } => ({
     ...(typeof search.parcel === "string" ? { parcel: search.parcel } : {}),
     ...(typeof search.package === "string" ? { package: search.package } : {}),
+    // The order's activity drawer (104).
+    ...withActivityLog(search),
   }),
 })
 

@@ -297,22 +297,6 @@ export interface ShopOrderDetailDTO {
   notes: ShopOrderNoteDTO[]
 }
 
-// The activity log
-
-/** One log entry. `tone`: `strong` for events that needed or took a decision (a shortfall, a refund, can't-supply), `quiet` for routine progress. */
-export interface ShopOrderActivityEntryDTO {
-  id: string
-  at: string
-  title: string
-  actorLabel: string | null
-  /** `negative`: something the customer will not get (unavailable, can't supply, cancelled). */
-  tone: "strong" | "quiet" | "negative"
-}
-
-export interface ShopOrderActivityDTO {
-  entries: ShopOrderActivityEntryDTO[]
-}
-
 /** POST /shop/v1/orders/{id}/picks: item-level picking. `full` ticks the line, `none` clears it, `part` records `units` picked (the rest is short), `unavailable` none. */
 export interface ShopOrderPicksRequest {
   lines: {

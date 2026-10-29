@@ -1,16 +1,18 @@
 import { useEffect, useState } from "react"
 
 import { useQuery } from "@tanstack/react-query"
-import { CalendarClock, Calendar, CreditCard, Eye, History, List, Package, ReceiptText, Truck } from "lucide-react"
+import { CalendarClock, Calendar, CreditCard, Eye, List, Package, ReceiptText, Truck } from "lucide-react"
 
 import { Badge, Button, Skeleton, Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui"
 import { leastAdvanced, type PackageStatusView } from "@effy/shared-types"
+import { ActivityLogDrawer, useActivityAction } from "@effy/web-kit/activity-log"
 import { ErrorState, PackageStatusPill, useHeaderDetail } from "@effy/web-kit/console"
 
 import { Callout, MoreActions, PageHeader, Panel } from "@effy/web-kit/patterns"
 import { AssignmentActions } from "@/features/assign/AssignmentActions"
 import { sessionQuery } from "@/features/auth/queries"
 import { canDispatch } from "@/features/dispatch/access"
+import { api } from "@/lib/api"
 import { moment, money } from "@/lib/format"
 
 import { canRecordOrderProgress } from "./access"
@@ -20,13 +22,12 @@ import { PackageRows } from "./components/PackageRows"
 import { RefundsSection } from "./components/RefundsSection"
 import { orderActionError } from "./errorText"
 import { OrderCustomerPanel } from "./components/OrderCustomerPanel"
-import { OrderHistoryPanel } from "./components/OrderHistoryPanel"
 import { OrderItemsPanel } from "./components/OrderItemsPanel"
 import { OrderPaymentPanel } from "./components/OrderPaymentPanel"
 import { deliveryTypeText, isPaid, STAGE_LABEL, type OrderDetail } from "./model"
-import { orderDetailQuery, useRecordArrival, useRecordHandoff } from "./queries"
+import { orderDetailQuery, ordersKeys, useRecordArrival, useRecordHandoff } from "./queries"
 
-type Section = "packages" | "items" | "payment" | "refunds" | "history"
+type Section = "packages" | "items" | "payment" | "refunds"
 
 function AddressBlock({ title, address }: { title: string; address: Record<string, unknown> | null }) {
   return (
@@ -81,6 +82,7 @@ export function OrderDetailScreen({
   const [actionError, setActionError] = useState<string | null>(null)
   const [section, setSection] = useState<Section>("packages")
   const [moving, setMoving] = useState<DeliveryMove | null>(null)
+  const activity = useActivityAction()
   useHeaderDetail(data?.orderNumber)
 
   if (isError) return <ErrorState error={error} onRetry={() => void refetch()} />
@@ -150,6 +152,7 @@ export function OrderDetailScreen({
             ) : null}
             <MoreActions
               actions={[
+                activity,
                 movable && order.deliveryType === "effy"
                   ? { label: "Change day or time…", icon: CalendarClock, onSelect: () => setMoving("retime") }
                   : null,
@@ -202,10 +205,6 @@ export function OrderDetailScreen({
                         {order.refunds.length + (openRequest ? 1 : 0) + order.proposedRefunds.length}
                       </TabsCount>
                     ) : null}
-                  </TabsTrigger>
-                  <TabsTrigger value="history">
-                    <History aria-hidden="true" />
-                    History
                   </TabsTrigger>
                 </TabsList>
               </div>
@@ -274,10 +273,6 @@ export function OrderDetailScreen({
                 <RefundsSection order={order} canIssue={canRecord} />
               </Panel>
             </TabsContent>
-
-            <TabsContent value="history" className="ef-tabpanel">
-              <OrderHistoryPanel history={order.history} />
-            </TabsContent>
           </Tabs>
         </div>
 
@@ -286,7 +281,6 @@ export function OrderDetailScreen({
 
           <DeliveryTypeSection
             order={order}
-            formatDateTime={moment}
             canChangeCollection={canRecord}
             canMove={canRecord}
             moving={moving}
@@ -302,6 +296,16 @@ export function OrderDetailScreen({
           </DeliveryTypeSection>
         </aside>
       </div>
+      <ActivityLogDrawer
+        app="back-office"
+        log="bo-order"
+        title="Order activity"
+        description={`${order.orderNumber} — packing, hand-overs, delivery, courier and refunds, in one log.`}
+        api={api}
+        path={`/orders/v1/orders/${order.id}/activity`}
+        queryKey={ordersKeys.detail(order.id)}
+        fileName={`order-${order.orderNumber}-activity`}
+      />
     </>
   )
 }

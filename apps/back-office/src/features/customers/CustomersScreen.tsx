@@ -18,8 +18,10 @@ import {
   useListState,
   type EffyColumnDef,
 } from "@effy/web-kit/data-table"
+import { ActivityButton, ActivityLogDrawer } from "@effy/web-kit/activity-log"
 import { PageHeader } from "@effy/web-kit/patterns"
 import { initialsOf } from "@/components/shell/identity"
+import { api } from "@/lib/api"
 import { moment } from "@/lib/format"
 
 import { PointsSettingsPanel } from "./components/PointsSettingsPanel"
@@ -52,7 +54,9 @@ const columns: EffyColumnDef<CustomerListItemDTO>[] = [
         </Avatar>
         <span className="min-w-0">
           <span className="block">{row.original.name || "No name given"}</span>
-          {row.original.phone ? <span className="block text-sm font-normal text-muted-foreground">{row.original.phone}</span> : null}
+          {row.original.phone ? (
+            <span className="block text-sm font-normal text-muted-foreground">{row.original.phone}</span>
+          ) : null}
         </span>
       </span>
     ),
@@ -65,14 +69,26 @@ const columns: EffyColumnDef<CustomerListItemDTO>[] = [
     cell: ({ row }) => <span className="text-muted-foreground">{moment(row.original.joinedAt)}</span>,
     meta: { label: "Joined", priority: 2, sortKey: "joined" },
   },
-  { id: "orders", header: "Orders", cell: ({ row }) => row.original.orderCount, meta: { label: "Orders", align: "numeric", sortKey: "orders", phone: "trail" } },
+  {
+    id: "orders",
+    header: "Orders",
+    cell: ({ row }) => row.original.orderCount,
+    meta: { label: "Orders", align: "numeric", sortKey: "orders", phone: "trail" },
+  },
   {
     id: "lastOrder",
     header: "Last order",
-    cell: ({ row }) => <span className="text-muted-foreground">{row.original.lastOrderAt ? moment(row.original.lastOrderAt) : "—"}</span>,
+    cell: ({ row }) => (
+      <span className="text-muted-foreground">{row.original.lastOrderAt ? moment(row.original.lastOrderAt) : "—"}</span>
+    ),
     meta: { label: "Last order", priority: 2, sortKey: "lastOrder" },
   },
-  { id: "points", header: "Points", cell: ({ row }) => formatPoints(Number(row.original.points)), meta: { label: "Points", align: "numeric", priority: 2 } },
+  {
+    id: "points",
+    header: "Points",
+    cell: ({ row }) => formatPoints(Number(row.original.points)),
+    meta: { label: "Points", align: "numeric", priority: 2 },
+  },
 ]
 
 function CustomerList() {
@@ -120,9 +136,19 @@ function CustomerList() {
                 { value: "no" as const, label: "Never ordered" },
               ]}
             />
-            <DateRangeFacet label="Joined" from={f.joinedFrom} to={f.joinedTo} onChange={(r) => state.setFilters({ joinedFrom: r.from, joinedTo: r.to })} />
+            <DateRangeFacet
+              label="Joined"
+              from={f.joinedFrom}
+              to={f.joinedTo}
+              onChange={(r) => state.setFilters({ joinedFrom: r.from, joinedTo: r.to })}
+            />
             {isFiltered(state.view) ? <ResetFilters onReset={state.reset} /> : null}
-            <SearchBox label="Search customers" placeholder="Name, email, phone or order number…" value={state.draftQ} onChange={state.setQ} />
+            <SearchBox
+              label="Search customers"
+              placeholder="Name, email, phone or order number…"
+              value={state.draftQ}
+              onChange={state.setQ}
+            />
           </>
         }
       />
@@ -137,8 +163,19 @@ function PointsSettingsPage() {
         back={{ label: "Customers", link: { to: "/customers" } }}
         title="Points settings"
         description="How customers earn points, what they are worth, and when they expire."
+        actions={<ActivityButton />}
       />
       <PointsSettingsPanel />
+      <ActivityLogDrawer
+        app="back-office"
+        log="bo-points-settings"
+        title="Rule changes"
+        description="Every change to the points rules, and who made it."
+        api={api}
+        path="/orders/v1/points/settings/activity"
+        queryKey={["customers", "points-settings"]}
+        fileName="points-rules-activity"
+      />
     </div>
   )
 }

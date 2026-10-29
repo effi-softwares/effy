@@ -59,16 +59,6 @@ export interface Paged<T> {
   pageSize: number;
 }
 
-export interface AuditEntry {
-  id: string;
-  actorSub: string;
-  action: string;
-  targetType: string;
-  targetId: string | null;
-  detail: Record<string, unknown>;
-  createdAt: string;
-}
-
 export type ShopErrorKind =
   | "validation" // → 400
   | "conflict" // → 409 (duplicate code, email already a shop user, invalid transition, has dependents)

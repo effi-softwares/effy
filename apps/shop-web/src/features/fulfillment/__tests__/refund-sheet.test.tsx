@@ -9,6 +9,7 @@ import { orderDetail, orderList } from "./fixtures"
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children }: { children: ReactNode }) => <a href="#">{children}</a>,
   useNavigate: () => () => {},
+  useSearch: () => ({}),
 }))
 
 const getOrder = vi.hoisted(() => vi.fn())
@@ -17,7 +18,6 @@ vi.mock("../repo", () => ({
   getOrder,
   issueShopRefund,
   listOrders: vi.fn(async () => orderList([])),
-  getOrderActivity: vi.fn(async () => ({ entries: [] })),
   setOrderTags: vi.fn(),
   addOrderNote: vi.fn(),
   listFulfillments: vi.fn(),

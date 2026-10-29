@@ -15,8 +15,6 @@ const RAW_TABLE_ALLOWED: Record<string, string> = {
   "drivers/components/DutyPanel.tsx": "board: who is on duty now",
   "exceptions/SequenceSections.tsx": "board: held packages, overdue runs, vehicle checks",
   "hub/HubStationScreen.tsx": "board: the hub station",
-  "orders/components/DeliveryHistory.tsx": "timeline: moves by back-office",
-  "orders/components/DeliveryTypeSection.tsx": "timeline: delivery type history",
   "orders/components/PackageRows.tsx": "bags: each row is a scan-to-find anchor",
   "orders/components/RefundsSection.tsx": "action list: proposed refunds (its history is a StaticTable)",
   "overview/TodaysWindows.tsx": "board: today's windows",

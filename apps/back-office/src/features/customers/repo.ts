@@ -6,7 +6,6 @@ import type {
   PointsCreditRequest,
   PointsDebitRequest,
   PointsSettingsDTO,
-  StaffPointsHistoryPageDTO,
 } from "@effy/shared-types"
 
 import { api } from "@/lib/api"
@@ -23,11 +22,6 @@ export function fetchCustomerPage(qs: URLSearchParams, signal: AbortSignal): Pro
 
 export function getCustomer(id: string): Promise<CustomerDetailDTO> {
   return api.get<CustomerDetailDTO>(`/orders/v1/customers/${id}`)
-}
-
-export function getPointsHistory(id: string, cursor?: string): Promise<StaffPointsHistoryPageDTO> {
-  const qs = cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""
-  return api.get(`/orders/v1/customers/${id}/points/history${qs}`)
 }
 
 export function creditPoints(id: string, body: PointsCreditRequest): Promise<PointsChangeResultDTO> {

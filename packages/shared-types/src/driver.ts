@@ -869,7 +869,7 @@ export interface DutyResponseAdmin {
   unassigned: UnassignedWorkSummary;
 }
 
-// `DriverAuditEntry` is the back-office change log (`admin.audit_log`): who edited, stood down or restored a driver, and why.
+// A driver's change log (`admin.audit_log`) is an activity log (104): `ActivityEntryDTO` from `/fleet/v1/drivers/{id}/audit`.
 
 // Clearances and coverage. Back-office only (not in the driver contract); a driver sees only the
 // derived `DriverMeDTO.zone` line.
@@ -961,19 +961,6 @@ export interface VehicleListItem {
 /** The vehicle register as a console list (103). */
 export type VehicleListResponse = import("./list").ListPage<VehicleListItem>;
 
-/** One period a driver had a vehicle. */
-export interface VehicleHolding {
-  id: string;
-  driverId: string;
-  driverName: string;
-  startedAt: string;
-  /** null = still held. */
-  endedAt: string | null;
-  odometerStartKm: WireInt | null;
-  odometerEndKm: WireInt | null;
-  note: string | null;
-}
-
 export interface VehicleDetail extends VehicleListItem {
   year: WireInt | null;
   fuelType: VehicleFuelType | null;
@@ -990,8 +977,6 @@ export interface VehicleDetail extends VehicleListItem {
   createdAt: string;
   /** Optimistic-concurrency token; a PATCH echoes what it loaded. */
   updatedAt: string;
-  /** Newest first. */
-  holdings: VehicleHolding[];
 }
 
 export interface VehicleCreateRequest {
@@ -1035,21 +1020,6 @@ export interface HoldingIssueRequest {
 export interface HoldingReturnRequest {
   odometerEndKm?: WireInt | null;
   note?: string | null;
-}
-
-// Audit
-
-export interface DriverAuditEntry {
-  id: string;
-  actorSub: string;
-  action: string;
-  /** Never a phone, emergency contact or licence reference: a redacted field is recorded as changed and nothing more. */
-  detail: Record<string, unknown>;
-  at: string;
-}
-
-export interface DriverAuditResponse {
-  items: DriverAuditEntry[];
 }
 
 // Readiness

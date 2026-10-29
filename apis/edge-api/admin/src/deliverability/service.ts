@@ -65,9 +65,8 @@ export async function detail(address: string): Promise<DeliveryDetailDTO> {
   const status = await repo.getStatus(address)
   if (!status) throw new DeliverabilityError("not_found", "no delivery record for that address")
 
-  const [subject, events, suppressedInSes] = await Promise.all([
+  const [subject, suppressedInSes] = await Promise.all([
     repo.findSubject(status.address),
-    repo.listEvents(status.address),
     isSuppressed(status.rawAddress),
   ])
 
@@ -77,7 +76,6 @@ export async function detail(address: string): Promise<DeliveryDetailDTO> {
     lastMessageId: status.lastMessageId,
     repairedBy: status.repairedBy,
     suppressedInSes,
-    events,
   }
 }
 

@@ -31,7 +31,6 @@ const consignment = (over: Partial<ConsignmentDTO> = {}): ConsignmentDTO => ({
   labelUrl: null,
   pickup: null,
   state: "handed_over",
-  events: [{ kind: "handed_over", actor: { kind: "staff", sub: "x" }, note: null, at: "2026-10-09T03:00:00Z" }],
   ...over,
 })
 const pkg = (c: ConsignmentDTO | null): OrderPackage =>

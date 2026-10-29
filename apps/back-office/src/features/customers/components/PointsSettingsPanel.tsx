@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react"
 
 import { useQuery } from "@tanstack/react-query"
-import { Coins, History } from "lucide-react"
+import { Coins } from "lucide-react"
 
 import type { PointsSettingsDTO } from "@effy/shared-types"
 import { Button, Input, Label, toast } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 
-import { Panel, Timeline, TimelineItem } from "@effy/web-kit/patterns"
+import { Panel } from "@effy/web-kit/patterns"
 import { sessionQuery } from "@/features/auth/queries"
 
 import { canEditPointsSettings } from "../access"
@@ -39,9 +39,6 @@ const FIELDS: { key: Field; label: string; help: string }[] = [
     help: "How long points chosen at checkout are set aside while the customer pays.",
   },
 ]
-
-const when = (iso: string) =>
-  new Intl.DateTimeFormat("en-AU", { dateStyle: "medium", timeStyle: "short" }).format(new Date(iso))
 
 export function PointsSettingsPanel() {
   const { data: session } = useQuery(sessionQuery)
@@ -122,31 +119,6 @@ export function PointsSettingsPanel() {
           </div>
         </Panel>
       </form>
-
-      <Panel
-        title="Changes"
-        icon={<History aria-hidden="true" />}
-        description="Every change to these rules, newest first."
-      >
-        {(s.history ?? []).length === 0 ? (
-          <p className="text-sm text-muted-foreground">No changes yet.</p>
-        ) : (
-          <Timeline>
-            {(s.history ?? []).map((h, i) => (
-              <TimelineItem
-                key={i}
-                icon={null}
-                title={FIELDS.find((f) => f.key === h.field)?.label ?? h.field}
-                time={when(h.changedAt)}
-              >
-                <span className="tabular-nums">
-                  {h.oldValue} → {h.newValue}
-                </span>
-              </TimelineItem>
-            ))}
-          </Timeline>
-        )}
-      </Panel>
     </div>
   )
 }

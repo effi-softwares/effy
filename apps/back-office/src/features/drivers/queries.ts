@@ -5,11 +5,10 @@ import type { AdminDriverCreateRequest, AdminDriverStatusRequest, AdminDriverUpd
 import type { DriverListParams } from "./model"
 import * as repo from "./repo"
 
-const driverKeys = {
+export const driverKeys = {
   all: ["drivers"] as const,
   list: (p: DriverListParams) => ["drivers", "list", p] as const,
   detail: (id: string) => ["drivers", "detail", id] as const,
-  audit: (id: string) => ["drivers", "audit", id] as const,
   duty: ["drivers", "duty"] as const,
   readiness: ["drivers", "readiness"] as const,
   zones: ["drivers", "zones"] as const,
@@ -20,9 +19,6 @@ export const driversListQuery = (p: DriverListParams) =>
 
 export const driverDetailQuery = (id: string) =>
   queryOptions({ queryKey: driverKeys.detail(id), queryFn: () => repo.getDriver(id) })
-
-export const driverAuditQuery = (id: string) =>
-  queryOptions({ queryKey: driverKeys.audit(id), queryFn: () => repo.getDriverAudit(id) })
 
 export const dutyQuery = () =>
   queryOptions({

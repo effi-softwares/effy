@@ -17,17 +17,18 @@ import {
   TabsTrigger,
 } from "@effy/design-system/ui"
 import { formatAttributeValue, GST_STATUS_WORDS, STORAGE_WORDS, type CategoryFormDTO } from "@effy/shared-types"
+import { ActivityLogDrawer } from "@effy/web-kit/activity-log"
 import { ErrorState } from "@effy/web-kit/console"
 import { DetailRows, PageHeader } from "@effy/web-kit/patterns"
 
 import { DetailSection, Page, SectionAction } from "@/components/console/primitives"
+import { api } from "@/lib/api"
 
 import { ProductStatusBadge } from "./components/ProductStatusBadge"
 import { formatMoney, orderedMedia, storefrontText } from "./detailFormat"
 import { InventorySection } from "./InventorySection"
 import { MediaGallery } from "./MediaGallery"
 import { pathText, type ProductDetail } from "./model"
-import { ProductActivitySheet } from "./ProductActivitySheet"
 import { ProductHeaderActions } from "./ProductActions"
 import {
   BasicsEditDialog,
@@ -58,7 +59,6 @@ function ProductDetailBody({ productId, initialSize }: { productId: string; init
   // Details a save removed (a new category, a size gone): said once, until dismissed.
   const [dropped, setDropped] = useState<string[]>([])
   const [tab, setTab] = useState<DetailTab>("details")
-  const [activityOpen, setActivityOpen] = useState(false)
   // The size whose stock the Inventory tab, Receive stock and Activity show.
   const [chosenStockVariant, setStockVariant] = useState<string | null>(initialSize ?? null)
   const navigate = useNavigate()
@@ -150,14 +150,7 @@ function ProductDetailBody({ productId, initialSize }: { productId: string; init
                 </span>
               </>
             }
-            actions={
-              <ProductHeaderActions
-                detail={detail}
-                stockVariantId={stockVariantId}
-                onOpenActivity={() => setActivityOpen(true)}
-                onDeleted={goCatalog}
-              />
-            }
+            actions={<ProductHeaderActions detail={detail} stockVariantId={stockVariantId} onDeleted={goCatalog} />}
           />
         </div>
       </div>
@@ -267,11 +260,16 @@ function ProductDetailBody({ productId, initialSize }: { productId: string; init
         </TabsContent>
       </Tabs>
 
-      <ProductActivitySheet
-        detail={detail}
-        variantId={stockVariantId}
-        open={activityOpen}
-        onOpenChange={setActivityOpen}
+      <ActivityLogDrawer
+        app="shop-web"
+        log="shop-stock"
+        title="Stock activity"
+        description={`${detail.name} — every change to the count of each size, with who made it and why.`}
+        api={api}
+        path={`/inventory/v1/products/${detail.id}/stock/activity`}
+        queryKey={["shop", "stock", "product", detail.id]}
+        subjects={sizes.map((v) => ({ value: v.id, label: v.label ?? detail.name }))}
+        fileName={`stock-${detail.name}-activity`}
       />
 
       <BasicsEditDialog

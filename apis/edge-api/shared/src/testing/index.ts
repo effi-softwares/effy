@@ -2,3 +2,4 @@
 export * from "./kotlin-fixture";
 export * from "./catalog-fixture";
 export * from "./migrations";
+export * from "./activity";

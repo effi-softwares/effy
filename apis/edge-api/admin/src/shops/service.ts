@@ -2,10 +2,9 @@ import { offsetListPage, SET_FULL_SENTENCE } from "@effy/edge-shared";
 import type { ListPage } from "@effy/shared-types";
 
 import * as cognito from "./cognito";
-import type { ShopHistoryRequest, ShopListRequest } from "./list";
+import type { ShopListRequest } from "./list";
 import * as repo from "./repository";
 import {
-  type AuditEntry,
   type ShopDetail,
   ShopError,
   type ShopLifecycleStatus,
@@ -43,9 +42,6 @@ export async function getShop(shopId: string): Promise<ShopDetail> {
   if (!detail) throw new ShopError("not_found", "shop not found");
   return detail;
 }
-
-export const getShopHistory = (shopId: string, req: ShopHistoryRequest): Promise<ListPage<AuditEntry>> =>
-  repo.listShopHistory(shopId, req);
 
 export async function createShop(
   input: {

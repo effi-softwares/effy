@@ -174,13 +174,3 @@ export interface UpdateShopUserRequest {
   status?: ShopStaffStatus;
 }
 
-/** An audit-log entry behind the shop and user history. */
-export interface AuditEntryDTO {
-  id: string;
-  actorSub: string;
-  action: string;
-  targetType: string;
-  targetId: string | null;
-  detail: Record<string, unknown>;
-  createdAt: string;
-}

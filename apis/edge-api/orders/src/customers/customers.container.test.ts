@@ -11,10 +11,12 @@ vi.mock("@effy/edge-shared", async (importOriginal) => ({
 }));
 
 import { transactorFor } from "@effy/edge-shared";
-import { migrationSql } from "@effy/edge-shared/testing";
+import { activityEntries, migrationSql } from "@effy/edge-shared/testing";
 import { InsufficientPointsError, OverAgentLimitError, PointsNoteRequiredError, PointsOrderNotFoundError } from "@effy/edge-shared/points";
 
 import { parseListQuery } from "@effy/edge-shared";
+
+import { pointsActivitySource, pointsSettingsActivitySource } from "../activity/points";
 
 import { CUSTOMER_LIST_SPEC } from "./list";
 import { createCustomerService, CustomerNotFoundError } from "./service";
@@ -29,6 +31,7 @@ describe.skipIf(!RUN)("074 — back-office customers and points", () => {
   let seq = 0;
 
   const one = async <T>(sql: string, args: unknown[] = []) => (await pool.query(sql, args)).rows[0] as T;
+  const log = (source: Parameters<typeof activityEntries>[1]) => activityEntries(pool, source);
   async function customer(email?: string) {
     const tag = `cs-${++seq}`;
     return (
@@ -82,10 +85,10 @@ describe.skipIf(!RUN)("074 — back-office customers and points", () => {
     const o = await paidOrder(c, "EFY-CR0001");
     const out = await svc.credit("manager-1", c, { points: 5000, reason: "late_delivery", note: "phoned in", orderId: o });
     expect(out.usable).toBe(5000);
-    const page = await svc.history(c, undefined, 10);
-    expect(page.entries[0]).toMatchObject({
-      kind: "staff_credit", points: 5000, valueAmount: "50.00", words: "Sorry your order was late", orderNumber: "EFY-CR0001",
-      reason: "late_delivery", note: "phoned in", authorKind: "staff", orderId: o,
+    const entries = await log(pointsActivitySource(c));
+    expect(o).toBeTruthy();
+    expect(entries[0]).toMatchObject({
+      kind: "credit", title: "Points added: +5,000", detail: "Late delivery — phoned in", subject: "EFY-CR0001",
     });
     const detail = await svc.detail(c);
     expect(detail.points).toMatchObject({ usable: 5000, valueAmount: "50.00", held: 0 });
@@ -107,30 +110,20 @@ describe.skipIf(!RUN)("074 — back-office customers and points", () => {
     await svc.credit("manager-1", c, { points: 500, reason: "goodwill" });
     await expect(svc.debit("manager-1", c, { points: 501, reason: "correction" })).rejects.toBeInstanceOf(InsufficientPointsError);
     await svc.debit("manager-1", c, { points: 500, reason: "credited_in_error" });
-    const page = await svc.history(c, undefined, 10);
-    expect(page.entries.map((e) => [e.kind, e.points, e.words])).toEqual([
-      ["staff_debit", -500, "Balance correction"],
-      ["staff_credit", 500, "A thank-you from Effy"],
+    const entries = await log(pointsActivitySource(c));
+    expect(entries.map((e) => [e.kind, e.title])).toEqual([
+      ["debit", "Points taken off: -500"],
+      ["credit", "Points added: +500"],
     ]);
-  });
-
-  it("pages the history newest first without repeating a line", async () => {
-    const c = await customer();
-    for (let i = 0; i < 5; i++) await svc.credit("manager-1", c, { points: 10 + i, reason: "goodwill" });
-    const first = await svc.history(c, undefined, 3);
-    const second = await svc.history(c, first.nextCursor, 3);
-    expect(first.entries).toHaveLength(3);
-    expect(second.entries).toHaveLength(2);
-    expect(second.nextCursor).toBeUndefined();
-    expect(new Set([...first.entries, ...second.entries].map((e) => e.id)).size).toBe(5);
   });
 
   it("each changed setting writes one audit row; an unchanged one writes none", async () => {
     const before = await svc.settings();
     const after = await svc.updateSettings("admin-1", { csaCreditLimitPoints: 2500, expiryMonths: before.expiryMonths });
     expect(after.csaCreditLimitPoints).toBe(2500);
-    expect(after.history?.filter((h) => h.changedBy === "admin-1")).toEqual([
-      expect.objectContaining({ field: "csaCreditLimitPoints", oldValue: String(before.csaCreditLimitPoints), newValue: "2500" }),
+    const changes = await log(pointsSettingsActivitySource());
+    expect(changes.filter((h) => h.title === "Customer-service credit limit changed")).toEqual([
+      expect.objectContaining({ kind: "rules", detail: `${before.csaCreditLimitPoints} → 2500` }),
     ]);
     await svc.updateSettings("admin-1", { csaCreditLimitPoints: before.csaCreditLimitPoints });
   });

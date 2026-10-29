@@ -5,10 +5,8 @@ import {
   type AdminOrderDeliveryFilter,
   type DeliveryPromise,
   type DeliveryType,
-  type DeliveryTypeChangeDTO,
   type DeliveryTypeReason,
   type AdminOrderDetailDTO,
-  type AdminOrderHistoryEntryDTO,
   type AdminOrderPackageDTO,
   type AdminOrderSummaryDTO,
   type OrderAwaiting,
@@ -17,7 +15,6 @@ import {
 export type OrderSummary = AdminOrderSummaryDTO
 export type OrderDetail = AdminOrderDetailDTO
 export type OrderPackage = AdminOrderPackageDTO
-export type OrderHistoryEntry = AdminOrderHistoryEntryDTO
 
 /** A quick read of the list outside its screen (the command palette, the overview's counts). */
 export interface OrderListParams {
@@ -47,10 +44,6 @@ export const DELIVERY_REASON_LABEL: Record<DeliveryTypeReason, string> = {
   out_of_coverage: "The address is outside Effy's delivery area",
   no_window: "No Effy delivery window was available",
   staff_change: "Changed by staff",
-}
-
-export function deliveryChangeText(c: DeliveryTypeChangeDTO): string {
-  return c.from ? `${DELIVERY_TYPE_WORDS[c.from]} → ${DELIVERY_TYPE_WORDS[c.to]}` : DELIVERY_TYPE_WORDS[c.to]
 }
 
 export function packageDeliveryText(pkg: Pick<OrderPackage, "deliveredBy" | "deliveryMethod">): string {

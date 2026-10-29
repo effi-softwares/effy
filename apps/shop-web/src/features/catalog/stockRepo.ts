@@ -1,13 +1,11 @@
 import type {
   AdjustStockRequest,
-  ListPage,
   ProductStockDetailDTO,
   SetShopStockSettingsRequest,
   SetStockRequest,
   SetThresholdRequest,
   SetTrackingRequest,
   ShopStockSettingsDTO,
-  StockMovementDTO,
 } from "@effy/shared-types"
 
 import { api } from "@/lib/api"
@@ -16,13 +14,6 @@ const base = (variantId: string) => `/inventory/v1/variants/${variantId}/stock`
 
 export function getVariantStock(variantId: string): Promise<ProductStockDetailDTO> {
   return api.get<ProductStockDetailDTO>(base(variantId))
-}
-
-/** One page of a size's stock movements, newest first, in the view the address names (103). */
-export function fetchMovementPage(variantId: string, qs: URLSearchParams, signal: AbortSignal): Promise<ListPage<StockMovementDTO>> {
-  const q = new URLSearchParams(qs)
-  q.set("movements", "page")
-  return api.get<ListPage<StockMovementDTO>>(`${base(variantId)}?${q}`, { signal })
 }
 
 export function setStockCount(variantId: string, body: SetStockRequest): Promise<ProductStockDetailDTO> {

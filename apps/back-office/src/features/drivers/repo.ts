@@ -4,7 +4,6 @@ import type {
   AdminDriverProfile,
   AdminDriverStatusRequest,
   AdminDriverUpdateRequest,
-  DriverAuditResponse,
   DutyResponseAdmin,
   FleetReadinessResponse,
 } from "@effy/shared-types"
@@ -52,10 +51,6 @@ export async function updateDriver(driverId: string, body: AdminDriverUpdateRequ
 
 export async function setDriverStatus(driverId: string, body: AdminDriverStatusRequest): Promise<AdminDriverProfile> {
   return api.post<AdminDriverProfile>(`/fleet/v1/drivers/${driverId}/status`, body)
-}
-
-export async function getDriverAudit(driverId: string): Promise<DriverAuditResponse> {
-  return api.get<DriverAuditResponse>(`/fleet/v1/drivers/${driverId}/audit`)
 }
 
 export async function getDuty(): Promise<DutyResponseAdmin> {

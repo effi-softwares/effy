@@ -37,11 +37,11 @@ vi.mock("../lib/money", () => ({
   refundService: { submitRecorded: async (id: string) => { holder.submitted.push(id); return { status: "submitted" }; } },
 }));
 
-import { migrationSql } from "@effy/edge-shared/testing";
+import { activityEntries, migrationSql } from "@effy/edge-shared/testing";
 
 import { handler as getMove } from "../functions/order-delivery-move-v1-get";
 import { handler as postMove } from "../functions/order-delivery-move-v1-post";
-import { getOrder } from "../orders/service";
+import { orderActivitySource } from "../activity/order";
 
 const RUN = process.env.CONTAINER_TESTS === "1";
 const d = RUN ? describe : describe.skip;
@@ -148,8 +148,9 @@ d("081 — the delivery-move routes", () => {
     expect(res.body.refund).toBeUndefined();
     expect(holder.announced).toEqual([o.order]);
     expect(holder.dispatched).toEqual([[]]);
-    const detail = await getOrder(o.order);
-    expect(detail?.deliveryMoves).toEqual([expect.objectContaining({ to: "courier", actor: expect.objectContaining({ sub: "sub-manager" }) })]);
+    // The move is in the order's activity log (104), with what was given.
+    const moves = (await activityEntries(pool, orderActivitySource(o.order))).filter((e) => e.title === "Moved to courier delivery");
+    expect(moves).toEqual([expect.objectContaining({ kind: "delivery", detail: expect.stringContaining("Points for the difference: 250 points ($2.50)") })]);
   });
 
   it("P6/P7 — the request is checked field by field; a stale amount, a stale order and a repeat are refused with their codes", async () => {

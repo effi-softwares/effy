@@ -200,43 +200,6 @@ export interface ShopInsightsDTO {
   }
 }
 
-// Team activity
-
-/**
- * Who did it. Back-office staff are attributed to "Effy", never by name; a departed operator is
- * `former_staff`, never blank.
- */
-export type TeamActivityActorDTO =
-  | { kind: "staff"; name: string }
-  | { kind: "former_staff" }
-  | { kind: "effy" }
-
-export type TeamActivityActionDTO =
-  | { kind: "state_changed"; orderNumber: string; to: string }
-  | {
-      kind: "item_gathered" | "item_unavailable" | "item_restored"
-      orderNumber: string
-      productName: string
-      quantity: WireInt
-    }
-  | { kind: "note_added" | "tags_changed"; orderNumber: string }
-  | { kind: "stock_changed"; productName: string; reason: string; delta: WireInt }
-  | { kind: "refund_issued"; orderNumber: string; amount: string }
-
-export interface TeamActivityEntryDTO {
-  /** Stable per source row: a React key. */
-  id: string
-  at: string
-  actor: TeamActivityActorDTO
-  action: TeamActivityActionDTO
-  /** Drives a dot marker only, never a text colour. */
-  tone: "done" | "problem" | "neutral"
-}
-
-export interface ShopTeamActivityDTO {
-  entries: TeamActivityEntryDTO[]
-}
-
 // Batch pick lists
 
 export interface ShopPickListDTO {

@@ -4,12 +4,12 @@ import {
   type Queryable, type Transactor,
 } from "@effy/edge-shared";
 import {
-  announcePointsFor, balanceSummary, credit, debit, history, loadSettings, OverAgentLimitError, settingsHistory, updateSettings,
+  announcePointsFor, balanceSummary, credit, debit, loadSettings, OverAgentLimitError, updateSettings,
   type PointsSettingsPatch,
 } from "@effy/edge-shared/points";
 import type {
   CustomerDetailDTO, CustomerListDTO, PointsChangeResultDTO, PointsCreditRequest, PointsDebitRequest,
-  PointsSettingsDTO, StaffPointsHistoryPageDTO,
+  PointsSettingsDTO,
 } from "@effy/shared-types";
 
 import type { CustomerListRequest } from "./list";
@@ -77,15 +77,6 @@ export function createCustomerService(deps: CustomerServiceDeps = {}) {
       };
     },
 
-    async history(id: string, cursor: string | undefined, limit: number): Promise<StaffPointsHistoryPageDTO> {
-      const c = await requireCustomer(id);
-      const page = await history(db, c.id, { cursor, limit }, { staff: true });
-      return {
-        entries: page.lines.map((l) => ({ ...l, at: l.at.toISOString() })),
-        ...(page.nextCursor ? { nextCursor: page.nextCursor } : {}),
-      };
-    },
-
     /** A csa may credit up to the per-credit limit, read inside the same transaction as the credit. */
     async credit(actorSub: string, customerId: string, req: PointsCreditRequest): Promise<PointsChangeResultDTO> {
       const c = await requireCustomer(customerId);
@@ -119,11 +110,10 @@ export function createCustomerService(deps: CustomerServiceDeps = {}) {
     },
 
     async settings(): Promise<PointsSettingsDTO> {
-      const [s, changes] = await Promise.all([loadSettings(db), settingsHistory(db)]);
+      const s = await loadSettings(db);
       return {
         centsPerPoint: s.centsPerPoint, expiryMonths: s.expiryMonths, csaCreditLimitPoints: s.csaCreditLimitPoints,
         warningDays: s.warningDays, holdMinutes: s.holdMinutes,
-        history: changes.map((h) => ({ ...h, changedAt: h.changedAt.toISOString() })),
       };
     },
 

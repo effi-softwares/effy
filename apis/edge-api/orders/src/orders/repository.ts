@@ -355,37 +355,6 @@ export async function findOrder(orderId: string): Promise<OrderDetailRow | null>
   return res.rows[0] ?? null;
 }
 
-/** Oldest first. Read only; consignment.ts writes. */
-export async function courierCollectionHistory(orderId: string): Promise<{ from_mode: "hub" | "supplier"; to_mode: "hub" | "supplier"; actor_sub: string; note: string | null; created_at: Date }[]> {
-  const res = await query<{ from_mode: "hub" | "supplier"; to_mode: "hub" | "supplier"; actor_sub: string; note: string | null; created_at: Date }>(
-    `SELECT from_mode, to_mode, actor_sub, note, created_at FROM public.order_courier_collection_change WHERE order_id = $1 ORDER BY created_at`,
-    [orderId],
-  );
-  return res.rows;
-}
-
-export interface DeliveryTypeChangeRow {
-  from_type: "effy" | "courier" | null;
-  to_type: "effy" | "courier";
-  reason: "in_coverage" | "out_of_coverage" | "no_window" | "staff_change";
-  actor_kind: "checkout" | "staff";
-  actor_sub: string | null;
-  note: string | null;
-  created_at: Date;
-}
-
-/** Oldest first. Read only: `recordDeliveryType` is the one writer. */
-export async function deliveryTypeHistory(orderId: string): Promise<DeliveryTypeChangeRow[]> {
-  const res = await query<DeliveryTypeChangeRow>(
-    `SELECT from_type, to_type, reason, actor_kind, actor_sub, note, created_at
-       FROM public.order_delivery_type_change
-      WHERE order_id = $1
-      ORDER BY created_at ASC, (from_type IS NULL) DESC`,
-    [orderId],
-  );
-  return res.rows;
-}
-
 export interface OrderItemRow {
   order_item_id: string;
   product_id: string;
@@ -492,73 +461,6 @@ export async function packages(orderId: string): Promise<PackageRow[]> {
   return res.rows;
 }
 
-export interface HistoryRow {
-  at: Date;
-  kind: string;
-  summary: string;
-  actor_sub: string | null;
-  fulfillment_id: string | null;
-}
-
-/**
- * A read-side projection over `fulfillment_event`, `carrier_handoff` and `package_arrival`, never a
- * stored timeline. Nothing records the journey between "ready" and "arrived", so that span is silent.
- */
-export async function history(orderId: string): Promise<HistoryRow[]> {
-  const res = await query<HistoryRow>(
-    `WITH pkg AS (SELECT id, order_id FROM public.shop_fulfillment WHERE order_id = $1)
-     SELECT * FROM (
-       SELECT fe.occurred_at AS at,
-              'fulfillment'::text AS kind,
-              CASE fe.event_type
-                WHEN 'state_changed'   THEN 'Package ' || COALESCE(fe.to_status, '?')
-                WHEN 'item_gathered'   THEN 'Item picked'
-                WHEN 'item_unavailable' THEN 'Item marked unavailable'
-                WHEN 'item_restored'   THEN 'Item restored'
-                -- The shop console's two events; without a name the ELSE arm would show staff the raw value.
-                WHEN 'note_added'      THEN 'Shop added an internal note'
-                WHEN 'tags_changed'    THEN 'Shop changed its tags'
-                ELSE fe.event_type
-              END AS summary,
-              NULL::text AS actor_sub,
-              fe.shop_fulfillment_id AS fulfillment_id
-         FROM public.fulfillment_event fe
-         JOIN pkg ON pkg.id = fe.shop_fulfillment_id
-
-       UNION ALL
-
-       SELECT h.handed_over_at,
-              'handoff'::text,
-              -- ⚠ The summary reads the same with or without a reference. A missing
-              -- consignment number is an ordinary state, not a gap to announce in the history.
-              CASE WHEN h.carrier_name IS NOT NULL
-                   THEN 'Handed to ' || h.carrier_name
-                   ELSE 'Handed to carrier' END,
-              h.recorded_by_sub,
-              h.shop_fulfillment_id
-         FROM public.carrier_handoff h
-         JOIN pkg ON pkg.id = h.shop_fulfillment_id
-
-       UNION ALL
-
-       SELECT pa.arrived_at,
-              'arrival'::text,
-              CASE pa.source
-                WHEN 'driver_proof'   THEN 'Delivered by an Effy driver'
-                WHEN 'staff_recorded' THEN 'Arrival recorded by back-office'
-                ELSE 'Arrival reported by carrier'
-              END,
-              pa.recorded_by_sub,
-              pa.shop_fulfillment_id
-         FROM public.package_arrival pa
-         JOIN pkg ON pkg.id = pa.shop_fulfillment_id
-     ) t
-     ORDER BY at ASC`,
-    [orderId],
-  );
-  return res.rows;
-}
-
 export interface CourierParcelRow {
   fulfillment_id: string;
   order_id: string;
@@ -617,35 +519,6 @@ export async function courierParcels(): Promise<CourierParcelRow[]> {
         AND pa.id IS NULL
         AND sf.status NOT IN ('withdrawn', 'unfulfillable', 'delivered')
       ORDER BY o.order_number, sf.id`,
-  );
-  return res.rows;
-}
-
-/** Oldest first, with the driver's name. Staff only. */
-export interface HandoverRow {
-  package_id: string;
-  step: string;
-  method: string;
-  recorded_at: Date;
-  /** Null when shop or hub staff made the hand-over. */
-  driver_name: string | null;
-  actor_kind: "driver" | "shop_staff" | "admin_staff";
-  parcel_id: string | null;
-  parcel_code: string | null;
-}
-
-export async function handovers(packageIds: string[]): Promise<HandoverRow[]> {
-  if (packageIds.length === 0) return [];
-  const res = await query<HandoverRow>(
-    `SELECT ph.shop_fulfillment_id::text AS package_id, ph.step, ph.handover_method AS method,
-            ph.recorded_at, d.name AS driver_name, ph.actor_kind, ph.parcel_id::text AS parcel_id, pp.parcel_code
-       FROM public.package_handover ph
-       -- Shop and hub staff record hand-overs too: no driver on those rows.
-       LEFT JOIN public.driver d ON d.id = ph.driver_id
-       LEFT JOIN public.package_parcel pp ON pp.id = ph.parcel_id
-      WHERE ph.shop_fulfillment_id = ANY($1::uuid[])
-      ORDER BY ph.recorded_at, ph.id`,
-    [packageIds],
   );
   return res.rows;
 }

@@ -117,46 +117,6 @@ export interface ProductHoldDTO {
   heldBy: string | null;
 }
 
-export type ProductHistoryAction =
-  | "created"
-  | "approved"
-  | "sent_back"
-  | "change_approved"
-  | "change_sent_back"
-  | "margin_set"
-  | "placements_set"
-  | "held"
-  | "released"
-  | "created_by_effy"
-  | "effy_edited"
-  | "effy_completed"
-  | "variant_state_set";
-
-export const PRODUCT_HISTORY_WORDS: Record<ProductHistoryAction, string> = {
-  created: "Created by the shop",
-  approved: "Approved",
-  sent_back: "Sent back",
-  change_approved: "Change approved",
-  change_sent_back: "Change sent back",
-  margin_set: "Margin set",
-  placements_set: "Also-shown-in aisles set",
-  held: "Held",
-  released: "Released",
-  created_by_effy: "Created by Effy",
-  effy_edited: "Edited by Effy",
-  effy_completed: "Finished by Effy and put on sale",
-  variant_state_set: "Size on/off sale",
-};
-
-export interface ProductHistoryEntryDTO {
-  at: string;
-  action: ProductHistoryAction;
-  /** A staff member's name; null for the shop or the system. */
-  actor: string | null;
-  /** One line about it (a reason, a margin, a size), or null. */
-  note: string | null;
-}
-
 export interface BackOfficeVariantDTO extends ReviewVariantDTO {
   stockTracked: boolean;
   stockOnHand: WireInt | null;
@@ -183,7 +143,6 @@ export interface BackOfficeProductDTO {
   facts: { storage: Storage; gstStatus: GstStatus; ageRestricted: boolean };
   missingRequired: string[];
   placements: { categoryId: string; path: string[] }[];
-  history: ProductHistoryEntryDTO[];
   /** The product as Effy's form edits it — only while Effy is still finishing it (`effySettingUp`). */
   effyContent: EffyProductContentDTO | null;
   createdAt: string;

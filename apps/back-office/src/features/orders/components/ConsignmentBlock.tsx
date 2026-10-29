@@ -183,22 +183,6 @@ export function ConsignmentBlock({
         </p>
       )}
 
-      {c && c.events.length > 0 ? (
-        <ol className="space-y-1 text-sm text-muted-foreground" aria-label="Consignment history">
-          {c.events.map((e, i) => (
-            <li key={`${e.at}-${i}`}>
-              <span className="tabular-nums">
-                {new Intl.DateTimeFormat("en-AU", { dateStyle: "medium", timeStyle: "short" }).format(new Date(e.at))}
-              </span>
-              {" · "}
-              {STEP_LABEL[e.kind as ConsignmentEventInput["kind"]] ?? "Booked"}
-              {e.actor.kind === "shop" ? " (supplier)" : ""}
-              {e.note ? ` — ${e.note}` : ""}
-            </li>
-          ))}
-        </ol>
-      ) : null}
-
       {canRecord && (editing || !c) && !(c && handedOver && !editing) ? (
         <div className="flex flex-wrap items-end gap-2">
           <div className="space-y-1">

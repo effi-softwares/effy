@@ -1,6 +1,5 @@
 import type {
   AdminPromotionDTO,
-  AuditEntryDTO,
   OrderPolicyDTO,
   PromotionKind,
   PromotionState,
@@ -10,7 +9,6 @@ import type {
 
 export type Promotion = AdminPromotionDTO
 export type OrderPolicy = OrderPolicyDTO
-export type AuditEntry = AuditEntryDTO
 export type { UpdateOrderPolicyRequest }
 
 export interface PromotionListParams {

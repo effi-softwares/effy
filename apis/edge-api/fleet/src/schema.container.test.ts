@@ -442,10 +442,13 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
       await pool.query(`UPDATE public.vehicle_holding SET ended_at = now(), odometer_end_km = 99 WHERE vehicle_id = $1`, [v]);
       await pool.query(`UPDATE public.vehicle SET status = 'retired' WHERE id = $1`, [v]);
 
-      const history = await vehiclesRepo.listHoldings(v);
-      expect(history).toHaveLength(1);
-      expect(history[0]!.driverName).toBe("Golf Seven");
-      expect(history[0]!.odometerEndKm).toBe(99);
+      const history = await pool.query<{ name: string; odometer_end_km: number }>(
+        `SELECT d.name, h.odometer_end_km FROM public.vehicle_holding h JOIN public.driver d ON d.id = h.driver_id WHERE h.vehicle_id = $1`,
+        [v],
+      );
+      expect(history.rows).toHaveLength(1);
+      expect(history.rows[0]!.name).toBe("Golf Seven");
+      expect(history.rows[0]!.odometer_end_km).toBe(99);
     });
 
     it("103: pages, searches and filters on the server — never just the rows on screen", async () => {

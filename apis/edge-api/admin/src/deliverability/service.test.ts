@@ -21,7 +21,6 @@ const repo = {
   upsertStatus: vi.fn(),
   getStatus: vi.fn(),
   listStatuses: vi.fn(),
-  listEvents: vi.fn(),
   findSubject: vi.fn(),
   markRepaired: vi.fn(),
   toListItemDTO: vi.fn((s: any, subject: any) => ({ address: s.address, state: s.state, subject })),
@@ -218,7 +217,6 @@ describe("repair", () => {
   beforeEach(() => {
     repo.getStatus.mockResolvedValue(STATUS)
     repo.findSubject.mockResolvedValue(null)
-    repo.listEvents.mockResolvedValue([])
     repo.markRepaired.mockResolvedValue(undefined)
     sesSend.mockResolvedValue({})
   })

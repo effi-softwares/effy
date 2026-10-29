@@ -1,6 +1,5 @@
 import type {
   AdminOrderDetailDTO,
-  AdminOrderHistoryEntryDTO,
   AdminOrderItemDTO,
   AdminOrderPackageDTO,
   AdminOrderSummaryDTO,
@@ -21,10 +20,10 @@ import { COUNTED_REFUND_STATUSES, imageUrlOrNull, keysetListPage, offsetListPage
 import type { ListPage } from "@effy/shared-types";
 
 import type { CourierListRequest, OrderListRequest } from "./list";
-import { CONSIGNMENT_PROBLEMS, COURIER_VIEWS, leastAdvanced, parcelCustodyOf, type AdminPackageHandoverDTO, type OrderAssignment, type PackageStatusView, type ParcelZone } from "@effy/shared-types";
+import { CONSIGNMENT_PROBLEMS, COURIER_VIEWS, leastAdvanced, parcelCustodyOf, type OrderAssignment, type PackageStatusView, type ParcelZone } from "@effy/shared-types";
 
 import { judgePromise } from "./promise";
-import { consignmentsFor, deliveryMovesFor, nextCourierPickup, parseClock } from "@effy/edge-shared/delivery";
+import { consignmentsFor, nextCourierPickup, parseClock } from "@effy/edge-shared/delivery";
 import * as refundRepo from "./refunds";
 import { assignmentsFor } from "./assignments";
 import * as repo from "./repository";
@@ -131,7 +130,6 @@ export async function toConsignment(c: import("@effy/edge-shared/delivery").Cons
     labelUrl: await imageUrlOrNull(c.label_key),
     pickup: c.pickup_date ? { date: c.pickup_date, from: c.pickup_from, to: c.pickup_to } : null,
     state: c.state,
-    events: c.events.map((e) => ({ kind: e.kind, actor: { kind: e.actor_kind, sub: e.actor_sub }, note: e.note, at: new Date(e.at).toISOString() })),
   };
 }
 
@@ -223,16 +221,6 @@ function toItem(row: repo.OrderItemRow): AdminOrderItemDTO {
   };
 }
 
-function toHistory(row: repo.HistoryRow): AdminOrderHistoryEntryDTO {
-  return {
-    at: row.at.toISOString(),
-    kind: row.kind as AdminOrderHistoryEntryDTO["kind"],
-    summary: row.summary,
-    actorSub: row.actor_sub,
-    fulfillmentId: row.fulfillment_id,
-  };
-}
-
 function toPaymentMethod(row: repo.OrderDetailRow): AdminPaymentMethodDTO | null {
   // Absent when not captured; the console omits the line.
   if (!row.method_type) return null;
@@ -244,12 +232,10 @@ export async function getOrder(orderId: string): Promise<AdminOrderDetailDTO | n
   if (!order) return null;
 
   // In parallel: each RDS hop is ~135 ms.
-  const [itemRows, packageRows, historyRows, typeRows, refundRows, refundLineRows, proposedRows, requestRow] =
+  const [itemRows, packageRows, refundRows, refundLineRows, proposedRows, requestRow] =
     await Promise.all([
       repo.items(orderId),
       repo.packages(orderId),
-      repo.history(orderId),
-      repo.deliveryTypeHistory(orderId),
       refundRepo.refunds(orderId),
       refundRepo.refundLines(orderId),
       refundRepo.proposedRefunds(orderId),
@@ -259,29 +245,18 @@ export async function getOrder(orderId: string): Promise<AdminOrderDetailDTO | n
   const requestItemRows = requestRow ? await refundRepo.refundRequestItems(requestRow.request_id) : [];
 
   const pkgIds = packageRows.map((p) => p.fulfillment_id);
-  const [statusById, assignmentById, consignmentById, collectionHistory, deliveryMoves, handoverRows] = await Promise.all([
+  // Its history — packing, hand-overs, moves, courier steps — is the activity log (104), not part of this read.
+  const [statusById, assignmentById, consignmentById, parcelRows] = await Promise.all([
     packageStatuses(db, pkgIds),
     assignmentsFor(pkgIds),
     order.delivery_type === "courier" ? consignmentsFor(db, pkgIds) : Promise.resolve(new Map()),
-    order.delivery_type === "courier" ? repo.courierCollectionHistory(orderId) : Promise.resolve([]),
-    order.delivery_type ? deliveryMovesFor(db, orderId) : Promise.resolve([]),
-    repo.handovers(pkgIds),
+    repo.parcels(pkgIds),
   ]);
-  const parcelRows = await repo.parcels(pkgIds);
-  const toHandover = (h: repo.HandoverRow) => ({
-    step: h.step as AdminPackageHandoverDTO["step"],
-    method: h.method as AdminPackageHandoverDTO["method"],
-    at: h.recorded_at.toISOString(),
-    driverName: h.driver_name,
-    actor: h.actor_kind,
-    ...(h.parcel_code ? { parcelCode: h.parcel_code } : {}),
-  });
   const consignments = new Map(
     await Promise.all([...consignmentById].map(async ([id, c]) => [id, await toConsignment(c)] as const)),
   );
   const packages = packageRows.map((p) => ({
     ...toPackage(p, statusById.get(p.fulfillment_id) ?? null, assignmentById.get(p.fulfillment_id), consignments.get(p.fulfillment_id) ?? null),
-    handovers: handoverRows.filter((h) => h.package_id === p.fulfillment_id).map(toHandover),
     parcels: parcelRows
       .filter((b) => b.package_id === p.fulfillment_id)
       .map((b) => ({
@@ -293,7 +268,6 @@ export async function getOrder(orderId: string): Promise<AdminOrderDetailDTO | n
         voided: b.voided,
         printedCount: Number(b.print_count),
         custody: parcelCustodyOf(b.last_step),
-        handovers: handoverRows.filter((h) => h.parcel_id === b.parcel_id).map(toHandover),
       })),
   }));
   const statuses = packageRows.map((p) => p.status);
@@ -323,18 +297,6 @@ export async function getOrder(orderId: string): Promise<AdminOrderDetailDTO | n
     promise: order.delivery_type === "effy" ? order.delivery_promise! : null,
     asapEstimate: order.asap_estimate ?? null,
     courierCollection: order.courier_collection ?? null,
-    deliveryMoves,
-    courierCollectionHistory: collectionHistory.map((h) => ({
-      from: h.from_mode, to: h.to_mode, actorSub: h.actor_sub, note: h.note, at: h.created_at.toISOString(),
-    })),
-    deliveryTypeHistory: typeRows.map((r) => ({
-      from: r.from_type,
-      to: r.to_type,
-      reason: r.reason,
-      actor: r.actor_kind === "staff" && r.actor_sub ? { kind: "staff" as const, sub: r.actor_sub } : { kind: "checkout" as const },
-      note: r.note,
-      at: r.created_at.toISOString(),
-    })),
 
     customerId: order.customer_id,
     customerEmail: order.customer_email,
@@ -342,7 +304,6 @@ export async function getOrder(orderId: string): Promise<AdminOrderDetailDTO | n
 
     items: itemRows.map(toItem),
     packages,
-    history: historyRows.map(toHistory),
 
     itemSubtotalAmount: order.item_subtotal_amount,
     deliveryFeeAmount: order.delivery_fee_amount,

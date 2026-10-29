@@ -22,10 +22,12 @@ import {
   TabsList,
   TabsTrigger,
 } from "@effy/design-system/ui"
+import { ActivityLogDrawer, useActivityAction } from "@effy/web-kit/activity-log"
 import { ErrorState, useHeaderDetail } from "@effy/web-kit/console"
 
 import { Callout, DetailRows, MoreActions, PageHeader, Panel } from "@effy/web-kit/patterns"
 import { sessionQuery } from "@/features/auth/queries"
+import { api } from "@/lib/api"
 import { track } from "@/lib/telemetry"
 
 import { canManagePromotions } from "./access"
@@ -36,7 +38,7 @@ import { PerformancePanel } from "./components/PerformancePanel"
 import { promotionMutationError } from "./errorText"
 import { usesLabel, type Promotion } from "./model"
 import { activeDates, PromotionStateWord } from "./PromotionsListScreen"
-import { promotionHistoryQuery, promotionQuery, useDeletePromotion, usePromotionAction } from "./queries"
+import { PROMO_ROOT, promotionQuery, useDeletePromotion, usePromotionAction } from "./queries"
 
 const timeFmt = new Intl.DateTimeFormat("en-AU", {
   weekday: "short",
@@ -79,6 +81,7 @@ export function PromotionDetailScreen({ promoId }: { promoId: string }) {
   const del = useDeletePromotion()
   const [confirming, setConfirming] = useState<PromotionAction | "delete" | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+  const activity = useActivityAction()
   useHeaderDetail(p?.name ?? null)
 
   if (isError) return <ErrorState error={error} onRetry={() => void refetch()} />
@@ -136,7 +139,10 @@ export function PromotionDetailScreen({ promoId }: { promoId: string }) {
           </>
         }
         actions={
-          canManage ? (
+          // Anyone who reads the promotion reads its activity; the rest is for those who manage it.
+          !canManage ? (
+            <MoreActions actions={[activity]} />
+          ) : (
             <>
               {p.state !== "archived" ? (
                 <Button variant="outline" asChild>
@@ -157,6 +163,7 @@ export function PromotionDetailScreen({ promoId }: { promoId: string }) {
               ) : null}
               <MoreActions
                 actions={[
+                  activity,
                   ...moves.slice(1).map((m) => ({
                     label: m.label,
                     disabled: act.isPending,
@@ -168,8 +175,19 @@ export function PromotionDetailScreen({ promoId }: { promoId: string }) {
                 ]}
               />
             </>
-          ) : null
+          )
         }
+      />
+
+      <ActivityLogDrawer
+        app="back-office"
+        log="bo-promotion"
+        title="Promotion activity"
+        description={`${p.name} — every change to it: its details, status, pictures, customers and codes.`}
+        api={api}
+        path={`/admin/v1/promotions/${p.id}/audit`}
+        queryKey={[...PROMO_ROOT, "detail", p.id]}
+        fileName={`promotion-${p.name}-activity`}
       />
 
       {actionError ? (
@@ -211,7 +229,6 @@ export function PromotionDetailScreen({ promoId }: { promoId: string }) {
                       <TabsCount>{p.singleUseCodeCount}</TabsCount>
                     </TabsTrigger>
                   ) : null}
-                  <TabsTrigger value="history">History</TabsTrigger>
                 </TabsList>
               </div>
             </div>
@@ -258,9 +275,6 @@ export function PromotionDetailScreen({ promoId }: { promoId: string }) {
             </TabsContent>
             <TabsContent value="pictures" className="ef-tabpanel">
               <PicturesSection promotion={p} canManage={canManage} />
-            </TabsContent>
-            <TabsContent value="history" className="ef-tabpanel">
-              <History promoId={promoId} />
             </TabsContent>
           </Tabs>
         </div>
@@ -407,38 +421,5 @@ function Overview({ p }: { p: Promotion }) {
         />
       </Panel>
     </>
-  )
-}
-
-function History({ promoId }: { promoId: string }) {
-  const { data, error, isPending, isError, refetch } = useQuery(promotionHistoryQuery(promoId))
-  return (
-    <Panel title="History" description="Every change to this promotion, newest first." flush>
-      {isError ? (
-        <div className="p-5">
-          <ErrorState error={error} onRetry={() => void refetch()} />
-        </div>
-      ) : isPending ? (
-        <p className="px-5 py-4 text-sm text-muted-foreground">Loading…</p>
-      ) : data.length === 0 ? (
-        <p className="px-5 py-4 text-sm text-muted-foreground">No history yet.</p>
-      ) : (
-        <ul className="divide-y divide-border">
-          {data.map((e) => (
-            <li key={e.id} className="flex flex-wrap items-start justify-between gap-3 px-5 py-3">
-              <div className="min-w-0">
-                <div className="text-sm font-medium">
-                  {e.action.replace(/^promo(tion|_code)\./, "").replace(/_/g, " ")}
-                </div>
-                <div className="mt-0.5 block text-sm text-muted-foreground font-mono">{e.actorSub}</div>
-              </div>
-              <span className="mt-0.5 block text-sm text-muted-foreground whitespace-nowrap">
-                {formatTime(e.createdAt)}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </Panel>
   )
 }

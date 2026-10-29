@@ -118,36 +118,3 @@ export async function recordAudit(input: AuditInput, tx?: pg.PoolClient): Promis
   }
   await query(INSERT, args);
 }
-
-export interface DriverAuditRow {
-  id: string;
-  actorSub: string;
-  action: string;
-  detail: Record<string, unknown>;
-  at: string;
-}
-
-/** Newest first. */
-export async function listDriverAudit(driverId: string, limit = 100): Promise<DriverAuditRow[]> {
-  const res = await query<{
-    id: string;
-    actor_sub: string;
-    action: string;
-    detail: Record<string, unknown>;
-    created_at: Date;
-  }>(
-    `SELECT id, actor_sub, action, detail, created_at
-       FROM admin.audit_log
-      WHERE target_type = 'driver' AND target_id = $1
-      ORDER BY created_at DESC
-      LIMIT $2`,
-    [driverId, limit],
-  );
-  return res.rows.map((r) => ({
-    id: r.id,
-    actorSub: r.actor_sub,
-    action: r.action,
-    detail: r.detail ?? {},
-    at: r.created_at.toISOString(),
-  }));
-}

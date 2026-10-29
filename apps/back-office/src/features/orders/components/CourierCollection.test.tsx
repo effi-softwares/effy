@@ -9,31 +9,13 @@ vi.mock("../repo", async () => ({ ...(await vi.importActual<object>("../repo")),
 
 const { CourierCollection } = await import("./CourierCollection")
 
-const when = (iso: string) => `@${iso.slice(11, 16)}`
-function renderIt(
-  mode: "hub" | "supplier" | null,
-  canChange = true,
-  history: {
-    from: "hub" | "supplier"
-    to: "hub" | "supplier"
-    actorSub: string
-    note: string | null
-    at: string
-  }[] = [],
-) {
+function renderIt(mode: "hub" | "supplier" | null, canChange = true) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
-  return render(
-    <CourierCollection
-      order={{ id: "o1", courierCollection: mode, courierCollectionHistory: history }}
-      canChange={canChange}
-      formatDateTime={when}
-    />,
-    {
-      wrapper: ({ children }: { children: ReactNode }) => (
-        <QueryClientProvider client={qc}>{children}</QueryClientProvider>
-      ),
-    },
-  )
+  return render(<CourierCollection order={{ id: "o1", courierCollection: mode }} canChange={canChange} />, {
+    wrapper: ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={qc}>{children}</QueryClientProvider>
+    ),
+  })
 }
 
 beforeEach(() => vi.clearAllMocks())
@@ -44,21 +26,11 @@ describe("080 US3 — how a courier order's parcels reach the courier", () => {
     expect(screen.queryByTestId("courier-collection")).not.toBeInTheDocument()
   })
 
-  it("says the mode, lists every change, and switches with a note", async () => {
+  it("says the mode and switches with a note (its changes are in the order's activity, 104)", async () => {
     changeCourierCollection.mockResolvedValue({ changed: true })
-    renderIt("supplier", true, [
-      {
-        from: "hub",
-        to: "supplier",
-        actorSub: "sub-m",
-        note: "Courier collects from Shop A",
-        at: "2026-10-09T03:00:00Z",
-      },
-    ])
+    renderIt("supplier", true)
     expect(screen.getByTestId("courier-collection")).toHaveTextContent("Pickup from the supplier")
-    expect(screen.getByRole("list", { name: /changes/ })).toHaveTextContent(
-      "@03:00 · Via the hub → Pickup from the supplier — Courier collects from Shop A",
-    )
+    expect(screen.queryByRole("list", { name: /changes/ })).toBeNull()
     await userEvent.type(screen.getByLabelText("Why (optional)"), "Courier can't reach the supplier")
     await userEvent.click(screen.getByRole("button", { name: "Switch to via the hub" }))
     await waitFor(() =>

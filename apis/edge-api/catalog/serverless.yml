@@ -351,11 +351,22 @@ functions:
 
   productGetV1:
     handler: src/functions/product-get-v1-get.handler
-    description: One product with its sizes, stock, details, aisles and history (102). Read = any active staff incl. csa.
+    description: One product with its sizes, stock, details and aisles (102; history: /activity, 104). Read = any active staff incl. csa.
     events:
       - httpApi:
           method: GET
           path: /catalog/v1/products/{productId}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  productActivityV1:
+    handler: src/functions/product-activity-v1-get.handler
+    description: One product's activity — Effy's decisions and the shop's creation — searched, paged and exported (104). Read = any active staff incl. csa.
+    events:
+      - httpApi:
+          method: GET
+          path: /catalog/v1/products/{productId}/activity
           authorizer:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}

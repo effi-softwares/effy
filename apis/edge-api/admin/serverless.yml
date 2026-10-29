@@ -343,11 +343,22 @@ functions:
 
   deliverabilityDetailV1:
     handler: src/functions/deliverability-detail-v1-get.handler
-    description: One address's delivery history and live suppression state — 037
+    description: One address's delivery state and live suppression state — 037 (its events: /activity, 104)
     events:
       - httpApi:
           method: GET
           path: /admin/v1/deliverability/{address}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  deliverabilityActivityV1:
+    handler: src/functions/deliverability-activity-v1-get.handler
+    description: One address's email events, searched, filtered, paged and exported — the activity drawer (104)
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/deliverability/{address}/activity
           authorizer:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}

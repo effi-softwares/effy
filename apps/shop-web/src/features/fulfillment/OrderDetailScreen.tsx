@@ -6,7 +6,6 @@ import { useQuery } from "@tanstack/react-query"
 import {
   CalendarDays,
   CircleAlert,
-  History,
   Info,
   MessageSquare,
   Package,
@@ -17,15 +16,16 @@ import {
 } from "lucide-react"
 
 import { Alert, AlertTitle, Badge, Button, Card, Skeleton } from "@effy/design-system/ui"
+import { ActivityButton, ActivityLogDrawer } from "@effy/web-kit/activity-log"
 import { ErrorState, PackageStatusPill } from "@effy/web-kit/console"
 import { DetailRows, PageHeader, Panel, Timeline, TimelineItem } from "@effy/web-kit/patterns"
 
 import { sessionQuery } from "@/features/auth/queries"
+import { api } from "@/lib/api"
 import { track } from "@/lib/telemetry"
 
 import { CourierPickup } from "./components/CourierPickup"
 import { ItemsAndFulfilment } from "./components/ItemsAndFulfilment"
-import { OrderActivitySheet } from "./components/OrderActivitySheet"
 import { OrderNoteDialog, OrderTagsDialog } from "./components/OrderNotesAndTags"
 import { PaymentPill } from "./components/OrderPill"
 import { PackBags } from "./components/PackBags"
@@ -48,7 +48,6 @@ import { orderDetailQuery } from "./queries"
 export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) {
   const { data, error, isPending, isError, refetch } = useQuery(orderDetailQuery(fulfillmentId))
   const { data: session } = useQuery(sessionQuery)
-  const [activityOpen, setActivityOpen] = useState(false)
   const [cancelOpen, setCancelOpen] = useState(false)
   const [tagsOpen, setTagsOpen] = useState(false)
   const [noteOpen, setNoteOpen] = useState(false)
@@ -127,10 +126,7 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
         }
         actions={
           <>
-            <Button variant="outline" onClick={() => setActivityOpen(true)}>
-              <History aria-hidden="true" />
-              Activity
-            </Button>
+            <ActivityButton />
             <Button variant="outline" onClick={() => printPickList(detail)}>
               <Printer aria-hidden="true" />
               Print pick list
@@ -324,7 +320,16 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
         </div>
       ) : null}
 
-      <OrderActivitySheet fulfillmentId={detail.id} open={activityOpen} onOpenChange={setActivityOpen} />
+      <ActivityLogDrawer
+        app="shop-web"
+        log="shop-order"
+        title="Order activity"
+        description={`${detail.orderNumber} — everything that has happened on this order.`}
+        api={api}
+        path={`/shop/v1/orders/${detail.id}/activity`}
+        queryKey={["shop", "fulfillment", "orders", "detail", detail.id]}
+        fileName={`order-${detail.orderNumber}-activity`}
+      />
       <CantSupplyDialog targets={[detail]} open={cancelOpen} onOpenChange={setCancelOpen} />
       <OrderTagsDialog fulfillmentId={detail.id} tags={detail.tags} open={tagsOpen} onOpenChange={setTagsOpen} />
       <OrderNoteDialog fulfillmentId={detail.id} open={noteOpen} onOpenChange={setNoteOpen} />

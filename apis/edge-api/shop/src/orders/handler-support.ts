@@ -1,13 +1,12 @@
 // The gate and error mapping are the fulfilment slice's: same audience, same rules.
 
 import type {
-  ShopOrderActivityDTO,
   ShopOrderDetailDTO,
   ShopOrderListDTO,
   ShopOrderRowDTO,
 } from "@effy/shared-types";
 
-import type { ActivityEntry, OrderDetail, OrderList, OrderRow } from "./types";
+import type { OrderDetail, OrderList, OrderRow } from "./types";
 
 export { gate, mapFulfillmentError as mapOrderError } from "../fulfillments/handler-support";
 
@@ -81,6 +80,3 @@ export function toOrderDTO(d: OrderDetail): ShopOrderDetailDTO {
   };
 }
 
-export function toActivityDTO(entries: ActivityEntry[]): ShopOrderActivityDTO {
-  return { entries: entries.map((e) => ({ ...e, at: e.at.toISOString() })) };
-}

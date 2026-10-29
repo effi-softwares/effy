@@ -17,17 +17,6 @@ export const shopsList = defineListSearch({
 /** Key root for the register's list and counts (shops change rarely; no live kind). */
 export const SHOPS_LIST_KEY = ["back-office", "shops"] as const
 
-/** A shop's history on its page: newest first, by cursor; prefixed so it never reads another list's params. */
-export const shopHistoryList = defineListSearch({
-  id: "shop-history",
-  mode: "keyset",
-  sorts: ["at"] as const,
-  defaultSort: "at",
-  sortDir: { at: "desc" },
-  filters: {},
-  prefix: "hist",
-})
-
 /** A shop's restock list on its page (103): least stock first; prefixed beside the shop's history. Mirrors `LOW_STOCK_LIST_SPEC`. */
 export const shopStockList = defineListSearch({
   id: "shop-stock",

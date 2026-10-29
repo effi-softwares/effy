@@ -32,6 +32,16 @@ export type RefundReason =
   /** Pairs with the `external` kind: money moved and nothing else is known. */
   | "external"
 
+/** A refund's reason in words (the activity logs, 104). `courier_override` is the back-office move's compensation (081). */
+export const REFUND_REASON_WORDS: Readonly<Record<RefundReason | "courier_override", string>> = {
+  item_not_supplied: "Item not supplied",
+  item_unusable: "Item damaged, spoiled or incorrect",
+  order_cancelled: "Order cancelled",
+  goodwill: "Goodwill",
+  external: "Refunded outside Effy",
+  courier_override: "Moved to courier delivery",
+}
+
 /** Five states, each a different answer to "did the money go?": `submitting`/`submitted` says whether a retry is safe, `failed`/`refused` whether retrying could help. */
 export type RefundStatus =
   /** No answer from the provider yet; does not count toward what has been refunded. */

@@ -80,12 +80,3 @@ export async function updateSettings(tx: Queryable, patch: PointsSettingsPatch, 
   return loadSettings(tx);
 }
 
-/** The recorded changes, newest first. */
-export async function settingsHistory(q: Queryable, limit = 50) {
-  return (
-    await q.query<{ field: string; old_value: string; new_value: string; changed_by: string; changed_at: Date }>(
-      `SELECT field, old_value, new_value, changed_by, changed_at FROM public.points_settings_change ORDER BY changed_at DESC, id DESC LIMIT $1`,
-      [limit],
-    )
-  ).rows.map((r) => ({ field: r.field, oldValue: r.old_value, newValue: r.new_value, changedBy: r.changed_by, changedAt: r.changed_at }));
-}

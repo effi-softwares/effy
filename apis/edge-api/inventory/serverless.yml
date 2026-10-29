@@ -87,6 +87,17 @@ functions:
 
   # Shop routes: shopId is resolved from the shop_staff record, never read from the client.
 
+  stockActivityV1:
+    handler: src/functions/stock-activity-v1-get.handler
+    description: A product's stock activity — every size's movements, searched, filtered, paged and exported (104).
+    events:
+      - httpApi:
+          method: GET
+          path: /inventory/v1/products/{productId}/stock/activity
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
   stockGetV1:
     handler: src/functions/stock-v1-get.handler
     description: Read a product's stock, its effective threshold and its recent movements (054 US1, FR-009).

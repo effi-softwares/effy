@@ -33,9 +33,9 @@ describe("079 — the order's delivery type", () => {
     expect(sources.length).toBeGreaterThan(300);
   });
 
-  it("the history table is named by its one writer and its one reader", () => {
+  it("the history table is named by its one writer and its one reader (the order's activity, 104)", () => {
     expect(naming("order_delivery_type_change")).toEqual([
-      "orders/src/orders/repository.ts",
+      "orders/src/activity/order.ts",
       "shared/src/delivery/delivery-type.ts",
     ]);
   });

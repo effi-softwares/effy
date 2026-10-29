@@ -21,6 +21,7 @@ import { useHeaderRecord } from "@/components/console/headerRecord"
 import { requireSession } from "@/features/auth/guards"
 import { sessionQuery, useSignOut } from "@/features/auth/queries"
 import { TodayScreen } from "@/features/today/TodayScreen"
+import { withActivityLog } from "@effy/web-kit/activity-log"
 import { useNavBadges } from "@/features/today/useNavBadges"
 import { ManagerOnlyScreen } from "@/features/shop-identity/ManagerOnlyScreen"
 import { meQuery } from "@/features/shop-identity/queries"
@@ -42,6 +43,8 @@ export const appRoute = createRoute({
 export const appIndexRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/",
+  // Team activity (104).
+  validateSearch: (raw: Record<string, unknown>) => withActivityLog(raw),
   component: TodayScreen,
 })
 

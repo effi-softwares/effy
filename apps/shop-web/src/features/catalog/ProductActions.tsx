@@ -1,8 +1,9 @@
 import { useState } from "react"
 
+import { useActivityAction } from "@effy/web-kit/activity-log"
 import { MoreActions } from "@effy/web-kit/patterns"
 import type { ProductStatus } from "@effy/shared-types"
-import { History, Trash2 } from "lucide-react"
+import { Trash2 } from "lucide-react"
 
 import { Button } from "@effy/design-system/ui"
 
@@ -23,14 +24,13 @@ import { useQuery } from "@tanstack/react-query"
 export function ProductHeaderActions({
   detail,
   stockVariantId,
-  onOpenActivity,
   onDeleted,
 }: {
   detail: ProductDetail
   stockVariantId: string
-  onOpenActivity: () => void
   onDeleted: () => void
 }) {
+  const activity = useActivityAction()
   const changeStatus = useChangeStatus(detail.id)
   const [receiveVariantId, setReceiveVariantId] = useState(stockVariantId)
   const stock = useQuery(variantStockQuery(receiveVariantId))
@@ -111,7 +111,7 @@ export function ProductHeaderActions({
 
       <MoreActions
         actions={[
-          { label: "Activity", icon: History, onSelect: onOpenActivity },
+          { ...activity, label: "Stock activity" },
           removal ? { label: removal.label, icon: Trash2, destructive: true, onSelect: () => setRemoving(true) } : null,
         ]}
       />

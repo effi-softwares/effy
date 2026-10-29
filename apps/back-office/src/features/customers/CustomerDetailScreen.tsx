@@ -2,32 +2,23 @@ import { useState } from "react"
 
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
-import { CircleMinus, CirclePlus, Coins, History, Mail, ShoppingBag } from "lucide-react"
+import { CircleMinus, CirclePlus, Coins, Mail, ShoppingBag } from "lucide-react"
 
-import {
-  Avatar,
-  AvatarFallback,
-  Button,
-  Skeleton,
-  Tabs,
-  TabsContent,
-  TabsCount,
-  TabsList,
-  TabsTrigger,
-} from "@effy/design-system/ui"
+import { Avatar, AvatarFallback, Button, Skeleton } from "@effy/design-system/ui"
+import { ActivityLogDrawer, useActivityAction } from "@effy/web-kit/activity-log"
 import { ErrorState, useHeaderDetail } from "@effy/web-kit/console"
 
-import { PageHeader, Panel } from "@effy/web-kit/patterns"
+import { MoreActions, PageHeader, Panel } from "@effy/web-kit/patterns"
 import { initialsOf } from "@/components/shell/identity"
 import { sessionQuery } from "@/features/auth/queries"
+import { api } from "@/lib/api"
 import { money } from "@/lib/format"
 
 import { canDebitPoints, creditIsLimited } from "./access"
 import { CreditPointsSheet } from "./components/CreditPointsSheet"
 import { DebitPointsSheet } from "./components/DebitPointsSheet"
-import { PointsHistoryTable } from "./components/PointsHistoryTable"
 import { formatDay, formatPoints } from "./components/points-format"
-import { customerDetailQuery, pointsSettingsQuery } from "./queries"
+import { customerDetailQuery, customersKeys, pointsSettingsQuery } from "./queries"
 
 export function CustomerDetailScreen({ customerId }: { customerId: string }) {
   const { data: session } = useQuery(sessionQuery)
@@ -36,6 +27,7 @@ export function CustomerDetailScreen({ customerId }: { customerId: string }) {
   const settings = useQuery(pointsSettingsQuery)
   const [crediting, setCrediting] = useState(false)
   const [debiting, setDebiting] = useState(false)
+  const activity = useActivityAction()
   useHeaderDetail(detail.data ? detail.data.name || detail.data.email : null)
 
   if (detail.isError) return <ErrorState error={detail.error} onRetry={() => void detail.refetch()} />
@@ -72,16 +64,24 @@ export function CustomerDetailScreen({ customerId }: { customerId: string }) {
         }
         actions={
           <>
-            {mayDebit ? (
-              <Button variant="outline" onClick={() => setDebiting(true)} disabled={c.points.usable === 0}>
-                <CircleMinus aria-hidden="true" />
-                Remove points
-              </Button>
-            ) : null}
             <Button onClick={() => setCrediting(true)}>
               <CirclePlus aria-hidden="true" />
               Credit points
             </Button>
+            <MoreActions
+              actions={[
+                { ...activity, label: "Points activity" },
+                mayDebit
+                  ? {
+                      label: "Remove points…",
+                      icon: CircleMinus,
+                      onSelect: () => setDebiting(true),
+                      disabled: c.points.usable === 0,
+                      hint: "Nothing to remove",
+                    }
+                  : null,
+              ]}
+            />
           </>
         }
       />
@@ -116,50 +116,27 @@ export function CustomerDetailScreen({ customerId }: { customerId: string }) {
             </dl>
           </Panel>
 
-          <Tabs defaultValue="history">
-            <div className="ef-tabsbar">
-              <div className="ef-tabsbar__list">
-                <TabsList aria-label="Customer sections">
-                  <TabsTrigger value="history">
-                    <History aria-hidden="true" />
-                    History
-                  </TabsTrigger>
-                  <TabsTrigger value="orders">
-                    <ShoppingBag aria-hidden="true" />
-                    Recent orders
-                    <TabsCount>{c.recentOrders.length}</TabsCount>
-                  </TabsTrigger>
-                </TabsList>
-              </div>
-            </div>
-            <TabsContent value="history" className="ef-tabpanel">
-              <Panel
-                title="History"
-                icon={<History aria-hidden="true" />}
-                description="Newest first. Nothing is edited or deleted — a correction is a new line."
-              >
-                <PointsHistoryTable customerId={c.id} />
-              </Panel>
-            </TabsContent>
-            <TabsContent value="orders" className="ef-tabpanel">
-              <Panel title="Recent orders" icon={<ShoppingBag aria-hidden="true" />} flush>
-                {c.recentOrders.length === 0 ? (
-                  <p className="px-5 py-4 text-sm text-muted-foreground">No orders yet.</p>
-                ) : (
-                  <ul className="divide-y divide-border">
-                    {c.recentOrders.map((o) => (
-                      <li key={o.id} className="flex items-center justify-between gap-3 px-5 py-3">
-                        <Link to="/orders/$orderId" params={{ orderId: o.id }} className="link font-mono">
-                          {o.orderNumber}
-                        </Link>
-                        <span className="text-sm tabular-nums">{money(o.total)}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </Panel>
-            </TabsContent>
-          </Tabs>
+          <Panel
+            title="Recent orders"
+            icon={<ShoppingBag aria-hidden="true" />}
+            description="Every change to the points balance is under Points activity."
+            flush
+          >
+            {c.recentOrders.length === 0 ? (
+              <p className="px-5 py-4 text-sm text-muted-foreground">No orders yet.</p>
+            ) : (
+              <ul className="divide-y divide-border">
+                {c.recentOrders.map((o) => (
+                  <li key={o.id} className="flex items-center justify-between gap-3 px-5 py-3">
+                    <Link to="/orders/$orderId" params={{ orderId: o.id }} className="link font-mono">
+                      {o.orderNumber}
+                    </Link>
+                    <span className="text-sm tabular-nums">{money(o.total)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Panel>
         </div>
 
         <aside className="ef-detail__aside is-first">
@@ -216,6 +193,16 @@ export function CustomerDetailScreen({ customerId }: { customerId: string }) {
           centsPerPoint={centsPerPoint}
         />
       ) : null}
+      <ActivityLogDrawer
+        app="back-office"
+        log="bo-points"
+        title="Points activity"
+        description={`${c.name || c.email} — every change to the balance. Nothing is edited or deleted; a correction is a new line.`}
+        api={api}
+        path={`/orders/v1/customers/${c.id}/points/history`}
+        queryKey={customersKeys.detail(c.id)}
+        fileName={`points-${c.email}-activity`}
+      />
     </>
   )
 }

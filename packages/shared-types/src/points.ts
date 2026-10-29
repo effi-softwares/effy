@@ -80,24 +80,6 @@ export interface CustomerPointsDTO extends PointsBalanceDTO {
 
 // Back-office
 
-/** One history line as staff see it: the customer's line plus the facts behind it. */
-export interface StaffPointsHistoryEntryDTO extends PointsHistoryEntryDTO {
-  reason: string
-  /** Internal, staff only. */
-  note: string | null
-  authorKind: "staff" | "system" | "customer"
-  /** A staff member's name, "Customer", or the platform flow's name. */
-  authorName: string
-  orderId: string | null
-  refundId: string | null
-}
-
-/** The staff history page, concrete rather than generic so the Kotlin generators can read it. */
-export interface StaffPointsHistoryPageDTO {
-  entries: StaffPointsHistoryEntryDTO[]
-  nextCursor?: string
-}
-
 /** A row of back-office › Customers, a console list (103). */
 export interface CustomerListItemDTO {
   id: string
@@ -157,8 +139,6 @@ export interface PointsSettingsDTO {
   csaCreditLimitPoints: WireInt
   warningDays: WireInt
   holdMinutes: WireInt
-  /** GET only: the recorded changes, newest first. */
-  history?: { field: string; oldValue: string; newValue: string; changedBy: string; changedAt: string }[]
 }
 
 // Orders

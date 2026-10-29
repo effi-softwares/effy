@@ -1,7 +1,6 @@
 import type {
   ListPage,
   ListViews,
-  AuditEntryDTO,
   ChangeShopStatusRequest,
   CreateShopRequest,
   CreateShopUserRequest,
@@ -14,7 +13,7 @@ import type {
 
 import { api } from "@/lib/api"
 
-import type { AuditEntry, Paged, ShopDetail, ShopListItem, ShopListParams, ShopUser } from "./model"
+import type { Paged, ShopDetail, ShopListItem, ShopListParams, ShopUser } from "./model"
 import type { ShopView } from "./list"
 
 function encodeListQuery({ page, pageSize, status, q }: ShopListParams): string {
@@ -49,10 +48,6 @@ export async function getShop(id: string): Promise<ShopDetail> {
 }
 
 /** One page of a shop's history, newest first (103, keyset). */
-export function fetchShopHistoryPage(id: string, qs: URLSearchParams, signal: AbortSignal): Promise<ListPage<AuditEntry>> {
-  return api.get<ListPage<AuditEntryDTO>>(`/admin/v1/shops/${id}/audit?${qs}`, { signal })
-}
-
 export async function createShop(body: CreateShopRequest): Promise<ShopDetail> {
   return api.post<ShopDetailDTO>("/admin/v1/shops", body)
 }

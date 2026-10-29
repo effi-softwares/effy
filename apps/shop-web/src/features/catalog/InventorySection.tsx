@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@effy/design-system/ui"
+import { useActivityLog } from "@effy/web-kit/activity-log"
 import { ErrorState } from "@effy/web-kit/console"
 
 import { DetailSection, SectionAction } from "@/components/console/primitives"
@@ -20,7 +21,6 @@ import { DetailSection, SectionAction } from "@/components/console/primitives"
 import type { ProductDetail } from "./model"
 import { AdjustStockDialog } from "./StockDialogs"
 import { InventoryRulesDialog } from "./InventoryRulesDialog"
-import { StockHistory } from "./StockHistory"
 import { StockTable } from "./StockTable"
 import { variantStockQuery } from "./stockQueries"
 import { sizeLabelOf } from "@effy/web-kit/product-form"
@@ -39,6 +39,8 @@ export function InventorySection({
   const [adjustOpen, setAdjustOpen] = useState(false)
   const size = sizeLabelOf(detail, variantId)
   const stock = data && data.stock.variantId === variantId ? data.stock : null
+  // A size's changes are the product's stock activity (104), opened at that size.
+  const activity = useActivityLog()
 
   return (
     <>
@@ -48,15 +50,21 @@ export function InventorySection({
           onVariantChange(id)
           setRulesOpen(true)
         }}
-        onHistory={onVariantChange}
+        onHistory={(id) => {
+          onVariantChange(id)
+          activity.show({ sub: id })
+        }}
       />
 
       <DetailSection
-        title={size ? `Stock movements — ${size}` : "Stock movements"}
-        subtitle="Every change to the count, with who made it and why."
+        title={size ? `Stock — ${size}` : "Stock"}
+        subtitle="Every change to the count, with who made it and why, is in Stock activity."
         action={
           <div className="flex flex-wrap items-center gap-3">
             <SizePicker detail={detail} variantId={variantId} onChange={onVariantChange} id="history-size" />
+            <SectionAction onClick={() => activity.show({ sub: variantId })} disabled={!stock?.tracked}>
+              Stock activity
+            </SectionAction>
             <SectionAction onClick={() => setAdjustOpen(true)} disabled={!stock?.tracked}>
               Adjust stock
             </SectionAction>
@@ -78,7 +86,10 @@ export function InventorySection({
             <Skeleton className="h-5 w-1/3" />
           </div>
         ) : stock.tracked ? (
-          <StockHistory variantId={variantId} />
+          <p className="text-muted-foreground">
+            {stock.onHand === null ? "Counted." : `${stock.onHand} on hand.`} Adjust it here, or receive stock from the
+            page's actions.
+          </p>
         ) : (
           <p className="text-muted-foreground">
             This size is not counted, so nothing is recorded. Enter a number for it in the table above to start keeping

@@ -1,4 +1,4 @@
-import { keepPreviousData, queryOptions, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { keepPreviousData, queryOptions, useMutation, useQueryClient } from "@tanstack/react-query"
 
 import type { PointsCreditRequest, PointsDebitRequest, PointsSettingsDTO } from "@effy/shared-types"
 
@@ -6,17 +6,15 @@ import {
   creditPoints,
   debitPoints,
   getCustomer,
-  getPointsHistory,
   getPointsSettings,
   searchCustomers,
   updatePointsSettings,
 } from "./repo"
 
-const customersKeys = {
+export const customersKeys = {
   all: ["customers"] as const,
   search: (q: string) => ["customers", "search", q] as const,
   detail: (id: string) => ["customers", "detail", id] as const,
-  history: (id: string) => ["customers", "history", id] as const,
   settings: ["customers", "points-settings"] as const,
 }
 
@@ -32,15 +30,6 @@ export const customerDetailQuery = (id: string) =>
   queryOptions({ queryKey: customersKeys.detail(id), queryFn: () => getCustomer(id) })
 
 export const pointsSettingsQuery = queryOptions({ queryKey: customersKeys.settings, queryFn: getPointsSettings })
-
-export function usePointsHistory(id: string) {
-  return useInfiniteQuery({
-    queryKey: customersKeys.history(id),
-    queryFn: ({ pageParam }) => getPointsHistory(id, pageParam),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (last) => last.nextCursor,
-  })
-}
 
 export function useCreditPoints(customerId: string) {
   const qc = useQueryClient()

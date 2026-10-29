@@ -2,10 +2,10 @@ import type { APIGatewayProxyStructuredResultV2 } from "aws-lambda";
 
 import type { AuthedEvent, RequestScope } from "@effy/edge-shared";
 import { forbidden, problem, ProblemType, subject, unavailable } from "@effy/edge-shared";
-import type { AuditEntryDTO, OrderPolicyDTO } from "@effy/shared-types";
+import type { OrderPolicyDTO } from "@effy/shared-types";
 
 import { canManagePromotions, isActiveStaff } from "./authz";
-import { type AuditEntry, type OrderPolicy, isPromoError } from "./types";
+import { type OrderPolicy, isPromoError } from "./types";
 
 /** 401, 403 from the staff record, 503 on infra error. `read`: any staff; `mutate`: admin/manager. */
 export async function guard(
@@ -57,14 +57,3 @@ export function toOrderPolicyDTO(p: OrderPolicy): OrderPolicyDTO {
   };
 }
 
-export function toAuditDTO(a: AuditEntry): AuditEntryDTO {
-  return {
-    id: a.id,
-    actorSub: a.actorSub,
-    action: a.action,
-    targetType: a.targetType,
-    targetId: a.targetId,
-    detail: a.detail,
-    createdAt: a.createdAt,
-  };
-}

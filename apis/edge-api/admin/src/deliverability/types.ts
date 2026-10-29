@@ -67,15 +67,6 @@ export interface DeliveryListItemDTO {
   subject: DeliverySubject | null;
 }
 
-export interface DeliveryEventDTO {
-  eventType: DeliveryEventType;
-  subType: string | null;
-  messageId: string;
-  /** Null means sent by Cognito. */
-  templateId: string | null;
-  occurredAt: string;
-}
-
 export interface DeliveryDetailDTO extends DeliveryListItemDTO {
   /** Operator-only: not in the list response or the customer's account read. */
   diagnostic: string | null;
@@ -83,7 +74,6 @@ export interface DeliveryDetailDTO extends DeliveryListItemDTO {
   repairedBy: string | null;
   /** Read live, never stored. `null` means "could not check" and must never default to false. */
   suppressedInSes: boolean | null;
-  events: DeliveryEventDTO[];
 }
 
 /** A console list page (103). */

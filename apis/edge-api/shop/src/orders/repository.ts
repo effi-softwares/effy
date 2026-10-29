@@ -620,11 +620,11 @@ export interface ActivityRecord {
 }
 
 /**
- * Newest first: a union of the portion's events and `package_arrival`, de-duplicated. Nothing records
- * the journey, so the log goes from "ready for pickup" to "arrived".
+ * The portion's activity (104): a union of its events, its order's refunds and `package_arrival`, de-duplicated.
+ * Nothing records the journey, so the log goes from "ready for pickup" to "arrived". `$1` is the portion, `$2`
+ * the shop; the activity helper pages, searches and orders it (`activity/sources.ts`).
  */
-const READ_ACTIVITY = `
-SELECT * FROM (
+export const readActivitySql = `
   SELECT 'event'::text AS source, fe.id::text AS id, fe.occurred_at AS at,
          fe.event_type, fe.from_status, fe.to_status, fe.quantity, fe.detail,
          oi.product_name AS item_name, oi.quantity AS item_ordered,
@@ -635,7 +635,8 @@ SELECT * FROM (
     LEFT JOIN public.order_item oi ON oi.id = fe.order_item_id
     LEFT JOIN public.shop_staff ss ON ss.id = fe.actor_staff_id
    WHERE sf.id = $1 AND sf.shop_id = $2
-     AND NOT (fe.to_status LIKE 'delivered%'
+     -- COALESCE: an item, note or tag event has no status, and NOT (NULL AND …) would drop it from the log.
+     AND NOT (COALESCE(fe.to_status, '') LIKE 'delivered%'
               AND EXISTS (SELECT 1 FROM public.package_arrival pa WHERE pa.shop_fulfillment_id = sf.id))
 
   UNION ALL
@@ -657,23 +658,7 @@ SELECT * FROM (
     FROM public.package_arrival pa
     JOIN public.shop_fulfillment sf ON sf.id = pa.shop_fulfillment_id
    WHERE sf.id = $1 AND sf.shop_id = $2
-) log
-ORDER BY at DESC, id DESC
 `;
-
-/** `null` when the portion is not this shop's. */
-export async function readActivity(
-  fulfillmentId: string,
-  shopId: string,
-): Promise<ActivityRecord[] | null> {
-  const owned = await query<{ id: string }>(
-    `SELECT id FROM public.shop_fulfillment WHERE id = $1 AND shop_id = $2`,
-    [fulfillmentId, shopId],
-  );
-  if (!owned.rows[0]) return null;
-  const res = await query<ActivityRecord>(READ_ACTIVITY, [fulfillmentId, shopId]);
-  return res.rows;
-}
 
 /**
  * Replaces the tag set and logs it in one transaction. A no-op writes nothing. Returns whether anything

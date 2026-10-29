@@ -186,27 +186,6 @@ export async function readExtra(productId: string, tx: Runner = null): Promise<P
   return res.rows[0] ?? null;
 }
 
-export interface HistoryRow {
-  action: string;
-  detail: Record<string, unknown>;
-  created_at: Date;
-  actor_name: string | null;
-}
-
-/** Staff decisions on the product, newest first. The shop's own edits are not audited here. */
-export async function readHistory(productId: string): Promise<HistoryRow[]> {
-  const res = await query<HistoryRow>(
-    `SELECT a.action, a.detail, a.created_at, COALESCE(st.name, st.email) AS actor_name
-       FROM admin.audit_log a
-       LEFT JOIN admin.staff st ON st.cognito_sub = a.actor_sub
-      WHERE a.target_type = 'product' AND a.target_id = $1
-      ORDER BY a.created_at DESC
-      LIMIT 200`,
-    [productId],
-  );
-  return res.rows;
-}
-
 export interface VariantStockRow {
   id: string;
   stock_tracked: boolean;

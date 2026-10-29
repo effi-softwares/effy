@@ -3,7 +3,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 const repo = vi.hoisted(() => ({
   listOrders: vi.fn(),
   readOrder: vi.fn(),
-  readActivity: vi.fn(),
   replaceTags: vi.fn(),
   addNote: vi.fn(),
   applyPicks: vi.fn(),
@@ -14,7 +13,7 @@ const fulfillmentsRepo = vi.hoisted(() => ({ acknowledge: vi.fn(), readStatus: v
 vi.mock("../fulfillments/repository", () => fulfillmentsRepo);
 
 import type { ActivityRecord } from "./repository";
-import { addNote, getActivity, getOrder, parseOrderListQuery, setPicks, setTags, toEntry } from "./service";
+import { addNote, getOrder, parseOrderListQuery, setPicks, setTags, toEntry } from "./service";
 
 const ACTOR = { sub: "sub-1", shopId: "shop-1", staffId: "staff-1" };
 
@@ -154,13 +153,6 @@ describe("notes", () => {
     repo.readOrder.mockResolvedValue({ id: "f-1" });
     await addNote(ACTOR, "f-1", { body: "  Leave at the side gate  " });
     expect(repo.addNote).toHaveBeenCalledWith("f-1", "shop-1", "Leave at the side gate", "staff-1");
-  });
-});
-
-describe("activity", () => {
-  it("answers another shop's order as not-found", async () => {
-    repo.readActivity.mockResolvedValue(null);
-    await expect(getActivity(ACTOR, "f-x")).rejects.toMatchObject({ kind: "not_found" });
   });
 });
 

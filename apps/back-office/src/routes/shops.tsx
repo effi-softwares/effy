@@ -1,7 +1,9 @@
 import { createRoute } from "@tanstack/react-router"
 
+import { withActivityLog } from "@effy/web-kit/activity-log"
+
 import { ShopDetailScreen } from "@/features/shops/ShopDetailScreen"
-import { shopHistoryList, shopsList, shopStockList } from "@/features/shops/list"
+import { shopsList, shopStockList } from "@/features/shops/list"
 import { ShopsListScreen } from "@/features/shops/ShopsListScreen"
 
 import { appRoute } from "./app"
@@ -17,7 +19,7 @@ export const shopDetailRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "shops/$shopId",
   validateSearch: (raw: Record<string, unknown>) => ({
-    ...shopHistoryList.validateSearch(raw),
+    ...withActivityLog(raw),
     ...shopStockList.validateSearch(raw),
   }),
   component: ShopDetailRouteComponent,

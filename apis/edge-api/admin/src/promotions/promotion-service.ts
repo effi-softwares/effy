@@ -8,7 +8,6 @@ import type {
   AdminPromotionDTO,
   AdminPromotionListDTO,
   AdminPromotionListItemDTO,
-  AuditEntryDTO,
 } from "@effy/shared-types";
 
 import { PROMOTION_LIST_SPEC } from "./list";
@@ -362,11 +361,6 @@ export async function deletePromotion(id: string, actor: string): Promise<void> 
   if (!UUID.test(id)) throw new PromoError(404, "not_found", "promotion not found");
   await repo.deletePromotion(id, actor);
   await changed();
-}
-
-export async function promotionAudit(id: string): Promise<AuditEntryDTO[]> {
-  if (!UUID.test(id)) throw new PromoError(404, "not_found", "promotion not found");
-  return repo.promotionAudit(id, 100);
 }
 
 export async function searchProducts(q: unknown): Promise<{ id: string; name: string; brand: string | null }[]> {

@@ -9,11 +9,12 @@ vi.mock("@effy/edge-shared", async () => {
   return { ...actual, query: (text: string, params?: unknown[]) => holder.pool!.query(text, params as never[]) };
 });
 
-import { migrationSql } from "@effy/edge-shared/testing";
+import { activityEntries, migrationSql } from "@effy/edge-shared/testing";
 
 import { createFirstParcels } from "@effy/edge-shared/labels";
 
-import { handovers, parcels } from "./repository";
+import { orderActivitySource } from "../activity/order";
+import { parcels } from "./repository";
 
 /** Each package's hand-overs, oldest first, with the driver. */
 const RUN = process.env.CONTAINER_TESTS === "1";
@@ -62,13 +63,14 @@ d("091 — hand-overs on the order", () => {
       `INSERT INTO public.package_handover (shop_fulfillment_id, parcel_id, actor_kind, shop_staff_id, step, handover_method, change_id, recorded_at)
        VALUES ($1, $2, 'shop_staff', $3, 'pack', 'scan', gen_random_uuid(), '2026-10-16T00:30:00Z')`, [a.id, bag.id, staff.id]);
 
-    const rows = await handovers([a.id, b.id]);
-    expect(rows.map((r) => [r.package_id, r.step, r.method, r.driver_name, r.actor_kind, r.parcel_code])).toEqual([
-      [a.id, "pack", "scan", null, "shop_staff", bag.parcel_code],
-      [a.id, "collect", "scan", "Ada", "driver", bag.parcel_code],
-      [a.id, "deliver", "manual", "Ada", "driver", bag.parcel_code],
+    // In the order's activity (104), oldest first: each bag's step, how, and who — a shop's pack named by its staff.
+    const rows = (await activityEntries(pool, orderActivitySource(order.id))).filter((e) => e.kind === "handover").reverse();
+    expect(rows.map((r) => [r.title, r.detail, r.actor, r.subject])).toEqual([
+      ["Packed at the shop", "scanned", "Sam", `Shop · bag ${bag.parcel_code}`],
+      ["Collected", "scanned", "Ada", `Shop · bag ${bag.parcel_code}`],
+      ["Delivered", "by hand", "Ada", `Shop · bag ${bag.parcel_code}`],
     ]);
-    expect(rows.some((r) => r.package_id === b.id)).toBe(false);
+    expect(rows.some((r) => r.subject?.startsWith("Shop 2"))).toBe(false);
 
     // One bag each; the latest step decides custody.
     const bags = await parcels([a.id, b.id]);

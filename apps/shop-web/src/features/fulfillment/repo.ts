@@ -2,7 +2,6 @@ import type {
   LabelReadDTO,
   ShopRefundRequest,
   FulfillmentDetailDTO,
-  ShopOrderActivityDTO,
   ShopOrderDetailDTO,
   ShopOrderListDTO,
   ShopOrderListQuery,
@@ -36,10 +35,6 @@ export async function listOrders(q: ShopOrderListQuery): Promise<ShopOrderListDT
 
 export async function getOrder(id: string): Promise<ShopOrderDetailDTO> {
   return api.get<ShopOrderDetailDTO>(`/shop/v1/orders/${id}`)
-}
-
-export async function getOrderActivity(id: string): Promise<ShopOrderActivityDTO> {
-  return api.get<ShopOrderActivityDTO>(`/shop/v1/orders/${id}/activity`)
 }
 
 export async function setOrderTags(id: string, tags: string[]): Promise<ShopOrderDetailDTO> {

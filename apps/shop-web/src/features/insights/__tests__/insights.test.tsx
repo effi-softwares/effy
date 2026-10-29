@@ -7,13 +7,14 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children, to }: { children: ReactNode; to?: string }) => <a href={to ?? "#"}>{children}</a>,
   useNavigate: () => () => {},
+  useSearch: () => ({}),
 }))
 
 const getInsights = vi.hoisted(() => vi.fn())
 vi.mock("../repo", () => ({ getInsights }))
 
 const getToday = vi.hoisted(() => vi.fn())
-vi.mock("@/features/today/repo", () => ({ getToday, getTeamActivity: vi.fn() }))
+vi.mock("@/features/today/repo", () => ({ getToday }))
 
 import type { InsightsRange, ShopInsightsDTO, ShopTodayDTO } from "@effy/shared-types"
 

@@ -13,7 +13,7 @@ vi.mock("@effy/edge-shared", async (importOriginal) => ({
   presignRead: async (key: string) => `https://signed.example/${key}`,
 }));
 
-import { __test, actorLabel, addNote, listOrders, readActivity, replaceTags } from "./repository";
+import { __test, actorLabel, addNote, listOrders, replaceTags } from "./repository";
 import { parseOrderListQuery } from "./service";
 
 const sql = (call: unknown[] | undefined): string => String(call?.[0] ?? "").replace(/\s+/g, " ");
@@ -34,12 +34,6 @@ describe("shop scoping — every read is bound to the caller-resolved shop", () 
     }
   });
 
-  it("refuses the activity of a portion that is not this shop's without reading it", async () => {
-    query.mockResolvedValueOnce({ rows: [] });
-    expect(await readActivity("f-x", "shop-1")).toBeNull();
-    expect(query).toHaveBeenCalledTimes(1);
-    expect(sql(query.mock.calls[0])).toContain("shop_id = $2");
-  });
 });
 
 describe("the sort column is never the client's string", () => {

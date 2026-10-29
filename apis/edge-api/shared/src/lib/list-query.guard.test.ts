@@ -26,7 +26,6 @@ const LIST_ROUTES = [
   "/admin/v1/promotions/{id}/codes",
   "/admin/v1/promotions/{id}/customers",
   "/admin/v1/shops",
-  "/admin/v1/shops/{shopId}/audit",
   "/inventory/v1/admin/shops/{shopId}/low-stock",
   "/inventory/v1/low-stock",
   "/inventory/v1/variants/{variantId}/stock",
@@ -55,7 +54,6 @@ export const PENDING_ORDER_BY: Readonly<Record<string, string>> = {
 /** Fixed caps of 200+ rows that are NOT console lists (research R14), and the console caps still to remove. */
 export const ALLOWED_LIMITS: Readonly<Record<string, string>> = {
   "driver/src/work/delivery.ts": "driver app work, not a console list (R14)",
-  "catalog/src/products/repository.ts": "a product's staff history on its own page, bounded by the product",
 };
 
 function sourceFiles(dir: string): string[] {

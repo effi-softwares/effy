@@ -27,7 +27,7 @@ import {
   saveConsignment,
 } from "./repo"
 
-const ordersKeys = {
+export const ordersKeys = {
   all: ["orders"] as const,
   list: (params: OrderListParams) => ["orders", "list", params] as const,
   detail: (orderId: string) => ["orders", "detail", orderId] as const,

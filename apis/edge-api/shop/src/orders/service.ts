@@ -50,12 +50,6 @@ export async function getOrder(actor: Actor, fulfillmentId: string): Promise<Ord
   return repo.readOrder(fulfillmentId, actor.shopId);
 }
 
-export async function getActivity(actor: Actor, fulfillmentId: string): Promise<ActivityEntry[]> {
-  const rows = await repo.readActivity(fulfillmentId, actor.shopId);
-  if (rows === null) throw notFound();
-  return rows.map(toEntry);
-}
-
 /** Trimmed, lower-cased and de-duplicated, so "Fragile" and "fragile " are one tag. */
 export async function setTags(
   actor: Actor,

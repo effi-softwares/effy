@@ -2,11 +2,12 @@
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";
-import { json, preamble } from "@effy/edge-shared";
+import { activityResponse, preamble } from "@effy/edge-shared";
 
-import { listDriverAudit } from "../shared/audit";
+import { driverActivitySource } from "../activity/sources";
 import { denied, guard, mapFleetError } from "../shared/handler-support";
 
+/** The driver's activity, in the activity drawer (104). */
 export const handler = async (
   event: AuthedEvent,
   context: Context,
@@ -15,8 +16,9 @@ export const handler = async (
   const g = await guard(event, scope, "read");
   if (denied(g)) return g.deny;
   try {
-    const items = await listDriverAudit(event.pathParameters?.driverId ?? "");
-    return json(200, { items }, scope);
+    return await activityResponse(event.queryStringParameters, scope, "bo-driver", async () =>
+      driverActivitySource(event.pathParameters?.driverId ?? ""),
+    );
   } catch (err) {
     return mapFleetError(err, scope);
   }

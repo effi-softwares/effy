@@ -10,8 +10,6 @@ import {
   type BackOfficeProductRowDTO,
   type EffyProductContentDTO,
   type MarginDTO,
-  type ProductHistoryAction,
-  type ProductHistoryEntryDTO,
 } from "@effy/shared-types";
 
 import * as reviewRepo from "../review/repository";
@@ -74,68 +72,11 @@ export async function list(req: ProductListRequest): Promise<BackOfficeProductLi
   return { ...offsetListPage(await Promise.all(rows.map(rowDTO)), req, { total, page }), counts: tabCounts };
 }
 
-const HISTORY_ACTIONS: Record<string, ProductHistoryAction> = {
-  "product.approved": "approved",
-  "product.sent_back": "sent_back",
-  "product.change_approved": "change_approved",
-  "product.change_sent_back": "change_sent_back",
-  "product.margin_set": "margin_set",
-  "catalog.placements_set": "placements_set",
-  "product.held": "held",
-  "product.released": "released",
-  "product.created_by_effy": "created_by_effy",
-  "product.effy_edited": "effy_edited",
-  "product.effy_completed": "effy_completed",
-  "product.variant_state_set": "variant_state_set",
-};
-
-const marginWords = (m: unknown): string | null => {
-  if (!m || typeof m !== "object") return null;
-  const { kind, value } = m as { kind?: unknown; value?: unknown };
-  if (typeof value !== "string" && typeof value !== "number") return null;
-  return kind === "percent" ? `${trimDecimal(String(value))}%` : `$${Number(value).toFixed(2)}`;
-};
-
-function noteOf(action: ProductHistoryAction, detail: Record<string, unknown>): string | null {
-  switch (action) {
-    case "sent_back":
-    case "change_sent_back":
-    case "held":
-      return typeof detail.reason === "string" ? detail.reason : null;
-    case "approved":
-    case "change_approved":
-    case "margin_set":
-      return marginWords(detail.marginAfter);
-    case "released":
-      return typeof detail.releasedTo === "string" ? (detail.releasedTo === "active" ? "Back on sale" : "Not on sale") : null;
-    case "variant_state_set":
-      return typeof detail.label === "string" || detail.to
-        ? `${typeof detail.label === "string" ? `${detail.label}: ` : ""}${detail.to === "active" ? "on sale" : "off sale"}`
-        : null;
-    default:
-      return null;
-  }
-}
-
-function historyOf(rows: repo.HistoryRow[], extra: repo.ProductExtraRow): ProductHistoryEntryDTO[] {
-  const out: ProductHistoryEntryDTO[] = [];
-  for (const r of rows) {
-    const action = HISTORY_ACTIONS[r.action];
-    if (!action) continue;
-    out.push({ at: r.created_at.toISOString(), action, actor: r.actor_name, note: noteOf(action, r.detail ?? {}) });
-  }
-  // A shop's creation is not audited by staff; it is the product's own first fact.
-  if (extra.created_via === "shop") {
-    out.push({ at: extra.created_at.toISOString(), action: "created", actor: null, note: null });
-  }
-  return out;
-}
-
 export async function detail(rawProductId: string | undefined): Promise<BackOfficeProductDTO> {
   const productId = requireProductId(rawProductId);
   const [p, extra] = await Promise.all([reviewRepo.readProduct(productId), repo.readExtra(productId)]);
   if (!p || !extra) throw new ProductAdminError("not_found", "no such product");
-  const [view, history, stock] = await Promise.all([liveView(p), repo.readHistory(productId), repo.readVariantStock(productId)]);
+  const [view, stock] = await Promise.all([liveView(p), repo.readVariantStock(productId)]);
   const stockById = new Map(stock.map((s) => [s.id, s]));
 
   return {
@@ -168,7 +109,6 @@ export async function detail(rawProductId: string | undefined): Promise<BackOffi
     facts: view.facts,
     missingRequired: view.missingRequired,
     placements: view.placements,
-    history: historyOf(history, extra),
     effyContent: extra.content_owner === "effy" ? await effyContentOf(p) : null,
     createdAt: extra.created_at.toISOString(),
     updatedAt: extra.updated_at.toISOString(),

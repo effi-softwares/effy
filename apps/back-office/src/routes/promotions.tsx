@@ -1,5 +1,7 @@
 import { createRoute } from "@tanstack/react-router"
 
+import { withActivityLog } from "@effy/web-kit/activity-log"
+
 import { PromotionGroupScreen } from "@/features/promotion-groups/PromotionGroupScreen"
 import { PromotionGroupsScreen } from "@/features/promotion-groups/PromotionGroupsScreen"
 import { SkinEditorScreen } from "@/features/promotion-skins/SkinEditorScreen"
@@ -37,6 +39,7 @@ export const promotionDetailRoute = createRoute({
   validateSearch: (raw: Record<string, unknown>) => ({
     ...codesList.validateSearch(raw),
     ...chosenCustomersList.validateSearch(raw),
+    ...withActivityLog(raw),
   }),
   component: function PromotionDetailRoute() {
     const { promoId } = promotionDetailRoute.useParams()

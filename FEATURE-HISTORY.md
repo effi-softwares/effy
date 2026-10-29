@@ -4,6 +4,32 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
+**104-activity-log-drawer — Every Activity Log in One Drawer.** 🔨 **BUILT 2026-10-29; NOT DEPLOYED OR WALKED.** Spec, plan,
+tasks: [specs/104-activity-log-drawer/](specs/104-activity-log-drawer/tasks.md).
+- **See**: twelve logs (back-office: order, shop, driver, vehicle, product, promotion, customer points, points rules,
+  email address; shop-web: team, order, product stock) open from the page head — an **Activity** item in its More
+  menu, else an **Activity** button — into ONE drawer, half the window wide (a bottom sheet on a phone). It pages
+  through everything (keyset, "10,000+"), newest or oldest first, with search, Type, dates and (stock) Size, and
+  **Export CSV** of exactly what it shows (refused past 10,000, never cut). State is in the address (`log=1`,
+  `log.q`, …); Back closes it. Feedback threads and order notes stay inline: they are conversations, not logs.
+- **Backend**: ONE helper, `@effy/edge-shared` `lib/activity.ts`. A log is an *activity source* — raw SQL scoped to one
+  record yielding `id, at, kind, action, actor, search_text, facts` — plus its words; `activityResponse` pages, searches
+  (the raw facts by ILIKE **and** the actions whose server-side words match), filters and exports it. Words are composed
+  on the server so the drawer, search and CSV say the same thing. Names come from `staffNameSql` — no log shows a
+  sign-in subject any more. Five new staff routes (208/300), one shared (166/300); no migration.
+- **Removed**: every inline log UI and the embedded copies (`AdminOrderDetailDTO.history/deliveryMoves/
+  deliveryTypeHistory/courierCollectionHistory`, package and bag `handovers`, consignment `events`,
+  `BackOfficeProductDTO.history`, `VehicleDetail.holdings`, `PointsSettingsDTO.history`, deliverability `events`,
+  the team-activity module, the staff points-history read). Caps that silently cut logs at 50/100/200 or 14 days are gone.
+- **Defects fixed**: (1) shop-web's order log lost every item, note and tag event once the order had an arrival
+  (`NOT (to_status LIKE … AND EXISTS …)` is NULL for a NULL status); (2) four back-office logs showed a Cognito subject
+  as "who"; (3) refunds were said by their reason key.
+- **Verified**: typecheck across all 26 packages; every unit and guard suite; every source run against the real
+  migrations on a local Postgres 18 with seeded rows. Container tests were not run (no Docker). Pre-existing, not
+  104's: `shared-types` `package-status.guard.test.ts` fails on 099's `collection.ts` / `OrderQueue.tsx`.
+- **Operator**: deploy `orders fleet catalog admin admin-promotions shop inventory`, then both consoles; walk the twelve
+  drawers. Follow-up: the per-size stock reads still embed an unread first page of movements.
+
 **103-console-data-tables — One Data Table for Every Console List.** 🔨 **MVP (phases 1–3) DEPLOYED TO DEV; THE REST BUILT
 2026-10-28, NOT DEPLOYED OR WALKED.** Spec, plan, tasks: [specs/103-console-data-tables/](specs/103-console-data-tables/tasks.md);
 the inventory it started from: [docs/research/console-data-tables.md](docs/research/console-data-tables.md).

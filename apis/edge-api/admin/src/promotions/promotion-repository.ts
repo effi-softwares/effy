@@ -7,7 +7,7 @@ import type { AdminPromotionImageDTO } from "@effy/shared-types";
 
 import { listImages } from "./images";
 import { PROMOTION_LIST, type PromotionListRequest } from "./list";
-import { type AuditEntry, type Paged, PromoError } from "./types";
+import { type Paged, PromoError } from "./types";
 
 export const PROMOTION_STATES = ["draft", "scheduled", "active", "paused", "used_up", "out_of_budget", "ended", "archived"] as const;
 export type PromotionState = (typeof PROMOTION_STATES)[number];
@@ -310,17 +310,6 @@ export async function deletePromotion(id: string, actor: string): Promise<void> 
   } catch (err) {
     throw asRefusal(err);
   }
-}
-
-export async function promotionAudit(id: string, limit: number): Promise<AuditEntry[]> {
-  const res = await query<{ id: string; actor_sub: string; action: string; target_type: string; target_id: string | null; detail: Record<string, unknown>; created_at: Date }>(
-    `SELECT a.id::text, a.actor_sub, a.action, a.target_type, a.target_id, a.detail, a.created_at
-       FROM admin.audit_log a
-      WHERE a.target_type = 'promotion' AND a.target_id = $1::uuid
-      ORDER BY a.created_at DESC LIMIT $2`,
-    [id, limit],
-  );
-  return res.rows.map((r) => ({ id: r.id, actorSub: r.actor_sub, action: r.action, targetType: r.target_type, targetId: r.target_id, detail: r.detail, createdAt: r.created_at.toISOString() }));
 }
 
 /** By name, SKU or brand; approved, not archived. */

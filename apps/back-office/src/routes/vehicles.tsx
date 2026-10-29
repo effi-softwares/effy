@@ -1,5 +1,7 @@
 import { createRoute } from "@tanstack/react-router"
 
+import { withActivityLog } from "@effy/web-kit/activity-log"
+
 import { VehicleDetailScreen } from "@/features/vehicles/VehicleDetailScreen"
 import { VehiclesListScreen } from "@/features/vehicles/VehiclesListScreen"
 
@@ -19,6 +21,7 @@ export const vehiclesIndexRoute = createRoute({
 export const vehicleDetailRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "vehicles/$vehicleId",
+  validateSearch: (raw: Record<string, unknown>) => withActivityLog(raw),
   component: VehicleDetailRouteComponent,
 })
 

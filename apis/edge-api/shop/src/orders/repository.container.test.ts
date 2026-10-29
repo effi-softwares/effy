@@ -1,5 +1,5 @@
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
-import { migrationSql } from "@effy/edge-shared/testing";
+import { activityEntries, migrationSql } from "@effy/edge-shared/testing";
 import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -33,8 +33,10 @@ vi.mock("@effy/edge-shared/live", () => ({ announce: vi.fn(), announceMoves: vi.
 
 import { bookConsignment } from "@effy/edge-shared/delivery";
 
-import { addNote, applyPicks, listOrders, readActivity, readOrder, replaceTags } from "./repository";
-import { parseOrderListQuery, toEntry } from "./service";
+import { addNote, applyPicks, listOrders, readOrder, replaceTags } from "./repository";
+import { parseOrderListQuery } from "./service";
+import { orderActivitySource } from "../activity/sources";
+import type { Actor } from "../fulfillments/service";
 import { toListDTO, toOrderDTO } from "./handler-support";
 import { readPickLists } from "../pick-lists/repository";
 import { readLiveOrders } from "../today/repository";
@@ -53,6 +55,9 @@ const STAFF = "77777777-7777-4777-8777-777777777777";
 describe.skipIf(!RUN)("shop order console — against real PostgreSQL and the real migrations", () => {
   let container: StartedPostgreSqlContainer;
   let pool: Pool;
+  /** The portion's activity as the drawer reads it (104), newest first, in the order console's words. */
+  const orderLog = async (fulfillmentId: string) =>
+    (await activityEntries(pool, await orderActivitySource({ shopId: SHOP } as Actor, fulfillmentId))).map((e) => ({ ...e, actorLabel: e.actor }));
 
   beforeAll(async () => {
     container = await new PostgreSqlContainer("postgres:16-alpine").start();
@@ -308,7 +313,7 @@ SELECT id FROM p`,
   it("refuses another shop's order (indistinguishable from a missing one)", async () => {
     const o = await order({ number: "EFY-X", recipient: "X", shop: OTHER_SHOP });
     await expect(readOrder(o.fulfillmentId, SHOP)).rejects.toMatchObject({ kind: "not_found" });
-    expect(await readActivity(o.fulfillmentId, SHOP)).toBeNull();
+    await expect(orderActivitySource({ shopId: SHOP } as Actor, o.fulfillmentId)).rejects.toMatchObject({ kind: "not_found" });
     expect(await replaceTags(o.fulfillmentId, SHOP, ["x"], STAFF)).toBeNull();
     expect(await addNote(o.fulfillmentId, SHOP, "hi", STAFF)).toBeNull();
   });
@@ -323,7 +328,7 @@ SELECT id FROM p`,
     expect(d.tags).toEqual(["fragile", "vip"]);
     expect(d.notes[0]).toMatchObject({ body: "Call on arrival", authorLabel: "Maya" });
 
-    const log = (await readActivity(o.fulfillmentId, SHOP))!.map(toEntry);
+    const log = (await orderLog(o.fulfillmentId));
     // The idempotent second save wrote nothing.
     expect(log.filter((e) => e.title.startsWith("Tags")).map((e) => e.title)).toEqual(["Tags set to fragile, vip"]);
     expect(log.some((e) => e.title === "Internal note added" && e.actorLabel === "Maya")).toBe(true);
@@ -347,7 +352,7 @@ SELECT id FROM p`,
     );
     await refund(o.orderId, 5, "succeeded", "back_office");
 
-    const log = (await readActivity(o.fulfillmentId, SHOP))!.map(toEntry);
+    const log = (await orderLog(o.fulfillmentId));
     const titles = log.map((e) => e.title);
     expect(titles).toContain("Marked picking");
     expect(titles).toContain("Delivered to the customer");
@@ -379,7 +384,7 @@ SELECT id FROM p`,
     expect(by.Milk).toMatchObject({ gatheredQuantity: 2, unavailableQuantity: 0, pickNote: null });
     expect(by.Bread).toMatchObject({ gatheredQuantity: 0, unavailableQuantity: 1, pickNote: "supplier short" });
 
-    const log = (await readActivity(o.fulfillmentId, SHOP))!.map(toEntry).map((e) => e.title);
+    const log = (await orderLog(o.fulfillmentId)).map((e) => e.title);
     expect(log).toContain("Eggs — 2 of 3 picked · one cracked");
     expect(log).toContain("Milk — picked in full");
     expect(log).toContain("Bread — marked unavailable · supplier short");

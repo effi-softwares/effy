@@ -16,20 +16,21 @@ import {
   TabsList,
   TabsTrigger,
 } from "@effy/design-system/ui"
+import { ActivityLogDrawer, useActivityAction } from "@effy/web-kit/activity-log"
 import { ErrorState, useHeaderDetail } from "@effy/web-kit/console"
 
 import { DetailRows, MoreActions, PageHeader, Panel } from "@effy/web-kit/patterns"
 import { sessionQuery } from "@/features/auth/queries"
+import { api } from "@/lib/api"
 import { track } from "@/lib/telemetry"
 
 import { canManageShops } from "./access"
 import { AddShopUserDialog } from "./components/AddShopUserDialog"
 import { EditShopDialog } from "./components/EditShopDialog"
 import { RemoveShopDialog } from "./components/RemoveShopDialog"
-import { ShopHistory } from "./components/ShopHistory"
 import { ShopStatusDialog } from "./components/ShopStatusMenu"
 import { ShopStatusBadge } from "./components/StatusBadge"
-import { shopDetailQuery, useSetPackScanning } from "./queries"
+import { SHOPS_ROOT, shopDetailQuery, useSetPackScanning } from "./queries"
 import { ShopStockPanel } from "./ShopStockPanel"
 import { shopLowStockCountsQuery } from "./stockQueries"
 import { ShopRoster } from "./ShopRoster"
@@ -50,6 +51,7 @@ export function ShopDetailScreen({ shopId }: { shopId: string }) {
   const [removeOpen, setRemoveOpen] = useState(false)
   const [statusTarget, setStatusTarget] = useState<ShopLifecycleStatus | null>(null)
   const packScanning = useSetPackScanning(shopId)
+  const activity = useActivityAction()
 
   if (isError) return <ErrorState error={error} onRetry={() => void refetch()} />
   if (isPending) {
@@ -123,6 +125,7 @@ export function ShopDetailScreen({ shopId }: { shopId: string }) {
             {/* Every product of this shop, in Catalogue › Products (102). Read by anyone who sees the shop. */}
             <MoreActions
               actions={[
+                activity,
                 { label: "Products", icon: Boxes, link: { to: "/products", search: { shopId: shop.id } } as never },
               ]}
             />
@@ -145,7 +148,6 @@ export function ShopDetailScreen({ shopId }: { shopId: string }) {
                     Stock
                     {low + out > 0 ? <TabsCount>{low + out}</TabsCount> : null}
                   </TabsTrigger>
-                  <TabsTrigger value="activity">Activity</TabsTrigger>
                 </TabsList>
               </div>
             </div>
@@ -282,10 +284,6 @@ export function ShopDetailScreen({ shopId }: { shopId: string }) {
                 <ShopStockPanel shopId={shop.id} canManage={canManage} />
               </Panel>
             </TabsContent>
-
-            <TabsContent value="activity" className="ef-tabpanel">
-              <ShopHistory shopId={shop.id} />
-            </TabsContent>
           </Tabs>
         </div>
 
@@ -326,6 +324,16 @@ export function ShopDetailScreen({ shopId }: { shopId: string }) {
           />
         </>
       ) : null}
+      <ActivityLogDrawer
+        app="back-office"
+        log="bo-shop"
+        title="Shop activity"
+        description={`${shop.name} — every change to the shop and its team.`}
+        api={api}
+        path={`/admin/v1/shops/${shop.id}/audit`}
+        queryKey={[...SHOPS_ROOT, "detail", shop.id]}
+        fileName={`shop-${shop.code}-activity`}
+      />
     </>
   )
 }

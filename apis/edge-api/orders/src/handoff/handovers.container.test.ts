@@ -16,14 +16,15 @@ vi.mock("@effy/edge-shared", async () => {
   };
 });
 
-import { migrationSql } from "@effy/edge-shared/testing";
+import { activityEntries, migrationSql } from "@effy/edge-shared/testing";
 import { parseListQuery } from "@effy/edge-shared";
 import { ORDER_LIST_SPEC } from "../orders/list";
 
 /** A list request as the route parses it (103). */
 const req = (qs: Record<string, string | undefined>) => parseListQuery({ pageSize: "100", ...qs }, ORDER_LIST_SPEC);
 import { recordDeliveryType } from "@effy/edge-shared/delivery";
-import { deliveryTypeHistory, findOrder, packages } from "../orders/repository";
+import { orderActivitySource } from "../activity/order";
+import { findOrder, packages } from "../orders/repository";
 import { listCourierParcels, listOrders, toPackage } from "../orders/service";
 import { OrderActionError } from "../lib/errors";
 import { recordHandoff } from "./repository";
@@ -342,8 +343,9 @@ d("079 — who delivers a package is one answer, for old orders and new (P12, P1
 
     // Not `getOrder`: it reads refund proposals through the shared library's own pool.
     expect(await findOrder(courier.orderId)).toMatchObject({ delivery_type: "courier", delivery_type_reason: "out_of_coverage", courier_estimate: "2–4 business days" });
-    expect(await deliveryTypeHistory(courier.orderId)).toEqual([
-      { from_type: null, to_type: "courier", reason: "out_of_coverage", actor_kind: "checkout", actor_sub: null, note: null, created_at: expect.any(Date) },
+    const log = await activityEntries(pool, orderActivitySource(courier.orderId));
+    expect(log.filter((e) => e.kind === "delivery")).toEqual([
+      expect.objectContaining({ title: "Courier delivery", detail: "The address is outside Effy's delivery area", actor: "Checkout" }),
     ]);
     expect(toPackage((await packages(courier.orderId))[0]!)).toMatchObject({ deliveredBy: "courier" });
 

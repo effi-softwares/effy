@@ -20,20 +20,11 @@ export interface DeliveryListItem {
   subject: DeliverySubject | null
 }
 
-export interface DeliveryEvent {
-  eventType: "bounce" | "complaint" | "delivery" | "reject" | "delivery_delay"
-  subType: string | null
-  messageId: string
-  templateId: string | null
-  occurredAt: string
-}
-
 export interface DeliveryDetail extends DeliveryListItem {
   diagnostic: string | null
   lastMessageId: string | null
   repairedBy: string | null
   suppressedInSes: boolean | null
-  events: DeliveryEvent[]
 }
 
 /** A quick read: how many addresses need attention (the rail's and the overview's count). */
@@ -41,7 +32,14 @@ export type DeliveryListParams = Record<string, never>
 
 export type DeliveryList = ListPage<DeliveryListItem>
 
-export const DELIVERABILITY_VIEWS = ["problems", "undeliverable", "soft_failing", "complained", "reachable", "all"] as const
+export const DELIVERABILITY_VIEWS = [
+  "problems",
+  "undeliverable",
+  "soft_failing",
+  "complained",
+  "reachable",
+  "all",
+] as const
 export type DeliverabilityView = (typeof DELIVERABILITY_VIEWS)[number]
 
 /** The deliverability list's view in the address (103), mirroring the admin service's spec. */

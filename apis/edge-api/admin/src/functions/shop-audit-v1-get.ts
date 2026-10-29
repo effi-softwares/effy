@@ -1,13 +1,12 @@
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";
-import { json, listProblem, parseListQuery, preamble } from "@effy/edge-shared";
+import { activityResponse, preamble } from "@effy/edge-shared";
 
+import { shopActivitySource } from "../shops/activity";
 import { guard, mapShopError } from "../shops/handler-support";
-import { SHOP_HISTORY_SPEC } from "../shops/list";
-import { getShopHistory } from "../shops/service";
 
-/** A shop's history, newest first: a keyset console list (103). */
+/** A shop's activity, newest first: one log in the activity drawer (104). */
 export const handler = async (
   event: AuthedEvent,
   context: Context,
@@ -17,9 +16,10 @@ export const handler = async (
   if ("deny" in g) return g.deny;
 
   try {
-    const req = parseListQuery(event.queryStringParameters, SHOP_HISTORY_SPEC);
-    return json(200, await getShopHistory(event.pathParameters?.shopId ?? "", req), scope);
+    return await activityResponse(event.queryStringParameters, scope, "bo-shop", async () =>
+      shopActivitySource(event.pathParameters?.shopId ?? ""),
+    );
   } catch (err) {
-    return listProblem(err, scope) ?? mapShopError(err, scope);
+    return mapShopError(err, scope);
   }
 };

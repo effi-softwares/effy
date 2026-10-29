@@ -13,14 +13,8 @@ import {
   type BackOfficeProductDTO,
   type BackOfficeVariantDTO,
 } from "@effy/shared-types"
-import {
-  Skeleton,
-  Tabs,
-  TabsContent,
-  TabsCount,
-  TabsList,
-  TabsTrigger,
-} from "@effy/design-system/ui"
+import { Skeleton, Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui"
+import { ActivityButton, ActivityLogDrawer } from "@effy/web-kit/activity-log"
 import { ErrorState, useHeaderBack } from "@effy/web-kit/console"
 import { StaticTable, type EffyColumnDef } from "@effy/web-kit/data-table"
 import { Callout, DetailRows, PageHeader, Panel, StatusWord } from "@effy/web-kit/patterns"
@@ -29,11 +23,11 @@ import { useSessionRoles } from "@/features/auth/useSessionRoles"
 import { marginLabel } from "@/features/product-review/model"
 import { Placements } from "@/features/product-review/Placements"
 import { pathText } from "@/features/taxonomy/model"
+import { api } from "@/lib/api"
 import { money, moment } from "@/lib/format"
 
 import { canManageProducts } from "./access"
-import { HistoryList } from "./HistoryList"
-import { productQuery } from "./queries"
+import { productKeys, productQuery } from "./queries"
 import { STATE_TONE } from "./words"
 
 const BACK = { label: "Products", link: { to: "/products" } } as const
@@ -100,7 +94,12 @@ function Product({
             <span>Changed {moment(p.updatedAt)}</span>
           </>
         }
-        actions={actions?.(p)}
+        actions={
+          <>
+            {actions?.(p)}
+            <ActivityButton />
+          </>
+        }
       />
 
       {p.hold ? (
@@ -146,10 +145,6 @@ function Product({
                 {p.missingRequired.length > 0 ? <TabsCount>{p.missingRequired.length} missing</TabsCount> : null}
               </TabsTrigger>
               <TabsTrigger value="aisles">Aisles</TabsTrigger>
-              <TabsTrigger value="history">
-                History
-                <TabsCount>{p.history.length}</TabsCount>
-              </TabsTrigger>
             </TabsList>
           </div>
         </div>
@@ -231,10 +226,6 @@ function Product({
             canDecide={canManage}
           />
         </TabsContent>
-
-        <TabsContent value="history" className="ef-tabpanel">
-          <HistoryList entries={p.history} />
-        </TabsContent>
       </Tabs>
 
       {!canManage ? (
@@ -242,6 +233,17 @@ function Product({
           You can see this product. Changing it needs a manager or an administrator.
         </p>
       ) : null}
+
+      <ActivityLogDrawer
+        app="back-office"
+        log="bo-product"
+        title="Product activity"
+        description={`${p.name} — Effy's decisions on it: review, margin, holds and its sizes on and off sale.`}
+        api={api}
+        path={`/catalog/v1/products/${p.productId}/activity`}
+        queryKey={productKeys.detail(p.productId)}
+        fileName={`product-${p.name}-activity`}
+      />
     </>
   )
 }
@@ -258,17 +260,42 @@ function sizeColumns(
       cell: ({ row }) => <span className="font-medium">{row.original.label ?? "One size"}</span>,
       meta: { label: "Size", identifying: true, phone: "primary" },
     },
-    { id: "code", header: "Effy code", cell: ({ row }) => <span className="text-xs">{row.original.code ?? "—"}</span>, meta: { label: "Effy code", align: "mono", priority: 2 } },
-    { id: "sku", header: "Shop code", cell: ({ row }) => <span className="text-xs">{row.original.sku ?? "—"}</span>, meta: { label: "Shop code", align: "mono", priority: 2 } },
-    { id: "gtin", header: "Barcode", cell: ({ row }) => <span className="text-xs">{row.original.gtin ?? "—"}</span>, meta: { label: "Barcode", align: "mono", priority: 3 } },
-    { id: "shopPrice", header: "Shop price", cell: ({ row }) => money(row.original.shopPriceAmount), meta: { label: "Shop price", align: "numeric" } },
+    {
+      id: "code",
+      header: "Effy code",
+      cell: ({ row }) => <span className="text-xs">{row.original.code ?? "—"}</span>,
+      meta: { label: "Effy code", align: "mono", priority: 2 },
+    },
+    {
+      id: "sku",
+      header: "Shop code",
+      cell: ({ row }) => <span className="text-xs">{row.original.sku ?? "—"}</span>,
+      meta: { label: "Shop code", align: "mono", priority: 2 },
+    },
+    {
+      id: "gtin",
+      header: "Barcode",
+      cell: ({ row }) => <span className="text-xs">{row.original.gtin ?? "—"}</span>,
+      meta: { label: "Barcode", align: "mono", priority: 3 },
+    },
+    {
+      id: "shopPrice",
+      header: "Shop price",
+      cell: ({ row }) => money(row.original.shopPriceAmount),
+      meta: { label: "Shop price", align: "numeric" },
+    },
     {
       id: "customerPrice",
       header: "Customers pay",
       cell: ({ row }) => <span className="font-medium">{money(row.original.customerPriceAmount)}</span>,
       meta: { label: "Customers pay", align: "numeric", phone: "trail" },
     },
-    { id: "weight", header: "Weight", cell: ({ row }) => `${row.original.weightGrams} g`, meta: { label: "Weight", align: "numeric", priority: 3 } },
+    {
+      id: "weight",
+      header: "Weight",
+      cell: ({ row }) => `${row.original.weightGrams} g`,
+      meta: { label: "Weight", align: "numeric", priority: 3 },
+    },
     {
       id: "stock",
       header: "Stock",
@@ -291,7 +318,11 @@ function sizeColumns(
       id: "onSale",
       header: "On sale",
       cell: ({ row }) =>
-        row.original.state === "active" ? <StatusWord tone="done">On sale</StatusWord> : <StatusWord tone="muted">Off sale</StatusWord>,
+        row.original.state === "active" ? (
+          <StatusWord tone="done">On sale</StatusWord>
+        ) : (
+          <StatusWord tone="muted">Off sale</StatusWord>
+        ),
       meta: { label: "On sale", phone: "badge" },
     },
     ...(sizeAction

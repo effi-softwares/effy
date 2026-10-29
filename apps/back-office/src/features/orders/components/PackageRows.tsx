@@ -1,32 +1,11 @@
 import { useState } from "react"
 
-import {
-  PARCEL_CUSTODY_WORDS,
-  PARCEL_ZONE_WORDS,
-  type AdminPackageHandoverDTO,
-  type AdminParcelDTO,
-  type HandoverMethod,
-  type OrderAssignment,
-  type RecordedHandoverStep,
-} from "@effy/shared-types"
+import { PARCEL_CUSTODY_WORDS, PARCEL_ZONE_WORDS, type AdminParcelDTO, type OrderAssignment } from "@effy/shared-types"
 import { AssignmentLine } from "./AssignmentLine"
 import { ConsignmentBlock } from "./ConsignmentBlock"
 import { PackageStatusPill } from "@effy/web-kit/console"
-import { Timeline, TimelineItem } from "@effy/web-kit/patterns"
-import {
-  Badge,
-  Button,
-  Input,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@effy/design-system/ui"
-import { CircleCheck, Package, PackageCheck, Store, Truck, Undo2, Warehouse } from "lucide-react"
-
-import { clockAt } from "@/lib/format"
+import { Button, Input, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@effy/design-system/ui"
+import { Store } from "lucide-react"
 
 import {
   type OrderPackage,
@@ -177,69 +156,32 @@ function PackageRow({
 
       {bags.length > 0 ? <BagTable bags={bags} highlightParcelId={highlight?.parcelId} /> : null}
 
-      {promise || (pkg.handovers && pkg.handovers.length > 0) ? (
-        <div className="grid gap-4 md:grid-cols-2">
-          {promise ? (
-            <dl className="ef-dl ef-dl--tight">
-              <div className="ef-dl__row">
-                <dt>Promised</dt>
-                <dd className="tabular-nums">{promise}</dd>
-              </div>
-              {pkg.handoverDueOn && !pkg.handoff ? (
-                <div className="ef-dl__row">
-                  <dt>Hand over by</dt>
-                  <dd className="tabular-nums">{formatDeliveryDay(pkg.handoverDueOn)}</dd>
-                </div>
-              ) : null}
-              {flags.length > 0 ? (
-                <div className="ef-dl__row">
-                  <dt>Note</dt>
-                  <dd className="flex flex-wrap gap-x-3">
-                    {flags.map((f) => (
-                      <span key={f} className={f === "on_time" ? "text-muted-foreground" : "font-medium"}>
-                        {PROMISE_FLAG_LABEL[f]}
-                      </span>
-                    ))}
-                  </dd>
-                </div>
-              ) : null}
-            </dl>
-          ) : (
-            <div />
-          )}
-          {pkg.handovers && pkg.handovers.length > 0 ? (
-            <div>
-              <div className="text-xs font-medium text-muted-foreground mb-2">Hand-overs</div>
-              <Timeline aria-label="Hand-overs">
-                {pkg.handovers.map((h, i) => (
-                  <TimelineItem
-                    key={i}
-                    icon={<StepIcon step={h.step} />}
-                    tone={h.step === "deliver" ? "done" : "primary"}
-                    title={
-                      <>
-                        {HANDOVER_STEP_WORDS[h.step]}
-                        {h.parcelCode && bags.length > 1 ? (
-                          <span className="mt-0.5 block text-sm font-normal text-muted-foreground">
-                            {" "}
-                            · {bagWord(bags, h.parcelCode)}
-                          </span>
-                        ) : null}
-                      </>
-                    }
-                    time={clockAt(h.at)}
-                  >
-                    {byWords(h)} · <Badge variant="outline">{HANDOVER_METHOD_WORDS[h.method]}</Badge>
-                    <span className="sr-only">
-                      {" "}
-                      {HANDOVER_STEP_WORDS[h.step]} · {HANDOVER_METHOD_WORDS[h.method]} · {byWords(h)}
-                    </span>
-                  </TimelineItem>
-                ))}
-              </Timeline>
+      {/* Its hand-overs, bag by bag, are in the order's activity (104). */}
+      {promise ? (
+        <dl className="ef-dl ef-dl--tight">
+          <div className="ef-dl__row">
+            <dt>Promised</dt>
+            <dd className="tabular-nums">{promise}</dd>
+          </div>
+          {pkg.handoverDueOn && !pkg.handoff ? (
+            <div className="ef-dl__row">
+              <dt>Hand over by</dt>
+              <dd className="tabular-nums">{formatDeliveryDay(pkg.handoverDueOn)}</dd>
             </div>
           ) : null}
-        </div>
+          {flags.length > 0 ? (
+            <div className="ef-dl__row">
+              <dt>Note</dt>
+              <dd className="flex flex-wrap gap-x-3">
+                {flags.map((f) => (
+                  <span key={f} className={f === "on_time" ? "text-muted-foreground" : "font-medium"}>
+                    {PROMISE_FLAG_LABEL[f]}
+                  </span>
+                ))}
+              </dd>
+            </div>
+          ) : null}
+        </dl>
       ) : null}
 
       {pkg.handoff ? (
@@ -376,47 +318,4 @@ function BagTable({ bags, highlightParcelId }: { bags: AdminParcelDTO[]; highlig
       </Table>
     </div>
   )
-}
-
-function bagWord(bags: AdminParcelDTO[], code: string): string {
-  const b = bags.find((x) => x.code === code)
-  return b ? `Bag ${b.seq}` : code
-}
-
-function byWords(h: AdminPackageHandoverDTO): string {
-  if (h.actor === "shop_staff") return "Shop staff"
-  if (h.actor === "admin_staff") return "Hub staff"
-  return h.driverName ?? "Driver"
-}
-
-function StepIcon({ step }: { step: RecordedHandoverStep }) {
-  const Icon =
-    step === "deliver"
-      ? CircleCheck
-      : step === "checkin"
-        ? Warehouse
-        : step === "load"
-          ? Truck
-          : step === "return"
-            ? Undo2
-            : step === "pack"
-              ? PackageCheck
-              : Package
-  return <Icon />
-}
-
-const HANDOVER_STEP_WORDS: Record<RecordedHandoverStep, string> = {
-  pack: "Packed at the shop",
-  courier_handover: "Handed to the courier",
-  shop_pickup: "Collected from the shop",
-  collect: "Collected",
-  checkin: "Checked in at hub",
-  load: "Loaded",
-  deliver: "Delivered",
-  return: "Returned to hub",
-}
-const HANDOVER_METHOD_WORDS: Record<HandoverMethod, string> = {
-  scan: "scanned",
-  typed: "code typed",
-  manual: "by hand",
 }

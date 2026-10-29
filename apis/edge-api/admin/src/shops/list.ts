@@ -24,14 +24,3 @@ export const SHOP_LIST_SPEC: ListSpec<ShopSort, ShopFilters> = {
 };
 
 export type ShopListRequest = ListRequest<ShopSort, ShopFilters>;
-
-/** A shop's history: an append-only ledger read newest first, so it pages by cursor (103). */
-export const SHOP_HISTORY = {
-  mode: "keyset",
-  sorts: { at: { sql: "a.created_at", dir: "desc", type: "timestamptz" } },
-  defaultSort: "at",
-  idSql: "a.id",
-} as const satisfies ListOrder<"at">;
-
-export const SHOP_HISTORY_SPEC: ListSpec<"at", Record<never, never>> = { ...SHOP_HISTORY, filters: {} };
-export type ShopHistoryRequest = ListRequest<"at", Record<never, never>>;

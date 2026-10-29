@@ -1,5 +1,7 @@
 import { createRoute } from "@tanstack/react-router"
 
+import { withActivityLog } from "@effy/web-kit/activity-log"
+
 import { DriverDetailScreen } from "@/features/drivers/DriverDetailScreen"
 import { DriversListScreen } from "@/features/drivers/DriversListScreen"
 
@@ -20,6 +22,7 @@ export const driversIndexRoute = createRoute({
 export const driverDetailRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "drivers/$driverId",
+  validateSearch: (raw: Record<string, unknown>) => withActivityLog(raw),
   component: DriverDetailRouteComponent,
 })
 

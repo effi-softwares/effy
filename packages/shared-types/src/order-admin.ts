@@ -14,8 +14,7 @@ import type {
   RefundRequestDTO,
 } from "./refund";
 import type { WireInt } from "./cart";
-import type { HandoverStep } from "./driver";
-import type { HandoverMethod, ParcelCustody, ParcelZone } from "./parcels";
+import type { ParcelCustody, ParcelZone } from "./parcels";
 import type { DeliveryFeeLineDTO } from "./delivery-fee";
 import type { DeliveryInstructionsDTO } from "./delivery-instructions";
 import type { DeliveryPromise, DeliveryType, DeliveryTypeReason } from "./delivery-type";
@@ -58,7 +57,6 @@ export interface ConsignmentDTO {
   labelUrl: string | null;
   pickup: { date: string; from: string | null; to: string | null } | null;
   state: ConsignmentState;
-  events: { kind: ConsignmentEventKind; actor: { kind: "staff" | "shop"; sub: string }; note: string | null; at: string }[];
 }
 
 /** `PUT /orders/v1/fulfillments/{id}/consignment`: book, or edit a booking. */
@@ -124,38 +122,7 @@ export const ADMIN_ORDER_PROMISE_FILTERS = ["window", "day", "asap"] as const sa
 export const ADMIN_ORDER_DELIVERY_FILTERS = ["effy", "courier"] as const;
 export type AdminOrderDeliveryFilter = (typeof ADMIN_ORDER_DELIVERY_FILTERS)[number];
 
-/** One entry in an order's delivery-type history: the checkout's decision, then any change. */
-export interface DeliveryTypeChangeDTO {
-  /** Null on the first entry. */
-  from: DeliveryType | null;
-  to: DeliveryType;
-  reason: DeliveryTypeReason;
-  /** The checkout decided, or a staff member changed it (their auth subject). */
-  actor: { kind: "checkout" } | { kind: "staff"; sub: string };
-  note: string | null;
-  at: string;
-}
-
 /** One shop's portion of an order, as an operator sees it. */
-/** Every step a hand-over can be recorded at: the driver's five, plus the shop's (pack, hand to a courier, a collection from the shop). */
-export type RecordedHandoverStep = HandoverStep | "pack" | "courier_handover" | "shop_pickup";
-
-/** Who made a hand-over: a driver is named; shop and hub staff are said by role. */
-export type HandoverActorKind = "driver" | "shop_staff" | "admin_staff";
-
-/** One recorded hand-over of a package. Staff only. */
-export interface AdminPackageHandoverDTO {
-  step: RecordedHandoverStep;
-  method: HandoverMethod;
-  at: string;
-  /** The driver's name; null when shop or hub staff made it (see `actor`). */
-  driverName: string | null;
-  /** Optional for an older deploy; absent means a driver. */
-  actor?: HandoverActorKind;
-  /** The bag it was; absent on a hand-over recorded before bags. */
-  parcelCode?: string;
-}
-
 /** One bag of a package as back-office sees it, voided ones included (struck through). */
 export interface AdminParcelDTO {
   parcelId: string;
@@ -167,8 +134,6 @@ export interface AdminParcelDTO {
   voided: boolean;
   printedCount: number;
   custody: ParcelCustody;
-  /** This bag's hand-overs, oldest first. */
-  handovers: AdminPackageHandoverDTO[];
 }
 
 export interface AdminOrderPackageDTO {
@@ -181,8 +146,6 @@ export interface AdminOrderPackageDTO {
   fulfillmentId: string;
   /** The package's permanent code, as printed on its label. */
   packageCode: string;
-  /** Every recorded hand-over, oldest first; empty when none was recorded (never "by hand" by assumption). */
-  handovers?: AdminPackageHandoverDTO[];
   /** The package's bags, each with its own label and hand-overs. Optional for older deploys. */
   parcels?: AdminParcelDTO[];
   /** Present here only, never on a customer-facing contract. */
@@ -272,22 +235,6 @@ export interface PackageArrivalDTO {
   note: string | null;
 }
 
-/**
- * One thing that happened to an order: a read-side projection over `fulfillment_event`,
- * `carrier_handoff` and `package_arrival`, never a stored timeline.
- */
-export interface AdminOrderHistoryEntryDTO {
-  at: string;
-  /** Where this entry came from, so the console can group and label it. */
-  kind: "fulfillment" | "driver" | "handoff" | "arrival";
-  /** A human-readable summary, e.g. "Packed and ready for collection". */
-  summary: string;
-  /** The acting subject where one is known; null for system transitions. */
-  actorSub: string | null;
-  /** The package this entry concerns, when it concerns one. */
-  fulfillmentId: string | null;
-}
-
 /** The back-office order detail. */
 export interface AdminOrderDetailDTO {
   id: string;
@@ -305,14 +252,8 @@ export interface AdminOrderDetailDTO {
   promise: DeliveryPromise | null;
   /** The estimate an "as soon as possible" customer was told. */
   asapEstimate?: string | null;
-  /** Oldest first. */
-  deliveryTypeHistory: DeliveryTypeChangeDTO[];
   /** How this courier order's parcels reach the courier; null unless a courier delivers. */
   courierCollection: "hub" | "supplier" | null;
-  /** Oldest first. */
-  courierCollectionHistory: { from: "hub" | "supplier"; to: "hub" | "supplier"; actorSub: string; note: string | null; at: string }[];
-  /** Every back-office move of the delivery type, with its compensation; oldest first. */
-  deliveryMoves: AdminDeliveryMoveDTO[];
 
   customerId: string;
   customerEmail: string;
@@ -322,7 +263,6 @@ export interface AdminOrderDetailDTO {
 
   items: AdminOrderItemDTO[];
   packages: AdminOrderPackageDTO[];
-  history: AdminOrderHistoryEntryDTO[];
 
   itemSubtotalAmount: string;
   deliveryFeeAmount: string;

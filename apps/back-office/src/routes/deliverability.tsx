@@ -1,5 +1,7 @@
 import { createRoute } from "@tanstack/react-router"
 
+import { withActivityLog } from "@effy/web-kit/activity-log"
+
 import { DeliverabilityDetailScreen } from "@/features/deliverability/DeliverabilityDetailScreen"
 import { DeliverabilityListScreen } from "@/features/deliverability/DeliverabilityListScreen"
 
@@ -17,6 +19,7 @@ export const deliverabilityIndexRoute = createRoute({
 export const deliverabilityDetailRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "deliverability/$address",
+  validateSearch: (raw: Record<string, unknown>) => withActivityLog(raw),
   component: DeliverabilityDetailRouteComponent,
 })
 

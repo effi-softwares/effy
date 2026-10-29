@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import type { ProductStockDetailDTO } from "@effy/shared-types"
 
-import { onePage, renderList } from "@/test/renderList"
+import { renderList } from "@/test/renderList"
 
 const getVariantStock = vi.hoisted(() => vi.fn())
 const setStockCount = vi.hoisted(() => vi.fn())
@@ -22,13 +22,11 @@ vi.mock("../stockRepo", () => ({
   setStockThreshold,
   getStockSettings: vi.fn(),
   setStockSettings: vi.fn(),
-  fetchMovementPage: async () => onePage([]),
 }))
 
 const { InventorySection, ReceiveStockButton } = await import("../InventorySection")
 const { AdjustStockDialog, ReceiveStockDialog, StartTrackingDialog } = await import("../StockDialogs")
 const { InventoryRulesDialog } = await import("../InventoryRulesDialog")
-const { ProductActivitySheet } = await import("../ProductActivitySheet")
 
 import type { ProductDetail } from "../model"
 
@@ -174,10 +172,12 @@ describe("the Inventory section — every size in one table (098)", () => {
     expect(screen.getByRole("button", { name: /save stock/i })).toBeDisabled()
   })
 
-  it("names a per-size threshold as this size's own in its rules (history below the table)", async () => {
+  it("names the chosen size, and leaves its changes to Stock activity (104)", async () => {
     getVariantStock.mockResolvedValue(stockDetail({ onHand: 9, threshold: null, effectiveThreshold: 8 }))
     await wrapRouted(<InventorySection detail={SIZED} variantId="v1" onVariantChange={() => {}} />)
-    expect(await screen.findByText(/stock movements — 500 g/i)).toBeInTheDocument()
+    expect(await screen.findByText(/^stock — 500 g$/i)).toBeInTheDocument()
+    expect(screen.getByText(/9 on hand/)).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Stock activity" })).toBeEnabled()
   })
 
   it("withholds the adjustment when the chosen size is not counted", async () => {
@@ -484,44 +484,5 @@ describe("the product state chip", () => {
     const outClass = within(out.container).getByText("Out of stock").className
     const lowClass = within(low.container).getByText("Low stock").className
     expect(outClass).not.toBe(lowClass)
-  })
-})
-
-describe("the Activity sheet", () => {
-  function movement(i: number) {
-    return {
-      id: `m${i}`,
-      quantityDelta: i % 2 === 0 ? -1 : 6,
-      quantityBefore: 10,
-      quantityAfter: i % 2 === 0 ? 9 : 16,
-      reason: i % 2 === 0 ? ("order_paid" as const) : ("received" as const),
-      actorKind: i % 2 === 0 ? ("system" as const) : ("shop" as const),
-      actorLabel: i % 2 === 0 ? null : "Priya",
-      orderNumber: i % 2 === 0 ? `EFY-${i}` : null,
-      note: null,
-      createdAt: `2026-09-0${(i % 9) + 1}T09:00:00Z`,
-    }
-  }
-
-  it("shows the WHOLE change log, not the old rail's newest four", async () => {
-    getVariantStock.mockResolvedValue({
-      ...stockDetail(),
-      movements: Array.from({ length: 9 }, (_, i) => movement(i)),
-    })
-    wrap(<ProductActivitySheet detail={PRODUCT} variantId="v1" open onOpenChange={() => {}} />)
-
-    const dialog = await screen.findByRole("dialog")
-    await waitFor(() => expect(within(dialog).getAllByRole("listitem")).toHaveLength(9))
-    // Each entry says what moved, then "<when> · <who>".
-    expect(within(dialog).getAllByText(/^Sold -1$/)).toHaveLength(5)
-    expect(within(dialog).getAllByText(/· Order EFY-/)).toHaveLength(5)
-    expect(within(dialog).getAllByText(/· Priya$/)).toHaveLength(4)
-  })
-
-  it("does not invent a sales history it has no data for", async () => {
-    wrap(<ProductActivitySheet detail={PRODUCT} variantId="v1" open onOpenChange={() => {}} />)
-    const dialog = await screen.findByRole("dialog")
-    expect(within(dialog).queryByText(/last 30 days/i)).not.toBeInTheDocument()
-    expect(await within(dialog).findByText(/no changes recorded yet/i)).toBeInTheDocument()
   })
 })

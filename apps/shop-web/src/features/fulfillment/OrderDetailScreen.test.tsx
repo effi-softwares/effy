@@ -7,19 +7,25 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { orderDetail, orderList } from "./__tests__/fixtures"
 import type { OrderDetail, OrderLine } from "./orderConsole"
 
+// The address, as the activity drawer reads and writes it (104).
+const router = vi.hoisted(() => ({ search: {} as Record<string, unknown>, navigate: vi.fn() }))
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children }: { children: ReactNode }) => <a href="#">{children}</a>,
-  useNavigate: () => () => {},
+  useNavigate: () => router.navigate,
+  useSearch: () => router.search,
+  useRouterState: ({ select }: { select: (s: unknown) => unknown }) =>
+    select({ location: { search: router.search, state: {} } }),
 }))
 
+const apiGet = vi.hoisted(() => vi.fn())
+vi.mock("@/lib/api", () => ({ api: { get: apiGet } }))
+
 const getOrder = vi.hoisted(() => vi.fn())
-const getOrderActivity = vi.hoisted(() => vi.fn())
 const listOrders = vi.hoisted(() => vi.fn())
 const setOrderPicks = vi.hoisted(() => vi.fn())
 const transitionFulfillment = vi.hoisted(() => vi.fn())
 vi.mock("./repo", () => ({
   getOrder,
-  getOrderActivity,
   listOrders,
   setOrderPicks,
   transitionFulfillment,
@@ -58,12 +64,12 @@ function wrap(children: ReactNode, roles: string[] = ["shop_staff"]) {
 function open(d: OrderDetail = orderDetail(), roles?: string[]) {
   getOrder.mockResolvedValue(d)
   listOrders.mockResolvedValue(orderList([]))
-  getOrderActivity.mockResolvedValue({ entries: [] })
   return wrap(<OrderDetailScreen fulfillmentId={d.id} />, roles)
 }
 
 afterEach(() => {
   vi.clearAllMocks()
+  router.search = {}
 })
 
 describe("the summary bar", () => {
@@ -351,30 +357,47 @@ describe("Fulfil", () => {
   })
 })
 
-describe("the Activity sheet", () => {
-  it("opens from the action row, reads only then, and lists who · when", async () => {
+describe("the activity drawer (104)", () => {
+  it("opens from the action row through the address, and reads nothing before", async () => {
     open()
-    getOrderActivity.mockResolvedValue({
-      entries: [
-        { id: "e1", at: "2026-09-10T02:20:00Z", title: "Eggs — picked in full", actorLabel: "Sam", tone: "quiet" },
-        {
-          id: "e2",
-          at: "2026-09-10T02:30:00Z",
-          title: "Oat milk — marked unavailable · supplier short",
-          actorLabel: "Sam",
-          tone: "negative",
-        },
-      ],
-    })
     await screen.findByText("Items and fulfilment")
-    expect(getOrderActivity).not.toHaveBeenCalled()
+    expect(apiGet).not.toHaveBeenCalled()
 
     await userEvent.click(screen.getByRole("button", { name: "Activity" }))
-    const sheet = await screen.findByRole("dialog")
-    expect(within(sheet).getByText("Everything that has happened on this order.")).toBeInTheDocument()
-    expect(await within(sheet).findByText("Oat milk — marked unavailable · supplier short")).toBeInTheDocument()
-    expect(within(sheet).getAllByText(/^Sam · /)).toHaveLength(2)
-    // The order's log only — never product stats or the product change log.
-    expect(within(sheet).queryByText(/last 30 days|change log/i)).not.toBeInTheDocument()
+    const opened = router.navigate.mock.calls[0]![0] as {
+      search: (prev: Record<string, unknown>) => Record<string, unknown>
+    }
+    expect(opened.search({ tab: "picking" })).toEqual({ tab: "picking", log: 1 })
+  })
+
+  it("lists the order's own log — what, who, when — from its route", async () => {
+    router.search = { log: 1 }
+    apiGet.mockResolvedValue({
+      items: [
+        {
+          id: "e1",
+          at: "2026-09-10T02:30:00Z",
+          kind: "picking",
+          title: "Oat milk — marked unavailable · supplier short",
+          detail: null,
+          subject: null,
+          actor: "Sam",
+          tone: "problem",
+        },
+      ],
+      pageSize: 25,
+      total: 1,
+      totalCapped: false,
+      page: null,
+      nextCursor: null,
+      ignored: [],
+    })
+    open()
+    const drawer = await screen.findByRole("dialog")
+    expect(within(drawer).getByText(/everything that has happened on this order/i)).toBeInTheDocument()
+    expect(await within(drawer).findByText("Oat milk — marked unavailable · supplier short")).toBeInTheDocument()
+    expect(within(drawer).getByText("Sam")).toBeInTheDocument()
+    expect(String(apiGet.mock.calls[0]![0])).toMatch(/^\/shop\/v1\/orders\/[^/]+\/activity\?/)
+    expect(within(drawer).getByRole("button", { name: "Export CSV" })).toBeInTheDocument()
   })
 })

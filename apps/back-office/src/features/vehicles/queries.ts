@@ -10,7 +10,7 @@ import type {
 
 import * as repo from "./repo"
 
-const vehicleKeys = {
+export const vehicleKeys = {
   all: ["vehicles"] as const,
   detail: (id: string) => ["vehicles", "detail", id] as const,
 }

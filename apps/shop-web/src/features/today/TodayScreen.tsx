@@ -2,14 +2,14 @@ import { useEffect, useMemo, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { useStore } from "@tanstack/react-store"
 
+import { ActivityLogDrawer, useActivityAction } from "@effy/web-kit/activity-log"
 import { ErrorState } from "@effy/web-kit/console"
 import { Button, Card, Skeleton } from "@effy/design-system/ui"
 import { MoreActions, PageHeader } from "@effy/web-kit/patterns"
-import { History, Printer, Zap } from "lucide-react"
+import { Printer, Zap } from "lucide-react"
 
 import { LiveOrders } from "./LiveOrders"
 import { printLists, QuickActionsSheet } from "./QuickActionsSheet"
-import { TeamActivitySheet } from "./TeamActivitySheet"
 import { relativeTime, subheading } from "./model"
 import { NeedsAttention } from "./NeedsAttention"
 import { NextCollection } from "./NextCollection"
@@ -17,13 +17,14 @@ import { TodayGlance } from "./TodayGlance"
 import { todayQuery } from "./queries"
 import { useNow } from "./useNow"
 
+import { api } from "@/lib/api"
 import { onlineStore } from "@/lib/online"
 import { track } from "@/lib/telemetry"
 
 export function TodayScreen() {
   const today = useQuery(todayQuery)
   const [quickActionsOpen, setQuickActionsOpen] = useState(false)
-  const [teamActivityOpen, setTeamActivityOpen] = useState(false)
+  const activity = useActivityAction()
   const now = useNow(15_000)
 
   useEffect(() => {
@@ -68,9 +69,7 @@ export function TodayScreen() {
               <Printer aria-hidden="true" />
               Print pick lists
             </Button>
-            <MoreActions
-              actions={[{ label: "Team activity", icon: History, onSelect: () => setTeamActivityOpen(true) }]}
-            />
+            <MoreActions actions={[{ ...activity, label: "Team activity" }]} />
           </>
         }
       />
@@ -101,7 +100,16 @@ export function TodayScreen() {
       </div>
 
       <QuickActionsSheet open={quickActionsOpen} onOpenChange={setQuickActionsOpen} awaitingPick={awaitingPick} />
-      <TeamActivitySheet open={teamActivityOpen} onOpenChange={setTeamActivityOpen} />
+      <ActivityLogDrawer
+        app="shop-web"
+        log="shop-team"
+        title="Team activity"
+        description="Everything your team has done — orders, picking, notes, stock and refunds — newest first."
+        api={api}
+        path="/shop/v1/team-activity"
+        queryKey={["shop", "today"]}
+        fileName="team-activity"
+      />
     </div>
   )
 }

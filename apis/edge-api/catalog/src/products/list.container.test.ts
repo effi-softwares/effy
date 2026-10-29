@@ -16,11 +16,12 @@ vi.mock("@effy/edge-shared", async () => {
   };
 });
 
-import { insertTestProduct, insertTestVariant, migrationSql, testLeafId } from "@effy/edge-shared/testing";
+import { activityEntries, insertTestProduct, insertTestVariant, migrationSql, testLeafId } from "@effy/edge-shared/testing";
 import type { BackOfficeProductListDTO } from "@effy/shared-types";
 
 import { parseListQuery } from "@effy/edge-shared";
 
+import { productActivitySource } from "./activity";
 import { PRODUCT_LIST_SPEC } from "./list";
 import { detail, list as listReq } from "./service";
 
@@ -232,8 +233,9 @@ d("102 — the back-office product list against real PostgreSQL", () => {
     });
     expect(held.variants).toHaveLength(1);
     expect(held.variants[0]).toMatchObject({ stockTracked: false, state: "active" });
-    expect(held.history[0]).toMatchObject({ action: "held", actor: "Ops Person", note: "recall" });
-    expect(held.history.at(-1)).toMatchObject({ action: "created", actor: null });
+    const log = { items: await activityEntries(holder.pool!, productActivitySource(ids.held)) };
+    expect(log.items[0]).toMatchObject({ kind: "sale", title: "Held", actor: "Ops Person", detail: "recall" });
+    expect(log.items.at(-1)).toMatchObject({ kind: "content", title: "Created by the shop", actor: "Shop" });
 
     expect((await detail(ids.in_review)).waitingForReview).toBe("new_product");
     expect((await detail(ids.change_pending)).waitingForReview).toBe("change");

@@ -73,8 +73,11 @@ d("094 — back-office promotions", () => {
   it("creates a draft with its code normalised, reads it back in words, and audits and announces it", async () => {
     const p = await svc.createPromotion(CART_CODE, SUB);
     expect(p).toMatchObject({ state: "draft", sharedCode: "SPRING20", gives: "20% off your order, up to $15", terms: "On orders over $40.00", used: false });
-    const audit = await svc.promotionAudit(p.id);
-    expect(audit[0]).toMatchObject({ action: "promotion.created", actorSub: SUB });
+    const audit = await pool.query<{ action: string; actor_sub: string }>(
+      `SELECT action, actor_sub FROM admin.audit_log WHERE target_type = 'promotion' AND target_id = $1`,
+      [p.id],
+    );
+    expect(audit.rows[0]).toMatchObject({ action: "promotion.created", actor_sub: SUB });
     expect(holder.announced).toContainEqual({ scope: "ops", kind: "promotions" });
   });
 

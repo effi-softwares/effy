@@ -1,7 +1,7 @@
 import { createRoute } from "@tanstack/react-router"
 
 import { ProductDetailScreen } from "@/features/catalog/ProductDetailScreen"
-import { movementsList } from "@/features/catalog/StockHistory"
+import { withActivityLog } from "@effy/web-kit/activity-log"
 
 import { appRoute } from "./app"
 
@@ -9,7 +9,7 @@ export const catalogProductRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "catalog/$productId",
   validateSearch: (search: Record<string, unknown>) => ({
-    ...movementsList.validateSearch(search),
+    ...withActivityLog(search),
     ...(typeof search.size === "string" ? { size: search.size } : {}),
   }),
   component: CatalogProductScreen,

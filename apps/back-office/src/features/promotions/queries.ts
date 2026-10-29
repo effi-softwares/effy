@@ -9,7 +9,6 @@ import {
   deletePromotion,
   getOrderPolicy,
   getPromotion,
-  getPromotionHistory,
   listPromotions,
   putOrderPolicy,
   updatePromotion,
@@ -29,9 +28,6 @@ export const promotionListQuery = (params: PromotionListParams) =>
 
 export const promotionQuery = (id: string) =>
   queryOptions({ queryKey: [...PROMO_ROOT, "detail", id] as const, queryFn: () => getPromotion(id) })
-
-export const promotionHistoryQuery = (id: string) =>
-  queryOptions({ queryKey: [...PROMO_ROOT, "history", id] as const, queryFn: () => getPromotionHistory(id) })
 
 export const orderPolicyQuery = () =>
   queryOptions({ queryKey: [...PROMO_ROOT, "order-policy"] as const, queryFn: () => getOrderPolicy() })

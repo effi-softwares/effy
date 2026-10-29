@@ -7,10 +7,11 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest"
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children, to }: { children: ReactNode; to?: string }) => <a href={to ?? "#"}>{children}</a>,
   useNavigate: () => () => {},
+  useSearch: () => ({}),
 }))
 
 const getToday = vi.hoisted(() => vi.fn())
-vi.mock("../repo", () => ({ getToday, getTeamActivity: vi.fn() }))
+vi.mock("../repo", () => ({ getToday }))
 
 const getInsights = vi.hoisted(() => vi.fn())
 vi.mock("@/features/insights/repo", () => ({ getInsights }))

@@ -6,7 +6,6 @@ import { VEHICLE_VIEWS, VEHICLE_LIST, type VehicleListRequest, type VehicleView 
 import type {
   VehicleComplianceIssue,
   VehicleDetail,
-  VehicleHolding,
   VehicleListItem,
 } from "@effy/shared-types";
 import type pg from "pg";
@@ -43,17 +42,6 @@ interface DetailRow extends ListRow {
   notes: string | null;
   created_at: Date;
   updated_at: string;
-}
-
-interface HoldingRow {
-  id: string;
-  driver_id: string;
-  driver_name: string;
-  started_at: Date;
-  ended_at: Date | null;
-  odometer_start_km: number | null;
-  odometer_end_km: number | null;
-  note: string | null;
 }
 
 /** A date column carries no time and must not grow one in transit. */
@@ -160,7 +148,6 @@ export async function getVehicle(id: string): Promise<VehicleDetail | null> {
   const r = res.rows[0];
   if (!r) return null;
 
-  const holdings = await listHoldings(id);
   return {
     ...toListItem(r),
     year: r.year,
@@ -177,31 +164,7 @@ export async function getVehicle(id: string): Promise<VehicleDetail | null> {
     notes: r.notes,
     createdAt: r.created_at.toISOString(),
     updatedAt: r.updated_at,
-    holdings,
   };
-}
-
-/** Newest first, including periods whose driver has since been offboarded. */
-export async function listHoldings(vehicleId: string): Promise<VehicleHolding[]> {
-  const res = await query<HoldingRow>(
-    `SELECT h.id, h.driver_id, d.name AS driver_name, h.started_at, h.ended_at,
-            h.odometer_start_km, h.odometer_end_km, h.note
-       FROM public.vehicle_holding h
-       JOIN public.driver d ON d.id = h.driver_id
-      WHERE h.vehicle_id = $1
-      ORDER BY h.started_at DESC`,
-    [vehicleId],
-  );
-  return res.rows.map((r) => ({
-    id: r.id,
-    driverId: r.driver_id,
-    driverName: r.driver_name,
-    startedAt: r.started_at.toISOString(),
-    endedAt: r.ended_at ? r.ended_at.toISOString() : null,
-    odometerStartKm: r.odometer_start_km,
-    odometerEndKm: r.odometer_end_km,
-    note: r.note,
-  }));
 }
 
 const INSERT_COLUMNS: Record<string, string> = {

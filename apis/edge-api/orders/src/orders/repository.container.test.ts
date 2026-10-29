@@ -22,7 +22,10 @@ import { ORDER_LIST_SPEC } from "../orders/list";
 
 /** A list request as the route parses it (103). */
 const req = (qs: Record<string, string | undefined>) => parseListQuery({ pageSize: "100", ...qs }, ORDER_LIST_SPEC);
-import { history, list, packages, viewCounts } from "./repository";
+import { activityEntries } from "@effy/edge-shared/testing";
+
+import { orderActivitySource } from "../activity/order";
+import { list, packages, viewCounts } from "./repository";
 import { listOrders } from "./service";
 
 const RUN = process.env.CONTAINER_TESTS === "1";
@@ -99,12 +102,13 @@ describe.skipIf(!RUN)("order reads — against real PostgreSQL", () => {
       [fulfillmentId],
     );
 
-    const rows = await history(orderId);
+    const rows = (await activityEntries(pool, orderActivitySource(orderId))).reverse();
 
-    expect(rows.map((r) => r.kind)).toEqual(["fulfillment", "handoff", "arrival"]);
-    expect(rows.map((r) => r.at.getTime())).toEqual([...rows.map((r) => r.at.getTime())].sort((a, b) => a - b));
-    expect(rows[1]!.summary).toBe("Handed to Australia Post");
-    expect(rows[2]!.actor_sub).toBe("staff-1");
+    expect(rows.map((r) => r.kind)).toEqual(["packing", "courier", "delivery"]);
+    expect(rows.map((r) => Date.parse(r.at))).toEqual([...rows.map((r) => Date.parse(r.at))].sort((a, b) => a - b));
+    expect(rows[1]!.title).toBe("Handed to Australia Post");
+    // A sign-in subject is never shown: a staff record that is gone is said as such.
+    expect(rows[2]!.actor).toBe("Former staff");
   });
 
   /** The history entry reads the same with or without a consignment number. */
@@ -115,11 +119,12 @@ describe.skipIf(!RUN)("order reads — against real PostgreSQL", () => {
       [fulfillmentId],
     );
 
-    const rows = await history(orderId);
+    const rows = await activityEntries(pool, orderActivitySource(orderId));
     expect(rows).toHaveLength(1);
-    expect(rows[0]!.summary).toBe("Handed to carrier");
+    expect(rows[0]!.title).toBe("Handed to carrier");
+    expect(rows[0]!.detail).toBeNull();
     for (const hint of ["null", "undefined", "—", "unknown", "missing", "n/a"]) {
-      expect(rows[0]!.summary.toLowerCase()).not.toContain(hint);
+      expect(rows[0]!.title.toLowerCase()).not.toContain(hint);
     }
   });
 

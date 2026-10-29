@@ -1,15 +1,16 @@
 import { useQuery } from "@tanstack/react-query"
-import { Gauge, History, Pencil, ShieldCheck, Snowflake, Truck, UserRound } from "lucide-react"
+import { Gauge, Pencil, ShieldCheck, Snowflake, Truck, UserRound } from "lucide-react"
 
-import { Skeleton, Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui"
+import { Skeleton, Tabs, TabsContent, TabsList, TabsTrigger } from "@effy/design-system/ui"
+import { ActivityButton, ActivityLogDrawer } from "@effy/web-kit/activity-log"
 import { ErrorState, useHeaderDetail } from "@effy/web-kit/console"
 import type { VehicleDetail } from "@effy/shared-types"
 
 import { PageHeader, DetailRows, Panel, Callout, StatusWord } from "@effy/web-kit/patterns"
 import { useSessionRoles } from "@/features/auth/useSessionRoles"
+import { api } from "@/lib/api"
 
 import { HoldingControl } from "./components/HoldingControl"
-import { HoldingHistory } from "./components/HoldingHistory"
 import { VehicleEditForm } from "./components/VehicleEditForm"
 import { VehicleStatusControl } from "./components/VehicleStatusControl"
 import { canManageVehicles } from "./access"
@@ -24,7 +25,7 @@ import {
   STATUS_LABEL,
   STATUS_MEANING,
 } from "./model"
-import { vehicleDetailQuery } from "./queries"
+import { vehicleDetailQuery, vehicleKeys } from "./queries"
 import { vehicleStatusTone } from "./VehiclesListScreen"
 
 const dash = <span className="text-muted-foreground">—</span>
@@ -77,6 +78,7 @@ export function VehicleDetailScreen({ vehicleId }: { vehicleId: string }) {
             </span>
           </>
         }
+        actions={<ActivityButton />}
       />
 
       {v.complianceIssues.length > 0 ? (
@@ -105,11 +107,6 @@ export function VehicleDetailScreen({ vehicleId }: { vehicleId: string }) {
                       Edit details
                     </TabsTrigger>
                   ) : null}
-                  <TabsTrigger value="history">
-                    <History aria-hidden="true" />
-                    Handover history
-                    <TabsCount>{v.holdings.length}</TabsCount>
-                  </TabsTrigger>
                 </TabsList>
               </div>
             </div>
@@ -149,15 +146,6 @@ export function VehicleDetailScreen({ vehicleId }: { vehicleId: string }) {
                 </Panel>
               </TabsContent>
             ) : null}
-            <TabsContent value="history" className="ef-tabpanel">
-              <Panel
-                title="Handover history"
-                icon={<History aria-hidden="true" />}
-                description="Every time it was issued and returned, newest first."
-              >
-                <HoldingHistory holdings={v.holdings} />
-              </Panel>
-            </TabsContent>
           </Tabs>
         </div>
 
@@ -213,6 +201,16 @@ export function VehicleDetailScreen({ vehicleId }: { vehicleId: string }) {
           ) : null}
         </aside>
       </div>
+      <ActivityLogDrawer
+        app="back-office"
+        log="bo-vehicle"
+        title="Vehicle activity"
+        description={`${v.registrationPlate} — who had it and when, changes to it, and cleared checks.`}
+        api={api}
+        path={`/fleet/v1/vehicles/${v.id}/activity`}
+        queryKey={vehicleKeys.detail(v.id)}
+        fileName={`vehicle-${v.registrationPlate}-activity`}
+      />
     </>
   )
 }

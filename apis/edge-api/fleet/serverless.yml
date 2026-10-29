@@ -202,7 +202,7 @@ functions:
 
   driverAuditV1:
     handler: src/functions/driver-audit-v1-get.handler
-    description: The driver's change history — who changed what, when (056 FR-025). Read = any active staff.
+    description: The driver's activity — who changed what, when — searched, paged and exported (056 FR-025, 104). Read = any active staff.
     events:
       - httpApi:
           method: GET
@@ -336,11 +336,22 @@ functions:
 
   vehicleGetV1:
     handler: src/functions/vehicle-get-v1-get.handler
-    description: Vehicle detail, current holder and full holding history (061 FR-016). Read = any active staff.
+    description: Vehicle detail and current holder (061 FR-016; its history is /activity, 104). Read = any active staff.
     events:
       - httpApi:
           method: GET
           path: /fleet/v1/vehicles/{vehicleId}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  vehicleActivityV1:
+    handler: src/functions/vehicle-activity-v1-get.handler
+    description: A vehicle's activity — changes, issues and returns, cleared checks — searched, paged and exported (104). Read = any active staff.
+    events:
+      - httpApi:
+          method: GET
+          path: /fleet/v1/vehicles/{vehicleId}/activity
           authorizer:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}

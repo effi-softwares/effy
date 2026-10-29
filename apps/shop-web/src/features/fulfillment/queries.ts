@@ -15,7 +15,6 @@ import {
   packScanParcels,
   voidParcel,
   getOrder,
-  getOrderActivity,
   listOrders,
   setOrderPicks,
   setOrderTags,
@@ -37,12 +36,6 @@ export const orderDetailQuery = (id: string) =>
   queryOptions({
     queryKey: [...FULFILLMENT_ROOT, "orders", "detail", id] as const,
     queryFn: () => getOrder(id),
-  })
-
-export const orderActivityQuery = (id: string) =>
-  queryOptions({
-    queryKey: [...FULFILLMENT_ROOT, "orders", "activity", id] as const,
-    queryFn: () => getOrderActivity(id),
   })
 
 export function invalidateOrders(queryClient: ReturnType<typeof useQueryClient>) {

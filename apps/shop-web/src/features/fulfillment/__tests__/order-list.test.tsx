@@ -25,7 +25,6 @@ vi.mock("../repo", () => ({
   transitionFulfillment,
   setOrderTags: vi.fn(),
   getOrder: vi.fn(),
-  getOrderActivity: vi.fn(),
   addOrderNote: vi.fn(),
   listFulfillments: vi.fn(),
   getFulfillment: vi.fn(),
@@ -108,7 +107,9 @@ describe("the Orders list (057 A3)", () => {
     listOrders.mockResolvedValue(orderList([orderRow({ id: "f9" })]))
     wrap()
     await userEvent.click(await findInTable("Maya Oyelaran"))
-    expect(navigate).toHaveBeenCalledWith(expect.objectContaining({ to: "/orders/$fulfillmentId", params: { fulfillmentId: "f9" } }))
+    expect(navigate).toHaveBeenCalledWith(
+      expect.objectContaining({ to: "/orders/$fulfillmentId", params: { fulfillmentId: "f9" } }),
+    )
   })
 
   it("asks the server with the URL's filters, so search and filters compose", async () => {

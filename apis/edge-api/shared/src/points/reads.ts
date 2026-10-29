@@ -64,15 +64,6 @@ export interface HistoryLine {
   at: Date;
 }
 
-export interface StaffHistoryLine extends HistoryLine {
-  reason: string;
-  note: string | null;
-  authorKind: "staff" | "system" | "customer";
-  authorName: string;
-  orderId: string | null;
-  refundId: string | null;
-}
-
 interface Row {
   id: string;
   kind: EntryKind;
@@ -83,12 +74,6 @@ interface Row {
   created_at: Date;
   /** The same instant as Postgres writes it — the cursor's value (a JS Date keeps only milliseconds). */
   created_at_text: string;
-  note?: string | null;
-  author_kind?: "staff" | "system" | "customer";
-  author_flow?: string | null;
-  staff_name?: string | null;
-  order_id?: string | null;
-  refund_id?: string | null;
 }
 
 /**
@@ -104,36 +89,21 @@ export function decodeCursor(cursor: string | undefined): { at: string; id: stri
   return { at, id };
 }
 
-const FLOW_NAMES: Readonly<Record<string, string>> = {
-  refund: "Refund",
-  points_expiry: "Expiry",
-  account_closure: "Account closure",
-  courier_override: "Courier override",
-};
-
-export function history(q: Queryable, customerId: string, page: { cursor?: string; limit: number }, opts: { staff: true }): Promise<{ lines: StaffHistoryLine[]; nextCursor?: string }>;
-export function history(q: Queryable, customerId: string, page: { cursor?: string; limit: number }, opts?: { staff?: false }): Promise<{ lines: HistoryLine[]; nextCursor?: string }>;
+/** The customer's history, newest first. Back-office reads the ledger as an activity log (104), not here. */
 export async function history(
   q: Queryable,
   customerId: string,
   page: { cursor?: string; limit: number },
-  opts: { staff?: boolean } = {},
-): Promise<{ lines: (HistoryLine | StaffHistoryLine)[]; nextCursor?: string }> {
+): Promise<{ lines: HistoryLine[]; nextCursor?: string }> {
   const limit = Math.min(Math.max(1, page.limit), 100);
   const after = decodeCursor(page.cursor);
-  const staffCols = opts.staff
-    ? `, e.note, e.author_kind, e.author_flow, s.name AS staff_name, e.order_id::text AS order_id, e.refund_id::text AS refund_id`
-    : "";
-  // admin.staff is joined only for the staff read.
-  const staffJoin = opts.staff ? `LEFT JOIN admin.staff s ON e.author_kind = 'staff' AND s.cognito_sub = e.author_sub` : "";
   const [{ centsPerPoint }, rows] = await Promise.all([
     loadSettings(q),
     q.query<Row>(
       `
-SELECT e.id::text AS id, e.kind, e.points, e.reason, o.order_number, e.expires_at, e.created_at, e.created_at::text AS created_at_text${staffCols}
+SELECT e.id::text AS id, e.kind, e.points, e.reason, o.order_number, e.expires_at, e.created_at, e.created_at::text AS created_at_text
   FROM public.points_entry e
   LEFT JOIN public."order" o ON o.id = e.order_id
-  ${staffJoin}
  WHERE e.customer_id = $1
    AND ($2::timestamptz IS NULL OR (e.created_at, e.id) < ($2::timestamptz, $3::uuid))
  ORDER BY e.created_at DESC, e.id DESC
@@ -149,13 +119,7 @@ SELECT e.id::text AS id, e.kind, e.points, e.reason, o.order_number, e.expires_a
       words: customerWords(r.kind, r.reason, r.order_number), orderNumber: r.order_number,
       expiresOn: r.expires_at ? lastUsableDateOf(r.expires_at) : null, at: r.created_at,
     };
-    if (!opts.staff) return line;
-    const authorKind = r.author_kind ?? "system";
-    return {
-      ...line, reason: r.reason, note: r.note ?? null, authorKind,
-      authorName: authorKind === "staff" ? (r.staff_name ?? "Staff") : authorKind === "customer" ? "Customer" : (FLOW_NAMES[r.author_flow ?? ""] ?? "Effy"),
-      orderId: r.order_id ?? null, refundId: r.refund_id ?? null,
-    } satisfies StaffHistoryLine;
+    return line;
   });
   const last = rows.rows[Math.min(rows.rows.length, limit) - 1];
   return { lines, ...(more && last ? { nextCursor: encodeCursor(last.created_at_text, last.id) } : {}) };

@@ -1,21 +1,19 @@
 import { useState } from "react"
 
 import { asapSentence, courierEstimateSentence } from "@effy/shared-types"
-import { Button, Card, Table, TableBody, TableCell, TableRow } from "@effy/design-system/ui"
+import { Button, Card } from "@effy/design-system/ui"
 import { CalendarClock, Route, Truck } from "lucide-react"
 
 import { ChangeDeliveryWindowDialog } from "./ChangeDeliveryWindowDialog"
 import { CourierCollection } from "./CourierCollection"
 import { DeliverByEffyDialog } from "./DeliverByEffyDialog"
-import { DeliveryHistory } from "./DeliveryHistory"
 import { SendByCourierDialog } from "./SendByCourierDialog"
-import { DELIVERY_REASON_LABEL, deliveryChangeText, deliveryTypeText, PROMISE_LABEL, type OrderDetail } from "../model"
+import { DELIVERY_REASON_LABEL, deliveryTypeText, PROMISE_LABEL, type OrderDetail } from "../model"
 
 export type DeliveryMove = "courier" | "effy" | "retime"
 
 export function DeliveryTypeSection({
   order,
-  formatDateTime,
   canChangeCollection = false,
   canMove = false,
   moving: movingProp,
@@ -23,7 +21,6 @@ export function DeliveryTypeSection({
   children,
 }: {
   order: OrderDetail
-  formatDateTime: (iso: string | null) => string
   canChangeCollection?: boolean
   canMove?: boolean
   moving?: DeliveryMove | null
@@ -120,56 +117,10 @@ export function DeliveryTypeSection({
                 />
               </>
             ) : null}
-            <DeliveryHistory moves={order.deliveryMoves ?? []} formatDateTime={(iso) => formatDateTime(iso)} />
-
-            <CourierCollection
-              order={order}
-              canChange={canChangeCollection}
-              formatDateTime={(iso) => formatDateTime(iso)}
-            />
+            <CourierCollection order={order} canChange={canChangeCollection} />
           </div>
         </Card>
       </section>
-
-      {order.deliveryTypeHistory.length > 0 ? (
-        <section className="min-w-0" aria-labelledby="delivery-type-h">
-          <Card className="gap-0 overflow-hidden py-0">
-            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b px-5 py-4 max-md:px-4">
-              <h2
-                id="delivery-type-h"
-                className="flex items-center gap-2 leading-6 font-semibold [&_svg]:size-4 [&_svg]:text-muted-foreground"
-              >
-                Delivery type history
-              </h2>
-            </div>
-            <Table className="[&_td]:py-2" aria-label="Delivery type history">
-              <TableBody>
-                {order.deliveryTypeHistory.map((c, i) => (
-                  <TableRow key={`${c.at}-${i}`}>
-                    <TableCell>
-                      {deliveryChangeText(c)}
-                      <span className="mt-0.5 block text-sm text-muted-foreground">
-                        {DELIVERY_REASON_LABEL[c.reason]}
-                        {c.note ? ` — ${c.note}` : ""}
-                      </span>
-                      <span className="mt-0.5 block text-sm text-muted-foreground">
-                        {c.actor.kind === "staff" ? (
-                          <span className="font-mono">{c.actor.sub}</span>
-                        ) : (
-                          "Decided at checkout"
-                        )}
-                      </span>
-                    </TableCell>
-                    <TableCell numeric className="text-xs whitespace-nowrap text-muted-foreground">
-                      {formatDateTime(c.at)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </Card>
-        </section>
-      ) : null}
     </>
   )
 }

@@ -13,9 +13,8 @@ const MODE_HELP = {
 } as const
 
 type Props = {
-  order: Pick<AdminOrderDetailDTO, "id" | "courierCollection" | "courierCollectionHistory">
+  order: Pick<AdminOrderDetailDTO, "id" | "courierCollection">
   canChange: boolean
-  formatDateTime: (iso: string) => string
 }
 
 export function CourierCollection(props: Props) {
@@ -23,7 +22,7 @@ export function CourierCollection(props: Props) {
   return mode ? <CourierCollectionRows {...props} mode={mode} /> : null
 }
 
-function CourierCollectionRows({ order, canChange, formatDateTime, mode }: Props & { mode: "hub" | "supplier" }) {
+function CourierCollectionRows({ order, canChange, mode }: Props & { mode: "hub" | "supplier" }) {
   const change = useCourierCollection(order.id)
   const [note, setNote] = useState("")
   const [error, setError] = useState<string | null>(null)
@@ -48,16 +47,6 @@ function CourierCollectionRows({ order, canChange, formatDateTime, mode }: Props
           <span className="text-muted-foreground"> — {MODE_HELP[mode]}</span>
         </dd>
       </dl>
-      {(order.courierCollectionHistory ?? []).length > 0 ? (
-        <ol className="space-y-1 text-sm text-muted-foreground" aria-label="How it reaches the courier — changes">
-          {order.courierCollectionHistory.map((h, i) => (
-            <li key={`${h.at}-${i}`}>
-              <span className="tabular-nums">{formatDateTime(h.at)}</span> · {MODE_LABEL[h.from]} → {MODE_LABEL[h.to]}
-              {h.note ? ` — ${h.note}` : ""}
-            </li>
-          ))}
-        </ol>
-      ) : null}
       {canChange ? (
         <div className="flex flex-wrap items-end gap-2">
           <Input
