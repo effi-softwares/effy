@@ -20,10 +20,26 @@ export function rangeText(page: Pick<ListPage<unknown>, "items" | "total" | "tot
   return `${count.format(from)}–${count.format(to)} of ${count.format(page.total)}${page.totalCapped ? "+" : ""}`;
 }
 
+/** Whether there is a page before and after this one: the pager's buttons and scroll paging ask the same. */
+export function pageMoves(page: ListPage<unknown> | undefined, pageNumber: number) {
+  const offset = page?.page != null;
+  const pages = page ? Math.max(1, Math.ceil(page.total / page.pageSize)) : null;
+  return {
+    offset,
+    pages,
+    canBack: pageNumber > 1,
+    // A cursor list knows its next page by its cursor, whatever its (capped) count says.
+    canNext: page ? (offset ? pages !== null && pageNumber < pages : page.nextCursor !== null) : false,
+    // Only a numbered list can jump to its end; a cursor list reaches it page by page.
+    canLast: offset && pages !== null && !page?.totalCapped && pageNumber < pages,
+  };
+}
+
 /**
- * The list's footer (103 FR-002): what is on screen, rows per page, and the page controls. A list with an
- * exact total offers first/last and "Page n of m"; a keyset list offers Back/Next.
+ * The list's footer (103 FR-002), one look for every list: what is on screen, rows per page, "Page n of m" and
+ * first / previous / next / last. A cursor list's count may be capped ("of 400+"), and its last button stays off.
  */
+
 export function Pagination({
   page,
   pageNumber,
@@ -44,10 +60,7 @@ export function Pagination({
   onNext: () => void;
   onLast?: (lastPage: number) => void;
 }) {
-  const offset = page?.page != null;
-  const pages = page && offset && !page.totalCapped ? Math.max(1, Math.ceil(page.total / page.pageSize)) : null;
-  const canBack = pageNumber > 1;
-  const canNext = page ? (offset ? pages !== null && pageNumber < pages : page.nextCursor !== null) : false;
+  const { pages, canBack, canNext, canLast } = pageMoves(page, pageNumber);
 
   return (
     <div className="ef-dt-pager flex flex-none flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t px-4 py-2.5 text-sm text-muted-foreground">
@@ -71,31 +84,29 @@ export function Pagination({
         {pages !== null ? (
           <span className="whitespace-nowrap max-sm:hidden">
             Page {count.format(pageNumber)} of {count.format(pages)}
+            {page?.totalCapped ? "+" : ""}
           </span>
         ) : null}
         <div className="flex gap-1">
-          {offset ? (
-            <Button variant="outline" size="icon-sm" aria-label="First page" disabled={!canBack} onClick={onFirst}>
-              <ChevronsLeft aria-hidden="true" />
-            </Button>
-          ) : null}
+          <Button variant="outline" size="icon-sm" aria-label="First page" disabled={!canBack} onClick={onFirst}>
+            <ChevronsLeft aria-hidden="true" />
+          </Button>
           <Button variant="outline" size="icon-sm" aria-label="Previous page" disabled={!canBack} onClick={onBack}>
             <ChevronLeft aria-hidden="true" />
           </Button>
           <Button variant="outline" size="icon-sm" aria-label="Next page" disabled={!canNext} onClick={onNext}>
             <ChevronRight aria-hidden="true" />
           </Button>
-          {offset && onLast ? (
-            <Button
-              variant="outline"
-              size="icon-sm"
-              aria-label="Last page"
-              disabled={pages === null || pageNumber >= pages}
-              onClick={() => pages !== null && onLast(pages)}
-            >
-              <ChevronsRight aria-hidden="true" />
-            </Button>
-          ) : null}
+          <Button
+            variant="outline"
+            size="icon-sm"
+            aria-label="Last page"
+            disabled={!canLast || !onLast}
+            title={page && !canLast && canNext ? "This list is read page by page" : undefined}
+            onClick={() => pages !== null && onLast?.(pages)}
+          >
+            <ChevronsRight aria-hidden="true" />
+          </Button>
         </div>
       </div>
     </div>

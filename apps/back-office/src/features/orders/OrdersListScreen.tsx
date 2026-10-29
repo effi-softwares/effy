@@ -23,7 +23,7 @@ import {
   isFiltered,
   type EffyColumnDef,
 } from "@effy/web-kit/data-table"
-import { Kbd, PageHeader } from "@effy/web-kit/patterns"
+import { PageHeader } from "@effy/web-kit/patterns"
 import { moment, money } from "@/lib/format"
 import { shopListQuery } from "@/features/shops/queries"
 
@@ -225,11 +225,6 @@ export function OrdersListScreen() {
           </>
         }
       />
-      <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground max-md:hidden">
-        <Kbd>J</Kbd>
-        <Kbd>K</Kbd> move through rows · <Kbd>↵</Kbd> opens the order · Status is the order's least-advanced package;
-        Problem always wins.
-      </p>
     </ListPage>
   )
 }

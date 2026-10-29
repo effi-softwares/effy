@@ -213,6 +213,7 @@ html * { @apply overscroll-x-none; }
   .ef-dt-scroll > table { @apply flex-none; }
   .ef-dt-state { @apply flex flex-1 items-center justify-center px-4 py-10; }
   .ef-dt-stale > table { @apply opacity-70 transition-opacity; }
+  .ef-dt-pull { @apply flex-none border-t px-4 py-1.5 text-center text-xs text-muted-foreground; }
   .ef-dt-progress { @apply pointer-events-none absolute inset-x-0 top-0 z-20 h-0.5 bg-primary-fill; animation: ef-dt-progress 1.2s ease-in-out infinite; }
   .ef-dt-link { @apply font-medium text-foreground no-underline hover:underline; }
   .ef-dt tr[data-focused] { @apply bg-(--row-hover) shadow-[inset_2px_0_0_var(--primary-fill)]; }

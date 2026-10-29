@@ -154,6 +154,34 @@ describe("DataTable (contracts/data-table-ui.md)", () => {
     expect(screen.getByRole("button", { name: "Next page" })).toBeDisabled();
   });
 
+  it("scrolling on past the end of a page turns to the next, and past the top back again", async () => {
+    const router = renderAt("/shops");
+    await screen.findByText("Shop 01");
+    const frame = screen.getByRole("table").closest(".ef-dt-frame")!;
+    let now = 1_000_000;
+    const clock = vi.spyOn(Date, "now").mockImplementation(() => now);
+    const wheel = (deltaY: number, times = 1) => {
+      for (let i = 0; i < times; i++) act(() => void frame.dispatchEvent(new WheelEvent("wheel", { deltaY })));
+    };
+    // One fling into the end does not turn the page: the gesture must rest there, then keep going.
+    wheel(100);
+    expect(router.state.location.search).toEqual({});
+    now += 300;
+    wheel(100);
+    expect(screen.getByRole("status")).toHaveTextContent("Keep scrolling for the next page");
+    wheel(100, 2);
+    await screen.findByText("Shop 26");
+    expect(router.state.location.search).toEqual({ page: 2 });
+
+    now += 2_000;
+    wheel(-100);
+    now += 300;
+    wheel(-100, 3);
+    await screen.findByText("Shop 01");
+    expect(router.state.location.search).toEqual({});
+    clock.mockRestore();
+  });
+
   it("restores the view from the address (reload / shared link)", async () => {
     renderAt("/shops?sort=total&page=2&status=active");
     expect(await screen.findByText("26–30 of 30")).toBeInTheDocument();

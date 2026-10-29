@@ -64,7 +64,8 @@ describe("a keyset list", () => {
   it("pages with cursors kept in history, not the address, and Back pops them", async () => {
     const router = renderAt("/");
     expect(await screen.findByText("Entry 60")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Last page" })).not.toBeInTheDocument();
+    // One pager look everywhere: a cursor list shows Last too, but cannot jump to its end.
+    expect(screen.getByRole("button", { name: "Last page" })).toBeDisabled();
     await userEvent.click(screen.getByRole("button", { name: "Next page" }));
     expect(await screen.findByText("Entry 35")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Next page" }));

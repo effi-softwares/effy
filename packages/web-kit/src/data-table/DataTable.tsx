@@ -28,7 +28,8 @@ import { useHiddenColumns } from "./hidden-columns";
 import type { FilterValue, ListSearch } from "./list-search";
 import { isFiltered } from "./list-search";
 import { usePrefetchNextPage, type ListQueryInput } from "./list-query";
-import { Pagination } from "./Pagination";
+import { useEdgePaging } from "./edge-paging";
+import { pageMoves, Pagination } from "./Pagination";
 import type { ListState } from "./use-list-state";
 
 /** Where a row leads: a route the console's router knows. Passed to `<Link>` and `navigate` unchanged. */
@@ -131,6 +132,20 @@ export function DataTable<T extends RowData, S extends string, F extends Record<
     if (focus < 0) return;
     bodyRef.current?.querySelector<HTMLElement>(`[data-row-index="${focus}"]`)?.scrollIntoView?.({ block: "nearest" });
   }, [focus]);
+
+  // Scrolling past the end of a page turns to the next, past the top to the previous (the pager's own rule).
+  const frameRef = useRef<HTMLDivElement>(null);
+  const moves = pageMoves(page, page?.page ?? view.page);
+  const pull = useEdgePaging({
+    frame: frameRef,
+    scroller: bodyRef,
+    canNext: moves.canNext,
+    canBack: moves.canBack,
+    onNext: () => state.next(page?.nextCursor),
+    onBack: state.back,
+    busy: query.isFetching,
+    pageKey: page,
+  });
 
   const filtered = isFiltered(view, props.viewFilters ?? []);
   const visibleColumns = table.getVisibleLeafColumns();
@@ -239,7 +254,7 @@ export function DataTable<T extends RowData, S extends string, F extends Record<
         <p className="text-sm text-muted-foreground">This list has changed since that page; it starts again from the newest.</p>
       ) : null}
       {props.above}
-      <div className="ef-dt-frame" aria-busy={query.isFetching}>
+      <div ref={frameRef} className="ef-dt-frame" aria-busy={query.isFetching}>
         {query.isFetching && !query.isPending ? <div className="ef-dt-progress" aria-hidden="true" /> : null}
         <div ref={bodyRef} className={cn("ef-dt-scroll", query.isPlaceholderData && "ef-dt-stale")}>
           <table aria-label={label} aria-busy={query.isPending || undefined} className="ef-rtable w-full caption-bottom text-sm tabular-nums">
@@ -308,12 +323,17 @@ export function DataTable<T extends RowData, S extends string, F extends Record<
           </table>
           {body ? <div className="ef-dt-state">{body}</div> : null}
         </div>
+        {pull ? (
+          <p className="ef-dt-pull" role="status">
+            {pull === "next" ? "Keep scrolling for the next page" : "Keep scrolling for the previous page"}
+          </p>
+        ) : null}
         <Pagination
           page={page}
           pageNumber={page?.page ?? view.page}
           size={view.size}
           onSize={state.setSize}
-          onFirst={() => (list.spec.mode === "offset" ? state.goTo(1) : state.back())}
+          onFirst={() => state.goTo(1)}
           onBack={state.back}
           onNext={() => state.next(page?.nextCursor)}
           onLast={state.goTo}
