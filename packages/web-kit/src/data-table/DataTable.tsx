@@ -29,6 +29,7 @@ import type { FilterValue, ListSearch } from "./list-search";
 import { isFiltered } from "./list-search";
 import { usePrefetchNextPage, type ListQueryInput } from "./list-query";
 import { useEdgePaging } from "./edge-paging";
+import { useActionBar } from "../action-bar/ActionBar";
 import { pageMoves, Pagination } from "./Pagination";
 import type { ListState } from "./use-list-state";
 
@@ -55,12 +56,23 @@ export interface DataTableProps<T extends RowData, S extends string, F extends R
   rowHref?: (row: T) => RowHref;
   rowClassName?: (row: T) => string | undefined;
   /** Bulk selection by row id (FR-019): kept across pages, cleared by the screen when filters change. */
-  selection?: { selected: ReadonlySet<string>; onChange: (next: ReadonlySet<string>) => void; label: (row: T) => string };
+  /**
+   * Rows can be ticked. Every such list gets the console's one floating action bar (`useActionBar`): `actions` are its
+   * buttons, `barLabel` names it ("Selected orders"), `busy` disables its Clear while an action runs.
+   */
+  selection?: {
+    selected: ReadonlySet<string>;
+    onChange: (next: ReadonlySet<string>) => void;
+    label: (row: T) => string;
+    actions: ReactNode;
+    barLabel: string;
+    busy?: boolean;
+  };
   /** Shown when nothing exists yet (no search, no filters). */
   empty: { icon: LucideIcon; title: string; description?: string; action?: ReactNode };
   /** Filters ignored in deciding "no matches" (a view select is a slice, not a narrowing). */
   viewFilters?: readonly (keyof F)[];
-  /** A line above the frame (a bulk-action bar, a notice). */
+  /** A line above the frame (a notice, a bulk action's result). */
   above?: ReactNode;
   /** Accessible name of the table. */
   label: string;
@@ -145,6 +157,15 @@ export function DataTable<T extends RowData, S extends string, F extends Record<
     onBack: state.back,
     busy: query.isFetching,
     pageKey: page,
+  });
+
+  // Ticked rows put their actions on the console's one floating bar.
+  const bar = useActionBar({
+    count: selection?.selected.size ?? 0,
+    label: selection?.barLabel ?? label,
+    busy: selection?.busy,
+    onClear: () => selection?.onChange(new Set()),
+    children: selection?.actions,
   });
 
   const filtered = isFiltered(view, props.viewFilters ?? []);
@@ -339,6 +360,7 @@ export function DataTable<T extends RowData, S extends string, F extends Record<
           onLast={state.goTo}
         />
       </div>
+      {bar}
     </div>
   );
 }

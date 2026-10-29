@@ -182,10 +182,8 @@ export function OrderListScreen({
             now={now}
             selected={selected}
             onSelect={setSelected}
-            above={
-              selected.size > 0 ? (
-                <BulkActions rows={rows.filter((r) => selected.has(r.id))} selected={selected} onClear={() => setSelected(new Set())} onExport={downloadOrdersCsv} />
-              ) : null
+            actions={
+              <BulkActions rows={rows.filter((r) => selected.has(r.id))} selected={selected} onClear={() => setSelected(new Set())} onExport={downloadOrdersCsv} />
             }
             toolbar={
               <>

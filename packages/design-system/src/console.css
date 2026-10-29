@@ -213,6 +213,24 @@ html * { @apply overscroll-x-none; }
   .ef-dt-scroll > table { @apply flex-none; }
   .ef-dt-state { @apply flex flex-1 items-center justify-center px-4 py-10; }
   .ef-dt-stale > table { @apply opacity-70 transition-opacity; }
+  /* The selected-rows bar (103): floating, the page's colours inverted, sliding in and out. */
+  .ef-selbar {
+    @apply fixed left-1/2 z-40 flex max-w-[calc(100vw-2rem)] flex-nowrap items-center gap-2 overflow-hidden rounded-xl bg-foreground py-2 pr-2 pl-3 text-sm font-medium whitespace-nowrap text-background shadow-lg;
+    bottom: calc(1.5rem + env(safe-area-inset-bottom));
+    translate: -50% 0;
+    transition: translate 220ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 180ms ease-out;
+  }
+  .ef-selbar[data-state="closed"] { @apply pointer-events-none opacity-0; translate: -50% calc(100% + 2rem); }
+  .ef-selbar__rule { @apply h-5 w-px flex-none bg-background/25; }
+  .ef-selbar__count { @apply flex-none px-1 tabular-nums; }
+  .ef-selbar__actions { @apply flex min-w-0 flex-nowrap items-center gap-2; }
+  /* One row, always (103): it packs tighter rather than wrapping, and at last scrolls its actions sideways. */
+  .ef-selbar[data-density="compact"] { @apply gap-1.5 py-1.5 text-xs; }
+  .ef-selbar[data-density="compact"] .ef-selbar__actions { @apply gap-1.5; }
+  .ef-selbar[data-density="tight"], .ef-selbar[data-density="scroll"] { @apply gap-1 py-1.5 pr-1.5 pl-2 text-xs; }
+  .ef-selbar[data-density="tight"] .ef-selbar__actions, .ef-selbar[data-density="scroll"] .ef-selbar__actions { @apply gap-1; }
+  .ef-selbar[data-density="scroll"] .ef-selbar__actions { @apply overflow-x-auto [scrollbar-width:none]; }
+  @media (prefers-reduced-motion: reduce) { .ef-selbar { transition: opacity 120ms; } .ef-selbar[data-state="closed"] { translate: -50% 0; } }
   .ef-dt-pull { @apply flex-none border-t px-4 py-1.5 text-center text-xs text-muted-foreground; }
   .ef-dt-progress { @apply pointer-events-none absolute inset-x-0 top-0 z-20 h-0.5 bg-primary-fill; animation: ef-dt-progress 1.2s ease-in-out infinite; }
   .ef-dt-link { @apply font-medium text-foreground no-underline hover:underline; }

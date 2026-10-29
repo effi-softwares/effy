@@ -5,6 +5,8 @@ import { createQueryClient, wireGlobalErrorReporting } from "@effy/web-kit"
 import { QueryClientProvider } from "@tanstack/react-query"
 import { RouterProvider } from "@tanstack/react-router"
 
+import { ActionBarProvider } from "@effy/web-kit/action-bar"
+
 import { configureAmplify } from "./lib/amplify"
 import { assertConfig } from "./lib/env"
 import { watchInstallability } from "./lib/install"
@@ -42,7 +44,10 @@ try {
   createRoot(rootEl).render(
     <StrictMode>
       <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
+        {/* The one floating action bar, over every screen (103). */}
+        <ActionBarProvider>
+          <RouterProvider router={router} />
+        </ActionBarProvider>
       </QueryClientProvider>
     </StrictMode>,
   )

@@ -325,17 +325,20 @@ describe("selection and the bulk bar", () => {
     )
     wrap()
     await screen.findByRole("table", { busy: false })
-    expect(screen.queryByText(/selected/)).not.toBeInTheDocument()
+    // The bar waits off-screen, hidden, until a row is ticked (it slides in and out).
+    expect(screen.queryByRole("region", { name: "Selected orders" })).not.toBeInTheDocument()
 
     await userEvent.click(screen.getByLabelText("Select EFY-A"))
     await userEvent.click(screen.getByLabelText("Select EFY-B"))
     expect(screen.getByText("2 selected")).toBeInTheDocument()
-    for (const name of [/Start picking/, /Mark ready/, /Add tag/, /^Export$/, /Can't supply/, /^Clear$/]) {
-      expect(screen.getByRole("button", { name })).toBeInTheDocument()
+    const bar = screen.getByRole("region", { name: "Selected orders" })
+    for (const name of [/Start picking/, /Mark ready/, /Add tag/, /^Export$/, /Can't supply/, /Clear selection/]) {
+      expect(within(bar).getByRole("button", { name })).toBeInTheDocument()
     }
 
-    await userEvent.click(screen.getByRole("button", { name: /^Clear$/ }))
-    expect(screen.queryByText(/selected/)).not.toBeInTheDocument()
+    await userEvent.click(within(bar).getByRole("button", { name: /Clear selection/ }))
+    expect(screen.queryByRole("region", { name: "Selected orders" })).not.toBeInTheDocument()
+    expect(screen.getByLabelText("Select EFY-A")).not.toBeChecked()
   })
 
   it("ticking a row does not open it", async () => {

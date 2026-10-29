@@ -112,7 +112,7 @@ export function OrderTable({
   selected,
   onSelect,
   toolbar,
-  above,
+  actions,
 }: {
   state: ShopOrdersListState
   query: UseQueryResult<OrderList>
@@ -121,7 +121,8 @@ export function OrderTable({
   selected: ReadonlySet<string>
   onSelect: (ids: ReadonlySet<string>) => void
   toolbar: ReactNode
-  above?: ReactNode
+  /** The selection bar's buttons. */
+  actions: ReactNode
 }) {
   return (
     <DataTable
@@ -137,14 +138,13 @@ export function OrderTable({
         const tone = orderRowTone(o, now)
         return cn(!selected.has(o.id) && tone === "recent" && "is-recent", !selected.has(o.id) && tone === "unopened" && "is-unopened")
       }}
-      selection={{ selected, onChange: onSelect, label: (o) => o.orderNumber }}
+      selection={{ selected, onChange: onSelect, label: (o) => o.orderNumber, actions, barLabel: "Selected orders" }}
       empty={{
         icon: Inbox,
         title: "No orders yet",
         description: "Orders appear here the moment a customer pays for something your shop supplies. This list updates by itself.",
       }}
       toolbar={toolbar}
-      above={above}
     />
   )
 }

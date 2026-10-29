@@ -18,7 +18,6 @@ import {
   Select,
   SelectContent,
   SelectItem,
-  SelectTrigger,
   SelectValue,
   Tabs,
   TabsContent,
@@ -36,6 +35,7 @@ import {
   useListState,
   type EffyColumnDef,
 } from "@effy/web-kit/data-table"
+import { ActionBarButton, ActionBarSelectTrigger } from "@effy/web-kit/action-bar"
 import { PageHeader, StatusWord } from "@effy/web-kit/patterns"
 
 import { coverageError, isNoDriverCovers, NO_DRIVER_GROUP, NO_DRIVER_UNGROUPED } from "../errorText"
@@ -170,7 +170,55 @@ export function CoveragePanel({ canManage }: { canManage: boolean }) {
             query={coverage}
             queryInput={input}
             rowId={(r) => r.postcode}
-            selection={canManage ? { selected, onChange: setSelected, label: (r) => r.postcode } : undefined}
+            selection={
+              canManage
+                ? {
+                    selected,
+                    onChange: setSelected,
+                    label: (r) => r.postcode,
+                    barLabel: "Selected postcodes",
+                    busy: patch.isPending,
+                    actions: (
+                      <>
+                        <Select value={moveTo} onValueChange={setMoveTo}>
+                          <ActionBarSelectTrigger aria-label="Move to group">
+                            <SelectValue placeholder="Move to group…" />
+                          </ActionBarSelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">No group</SelectItem>
+                            {groups.map((g) => (
+                              <SelectItem key={g.id} value={g.id}>
+                                {g.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <ActionBarButton
+                          disabled={!moveTo || patch.isPending}
+                          onClick={() => void move(moveTo === "none" ? null : moveTo)}
+                        >
+                          Move
+                        </ActionBarButton>
+                        <Select value={todayTo} onValueChange={(next) => setTodayTo(next as "" | "offer" | "stop")}>
+                          <ActionBarSelectTrigger aria-label="Delivery today">
+                            <SelectValue placeholder="Delivery today…" />
+                          </ActionBarSelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="offer">Offer</SelectItem>
+                            <SelectItem value="stop">Don't offer</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <ActionBarButton
+                          disabled={!todayTo || patch.isPending}
+                          onClick={() => void setToday(todayTo === "offer")}
+                        >
+                          Apply
+                        </ActionBarButton>
+                      </>
+                    ),
+                  }
+                : undefined
+            }
             empty={{ icon: MapPin, title: "No postcodes yet", description: "Effy delivers nowhere until a place is added." }}
             above={
               note ? (
@@ -225,65 +273,6 @@ export function CoveragePanel({ canManage }: { canManage: boolean }) {
             }
           />
 
-          {canManage && selected.size > 0 ? (
-            <div
-              className="sticky bottom-4 z-20 mx-auto flex w-fit max-w-full flex-wrap items-center gap-2 rounded-xl border bg-popover py-2 pr-2 pl-4 text-popover-foreground shadow-lg"
-              data-testid="coverage-bulk"
-            >
-              <span className="text-sm font-medium">{selected.size} selected</span>
-              <Select
-                value={moveTo}
-                onValueChange={(next) => {
-                  setMoveTo(next)
-                }}
-              >
-                <SelectTrigger size="sm" aria-label="Move to group">
-                  <SelectValue placeholder="Move to group…" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No group</SelectItem>
-                  {groups.map((g) => (
-                    <SelectItem key={g.id} value={g.id}>
-                      {g.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={!moveTo || patch.isPending}
-                onClick={() => void move(moveTo === "none" ? null : moveTo)}
-              >
-                Move
-              </Button>
-              <Select
-                value={todayTo}
-                onValueChange={(next) => {
-                  setTodayTo(next as "" | "offer" | "stop")
-                }}
-              >
-                <SelectTrigger size="sm" aria-label="Delivery today">
-                  <SelectValue placeholder="Delivery today…" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="offer">Offer</SelectItem>
-                  <SelectItem value="stop">Don't offer</SelectItem>
-                </SelectContent>
-              </Select>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={!todayTo || patch.isPending}
-                onClick={() => void setToday(todayTo === "offer")}
-              >
-                Apply
-              </Button>
-              <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>
-                Clear
-              </Button>
-            </div>
-          ) : null}
 
           <PostcodeChecker />
         </TabsContent>

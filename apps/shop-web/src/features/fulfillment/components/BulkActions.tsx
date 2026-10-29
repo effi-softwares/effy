@@ -1,9 +1,8 @@
 import { useState, type ReactNode } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 
-import { X } from "lucide-react"
-
-import { Button, Input, Separator, toast } from "@effy/design-system/ui"
+import { Input, toast } from "@effy/design-system/ui"
+import { ActionBarButton } from "@effy/web-kit/action-bar"
 
 import { DesignSheet, SheetField } from "@/components/console/DesignSheet"
 import { track } from "@/lib/telemetry"
@@ -113,38 +112,25 @@ export function BulkActions({
   }
 
   return (
-    <div
-      role="region"
-      aria-label="Selected orders"
-      className="sticky bottom-4 z-20 mx-auto flex w-fit max-w-full flex-wrap items-center gap-3 rounded-xl border bg-popover py-2 pr-2 pl-4 text-sm font-medium text-popover-foreground shadow-lg max-[1099px]:bottom-[calc(80px+env(safe-area-inset-bottom))]"
-    >
-      <div className="whitespace-nowrap tabular-nums">{selected.size} selected</div>
-      <Separator orientation="vertical" className="data-[orientation=vertical]:h-5" />
-      <div className="flex flex-wrap gap-2">
-        <BarButton disabled={running || toPicking.length === 0} onClick={() => void advance("picking")}>
-          Start picking
-        </BarButton>
-        <BarButton disabled={running || toReady.length === 0} onClick={() => void advance("ready_for_pickup")}>
-          Mark ready
-        </BarButton>
-        <BarButton disabled={running || chosen.length === 0} onClick={() => void printSelected()}>
-          Print labels
-        </BarButton>
-        <BarButton disabled={running} onClick={() => setTagOpen(true)}>
-          Add tag
-        </BarButton>
-        <BarButton disabled={running} onClick={() => onExport(chosen)}>
-          Export
-        </BarButton>
-        <BarButton disabled={running} onClick={() => setCancelOpen(true)}>
-          Can&apos;t supply
-        </BarButton>
-      </div>
-      <Separator orientation="vertical" className="data-[orientation=vertical]:h-5" />
-      <Button type="button" variant="ghost" size="sm" disabled={running} onClick={onClear}>
-        Clear
-        <X aria-hidden="true" />
-      </Button>
+    <>
+      <BarButton disabled={running || toPicking.length === 0} onClick={() => void advance("picking")}>
+        Start picking
+      </BarButton>
+      <BarButton disabled={running || toReady.length === 0} onClick={() => void advance("ready_for_pickup")}>
+        Mark ready
+      </BarButton>
+      <BarButton disabled={running || chosen.length === 0} onClick={() => void printSelected()}>
+        Print labels
+      </BarButton>
+      <BarButton disabled={running} onClick={() => setTagOpen(true)}>
+        Add tag
+      </BarButton>
+      <BarButton disabled={running} onClick={() => onExport(chosen)}>
+        Export
+      </BarButton>
+      <BarButton disabled={running} onClick={() => setCancelOpen(true)}>
+        Can&apos;t supply
+      </BarButton>
 
       <DesignSheet
         open={tagOpen}
@@ -172,14 +158,14 @@ export function BulkActions({
       </DesignSheet>
 
       <CantSupplyDialog targets={chosen} open={cancelOpen} onOpenChange={setCancelOpen} onDone={onClear} />
-    </div>
+    </>
   )
 }
 
 function BarButton({ children, onClick, disabled }: { children: ReactNode; onClick: () => void; disabled?: boolean }) {
   return (
-    <Button type="button" variant="outline" size="sm" disabled={disabled} onClick={onClick}>
+    <ActionBarButton disabled={disabled} onClick={onClick}>
       {children}
-    </Button>
+    </ActionBarButton>
   )
 }

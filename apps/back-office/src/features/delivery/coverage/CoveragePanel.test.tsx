@@ -224,14 +224,15 @@ describe("Coverage — the list of postcodes Effy delivers to (076)", () => {
     renderPanel()
     await screen.findByText("3121")
     await user.click(screen.getByRole("checkbox", { name: "Select all on this page" }))
-    expect(screen.getByTestId("coverage-bulk")).toHaveTextContent("2 selected")
+    expect(screen.getByRole("region", { name: "Selected postcodes" })).toHaveTextContent("2 selected")
     await user.click(screen.getByRole("combobox", { name: "Delivery today" }))
     await user.click(screen.getByRole("option", { name: "Don't offer" }))
     await user.click(screen.getByRole("button", { name: "Apply" }))
     await waitFor(() =>
       expect(repo.patchCoveragePostcodes).toHaveBeenCalledWith({ postcodes: ["3121", "3900"], todayOffered: false }),
     )
-    await waitFor(() => expect(screen.queryByTestId("coverage-bulk")).not.toBeInTheDocument())
+    // The bar slides away once the change is applied.
+    await waitFor(() => expect(screen.getByText("2 selected", { exact: false }).closest("[data-state]")).toHaveAttribute("data-state", "closed"))
   })
 
   it("097 — a customer-service agent sees the column and the filter, and cannot change it", async () => {

@@ -9,6 +9,7 @@
     ".": "./src/index.ts",
     "./category-icon": "./src/category-icon/index.tsx",
     "./console": "./src/console/index.ts",
+    "./action-bar": "./src/action-bar/index.ts",
     "./data-table": "./src/data-table/index.ts",
     "./live": "./src/live/index.ts",
     "./patterns": "./src/patterns/index.ts",

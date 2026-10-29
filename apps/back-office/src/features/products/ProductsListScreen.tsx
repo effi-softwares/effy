@@ -24,11 +24,11 @@ import {
   listQueryOptions,
   ResetFilters,
   SearchBox,
-  ToolbarSpacer,
   useListState,
   ViewSelect,
   type EffyColumnDef,
 } from "@effy/web-kit/data-table"
+import { ActionBarButton } from "@effy/web-kit/action-bar"
 import { PageHeader, StatusWord } from "@effy/web-kit/patterns"
 
 import { useSessionRoles } from "@/features/auth/useSessionRoles"
@@ -256,31 +256,29 @@ export function ProductsListScreen({ search }: { search: Record<string, unknown>
         rowId={(p) => p.productId}
         viewFilters={["state"]}
         rowHref={(p) => ({ to: "/products/$productId", params: { productId: p.productId } })}
-        selection={canManage ? { selected, onChange: setSelected, label: (p) => p.name } : undefined}
-        empty={{ icon: PackageSearch, title: "No products here", description: "Products appear here as shops add them." }}
-        above={
-          <>
-            {result ? <BulkResult result={result} names={names} onDismiss={() => setResult(null)} /> : null}
-            {canManage && chosen.length > 0 ? (
-              <div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/40 px-3 py-2" role="region" aria-label="Selected products">
-                <span className="text-sm font-medium">{chosen.length} selected</span>
-                <Button size="sm" variant="outline" onClick={() => start("margin", chosen)}>
-                  Set margin
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => start("hold", chosen.filter((p) => p.state !== "held"))}>
-                  Hold
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => start("release", chosen.filter((p) => p.state === "held"))}>
-                  Release
-                </Button>
-                <ToolbarSpacer />
-                <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>
-                  Clear
-                </Button>
-              </div>
-            ) : null}
-          </>
+        selection={
+          canManage
+            ? {
+                selected,
+                onChange: setSelected,
+                label: (p) => p.name,
+                barLabel: "Selected products",
+                actions: (
+                  <>
+                    <ActionBarButton onClick={() => start("margin", chosen)}>Set margin</ActionBarButton>
+                    <ActionBarButton disabled={!chosen.some((p) => p.state !== "held")} onClick={() => start("hold", chosen.filter((p) => p.state !== "held"))}>
+                      Hold
+                    </ActionBarButton>
+                    <ActionBarButton disabled={!chosen.some((p) => p.state === "held")} onClick={() => start("release", chosen.filter((p) => p.state === "held"))}>
+                      Release
+                    </ActionBarButton>
+                  </>
+                ),
+              }
+            : undefined
         }
+        empty={{ icon: PackageSearch, title: "No products here", description: "Products appear here as shops add them." }}
+        above={result ? <BulkResult result={result} names={names} onDismiss={() => setResult(null)} /> : null}
         toolbar={
           <>
             <ViewSelect
