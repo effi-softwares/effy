@@ -33,6 +33,7 @@ TF_ROOTS := $(BOOTSTRAP_DIR) $(GLOBAL_DIR) $(INFRA_DIR)/envs/dev $(INFRA_DIR)/en
         cw-dev cw-build cw-lint cw-test cw-e2e cw-gates cw-size cw-depcruise \
         shop-verify-isolation \
         cm-contract-gen cm-contract-check cm-tokens-gen cm-tokens-check cm-guard cm-codegen cm-keystore cm-apk cm-ngrok-edge \
+        customer-ios customer-android driver-ios driver-android \
         brand-gen brand-check email-gen email-check email-preview \
         dev-status dev-stop dev-start check-dev-park check-no-phantm
 
@@ -408,6 +409,17 @@ cm-apk: ## customer-mobile: build a signed DEV release APK for sideloading (need
 	@echo ""
 	@echo "cm-apk: APK ready → apps/customer-mobile/androidApp/build/outputs/apk/release/androidApp-release.apk"
 	@echo "        install:  adb install -r <that path>   (or share the file and open it on the phone)"
+
+# --- run the mobile apps. Pick a simulator / emulator / phone from a list (arrow keys + Enter, or its
+# number), then the app is built, installed and launched there. DEVICE="<name>" skips the list.
+customer-ios: ## customer app: build + run on an iOS simulator you pick ([DEVICE="iPhone 17 Pro"])
+	@bash scripts/run-mobile.sh customer ios
+customer-android: ## customer app: build + run on an Android emulator or phone you pick ([DEVICE=Pixel_7_Pro])
+	@bash scripts/run-mobile.sh customer android
+driver-ios: ## driver app: build + run on an iOS simulator you pick ([DEVICE="iPhone 17 Pro"])
+	@bash scripts/run-mobile.sh driver ios
+driver-android: ## driver app: build + run on an Android emulator or phone you pick ([DEVICE=Pixel_7_Pro])
+	@bash scripts/run-mobile.sh driver android
 
 # --- brand marks. One authored vector -> every icon/splash/favicon on all six surfaces.
 # Same shape as the tokens generator above: an authored source, committed derived artifacts, and a
