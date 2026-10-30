@@ -1,10 +1,10 @@
 import { useRef, useState } from "react"
 
-import { ArrowLeft, ArrowRight, ImageOff, Star, Trash2 } from "lucide-react"
+import { Image as ImageIcon, Upload } from "lucide-react"
 
 import { Badge, Button, Progress } from "@effy/design-system/ui"
-
-import { DetailSection, SectionAction } from "@/components/console/primitives"
+import { RecordSection } from "@effy/web-kit/patterns"
+import { PictureGallery } from "@effy/web-kit/product-page"
 
 import { orderedMedia } from "./detailFormat"
 import { productMutationError } from "./errorText"
@@ -13,7 +13,23 @@ import { useDeleteMedia, useUpdateMedia, useUploadMedia } from "./queries"
 
 const ACCEPT = "image/jpeg,image/png,image/webp"
 
-export function MediaGallery({ detail }: { detail: ProductDetail }) {
+/**
+ * The product's pictures, in order; the first is the main picture shoppers see in the aisle. On an approved product
+ * adding, removing or reordering a picture is part of the change Effy reviews, so `detail` is the product as the
+ * shop is editing it and `pending` says when that set is not yet what shoppers see.
+ */
+export function MediaGallery({
+  detail,
+  readOnly = false,
+  approved = false,
+  pending = null,
+}: {
+  detail: ProductDetail
+  readOnly?: boolean
+  approved?: boolean
+  /** The pictures are part of a change with Effy: waiting, or sent back. */
+  pending?: "in_review" | "sent_back" | null
+}) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [progress, setProgress] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -49,10 +65,6 @@ export function MediaGallery({ detail }: { detail: ProductDetail }) {
     }
   }
 
-  function setPrimary(mediaId: string) {
-    void run(() => patch.mutateAsync({ mediaId, body: { isPrimary: true } }))
-  }
-
   function move(index: number, dir: -1 | 1) {
     const a = media[index]
     const b = media[index + dir]
@@ -63,18 +75,23 @@ export function MediaGallery({ detail }: { detail: ProductDetail }) {
     })
   }
 
-  function del(mediaId: string) {
-    void run(() => remove.mutateAsync(mediaId))
-  }
-
   return (
-    <DetailSection
-      title="Media"
-      subtitle="Images shown on the storefront, in order. The first is the thumbnail."
-      action={
-        <SectionAction onClick={() => inputRef.current?.click()} disabled={busy}>
-          Add image
-        </SectionAction>
+    <RecordSection
+      id="pictures"
+      icon={ImageIcon}
+      title="Pictures"
+      description={
+        approved
+          ? "A new, removed or reordered picture is checked by Effy before shoppers see it. The first is the main picture in the aisle."
+          : "Shown on Effy in this order. The first is the main picture shoppers see in the aisle."
+      }
+      actions={
+        readOnly ? undefined : (
+          <Button variant="outline" onClick={() => inputRef.current?.click()} disabled={busy}>
+            <Upload aria-hidden="true" />
+            Add pictures
+          </Button>
+        )
       }
     >
       <input
@@ -84,80 +101,35 @@ export function MediaGallery({ detail }: { detail: ProductDetail }) {
         className="hidden"
         onChange={(e) => void onPick(e.target.files?.[0] ?? null)}
       />
-
       <div className="grid gap-4">
+        {pending ? (
+          <p role="status" className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+            <Badge variant="default">{pending === "sent_back" ? "Sent back" : "In review"}</Badge>
+            These are your changed pictures. Shoppers keep seeing the ones on sale until Effy approves them.
+          </p>
+        ) : null}
         {progress != null ? <Progress value={progress} height={8} label="Upload progress" /> : null}
-
-        {media.length === 0 ? (
-          <div className="text-muted-foreground flex items-center gap-2 rounded-lg border border-dashed px-4 py-6 text-sm">
-            <ImageOff className="size-4" />
-            No images yet. Add one to give this product a picture.
-          </div>
-        ) : (
-          <ul className="flex flex-wrap gap-3">
-            {media.map((m, i) => (
-              <li key={m.id} className="grid w-28 gap-2">
-                <div className="relative">
-                  <img
-                    src={m.url}
-                    alt={m.altText ?? ""}
-                    className="border-border bg-muted size-28 rounded-lg border object-cover"
-                  />
-                  {m.isPrimary ? (
-                    <Badge variant="success" className="absolute top-2 left-2">
-                      Primary
-                    </Badge>
-                  ) : null}
-                </div>
-                <div className="flex items-center justify-between">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    disabled={busy || i === 0}
-                    onClick={() => move(i, -1)}
-                    aria-label="Move earlier"
-                  >
-                    <ArrowLeft />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    disabled={busy || i === media.length - 1}
-                    onClick={() => move(i, 1)}
-                    aria-label="Move later"
-                  >
-                    <ArrowRight />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    disabled={busy || m.isPrimary}
-                    onClick={() => setPrimary(m.id)}
-                    aria-label="Set as primary"
-                  >
-                    <Star />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    disabled={busy}
-                    onClick={() => del(m.id)}
-                    aria-label="Delete image"
-                  >
-                    <Trash2 />
-                  </Button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        {error ? <p className="text-sm font-medium">{error}</p> : null}
+        <PictureGallery
+          pictures={media.map((m) => ({ id: m.id, url: m.url, altText: m.altText }))}
+          empty={readOnly ? "No pictures yet — Effy adds them while it sets this product up." : undefined}
+          actions={
+            readOnly
+              ? undefined
+              : {
+                  busy,
+                  onAdd: () => inputRef.current?.click(),
+                  onMakeMain: (mediaId) => void run(() => patch.mutateAsync({ mediaId, body: { isPrimary: true } })),
+                  onMove: move,
+                  onRemove: (mediaId) => void run(() => remove.mutateAsync(mediaId)),
+                }
+          }
+        />
+        {error ? (
+          <p role="alert" className="text-sm font-medium">
+            {error}
+          </p>
+        ) : null}
       </div>
-    </DetailSection>
+    </RecordSection>
   )
 }

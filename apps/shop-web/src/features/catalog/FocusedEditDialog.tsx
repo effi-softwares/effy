@@ -33,6 +33,8 @@ export function FocusedEditDialog({ open, onOpenChange, size = "default", childr
 
 interface FormProps {
   title: string
+  /** The save button's word: "Send to Effy" on an approved product. */
+  saveLabel?: string
   description?: string
   canSave: boolean
   saving: boolean
@@ -46,6 +48,7 @@ interface FormProps {
 
 export function FocusedEditForm({
   title,
+  saveLabel = "Save",
   description,
   canSave,
   saving,
@@ -77,7 +80,7 @@ export function FocusedEditForm({
           </Button>
         ) : (
           <Button type="button" onClick={onSave} disabled={!canSave || saving}>
-            {saving ? "Saving…" : "Save"}
+            {saving ? "Saving…" : saveLabel}
           </Button>
         )}
       </ResponsiveModalFooter>

@@ -9,7 +9,6 @@ import { describe, expect, it } from "vitest"
  */
 const RAW_TABLE_ALLOWED: Record<string, string> = {
   "catalog/ReviewPanel.tsx": "review: a change against what is on sale",
-  "catalog/StockTable.tsx": "editor: counts per size",
   "catalog/VariantsSection.tsx": "editor: on-sale switches and remove per size",
   "fulfillment/components/PackBags.tsx": "editor: pack bags",
   "insights/TopProducts.tsx": "dashboard strip: ranked, with share bars",
@@ -46,7 +45,9 @@ describe("console lists use the one data table (103)", () => {
   })
 
   it("no list scrolls forever, and no list writes its own phone layout", () => {
-    const infinite = screens.filter((f) => /useInfiniteQuery/.test(readFileSync(f, "utf8"))).map((f) => relative(FEATURES, f))
+    const infinite = screens
+      .filter((f) => /useInfiniteQuery/.test(readFileSync(f, "utf8")))
+      .map((f) => relative(FEATURES, f))
     expect(infinite).toEqual([])
     // A hand-written `data-m` belongs to a board above; a list gets its phone layout from column meta.
     const dataM = screens

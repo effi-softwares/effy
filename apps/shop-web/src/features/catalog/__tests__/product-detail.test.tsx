@@ -111,7 +111,7 @@ describe("product edit and persist", () => {
     const price = await screen.findByLabelText(/^your price/i)
     await userEvent.clear(price)
     await userEvent.type(price, "9.00")
-    await userEvent.click(screen.getByRole("button", { name: /^save$/i }))
+    await userEvent.click(screen.getByRole("button", { name: /^send to effy$/i }))
 
     await waitFor(() => expect(updateProduct).toHaveBeenCalled())
     const body = updateProduct.mock.calls[0]![1]
@@ -134,7 +134,7 @@ describe("product edit and persist", () => {
     const price = await screen.findByLabelText(/^your price/i)
     await userEvent.clear(price)
     await userEvent.type(price, "9.99")
-    await userEvent.click(screen.getByRole("button", { name: /^save$/i }))
+    await userEvent.click(screen.getByRole("button", { name: /^send to effy$/i }))
 
     await waitFor(() => expect(updateProduct).toHaveBeenCalled())
     const body = updateProduct.mock.calls[0]![1]
@@ -155,8 +155,8 @@ describe("product edit and persist", () => {
     expect(screen.getByText(/enter a price like/i)).toBeInTheDocument()
 
     // …and Save refuses, and stays refused until it is fixed.
-    await userEvent.click(screen.getByRole("button", { name: /^save$/i }))
-    expect(screen.getByRole("button", { name: /^save$/i })).toBeDisabled()
+    await userEvent.click(screen.getByRole("button", { name: /^send to effy$/i }))
+    expect(screen.getByRole("button", { name: /^send to effy$/i })).toBeDisabled()
     expect(updateProduct).not.toHaveBeenCalled()
   })
 
@@ -170,7 +170,7 @@ describe("product edit and persist", () => {
     const price = await screen.findByLabelText(/^your price/i)
     await userEvent.clear(price)
     await userEvent.type(price, "9.10")
-    await userEvent.click(screen.getByRole("button", { name: /^save$/i }))
+    await userEvent.click(screen.getByRole("button", { name: /^send to effy$/i }))
 
     await waitFor(() => expect(onDropped).toHaveBeenCalledWith(["Allergens"]))
   })

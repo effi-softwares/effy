@@ -85,7 +85,7 @@ export function OrderDetailScreen({
       : null
   useEffect(() => {
     if (!target || !data) return
-    document.getElementById(target)?.scrollIntoView?.({ block: "center", behavior: "smooth" })
+    document.getElementById(target)?.scrollIntoView?.({ block: "center" })
   }, [target, data])
   const handoff = useRecordHandoff(orderId)
   const arrival = useRecordArrival(orderId)

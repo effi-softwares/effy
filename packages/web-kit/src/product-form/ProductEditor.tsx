@@ -1,8 +1,6 @@
 import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
-import { ChevronLeft } from "lucide-react";
 
 import {
-  Button,
   Progress,
   Sidebar,
   SidebarContent,
@@ -11,9 +9,7 @@ import {
   useSidebar,
 } from "@effy/design-system/ui";
 
-import { cn } from "@effy/design-system";
-
-import { Bone, FormSkeleton, Loading } from "../patterns";
+import { Bone, FormSkeleton, Loading, SidebarEdgeToggle } from "../patterns";
 
 import { StepRail } from "./StepRail";
 import type { StepState } from "./steps";
@@ -93,7 +89,7 @@ function Editor({
         '[aria-invalid="true"], [data-invalid="true"]',
       );
       if (!bad) return;
-      bad.scrollIntoView({ block: "center", behavior: "smooth" });
+      bad.scrollIntoView({ block: "center" });
       const target = bad.matches("input, textarea, select, button, [tabindex]")
         ? bad
         : bad.querySelector<HTMLElement>("input, textarea, select, button");
@@ -154,45 +150,13 @@ function Editor({
         className="top-(--header-h) h-auto"
         aria-label="Preview"
       >
-        <SidebarHeader className="flex-row items-center pt-5 pr-5 pb-0 pl-8">
+        <SidebarHeader className="mt-5 h-11 flex-row items-center py-0 pr-5 pl-8">
           <h2 className="text-sm font-semibold">How shoppers see it</h2>
         </SidebarHeader>
-        <SidebarContent>{preview}</SidebarContent>
+        <SidebarContent className="[scrollbar-width:none] [&::-webkit-scrollbar]:hidden">{preview}</SidebarContent>
       </Sidebar>
-      <PreviewToggle />
+      <SidebarEdgeToggle showLabel="Show the preview" hideLabel="Hide the preview" />
     </>
-  );
-}
-
-/**
- * Hides and shows the preview: a blue circle on the sidebar's edge. Open, it straddles the sidebar's left border
- * with its arrow pointing in; closed, it waits at the window's right edge, most of it showing, the arrow turned to
- * point out. It moves with the sidebar.
- */
-function PreviewToggle() {
-  const { state, isMobile, openMobile, toggleSidebar } = useSidebar();
-  const open = isMobile ? openMobile : state === "expanded";
-  const docked = open && !isMobile;
-  return (
-    <Button
-      type="button"
-      size="icon-lg"
-      aria-expanded={open}
-      aria-label={open ? "Hide the preview" : "Show the preview"}
-      onClick={toggleSidebar}
-      // Open, centred on the sidebar's border; closed, two-thirds of it out from the window's edge.
-      style={{ right: docked ? "calc(var(--sidebar-width) - 22px)" : "-14px" }}
-      className={cn(
-        "fixed top-[calc(var(--header-h)+20px)] z-20 rounded-full shadow-lg ring-4 ring-background transition-[right,translate] duration-200 ease-linear",
-        !docked && "hover:-translate-x-1.5",
-      )}
-    >
-      <ChevronLeft
-        aria-hidden="true"
-        // Closed, part of the circle is past the window's edge: the arrow moves into what shows.
-        className={cn("size-5 transition-transform duration-200 ease-linear", docked ? "rotate-180" : "-translate-x-1.5")}
-      />
-    </Button>
   );
 }
 

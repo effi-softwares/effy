@@ -62,7 +62,7 @@ export function VariantBuyBox({
       /* a URL that cannot be rewritten costs only the shareable link */
     }
     const slide = next.imageUrl ? gallery.indexOf(next.imageUrl) : -1
-    if (slide >= 0) document.getElementById(`product-slide-${slide}`)?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "start" })
+    if (slide >= 0) document.getElementById(`product-slide-${slide}`)?.scrollIntoView({ block: "nearest", inline: "start" })
     void import("@/lib/telemetry").then(({ capture }) =>
       capture({ name: "variant_selected", props: { productId: product.id, variantId: next.id } }),
     )

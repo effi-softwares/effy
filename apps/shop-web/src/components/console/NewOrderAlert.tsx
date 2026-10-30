@@ -5,7 +5,7 @@ import { useNavigate } from "@tanstack/react-router"
 import { useStore } from "@tanstack/react-store"
 import { ArrowRight, BellRing } from "lucide-react"
 
-import { Button } from "@effy/design-system/ui"
+import { Banner } from "@effy/web-kit/patterns"
 
 import { courierPickupLine } from "@/features/fulfillment/courierPickup"
 import { deliveredByText } from "@/features/fulfillment/orderConsole"
@@ -52,42 +52,38 @@ export function NewOrderAlert() {
   const more = waiting.length - 1
 
   return (
-    <div
+    <Banner
       role="alert"
-      className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-xl bg-primary-fill py-3 pr-3 pl-4 text-primary-foreground"
-    >
-      <span
-        className="grid size-10 flex-none animate-[sh-ring_1.6s_var(--ease-move)_infinite] place-items-center rounded-full bg-primary-foreground/16 motion-reduce:animate-none [&_svg]:size-5"
-        aria-hidden="true"
-      >
-        <BellRing />
-      </span>
-      <div className="min-w-0 flex-[1_1_240px]">
-        <p className="text-base leading-6 font-semibold">
+      icon={BellRing}
+      iconClassName="animate-[sh-ring_1.6s_var(--ease-move)_infinite] motion-reduce:animate-none"
+      title={
+        <>
           New order · <span className="font-mono">{first.orderNumber}</span>
           {more > 0 ? ` and ${more} more` : ""}
-        </p>
-        <p className="text-sm leading-5 opacity-90">
-          {items} · {who}
-          {soundOn ? " · the chime repeats until someone opens it" : ""}
-        </p>
-      </div>
-      <Button
-        variant="ghost"
-        className="hover:bg-primary-foreground/15 hover:text-primary-foreground"
-        onClick={() =>
-          setSnoozed((s) => ({ ...s, ...Object.fromEntries(waiting.map((o) => [o.id, Date.now() + SNOOZE_MS])) }))
-        }
-      >
-        Later
-      </Button>
-      <Button
-        variant="secondary"
-        onClick={() => void navigate({ to: "/orders/$fulfillmentId", params: { fulfillmentId: first.id } })}
-      >
-        Open order
-        <ArrowRight aria-hidden="true" />
-      </Button>
-    </div>
+        </>
+      }
+      actions={[
+        {
+          label: "Later",
+          onClick: () =>
+            setSnoozed((s) => ({ ...s, ...Object.fromEntries(waiting.map((o) => [o.id, Date.now() + SNOOZE_MS])) })),
+        },
+        {
+          label: (
+            <>
+              Open order
+              <ArrowRight aria-hidden="true" />
+            </>
+          ),
+          primary: true,
+          onClick: () => void navigate({ to: "/orders/$fulfillmentId", params: { fulfillmentId: first.id } }),
+        },
+      ]}
+    >
+      <p>
+        {items} · {who}
+        {soundOn ? " · the chime repeats until someone opens it" : ""}
+      </p>
+    </Banner>
   )
 }

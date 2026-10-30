@@ -133,7 +133,7 @@ export function StaffSidebar({ brand, groups, defaultTabs, counts }: StaffSideba
           type="button"
           className="ef-sb-more"
           aria-label="Show more of the menu"
-          onClick={() => scroller.current?.scrollBy({ top: scroller.current.clientHeight * 0.75, behavior: "smooth" })}
+          onClick={() => scroller.current?.scrollBy({ top: scroller.current.clientHeight * 0.75 })}
         >
           <ChevronDown aria-hidden="true" />
         </button>

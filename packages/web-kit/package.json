@@ -15,6 +15,7 @@
     "./live": "./src/live/index.ts",
     "./patterns": "./src/patterns/index.ts",
     "./product-form": "./src/product-form/index.ts",
+    "./product-page": "./src/product-page/index.ts",
     "./promo-skin": "./src/promo-skin/index.ts",
     "./scanner": "./src/scanner/index.ts"
   },

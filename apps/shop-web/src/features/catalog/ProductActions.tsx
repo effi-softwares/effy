@@ -12,7 +12,7 @@ import { DesignSheet } from "@/components/console/DesignSheet"
 import { track } from "@/lib/telemetry"
 
 import { productMutationError } from "./errorText"
-import { ReceiveStockButton, SizePicker } from "./InventorySection"
+import { ReceiveStockButton, SizePicker } from "./StockControls"
 import { sizeLabelOf } from "@effy/web-kit/product-form"
 import type { ProductDetail } from "./model"
 import { useChangeStatus, useDeleteProduct, useSubmitForReview, useWithdrawReview } from "./queries"

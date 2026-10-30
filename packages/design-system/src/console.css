@@ -103,8 +103,6 @@
   }
 }
 
-html,
-html * { @apply overscroll-x-none; }
 
 [data-slot="dialog-content"] {
   @apply gap-4 rounded-xl border border-solid border-border bg-background p-6;
@@ -263,6 +261,75 @@ html * { @apply overscroll-x-none; }
     .ef-detail__aside { @apply gap-4; }
   }
 
+  /* A record page (@effy/web-kit/patterns Record — a product, in both consoles): the head and its row of facts, a
+     section navigator that sticks under the console header (it carries the record's name once the head has scrolled
+     away) and sections ruled on hairlines rather than boxed; beside all of it the side panel, shadcn's right Sidebar
+     (docked from xl, a drawer below). The page takes the full width with 40px gutters from lg up. */
+  @media (min-width: 1024px) {
+    .ef-main:has(.ef-record) { --pad: 40px; }
+  }
+  .ef-record { @apply min-w-0; }
+  .ef-record__main { @apply flex min-w-0 flex-1 flex-col; }
+  /* Docked open, the circle that hides the side panel sits on its edge: the page leaves it room. */
+  @media (min-width: 1280px) {
+    .ef-record:has([data-slot="sidebar"][data-state="expanded"]) .ef-record__main { @apply pr-5; }
+  }
+  .ef-record__head { @apply grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-6; animation: effy-fade 240ms ease-out; }
+  .ef-record__media { @apply grid size-26 shrink-0 place-items-center overflow-hidden rounded-lg border bg-muted text-muted-foreground; }
+  .ef-record__media img { @apply size-full object-cover; }
+  .ef-record__titles { @apply flex min-w-0 flex-col; }
+  .ef-record__eyebrow { @apply flex flex-wrap items-center gap-1 text-sm text-muted-foreground [&_svg]:size-3; }
+  .ef-record__title { @apply mt-1 flex flex-wrap items-center gap-x-3 gap-y-2 text-[28px] leading-tight font-semibold tracking-[-0.025em]; }
+  .ef-record__meta { @apply mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground [&_svg]:size-4 [&>span]:inline-flex [&>span]:items-center [&>span]:gap-1.5; }
+  .ef-record__actions { @apply flex flex-wrap items-center justify-end gap-2; }
+  .ef-record__facts { @apply m-0 mt-8 grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] border-t; }
+  .ef-record__fact { @apply min-w-0 border-l px-6 pt-5 first:border-l-0 first:pl-0; }
+  .ef-record__fact dt { @apply text-xs text-muted-foreground; }
+  .ef-record__fact dd { @apply m-0 mt-1.5 flex min-w-0 items-center gap-2 truncate font-medium tabular-nums; }
+  .ef-record__fact dd + dd { @apply mt-0.5 block text-xs font-normal text-muted-foreground; }
+
+  .ef-record__nav { @apply sticky top-(--header-h) z-[5] mt-8 -mx-(--pad) flex h-13 items-center gap-0.5 overflow-x-auto border-b bg-background/90 px-(--pad) backdrop-blur; scrollbar-width: none; }
+  .ef-record__nav::-webkit-scrollbar { @apply hidden; }
+  .ef-record__compact { @apply flex max-w-0 shrink-0 items-center gap-2.5 overflow-hidden whitespace-nowrap opacity-0 transition-[max-width,opacity,margin] duration-300; }
+  .ef-record__nav[data-stuck] .ef-record__compact { @apply mr-3 max-w-[440px] opacity-100; }
+  .ef-record__navlink { @apply relative inline-flex h-13 shrink-0 cursor-pointer items-center gap-2 border-0 bg-transparent px-3.5 text-sm font-medium whitespace-nowrap text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50; }
+  .ef-record__navlink::after { content: ""; @apply absolute inset-x-3.5 -bottom-px h-0.5 scale-x-0 rounded-full bg-foreground transition-transform duration-200; }
+  .ef-record__navlink[aria-current="true"] { @apply text-foreground; }
+  .ef-record__navlink[aria-current="true"]::after { @apply scale-x-100; }
+  .ef-record__count { @apply grid h-5 min-w-5 place-items-center rounded-sm bg-muted px-1.5 text-xs text-muted-foreground tabular-nums; }
+  .ef-record__count[data-tone="problem"] { @apply bg-destructive-soft text-destructive; }
+  .ef-record__navend { @apply pointer-events-none ml-auto flex shrink-0 items-center gap-2 pl-4 opacity-0 transition-opacity; }
+  .ef-record__nav[data-stuck] .ef-record__navend { @apply pointer-events-auto opacity-100; }
+
+  .ef-record__section { @apply min-w-0 scroll-mt-[calc(var(--header-h)+52px)] border-b pt-12 pb-14 last:border-b-0; }
+  .ef-record__section-head { @apply mb-7 flex flex-wrap items-start gap-4; }
+  .ef-record__section-icon { @apply grid size-9 shrink-0 place-items-center rounded-md bg-muted text-muted-foreground [&_svg]:size-4; }
+  .ef-record__section-text { @apply min-w-0 flex-[1_1_260px]; }
+  .ef-record__section-title { @apply text-[17px] leading-[22px] font-semibold tracking-[-0.01em]; }
+  .ef-record__section-desc { @apply mt-1 max-w-[70ch] text-sm text-muted-foreground; }
+  .ef-record__section-actions { @apply ml-auto flex flex-wrap items-center gap-2; }
+  .ef-record__rs { @apply min-w-0 border-t py-6 first:border-t-0 first:pt-4; }
+  .ef-record__rs-head { @apply mb-4 flex min-h-9 items-center gap-2; }
+  .ef-record__rs-title { @apply text-sm font-semibold; }
+  .ef-record__rs-actions { @apply ml-auto flex items-center gap-1; }
+  .ef-record__rows { @apply m-0 flex flex-col; }
+  .ef-record__row { @apply flex items-center gap-3 py-2.5 text-sm; }
+  .ef-record__row > svg { @apply size-3.5 shrink-0 text-muted-foreground; }
+  .ef-record__row dt { @apply w-24 shrink-0 text-muted-foreground; }
+  .ef-record__row dd { @apply m-0 flex min-w-0 flex-1 flex-wrap items-center gap-1; }
+  @media (max-width: 767px) {
+    .ef-record__head { @apply grid-cols-[auto_minmax(0,1fr)] gap-4; }
+    .ef-record__media { @apply size-18; }
+    .ef-record__title { @apply text-2xl; }
+    .ef-record__actions { @apply col-span-full justify-start; }
+    .ef-record__facts { @apply mt-6 grid-cols-2; }
+    .ef-record__fact { @apply px-0 pt-4 even:pl-4 odd:border-l-0; }
+    .ef-record__nav { @apply mt-6; }
+    .ef-record__compact,
+    .ef-record__navend { @apply hidden; }
+    .ef-record__section { @apply pt-8 pb-10; }
+  }
+
   /* The product editor (@effy/web-kit/product-form ProductEditor): steps · the step · the shopper preview, filling the
      console's content area edge to edge (no frame); the step's button bar is fixed along the middle column's bottom.
      The preview is shadcn's right Sidebar, held under the console header; from md up the area is held to the window
@@ -314,6 +381,23 @@ html * { @apply overscroll-x-none; }
   /* A preview value that just changed lights up once (re-keyed on its value). */
   .ef-flash { @apply rounded-sm; animation: ef-flash 900ms ease-out; }
 
+}
+
+/* Scrolling in the consoles: every jump (a section, a field, a menu row) glides — set here once, so no component asks
+   for it in script — and the page never stretches and springs back at its ends (the browser's rubber-band
+   overscroll). Only the page is held still up and down: on any inner box it would also stop the scroll handing on to
+   the page, and every box that scrolls sideways (a table's frame) is a scroll container both ways — the wheel over it
+   would move nothing. Inner boxes are held still sideways only. */
+html,
+*,
+*::before,
+*::after {
+  scroll-behavior: smooth !important;
+  overscroll-behavior-x: none !important;
+}
+html,
+body {
+  overscroll-behavior-y: none !important;
 }
 
 .ef-shell [data-slot="sidebar-container"] {

@@ -24,7 +24,8 @@ vi.mock("../stockRepo", () => ({
   setStockSettings: vi.fn(),
 }))
 
-const { InventorySection, ReceiveStockButton } = await import("../InventorySection")
+const { ReceiveStockButton } = await import("../StockControls")
+const { ProductSizes } = await import("../ProductSizes")
 const { AdjustStockDialog, ReceiveStockDialog, StartTrackingDialog } = await import("../StockDialogs")
 const { InventoryRulesDialog } = await import("../InventoryRulesDialog")
 
@@ -116,75 +117,20 @@ const SIZED = {
   ],
 } as unknown as ProductDetail
 
-describe("the Inventory section — every size in one table (098)", () => {
-  it("shows each size's count and its state in words", async () => {
-    await wrapRouted(<InventorySection detail={SIZED} variantId="v1" onVariantChange={() => {}} />)
-    const table = screen.getAllByRole("table")[0]!
-    expect(within(table).getByText("500 g")).toBeInTheDocument()
-    expect(within(table).getByText("In stock")).toBeInTheDocument()
-    expect(within(table).getByText("Out of stock")).toBeInTheDocument()
-    expect(within(table).getByText("Not counted")).toBeInTheDocument()
-    expect(within(table).getByText("V3333333")).toBeInTheDocument()
-  })
-
-  it("adds a delivery to several sizes in one Save, starting the count of an uncounted one", async () => {
-    await wrapRouted(<InventorySection detail={SIZED} variantId="v1" onVariantChange={() => {}} />)
-    await userEvent.type(screen.getByLabelText(/units received for 500 g/i), "24")
-    await userEvent.type(screen.getByLabelText(/units received for 5 kg/i), "6")
-    // The new totals are shown before anything is written.
-    expect(screen.getByText("36")).toBeInTheDocument()
-
-    await userEvent.click(screen.getByRole("button", { name: /save stock for 2 sizes/i }))
-    await waitFor(() => expect(setStockTracking).toHaveBeenCalled())
-    expect(adjustStock).toHaveBeenCalledWith("v1", { delta: 24, reason: "received" })
-    expect(setStockTracking).toHaveBeenCalledWith("v3", { tracked: true, onHand: 6 })
-    expect(setStockCount).not.toHaveBeenCalled()
-  })
-
-  it("a stocktake replaces counts, and writes nothing for a count that is already right", async () => {
-    await wrapRouted(<InventorySection detail={SIZED} variantId="v1" onVariantChange={() => {}} />)
-    await userEvent.click(screen.getByRole("tab", { name: /set count/i }))
-    await userEvent.type(screen.getByLabelText(/units counted for 500 g/i), "12") // unchanged
-    await userEvent.type(screen.getByLabelText(/units counted for 1 kg/i), "7")
-    await userEvent.click(screen.getByRole("button", { name: /save stock for 1 size/i }))
-    await waitFor(() => expect(setStockCount).toHaveBeenCalledTimes(1))
-    expect(setStockCount).toHaveBeenCalledWith("v2", { onHand: 7, reason: "correction" })
-  })
-
-  it("a size the server refuses keeps its number and says why; the saved ones clear", async () => {
-    adjustStock.mockImplementation(async (id: string) => {
-      if (id === "v2") throw { kind: "conflict", status: 409, title: "Conflict" }
-      return stockDetail()
-    })
-    await wrapRouted(<InventorySection detail={SIZED} variantId="v1" onVariantChange={() => {}} />)
-    await userEvent.type(screen.getByLabelText(/units received for 500 g/i), "3")
-    await userEvent.type(screen.getByLabelText(/units received for 1 kg/i), "4")
-    await userEvent.click(screen.getByRole("button", { name: /save stock for 2 sizes/i }))
-
-    expect(await screen.findByRole("alert")).toBeInTheDocument()
-    expect(screen.getByLabelText(/units received for 500 g/i)).toHaveValue("")
-    expect(screen.getByLabelText(/units received for 1 kg/i)).toHaveValue("4")
-  })
-
-  it("refuses to save while any number is not a whole number", async () => {
-    await wrapRouted(<InventorySection detail={SIZED} variantId="v1" onVariantChange={() => {}} />)
-    await userEvent.type(screen.getByLabelText(/units received for 500 g/i), "2.5")
-    expect(screen.getByRole("button", { name: /save stock/i })).toBeDisabled()
-  })
-
-  it("names the chosen size, and leaves its changes to Stock activity (104)", async () => {
-    getVariantStock.mockResolvedValue(stockDetail({ onHand: 9, threshold: null, effectiveThreshold: 8 }))
-    await wrapRouted(<InventorySection detail={SIZED} variantId="v1" onVariantChange={() => {}} />)
-    expect(await screen.findByText(/^stock — 500 g$/i)).toBeInTheDocument()
-    expect(screen.getByText(/9 on hand/)).toBeInTheDocument()
+describe("each size's stock, one size at a time", () => {
+  it("shows the chosen size's count and alert level, and leaves its changes to Stock activity (104)", async () => {
+    await wrapRouted(<ProductSizes detail={SIZED} readOnly={false} />)
+    expect(await screen.findByText("Alert at 5 or fewer")).toBeInTheDocument()
+    expect(screen.getByRole("img", { name: "12 on hand" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Stock activity" })).toBeEnabled()
   })
 
   it("withholds the adjustment when the chosen size is not counted", async () => {
-    getVariantStock.mockResolvedValue(stockDetail({ variantId: "v3", tracked: false, onHand: null }))
-    await wrapRouted(<InventorySection detail={SIZED} variantId="v3" onVariantChange={() => {}} />)
-    expect(await screen.findByText(/this size is not counted/i)).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: /adjust stock/i })).toBeDisabled()
+    await wrapRouted(<ProductSizes detail={SIZED} readOnly={false} />)
+    await userEvent.click(screen.getByRole("button", { name: /^5 kg/ }))
+    expect(await screen.findByText(/not counted, so it never runs out/i)).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /^adjust$/i })).toBeDisabled()
+    expect(screen.getByRole("button", { name: /add stock/i })).toBeEnabled()
   })
 })
 

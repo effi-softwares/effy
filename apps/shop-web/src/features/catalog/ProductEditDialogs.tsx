@@ -125,6 +125,7 @@ function BasicsForm({ detail, onClose }: FormProps) {
   return (
     <FocusedEditForm
       onCancel={onClose}
+      saveLabel={saveWord(detail)}
       title="Edit basics"
       description={reviewNote(
         detail,
@@ -187,6 +188,7 @@ function SizesForm({ detail, onClose, onDropped }: FormProps) {
   return (
     <FocusedEditForm
       onCancel={onClose}
+      saveLabel={saveWord(detail)}
       title="Edit sizes and prices"
       description={reviewNote(
         detail,
@@ -270,6 +272,7 @@ function CategoryForm({ detail, onClose, onDropped }: FormProps) {
   return (
     <FocusedEditForm
       onCancel={onClose}
+      saveLabel={saveWord(detail)}
       title="Change category"
       description={reviewNote(detail, "The category decides the details asked for and where shoppers find it.")}
       canSave={!!leafId && !!current.data}
@@ -341,6 +344,7 @@ function DetailsForm({ detail, section, onClose }: FormProps & { section: string
   return (
     <FocusedEditForm
       onCancel={onClose}
+      saveLabel={saveWord(detail)}
       title={section ? `Edit ${section.toLowerCase()}` : "Edit details"}
       description={reviewNote(detail, `What ${pathText(detail.categoryPath)} asks for. Required ones are marked.`)}
       canSave={!!form.data && (!touched || errorList.length === 0)}
@@ -402,6 +406,7 @@ function FactsForm({ detail, onClose }: FormProps) {
   return (
     <FocusedEditForm
       onCancel={onClose}
+      saveLabel={saveWord(detail)}
       title="Edit storage, GST and age"
       description={reviewNote(
         detail,
@@ -449,6 +454,9 @@ function Field({
     </div>
   )
 }
+
+/** An approved product's change is sent to Effy, not saved straight to it. */
+const saveWord = (detail: ProductDetail) => (isApproved(detail) ? "Send to Effy" : "Save")
 
 function reviewNote(detail: ProductDetail, description: string): string {
   return isApproved(detail)

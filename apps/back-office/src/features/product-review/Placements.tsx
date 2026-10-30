@@ -22,11 +22,14 @@ export function Placements({
   homePath,
   placements,
   canDecide,
+  framed = true,
 }: {
   productId: string
   homePath: string[]
   placements: { categoryId: string; path: string[] }[]
   canDecide: boolean
+  /** In its own titled panel (review), or bare inside a section that titles it (the product page). */
+  framed?: boolean
 }) {
   const save = useSetPlacements(productId)
   const tree = useQuery({ ...treeQuery(), enabled: canDecide })
@@ -49,68 +52,72 @@ export function Placements({
     save.mutate(ids, { onError: (err) => setError(taxonomyErrorText(err)) })
   }
 
+  const body = (
+    <div className="space-y-3">
+      <ul className="space-y-1.5">
+        {placements.map((p) => (
+          <li key={p.categoryId} className="flex items-center justify-between gap-2 text-sm">
+            <span>{pathText(p.path)}</span>
+            {canDecide ? (
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                aria-label={`Remove ${p.path[p.path.length - 1]}`}
+                disabled={save.isPending}
+                onClick={() => replace(chosen.filter((id) => id !== p.categoryId))}
+              >
+                <X />
+              </Button>
+            ) : null}
+          </li>
+        ))}
+        {placements.length === 0 ? <li className="text-sm text-muted-foreground">Only its own category.</li> : null}
+      </ul>
+      {canDecide && placements.length < PLACEMENTS_MAX ? (
+        <div className="space-y-2">
+          <Input
+            aria-label="Find a category to add"
+            placeholder="Add a category…"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+          />
+          {matches.length > 0 ? (
+            <ul className="divide-y divide-border rounded-md border border-border">
+              {matches.map((l) => (
+                <li key={l.id}>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="w-full justify-start rounded-none font-normal"
+                    disabled={save.isPending}
+                    onClick={() => {
+                      setQ("")
+                      replace([...chosen, l.id])
+                    }}
+                  >
+                    {pathText(l.path)}
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
+      {error ? (
+        <p role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+      ) : null}
+    </div>
+  )
+  if (!framed) return body
   return (
     <Panel
       title="Also shown in"
       description="Extra categories shoppers find it under. Its own category still decides its details."
     >
-      <div className="space-y-3">
-        <ul className="space-y-1.5">
-          {placements.map((p) => (
-            <li key={p.categoryId} className="flex items-center justify-between gap-2 text-sm">
-              <span>{pathText(p.path)}</span>
-              {canDecide ? (
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="ghost"
-                  aria-label={`Remove ${p.path[p.path.length - 1]}`}
-                  disabled={save.isPending}
-                  onClick={() => replace(chosen.filter((id) => id !== p.categoryId))}
-                >
-                  <X />
-                </Button>
-              ) : null}
-            </li>
-          ))}
-          {placements.length === 0 ? <li className="text-sm text-muted-foreground">Only its own category.</li> : null}
-        </ul>
-        {canDecide && placements.length < PLACEMENTS_MAX ? (
-          <div className="space-y-2">
-            <Input
-              aria-label="Find a category to add"
-              placeholder="Add a category…"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-            />
-            {matches.length > 0 ? (
-              <ul className="divide-y divide-border rounded-md border border-border">
-                {matches.map((l) => (
-                  <li key={l.id}>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      className="w-full justify-start rounded-none font-normal"
-                      disabled={save.isPending}
-                      onClick={() => {
-                        setQ("")
-                        replace([...chosen, l.id])
-                      }}
-                    >
-                      {pathText(l.path)}
-                    </Button>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-          </div>
-        ) : null}
-        {error ? (
-          <p role="alert" className="text-sm text-destructive">
-            {error}
-          </p>
-        ) : null}
-      </div>
+      {body}
     </Panel>
   )
 }

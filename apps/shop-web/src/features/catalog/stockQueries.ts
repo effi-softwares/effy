@@ -65,11 +65,3 @@ export function useSetStockSettings() {
     },
   })
 }
-
-export function useRefreshStock() {
-  const qc = useQueryClient()
-  return () => {
-    void qc.invalidateQueries({ queryKey: STOCK_ROOT })
-    void qc.invalidateQueries({ queryKey: ["shop", "catalog", "product"] })
-  }
-}
