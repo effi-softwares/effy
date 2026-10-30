@@ -37,7 +37,7 @@ export const IMPORT_COLUMNS = [
   { name: "Compare-at price", required: false, help: "A 'was' price, if any." },
   { name: "Weight (g)", required: false, help: "Shipping weight in grams." },
   { name: "Net quantity", required: false, help: "How much is in the pack, e.g. 500 (with Net unit g). For the unit price." },
-  { name: "Net unit", required: false, help: "g, kg, ml, l or each." },
+  { name: "Net unit", required: false, help: "g, kg, ml, l, m, m2, sheets or each." },
   { name: "Picture links", required: false, help: "https links separated by |. The first is the main picture." },
 ] as const;
 
@@ -283,7 +283,8 @@ export function buildBody(
 
     // The variant's net quantity: a fact for the unit price, never an option.
     const qty = cell(h, row, "Net quantity");
-    const unitText = cell(h, row, "Net unit").toLowerCase();
+    // "m²" as typed is the template's "m2".
+    const unitText = cell(h, row, "Net unit").toLowerCase().replace("²", "2");
     if (unitText && !(PACK_UNITS as readonly string[]).includes(unitText)) say(row, "Net unit", `must be one of ${PACK_UNITS.join(", ")}`);
 
     const ids: [string | null, string | null] = [null, null];

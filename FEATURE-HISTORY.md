@@ -18,6 +18,9 @@ WALKED.** Spec, plan, tasks: [specs/105-category-driven-variants/](specs/105-cat
   with a Pack size option loads with its options dropped (`draft.ts`).
 - **Import**: "Pack quantity"/"Pack unit" columns are now "Net quantity"/"Net unit"; an old header is refused naming the
   new one; "Pack size" as an option name is refused like any option the aisle does not offer.
+- **Unit pricing for household goods** (operator, 2026-10-30): bases per 10 g, per 10 mL, per metre, per square metre
+  and per 100 sheets; net-quantity units m, m² and sheets. The app's `UnitBasis` and its fixture follow (an older build
+  leaves an unknown basis out, it does not fail).
 - **Migration** (`20261030090000_category_driven_variants.sql`, one-way): products using Pack size or clothing Size are
   deleted with the cart lines, saved lines and promotion targets that refuse it; a product an order line names is KEPT
   with its lowest-position variant and no options (the rest `removed`, listing summary recomputed, a NOTICE lists them),

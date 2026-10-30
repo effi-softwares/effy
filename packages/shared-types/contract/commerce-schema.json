@@ -4781,12 +4781,17 @@
       "type": "object"
     },
     "UnitBasis": {
-      "description": "Unit pricing. A product says how its sizes are compared (`UnitBasis`: per 100 g, per kg, per 100 mL, per L, each); each variant says how much is in its pack. The comparison price is the price scaled to the basis ($3.20 for 500 g → $0.64 / 100 g), as the Unit Pricing Code asks.\n\nOne sum, here: the server computes `UnitPriceDTO`; clients only format it (`unitPriceText`), the app's Kotlin formatter pinned to `unit-price.fixtures.json`. Integer arithmetic: whole cents, quantities in thousandths, one half-up rounding at the end.",
+      "description": "Unit pricing. A product says how its variants are compared (`UnitBasis`: by weight, volume, length, area, sheets or count); each variant says how much is in its pack (its net quantity). The comparison price is the price scaled to the basis ($3.20 for 500 g → $0.64 / 100 g), as the Unit Pricing Code asks. Groceries and household goods alike (105): cling wrap per metre, toilet paper per 100 sheets, spices per 10 g.\n\nOne sum, here: the server computes `UnitPriceDTO`; clients only format it (`unitPriceText`), the app's Kotlin formatter pinned to `unit-price.fixtures.json`. Integer arithmetic: whole cents, quantities in thousandths, one half-up rounding at the end.",
       "enum": [
+        "per_10g",
         "per_100g",
         "per_kg",
+        "per_10ml",
         "per_100ml",
         "per_l",
+        "per_m",
+        "per_m2",
+        "per_100_sheets",
         "each"
       ],
       "type": "string"

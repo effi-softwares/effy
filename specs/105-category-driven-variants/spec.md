@@ -121,6 +121,26 @@ values everywhere.
 
 ---
 
+### User Story 5 - Unit prices for everything a convenience store sells (Priority: P2)
+
+Effy sells groceries and household goods. A shop can show a comparison price for any of them: food and drink by
+weight or volume (per 10 g for spices, per 100 g, per kg, per 10 mL for perfume, per 100 mL, per litre), cling wrap
+and foil per metre, wrapping paper per square metre, toilet paper and tissues per 100 sheets, and packs of items each.
+
+**Why this priority**: added by the operator on review (2026-10-30): "we sell everything a convenience store has".
+
+**Independent Test**: a product with net quantity 30 m and basis Per metre shows "$0.10 / m" at $3.00; 2160 sheets at
+$9.00 with Per 100 sheets shows "$0.42 / 100 sheets".
+
+**Acceptance Scenarios**:
+
+1. **Given** a net quantity in metres, square metres or sheets, **When** the matching basis is chosen, **Then** the
+   unit price is worked out from it.
+2. **Given** a net quantity whose measure does not match the basis (metres with Per square metre), **Then** no unit
+   price is shown, as today for grams with Per litre.
+
+---
+
 ### Edge Cases
 
 - **A product's category offers no options**: it is sold as one item; the editor does not offer "With variants".
@@ -169,6 +189,9 @@ values everywhere.
   today.
 - **FR-011**: Wording on the shop and back-office product screens touched by this change MUST say "variant", not
   "size", where it means a variant.
+- **FR-012**: Unit pricing MUST cover household goods as well as food: net-quantity units g, kg, mL, L, m, m², sheets
+  and each; bases per 10 g, per 100 g, per kg, per 10 mL, per 100 mL, per litre, per metre, per square metre, per 100
+  sheets and each. A unit only pairs with bases of its own measure.
 
 ### Key Entities
 

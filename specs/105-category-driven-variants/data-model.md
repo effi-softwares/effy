@@ -11,7 +11,8 @@
 | `product_option_value.allowed_value_id` | nullable (null for pack sizes) | **NOT NULL** |
 | `product_option_value.value` | label copy: allowed value label or pack label | label copy: allowed value label only |
 | `product_variant.pack_quantity`, `pack_unit` | net quantity; also the Pack size option's value | unchanged columns; net quantity only |
-| `product.unit_basis` | unchanged | unchanged |
+| `product.unit_basis` | per_100g, per_kg, per_100ml, per_l, each | + per_10g, per_10ml, per_m, per_m2, per_100_sheets |
+| `product_variant.pack_unit` | g, kg, ml, l, each | + m, m2, sheets |
 | `attribute_definition` row `clothing_size` | seeded (101) | **deleted** with its 9 `attribute_allowed_value` rows and 7 `category_attribute` rows |
 
 ## Migration `20261030090000_category_driven_variants.sql` — steps in order

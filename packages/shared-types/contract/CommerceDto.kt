@@ -369,10 +369,11 @@ data class UnitPriceDTO (
 )
 
 /**
- * Unit pricing. A product says how its sizes are compared (`UnitBasis`: per 100 g, per kg,
- * per 100 mL, per L, each); each variant says how much is in its pack. The comparison price
- * is the price scaled to the basis ($3.20 for 500 g → $0.64 / 100 g), as the Unit Pricing
- * Code asks.
+ * Unit pricing. A product says how its variants are compared (`UnitBasis`: by weight,
+ * volume, length, area, sheets or count); each variant says how much is in its pack (its
+ * net quantity). The comparison price is the price scaled to the basis ($3.20 for 500 g →
+ * $0.64 / 100 g), as the Unit Pricing Code asks. Groceries and household goods alike (105):
+ * cling wrap per metre, toilet paper per 100 sheets, spices per 10 g.
  *
  * One sum, here: the server computes `UnitPriceDTO`; clients only format it
  * (`unitPriceText`), the app's Kotlin formatter pinned to `unit-price.fixtures.json`.
@@ -384,8 +385,13 @@ enum class UnitBasis(val value: String) {
     @SerialName("each") Each("each"),
     @SerialName("per_100g") Per100G("per_100g"),
     @SerialName("per_100ml") Per100Ml("per_100ml"),
+    @SerialName("per_100_sheets") Per100_Sheets("per_100_sheets"),
+    @SerialName("per_10g") Per10G("per_10g"),
+    @SerialName("per_10ml") Per10Ml("per_10ml"),
     @SerialName("per_kg") PerKg("per_kg"),
-    @SerialName("per_l") PerL("per_l");
+    @SerialName("per_l") PerL("per_l"),
+    @SerialName("per_m") PerM("per_m"),
+    @SerialName("per_m2") PerM2("per_m2");
 }
 
 @Serializable

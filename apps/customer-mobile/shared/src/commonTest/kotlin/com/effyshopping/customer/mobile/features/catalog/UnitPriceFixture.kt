@@ -6,7 +6,7 @@ package com.effyshopping.customer.mobile.features.catalog
  */
 internal const val UNIT_PRICE_FIXTURE = """
 {
-  "_": "098 — unit pricing. Read by packages/shared-types/src/unit-price.test.ts AND embedded in the customer app's UnitPriceFixture.kt. Change both or neither.",
+  "_": "098, 105 — unit pricing. Read by packages/shared-types/src/unit-price.test.ts AND embedded in the customer app's UnitPriceFixture.kt. Change both or neither.",
   "cases": [
     { "price": "3.20", "quantity": "500", "unit": "g", "basis": "per_100g", "amount": "0.64", "text": "$0.64 / 100 g" },
     { "price": "5.50", "quantity": "1", "unit": "kg", "basis": "per_100g", "amount": "0.55", "text": "$0.55 / 100 g" },
@@ -28,7 +28,14 @@ internal const val UNIT_PRICE_FIXTURE = """
     { "price": "3.00", "quantity": "500", "unit": "ml", "basis": "per_kg", "amount": null, "text": null },
     { "price": "3.00", "quantity": "6", "unit": "each", "basis": "per_100g", "amount": null, "text": null },
     { "price": "3.00", "quantity": "0", "unit": "g", "basis": "per_100g", "amount": null, "text": null },
-    { "price": "3.00", "quantity": "1.2345", "unit": "kg", "basis": "per_kg", "amount": null, "text": null }
+    { "price": "3.00", "quantity": "1.2345", "unit": "kg", "basis": "per_kg", "amount": null, "text": null },
+    { "price": "2.50", "quantity": "40", "unit": "g", "basis": "per_10g", "amount": "0.63", "text": "$0.63 / 10 g" },
+    { "price": "89.00", "quantity": "100", "unit": "ml", "basis": "per_10ml", "amount": "8.90", "text": "$8.90 / 10 mL" },
+    { "price": "3.00", "quantity": "30", "unit": "m", "basis": "per_m", "amount": "0.10", "text": "$0.10 / m" },
+    { "price": "4.00", "quantity": "2.5", "unit": "m2", "basis": "per_m2", "amount": "1.60", "text": "$1.60 / m²" },
+    { "price": "9.00", "quantity": "2160", "unit": "sheets", "basis": "per_100_sheets", "amount": "0.42", "text": "$0.42 / 100 sheets" },
+    { "price": "9.00", "quantity": "2160", "unit": "sheets", "basis": "each", "amount": null, "text": null },
+    { "price": "3.00", "quantity": "30", "unit": "m", "basis": "per_m2", "amount": null, "text": null }
   ]
 }
 """

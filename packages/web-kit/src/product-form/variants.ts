@@ -1,5 +1,6 @@
 import {
   optionCombinations,
+  PACK_UNITS,
   packUnitCompatible,
   unitPrice,
   validateVariantSet,
@@ -284,8 +285,7 @@ export function variantSetValid(set: VariantSetDraft): boolean {
 }
 
 export function unitsFor(basis: "" | UnitBasis): PackUnit[] {
-  const all: PackUnit[] = ["g", "kg", "ml", "l", "each"];
-  return basis === "" ? all : all.filter((u) => packUnitCompatible(basis, u));
+  return basis === "" ? [...PACK_UNITS] : PACK_UNITS.filter((u) => packUnitCompatible(basis, u));
 }
 
 export function previewUnitPrice(

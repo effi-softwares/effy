@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs"
 import { resolve } from "node:path"
 import { describe, expect, it } from "vitest"
 
-import { packUnitCompatible, UNIT_BASIS_WORDS, unitPrice, unitPriceCents, unitPriceText, type PackUnit, type UnitBasis } from "./unit-price"
+import { packUnitCompatible, UNIT_BASES, UNIT_BASIS_WORDS, unitPrice, unitPriceCents, unitPriceText, type PackUnit, type UnitBasis } from "./unit-price"
 
 const FIXTURES = JSON.parse(readFileSync(resolve(__dirname, "../unit-price.fixtures.json"), "utf8")) as {
   cases: Array<{ price: string; quantity: string; unit: PackUnit; basis: UnitBasis; amount: string | null; text: string | null }>
@@ -27,8 +27,8 @@ describe("unit price (098 R12)", () => {
   it.runIf(existsSync(APP_WORDS))("the customer app's words are these words", () => {
     const kt = readFileSync(APP_WORDS, "utf8")
     const word = (name: string) => new RegExp(`const val ${name}\\s*=\\s*"([^"]*)"`).exec(kt)?.[1]
-    expect({ per_100g: word("PER_100G"), per_kg: word("PER_KG"), per_100ml: word("PER_100ML"), per_l: word("PER_L"), each: word("EACH") })
-      .toEqual(UNIT_BASIS_WORDS)
+    // Every basis, by its constant's name (per_100_sheets → PER_100_SHEETS): a new basis cannot be left out.
+    expect(Object.fromEntries(UNIT_BASES.map((b) => [b, word(b.toUpperCase())]))).toEqual(UNIT_BASIS_WORDS)
   })
 
   it("agrees with every row of the shared fixture", () => {

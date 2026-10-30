@@ -1,18 +1,33 @@
 /**
- * Unit pricing. A product says how its sizes are compared (`UnitBasis`: per 100 g, per kg, per 100 mL,
- * per L, each); each variant says how much is in its pack. The comparison price is the price scaled to
- * the basis ($3.20 for 500 g → $0.64 / 100 g), as the Unit Pricing Code asks.
+ * Unit pricing. A product says how its variants are compared (`UnitBasis`: by weight, volume, length, area,
+ * sheets or count); each variant says how much is in its pack (its net quantity). The comparison price is the
+ * price scaled to the basis ($3.20 for 500 g → $0.64 / 100 g), as the Unit Pricing Code asks. Groceries and
+ * household goods alike (105): cling wrap per metre, toilet paper per 100 sheets, spices per 10 g.
  *
  * One sum, here: the server computes `UnitPriceDTO`; clients only format it (`unitPriceText`), the app's
  * Kotlin formatter pinned to `unit-price.fixtures.json`. Integer arithmetic: whole cents, quantities in
  * thousandths, one half-up rounding at the end.
  */
 
-export type UnitBasis = "per_100g" | "per_kg" | "per_100ml" | "per_l" | "each"
-export type PackUnit = "g" | "kg" | "ml" | "l" | "each"
+export type UnitBasis =
+  | "per_10g"
+  | "per_100g"
+  | "per_kg"
+  | "per_10ml"
+  | "per_100ml"
+  | "per_l"
+  | "per_m"
+  | "per_m2"
+  | "per_100_sheets"
+  | "each"
+export type PackUnit = "g" | "kg" | "ml" | "l" | "m" | "m2" | "sheets" | "each"
 
-export const UNIT_BASES: readonly UnitBasis[] = ["per_100g", "per_kg", "per_100ml", "per_l", "each"]
-export const PACK_UNITS: readonly PackUnit[] = ["g", "kg", "ml", "l", "each"]
+export const UNIT_BASES: readonly UnitBasis[] = [
+  "per_10g", "per_100g", "per_kg", "per_10ml", "per_100ml", "per_l", "per_m", "per_m2", "per_100_sheets", "each",
+]
+export const PACK_UNITS: readonly PackUnit[] = ["g", "kg", "ml", "l", "m", "m2", "sheets", "each"]
+
+type Dimension = "mass" | "volume" | "length" | "area" | "sheets" | "count"
 
 /** A server-computed comparison price. `amount` is a 2-dp money string, like every price on the wire. */
 export interface UnitPriceDTO {
@@ -21,24 +36,32 @@ export interface UnitPriceDTO {
 }
 
 /** What the basis is measured in, and how many of those units it covers. */
-const BASIS: Record<UnitBasis, { dimension: "mass" | "volume" | "count"; base: number }> = {
-  per_100g: { dimension: "mass", base: 100 }, // grams
+const BASIS: Record<UnitBasis, { dimension: Dimension; base: number }> = {
+  per_10g: { dimension: "mass", base: 10 }, // grams
+  per_100g: { dimension: "mass", base: 100 },
   per_kg: { dimension: "mass", base: 1000 },
-  per_100ml: { dimension: "volume", base: 100 }, // millilitres
+  per_10ml: { dimension: "volume", base: 10 }, // millilitres
+  per_100ml: { dimension: "volume", base: 100 },
   per_l: { dimension: "volume", base: 1000 },
+  per_m: { dimension: "length", base: 1 }, // metres
+  per_m2: { dimension: "area", base: 1 }, // square metres
+  per_100_sheets: { dimension: "sheets", base: 100 },
   each: { dimension: "count", base: 1 },
 }
 
-/** A pack unit in the dimension's base unit (g, mL or one item). */
-const PACK: Record<PackUnit, { dimension: "mass" | "volume" | "count"; factor: number }> = {
+/** A pack unit in the dimension's base unit (g, mL, m, m², one sheet or one item). */
+const PACK: Record<PackUnit, { dimension: Dimension; factor: number }> = {
   g: { dimension: "mass", factor: 1 },
   kg: { dimension: "mass", factor: 1000 },
   ml: { dimension: "volume", factor: 1 },
   l: { dimension: "volume", factor: 1000 },
+  m: { dimension: "length", factor: 1 },
+  m2: { dimension: "area", factor: 1 },
+  sheets: { dimension: "sheets", factor: 1 },
   each: { dimension: "count", factor: 1 },
 }
 
-/** g/kg go with the weight bases, mL/L with the volume bases, "each" with "each". */
+/** A unit goes with the bases of its own measure: g/kg with weight, mL/L with volume, m with length, and so on. */
 export function packUnitCompatible(basis: UnitBasis, unit: PackUnit): boolean {
   return BASIS[basis].dimension === PACK[unit].dimension
 }
@@ -95,10 +118,15 @@ export function unitPrice(
 
 /** The words after the amount; the app's `UnitBasisWords` is held to them by `unit-price.fixtures.json`. */
 export const UNIT_BASIS_WORDS: Record<UnitBasis, string> = {
+  per_10g: "/ 10 g",
   per_100g: "/ 100 g",
   per_kg: "/ kg",
+  per_10ml: "/ 10 mL",
   per_100ml: "/ 100 mL",
   per_l: "/ L",
+  per_m: "/ m",
+  per_m2: "/ m²",
+  per_100_sheets: "/ 100 sheets",
   each: "each",
 }
 
@@ -109,10 +137,15 @@ export function unitPriceText(u: UnitPriceDTO): string {
 
 /** How a shop console names a basis in its picker. */
 export const UNIT_BASIS_LABELS: Record<UnitBasis, string> = {
+  per_10g: "Per 10 g",
   per_100g: "Per 100 g",
   per_kg: "Per kg",
+  per_10ml: "Per 10 mL",
   per_100ml: "Per 100 mL",
   per_l: "Per litre",
+  per_m: "Per metre",
+  per_m2: "Per square metre",
+  per_100_sheets: "Per 100 sheets",
   each: "Each",
 }
 
@@ -121,5 +154,8 @@ export const PACK_UNIT_LABELS: Record<PackUnit, string> = {
   kg: "kg",
   ml: "mL",
   l: "L",
+  m: "m",
+  m2: "m²",
+  sheets: "sheets",
   each: "each",
 }
