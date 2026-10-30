@@ -3,9 +3,7 @@
 -- • A product's options are exactly the library attributes its category offers as variant options. The platform's
 --   own option, "Pack size" (product_option.kind = 'pack_size', its values the variants' pack sizes), is gone:
 --   `kind` is dropped, every option names an attribute, every option value names one of its values.
--- • A variant's pack_quantity / pack_unit stay — its net quantity, read only for unit pricing — and unit pricing
---   covers household goods too: pack units m, m2 and sheets; bases per 10 g, per 10 mL, per metre, per square
---   metre and per 100 sheets.
+-- • A variant's pack_quantity / pack_unit stay — its net quantity, read only for unit pricing.
 -- • The seeded clothing "Size" attribute (101's `clothing_size`, XXS–4XL) is removed with its values and the
 --   categories' attachments to it.
 --
@@ -114,16 +112,6 @@ ALTER TABLE public.product_option
     ALTER COLUMN attribute_id SET NOT NULL;
 ALTER TABLE public.product_option_value
     ALTER COLUMN allowed_value_id SET NOT NULL;
-
--- ── 6b. Unit pricing for every kind of product (the values of @effy/shared-types UNIT_BASES / PACK_UNITS) ────
-ALTER TABLE public.product
-    DROP CONSTRAINT product_unit_basis_check,
-    ADD CONSTRAINT product_unit_basis_check CHECK (unit_basis IS NULL OR unit_basis = ANY (ARRAY[
-        'per_10g', 'per_100g', 'per_kg', 'per_10ml', 'per_100ml', 'per_l', 'per_m', 'per_m2', 'per_100_sheets', 'each']));
-ALTER TABLE public.product_variant
-    DROP CONSTRAINT product_variant_pack_unit_check,
-    ADD CONSTRAINT product_variant_pack_unit_check CHECK (pack_unit IS NULL OR pack_unit = ANY (ARRAY[
-        'g', 'kg', 'ml', 'l', 'm', 'm2', 'sheets', 'each']));
 
 -- ── 7. The categories' forms no longer carry clothing Size ───────────────────────────────────────────
 SELECT public.rebuild_category_derived();
