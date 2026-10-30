@@ -18,7 +18,6 @@ const RAW_TABLE_ALLOWED: Record<string, string> = {
   "orders/components/PackageRows.tsx": "bags: each row is a scan-to-find anchor",
   "orders/components/RefundsSection.tsx": "action list: proposed refunds (its history is a StaticTable)",
   "overview/TodaysWindows.tsx": "board: today's windows",
-  "product-review/ReviewItemScreen.tsx": "review: a change set",
   "products/ImportScreens.tsx": "editor/review: an import's column map and outcome",
   "promotions/components/PerformancePanel.tsx": "matrix: metrics by window",
   "staff-identity/AdminAccessScreen.tsx": "matrix: permissions",
@@ -56,7 +55,9 @@ describe("console lists use the one data table (103)", () => {
   })
 
   it("no list scrolls forever, and no list writes its own phone layout", () => {
-    const infinite = screens.filter((f) => /useInfiniteQuery/.test(readFileSync(f, "utf8"))).map((f) => relative(FEATURES, f))
+    const infinite = screens
+      .filter((f) => /useInfiniteQuery/.test(readFileSync(f, "utf8")))
+      .map((f) => relative(FEATURES, f))
     expect(infinite).toEqual([])
     // A hand-written `data-m` belongs to a board above; a list gets its phone layout from column meta.
     const dataM = screens

@@ -22,10 +22,16 @@ const RAIL_DOCKED_FROM = 1280;
 export function RecordPage({
   rail,
   railTitle,
+  fixedRail = false,
   children,
 }: {
   rail: ReactNode;
   railTitle: string;
+  /**
+   * The side panel is the page's purpose (a review's decision): always open beside it, with no circle to hide it.
+   * Below xl it is still the drawer, opened from the page (`useSidebar().setOpenMobile`).
+   */
+  fixedRail?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -34,6 +40,7 @@ export function RecordPage({
       style={{ "--sidebar-width": RAIL_WIDTH } as CSSProperties}
       mobileBreakpoint={RAIL_DOCKED_FROM}
       keyboardShortcut={null}
+      {...(fixedRail ? { open: true, onOpenChange: () => undefined } : {})}
     >
       <div className="ef-record__main">{children}</div>
       <Sidebar side="right" collapsible="offcanvas" className="top-(--header-h) h-auto" aria-label={railTitle}>
@@ -42,7 +49,9 @@ export function RecordPage({
         </SidebarHeader>
         <SidebarContent className="px-6 pb-8 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">{rail}</SidebarContent>
       </Sidebar>
-      <SidebarEdgeToggle showLabel={`Show ${railTitle.toLowerCase()}`} hideLabel={`Hide ${railTitle.toLowerCase()}`} />
+      {fixedRail ? null : (
+        <SidebarEdgeToggle showLabel={`Show ${railTitle.toLowerCase()}`} hideLabel={`Hide ${railTitle.toLowerCase()}`} />
+      )}
     </SidebarProvider>
   );
 }

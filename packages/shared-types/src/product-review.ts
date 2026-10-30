@@ -26,6 +26,12 @@ export interface ReviewQueueItemDTO {
   productName: string;
   submittedAt: string;
   waitingHours: WireInt;
+  /** Its main picture (a change's proposed one when it touches pictures); null when it has none. */
+  imageUrl: string | null;
+  /** Its sizes, removed ones left out. */
+  sizeCount: WireInt;
+  /** What a change touches, as words ("Sizes and prices", "Pictures"); empty for a new product. */
+  changes: string[];
 }
 
 /** The review queue as a console list (103); `total` is the filtered queue's size (the rail's count). */

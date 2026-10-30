@@ -1,7 +1,19 @@
 import { describe, expect, it } from "vitest"
 
 import { canDecideReview } from "./access"
-import { attentionLines, marginLabel, previewCustomerPrice, priceRange, toMargin, waitingLabel } from "./model"
+import {
+  attentionLines,
+  bigPriceRises,
+  marginLabel,
+  previewCustomerPrice,
+  priceMove,
+  priceRange,
+  reviewChecks,
+  sectionOfChange,
+  toMargin,
+  waitingLabel,
+  wordDiff,
+} from "./model"
 
 describe("previewCustomerPrice", () => {
   it("adds a fixed amount", () => {
@@ -86,5 +98,56 @@ describe("attention lines (101)", () => {
       "Not marked 18+, though its category is.",
       "Recommended details left empty: Brand, Organic.",
     ])
+  })
+})
+
+describe("the review page's reading of a change", () => {
+  it("marks the words removed and added, the shared ones plain", () => {
+    const d = wordDiff("Cold-pressed olive oil.", "Early-harvest, cold-pressed olive oil — peppery.")
+    expect(d.was.filter((p) => p.changed).map((p) => p.text.trim())).toEqual(["Cold-pressed", "oil."])
+    expect(d.now.filter((p) => p.changed).map((p) => p.text.trim())).toEqual([
+      "Early-harvest, cold-pressed",
+      "oil — peppery.",
+    ])
+    expect(d.was.map((p) => p.text).join("")).toBe("Cold-pressed olive oil.")
+    expect(d.now.map((p) => p.text).join("")).toBe("Early-harvest, cold-pressed olive oil — peppery.")
+  })
+
+  it("says how far a price moved, and nothing for what is not one", () => {
+    expect(priceMove("16.00", "18.00")).toBeCloseTo(12.5)
+    expect(priceMove("16.00", null)).toBeNull()
+    expect(priceMove("0", "1")).toBeNull()
+  })
+
+  it("files each changed field under the section that shows it", () => {
+    expect(sectionOfChange("variant:v1:shopPriceAmount")).toBe("sizes")
+    expect(sectionOfChange("shortDescription")).toBe("about")
+    expect(sectionOfChange("detail:allergens")).toBe("details")
+    expect(sectionOfChange("storage")).toBe("details")
+    expect(sectionOfChange("primaryCategoryId")).toBe("aisles")
+  })
+
+  it("finds the shop prices raised past the guide, by size", () => {
+    const changes = [
+      { field: "variant:v2:shopPriceAmount", label: "750 mL — Shop price", before: "16.00", after: "18.00" },
+      { field: "variant:v1:shopPriceAmount", label: "375 mL — Shop price", before: "9.50", after: "9.90" },
+    ]
+    expect(bigPriceRises({ changes })).toEqual([{ label: "750 mL", move: 12.5 }])
+  })
+
+  it("blocks approval on a required check, never on one worth a look", () => {
+    const base = {
+      images: { current: [{ url: "u", isPrimary: true, altText: null, isNew: false }], proposed: null },
+      missingRequired: [] as string[],
+      missingRecommended: ["Awards"],
+      factOverrides: [] as ("storage" | "gstStatus" | "ageRestricted")[],
+      changes: [],
+      marginRequired: true,
+    }
+    const failing = (c: ReturnType<typeof reviewChecks>) => c.filter((x) => !x.ok && x.required).map((x) => x.key)
+    expect(failing(reviewChecks(base, true))).toEqual([])
+    expect(failing(reviewChecks(base, false))).toEqual(["margin"])
+    expect(failing(reviewChecks({ ...base, missingRequired: ["Allergens"] }, true))).toEqual(["required"])
+    expect(reviewChecks(base, true).find((x) => x.key === "recommended")).toMatchObject({ ok: false, attention: true })
   })
 })

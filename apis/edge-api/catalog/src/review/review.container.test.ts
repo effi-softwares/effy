@@ -225,6 +225,11 @@ d("067 — product review against real PostgreSQL", () => {
     expect(out.items[1]!.productName).toBe("Live milk");
     expect(out.items[0]!.shopName).toBe("SA shop");
     expect(out).toMatchObject({ total: 3, page: 1 });
+    // What each row says about itself: a change names what it proposes; a new product proposes nothing.
+    expect(out.items[1]!.changes).toEqual(["Name"]);
+    expect(out.items[0]!.changes).toEqual([])
+    expect(typeof out.items[0]!.sizeCount).toBe("number");
+    expect(out.items[0]!.imageUrl).toBeNull();
   });
 
   it("filters by shop, by kind and by name", async () => {

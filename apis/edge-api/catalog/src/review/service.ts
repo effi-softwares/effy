@@ -2,6 +2,7 @@ import {
   offsetListPage,
   customerPrice,
   pooled,
+  imageUrlOrNull,
   presignRead,
   validateMargin,
   type Margin,
@@ -51,18 +52,46 @@ function requireProductId(id: string | undefined): string {
 }
 
 
+/** A change's proposed fields, as the queue row names them; sizes and their prices are one thing to a reviewer. */
+const PROPOSAL_WORDS: Record<string, string> = {
+  name: "Name",
+  brand: "Brand",
+  shortDescription: "Short description",
+  longDescription: "Long description",
+  primaryCategoryId: "Category",
+  gstStatus: "GST",
+  storage: "Storage",
+  ageRestricted: "18+",
+  details: "Details",
+  unitBasis: "Unit pricing",
+  options: "Sizes and prices",
+  variants: "Sizes and prices",
+};
+
+export function changeWords(keys: readonly string[] | null, mediaChanged: boolean): string[] {
+  const words = (keys ?? []).map((k) => PROPOSAL_WORDS[k]).filter((w): w is string => !!w);
+  if (mediaChanged) words.push("Pictures");
+  return [...new Set(words)];
+}
+
 export async function queue(req: ReviewQueueRequest): Promise<ReviewQueueDTO> {
   const r = await repo.listQueue(req);
   return offsetListPage(
-    r.rows.map((x) => ({
-      productId: x.product_id,
-      kind: x.kind,
-      shopId: x.shop_id,
-      shopName: x.shop_name,
-      productName: x.product_name,
-      submittedAt: x.submitted_at.toISOString(),
-      waitingHours: Number(x.waiting_hours),
-    })),
+    await Promise.all(
+      r.rows.map(async (x) => ({
+        productId: x.product_id,
+        kind: x.kind,
+        shopId: x.shop_id,
+        shopName: x.shop_name,
+        productName: x.product_name,
+        submittedAt: x.submitted_at.toISOString(),
+        waitingHours: Number(x.waiting_hours),
+        // Presigned like the item's pictures: a submission's may not be public yet.
+        imageUrl: await imageUrlOrNull(x.image_key),
+        sizeCount: Number(x.size_count),
+        changes: x.kind === "change" ? changeWords(x.change_keys, x.media_changed) : [],
+      })),
+    ),
     req,
     r,
   );

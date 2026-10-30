@@ -22,8 +22,10 @@ export function ProductPageSkeleton({
   facts,
   sections,
   rail,
+  fixedRail = false,
 }: {
   back: HeaderBack;
+  fixedRail?: boolean;
   facts: readonly string[];
   sections: readonly { id: string; icon: LucideIcon; title: string }[];
   rail: readonly string[];
@@ -31,7 +33,8 @@ export function ProductPageSkeleton({
   return (
     <Loading label="Loading product">
       <RecordPage
-        railTitle="About this product"
+        fixedRail={fixedRail}
+        railTitle={fixedRail ? "Decision" : "About this product"}
         rail={rail.map((title) => (
           <InspectorSection key={title} title={title}>
             <BoneLines count={3} />

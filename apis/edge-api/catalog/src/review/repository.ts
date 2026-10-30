@@ -17,17 +17,38 @@ export interface QueueRow {
   submitted_at: Date;
   submitted_at_text: string;
   waiting_hours: string;
+  /** Its main picture: the proposed set's for a change that touches pictures, else the live one's. */
+  image_key: string | null;
+  /** A change's proposed fields (the keys of `product_change.proposed`); null for a new product. */
+  change_keys: string[] | null;
+  media_changed: boolean;
+  size_count: string;
 }
 
-/** New products and pending changes as one list, so neither goes unwatched. */
+/** The live main picture: the primary one, else the first. */
+const LIVE_IMAGE = `(SELECT m.storage_key FROM public.product_media m WHERE m.product_id = p.id
+                      ORDER BY m.is_primary DESC, m.display_order, m.created_at LIMIT 1)`;
+/** Sizes on the product, removed ones left out. */
+const SIZE_COUNT = `(SELECT count(*) FROM public.product_variant v WHERE v.product_id = p.id AND v.state <> 'removed')`;
+
+/**
+ * New products and pending changes as one list, so neither goes unwatched — each with what the queue row says
+ * about it: its main picture, how many sizes, and (for a change) which fields it proposes.
+ */
 const QUEUE_ROWS = `
       SELECT p.id AS product_id, 'new_product'::text AS kind, p.shop_id, s.name AS shop_name,
-             p.name AS product_name, p.submitted_at
+             p.name AS product_name, p.submitted_at,
+             ${LIVE_IMAGE} AS image_key, NULL::text[] AS change_keys, false AS media_changed, ${SIZE_COUNT} AS size_count
         FROM public.product p
         JOIN public.shop s ON s.id = p.shop_id
        WHERE p.approved_at IS NULL AND p.review_state = 'in_review'
       UNION ALL
-      SELECT p.id, 'change'::text, p.shop_id, s.name, p.name, pc.submitted_at
+      SELECT p.id, 'change'::text, p.shop_id, s.name, p.name, pc.submitted_at,
+             COALESCE(
+               (SELECT cm.storage_key FROM public.product_change_media cm WHERE pc.media_changed AND cm.change_id = pc.id
+                 ORDER BY cm.is_primary DESC, cm.display_order, cm.created_at LIMIT 1),
+               ${LIVE_IMAGE}),
+             ARRAY(SELECT jsonb_object_keys(pc.proposed) ORDER BY 1), pc.media_changed, ${SIZE_COUNT}
         FROM public.product_change pc
         JOIN public.product p ON p.id = pc.product_id
         JOIN public.shop s ON s.id = p.shop_id
@@ -54,6 +75,7 @@ export async function listQueue(req: ReviewQueueRequest) {
     const paging = limitOffsetClause(read, args);
     const res = await query<QueueRow & { full_count: string }>(
       `SELECT q.product_id, q.kind, q.shop_id, q.shop_name, q.product_name, q.submitted_at,
+              q.image_key, q.change_keys, q.media_changed, q.size_count::text AS size_count,
               q.submitted_at::text AS submitted_at_text,
               floor(extract(epoch FROM (now() - q.submitted_at)) / 3600)::text AS waiting_hours,
               count(*) OVER () AS full_count

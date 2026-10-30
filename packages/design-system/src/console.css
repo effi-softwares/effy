@@ -208,9 +208,10 @@
   .ef-dt-scroll > table { @apply flex-none; }
   .ef-dt-state { @apply flex flex-1 items-center justify-center px-4 py-10; }
   .ef-dt-stale > table { @apply opacity-70 transition-opacity; }
-  /* The selected-rows bar (103): floating, the page's colours inverted, sliding in and out. */
+  /* The console's one action bar (103): floating, the page's colours inverted, sliding in and out — the same place,
+     height and motion whatever a page puts on it (a selection's actions, the review's decision). */
   .ef-selbar {
-    @apply fixed left-1/2 z-40 flex max-w-[calc(100vw-2rem)] flex-nowrap items-center gap-2 overflow-hidden rounded-xl bg-foreground py-2 pr-2 pl-3 text-sm font-medium whitespace-nowrap text-background shadow-lg;
+    @apply fixed left-1/2 z-40 flex h-14 max-w-[calc(100vw-2rem)] flex-nowrap items-center gap-2 overflow-hidden rounded-xl bg-foreground py-2 pr-2 pl-3 text-sm font-medium whitespace-nowrap text-background shadow-lg;
     bottom: calc(1.5rem + env(safe-area-inset-bottom));
     translate: -50% 0;
     transition: translate 220ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 180ms ease-out;

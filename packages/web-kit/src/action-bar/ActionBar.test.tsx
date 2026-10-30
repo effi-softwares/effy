@@ -38,7 +38,9 @@ describe("the console's one action bar (103)", () => {
     await userEvent.click(screen.getByText("pick Orders"));
     const bar = screen.getByRole("region", { name: "Selected orders" });
     expect(bar).toHaveTextContent("2 selected");
-    expect(within(bar).getByRole("button", { name: "Orders action" })).toBeInTheDocument();
+    expect(
+      within(bar).getByRole("button", { name: "Orders action" }),
+    ).toBeInTheDocument();
   });
 
   it("goes to whoever opened it last, and clears through its owner", async () => {
@@ -51,13 +53,51 @@ describe("the console's one action bar (103)", () => {
     await userEvent.click(screen.getByText("pick Orders"));
     await userEvent.click(screen.getByText("pick Stock"));
     const bar = screen.getByRole("region", { name: "Selected stock" });
-    expect(within(bar).getByRole("button", { name: "Stock action" })).toBeInTheDocument();
-    expect(within(bar).queryByRole("button", { name: "Orders action" })).not.toBeInTheDocument();
+    expect(
+      within(bar).getByRole("button", { name: "Stock action" }),
+    ).toBeInTheDocument();
+    expect(
+      within(bar).queryByRole("button", { name: "Orders action" }),
+    ).not.toBeInTheDocument();
 
-    await userEvent.click(within(bar).getByRole("button", { name: "Clear selection" }));
+    await userEvent.click(
+      within(bar).getByRole("button", { name: "Clear selection" }),
+    );
     // Closed, it slides away still showing what it held.
     expect(bars()[0]).toHaveAttribute("data-state", "closed");
     expect(bars()[0]).toHaveTextContent("1 selected");
+  });
+
+  it("carries a page's own controls in the same bar — no count, no clear — and a selection takes it after", async () => {
+    function Decision() {
+      const bar = useActionBar({
+        open: true,
+        label: "Decision",
+        children: <ActionBarButton>Approve</ActionBarButton>,
+      });
+      return <>{bar}</>;
+    }
+    render(
+      <ActionBarProvider>
+        <Decision />
+        <Picker name="Orders" label="Selected orders" />
+      </ActionBarProvider>,
+    );
+    expect(bars()).toHaveLength(1);
+    const bar = screen.getByRole("region", { name: "Decision" });
+    expect(
+      within(bar).getByRole("button", { name: "Approve" }),
+    ).toBeInTheDocument();
+    expect(bar).not.toHaveTextContent("selected");
+    expect(
+      within(bar).queryByRole("button", { name: "Clear selection" }),
+    ).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByText("pick Orders"));
+    // The same element, now holding the selection: its place, height and motion are the bar's, not the content's.
+    expect(bars()).toHaveLength(1);
+    expect(screen.getByRole("region", { name: "Selected orders" })).toBe(bar);
+    expect(bar).toHaveTextContent("1 selected");
   });
 
   it("without a provider, a screen still gets its own bar", async () => {
@@ -65,7 +105,9 @@ describe("the console's one action bar (103)", () => {
     await act(async () => {
       await userEvent.click(screen.getByText("pick Orders"));
     });
-    expect(screen.getByRole("region", { name: "Selected orders" })).toHaveTextContent("1 selected");
+    expect(
+      screen.getByRole("region", { name: "Selected orders" }),
+    ).toHaveTextContent("1 selected");
   });
 });
 
@@ -73,12 +115,16 @@ describe("the bar is one row, always (103)", () => {
   afterEach(() => vi.restoreAllMocks());
 
   const widths = (need: number, room: number) => {
-    vi.spyOn(Element.prototype, "scrollWidth", "get").mockImplementation(function (this: Element) {
-      return this.classList.contains("ef-selbar") ? need : 0;
-    });
-    vi.spyOn(Element.prototype, "clientWidth", "get").mockImplementation(function (this: Element) {
-      return this.classList.contains("ef-selbar") ? room : 0;
-    });
+    vi.spyOn(Element.prototype, "scrollWidth", "get").mockImplementation(
+      function (this: Element) {
+        return this.classList.contains("ef-selbar") ? need : 0;
+      },
+    );
+    vi.spyOn(Element.prototype, "clientWidth", "get").mockImplementation(
+      function (this: Element) {
+        return this.classList.contains("ef-selbar") ? room : 0;
+      },
+    );
   };
 
   it("packs tighter, then scrolls its actions, rather than wrapping", async () => {
@@ -93,7 +139,9 @@ describe("the bar is one row, always (103)", () => {
     expect(bar).toHaveAttribute("data-density", "scroll");
     // Short of room, the count is just the number; its name stays for assistive tech.
     expect(within(bar).getByLabelText("1 selected")).toHaveTextContent(/^1$/);
-    expect(within(bar).getByRole("button", { name: "Orders action" }).className).toContain("h-7");
+    expect(
+      within(bar).getByRole("button", { name: "Orders action" }).className,
+    ).toContain("h-7");
   });
 
   it("stays at full size when everything fits", async () => {
@@ -104,6 +152,8 @@ describe("the bar is one row, always (103)", () => {
       </ActionBarProvider>,
     );
     await userEvent.click(screen.getByText("pick Orders"));
-    expect(screen.getByRole("region", { name: "Selected orders" })).toHaveAttribute("data-density", "normal");
+    expect(
+      screen.getByRole("region", { name: "Selected orders" }),
+    ).toHaveAttribute("data-density", "normal");
   });
 });

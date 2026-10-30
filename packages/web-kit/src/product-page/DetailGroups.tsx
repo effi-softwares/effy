@@ -15,6 +15,12 @@ export interface DetailGroupRow {
   perSize?: boolean;
   /** Required and empty. */
   missing?: boolean;
+  /** A change under review alters it: marked, so a reviewer finds it. */
+  changed?: boolean;
+  /** A word after the label ("Not the category default"). */
+  badge?: ReactNode;
+  /** Spans both columns (a long text). */
+  wide?: boolean;
 }
 
 export interface DetailGroup {
@@ -39,11 +45,20 @@ export function DetailGroups({ groups, onAdd }: { groups: readonly DetailGroup[]
           </div>
           <dl className="m-0 grid gap-x-12 md:grid-cols-2">
             {g.rows.map((r) => (
-              <div key={r.key} className="min-w-0 border-t py-4">
+              <div
+                key={r.key}
+                className={cn(
+                  "min-w-0 border-t py-4",
+                  r.wide && "md:col-span-2",
+                  r.changed && "bg-primary-muted/50 pl-3 shadow-[inset_2px_0_0_var(--primary-fill)]",
+                )}
+              >
                 <dt className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
                   {r.label}
                   {r.required ? <Badge variant="outline" className="h-[18px] px-1.5 text-[11px] text-muted-foreground">Required</Badge> : null}
                   {r.perSize ? <Badge variant="outline" className="h-[18px] px-1.5 text-[11px] text-muted-foreground">Per size</Badge> : null}
+                  {r.changed ? <Badge variant="default" className="h-[18px] px-1.5 text-[11px]">Changed</Badge> : null}
+                  {r.badge}
                 </dt>
                 <dd className={cn("m-0 mt-1.5 flex min-w-0 flex-wrap items-center gap-1.5 break-words", r.missing && "font-medium text-destructive")}>
                   {r.missing ? (

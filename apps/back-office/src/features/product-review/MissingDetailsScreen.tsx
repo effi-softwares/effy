@@ -24,8 +24,18 @@ import { missingDetailsList, REVIEW_KEY } from "./list"
 import { fetchMissingDetailsPage } from "./repo"
 
 const columns: EffyColumnDef<MissingDetailsItemDTO>[] = [
-  { id: "product", header: "Product", cell: ({ row }) => row.original.name, meta: { label: "Product", identifying: true, phone: "primary" } },
-  { id: "shop", header: "Shop", cell: ({ row }) => <span className="text-muted-foreground">{row.original.shopName}</span>, meta: { label: "Shop", sortKey: "shop" } },
+  {
+    id: "product",
+    header: "Product",
+    cell: ({ row }) => row.original.name,
+    meta: { label: "Product", identifying: true, phone: "primary" },
+  },
+  {
+    id: "shop",
+    header: "Shop",
+    cell: ({ row }) => <span className="text-muted-foreground">{row.original.shopName}</span>,
+    meta: { label: "Shop", sortKey: "shop" },
+  },
   {
     id: "category",
     header: "Category",
@@ -52,7 +62,10 @@ export function MissingDetailsScreen() {
   const tree = useQuery(treeQuery())
   // Departments only: deep enough to narrow a list of exceptions.
   const departments = useMemo(
-    () => (tree.data ?? []).filter((c) => c.status === "active" && c.parentId === null).map((c) => ({ value: c.id, label: c.name })),
+    () =>
+      (tree.data ?? [])
+        .filter((c) => c.status === "active" && c.parentId === null)
+        .map((c) => ({ value: c.id, label: c.name })),
     [tree.data],
   )
 
@@ -75,7 +88,11 @@ export function MissingDetailsScreen() {
         queryInput={input}
         rowId={(p) => p.productId}
         rowHref={(p) => ({ to: "/product-review/$productId", params: { productId: p.productId } })}
-        empty={{ icon: CircleCheck, title: "Nothing is missing", description: "Every product on sale has the details its category requires." }}
+        empty={{
+          icon: CircleCheck,
+          title: "Nothing is missing",
+          description: "Every product on sale has the details its category requires.",
+        }}
         toolbar={
           <>
             <Facet
