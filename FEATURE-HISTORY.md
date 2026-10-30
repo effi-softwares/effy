@@ -19,8 +19,10 @@ WALKED.** Spec, plan, tasks: [specs/105-category-driven-variants/](specs/105-cat
 - **Import**: "Pack quantity"/"Pack unit" columns are now "Net quantity"/"Net unit"; an old header is refused naming the
   new one; "Pack size" as an option name is refused like any option the aisle does not offer.
 - **Unit pricing for household goods** (operator, 2026-10-30): bases per 10 g, per 10 mL, per metre, per square metre
-  and per 100 sheets; net-quantity units m, m² and sheets. The app's `UnitBasis` and its fixture follow (an older build
-  leaves an unknown basis out, it does not fail).
+  and per 100 sheets; net-quantity units m, m² and sheets — migration `20261030120000_unit_pricing_household.sql`. The
+  app's `UnitBasis` and its fixture follow (an older build leaves an unknown basis out, it does not fail).
+  ⚠ Defect: this was first written into `20261030090000` AFTER dev had applied that file (04:57 UTC), so dev never got it;
+  the applied file was restored byte for byte and the change moved to its own migration.
 - **Migration** (`20261030090000_category_driven_variants.sql`, one-way): products using Pack size or clothing Size are
   deleted with the cart lines, saved lines and promotion targets that refuse it; a product an order line names is KEPT
   with its lowest-position variant and no options (the rest `removed`, listing summary recomputed, a NOTICE lists them),
@@ -33,8 +35,8 @@ WALKED.** Spec, plan, tasks: [specs/105-category-driven-variants/](specs/105-cat
   products and gave the expected rows. Not 105's: `shared-types` `package-status.guard.test.ts` (099), shop availability
   and catalog products/imports list tests of 103 (27 values on one option breaks the 0–19 position check; a too-deep
   page; an import checksum fixture).
-- **Operator, in order**: commit → `AWS_PROFILE=ef make db-up-one ENV=dev` (`20261030090000_category_driven_variants.sql`;
-  read the NOTICE for kept products) → deploy `SERVICE=shop`, `SERVICE=catalog`, `SERVICE=storefront`, `SERVICE=commerce`
+- **Operator, in order**: commit → `AWS_PROFILE=ef make db-up-one ENV=dev` (`20261030090000_category_driven_variants.sql` —
+  APPLIED to dev 2026-10-30 04:57 UTC — then `20261030120000_unit_pricing_household.sql`) → deploy `SERVICE=shop`, `SERVICE=catalog`, `SERVICE=storefront`, `SERVICE=commerce`
   → shop-web, back-office, customer-web → walk [quickstart](specs/105-category-driven-variants/quickstart.md). To sell by
   quantity ("500 g / 1 kg") staff add their own option attribute in Categories & attributes and attach it.
 

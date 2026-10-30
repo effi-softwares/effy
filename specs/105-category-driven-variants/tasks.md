@@ -107,7 +107,7 @@ migration applies on a local Postgres loaded with the baseline + 101/102/103 mig
 - [X] T034 [US5] Add bases per_10g, per_10ml, per_m, per_m2, per_100_sheets and pack units m, m2, sheets (measures length, area, sheets) with words and labels in packages/shared-types/src/unit-price.ts
 - [X] T035 [US5] Add the new cases to packages/shared-types/unit-price.fixtures.json and copy it into apps/customer-mobile/shared/src/commonTest/kotlin/com/effyshopping/customer/mobile/features/catalog/UnitPriceFixture.kt; make the words test in packages/shared-types/src/unit-price.test.ts cover every basis
 - [X] T036 [US5] Add the bases and words to the app's apps/customer-mobile/shared/src/commonMain/kotlin/com/effyshopping/customer/mobile/features/catalog/domain/UnitPrice.kt and regenerate packages/shared-types/contract/CommerceDto.kt
-- [X] T037 [US5] Widen product_unit_basis_check and product_variant_pack_unit_check in db/migrations/20261030090000_category_driven_variants.sql
+- [X] T037 [US5] Widen product_unit_basis_check and product_variant_pack_unit_check in a NEW migration db/migrations/20261030120000_unit_pricing_household.sql (first written into 20261030090000 after dev had applied it at 2026-10-30 04:57 UTC; that file was restored to the applied version)
 - [X] T038 [US5] Read the unit list from PACK_UNITS in packages/web-kit/src/product-form/variants.ts (`unitsFor`) and accept "m²" in apis/edge-api/catalog/src/imports/rows.ts
 
 ---
