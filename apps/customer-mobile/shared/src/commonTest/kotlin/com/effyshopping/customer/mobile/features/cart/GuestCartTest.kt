@@ -63,7 +63,7 @@ class GuestCartTest {
     fun groupsLinesByPackageKeyAnonymously() {
         val packages = packagesOf(listOf(line("a", 1, "pkg_x"), line("b", 1, "pkg_y"), line("c", 2, "pkg_x")))
         assertEquals(2, packages.size)
-        // Stable first-appearance order; 1-based ordinals — the only label (never a shop name/location).
+        // Stable first-appearance order; 1-based ordinals - the only label (never a shop name/location).
         assertEquals(listOf(1, 2), packages.map { it.index })
         assertEquals(listOf("pkg_x", "pkg_y"), packages.map { it.packageKey })
         assertEquals(listOf("a", "c"), packages[0].lines.map { it.productId })
@@ -86,7 +86,7 @@ class GuestCartTest {
         assertTrue(packages.first().index == 1)
     }
 
-    // `GuestCartStore` is gone — the mirror that replaced it (`CartStore`) has its own suite,
+    // `GuestCartStore` is gone - the mirror that replaced it (`CartStore`) has its own suite,
     // including the persistence and forward-only-adoption rules this one could not reach. What is left
     // here is what this file was always really about: the pure list operations.
     @Test

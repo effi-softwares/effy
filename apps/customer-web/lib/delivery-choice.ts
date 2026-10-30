@@ -11,7 +11,7 @@ import type { CourierQuoteDTO, DeliveryFeeDTO, DeliveryPromise, DeliveryQuoteDTO
  */
 
 /**
- * The one window chosen for the order: a slot on a day. 085 — it may be a later day's "Any
+ * The one window chosen for the order: a slot on a day. 085 - it may be a later day's "Any
  * time" window (`EffyDayDTO.anyTime`): the order is then promised the day and no hours.
  */
 export interface ChosenWindow {
@@ -56,7 +56,7 @@ export function deliveryTypeOf(quote: DeliveryQuoteDTO | null): DeliveryType | n
 }
 
 /**
- * The chosen window as the quote offers it now — a timed window or the day's Any-time one;
+ * The chosen window as the quote offers it now - a timed window or the day's Any-time one;
  * null when nothing is chosen, it is "as soon as possible", or it is no longer offered.
  */
 export function findWindow(quote: DeliveryQuoteDTO | null, chosen: DeliveryChoice | null): EffyWindowDTO | null {
@@ -77,7 +77,7 @@ export function promiseOf(quote: DeliveryQuoteDTO | null, chosen: DeliveryChoice
 
 /**
  * Carry the window across a new quote: kept while it is still on offer, dropped when it is not.
- * Dropped means nothing is selected — a window that has gone is never replaced by another.
+ * Dropped means nothing is selected - a window that has gone is never replaced by another.
  */
 export const carryWindow = (quote: DeliveryQuoteDTO | null, chosen: DeliveryChoice | null): DeliveryChoice | null =>
   isAsap(chosen) ? (effyWindowsOf(quote)?.asap ? chosen : null) : findWindow(quote, chosen) ? chosen : null
@@ -87,7 +87,7 @@ export const dayOffset = (w: EffyWindowsDTO, date: string): number => w.days.fin
 
 /**
  * The delivery charge for what the shopper has chosen: the courier's fee, or the chosen
- * window's. Null until a window is chosen — there is no charge to show before there is one.
+ * window's. Null until a window is chosen - there is no charge to show before there is one.
  */
 export function chosenFee(quote: DeliveryQuoteDTO | null, chosen: DeliveryChoice | null): DeliveryFeeDTO | null {
   if (!quote?.serviced) return null

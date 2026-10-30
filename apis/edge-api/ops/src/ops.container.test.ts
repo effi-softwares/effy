@@ -15,7 +15,7 @@ const d = RUN ? describe : describe.skip;
 let container: StartedPostgreSqlContainer;
 let db: pg.Client;
 
-d("070 — operator tools against the real schema", () => {
+d("070 - operator tools against the real schema", () => {
   beforeAll(async () => {
     container = await new PostgreSqlContainer("postgres:16-alpine").start();
     db = new pg.Client({ connectionString: container.getConnectionUri() });

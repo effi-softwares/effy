@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest"
 import { AppPromo } from "./AppPromo"
 import { StoreBadges } from "./StoreBadges"
 
-describe("StoreBadges — present, but they go nowhere (FR-021)", () => {
+describe("StoreBadges - present, but they go nowhere (FR-021)", () => {
   it("renders both store marks", () => {
     render(<StoreBadges />)
 
@@ -36,8 +36,8 @@ describe("StoreBadges — present, but they go nowhere (FR-021)", () => {
   it("says 'coming soon' in words, in each badge's accessible name", () => {
     render(<StoreBadges />)
 
-    expect(screen.getByLabelText("Google Play — coming soon")).toBeTruthy()
-    expect(screen.getByLabelText("App Store — coming soon")).toBeTruthy()
+    expect(screen.getByLabelText("Google Play - coming soon")).toBeTruthy()
+    expect(screen.getByLabelText("App Store - coming soon")).toBeTruthy()
   })
 
   it("hides the decorative marks from assistive technology", () => {
@@ -74,7 +74,7 @@ describe("no invented store URL exists anywhere in the section (FR-021)", () => 
   }
 })
 
-describe("AppPromo — honest about availability (FR-022)", () => {
+describe("AppPromo - honest about availability (FR-022)", () => {
   it("makes no claim that the apps can be downloaded today", () => {
     const { container } = render(<AppPromo />)
     const text = (container.textContent ?? "").toLowerCase()

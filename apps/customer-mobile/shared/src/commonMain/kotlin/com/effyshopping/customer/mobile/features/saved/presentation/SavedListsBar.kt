@@ -45,7 +45,7 @@ fun SavedListsBar(
     onDelete: () -> Unit,
 ) {
     val index = lists.indexOfFirst { it.id == selectedId }.coerceAtLeast(0)
-    // 087 (Saved board) — a scrolling row of list chips, the selected one in the light-blue tint.
+    // 087 (Saved board) - a scrolling row of list chips, the selected one in the light-blue tint.
     LazyRow(
         modifier = Modifier.fillMaxWidth().selectableGroup(),
         horizontalArrangement = Arrangement.spacedBy(EffySpacing.s),
@@ -68,7 +68,7 @@ fun SavedListsBar(
  * Name a new list, or rename one.
  *
  * [onSubmit] reports back the sentence to show when the platform refused (a taken name, a full set of
- * lists), or null when it went through — and only then does the dialog close, so what the shopper
+ * lists), or null when it went through - and only then does the dialog close, so what the shopper
  * typed is still there to correct.
  */
 @Composable
@@ -119,7 +119,7 @@ fun ListNameDialog(
 
 /**
  * Both numbers, before anything is deleted: what is in the list, and how much of it lives
- * nowhere else. The second is what the shopper actually loses — the delete un-saves exactly that many.
+ * nowhere else. The second is what the shopper actually loses - the delete un-saves exactly that many.
  */
 @Composable
 fun DeleteListDialog(list: SavedList, onConfirm: (onResult: (String?) -> Unit) -> Unit, onDismiss: () -> Unit) {

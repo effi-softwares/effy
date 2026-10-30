@@ -8,7 +8,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * What a shopper is told about a refund on mobile — at parity with customer-web's
+ * What a shopper is told about a refund on mobile - at parity with customer-web's
  * `RefundBlock.test.tsx`.
  */
 class RefundViewTest {
@@ -42,7 +42,7 @@ class RefundViewTest {
         )
     }
 
-    /** Every state must have a label — an unhandled one would render nothing at all. */
+    /** Every state must have a label - an unhandled one would render nothing at all. */
     @Test
     fun everyStateHasALabel() {
         CustomerRefundState.entries.forEach { state ->

@@ -24,7 +24,7 @@ import { getOrder, listOrders } from "./service";
 
 const RUN = process.env.CONTAINER_TESTS === "1";
 
-describe.skipIf(!RUN)("073 — package status on the order reads (real migrations)", () => {
+describe.skipIf(!RUN)("073 - package status on the order reads (real migrations)", () => {
   let container: StartedPostgreSqlContainer;
   let pool: Pool;
   let seq = 0;
@@ -101,7 +101,7 @@ describe.skipIf(!RUN)("073 — package status on the order reads (real migration
   const statusOf = async (orderId: string) => (await getOrder(orderId))!.packages[0]!.statusView!;
 
   // Read "At hub" / "Out for delivery" from the shop status alone before.
-  it.each(["standard", "same_day"] as const)("S2 — a %s package just collected is With driver, naming them", async (method) => {
+  it.each(["standard", "same_day"] as const)("S2 - a %s package just collected is With driver, naming them", async (method) => {
     const p = await aPackage(method, "collected");
     await onRound("collection", p, await aDriver("Ada"), "picked_up", "done");
 
@@ -119,7 +119,7 @@ describe.skipIf(!RUN)("073 — package status on the order reads (real migration
     expect((await statusOf(p.orderId)).status).toBe("at_hub");
   });
 
-  it("S4 — same-day: on a round → At hub; drop started → Out for delivery; proof → Delivered", async () => {
+  it("S4 - same-day: on a round → At hub; drop started → Out for delivery; proof → Delivered", async () => {
     const p = await aPackage("same_day", "collected");
     const ada = await aDriver("Ada");
     const ben = await aDriver("Ben");
@@ -135,7 +135,7 @@ describe.skipIf(!RUN)("073 — package status on the order reads (real migration
     expect((await statusOf(p.orderId)).status).toBe("delivered");
   });
 
-  it("S4 — a failed attempt → Problem, saying why", async () => {
+  it("S4 - a failed attempt → Problem, saying why", async () => {
     const p = await aPackage("same_day", "collected");
     const ben = await aDriver("Ben");
     const d = await onRound("delivery", p, ben, "assigned", "skipped");
@@ -144,10 +144,10 @@ describe.skipIf(!RUN)("073 — package status on the order reads (real migration
        VALUES ($1, 'nobody_home', $2, now(), gen_random_uuid())`,
       [d.stopId, ben],
     );
-    expect(await statusOf(p.orderId)).toMatchObject({ status: "problem", detail: "Delivery attempt failed — nobody home" });
+    expect(await statusOf(p.orderId)).toMatchObject({ status: "problem", detail: "Delivery attempt failed - nobody home" });
   });
 
-  it("S5 — standard: handed over → With carrier; arrival → Delivered", async () => {
+  it("S5 - standard: handed over → With carrier; arrival → Delivered", async () => {
     const p = await aPackage("standard", "collected");
     await pool.query(`INSERT INTO public.carrier_handoff (shop_fulfillment_id, recorded_by_sub) VALUES ($1, 'staff')`, [p.sfId]);
     expect((await statusOf(p.orderId)).status).toBe("with_carrier");
@@ -170,10 +170,10 @@ describe.skipIf(!RUN)("073 — package status on the order reads (real migration
     const p = await aPackage("standard");
     const ada = await aDriver("Ada");
     await onRound("collection", p, ada, "assigned");
-    await pool.query(`UPDATE public.round_package SET assigned_note = 'Auto-assigned — fewest packages today (2)'`);
+    await pool.query(`UPDATE public.round_package SET assigned_note = 'Auto-assigned - fewest packages today (2)'`);
 
     const pkg = (await getOrder(p.orderId))!.packages[0]!;
-    expect(pkg.collect).toMatchObject({ driver: { id: ada, name: "Ada" }, how: "Auto-assigned — fewest packages today (2)", movable: true });
+    expect(pkg.collect).toMatchObject({ driver: { id: ada, name: "Ada" }, how: "Auto-assigned - fewest packages today (2)", movable: true });
     expect(pkg.deliver).toBeNull();
     const row = (await listOrders(req({}))).items.find((i) => i.id === p.orderId)!;
     expect(row.drivers.collect).toEqual(["Ada"]);
@@ -214,7 +214,7 @@ describe.skipIf(!RUN)("073 — package status on the order reads (real migration
     expect((await listOrders(req({ view: "driver" }))).items.map((i) => i.id)).toEqual([p.orderId]);
   });
   /** "Needs a driver" lists an Effy parcel once its round opens; one waiting for a later day is not listed. */
-  it("082 P8 — a later-day window at the hub needs a driver only once its round has opened", async () => {
+  it("082 P8 - a later-day window at the hub needs a driver only once its round has opened", async () => {
     const hubbed = async (windowStart: string, windowEnd: string) => {
       const p = await aPackage("standard", "collected");
       const ada = await aDriver(`Ada${Math.random()}`);

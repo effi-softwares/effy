@@ -9,7 +9,7 @@ export function orderActionError(err: unknown, action: "handoff" | "arrival"): s
     if (err.status === 409) {
       return action === "handoff"
         ? "This package hasn't been collected from its shop yet, so there's nothing to hand over."
-        : "This package isn't ready to be marked as arrived. Record the handover first — and if you already did, refresh: it may have changed since this page loaded."
+        : "This package isn't ready to be marked as arrived. Record the handover first - and if you already did, refresh: it may have changed since this page loaded."
     }
 
     if (err.status === 422) return "An Effy driver delivers this package, so there's no carrier handover to record."
@@ -20,7 +20,7 @@ export function orderActionError(err: unknown, action: "handoff" | "arrival"): s
 }
 
 const CONSIGNMENT_COPY: Record<string, string> = {
-  not_courier: "Effy delivers this package — there is no courier to book.",
+  not_courier: "Effy delivers this package - there is no courier to book.",
   service_unavailable: "That courier service is no longer in use. Choose another.",
   service_not_supplier: "That courier service does not collect from suppliers. Choose one that does.",
   consignment_handed_over: "The parcel is already with the courier; its service can no longer change.",

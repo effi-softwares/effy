@@ -31,7 +31,7 @@
 
 ## Validation notes
 
-**Three clarifications were resolved with the operator before writing** rather than left as markers —
+**Three clarifications were resolved with the operator before writing** rather than left as markers -
 each was a scope fork whose answer changed large parts of the specification:
 
 1. **Authoring model** → engineers, in the repository. (Ruled out a stored-template console, an
@@ -45,7 +45,7 @@ each was a scope fork whose answer changed large parts of the specification:
 - **Email-client behaviour is treated as environment, not implementation.** Naming the constraint
   ("a client that strips embedded stylesheets", "an engine that is not a browser engine") is a fact
   about the world the feature ships into, in the same way a browser support matrix is. No authoring
-  format, compiler, template language or send mechanism is named anywhere in the specification — those
+  format, compiler, template language or send mechanism is named anywhere in the specification - those
   are `/plan`'s to choose, and the research to inform that choice is in `research-inputs/`.
 - **The design section is intentionally concrete** (exact hex, exact px, exact copy, a wireframe). The
   operator asked for a design that matches the app; a specification that said "consistent with the
@@ -67,6 +67,6 @@ each was a scope fork whose answer changed large parts of the specification:
 
 - Items marked incomplete require spec updates before `/speckit-clarify` or `/speckit-plan`.
 - Research gathered during specification is preserved in
-  [`research-inputs/`](../research-inputs/) — an industry survey of in-house template systems, and an
+  [`research-inputs/`](../research-inputs/) - an industry survey of in-house template systems, and an
   HTML-email authoring rulebook with 55 testable rules and 31 lint checks. `/speckit-plan` should
   consume both when producing `research.md`.

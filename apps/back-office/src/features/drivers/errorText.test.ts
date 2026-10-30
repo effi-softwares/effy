@@ -11,7 +11,7 @@ function thrown(over: Record<string, unknown> = {}) {
   }
 }
 
-describe("driverActionError — a refusal the operator can act on", () => {
+describe("driverActionError - a refusal the operator can act on", () => {
   it("⚠ handles the api-client's PLAIN-OBJECT throw, not an Error instance", () => {
     const err = thrown({ kind: "forbidden", status: 403 })
     expect(err).not.toBeInstanceOf(Error)

@@ -39,7 +39,7 @@ async function makeOrder(handover: string | null, note: string | null): Promise<
   return o.rows[0]!.id;
 }
 
-d("066 — delivery instructions on the back-office order read", () => {
+d("066 - delivery instructions on the back-office order read", () => {
   beforeAll(async () => {
     container = await new PostgreSqlContainer("postgres:16-alpine").start();
     pool = new Pool({ connectionString: container.getConnectionUri() });

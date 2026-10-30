@@ -8,7 +8,7 @@ export function withExplicitSize(svg, w, h) {
   if (!/width="100%"\s+height="100%"/.test(svg)) {
     throw new Error(
       "compose: authored master no longer declares width/height=100%. " +
-        "Re-verify rule V1 before removing this guard — a silent zero-size render is the failure mode.",
+      "Re-verify rule V1 before removing this guard - a silent zero-size render is the failure mode.",
     )
   }
   return svg.replace(/width="100%"\s+height="100%"/, `width="${w}" height="${h}"`)

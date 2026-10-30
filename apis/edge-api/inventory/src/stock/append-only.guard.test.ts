@@ -56,13 +56,13 @@ describe("stock_movement is append-only (FR-008)", () => {
     expect(
       offences,
       `public.stock_movement is APPEND-ONLY (FR-008). A row, once written, is never edited or ` +
-        `deleted — the current count must always be explicable from the history (SC-005), and an ` +
-        `edit makes that false forever with no way to detect it afterwards. Correct a mistake by ` +
-        `writing another movement:\n\n  ${offences.join("\n  ")}\n`,
+      `deleted - the current count must always be explicable from the history (SC-005), and an ` +
+      `edit makes that false forever with no way to detect it afterwards. Correct a mistake by ` +
+      `writing another movement:\n\n  ${offences.join("\n  ")}\n`,
     ).toEqual([]);
   });
 
-  it("is actually looking at source — a guard that scans nothing always passes", () => {
+  it("is actually looking at source - a guard that scans nothing always passes", () => {
     // Pins that the walk reaches the owning repository, so finding no files cannot pass.
     const files = [...sourceFiles(join(repoRoot, "apis/edge-api/inventory/src"))];
     expect(files.length).toBeGreaterThan(5);

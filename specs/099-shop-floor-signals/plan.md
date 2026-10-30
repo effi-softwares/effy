@@ -1,4 +1,4 @@
-# Implementation Plan: Shop Floor Signals — Collection, Pick Order, Availability and Quality
+# Implementation Plan: Shop Floor Signals - Collection, Pick Order, Availability and Quality
 
 **Branch**: `dev` (feature directory `099-shop-floor-signals`) | **Date**: 2026-10-24 | **Spec**: [spec.md](spec.md)
 
@@ -7,16 +7,16 @@
 Four facts the redesigned shop console drew as "Needs backend", supplied by the one backend and shown
 where the canvas puts them:
 
-- **Next collection** — derived on read in the `shop` service from the collection schedule, the
+- **Next collection** - derived on read in the `shop` service from the collection schedule, the
   planner's own run rule (`dueRun`, moved into `@effy/edge-shared` so the planner and the shop read
   one rule), and the run's round and stop. Today gets `nextCollection`; order rows, order detail and
   Today's live orders get `collection`. The fleet planner and driver duty announce `orders` to the
   affected shops (R1–R3).
-- **Pick order** — every shop order line and pick-list line carries `storageClass` from the
+- **Pick order** - every shop order line and pick-list line carries `storageClass` from the
   `order_item` snapshot; the console groups Ambient → Chilled → Frozen (R4).
-- **Availability** — one new read, `GET /shop/v1/availability`; the switch is the existing variant
+- **Availability** - one new read, `GET /shop/v1/availability`; the switch is the existing variant
   state route (R5).
-- **Quality** — five columns on `shop_sales_hour`, filled by the existing rollup job; Insights gains
+- **Quality** - five columns on `shop_sales_hour`, filled by the existing rollup job; Insights gains
   `quality` (R6).
 
 Decisions: [research.md](research.md) R1–R7. Data: [data-model.md](data-model.md). Contracts:
@@ -24,7 +24,7 @@ Decisions: [research.md](research.md) R1–R7. Data: [data-model.md](data-model.
 
 ## Technical Context
 
-**Language/Version**: TypeScript — edge-api `shop`, `fleet`, `driver`, `shared`; `@effy/shared-types`;
+**Language/Version**: TypeScript - edge-api `shop`, `fleet`, `driver`, `shared`; `@effy/shared-types`;
 shop-web (React 19).
 
 **Primary Dependencies**: none new.
@@ -45,7 +45,7 @@ tests (Next collection panel, grouped pick list, Availability, quality strip).
 most two indexed queries per read (runs + this shop's rounds for the next two days). Availability
 pages at 50 rows.
 
-**Constraints**: a shop is told only "Effy driver" / "Courier" — never a window, fee, driver name or
+**Constraints**: a shop is told only "Effy driver" / "Courier" - never a window, fee, driver name or
 position (FR-008); nothing refreshes on a timer (071); every new contract field required unless
 genuinely absent.
 
@@ -66,7 +66,7 @@ shared function, 2 new announcement points, ~6 shop-web components.
 | Live updates (071) | Uses `announce` after commit; client maps existing kinds; no polling | Pass |
 | Gateway capacity (075) | +1 route; capacity test stays green | Pass |
 
-No violations — Complexity Tracking is empty.
+No violations - Complexity Tracking is empty.
 
 ## Project Structure
 

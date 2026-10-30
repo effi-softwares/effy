@@ -121,7 +121,7 @@ afterAll(async () => {
   await container?.stop();
 });
 
-d("069 — carrier handover list", () => {
+d("069 - carrier handover list", () => {
   beforeEach(async () => {
     await pool.query(`TRUNCATE public."order", public.delivery_slot CASCADE`);
     await pool.query(`DELETE FROM public.delivery_settings`);
@@ -135,7 +135,7 @@ d("069 — carrier handover list", () => {
     return p;
   }
 
-  it("partitions by the day each parcel is due out — the day it was placed, with no courier service to ask", async () => {
+  it("partitions by the day each parcel is due out - the day it was placed, with no courier service to ask", async () => {
     const dueToday = await courierParcel();
     const overdue = await courierParcel({ placedDaysAgo: 2 });
 
@@ -162,7 +162,7 @@ d("069 — carrier handover list", () => {
     expect(today[0]!.atHub).toBe(false);
   });
 
-  it("never lists Effy's packages, cancelled orders, withdrawn portions — or a carrier's package from before delivery types", async () => {
+  it("never lists Effy's packages, cancelled orders, withdrawn portions - or a carrier's package from before delivery types", async () => {
     const now = new Date();
     await seedPackage({
       method: "same_day",
@@ -180,7 +180,7 @@ d("069 — carrier handover list", () => {
   });
 });
 
-d("069 — the promise on the back-office order detail", () => {
+d("069 - the promise on the back-office order detail", () => {
   beforeEach(async () => {
     await pool.query(`TRUNCATE public."order", public.delivery_slot CASCADE`);
     await pool.query(`DELETE FROM public.delivery_settings`);
@@ -207,7 +207,7 @@ d("069 — the promise on the back-office order detail", () => {
     expect(pkg.atRisk).toBe(false);
     expect(pkg.onTime).toBeNull();
 
-    // It arrives now — an hour after its window closed.
+    // It arrives now - an hour after its window closed.
     await pool.query(
       `INSERT INTO public.package_arrival (shop_fulfillment_id, source) VALUES ($1, 'driver_proof')`,
       [p.fulfillmentId],
@@ -254,7 +254,7 @@ async function sell(orderId: string, type: "effy" | "courier", reason: "in_cover
   await recordDeliveryType(pool, { orderId, actor: { kind: "checkout" } });
 }
 
-d("079 — who delivers a package is one answer, for old orders and new (P12, P19)", () => {
+d("079 - who delivers a package is one answer, for old orders and new (P12, P19)", () => {
   beforeEach(async () => {
     await pool.query(`TRUNCATE public."order", public.delivery_slot CASCADE`);
     await pool.query(`DELETE FROM public.delivery_settings`);
@@ -293,7 +293,7 @@ d("079 — who delivers a package is one answer, for old orders and new (P12, P1
     expect(await everywhere()).toEqual([]);
   });
 
-  it("an Effy order is never a carrier's — today's window or a later day's — and a handover is refused by name", async () => {
+  it("an Effy order is never a carrier's - today's window or a later day's - and a handover is refused by name", async () => {
     const today = await seedPackage({ method: "same_day", promisedDay: await melDay(0), window: later(2) });
     const thursday = await seedPackage({ method: "standard", promisedDay: await melDay(2), window: later(50) });
     await sell(today.orderId, "effy", "in_coverage");

@@ -35,6 +35,6 @@
   deliberately outside the spec.
 - Two assumptions are defaults the operator may overturn before planning: the redesign is scoped to
   the customer website only, and texted mobile-number verification (reference screens A14 / A24) is
-  held out. Neither is a blocking clarification — each has a safe default recorded in the spec.
+  held out. Neither is a blocking clarification - each has a safe default recorded in the spec.
 - The spec records that the design departs from current design law (one palette, dark mode required,
   no shadowed cards, card layouts avoided); the amendment is the first item for `/speckit-plan`.

@@ -103,37 +103,37 @@ export function SlotsPanel({ canManage }: { canManage: boolean }) {
     },
     ...(canManage
       ? [
-          {
-            id: "actions",
-            header: "",
-            cell: ({ row }: { row: { original: DeliverySlotDTO } }) => (
-              <div className="flex justify-end gap-1">
-                <Button variant="ghost" size="sm" onClick={() => setEditing(row.original)}>
-                  Edit
+        {
+          id: "actions",
+          header: "",
+          cell: ({ row }: { row: { original: DeliverySlotDTO } }) => (
+            <div className="flex justify-end gap-1">
+              <Button variant="ghost" size="sm" onClick={() => setEditing(row.original)}>
+                Edit
+              </Button>
+              {row.original.anyTime ? null : row.original.status === "active" ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={patch.isPending}
+                  onClick={() => void setStatus(row.original, "disabled")}
+                >
+                  Switch off
                 </Button>
-                {row.original.anyTime ? null : row.original.status === "active" ? (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    disabled={patch.isPending}
-                    onClick={() => void setStatus(row.original, "disabled")}
-                  >
-                    Switch off
-                  </Button>
-                ) : (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    disabled={patch.isPending}
-                    onClick={() => void setStatus(row.original, "active")}
-                  >
-                    Switch on
-                  </Button>
-                )}
-              </div>
-            ),
-          } satisfies ColumnDef<DeliverySlotDTO>,
-        ]
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={patch.isPending}
+                  onClick={() => void setStatus(row.original, "active")}
+                >
+                  Switch on
+                </Button>
+              )}
+            </div>
+          ),
+        } satisfies ColumnDef<DeliverySlotDTO>,
+      ]
       : []),
   ]
 
@@ -143,7 +143,7 @@ export function SlotsPanel({ canManage }: { canManage: boolean }) {
     <section className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <p className="max-w-2xl text-sm text-muted-foreground">
-          The delivery windows a customer can choose — today, or on one of the next delivery days (Australia/Melbourne).
+          The delivery windows a customer can choose - today, or on one of the next delivery days (Australia/Melbourne).
           A window is offered until its “order by” time and while a collection run can still bring the goods to the hub
           before it starts. A window has no limit on deliveries unless you set one. Changes apply to the next checkout;
           orders already placed keep the window they were sold. Each day has its own count: the columns show how many

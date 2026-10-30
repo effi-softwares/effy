@@ -27,7 +27,7 @@ class AmplifyAuthDriver : AuthDriver {
     override val sessionChanges: Flow<Unit> = _sessionChanges.asSharedFlow()
 
     // App-lifetime scope collecting Amplify's Hub, so an SDK-initiated session drop (session expiry, or
-    // the Keystore-failure sign-out — 013 D11) fires sessionChanges and SessionManager re-bootstraps.
+    // the Keystore-failure sign-out - 013 D11) fires sessionChanges and SessionManager re-bootstraps.
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     init {
@@ -95,7 +95,7 @@ class AmplifyAuthDriver : AuthDriver {
 
     // The `else` below is why this mapping is dangerous to edit. Kotlin does not require a `when`
     // over an enum to be exhaustive once an `else` exists, so a new Cognito step compiles perfectly
-    // and fails at runtime as an "Unexpected" dead end — no build error, no test failure, just a
+    // and fails at runtime as an "Unexpected" dead end - no build error, no test failure, just a
     // shopper stuck on a screen. Every step this app accepts is therefore named explicitly, and
     // AuthStepMappingTest pins the ones that must map a particular way.
     private suspend fun mapSignIn(result: AuthSignInResult): AuthStep = when (result.nextStep.signInStep) {
@@ -120,7 +120,7 @@ class AmplifyAuthDriver : AuthDriver {
             AuthStep.Failed(mapError(e))
         }
 
-    /** Map Amplify exceptions to the closed [AuthError] — matching by simple name to avoid a fragile
+    /** Map Amplify exceptions to the closed [AuthError] - matching by simple name to avoid a fragile
      *  import of every subtype. `UserNotFound` and `NotAuthorized` collapse to one value. */
     private fun mapError(e: Throwable): AuthError = when (e::class.simpleName) {
         "UserNotFoundException", "NotAuthorizedException", "UserNotConfirmedException" -> AuthError.InvalidCredentials

@@ -28,9 +28,10 @@ const pkg: OrderPackage = {
   handoverDueOn: null,
   atRisk: false,
   onTime: null,
+  milestones: [],
 }
 
-describe("PackageRows — 089", () => {
+describe("PackageRows - 089", () => {
   it("shows each package's code, as printed on its label", () => {
     render(
       <PackageRows
@@ -38,15 +39,15 @@ describe("PackageRows — 089", () => {
         packages={[pkg]}
         canRecord={false}
         busy={false}
-        onHandoff={() => {}}
-        onArrival={() => {}}
+        onHandoff={() => { }}
+        onArrival={() => { }}
       />,
     )
     expect(screen.getByLabelText("Package code")).toHaveTextContent("7K3Q9M")
   })
 })
 
-describe("PackageRows — 096 bags", () => {
+describe("PackageRows - 096 bags", () => {
   const bags = {
     ...pkg,
     parcels: [
@@ -90,11 +91,11 @@ describe("PackageRows — 096 bags", () => {
         packages={[bags]}
         canRecord={false}
         busy={false}
-        onHandoff={() => {}}
-        onArrival={() => {}}
+        onHandoff={() => { }}
+        onArrival={() => { }}
       />,
     )
-    const table = screen.getByRole("table", { name: "Bags" })
+    const table = screen.getByRole("list", { name: "Bags" })
     expect(table).toHaveTextContent("1 of 2")
     expect(table).toHaveTextContent("Printed 2×")
     expect(table).toHaveTextContent("With driver")
@@ -110,8 +111,8 @@ describe("PackageRows — 096 bags", () => {
         packages={[bags]}
         canRecord={false}
         busy={false}
-        onHandoff={() => {}}
-        onArrival={() => {}}
+        onHandoff={() => { }}
+        onArrival={() => { }}
         highlight={{ parcelId: "b2" }}
       />,
     )

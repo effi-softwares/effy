@@ -1,4 +1,4 @@
 <resources>
-    <!-- 092 — the name under the icon. Was "driver-mobile", a developer string. -->
+    <!-- 092 - the name under the icon. Was "driver-mobile", a developer string. -->
     <string name="app_name">Effy Driver</string>
 </resources>

@@ -52,7 +52,7 @@ beforeEach(() => {
   vi.mocked(repo.insertVehicle).mockResolvedValue("v-1");
 });
 
-describe("createVehicle — refusals that name the obstacle", () => {
+describe("createVehicle - refusals that name the obstacle", () => {
   it("requires the four facts the business cannot do without", async () => {
     const err = (await createVehicle(
       { registrationPlate: "", make: "", model: "", bodyType: "van", ownership: "effy_owned" },
@@ -108,7 +108,7 @@ describe("createVehicle — refusals that name the obstacle", () => {
   });
 });
 
-describe("updateVehicle — optimistic concurrency", () => {
+describe("updateVehicle - optimistic concurrency", () => {
   it("requires the token the profile was loaded with", async () => {
     const err = (await updateVehicle("v-1", { updatedAt: "" }, "actor-1", scope).catch(
       (e) => e,
@@ -126,7 +126,7 @@ describe("updateVehicle — optimistic concurrency", () => {
   });
 });
 
-describe("setVehicleStatus — retiring cannot strand a vehicle", () => {
+describe("setVehicleStatus - retiring cannot strand a vehicle", () => {
   /** Retiring a van a driver still holds would hide it while a person has it. */
   it("⚠ REFUSES to retire a vehicle that is still out, and names the holder", async () => {
     vi.mocked(repo.getVehicle).mockResolvedValue({
@@ -144,7 +144,7 @@ describe("setVehicleStatus — retiring cannot strand a vehicle", () => {
     expect(repo.setStatus).not.toHaveBeenCalled();
   });
 
-  it("allows taking a held vehicle OFF THE ROAD — that does not pretend it came back", async () => {
+  it("allows taking a held vehicle OFF THE ROAD - that does not pretend it came back", async () => {
     vi.mocked(repo.getVehicle).mockResolvedValue({
       ...VEHICLE,
       currentHolderDriverId: "d-9",

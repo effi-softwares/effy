@@ -51,7 +51,7 @@ entries with `/v1/saved/*` behaving exactly as before.
 
 ---
 
-## Phase 3: User Story 3 — The heart still takes one tap and still tells the truth (P1)
+## Phase 3: User Story 3 - The heart still takes one tap and still tells the truth (P1)
 
 **Goal**: one-tap save lands in "Saved"; the heart is filled for a product in any list; a tap on
 a filled heart never removes a product from a named list.
@@ -72,7 +72,7 @@ exists.
 - [x] T017 [US3] In `GO/service.go` add the named ids to `Membership`; in `GO/handler.go` emit `namedProductIds` on `GET /v1/saved/ids` and map `ErrInNamedLists` to `409` with reason `in_named_lists` in `respond` (depends on T016)
 - [x] T018 [P] [US3] `CW/lib/saved-store.ts`: add optional `namedIds` to the v1 `Envelope` WITHOUT changing `KEY` or `SCHEMA_VERSION`; `adoptSaved(productIds, namedIds = [])`; `useNamedIds()` / `isInNamedList(productId)` returning a frozen, identity-stable empty array as `EMPTY` does; a comment recording why the version must not be bumped
 - [x] T019 [US3] `CW/lib/saved-actions.ts`: `refreshSaved` and `CW/lib/saved-merge.ts` adopt `namedProductIds`; `toggleSaved` returns a discriminated result (`ok` | `refused` | `open_chooser`), returning `open_chooser` without sending when un-saving a product in the named set, and on a `409` reverting the mirror and returning `open_chooser` (depends on T018)
-- [x] T020 [US3] `CW/app/(shop)/_components/SaveControl.tsx`: on `open_chooser`, load the chooser with `import("./ListChooser")` (a placeholder module exporting `openListChooser(productId)` until T033); accessible name unchanged; then run `pnpm --filter @effy/customer-web build && pnpm --filter @effy/customer-web size` and record `/`, `/product/[id]`, `/search` deltas in quickstart's baseline table — `/search` must be byte-identical and no route may exceed the budget (depends on T019)
+- [x] T020 [US3] `CW/app/(shop)/_components/SaveControl.tsx`: on `open_chooser`, load the chooser with `import("./ListChooser")` (a placeholder module exporting `openListChooser(productId)` until T033); accessible name unchanged; then run `pnpm --filter @effy/customer-web build && pnpm --filter @effy/customer-web size` and record `/`, `/product/[id]`, `/search` deltas in quickstart's baseline table - `/search` must be byte-identical and no route may exceed the budget (depends on T019)
 - [x] T021 [P] [US3] `CM/features/saved/domain/SavedStore.kt`: add `named: StateFlow<Set<String>>`; `SavedMembership` in `CM/features/saved/domain/Saved.kt` gains `namedProductIds`; `adopt` sets both; `reset` clears both
 - [x] T022 [US3] `CM/features/saved/domain/SavedUseCases.kt`: the toggle use case returns a sealed outcome (`Done` | `Refused` | `OpenChooser`), returning `OpenChooser` without a request when the product is in `named`, and on a `409 in_named_lists` reverting and returning `OpenChooser`; update the callers in `CM/features/saved/presentation/SavedTiles.kt`, `CM/features/catalog/presentation/{HomeScreen,SearchScreen,ProductDetailScreen}.kt` and `CM/features/checkout/presentation/ReceiptScreen.kt` to accept the outcome (the sheet itself arrives in T036) (depends on T021)
 
@@ -81,7 +81,7 @@ and installed builds.
 
 ---
 
-## Phase 4: User Story 1 — Make a list and put products in it (P1) 🎯 MVP
+## Phase 4: User Story 1 - Make a list and put products in it (P1) 🎯 MVP
 
 **Goal**: create a named list, place products in it from the chooser, see the list's page.
 
@@ -103,7 +103,7 @@ and installed builds.
 - [x] T031 [US1] `GO/lists_handler.go`: `GET /v1/lists`, `POST /v1/lists`, `GET /v1/lists/:listId/items`, `PUT /v1/lists/:listId/entries/:productId`, behind the same middleware as `/v1/saved`; DTO mapping with the default's id as `default` and `name` null; refusal mapping per contracts §2; register from `Register` in `GO/handler.go` so `apis/core-api/cmd/core-api/main.go` needs no new wiring (depends on T030)
 - [x] T032 [P] [US1] Web proxy routes through `proxyToCore`: `CW/app/api/lists/route.ts` (GET, POST), `CW/app/api/lists/[listId]/items/route.ts` (GET), `CW/app/api/lists/[listId]/entries/[productId]/route.ts` (PUT)
 - [x] T033 [US1] `CW/lib/list-actions.ts` (fetch lists for a product, create, add; updates the mirror's saved and named sets on success) and `CW/app/(shop)/_components/ListChooser.tsx`: a native `<dialog>` (the `MiniCart` pattern, no dialog library) of checkbox rows, "Saved" first, a "New list" row with a text field and a remaining-characters count from `LIST_NAME_MAX`, plain-text names, focus returned to the opener on close; replaces T020's placeholder and keeps the `openListChooser(productId)` export (depends on T032)
-- [x] T034 [US1] Entry points on web: an "Add to list" button beside the heart in `CW/app/(shop)/product/[id]/page.tsx` (a small client component that `import()`s the chooser on click); after a successful one-tap save in `CW/app/(shop)/_components/SaveControl.tsx`, a `toast` with an "Add to a list" action that `import()`s the chooser; re-run `pnpm --filter @effy/customer-web size` and record the deltas — if a route exceeds the budget, reduce the web presentation, do not raise the limit (depends on T033)
+- [x] T034 [US1] Entry points on web: an "Add to list" button beside the heart in `CW/app/(shop)/product/[id]/page.tsx` (a small client component that `import()`s the chooser on click); after a successful one-tap save in `CW/app/(shop)/_components/SaveControl.tsx`, a `toast` with an "Add to a list" action that `import()`s the chooser; re-run `pnpm --filter @effy/customer-web size` and record the deltas - if a route exceeds the budget, reduce the web presentation, do not raise the limit (depends on T033)
 - [x] T035 [US1] Lists on the web account pages: `CW/app/(account)/saved/ListTabs.tsx` (a horizontally scrolling tab row, "Saved" first, each with its count, a "New list" control); `CW/app/(account)/saved/[listId]/page.tsx` reading `/v1/lists/{id}/items` server-side (404 → redirect to `/saved`); `CW/app/(account)/saved/page.tsx` renders the tabs above the default list; `CW/app/(account)/saved/SavedList.tsx` takes `listId` and `listName`, shows an "Add to list" row action opening the chooser, and for an empty named list says the list is empty with a route into the store (FR-026) (depends on T033)
 - [x] T036 [P] [US1] Mobile data and domain: `SavedList` model, `ListRepository` (lists, create, addEntry, items) in `CM/features/saved/domain/Saved.kt`; implementation in `CM/features/saved/data/HttpSavedRepository.kt` with DTO→domain mapping; use cases in `CM/features/saved/domain/SavedUseCases.kt` that update `SavedStore.saved` and `named` on success; wire in `CM/app/AppContainer.kt`
 - [x] T037 [US1] `CM/features/saved/presentation/ListChooserSheet.kt` and its ViewModel: a Material 3 modal bottom sheet of 48 dp checkbox rows, "Saved" first, a "New list" row with a counted text field, refusal messages per reason, a signed-out state; open it from the `OpenChooser` outcome at every heart call site from T022, from a snackbar action "Add to a list" after a one-tap save, and from an "Add to list" control beside the heart in `CM/features/catalog/presentation/ProductDetailScreen.kt` (depends on T036)
@@ -113,7 +113,7 @@ and installed builds.
 
 ---
 
-## Phase 5: User Story 2 — Do the weekly shop in one action (P1)
+## Phase 5: User Story 2 - Do the weekly shop in one action (P1)
 
 **Goal**: add everything purchasable in one list to the cart; the list is unchanged.
 
@@ -130,11 +130,11 @@ and installed builds.
 - [x] T042 [P] [US2] Web: `CW/app/api/lists/[listId]/add-to-cart/route.ts`; `CW/app/(account)/saved/SavedList.tsx` posts add-all to the current list and keeps the existing skipped-items report and in-cart statement on every list's rows
 - [x] T043 [P] [US2] Mobile: `SavedCartRepository.addAllToCart` takes a list id in `CM/features/saved/domain/Saved.kt` and `CM/features/saved/data/HttpSavedRepository.kt` (drop the unused `postcode` parameter); `SavedViewModel.kt` and `SavedScreen.kt` run add-all for the selected tab
 
-**Checkpoint**: MVP complete — US3 + US1 + US2 deliver the client's request end to end.
+**Checkpoint**: MVP complete - US3 + US1 + US2 deliver the client's request end to end.
 
 ---
 
-## Phase 6: User Story 4 — Keep lists tidy (P2)
+## Phase 6: User Story 4 - Keep lists tidy (P2)
 
 **Goal**: rename, remove from one list with undo, delete a list without touching the others.
 
@@ -155,7 +155,7 @@ and installed builds.
 
 ---
 
-## Phase 7: User Story 5 — Guests keep one list (P3)
+## Phase 7: User Story 5 - Guests keep one list (P3)
 
 **Goal**: a guest saves as today; named lists ask for sign-in; device saves join "Saved".
 
@@ -184,7 +184,7 @@ and installed builds.
 - [x] T057 Run quickstart §1 in full (`pnpm -r typecheck`, shared-types tests, `make cm-contract-check`, the Go packages, customer-web test + build + size, the mobile host tests and iOS simulator compile, `make cm-guard`) and fill the "After" column of the baseline table
 - [x] T058 Run the quickstart §4 sweeps that need no deploy (the `wishlist` grep; `git diff --stat` showing nothing under the cart feature beyond tests) and apply any table-enumeration edit found in T003
 - [x] T059 Write `specs/068-customer-lists/SIGNOFF.md` (what was built, what was verified by machine, what is open) and add the 068 entry to `FEATURE-HISTORY.md` and the "Features recorded" list in `CLAUDE.md`
-- [ ] T060 **Operator**: deploy per quickstart §2 in order — `make db-up ENV=dev`; `make core-image-push ENV=dev && make core-deploy ENV=dev`; run the repair statements; confirm the zero-orphans query returns 0; then push customer-web and build the mobile app
+- [ ] T060 **Operator**: deploy per quickstart §2 in order - `make db-up ENV=dev`; `make core-image-push ENV=dev && make core-deploy ENV=dev`; run the repair statements; confirm the zero-orphans query returns 0; then push customer-web and build the mobile app
 - [ ] T061 **Operator**: walk quickstart §3 A–G on web, Android and iOS (including D3 with the previous mobile build), check 20 lists in the tab row, and run the §4 log sweep for the sentinel name
 
 ---
@@ -257,34 +257,34 @@ the heart, bought in one action, with the existing saved items intact. Stop and 
 
 58 of 61 done. Open: T054 (partly), T060 and T061 (the operator's).
 
-- **T010, T024, T044, T049 — "against every migration".** The Go container tests stand up the
+- **T010, T024, T044, T049 - "against every migration".** The Go container tests stand up the
   subset of earlier tables the SQL spans (the package's existing pattern) and then apply the **real
   068 migration file**, read from `db/migrations/`. The tables, constraints and backfill under test
   are the ones that will run. They are not run against all 60-odd earlier migrations.
-- **T009 — "existing tests pass with changes only where a fake's signature changed".** They did not
+- **T009 - "existing tests pass with changes only where a fake's signature changed".** They did not
   pass at all before: `repository_test.go` was red at HEAD (a stale seed). The seed was repaired
   (stock columns added, the insert into a withdrawn table removed) as part of this slice.
-- **T025 — "posting straight at the routes".** core-api has no test seam for injecting a customer
+- **T025 - "posting straight at the routes".** core-api has no test seam for injecting a customer
   identity (the context key is unexported and the middleware needs a database). The handler test
   pins every refusal's status and reason through `respond`; the bypass proofs are the service test
   (a bad name never reaches the store) and the container test (the table's CHECK refuses 41
   characters whatever the service does).
-- **T026 — the two limits in Kotlin.** Go is pinned to the TypeScript constants by a test that
+- **T026 - the two limits in Kotlin.** Go is pinned to the TypeScript constants by a test that
   reads `saved-item.ts`. Kotlin's `LIST_NAME_MAX` is a hand mirror with no pin: the generator emits
   types, not constants. It only drives the remaining-characters count; the platform decides.
-- **T020 / T034 — the bundle.** Passed, with 0.2 KB left on `/`. `/search` is 0.3 KB smaller, not
+- **T020 / T034 - the bundle.** Passed, with 0.2 KB left on `/`. `/search` is 0.3 KB smaller, not
   byte-identical (research R7).
 - **T029–T031 and T041, T046 were built together.** The whole Go surface went in at Foundational
   rather than story by story, because one package owns one invariant. Story order still held on
   the clients: the heart's refusal existed before any client could create a named list.
-- **T051 — the sign-in link** is built from the current path directly rather than through
+- **T051 - the sign-in link** is built from the current path directly rather than through
   `lib/next-target.ts`, which validates an inbound target and does not build one.
-- **T052 — sign-in from the chooser on mobile.** Offered as a button on Home, Search and the product
+- **T052 - sign-in from the chooser on mobile.** Offered as a button on Home, Search and the product
   page. On the receipt and the saved screen the chooser has no route to sign-in; both are
   signed-in-only screens, so a guest never opens it there.
-- **T053 — telemetry.** Declared and called on web. Nothing on mobile: it has no event taxonomy
+- **T053 - telemetry.** Declared and called on web. Nothing on mobile: it has no event taxonomy
   (research R12). The `heart` source was dropped to keep telemetry off the heart's guest path.
-- **T054 — accessibility.** Done: chooser rows are labelled checkboxes on both surfaces; web dialogs
+- **T054 - accessibility.** Done: chooser rows are labelled checkboxes on both surfaces; web dialogs
   are native `<dialog>` with `aria-labelledby`; the tab row marks the current list; mobile rows are
   `EffyMinTouchTarget` tall and each is one toggle. **Not done**: `e2e/a11y.spec.ts` was not
   extended, because the chooser and a named list's page need a signed-in session the suite does not

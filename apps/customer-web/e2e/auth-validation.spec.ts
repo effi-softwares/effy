@@ -37,7 +37,7 @@ const ENTRY_POINTS = [
 
 test.describe("validation refuses before anything is sent (FR-009, V-14)", () => {
   for (const entry of ENTRY_POINTS) {
-    test(`${entry.name} — an EMPTY address is refused, and nothing leaves the page`, async ({
+    test(`${entry.name} - an EMPTY address is refused, and nothing leaves the page`, async ({
       page,
     }) => {
       const requests = watchCognito(page)
@@ -48,7 +48,7 @@ test.describe("validation refuses before anything is sent (FR-009, V-14)", () =>
       expect(requests, "an empty address must not reach the platform").toEqual([])
     })
 
-    test(`${entry.name} — ⚠ person@example is refused, and nothing leaves the page (SC-004)`, async ({
+    test(`${entry.name} - ⚠ person@example is refused, and nothing leaves the page (SC-004)`, async ({
       page,
     }) => {
       const requests = watchCognito(page)
@@ -60,7 +60,7 @@ test.describe("validation refuses before anything is sent (FR-009, V-14)", () =>
       expect(requests, "a malformed address must not reach the platform").toEqual([])
     })
 
-    test(`${entry.name} — a whitespace-only address counts as empty (D-12)`, async ({ page }) => {
+    test(`${entry.name} - a whitespace-only address counts as empty (D-12)`, async ({ page }) => {
       const requests = watchCognito(page)
       await entry.open(page)
       await page.locator("#email").fill("   ")
@@ -124,7 +124,7 @@ test.describe("how a message behaves (FR-011, FR-012, FR-013)", () => {
     await expect(page.getByText(/doesn't look like an email address/i)).toBeVisible()
   })
 
-  test("focusing and leaving an EMPTY field says nothing — that is not a mistake", async ({
+  test("focusing and leaving an EMPTY field says nothing - that is not a mistake", async ({
     page,
   }) => {
     await page.goto("/sign-in")
@@ -188,7 +188,7 @@ test.describe("how a message behaves (FR-011, FR-012, FR-013)", () => {
 test.describe("the password rule is stated and reflected (FR-016)", () => {
   /**
    * The address comes first. These two tests originally toggled straight to the password step with
-   * an empty email and failed — correctly, because identifier-first now refuses that move. The tests
+   * an empty email and failed - correctly, because identifier-first now refuses that move. The tests
    * were wrong, not the guard.
    */
   async function reachPasswordStep(page: Page) {
@@ -207,7 +207,7 @@ test.describe("the password rule is stated and reflected (FR-016)", () => {
     page,
   }) => {
     // Before 044 the only signal that a password was too short was an action that stayed unavailable
-    // with nothing saying why. This is a count, not a strength meter — the policy is a length and
+    // with nothing saying why. This is a count, not a strength meter - the policy is a length and
     // nothing else.
     await reachPasswordStep(page)
     await page.locator("#password").fill("short")

@@ -17,7 +17,7 @@ import kotlinx.serialization.json.Json
 data class PendingProof(
     val changeId: String,
     val dropId: String,
-    /** `photo` | `signature` | `contactless` — the domain's ProofMethod name, lower case. */
+    /** `photo` | `signature` | `contactless` - the domain's ProofMethod name, lower case. */
     val method: String,
     val note: String?,
     val attempts: Int = 0,
@@ -32,7 +32,7 @@ interface ProofFiles {
     fun delete(name: String)
 }
 
-/** [ProofFiles] in a directory the app owns — survives the app being killed. */
+/** [ProofFiles] in a directory the app owns - survives the app being killed. */
 class DirectoryProofFiles(directory: String) : ProofFiles {
     private val dir = Path(directory)
 

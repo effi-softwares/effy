@@ -50,7 +50,7 @@ type Row = BackOfficeProductRowDTO
 /** Approved, not archived: only these have a margin to set (a new product gets one at approval). */
 const hasMarginToSet = (p: Row) => !["draft", "in_review", "archived"].includes(p.state) || p.effySettingUp
 
-const from = (p: Row, amount: string | null) => (amount === null ? "—" : `${p.priceVaries ? "From " : ""}${money(amount)}`)
+const from = (p: Row, amount: string | null) => (amount === null ? "-" : `${p.priceVaries ? "From " : ""}${money(amount)}`)
 
 /** The columns; the margin cell opens the margin dialog, so it is built with the screen's action. */
 function productColumns(onMargin: ((p: Row) => void) | null): EffyColumnDef<Row>[] {
@@ -79,7 +79,7 @@ function productColumns(onMargin: ((p: Row) => void) | null): EffyColumnDef<Row>
       header: "Aisle",
       cell: ({ row }) => (
         <span className="text-muted-foreground" title={pathText(row.original.categoryPath)}>
-          {row.original.categoryPath.at(-1) ?? "—"}
+          {row.original.categoryPath.at(-1) ?? "-"}
         </span>
       ),
       meta: { label: "Aisle", priority: 2, phone: "hide" },
@@ -259,22 +259,22 @@ export function ProductsListScreen({ search }: { search: Record<string, unknown>
         selection={
           canManage
             ? {
-                selected,
-                onChange: setSelected,
-                label: (p) => p.name,
-                barLabel: "Selected products",
-                actions: (
-                  <>
-                    <ActionBarButton onClick={() => start("margin", chosen)}>Set margin</ActionBarButton>
-                    <ActionBarButton disabled={!chosen.some((p) => p.state !== "held")} onClick={() => start("hold", chosen.filter((p) => p.state !== "held"))}>
-                      Hold
-                    </ActionBarButton>
-                    <ActionBarButton disabled={!chosen.some((p) => p.state === "held")} onClick={() => start("release", chosen.filter((p) => p.state === "held"))}>
-                      Release
-                    </ActionBarButton>
-                  </>
-                ),
-              }
+              selected,
+              onChange: setSelected,
+              label: (p) => p.name,
+              barLabel: "Selected products",
+              actions: (
+                <>
+                  <ActionBarButton onClick={() => start("margin", chosen)}>Set margin</ActionBarButton>
+                  <ActionBarButton disabled={!chosen.some((p) => p.state !== "held")} onClick={() => start("hold", chosen.filter((p) => p.state !== "held"))}>
+                    Hold
+                  </ActionBarButton>
+                  <ActionBarButton disabled={!chosen.some((p) => p.state === "held")} onClick={() => start("release", chosen.filter((p) => p.state === "held"))}>
+                    Release
+                  </ActionBarButton>
+                </>
+              ),
+            }
             : undefined
         }
         empty={{ icon: PackageSearch, title: "No products here", description: "Products appear here as shops add them." }}

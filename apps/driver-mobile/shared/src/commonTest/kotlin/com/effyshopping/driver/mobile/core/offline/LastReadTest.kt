@@ -7,7 +7,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
-/** 065 FR-024 / FR-025 — what a driver sees when a list they already loaded is reopened offline. */
+/** 065 FR-024 / FR-025 - what a driver sees when a list they already loaded is reopened offline. */
 class LastReadTest {
     private data class Thing(val name: String, val stale: Boolean = false)
 

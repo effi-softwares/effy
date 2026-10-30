@@ -81,7 +81,7 @@ class HttpCheckoutRepository(private val edge: HttpClient) : CheckoutRepository,
         } catch (e: AppException) {
             throw e
         } catch (e: DeliveryChoiceRefused) {
-            throw e // a refusal the shopper can act on — never flattened into "unexpected"
+            throw e // a refusal the shopper can act on - never flattened into "unexpected"
         } catch (e: PointsRefused) {
             throw e
         } catch (e: DeliveryFeeChanged) {

@@ -17,7 +17,7 @@ const variants = {
 
 export type BadgeVariant = keyof typeof variants
 
-/** The reference Badge — `rounded-md`, not a pill. Sale is `brand`; New is `default`; Unavailable is `dark`. */
+/** The reference Badge - `rounded-md`, not a pill. Sale is `brand`; New is `default`; Unavailable is `dark`. */
 export function Badge({
   variant = "default",
   className,

@@ -31,7 +31,7 @@ export function cartError(scope: RequestScope, err: unknown): APIGatewayProxyStr
     return problem(400, "https://effyshopping.com/problems/insufficient-stock", "Request validation failed",
       `only ${err.available} available`, scope, [{ field: "availableQuantity", message: String(err.available) }]);
   }
-  if (err instanceof CartFullError) return validationFailed(scope, "your cart is full — remove an item to add another");
+  if (err instanceof CartFullError) return validationFailed(scope, "your cart is full - remove an item to add another");
   if (err instanceof PromotionCodeRefusedError) return refused(scope, 400, err.reason, err.detail);
 
   scope.log.error({ err }, "cart: operation failed");

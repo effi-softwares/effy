@@ -145,7 +145,7 @@ export function FactsSection({
         />
       </div>
       <p className="pt-1 text-xs text-muted-foreground">
-        If you&apos;re not sure about GST, ask your accountant — Effy reviews it. Storage decides how
+        If you&apos;re not sure about GST, ask your accountant - Effy reviews it. Storage decides how
         drivers carry it.
       </p>
     </fieldset>

@@ -7,7 +7,7 @@
 locals {
   # audience → the pool it authorizes. Hyphenated 'back-office' matches the SSM auth path form.
   #
-  # `extra_client_ids` lets a pool authorize more than one app client — the customer and shop pools
+  # `extra_client_ids` lets a pool authorize more than one app client - the customer and shop pools
   # each have two (web + a mobile client, 013/014). Every entry carries the key (empty where unused) so
   # the map stays a single object type; a heterogeneous map would fail the plan.
   edge_pools = {
@@ -70,15 +70,15 @@ locals {
 resource "aws_apigatewayv2_api" "edge" {
   name          = "${module.shared.name_prefix}-edge"
   protocol_type = "HTTP"
-  description   = "Effy cold-path shared HTTP API — services attach by id under /<service>/ (A3)"
+  description   = "Effy cold-path shared HTTP API - services attach by id under /<service>/ (A3)"
 
   # disable_execute_api_endpoint must remain false (its default). Setting it true kills the raw
-  # execute-api URL — silently violating 010's FR-011 (the cutover is additive) and SC-004 (zero
+  # execute-api URL - silently violating 010's FR-011 (the cutover is additive) and SC-004 (zero
   # callers broken). The custom domain in edge-domain.tf is added alongside it, never instead of it.
   # The raw URL is published at /effy/<env>/edge/api_default_endpoint as the break-glass fallback.
 
   # Approved origins live in local.browser_origins (above), shared with the product-media bucket. A
-  # service that attaches to an external HTTP API cannot configure CORS, so it lives here — a new
+  # service that attaches to an external HTTP API cannot configure CORS, so it lives here - a new
   # console origin is a Terraform change, not a code change. Without the deployed origin, every
   # authenticated console call fails at the options pre-flight.
   cors_configuration {
@@ -97,7 +97,7 @@ resource "aws_apigatewayv2_stage" "default" {
   auto_deploy = true
 }
 
-# One JWT authorizer per pool (Principle IV — a cross-pool token is structurally rejected).
+# One JWT authorizer per pool (Principle IV - a cross-pool token is structurally rejected).
 # The back-office pool's authorizer is on the staff gateway, never here.
 resource "aws_apigatewayv2_authorizer" "pool" {
   for_each = local.shared_pools

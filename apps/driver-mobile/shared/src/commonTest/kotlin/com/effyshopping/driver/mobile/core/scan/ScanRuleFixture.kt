@@ -6,7 +6,7 @@ package com.effyshopping.driver.mobile.core.scan
  */
 internal const val SCAN_RULE_FIXTURES = """
 {
-  "_comment": "096 — what one read means at one step. Read by scan-rule.test.ts and the driver app's ScanRuleTest (embedded copy in ScanRuleFixture.kt, checked byte for byte); both must agree with every row.",
+  "_comment": "096 - what one read means at one step. Read by scan-rule.test.ts and the driver app's ScanRuleTest (embedded copy in ScanRuleFixture.kt, checked byte for byte); both must agree with every row.",
   "context": {
     "expected": [
       {
@@ -135,7 +135,7 @@ internal const val SCAN_RULE_FIXTURES = """
       "expect": {
         "outcome": "belongs_elsewhere",
         "code": "ABCDE2",
-        "words": "For Drop 3 · Northcote — not here"
+        "words": "For Drop 3 · Northcote - not here"
       }
     },
     {

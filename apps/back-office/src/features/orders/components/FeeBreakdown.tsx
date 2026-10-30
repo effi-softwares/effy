@@ -1,7 +1,7 @@
 import { DELIVERY_FEE_LINE_LABEL, type DeliveryFeeBreakdownDTO } from "@effy/shared-types"
 
-const dollars = (cents: number) => `${cents < 0 ? "−" : ""}$${(Math.abs(cents) / 100).toFixed(2)}`
-const signed = (amount: string) => (amount.startsWith("-") ? `−$${amount.slice(1)}` : `$${amount}`)
+const dollars = (cents: number) => `AUD ${cents < 0 ? "−" : ""}${(Math.abs(cents) / 100).toFixed(2)}`
+const signed = (amount: string) => (amount.startsWith("-") ? `AUD −${amount.slice(1)}` : `AUD ${amount}`)
 const kg = (grams: number) => `${Number((grams / 1000).toFixed(3))} kg`
 
 export function FeeBreakdown({ breakdown }: { breakdown: DeliveryFeeBreakdownDTO }) {
@@ -11,7 +11,7 @@ export function FeeBreakdown({ breakdown }: { breakdown: DeliveryFeeBreakdownDTO
     rows.push(["Base", "every delivery starts here", dollars(parts.baseCents)])
     rows.push([
       "Distance",
-      `${inputs.km} km — ${parts.distanceBandUpperKm === null ? "the last band, with no upper limit" : `the band up to ${parts.distanceBandUpperKm} km`}`,
+      `${inputs.km} km - ${parts.distanceBandUpperKm === null ? "the last band, with no upper limit" : `the band up to ${parts.distanceBandUpperKm} km`}`,
       dollars(parts.distanceCents),
     ])
   } else {
@@ -19,7 +19,7 @@ export function FeeBreakdown({ breakdown }: { breakdown: DeliveryFeeBreakdownDTO
   }
   rows.push([
     "Weight",
-    `${kg(inputs.grams)} — ${parts.weightBandUpperGrams === null ? "the heaviest band" : `the band up to ${kg(parts.weightBandUpperGrams)}`}`,
+    `${kg(inputs.grams)} - ${parts.weightBandUpperGrams === null ? "the heaviest band" : `the band up to ${kg(parts.weightBandUpperGrams)}`}`,
     dollars(parts.weightCents),
   ])
   if (parts.premiumCents > 0)

@@ -4,12 +4,12 @@ One forward-only Goose migration `<ts>_driver_delivery.sql`, everything in `publ
 enums (house style, no native PG enums, no triggers), an index on every FK, `numeric(12,2)` never used for
 counts, `COMMENT ON` for intent. **Reuses** existing tables; adds the driver-side tables below.
 
-## Reused (not created) — see [research.md](./research.md) R3
+## Reused (not created) - see [research.md](./research.md) R3
 
 | Existing table | Role here |
 |---|---|
 | `public.shop_fulfillment` (`UNIQUE(order_id, shop_id)`) | **The package** the driver collects. Status advances `ready_for_pickup → collected → delivered` (020 widened the enum for the dev stubs; this slice makes those transitions real and guards them). |
-| `public.order_package_delivery` (`UNIQUE(order_id, shop_id)`, `method`) | The package's **method** (`same_day`\|`standard`) — the hub-check-in split. Joined to `shop_fulfillment` by `(order_id, shop_id)`. |
+| `public.order_package_delivery` (`UNIQUE(order_id, shop_id)`, `method`) | The package's **method** (`same_day`\|`standard`) - the hub-check-in split. Joined to `shop_fulfillment` by `(order_id, shop_id)`. |
 | `public."order"`, `public.order_item` | Order ref, customer, line items → the manifest. |
 | `public.customer_address` | The **drop** address + instructions. |
 | `public.delivery_settings` (singleton) | The **hub** (lat/lng). Single central hub (v1). |
@@ -19,20 +19,20 @@ counts, `COMMENT ON` for intent. **Reuses** existing tables; adds the driver-sid
 ## New tables
 
 ### `driver`
-The driver record — authoritative for the access decision (Principle IV).
+The driver record - authoritative for the access decision (Principle IV).
 - `id uuid pk`, `cognito_sub text UNIQUE NOT NULL` (driver pool sub), `name text NOT NULL`,
   `work_email citext UNIQUE NOT NULL`, `delivery_zone_id uuid NULL REFERENCES delivery_zone`,
   `vehicle_type text NULL`, `vehicle_plate text NULL`,
   `status text NOT NULL DEFAULT 'active' CHECK (status IN ('active','disabled'))`,
   `created_at`, `updated_at`.
-- Hub is the singleton `delivery_settings` in v1 (no per-driver hub column yet — recorded for multi-hub).
+- Hub is the singleton `delivery_settings` in v1 (no per-driver hub column yet - recorded for multi-hub).
 - Provisioned by back-office (`admin/drivers`); status/zone are platform-owned, never written from a claim.
 
 ### `driver_duty_session`
 - `id uuid pk`, `driver_id uuid NOT NULL REFERENCES driver`, `started_at timestamptz NOT NULL`,
   `ended_at timestamptz NULL`, plus a **partial unique index** ensuring at most one open session per driver
   (`WHERE ended_at IS NULL`). "On duty" = an open session; gates assignment (FR-005).
-- Optional `last_location_lat/lng numeric`, `last_location_at timestamptz` — the **snapshot** for
+- Optional `last_location_lat/lng numeric`, `last_location_at timestamptz` - the **snapshot** for
   nearest-driver preference (R2); nullable, never streamed.
 
 ### `driver_run`
@@ -51,11 +51,11 @@ One package to collect from a shop (a stop belongs to a shop; a run's stops are 
   `shop_id uuid NOT NULL REFERENCES shop`, `sequence int NOT NULL`,
   `status text NOT NULL CHECK (status IN ('assigned','en_route','collected','short'))`,
   `collected_at NULL`.
-- `UNIQUE(shop_fulfillment_id)` — a package is collected by exactly one task (no double-assign, R10).
+- `UNIQUE(shop_fulfillment_id)` - a package is collected by exactly one task (no double-assign, R10).
 - Missing/short reporting lives in `collection_task_issue` (below); a `short` status marks a partial pickup.
 
 ### `collection_task_issue`
-Reported missing/short package/item at a shop (FR-015) — does not block collecting the rest.
+Reported missing/short package/item at a shop (FR-015) - does not block collecting the rest.
 - `id uuid pk`, `collection_task_id uuid NOT NULL REFERENCES collection_task`,
   `order_item_id uuid NULL REFERENCES order_item`, `kind text CHECK (kind IN ('missing','short'))`,
   `note text NULL`, `reported_at`.
@@ -67,7 +67,7 @@ One customer drop = an order's same-day packages (FR-018, SC-006).
   `customer_address_id uuid NOT NULL REFERENCES customer_address`, `sequence int NOT NULL`,
   `status text NOT NULL CHECK (status IN ('staged','out_for_delivery','en_route','arrived','delivered','failed'))`,
   `delivered_at NULL`.
-- `UNIQUE(order_id)` per active delivery — one open drop per order at a time.
+- `UNIQUE(order_id)` per active delivery - one open drop per order at a time.
 
 ### `delivery_task_package`
 Join: the same-day packages that make up a drop.
@@ -83,7 +83,7 @@ Join: the same-day packages that make up a drop.
   `note text NULL`, `captured_at timestamptz NOT NULL`.
 
 ### `delivery_failure`
-Undeliverable record (FR-028) — for back-office follow-up.
+Undeliverable record (FR-028) - for back-office follow-up.
 - `id uuid pk`, `delivery_task_id uuid NOT NULL REFERENCES delivery_task`,
   `reason text NOT NULL CHECK (reason IN ('nobody_home','wrong_address','customer_refused','access_blocked','other'))`,
   `note text NULL`, `failed_at`.
@@ -95,7 +95,7 @@ Append-only status timeline (powers history detail, FR-034). Written in the same
 - Exactly one of the three FKs is set (CHECK).
 
 ### `driver_activity`
-In-app activity feed (FR-032) — also the source for push when the notifications path lands.
+In-app activity feed (FR-032) - also the source for push when the notifications path lands.
 - `id uuid pk`, `driver_id uuid NOT NULL REFERENCES driver`,
   `type text CHECK (type IN ('run_assigned','packages_ready','sameday_window','reminder','issue_ack'))`,
   `run_id uuid NULL`, `delivery_task_id uuid NULL`, `body text NOT NULL`, `created_at`, `read_at NULL`.

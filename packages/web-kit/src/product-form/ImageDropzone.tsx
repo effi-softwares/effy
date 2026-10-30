@@ -13,7 +13,7 @@ import { useObjectUrl } from "./useObjectUrl";
 import { cn } from "@effy/design-system";
 
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
-export const MAX_IMAGE_BYTES = 10 * 1024 * 1024; // 10 MB — matches media.ts
+export const MAX_IMAGE_BYTES = 10 * 1024 * 1024; // 10 MB - matches media.ts
 const ACCEPT_ATTR = ACCEPTED_IMAGE_TYPES.join(",");
 
 export function validateImageFile(file: File): string | null {
@@ -173,7 +173,7 @@ export function ImageDropzone({
           onDragOver={(e) => e.preventDefault()}
           onDragLeave={onDragLeave}
           onDrop={onDrop}
-          aria-label="Add primary image — click to browse, drag and drop, or paste"
+          aria-label="Add primary image - click to browse, drag and drop, or paste"
           className={cn(
             "flex min-h-0 flex-1 flex-col items-center justify-center gap-4 rounded-lg border-2 border-dashed p-8 text-center transition-colors",
             "",

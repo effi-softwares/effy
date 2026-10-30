@@ -6,13 +6,13 @@ package com.effyshopping.customer.mobile.features.checkout
  */
 internal const val DELIVERY_TYPE_FIXTURE = """
 {
-  "_comment": "079 — shared by packages/shared-types (TypeScript: deliverySummary) and customer-mobile (Kotlin: deliverySummary). `input` is an order's `delivery` and `arrivalEstimates`; `expect` is what every customer surface prints at `now`. A case that passes in one and fails in the other is the defect this file exists to catch.",
+  "_comment": "079 - shared by packages/shared-types (TypeScript: deliverySummary) and customer-mobile (Kotlin: deliverySummary). `input` is an order's `delivery` and `arrivalEstimates`; `expect` is what every customer surface prints at `now`. A case that passes in one and fails in the other is the defect this file exists to catch.",
   "words": {
     "effy": "Delivered by Effy",
     "courier": "Courier delivery",
     "courierPartner": "Delivered by a courier partner.",
     "courierEstimatePrefix": "Usually arrives in",
-    "courierEstimateSuffix": "— an estimate, not a guaranteed date.",
+    "courierEstimateSuffix": "- an estimate, not a guaranteed date.",
     "noWindowsLeft": "There are no Effy delivery windows available in the next few days.",
     "courierInsteadOfWindows": "We can send this order by courier instead.",
     "sameDay": "Same-day delivery",
@@ -45,7 +45,7 @@ internal const val DELIVERY_TYPE_FIXTURE = """
         "heading": "Courier delivery",
         "lines": [
           "Delivered by a courier partner.",
-          "Usually arrives in 2–4 business days — an estimate, not a guaranteed date."
+          "Usually arrives in 2–4 business days - an estimate, not a guaranteed date."
         ]
       }
     },
@@ -71,7 +71,7 @@ internal const val DELIVERY_TYPE_FIXTURE = """
         "heading": "Courier delivery",
         "lines": [
           "Delivered by a courier partner.",
-          "Usually arrives in 3–5 business days — an estimate, not a guaranteed date."
+          "Usually arrives in 3–5 business days - an estimate, not a guaranteed date."
         ]
       }
     },
@@ -92,13 +92,13 @@ internal const val DELIVERY_TYPE_FIXTURE = """
         "heading": "Courier delivery",
         "lines": [
           "Delivered by a courier partner.",
-          "Usually arrives in 2–4 business days — an estimate, not a guaranteed date.",
+          "Usually arrives in 2–4 business days - an estimate, not a guaranteed date.",
           "Tracking for each parcel is sent to you by email."
         ]
       }
     },
     {
-      "name": "a courier order with one tracking link: the lines are unchanged — the link is drawn by the surface",
+      "name": "a courier order with one tracking link: the lines are unchanged - the link is drawn by the surface",
       "now": "2026-10-08T09:00:00+11:00",
       "input": {
         "delivery": {
@@ -116,7 +116,7 @@ internal const val DELIVERY_TYPE_FIXTURE = """
         "heading": "Courier delivery",
         "lines": [
           "Delivered by a courier partner.",
-          "Usually arrives in 2–4 business days — an estimate, not a guaranteed date."
+          "Usually arrives in 2–4 business days - an estimate, not a guaranteed date."
         ]
       }
     },
@@ -185,7 +185,7 @@ internal const val DELIVERY_TYPE_FIXTURE = """
       }
     },
     {
-      "name": "081 — moved to courier, compensated in points",
+      "name": "081 - moved to courier, compensated in points",
       "now": "2026-10-08T09:00:00+11:00",
       "input": {
         "delivery": {
@@ -207,14 +207,14 @@ internal const val DELIVERY_TYPE_FIXTURE = """
         "heading": "Courier delivery",
         "lines": [
           "Delivered by a courier partner.",
-          "Usually arrives in 2–4 business days — an estimate, not a guaranteed date.",
+          "Usually arrives in 2–4 business days - an estimate, not a guaranteed date.",
           "We've changed this order to courier delivery.",
           "We've added 250 points ($2.50) to your account to make up for it."
         ]
       }
     },
     {
-      "name": "081 — moved to courier, refunded to the card",
+      "name": "081 - moved to courier, refunded to the card",
       "now": "2026-10-08T09:00:00+11:00",
       "input": {
         "delivery": {
@@ -235,14 +235,14 @@ internal const val DELIVERY_TYPE_FIXTURE = """
         "heading": "Courier delivery",
         "lines": [
           "Delivered by a courier partner.",
-          "Usually arrives in 2–4 business days — an estimate, not a guaranteed date.",
+          "Usually arrives in 2–4 business days - an estimate, not a guaranteed date.",
           "We've changed this order to courier delivery.",
           "We've refunded $9.00 to your card to make up for it."
         ]
       }
     },
     {
-      "name": "081 — moved to courier with nothing given says only what changed",
+      "name": "081 - moved to courier with nothing given says only what changed",
       "now": "2026-10-08T09:00:00+11:00",
       "input": {
         "delivery": {
@@ -260,13 +260,13 @@ internal const val DELIVERY_TYPE_FIXTURE = """
         "heading": "Courier delivery",
         "lines": [
           "Delivered by a courier partner.",
-          "Usually arrives in 2–4 business days — an estimate, not a guaranteed date.",
+          "Usually arrives in 2–4 business days - an estimate, not a guaranteed date.",
           "We've changed this order to courier delivery."
         ]
       }
     },
     {
-      "name": "081 — moved back to Effy: the window, then what changed (no compensation line)",
+      "name": "081 - moved back to Effy: the window, then what changed (no compensation line)",
       "now": "2026-10-08T09:00:00+11:00",
       "input": {
         "delivery": {
@@ -311,7 +311,7 @@ internal const val DELIVERY_TYPE_FIXTURE = """
       }
     },
     {
-      "name": "085 — Effy, a day with no time, three suppliers: one line, the day, and no hours",
+      "name": "085 - Effy, a day with no time, three suppliers: one line, the day, and no hours",
       "now": "2026-10-08T09:00:00+11:00",
       "input": {
         "delivery": {
@@ -351,7 +351,7 @@ internal const val DELIVERY_TYPE_FIXTURE = """
       }
     },
     {
-      "name": "085 — Effy, as soon as possible: the estimate, said as one, and no day",
+      "name": "085 - Effy, as soon as possible: the estimate, said as one, and no day",
       "now": "2026-10-08T09:00:00+11:00",
       "input": {
         "delivery": {
@@ -365,12 +365,12 @@ internal const val DELIVERY_TYPE_FIXTURE = """
       "expect": {
         "heading": "Delivered by Effy",
         "lines": [
-          "As soon as possible — usually within 2–3 days"
+          "As soon as possible - usually within 2–3 days"
         ]
       }
     },
     {
-      "name": "085 — as soon as possible never reads an arrival, even if one is sent",
+      "name": "085 - as soon as possible never reads an arrival, even if one is sent",
       "now": "2026-10-08T09:00:00+11:00",
       "input": {
         "delivery": {
@@ -392,12 +392,12 @@ internal const val DELIVERY_TYPE_FIXTURE = """
       "expect": {
         "heading": "Delivered by Effy",
         "lines": [
-          "As soon as possible — usually within 2–3 days"
+          "As soon as possible - usually within 2–3 days"
         ]
       }
     },
     {
-      "name": "085 — an order sold a window says so explicitly and reads as it always did",
+      "name": "085 - an order sold a window says so explicitly and reads as it always did",
       "now": "2026-10-08T09:00:00+11:00",
       "input": {
         "delivery": {

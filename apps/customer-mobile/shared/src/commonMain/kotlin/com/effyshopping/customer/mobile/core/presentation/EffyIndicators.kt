@@ -69,7 +69,7 @@ fun EffyIconButton(
 }
 
 /**
- * The quantity stepper — Lucide minus / plus in 48dp targets, the count rolling between them.
+ * The quantity stepper - Lucide minus / plus in 48dp targets, the count rolling between them.
  *
  * [primary] fills it blue with white glyphs (the product tile's stepper, Product card board);
  * otherwise it is the zinc pill-less control on the cart and product page. 6dp corners.
@@ -84,7 +84,7 @@ fun EffyQuantityStepper(
     primary: Boolean = false,
     /** White, for a stepper drawn inside a border (the product page's buy bar). */
     outlined: Boolean = false,
-    /** Below the minimum the decrease button removes — say so to a screen reader. */
+    /** Below the minimum the decrease button removes - say so to a screen reader. */
     decreaseLabel: String = "Decrease quantity",
 ) {
     val tick = EffyHaptics.tick()
@@ -129,7 +129,7 @@ private fun StepperButton(icon: DrawableResource, label: String, enabled: Boolea
     }
 }
 
-/** A count badge — Effy blue, white figures, a 2dp white ring, "99+" above 99. */
+/** A count badge - Effy blue, white figures, a 2dp white ring, "99+" above 99. */
 @Composable
 fun EffyBadge(count: Int, modifier: Modifier = Modifier) {
     if (count <= 0) return
@@ -155,17 +155,17 @@ fun EffyBadge(count: Int, modifier: Modifier = Modifier) {
 
 /** What a status pill says about where something is. The closed mapping (Orders, Order boards). */
 enum class EffyStatusKind {
-    /** Paid, delivered — Effy green on its tint. */
+    /** Paid, delivered - Effy green on its tint. */
     Done,
-    /** Being packed, on the way — Effy blue on its tint. */
+    /** Being packed, on the way - Effy blue on its tint. */
     InProgress,
-    /** Something went wrong — black on zinc, with an alert icon (no red). */
+    /** Something went wrong - black on zinc, with an alert icon (no red). */
     Problem,
-    /** Cancelled, refunded, inert — muted. */
+    /** Cancelled, refunded, inert - muted. */
     Inert,
 }
 
-/** A status pill — the one round lozenge, around a word. */
+/** A status pill - the one round lozenge, around a word. */
 @Composable
 fun EffyStatusPill(text: String, kind: EffyStatusKind, modifier: Modifier = Modifier) {
     val (bg, fg) = when (kind) {
@@ -189,8 +189,8 @@ fun EffyStatusPill(text: String, kind: EffyStatusKind, modifier: Modifier = Modi
 }
 
 /**
- * A storefront card — white, 1dp hairline, 8dp corners, the hairline `shadow-xs` (constitution
- * v3.3.0: on the storefront, card layouts are the pattern — an address, a delivery choice, a summary).
+ * A storefront card - white, 1dp hairline, 8dp corners, the hairline `shadow-xs` (constitution
+ * v3.3.0: on the storefront, card layouts are the pattern - an address, a delivery choice, a summary).
  * [selected] draws the blue edge and light-blue tint of a chosen card.
  */
 @Composable
@@ -223,7 +223,7 @@ fun EffyCard(
     )
 }
 
-/** "Sale" — the green badge on a product (Product card board). */
+/** "Sale" - the green badge on a product (Product card board). */
 @Composable
 fun EffySaleBadge(modifier: Modifier = Modifier, text: String = "Sale") {
     Box(
@@ -236,7 +236,7 @@ fun EffySaleBadge(modifier: Modifier = Modifier, text: String = "Sale") {
     }
 }
 
-/** "25% off" — the saving, said in Effy green beside the struck price. */
+/** "25% off" - the saving, said in Effy green beside the struck price. */
 @Composable
 fun DiscountChip(percentOff: Int, modifier: Modifier = Modifier) {
     Text(
@@ -247,7 +247,7 @@ fun DiscountChip(percentOff: Int, modifier: Modifier = Modifier) {
     )
 }
 
-/** A circle with an icon in it — empty states, confirm sheets (Patterns board). */
+/** A circle with an icon in it - empty states, confirm sheets (Patterns board). */
 @Composable
 fun EffyIconChip(icon: DrawableResource, modifier: Modifier = Modifier, size: Dp = 56.dp) {
     Box(
@@ -258,7 +258,7 @@ fun EffyIconChip(icon: DrawableResource, modifier: Modifier = Modifier, size: Dp
     }
 }
 
-/** A tinted info panel — light blue with a primary icon, or green for good news. */
+/** A tinted info panel - light blue with a primary icon, or green for good news. */
 @Composable
 fun EffyNotice(
     text: String,
@@ -325,7 +325,7 @@ fun EffySuccessTick(modifier: Modifier = Modifier, size: Dp = 72.dp) {
 }
 
 /**
- * A thin progress bar — Effy green on the zinc well. How close a basket is to free delivery (Cart and
+ * A thin progress bar - Effy green on the zinc well. How close a basket is to free delivery (Cart and
  * Checkout boards). Moves to a new value rather than jumping.
  */
 @Composable

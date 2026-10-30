@@ -32,7 +32,7 @@ function time(v: Date | string | null): number {
   return (v instanceof Date ? v : new Date(v)).getTime();
 }
 
-/** Nulls sort last, then lexicographically — so the order never depends on row arrival order. */
+/** Nulls sort last, then lexicographically - so the order never depends on row arrival order. */
 function byNullableId(a: string | null, b: string | null): number {
   if (a === b) return 0;
   if (a === null) return 1;

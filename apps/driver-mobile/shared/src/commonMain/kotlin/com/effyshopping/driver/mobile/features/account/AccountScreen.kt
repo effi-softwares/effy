@@ -84,9 +84,9 @@ fun AccountScreen(
     outstandingWork: Int? = null,
     /** Parcels from failed drops still with the driver. */
     parcelsToReturn: Int? = null,
-    /** Updates saved on this phone and not sent yet — lost if the driver signs out now. */
+    /** Updates saved on this phone and not sent yet - lost if the driver signs out now. */
     pendingUpdates: Int = 0,
-    /** Backlog F3 — whether usage analytics are on; null hides the row. */
+    /** Backlog F3 - whether usage analytics are on; null hides the row. */
     analyticsOn: Boolean? = null,
     onToggleAnalytics: () -> Unit = {},
     /** The duty row opens Today, where the driver goes on or off duty. */
@@ -156,7 +156,7 @@ fun AccountScreen(
                     val turnOn = rememberTurnOnNotifications()
                     DriverRow(
                         title = "Notifications",
-                        meta = if (turnOn != null) "Off — you won't hear about new work" else null,
+                        meta = if (turnOn != null) "Off - you won't hear about new work" else null,
                         onClick = turnOn,
                         leading = { DriverIcon(Res.drawable.lucide_bell, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
                         trailing = { Text(if (turnOn != null) "Turn on" else "On", style = MaterialTheme.typography.bodyLarge, color = if (turnOn != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant) },
@@ -267,7 +267,7 @@ private fun AppearanceSegments(mode: AppearanceMode, onChange: (AppearanceMode) 
     }
 }
 
-/** "Sign out of Effy Driver?" — names what is still held and what has not sent (canvas `SignOut`). */
+/** "Sign out of Effy Driver?" - names what is still held and what has not sent (canvas `SignOut`). */
 @Composable
 private fun SignOutSheet(
     outstandingWork: Int?,

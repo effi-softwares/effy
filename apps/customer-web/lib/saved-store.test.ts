@@ -11,8 +11,8 @@ import {
 } from "./saved-store"
 
 /**
- * These exist because the capability this replaces had zero tests on any surface — no Go test, no
- * commonTest, no Vitest, no Playwright — despite 019's task list claiming "+ tests" for them. SC-014
+ * These exist because the capability this replaces had zero tests on any surface - no Go test, no
+ * commonTest, no Vitest, no Playwright - despite 019's task list claiming "+ tests" for them. SC-014
  * is the requirement; this file is part of the evidence.
  */
 describe("saved-store", () => {
@@ -99,7 +99,7 @@ describe("saved-store", () => {
   it("adopt replaces the set wholesale", () => {
     adoptSaved(["a", "b"])
     adoptSaved(["b", "c"])
-    // Replace, not merge — the platform is authoritative, and merging would resurrect items the
+    // Replace, not merge - the platform is authoritative, and merging would resurrect items the
     // shopper removed on another device.
     expect(readSavedIds()).toEqual(["b", "c"])
     expect(isSaved("a")).toBe(false)

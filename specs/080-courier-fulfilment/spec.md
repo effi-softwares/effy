@@ -1,4 +1,4 @@
-# Feature Specification: Courier Fulfilment — Via the Hub or Pickup from the Supplier
+# Feature Specification: Courier Fulfilment - Via the Hub or Pickup from the Supplier
 
 **Feature Branch**: `080-courier-fulfilment`
 
@@ -7,8 +7,8 @@
 **Status**: Draft
 
 **Input**: "Courier Fulfilment. Orders delivered by courier reach the courier in one of two ways, chosen
-by the business: 'via the hub' — Effy's drivers collect the parcels from Effy's suppliers, bring them
-to Effy's hub, and hub staff hand them to the courier (how it works today); or 'pickup from supplier' —
+by the business: 'via the hub' - Effy's drivers collect the parcels from Effy's suppliers, bring them
+to Effy's hub, and hub staff hand them to the courier (how it works today); or 'pickup from supplier' -
 the courier collects each parcel straight from the supplier that packed it. The business sets a default
 for the whole platform and staff can change it for a single order until the first parcel of that order
 has left Effy's or the supplier's hands. Each parcel handed to a courier gets its own consignment
@@ -137,8 +137,8 @@ parcel, and each parcel's tracking is emailed when it is handed over.
 
 **Why this priority**: what the customer reads; needed before courier orders reach real people.
 
-**Independent Test**: set two services with different timeframes; check out — the default's timeframe
-is shown and kept; hand over one consignment with a tracking link — it appears on the order page; on a
+**Independent Test**: set two services with different timeframes; check out - the default's timeframe
+is shown and kept; hand over one consignment with a tracking link - it appears on the order page; on a
 two-consignment order the page says tracking is emailed, and two emails go out.
 
 **Acceptance Scenarios**:
@@ -180,7 +180,7 @@ listed as needing attention, and resolving it removes it from the list.
 3. **Given** a parcel handed to a courier and nothing recorded for longer than the service's timeframe,
    **When** staff view courier parcels, **Then** it is marked overdue.
 4. **Given** any problem, **When** the customer views the order, **Then** they see the platform's status
-   words only — no courier's internal reason codes and no staff notes.
+   words only - no courier's internal reason codes and no staff notes.
 
 ---
 
@@ -256,10 +256,10 @@ checkout and new orders follow, and existing orders are unchanged.
   and window, label), add or correct the reference and tracking link after, and cancel a booking that
   has not been handed over.
 - **FR-007**: A consignment's progress MUST be one of: booked, handed over, in transit, delivered, failed,
-  lost, damaged, returned to sender — recorded by staff (or, for handover, by supplier staff), each with
+  lost, damaged, returned to sender - recorded by staff (or, for handover, by supplier staff), each with
   who and when.
 - **FR-008**: A handed-over parcel MUST read "With carrier"; a delivered one "Delivered"; failed, lost,
-  damaged or returned "Problem" with the reason — using the platform's existing status words only.
+  damaged or returned "Problem" with the reason - using the platform's existing status words only.
 - **FR-009**: A delivered courier parcel MUST complete like any other: the order is complete when every
   parcel is delivered or cancelled, and the customer is told as for any delivered order.
 - **FR-010**: Courier parcels handed over before this feature MUST keep reading as they do today.
@@ -321,14 +321,14 @@ checkout and new orders follow, and existing orders are unchanged.
 
 ### Key Entities
 
-- **Courier service**: a courier company's named service Effy uses — timeframe text, pickup days and
+- **Courier service**: a courier company's named service Effy uses - timeframe text, pickup days and
   cut-off, whether it collects from suppliers, active or retired; one is the default.
 - **Courier mode** (per order, with a platform default): via the hub, or pickup from supplier; with a
   history of changes.
-- **Consignment**: one parcel's journey with a courier — service, reference, tracking link, label, how it
+- **Consignment**: one parcel's journey with a courier - service, reference, tracking link, label, how it
   reached the courier, pickup booking, and its progress entries.
-- **Consignment progress entry**: one step — booked, handed over, in transit, delivered, failed, lost,
-  damaged, returned, resolved — with who, when and a note.
+- **Consignment progress entry**: one step - booked, handed over, in transit, delivered, failed, lost,
+  damaged, returned, resolved - with who, when and a note.
 
 ## Success Criteria *(mandatory)*
 
@@ -338,7 +338,7 @@ checkout and new orders follow, and existing orders are unchanged.
 - **SC-002**: With pickup from supplier, zero courier parcels appear on Effy drivers' collection work.
 - **SC-003**: Zero hub check-in screens show "Standard" for a courier parcel.
 - **SC-004**: Zero supplier screens show a delivery fee, a customer estimate, or another supplier's parcel.
-- **SC-005**: Zero customer surfaces let the number of suppliers be worked out — one link or none, one
+- **SC-005**: Zero customer surfaces let the number of suppliers be worked out - one link or none, one
   delivery line.
 - **SC-006**: Every lost, damaged, failed or returned courier parcel appears in back-office's
   needs-attention view within one minute of being recorded, and stays until resolved.

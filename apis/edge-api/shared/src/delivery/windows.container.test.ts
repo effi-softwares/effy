@@ -12,7 +12,7 @@ const d = RUN ? describe : describe.skip;
 let container: StartedPostgreSqlContainer;
 let pool: Pool;
 
-d("078 — delivery windows against the real schema", () => {
+d("078 - delivery windows against the real schema", () => {
   beforeAll(async () => {
     container = await new PostgreSqlContainer("postgres:16-alpine").start();
     pool = new Pool({ connectionString: container.getConnectionUri() });

@@ -33,7 +33,7 @@ const dto = (over: Partial<CartDTO> = {}): CartDTO => ({
 })
 
 const dtoLine = (productId: string, quantity: number, over: Partial<CartDTO["lines"][number]> = {}) => ({
-    ageRestricted: false,
+  ageRestricted: false,
   id: `line-${productId}`,
   productId,
   variantId: productId,
@@ -87,7 +87,7 @@ describe("refreshCart", () => {
     expect(readCart().lines[0].productId).toBe("p1")
   })
 
-  // Is not a failure here — it is the platform answering "you are a guest", and the guest path is
+  // Is not a failure here - it is the platform answering "you are a guest", and the guest path is
   // what makes FR-004 true for someone who has no server cart.
   it("falls through to preview when /api/cart says 401 (a guest)", async () => {
     addToCart(line("p1", 1, "5.00"))

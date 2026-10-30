@@ -34,7 +34,7 @@ export interface ListPage<T> {
   /** Matching records; with `totalCapped`, a floor ("10,000+"). */
   total: number;
   totalCapped: boolean;
-  /** Offset lists: the page returned — lower than asked when the ask was past the end. Keyset lists: null. */
+  /** Offset lists: the page returned - lower than asked when the ask was past the end. Keyset lists: null. */
   page: number | null;
   /** Keyset lists: the next page's cursor, null on the last page. Offset lists: null. */
   nextCursor: string | null;

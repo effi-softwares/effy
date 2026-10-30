@@ -25,10 +25,10 @@ class HttpCancelOrderRepository(private val edge: HttpClient) : CancelOrder {
             HttpStatusCode.OK, HttpStatusCode.Accepted ->
                 CancelOrderResult.Cancelled(response.body<Response>().amount)
             // The server refuses a not-cancellable order with 422 and says why in prose this client
-            // deliberately does not read — the sentence is the screen's to write, in the app's voice.
+            // deliberately does not read - the sentence is the screen's to write, in the app's voice.
             HttpStatusCode.UnprocessableEntity, HttpStatusCode.Conflict ->
                 CancelOrderResult.AlreadyBeingPrepared
-            // Covers both "not yours" and "no such order" — the server refuses them identically
+            // Covers both "not yours" and "no such order" - the server refuses them identically
             // so this client cannot tell them apart either. Nothing here may try to.
             HttpStatusCode.Unauthorized, HttpStatusCode.Forbidden, HttpStatusCode.NotFound ->
                 CancelOrderResult.NotAllowed

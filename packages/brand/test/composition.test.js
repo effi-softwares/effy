@@ -23,7 +23,7 @@ describe("padding ↔ occupancy", () => {
   })
 })
 
-describe("rule P1 — Android adaptive-icon safe zone", () => {
+describe("rule P1 - Android adaptive-icon safe zone", () => {
   test("the safe occupancy is 66dp of a 108dp canvas", () => {
     assert.ok(Math.abs(ANDROID_SAFE_OCCUPANCY - 66 / 108) < 1e-12)
   })
@@ -35,13 +35,13 @@ describe("rule P1 — Android adaptive-icon safe zone", () => {
         occ <= ANDROID_SAFE_OCCUPANCY,
         `${name} occupies ${occ.toFixed(4)} of the canvas, exceeding the ${ANDROID_SAFE_OCCUPANCY.toFixed(
           4,
-        )} safe zone — it WILL be clipped by circular launcher masks`,
+        )} safe zone - it WILL be clipped by circular launcher masks`,
       )
     })
   }
 })
 
-describe("rule P4 — composition happens in vector space", () => {
+describe("rule P4 - composition happens in vector space", () => {
   test("recentres the viewBox on the content bbox, not the authored canvas", () => {
     const svg = composeSvg(MARK, BBOX, COLOURWAYS.tile, COMPOSITIONS["ios-app"])
     const vb = svg.match(/viewBox="([-\d.\s]+)"/)[1].split(/\s+/).map(Number)
@@ -91,7 +91,7 @@ describe("rule P4 — composition happens in vector space", () => {
   })
 })
 
-describe("rule V1 — explicit dimensions", () => {
+describe("rule V1 - explicit dimensions", () => {
   test("substitutes concrete width/height for the authored 100%", () => {
     const out = withExplicitSize(MARK, 500, 500)
     assert.match(out, /width="500" height="500"/)
@@ -109,7 +109,7 @@ describe("iOS compositions", () => {
     for (const [name, c] of Object.entries(COMPOSITIONS)) {
       if (!name.startsWith("ios-")) continue
       assert.ok(c.background, `${name} must bake an opaque ground`)
-      assert.equal(c.alpha, "strip", `${name} must strip alpha — App Store rejects any alpha channel`)
+      assert.equal(c.alpha, "strip", `${name} must strip alpha - App Store rejects any alpha channel`)
     }
   })
 })

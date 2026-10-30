@@ -21,7 +21,7 @@ export async function subscribeToNewsletter(
 
   try {
     // The backend returns 202 for ok / 400 for invalid / 503 for error, and this client throws on
-    // non-2xx — so the two non-ok outcomes arrive here as exceptions and are separated below.
+    // non-2xx - so the two non-ok outcomes arrive here as exceptions and are separated below.
     await edgeApiPublic().post("/customer/v1/newsletter", { email: email.trim() }, perCustomer)
     return { status: "ok" }
   } catch (err) {
@@ -31,7 +31,7 @@ export async function subscribeToNewsletter(
     if (isStatus(err, 400)) return { status: "invalid" }
 
     // Never rethrow. An uncaught Server Action error replaces the page with an error boundary, which
-    // would lose everything the visitor typed — FR-033 requires their input to survive.
+    // would lose everything the visitor typed - FR-033 requires their input to survive.
     return { status: "error" }
   }
 }

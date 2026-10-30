@@ -7,7 +7,7 @@ import { Badge } from "@effy/design-system/ui";
 
 /**
  * A status that is not a package's (a window, a round, a driver): the same closed tones the nine
- * package words use — in progress → blue · done → green · waiting → outline · failed → black ·
+ * package words use - in progress → blue · done → green · waiting → outline · failed → black ·
  * inert → grey. Always a word; the tone only reinforces it. Package statuses go through
  * `PackageStatusPill`, never this.
  */

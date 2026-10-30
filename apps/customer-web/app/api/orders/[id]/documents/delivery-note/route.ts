@@ -8,7 +8,7 @@ import { edgeApiBaseUrl } from "@/lib/config"
  * never leaves its cookies. The JSON client cannot carry bytes, so this one call is a plain
  * fetch with the same credential `edgeApi` sends.
  *
- * A refusal is relayed as its status only — 404 for not-yours, 409 before delivery — never the
+ * A refusal is relayed as its status only - 404 for not-yours, 409 before delivery - never the
  * service's prose.
  */
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {

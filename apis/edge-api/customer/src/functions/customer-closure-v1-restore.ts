@@ -32,7 +32,7 @@ export const handler = async (
 
   try {
     const result = await restoreClosure(sub)
-    scope.log.info({ sub }, "account closure cancelled — account restored")
+    scope.log.info({ sub }, "account closure cancelled - account restored")
     return json(200, result, scope)
   } catch (err) {
     if (err instanceof NoLiveClosureRequestError) {

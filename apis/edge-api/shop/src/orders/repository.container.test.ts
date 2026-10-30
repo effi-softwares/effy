@@ -52,7 +52,7 @@ const SHOP = "33333333-3333-4333-8333-333333333333";
 const OTHER_SHOP = "33333333-3333-4333-8333-000000000000";
 const STAFF = "77777777-7777-4777-8777-777777777777";
 
-describe.skipIf(!RUN)("shop order console — against real PostgreSQL and the real migrations", () => {
+describe.skipIf(!RUN)("shop order console - against real PostgreSQL and the real migrations", () => {
   let container: StartedPostgreSqlContainer;
   let pool: Pool;
   /** The portion's activity as the drawer reads it (104), newest first, in the order console's words. */
@@ -108,8 +108,8 @@ describe.skipIf(!RUN)("shop order console — against real PostgreSQL and the re
        VALUES ($1,$2,'paid',$3,$4,$5,$6::jsonb, now() - make_interval(mins => $7), 'effy', 'in_coverage')
        RETURNING id`,
       [CUST, opts.number, subtotal, total - subtotal, total,
-       JSON.stringify({ recipientName: opts.recipient, line1: "1 St", city: "Melbourne", postalCode: "3000", country: "AU" }),
-       opts.placedMinutesAgo ?? 0],
+        JSON.stringify({ recipientName: opts.recipient, line1: "1 St", city: "Melbourne", postalCode: "3000", country: "AU" }),
+        opts.placedMinutesAgo ?? 0],
     );
     const orderId = o.rows[0]!.id;
     await pool.query(
@@ -184,7 +184,7 @@ SELECT id FROM p`,
     expect((await listOrders(SHOP, parseOrderListQuery({ q: "cheese" }))).items).toHaveLength(0);
   });
 
-  it("derives payment state from refunds — submitted is pending, not refunded", async () => {
+  it("derives payment state from refunds - submitted is pending, not refunded", async () => {
     const full = await order({ number: "EFY-F", recipient: "F", total: 30 });
     const part = await order({ number: "EFY-P", recipient: "P", total: 30 });
     const pend = await order({ number: "EFY-Q", recipient: "Q", total: 30 });
@@ -254,7 +254,7 @@ SELECT id FROM p`,
   });
 
   /** A line is a variant: two sizes are two lines, each named by its size. */
-  it("098 — two sizes of one product are two labelled lines, in the detail and on the pick list", async () => {
+  it("098 - two sizes of one product are two labelled lines, in the detail and on the pick list", async () => {
     const o = await order({ number: "EFY-V", recipient: "V", lines: [{ name: "Rice", price: 3, qty: 2 }] });
     const first = (await pool.query<{ product_id: string; variant_id: string }>(
       `SELECT product_id::text, variant_id::text FROM public.order_item WHERE id = $1`, [o.itemIds[0]],
@@ -284,7 +284,7 @@ SELECT id FROM p`,
     ]);
   });
 
-  it("099 — every line carries its temperature, and the pick list walks Ambient → Chilled → Frozen", async () => {
+  it("099 - every line carries its temperature, and the pick list walks Ambient → Chilled → Frozen", async () => {
     const { fulfillmentId, orderId } = await order({
       number: "EFY-T",
       recipient: "Tess",
@@ -380,9 +380,9 @@ SELECT id FROM p`,
     expect(by.Bread).toMatchObject({ gatheredQuantity: 0, unavailableQuantity: 1, pickNote: "supplier short" });
 
     const log = (await orderLog(o.fulfillmentId)).map((e) => e.title);
-    expect(log).toContain("Eggs — 2 of 3 picked · one cracked");
-    expect(log).toContain("Milk — picked in full");
-    expect(log).toContain("Bread — marked unavailable · supplier short");
+    expect(log).toContain("Eggs - 2 of 3 picked · one cracked");
+    expect(log).toContain("Milk - picked in full");
+    expect(log).toContain("Bread - marked unavailable · supplier short");
 
     // Clearing a line zeroes both counts and drops the note.
     await applyPicks(o.fulfillmentId, SHOP, [{ orderItemId: bread, mode: "none", units: 0, note: null }], STAFF);
@@ -432,7 +432,7 @@ SELECT id FROM p`,
   }
   const EXPECTED = { "EFY-K1": "effy_driver", "EFY-K2": "effy_driver", "EFY-K3": "courier" };
 
-  it("079 P17 — every package says who takes it away, on the list, the detail, Today and the pick lists", async () => {
+  it("079 P17 - every package says who takes it away, on the list, the detail, Today and the pick lists", async () => {
     const made = await threeKinds();
 
     const list = await listOrders(SHOP, parseOrderListQuery({ sort: "number", dir: "asc" }));
@@ -445,7 +445,7 @@ SELECT id FROM p`,
     expect(Object.fromEntries((await readPickLists(SHOP)).lists.map((r) => [r.orderNumber, r.deliveredBy]))).toEqual(EXPECTED);
   });
 
-  it("079 — the list filters by who takes it away", async () => {
+  it("079 - the list filters by who takes it away", async () => {
     await threeKinds();
     const numbers = async (qs: Record<string, string>) =>
       (await listOrders(SHOP, parseOrderListQuery({ sort: "number", dir: "asc", ...qs }))).items.map((r) => r.orderNumber);
@@ -456,7 +456,7 @@ SELECT id FROM p`,
     expect((await listOrders(SHOP, parseOrderListQuery({ deliveredBy: "courier" }))).counts.all).toBe(1);
   });
 
-  it("079 — ⚠ what the shop is sent says who takes it and NOTHING else about delivery: no window, day, estimate or fee", async () => {
+  it("079 - ⚠ what the shop is sent says who takes it and NOTHING else about delivery: no window, day, estimate or fee", async () => {
     const made = await threeKinds();
     const list = await listOrders(SHOP, parseOrderListQuery({}));
     const wire = [
@@ -500,7 +500,7 @@ SELECT id FROM p`,
   }
   const SHOP_ACTOR = { sub: "sub-staff", shopId: SHOP, staffId: STAFF };
 
-  it("⚠ 080 P4 — each supplier sees its OWN courier pickup, and hands over only its own once booked", async () => {
+  it("⚠ 080 P4 - each supplier sees its OWN courier pickup, and hands over only its own once booked", async () => {
     const o = await supplierPickupOrder();
 
     // Not booked yet: the shop is told a courier will collect, nothing more.
@@ -560,7 +560,7 @@ SELECT id FROM p`,
     expect((await readOrder(o.theirs, OTHER_SHOP)).courierPickup?.state).toBe("booked");
   });
 
-  it("⚠ 080 P12 — what a shop is sent about a courier pickup: never the fee, the estimate, a tracking link or the other parcel", async () => {
+  it("⚠ 080 P12 - what a shop is sent about a courier pickup: never the fee, the estimate, a tracking link or the other parcel", async () => {
     const o = await supplierPickupOrder();
     const now = new Date();
     for (const [id, ref] of [[o.mine, "REF-MINE"], [o.theirs, "REF-THEIRS"]] as const) {

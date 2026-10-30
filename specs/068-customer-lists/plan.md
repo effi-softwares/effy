@@ -38,7 +38,7 @@ contract pair, the customer-web bundle gate.
 
 **Target Platform**: customer-web, customer-mobile (Android + iOS); Fargate (core-api).
 
-**Project Type**: monorepo — one backend path, one web app, one mobile app.
+**Project Type**: monorepo - one backend path, one web app, one mobile app.
 
 **Performance Goals**: the heart read stays one request per screen and one unchanged statement
 (SC-005). The chooser is one request. A list page is one statement.
@@ -107,7 +107,7 @@ specs/068-customer-lists/
 
 ```text
 db/migrations/
-└── <ts>_customer_lists.sql                     # NEW — customer_list, customer_list_entry, backfill
+└── <ts>_customer_lists.sql                     # NEW - customer_list, customer_list_entry, backfill
 
 packages/shared-types/src/
 ├── saved-item.ts                               # SavedListDTO, requests, limits; membership gains namedProductIds
@@ -116,25 +116,25 @@ packages/shared-types/src/
 
 apis/core-api/internal/features/saveditems/
 ├── repository.go                               # listSQL re-pointed at entries; Save/Remove/Merge gain entry + refusal
-├── lists_repository.go                         # NEW — lists CRUD, entries, sweepOrphansSQL, ensureDefaultSQL
+├── lists_repository.go                         # NEW - lists CRUD, entries, sweepOrphansSQL, ensureDefaultSQL
 ├── service.go                                  # AddAllToCart takes a list; membership gains named ids
-├── lists_service.go                            # NEW — NormaliseListName, ListLimit, ListNameMax, reserved name
+├── lists_service.go                            # NEW - NormaliseListName, ListLimit, ListNameMax, reserved name
 ├── handler.go                                  # 409 in_named_lists on the heart's un-save
-├── lists_handler.go                            # NEW — /v1/lists routes, registered beside /v1/saved
+├── lists_handler.go                            # NEW - /v1/lists routes, registered beside /v1/saved
 └── *_test.go                                   # unit, container, wire contract
 
 apps/customer-web/
 ├── lib/saved-store.ts                          # v1 envelope gains optional namedIds
 ├── lib/saved-actions.ts                        # heart: open chooser when named; handle 409
-├── lib/list-actions.ts                         # NEW — list + entry mutations (account pages and chooser only)
+├── lib/list-actions.ts                         # NEW - list + entry mutations (account pages and chooser only)
 ├── app/(shop)/_components/SaveControl.tsx      # the branch + on-demand import
-├── app/(shop)/_components/ListChooser.tsx      # NEW — native <dialog>; loaded with import()
+├── app/(shop)/_components/ListChooser.tsx      # NEW - native <dialog>; loaded with import()
 ├── app/(shop)/product/[id]/page.tsx            # "Add to list" beside the heart
 ├── app/(account)/saved/page.tsx                # the default list + lists tabs
-├── app/(account)/saved/[listId]/page.tsx       # NEW — a named list's page
+├── app/(account)/saved/[listId]/page.tsx       # NEW - a named list's page
 ├── app/(account)/saved/SavedList.tsx           # takes a list; per-list add-all, remove, undo
-├── app/(account)/saved/ListTabs.tsx            # NEW — tabs with counts, new list, rename, delete
-└── app/api/lists/**                            # NEW — proxy routes
+├── app/(account)/saved/ListTabs.tsx            # NEW - tabs with counts, new list, rename, delete
+└── app/api/lists/**                            # NEW - proxy routes
 
 apps/customer-mobile/shared/src/commonMain/kotlin/com/effyshopping/customer/mobile/features/saved/
 ├── domain/Saved.kt                             # SavedList, ListRepository
@@ -142,10 +142,10 @@ apps/customer-mobile/shared/src/commonMain/kotlin/com/effyshopping/customer/mobi
 ├── domain/SavedUseCases.kt                     # toggle branches on named; list use cases
 ├── data/HttpSavedRepository.kt                 # /v1/lists
 ├── presentation/SaveControl.kt                 # unchanged control; callers pass the branch
-├── presentation/ListChooserSheet.kt            # NEW — bottom sheet
+├── presentation/ListChooserSheet.kt            # NEW - bottom sheet
 ├── presentation/SavedScreen.kt                 # list tabs, per-list content, manage menu
 └── presentation/SavedViewModel.kt
-# + features/catalog/presentation/ProductDetailScreen.kt — "Add to list"
+# + features/catalog/presentation/ProductDetailScreen.kt - "Add to list"
 
 docs/audiences/customer-capabilities.md         # parity register
 specs/033-customer-saved-items/spec.md          # FR-066 gains a pointer: retired by 068
@@ -158,18 +158,18 @@ the heart reads.
 
 ## Phase plan
 
-1. **Foundation** — baseline measurements; migration with backfill; shared-types + regenerated
+1. **Foundation** - baseline measurements; migration with backfill; shared-types + regenerated
    contract; Go repository re-pointed at entries with `/v1/saved/*` behaving exactly as before
    (the existing 033 tests pass unmodified except where they assert storage). Nothing user-visible.
-2. **US3 the heart stays true** — server refusal `in_named_lists`; `namedProductIds`; both client
+2. **US3 the heart stays true** - server refusal `in_named_lists`; `namedProductIds`; both client
    stores and hearts. Built before any way to create a named list exists, so the destructive tap is
    closed before it can be opened.
-3. **US1 make and fill a list** — `/v1/lists` create/read/add; chooser on both surfaces at its four
+3. **US1 make and fill a list** - `/v1/lists` create/read/add; chooser on both surfaces at its four
    entry points; lists tabs and a list's page. Bundle gate re-run here.
-4. **US2 the weekly shop** — per-list add-all; in-cart statement on every list's rows.
-5. **US4 tidy** — rename, remove with undo, delete with the confirmation counts.
-6. **US5 guests** — sign-in prompt in the chooser; merge places default entries.
-7. **Polish** — telemetry declarations, log sweep, accessibility pass on chooser and tabs, parity
+4. **US2 the weekly shop** - per-list add-all; in-cart statement on every list's rows.
+5. **US4 tidy** - rename, remove with undo, delete with the confirmation counts.
+6. **US5 guests** - sign-in prompt in the chooser; merge places default entries.
+7. **Polish** - telemetry declarations, log sweep, accessibility pass on chooser and tabs, parity
    register, 033 pointer, account-closure check (R14), quickstart walk.
 
 ## Risks
@@ -180,7 +180,7 @@ the heart reads.
 | The deploy window: old core-api writes saved rows with no entry | Idempotent repair statement and a zero-orphans check in quickstart §2, run before customer-web is pushed (R10). |
 | An installed mobile build un-saves a product out of a named list | Refused by the server (`409`), and the old build's own revert restores the heart. Walk D3 proves it on a device. |
 | Guests lose their saved items on deploy | The web mirror's storage version stays `v1`; the new field is optional. A test loads a pre-068 envelope and asserts every id survives. |
-| The chooser pushes `/` or `/product/[id]` over 174 KB | Loaded with `import()`; native `<dialog>`; gate run immediately after the heart changes, before the rest of US1. If it does not fit, reduce the web presentation — the budget is not raised. |
+| The chooser pushes `/` or `/product/[id]` over 174 KB | Loaded with `import()`; native `<dialog>`; gate run immediately after the heart changes, before the rest of US1. If it does not fit, reduce the web presentation - the budget is not raised. |
 | 067 adds an approval term to availability and a copied list query misses it | There is one `listSQL` for every list (R4). |
 | Name uniqueness disagrees between Go and Postgres | Uniqueness lives only in the unique index; the service maps the violation (R3). |
 | A list name reaches a log | Names travel only in request and response bodies; lists are addressed by id. Sentinel sweep in quickstart §4. |

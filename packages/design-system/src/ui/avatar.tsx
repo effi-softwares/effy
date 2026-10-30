@@ -26,7 +26,7 @@ export function tintFor(seed: string): string {
   return TINTS[Math.abs(h) % TINTS.length] as string
 }
 
-/** First letters of the first two words — "Maya Karlsson" → "MK", "hello@effy" → "H". */
+/** First letters of the first two words - "Maya Karlsson" → "MK", "hello@effy" → "H". */
 export function initialsFor(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean)
   if (parts.length === 0) return "?"

@@ -31,7 +31,7 @@ describe("isPasswordBreached", () => {
   });
 
   // Only the 5-character prefix is ever sent: never the password, the full digest or the suffix.
-  it("NEVER transmits the password, the full digest, or the suffix — only a 5-char prefix", async () => {
+  it("NEVER transmits the password, the full digest, or the suffix - only a 5-char prefix", async () => {
     const fetchMock = mockRange("");
 
     // Not the literal "password": the host `api.pwnedpasswords.com` would satisfy `not.toContain` for the wrong reason.

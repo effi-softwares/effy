@@ -148,8 +148,8 @@ export function planWave(input: AssignInput): WavePlan {
         notes.set(
           pkg.packageId,
           kind === "collection"
-            ? "Auto-assigned — this driver is already collecting at this shop"
-            : "Auto-assigned — this driver is already delivering to this address",
+            ? "Auto-assigned - this driver is already collecting at this shop"
+            : "Auto-assigned - this driver is already delivering to this address",
         );
         continue;
       }
@@ -177,7 +177,7 @@ export function planWave(input: AssignInput): WavePlan {
       const collector = eligible.find((r) => r.candidate.driverId === pkg.collectedBy);
       if (collector) {
         place(collector, pkg);
-        notes.set(pkg.packageId, "Auto-assigned — collected it, continuing to delivery");
+        notes.set(pkg.packageId, "Auto-assigned - collected it, continuing to delivery");
         continue;
       }
     }
@@ -205,8 +205,8 @@ export function planWave(input: AssignInput): WavePlan {
     notes.set(
       pkg.packageId,
       loads.length === 1
-        ? "Auto-assigned — the only driver who could take it"
-        : `Auto-assigned — fewest packages today (${winner.packagesAssignedToday})`,
+        ? "Auto-assigned - the only driver who could take it"
+        : `Auto-assigned - fewest packages today (${winner.packagesAssignedToday})`,
     );
   }
 

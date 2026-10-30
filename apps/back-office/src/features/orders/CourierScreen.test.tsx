@@ -51,23 +51,23 @@ beforeEach(() => {
         ? [row({ orderId: "o2", orderNumber: "EFY-0002", atRisk: true })]
         : view === "supplier"
           ? [
-              row({
-                orderId: "o3",
-                orderNumber: "EFY-0003",
-                collection: "supplier",
-                atHub: false,
-                dueOut: null,
-                pickup: { date: "2026-10-12", from: "13:00", to: "15:00" },
-                consignmentState: "booked",
-              }),
-            ]
+            row({
+              orderId: "o3",
+              orderNumber: "EFY-0003",
+              collection: "supplier",
+              atHub: false,
+              dueOut: null,
+              pickup: { date: "2026-10-12", from: "13:00", to: "15:00" },
+              consignmentState: "booked",
+            }),
+          ]
           : view === "problems"
             ? [row({ orderId: "o4", orderNumber: "EFY-0004", consignmentState: "lost", problem: "lost" })]
             : [],
   )
 })
 
-describe("080 — the Courier tab", () => {
+describe("080 - the Courier tab", () => {
   it("opens on the hub: the service and when it is due out", async () => {
     renderScreen()
     const r = (await screen.findByText("EFY-0001")).closest("tr")!

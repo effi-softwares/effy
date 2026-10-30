@@ -102,8 +102,8 @@ export function VariantsSection({ detail, onEdit }: { detail: ProductDetail; onE
                   )}
                   {unit ? <span className="mt-0.5 block text-muted-foreground">{unitPriceText(unit)}</span> : null}
                 </TableCell>
-                <TableCell mono>{v.sku ?? "—"}</TableCell>
-                <TableCell mono>{v.gtin ?? "—"}</TableCell>
+                <TableCell mono>{v.sku ?? "-"}</TableCell>
+                <TableCell mono>{v.gtin ?? "-"}</TableCell>
                 <TableCell numeric className="whitespace-nowrap">
                   {v.weightGrams} g
                   {v.weightIsAssumed ? <span className="mt-0.5 block text-muted-foreground">assumed</span> : null}
@@ -130,9 +130,9 @@ export function VariantsSection({ detail, onEdit }: { detail: ProductDetail; onE
                       disabled={setState.isPending || last || !onEdit || (detail.hold !== null && v.state !== "active")}
                       title={
                         detail.hold !== null && v.state !== "active"
-                          ? "Effy is holding this product — no size can go back on sale until Effy releases it"
+                          ? "Effy is holding this product - no size can go back on sale until Effy releases it"
                           : last
-                            ? "The last size on sale — make the product unavailable instead"
+                            ? "The last size on sale - make the product unavailable instead"
                             : undefined
                       }
                       onCheckedChange={(on) => void change(v, on ? "active" : "inactive")}
@@ -165,7 +165,7 @@ export function VariantsSection({ detail, onEdit }: { detail: ProductDetail; onE
         <div className="grid gap-1 border-t px-5 py-3">
           {removed.length > 0 ? (
             <p className="text-sm text-muted-foreground">
-              Removed: {removed.map((v) => v.label ?? "a size").join(", ")} — kept for past orders and stock history.
+              Removed: {removed.map((v) => v.label ?? "a size").join(", ")} - kept for past orders and stock history.
             </p>
           ) : null}
           {error ? (

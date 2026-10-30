@@ -64,12 +64,12 @@ describe("the Orders list (057 A3)", () => {
     const id = await findInTable("EFY-10023")
     expect(id.className).toContain("font-mono")
     expect(table().getByText("Maya Oyelaran")).toBeInTheDocument()
-    // The design's Items column — this shop's lines, summarised.
+    // The design's Items column - this shop's lines, summarised.
     expect(table().getByText("Barossa Free-Range Eggs 700g ×2, Oat milk 1L ×2")).toBeInTheDocument()
-    // The longest payment label, on one line — the column is sized for it.
+    // The longest payment label, on one line - the column is sized for it.
     const pay = table().getByText("Partially refunded")
     expect(pay.className).toContain("whitespace-nowrap")
-    expect(table().getByText("$57.80")).toBeInTheDocument()
+    expect(table().getByText("AUD 57.80")).toBeInTheDocument()
   })
 
   it("shows the server's counts on every status tab", async () => {
@@ -142,7 +142,7 @@ describe("the Orders list (057 A3)", () => {
     expect(onSearchChange).toHaveBeenLastCalledWith({ q: "EFY-1" })
   })
 
-  it("has no saved views and no Fulfilment select — the status is the one select", async () => {
+  it("has no saved views and no Fulfilment select - the status is the one select", async () => {
     listOrders.mockResolvedValue(orderList([orderRow()]))
     wrap()
     await screen.findByRole("table", { busy: false })
@@ -159,7 +159,7 @@ describe("the Orders list (057 A3)", () => {
     ).toEqual(["Order status"])
   })
 
-  it("badges Filters with the number set — and shows no badge at zero", async () => {
+  it("badges Filters with the number set - and shows no badge at zero", async () => {
     listOrders.mockResolvedValue(orderList([orderRow()]))
     const { unmount } = wrap()
     await screen.findByRole("table", { busy: false })
@@ -168,11 +168,11 @@ describe("the Orders list (057 A3)", () => {
 
     wrap({ range: "7d", payment: "refunded", q: "maya", tab: "picking" })
     await screen.findByRole("table", { busy: false })
-    // Search and tab are not filters — they have their own controls.
+    // Search and tab are not filters - they have their own controls.
     expect(screen.getByRole("button", { name: "Filters 2" })).toBeInTheDocument()
   })
 
-  it("opens the Filters sheet: its choices, the count and Clear all — no Apply button", async () => {
+  it("opens the Filters sheet: its choices, the count and Clear all - no Apply button", async () => {
     listOrders.mockResolvedValue(orderList([orderRow()], { total: 47 }))
     const { onSearchChange } = wrap({ range: "today", deliveredBy: "courier" })
     await screen.findByRole("table", { busy: false })
@@ -308,7 +308,7 @@ describe("empty states say which kind of empty it is", () => {
     expect(screen.queryByRole("button", { name: "Reset filters" })).not.toBeInTheDocument()
   })
 
-  it("no orders matching the filters — with a way out", async () => {
+  it("no orders matching the filters - with a way out", async () => {
     listOrders.mockResolvedValue(orderList([]))
     const { onSearchChange } = wrap({ q: "zzz", range: "today", sort: "total" })
     expect(await screen.findByText("No matches")).toBeInTheDocument()
@@ -366,7 +366,7 @@ describe("selection and the bulk bar", () => {
 })
 
 describe("orderListQuery", () => {
-  it("is not polled — a live update re-reads it, never a timer (071 FR-009)", () => {
+  it("is not polled - a live update re-reads it, never a timer (071 FR-009)", () => {
     const q = orderListQuery({}) as { refetchInterval?: unknown }
     expect(q.refetchInterval).toBeUndefined()
   })

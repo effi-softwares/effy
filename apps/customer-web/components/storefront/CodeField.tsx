@@ -6,7 +6,7 @@ import { OTP_LENGTH } from "@effy/design-system/ui"
 
 import { cn } from "@/lib/utils"
 
-/** The slot positions, in the reference's two joined groups — derived, so no literal six appears. */
+/** The slot positions, in the reference's two joined groups - derived, so no literal six appears. */
 const HALF = Math.ceil(OTP_LENGTH / 2)
 const GROUPS = [
   Array.from({ length: HALF }, (_, i) => i),
@@ -14,16 +14,16 @@ const GROUPS = [
 ]
 
 /**
- * The emailed-code field in the storefront's shape (reference: Sign in — code; Account · Set a password (code), Delete account (code)): two joined groups of
+ * The emailed-code field in the storefront's shape (reference: Sign in - code; Account · Set a password (code), Delete account (code)): two joined groups of
  * slots with a dash between them.
  *
- * One input, not six — the same rule as the platform's `OtpInput`, whose reasoning this follows.
+ * One input, not six - the same rule as the platform's `OtpInput`, whose reasoning this follows.
  * The slots are `aria-hidden` scenery; the single transparent `<input>` layered over them holds the
  * value, takes the focus, receives a paste and the phone's code autofill, and is the one field a
  * screen reader meets.
  *
  * NO `maxLength`, and nothing is truncated. A value longer than the code is shown in
- * full as plain text instead of slots — slots can only show their own count of characters, so a longer
+ * full as plain text instead of slots - slots can only show their own count of characters, so a longer
  * paste drawn in them would look like a valid code.
  */
 export function CodeField({
@@ -79,7 +79,7 @@ export function CodeField({
                       invalid && "border-destructive",
                       // The active slot, marked only while the field really has focus.
                       i === active &&
-                        "group-focus-within:relative group-focus-within:z-[1]",
+                      "group-focus-within:relative group-focus-within:z-[1]",
                     )}
                   >
                     {value[i] ?? ""}

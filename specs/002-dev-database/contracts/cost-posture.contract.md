@@ -1,8 +1,8 @@
-# Contract: Cost Posture — the all-off set and how to verify it
+# Contract: Cost Posture - the all-off set and how to verify it
 
 The operational contract behind spec **US2 / FR-005 / SC-002**: every separately-billed
 option is off, and each one is verifiable with a single read-only CLI check. If any check
-below drifts, that is a **contract violation** — either an accidental change (revert) or a
+below drifts, that is a **contract violation** - either an accidental change (revert) or a
 deliberate promotion (update this contract for that env).
 
 All commands: `AWS_PROFILE=ef`, `--region ap-southeast-2`, `--db-instance-identifier effy-dev-db`
@@ -29,9 +29,9 @@ All commands: `AWS_PROFILE=ef`, `--region ap-southeast-2`, `--db-instance-identi
 (SC-001), expected ≈ **US$22**.
 
 **What is deliberately ON and free**: encryption at rest (default KMS), basic CloudWatch
-metrics, forced TLS, the $0.40/mo managed master secret (the single accepted paid item —
+metrics, forced TLS, the $0.40/mo managed master secret (the single accepted paid item -
 research D5 records why).
 
-**Change law**: flipping any lever ON for an env is a promotion decision — do it via the
+**Change law**: flipping any lever ON for an env is a promotion decision - do it via the
 runbook (quickstart), update the env's tfvars, and note it here for that env. Silent drift
 found by these checks is a defect.

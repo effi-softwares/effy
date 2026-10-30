@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Driver guard — the redesign's rules for apps/driver-mobile, made build-failing.
+# Driver guard - the redesign's rules for apps/driver-mobile, made build-failing.
 #
 # 1. No colour literal in a screen. Colours come from the theme (MaterialTheme.colorScheme / EffyRoles),
 # generated from the storefront file; a Color(0x…) in a screen is a second palette.
@@ -22,13 +22,13 @@ SCREENS="$(find "$SRC" -path '*/build' -prune -o -name '*.kt' -print \
   | grep -vE 'Test\.kt$' || true)"
 
 HITS="$(echo "$SCREENS" | xargs grep -nE 'Color\(0x[0-9A-Fa-f]{6,8}\)' 2>/dev/null || true)"
-[ -n "$HITS" ] && fail "a colour literal in a screen — use MaterialTheme.colorScheme or EffyRoles:" "$HITS"
+[ -n "$HITS" ] && fail "a colour literal in a screen - use MaterialTheme.colorScheme or EffyRoles:" "$HITS"
 
 HITS="$(echo "$SCREENS" | xargs grep -nE 'Color\.(Red|Yellow|Magenta)\b|colorScheme\.(error|onError)|errorContainer|warning' 2>/dev/null || true)"
-[ -n "$HITS" ] && fail "red, orange or a warning hue — a problem is black with an icon (v3.5.0):" "$HITS"
+[ -n "$HITS" ] && fail "red, orange or a warning hue - a problem is black with an icon (v3.5.0):" "$HITS"
 
 HITS="$(echo "$SCREENS" | xargs grep -nE '"[^"]*\$[0-9]|\bAUD\b|formatMoney' 2>/dev/null || true)"
-[ -n "$HITS" ] && fail "money on a driver screen — counts, never money:" "$HITS"
+[ -n "$HITS" ] && fail "money on a driver screen - counts, never money:" "$HITS"
 
 HITS="$(grep -rnE 'MapRoot|ActivityRoute|EffyMapCanvas' --include='*.kt' "$SRC" 2>/dev/null | grep -v '/build/' || true)"
 [ -n "$HITS" ] && fail "the Map tab or the activity feed is back (E1, E4):" "$HITS"

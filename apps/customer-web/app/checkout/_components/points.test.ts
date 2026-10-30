@@ -4,7 +4,7 @@ import { maxPointsFor, splitTotal } from "./points"
 
 const P = { usable: 5000, centsPerPoint: 1, cardMinimumAmount: "0.50" }
 
-describe("074 — the points a checkout can take", () => {
+describe("074 - the points a checkout can take", () => {
   it("is the lower of the balance and the total", () => {
     expect(maxPointsFor(P, 4780)).toBe(4780)
     expect(maxPointsFor({ ...P, usable: 1250 }, 4780)).toBe(1250)

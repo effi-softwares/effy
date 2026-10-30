@@ -10,12 +10,12 @@ import { edgeApi, edgeApiPublic, perCustomer } from "@/lib/api/edge"
 import { getSession } from "@/lib/dal"
 
 /**
- * Submit feedback — a Server Action invoked by a plain `<form>`.
+ * Submit feedback - a Server Action invoked by a plain `<form>`.
  *
  * It picks the route from the session, not from anything the form claims. A signed-in shopper posts
  * to the authenticated route (which links their record and takes their trusted email); a guest posts
  * to the public route with an unverified email. A client cannot upgrade itself to "signed-in" by
- * setting a field — the only thing that selects the authed route is a real session.
+ * setting a field - the only thing that selects the authed route is a real session.
  *
  * It re-validates. The form's native `required` is a convenience; anything can POST here, so the
  * authoritative checks live in the service behind both routes. This just shapes the request and maps
@@ -69,7 +69,7 @@ export async function submitFeedbackAction(
     )
     return res
   } catch (err) {
-    // Never rethrow — an uncaught Server Action error swaps the page for an error boundary and loses
+    // Never rethrow - an uncaught Server Action error swaps the page for an error boundary and loses
     // everything the shopper typed. Map the status instead.
     if (isStatus(err, 400)) return { status: "invalid" }
     if (isStatus(err, 429)) return { status: "rate_limited" }

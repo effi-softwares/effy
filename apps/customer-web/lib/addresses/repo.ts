@@ -11,7 +11,7 @@ import type { AddressDTO, CreateAddressRequest, UpdateAddressRequest } from "@ef
  * Next proxy routes under `app/api/addresses/` (the proxy relays the session token to the backend).
  *
  * Every fetcher returns a discriminated result so the caller can distinguish success from a mapped
- * problem — crucially the **409** the delete-default guard raises, which the UI turns into
+ * problem - crucially the **409** the delete-default guard raises, which the UI turns into
  * the "set another default first" prompt.
  */
 

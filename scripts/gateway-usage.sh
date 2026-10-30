@@ -31,7 +31,7 @@ for gw in shared staff; do
   [ "${gw}" = "shared" ] && key="edge" || key="staff"
   id="$(param "/effy/${ENV}/${key}/http_api_id")"
   if [ -z "${id}" ] || [ "${id}" = "None" ]; then
-    printf '  %-8s (no such gateway in %s yet — /effy/%s/%s/http_api_id is not published)\n' "${gw}" "${ENV}" "${ENV}" "${key}"
+    printf '  %-8s (no such gateway in %s yet - /effy/%s/%s/http_api_id is not published)\n' "${gw}" "${ENV}" "${ENV}" "${key}"
     continue
   fi
   routes="$(count get-routes RouteId "${id}")"
@@ -52,8 +52,8 @@ done
 
 echo
 if [ "${worst}" -ge 90 ]; then
-  printf '\033[31mAt or above 90%% — stop adding routes to that gateway.\033[0m See docs/api/path-assignment.md.\n'
+  printf '\033[31mAt or above 90%% - stop adding routes to that gateway.\033[0m See docs/api/path-assignment.md.\n'
   exit 1
 elif [ "${worst}" -ge 75 ]; then
-  printf '\033[33mAt or above 75%% — plan what moves, before it is urgent.\033[0m See docs/api/path-assignment.md.\n'
+  printf '\033[33mAt or above 75%% - plan what moves, before it is urgent.\033[0m See docs/api/path-assignment.md.\n'
 fi

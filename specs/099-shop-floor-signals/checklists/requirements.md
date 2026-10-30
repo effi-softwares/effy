@@ -1,4 +1,4 @@
-# Specification Quality Checklist: Shop Floor Signals — Collection, Pick Order, Availability and Quality
+# Specification Quality Checklist: Shop Floor Signals - Collection, Pick Order, Availability and Quality
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2026-10-24

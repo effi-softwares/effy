@@ -92,7 +92,7 @@ export function HoldingControl({ vehicle }: { vehicle: VehicleDetail }) {
         </>
       ) : (
         <>
-          <p className="text-sm text-muted-foreground">Available — nobody has this vehicle.</p>
+          <p className="text-sm text-muted-foreground">Available - nobody has this vehicle.</p>
           <div className="flex flex-wrap items-end gap-3">
             <div className="space-y-2">
               <Label htmlFor="hold-driver">Issue to</Label>

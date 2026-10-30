@@ -12,7 +12,7 @@ describe("normaliseListName", () => {
     ["collapses inner whitespace", "Weekly \t\n  Items", "Weekly Items"],
     ["drops control characters", "Week\x00ly\x07", "Weekly"],
     ["exactly the limit", forty, forty],
-    ["forty emoji — counted in code points, not UTF-16 units", "🥚".repeat(LIST_NAME_MAX), "🥚".repeat(LIST_NAME_MAX)],
+    ["forty emoji - counted in code points, not UTF-16 units", "🥚".repeat(LIST_NAME_MAX), "🥚".repeat(LIST_NAME_MAX)],
     ["over the limit only before trimming", `${forty}   `, forty],
     ["non-English", "週の買い物", "週の買い物"],
     ["markup is just characters", "<script>x</script>", "<script>x</script>"],

@@ -114,7 +114,7 @@ package:
 functions:
   liveV1:
     handler: src/functions/live-v1-get.handler
-    description: Which live-update channel is this person's — read on sign-in and reconnect, never on a timer — 071
+    description: Which live-update channel is this person's - read on sign-in and reconnect, never on a timer - 071
     events:
       - httpApi:
           method: GET
@@ -125,7 +125,7 @@ functions:
 
   healthz:
     handler: src/functions/healthz-get.handler
-    description: Liveness — is the customer service deployed and executing? Touches nothing. Public.
+    description: Liveness - is the customer service deployed and executing? Touches nothing. Public.
     events:
       - httpApi:
           method: GET
@@ -133,7 +133,7 @@ functions:
 
   readyz:
     handler: src/functions/readyz-get.handler
-    description: Readiness — can the customer service serve? Probes the DB under a 2s budget. Public.
+    description: Readiness - can the customer service serve? Probes the DB under a 2s budget. Public.
     events:
       - httpApi:
           method: GET
@@ -141,7 +141,7 @@ functions:
 
   customerMeV1:
     handler: src/functions/customer-me-v1-get.handler
-    description: Record-backed customer identity read — JIT upsert + the platform record (011 FR-023)
+    description: Record-backed customer identity read - JIT upsert + the platform record (011 FR-023)
     events:
       - httpApi:
           method: GET
@@ -152,7 +152,7 @@ functions:
 
   customerMeV1Patch:
     handler: src/functions/customer-me-v1-patch.handler
-    description: The customer maintains their own details — displayName ONLY (011 FR-026)
+    description: The customer maintains their own details - displayName ONLY (011 FR-026)
     events:
       - httpApi:
           method: PATCH
@@ -223,7 +223,7 @@ functions:
   # email, rate-limited by source IP).
   customerFeedbackV1Post:
     handler: src/functions/feedback-submit-v1-post.handler
-    description: Submit feedback (signed-in) — linked to the customer, trusted profile email (046 US1)
+    description: Submit feedback (signed-in) - linked to the customer, trusted profile email (046 US1)
     events:
       - httpApi:
           method: POST
@@ -234,7 +234,7 @@ functions:
 
   customerFeedbackPublicV1Post:
     handler: src/functions/feedback-submit-public-v1-post.handler
-    description: PUBLIC — submit feedback (guest); unverified email, IP-keyed rate limit (046 US1)
+    description: PUBLIC - submit feedback (guest); unverified email, IP-keyed rate limit (046 US1)
     events:
       - httpApi:
           method: POST
@@ -245,7 +245,7 @@ functions:
   # Sends the step-up code for setting a first password; it grants nothing on its own.
   customerPasswordV1Challenge:
     handler: src/functions/customer-password-v1-challenge.handler
-    description: Step-up — email a single-purpose code before a FIRST password may be set (012 FR-017)
+    description: Step-up - email a single-purpose code before a FIRST password may be set (012 FR-017)
     events:
       - httpApi:
           method: POST
@@ -268,7 +268,7 @@ functions:
 
   customerSessionsV1Delete:
     handler: src/functions/customer-sessions-v1-delete.handler
-    description: Sign out on all devices — the remedy for a hotel PC or a lost phone (012 FR-032)
+    description: Sign out on all devices - the remedy for a hotel PC or a lost phone (012 FR-032)
     events:
       - httpApi:
           method: DELETE
@@ -282,7 +282,7 @@ functions:
 
   customerClosureV1Get:
     handler: src/functions/customer-closure-v1-get.handler
-    description: What deleting this account will do — blockers, retained data, erase date (034 FR-040/FR-042)
+    description: What deleting this account will do - blockers, retained data, erase date (034 FR-040/FR-042)
     events:
       - httpApi:
           method: GET
@@ -294,7 +294,7 @@ functions:
   # The step-up code for closing an account, keyed on the verified email (works for Google-only customers).
   customerClosureV1Challenge:
     handler: src/functions/customer-closure-v1-challenge.handler
-    description: Step-up — email a single-purpose code before an account may be closed (034 FR-043)
+    description: Step-up - email a single-purpose code before an account may be closed (034 FR-043)
     events:
       - httpApi:
           method: POST
@@ -318,7 +318,7 @@ functions:
 
   customerClosureV1Post:
     handler: src/functions/customer-closure-v1-post.handler
-    description: Close the account — verifies a fresh code, then closes and revokes all sessions (034 US3)
+    description: Close the account - verifies a fresh code, then closes and revokes all sessions (034 US3)
     events:
       - httpApi:
           method: POST
@@ -342,7 +342,7 @@ functions:
   # Public: recovery has no session; the caller proves the inbox, and the wrapped API needs no IAM.
   customerPasswordResetConfirm:
     handler: src/functions/customer-password-reset-confirm.handler
-    description: PUBLIC — complete "forgot password"; screens the new password + records the state (012 FR-022b)
+    description: PUBLIC - complete "forgot password"; screens the new password + records the state (012 FR-022b)
     events:
       - httpApi:
           method: POST
@@ -352,7 +352,7 @@ functions:
   # Terraform; the cooldown is per address, in SQL.
   customerNewsletterV1Post:
     handler: src/functions/customer-newsletter-v1-post.handler
-    description: PUBLIC — subscribe to Effy updates; uniform, non-enumerating response (039 FR-030/FR-032)
+    description: PUBLIC - subscribe to Effy updates; uniform, non-enumerating response (039 FR-030/FR-032)
     events:
       - httpApi:
           method: POST
@@ -360,7 +360,7 @@ functions:
 
   customerNewsletterV1Confirm:
     handler: src/functions/customer-newsletter-v1-confirm-get.handler
-    description: PUBLIC — double opt-in confirm; single-use, TTL-bounded token (039 FR-031)
+    description: PUBLIC - double opt-in confirm; single-use, TTL-bounded token (039 FR-031)
     events:
       - httpApi:
           method: GET
@@ -370,7 +370,7 @@ functions:
   # profile, refusing unverified emails (src/lib/account-linking.ts).
   preSignUp:
     handler: src/functions/pre-sign-up.handler
-    description: Cognito pre-sign-up — links a federated identity into the NATIVE profile (011 FR-011/FR-012)
+    description: Cognito pre-sign-up - links a federated identity into the NATIVE profile (011 FR-011/FR-012)
 
   customerDevicesV1Post:
     handler: src/functions/customer-devices-v1-post.handler
@@ -399,7 +399,7 @@ functions:
   # Writes "Expired" history lines and the warning; expiry itself does not depend on it.
   pointsExpiry:
     handler: src/functions/points-expiry-scheduled.handler
-    description: Daily — record expired points in customers' history and queue expiry warnings (074 US4).
+    description: Daily - record expired points in customers' history and queue expiry warnings (074 US4).
     timeout: 120
     events:
       - schedule:
@@ -408,7 +408,7 @@ functions:
   # Checks the ledger adds up, reporting the count every run, zero included.
   pointsReconcile:
     handler: src/functions/points-reconcile-scheduled.handler
-    description: Hourly — check the points ledger's invariants and report violations (074 SC-001).
+    description: Hourly - check the points ledger's invariants and report violations (074 SC-001).
     timeout: 60
     events:
       - schedule:

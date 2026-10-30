@@ -4,37 +4,37 @@
 
 **Input**: Feature specification from `/specs/005-back-office-web/spec.md`, binding
 [operator-directives.md](./operator-directives.md), [research.md](./research.md) (Phase 0),
-constitution **v1.4.0**, [ARCHITECTURE.md](../../ARCHITECTURE.md) (binding — the
+constitution **v1.4.0**, [ARCHITECTURE.md](../../ARCHITECTURE.md) (binding - the
 "Operator / admin web (SPA)" section governs this feature).
 
-> **Amendment D1 (2026-07-08)** — *default dashboard shell.* Spec adds **FR-023 / US1 / SC-013**:
+> **Amendment D1 (2026-07-08)** - *default dashboard shell.* Spec adds **FR-023 / US1 / SC-013**:
 > the authenticated shell graduates from the bootstrap top-header frame to a **standard dashboard
 > layout** (persistent collapsible sidebar + inset header/breadcrumb + content region), sourced
-> from the shadcn **`sidebar-07`** block (operator directive). **Presentation-only** — zero
+> from the shadcn **`sidebar-07`** block (operator directive). **Presentation-only** - zero
 > backend / data / auth change. Design + structure delta in [§ Amendment D1](#amendment-d1--default-dashboard-shell-us1--fr-023-presentation-only)
 > and research [Part G](./research.md#part-g); mechanic **4** below. Constitution re-check: **PASS**
-> (unchanged gates — shell is app chrome; brand tokens stay the design-system SSOT).
+> (unchanged gates - shell is app chrome; brand tokens stay the design-system SSOT).
 
-> **Amendment D2 (2026-07-09)** — *neutral theme + responsive scaling.* Spec adds **FR-024 /
+> **Amendment D2 (2026-07-09)** - *neutral theme + responsive scaling.* Spec adds **FR-024 /
 > FR-025 / SC-014 / SC-015**: **(1)** neutralise the design-system surfaces (drop the jade-tinted
-> `--accent`/`--sidebar*`/`--secondary`/`--muted`/`--border` blends) — surfaces become neutral,
+> `--accent`/`--sidebar*`/`--secondary`/`--muted`/`--border` blends) - surfaces become neutral,
 > **Jade `#0FB57E` stays the single accent** (primary/ring/brand mark); **(2)** add **fluid
 > root-font-size scaling** so the whole rem-based UI grows proportionally on wide displays.
 > Both live in **`@effy/design-system` (the SSOT)** → every surface inherits them.
-> **Presentation-only** — zero backend / data / auth change. Design in
+> **Presentation-only** - zero backend / data / auth change. Design in
 > [§ Amendment D2](#amendment-d2--neutral-theme--responsive-scaling-fr-024fr-025-presentation-only),
 > research [Part H](./research.md#part-h) (theme) + [Part I](./research.md#part-i) (scaling).
-> Constitution re-check: **PASS — no amendment needed** (Jade `#0FB57E` is an emerald shade and is
-> retained as the brand accent; only surface *tinting* is removed — see Amendment D2 § Governance).
+> Constitution re-check: **PASS - no amendment needed** (Jade `#0FB57E` is an emerald shade and is
+> retained as the brand accent; only surface *tinting* is removed - see Amendment D2 § Governance).
 
 ## Summary
 
-Bootstrap the platform's **first web surface** — the internal `back-office` admin console — as a
+Bootstrap the platform's **first web surface** - the internal `back-office` admin console - as a
 production-shaped, feature-sliced React SPA, plus the **first shared web packages** every future
 web surface will inherit. Deliverable is a *foundation*, not product features (there is no
 product data to administer yet):
 
-- **`apps/back-office`** — Vite + React 19 + TypeScript SPA, client-only (all auth in the
+- **`apps/back-office`** - Vite + React 19 + TypeScript SPA, client-only (all auth in the
   browser), feature-sliced per ARCHITECTURE admin-web: `src/features/<domain>/{repo,queries,
   model,Screen}` → `src/lib/` (authed fetch wrapper, auth config, query client) →
   `src/components/ui/` (shadcn). **TanStack client spine** (Router code-based tree +
@@ -42,23 +42,23 @@ product data to administer yet):
   Virtual + `@tanstack/react-hotkeys` (alpha, operator-chosen) wired-as-foundation), **shadcn/ui**
   (Radix base, Tailwind v4, preset `b2BnwlLOK`), **AWS Amplify v6** passwordless **EMAIL_OTP**
   against the existing 001 **admin** pool. Client state via **TanStack Shop** (constitution
-  v1.4.0 — Zustand removed). Proving surfaces: passwordless sign-in → console shell → a
+  v1.4.0 - Zustand removed). Proving surfaces: passwordless sign-in → console shell → a
   identity proving read (the existing `/admin/v1/ping` at P2, **graduating** to the
   record-backed `/admin/v1/me` at US4) → an **admin-only** read
   (`/admin/v1/admin-ping`) whose authorization is role-claim-based at US3 and **upgraded to
   the DB record (status+role) at US4**. Built as an MVP ladder (each story independently
   testable). **Runs locally only** this slice (hosted deploy deferred).
 - **`packages/design-system`** (Jade `#0FB57E`/`#047857` tokens + Tailwind v4 theme + dark mode
-  + `cn` — the brand SSOT, Principle V), **`packages/shared-types`** (DTO + error-envelope types,
+  + `cn` - the brand SSOT, Principle V), **`packages/shared-types`** (DTO + error-envelope types,
   the contract SSOT, Principle II), **`packages/api-client`** (authed fetch wrapper + RFC 9457
-  error mapping) — the first shared web foundation (FR-010), populated with only what US1–US5
+  error mapping) - the first shared web foundation (FR-010), populated with only what US1–US5
   need.
-- **`apis/edge-api/admin` + `db/migrations`** — the back-office **staff/RBAC data layer**: a new
+- **`apis/edge-api/admin` + `db/migrations`** - the back-office **staff/RBAC data layer**: a new
   migration adding the **`admin.staff` / `admin.role` / `admin.staff_role`** tables (003
-  workflow — the first real tables + first `db-up`); a `staff` domain (raw-SQL repository +
+  workflow - the first real tables + first `db-up`); a `staff` domain (raw-SQL repository +
   service) that **JIT-upserts** the staff record on first contact and reconciles roles; a new
   `GET /admin/v1/me` (records + returns the platform record); and `GET /admin/v1/admin-ping`
-  (admin group only) authorizing from the **DB record — status + role** (FR-020), so a `disabled`
+  (admin group only) authorizing from the **DB record - status + role** (FR-020), so a `disabled`
   staff row is refused despite a valid token. Plus the per-route alarms; the `localhost:5173` dev
   CORS origin is a **Terraform gateway** value (`infra/envs/dev/edge-gateway.tf`, A3), already live.
   (Spec Clarification Option B + the persistence clarification / FR-018–022.)
@@ -73,21 +73,21 @@ one in-repo dependency verification). Pins are in research Part A; the largest e
 - `apps/back-office`: TypeScript **5.9.x**, React **19.x**, Vite **7.x** (`@vitejs/plugin-react`).
 - `apis/edge-api/admin` delta: TypeScript on `nodejs22.x`/arm64 (unchanged from 004).
 
-**Primary Dependencies** (confirm-at-install pins — research A1/A2, C1):
+**Primary Dependencies** (confirm-at-install pins - research A1/A2, C1):
 - Client spine: `@tanstack/react-router` 1.170.17 · `@tanstack/react-query` 5.101.2 ·
   `@tanstack/react-table` 8.21.3 · `@tanstack/react-form` 1.33.0 · `@tanstack/react-devtools`
   0.10.8 (+ `@tanstack/react-query-devtools`, `@tanstack/react-router-devtools` panels).
-- Client state: `@tanstack/react-store` 0.11.0 (genuine client state only — **now the locked
+- Client state: `@tanstack/react-store` 0.11.0 (genuine client state only - **now the locked
   standard**, constitution v1.4.0; Zustand removed).
 - Foundation, deferred first use: `@tanstack/react-virtual` 3.14.5 · `@tanstack/react-hotkeys`
-  0.10.0 (**alpha, operator-chosen** — pinned + isolated behind a `lib/` wrapper).
+  0.10.0 (**alpha, operator-chosen** - pinned + isolated behind a `lib/` wrapper).
 - UI: `shadcn` CLI v4 (Radix base) · Tailwind **v4** (`@tailwindcss/vite`) · preset `b2BnwlLOK`.
 - Auth: `aws-amplify` **^6.18** (manual `Amplify.configure`, no backend project).
-- edge-api delta: no new npm deps — reuses `pg`/`pino`/`lib` (raw SQL against the new `admin`
+- edge-api delta: no new npm deps - reuses `pg`/`pino`/`lib` (raw SQL against the new `admin`
   tables).
-- **Not adopted this slice**: `@tanstack/react-db` (beta — operator-dropped, research A3).
+- **Not adopted this slice**: `@tanstack/react-db` (beta - operator-dropped, research A3).
 
-**Storage**: The **client** owns none — all server state lives in the TanStack Query cache
+**Storage**: The **client** owns none - all server state lives in the TanStack Query cache
 (source of truth, Principle VI); the browser holds only the Amplify auth session (its own token
 storage) and a tiny TanStack Store for theme/UI. **New platform storage**: the back-office
 **`admin.staff` / `admin.role` / `admin.staff_role`** tables in the 002 dev DB (PostgreSQL 16),

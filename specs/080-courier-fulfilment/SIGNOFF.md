@@ -1,4 +1,4 @@
-# Sign-off notes: 080 — Courier Fulfilment (via the hub or pickup from the supplier)
+# Sign-off notes: 080 - Courier Fulfilment (via the hub or pickup from the supplier)
 
 ✅ **SIGNED OFF by the operator (2026-10-09).**
 
@@ -11,7 +11,7 @@ under "Not done". Rides 078's model switch: no customer is offered courier deliv
 
 - **Courier services** (back-office → Delivery → Coverage → Courier services): courier, service, what
   customers are told, late after N business days, pickup days + cut-off, collects from suppliers,
-  active/retired, ONE default. **Nothing is seeded** — courier names are the operator's to enter.
+  active/retired, ONE default. **Nothing is seeded** - courier names are the operator's to enter.
   Checkout tells a courier customer the default service's timeframe; the order keeps it and the service
   id. 079's free-text estimate field is gone from the console; courier delivery cannot be switched on
   without an active default service (`no_service`).
@@ -36,7 +36,7 @@ under "Not done". Rides 078's model switch: no customer is offered courier deliv
   (≥ 1 for 2 h; missing data = breaching); the sweep's own failure alarm; PostHog
   `courier_tracking_opened` (customer-web).
 
-## Proofs — each broken once
+## Proofs - each broken once
 
 | # | Broken by | Result |
 |---|---|---|
@@ -65,13 +65,13 @@ P5, P9, P12, P13, P14 ran green and were **not** broken (P12 and P13 are source 
 - `pnpm -r typecheck` clean; `terraform fmt` + `terraform validate` clean; scripts: no-emerald, no-jade,
   no-refresh-timers, shop delivery words, no-phantm.
 
-## Deviations (mine — for the operator to confirm)
+## Deviations (mine - for the operator to confirm)
 
 1. **A switch to "pickup from the supplier" is REFUSED while a driver is assigned to collect a parcel**
-   (`collection_assigned`: "Unassign them first", using 073's Unassign on the order page) — the task
+   (`collection_assigned`: "Unassign them first", using 073's Unassign on the order page) - the task
    said to withdraw the assignment in the same transaction. Assignment changes stay a person's call.
 2. **"Courier problem" = an open failed / lost / damaged / returned only.** A parcel merely overdue with
-   the courier is "Late" on the Courier tab (with the courier) — the package still reads *With carrier* —
+   the courier is "Late" on the Courier tab (with the courier) - the package still reads *With carrier* -
    not a Problem. The alarm covers hub and supplier lateness; overdue-with-courier is counted by the
    sweep (`where=courier`) but not alarmed.
 3. **The `order_with_courier` notification opens the customer's orders, not one order**: its entity is
@@ -82,14 +82,14 @@ P5, P9, P12, P13, P14 ran green and were **not** broken (P12 and P13 are source 
 
 - ⚠ **customer-mobile did not compile after 080's contract regeneration**: quicktype renamed the
   banner-target enum `Kind` → `TargetKind` once `TrackingKind` appeared. `CatalogMappers.kt` and its test
-  now import `TargetKind as Kind`. A future regeneration can rename again — compile the customer app
+  now import `TargetKind as Kind`. A future regeneration can rename again - compile the customer app
   after every `make cm-contract-gen`.
 - **The handover queued a push only**: `appendNotification` writes the push channel; the per-parcel EMAIL
   the order page promises was never enqueued. Now push + email, address snapshotted (052's rule).
 - My own: the default-service read in `shared/src/delivery/coverage.ts` tripped storefront's
-  product-availability guard (`status = 'active'` on a non-product table) — marked
+  product-availability guard (`status = 'active'` on a non-product table) - marked
   `availability-exempt: public.courier_service`, as `zone.ts` / `sameday.ts` are.
-- `shop` pick-list wire never sent 079's `deliveredBy` (an untyped body) — sent now, beside `courierPickup`.
+- `shop` pick-list wire never sent 079's `deliveredBy` (an untyped body) - sent now, beside `courierPickup`.
 - Still open, outside the feature and NOT fixed (079's note): `shop/src/attention/repository.ts`
   `recipientsForShop` names columns that do not exist; its container test is red (shop 484/485).
 
@@ -97,7 +97,7 @@ P5, P9, P12, P13, P14 ran green and were **not** broken (P12 and P13 are source 
 
 - P5, P9, P12, P13, P14 not broken once (see above).
 - iOS builds not compiled here (Android host tests only). The shop app's new screen uses
-  `LocalUriHandler`; Kotlin/Native defers unresolved symbols to runtime — open the order detail on iOS.
+  `LocalUriHandler`; Kotlin/Native defers unresolved symbols to runtime - open the order detail on iOS.
 - The courier survey (E6-T01) is research R12 from general knowledge, unverified.
 
 ## Operator steps (dev)
@@ -115,7 +115,7 @@ make edge-deploy SERVICE=storefront ENV=dev      # bundles the shared delivery m
 make apply ENV=dev                                # courier-late alarms + the sweep's failure alarm
 ```
 
-⚠ **Migrate first** — every service above reads tables and columns the migration adds. Then the web
+⚠ **Migrate first** - every service above reads tables and columns the migration adds. Then the web
 builds (back-office, shop-web, customer-web on push) and the three mobile builds.
 
 ⚠ **Before courier delivery can be offered, add a courier service** and make it the default. If courier

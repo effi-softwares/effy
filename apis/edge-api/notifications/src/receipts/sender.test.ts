@@ -37,7 +37,7 @@ function asInEmail(pageText: string): string {
   return /^(Today|Tomorrow)/.test(pageText) ? pageText.charAt(0).toLowerCase() + pageText.slice(1) : pageText;
 }
 
-describe("arrivalText — one wording with the page", () => {
+describe("arrivalText - one wording with the page", () => {
   it("has cases to run", () => {
     expect(fixture.arrival.length).toBeGreaterThan(10);
   });
@@ -51,14 +51,14 @@ describe("arrivalText — one wording with the page", () => {
   }
 });
 
-describe("arrivalText — one window per order", () => {
+describe("arrivalText - one window per order", () => {
   const now = new Date("2026-10-08T09:00:00+11:00");
   const sameDay: Case["input"] = {
     promisedFrom: "2026-10-08", promisedTo: "2026-10-08",
     windowStart: "2026-10-08T17:00:00+11:00", windowEnd: "2026-10-08T19:00:00+11:00",
   };
 
-  it("an order from three suppliers is ONE delivery, named by its method — no count of shops", () => {
+  it("an order from three suppliers is ONE delivery, named by its method - no count of shops", () => {
     expect(arrivalText([row(sameDay), row(sameDay), row(sameDay)], now)).toEqual({ estimate: "today, 5 pm – 7 pm", method: "Same-day" });
     const later: Case["input"] = {
       promisedFrom: "2026-10-13", promisedTo: "2026-10-13",
@@ -74,7 +74,7 @@ describe("arrivalText — one window per order", () => {
   });
 });
 
-describe("077 — deliveryLinesVars", () => {
+describe("077 - deliveryLinesVars", () => {
   it("labels each line in the checkout's words and formats the amount, the saving negative", () => {
     expect(
       deliveryLinesVars([{ kind: "delivery", amount: "6.00" }, { kind: "window_surcharge", amount: "2.00" }, { kind: "free_delivery", amount: "-8.00" }], "AUD"),
@@ -97,7 +97,7 @@ describe("077 — deliveryLinesVars", () => {
   });
 });
 
-describe("deliveryVars — 079: who delivers decides what the receipt says", () => {
+describe("deliveryVars - 079: who delivers decides what the receipt says", () => {
   const now = new Date("2026-10-08T09:00:00+11:00");
   const window = {
     method: "same_day", promised_from: "2026-10-08", promised_to: "2026-10-08",
@@ -110,9 +110,9 @@ describe("deliveryVars — 079: who delivers decides what the receipt says", () 
     const v = deliveryVars({ delivery_type: "courier", courier_estimate: "2–4 business days" }, [routed, routed], now);
     expect(v).toEqual({
       deliveryLabel: "Courier delivery",
-      deliveryEstimate: "Delivered by a courier partner. Usually arrives in 2–4 business days — an estimate, not a guaranteed date.",
+      deliveryEstimate: "Delivered by a courier partner. Usually arrives in 2–4 business days - an estimate, not a guaranteed date.",
       deliveryMethod: "",
-      deliveryPreheader: "Usually arrives in 2–4 business days — an estimate, not a guaranteed date.",
+      deliveryPreheader: "Usually arrives in 2–4 business days - an estimate, not a guaranteed date.",
     });
     expect(Object.values(v).join(" ")).not.toMatch(/standard|same-day|confirm|today|tomorrow|multiple/i);
   });
@@ -131,7 +131,7 @@ describe("deliveryVars — 079: who delivers decides what the receipt says", () 
   });
 });
 
-describe("deliveryVars — 085: what was sold, not what the packages carry", () => {
+describe("deliveryVars - 085: what was sold, not what the packages carry", () => {
   const now = new Date("2026-10-08T09:00:00+11:00");
   // The Any-time window: an untimed order's packages carry its hours.
   const anyTime = (date: string) => ({
@@ -145,11 +145,11 @@ describe("deliveryVars — 085: what was sold, not what the packages carry", () 
     expect(Object.values(v).join(" ")).not.toMatch(/\b(am|pm)\b/);
   });
 
-  it("⚠ as soon as possible: the estimate, said as one — never the day it was planned for", () => {
+  it("⚠ as soon as possible: the estimate, said as one - never the day it was planned for", () => {
     const v = deliveryVars({ delivery_type: "effy", delivery_promise: "asap", asap_estimate: "usually within 2–3 days" }, [anyTime("2026-10-08")], now);
     expect(v).toEqual({
-      deliveryLabel: "Delivered by Effy", deliveryEstimate: "As soon as possible — usually within 2–3 days", deliveryMethod: "",
-      deliveryPreheader: "As soon as possible — usually within 2–3 days.",
+      deliveryLabel: "Delivered by Effy", deliveryEstimate: "As soon as possible - usually within 2–3 days", deliveryMethod: "",
+      deliveryPreheader: "As soon as possible - usually within 2–3 days.",
     });
     expect(Object.values(v).join(" ")).not.toMatch(/today|\b(am|pm)\b|Oct/);
   });

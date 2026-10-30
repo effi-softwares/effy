@@ -56,7 +56,7 @@ beforeEach(() => {
   vi.clearAllMocks()
 })
 
-describe("StatusControl — the employment lifecycle", () => {
+describe("StatusControl - the employment lifecycle", () => {
   it("offers suspend and offboard for an active driver, and no restore", async () => {
     renderControl()
     expect(screen.getByRole("button", { name: "Suspend…" })).toBeInTheDocument()
@@ -69,7 +69,7 @@ describe("StatusControl — the employment lifecycle", () => {
     expect(screen.getByRole("button", { name: "Restore…" })).toBeInTheDocument()
   })
 
-  it("⚠ offboarded is TERMINAL — no control brings them back, and the screen says why", () => {
+  it("⚠ offboarded is TERMINAL - no control brings them back, and the screen says why", () => {
     renderControl({ ...DRIVER, status: "offboarded" })
     expect(screen.queryByRole("button", { name: /^Restore/ })).not.toBeInTheDocument()
     expect(screen.getByText(/permanently closed/)).toBeInTheDocument()

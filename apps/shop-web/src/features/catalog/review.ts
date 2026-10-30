@@ -52,7 +52,7 @@ interface ProposedRow {
   proposed: string
 }
 
-const text = (v: string | number | null | undefined) => (v === null || v === undefined || v === "" ? "—" : String(v))
+const text = (v: string | number | null | undefined) => (v === null || v === undefined || v === "" ? "-" : String(v))
 
 /** What a pending change proposes, as rows. `categories` names a proposed category when the tree is loaded. */
 export function proposedRows(detail: ProductDetail, categories?: readonly ShopCategory[]): ProposedRow[] {
@@ -79,14 +79,14 @@ export function proposedRows(detail: ProductDetail, categories?: readonly ShopCa
     for (const v of p.variants) {
       const was = live.get(v.id)
       const label = was?.label ?? "Price"
-      if (!was) add("A new size", "—", `${detail.currency} ${v.shopPriceAmount}`)
+      if (!was) add("A new size", "-", `${detail.currency} ${v.shopPriceAmount}`)
       else if (Number(was.shopPriceAmount) !== Number(v.shopPriceAmount))
         add(label, `${detail.currency} ${was.shopPriceAmount}`, `${detail.currency} ${v.shopPriceAmount}`)
       else if ((was.sku ?? "") !== (v.sku ?? "") || (was.gtin ?? "") !== (v.gtin ?? ""))
         add(`${label} codes`, text(was.sku ?? was.gtin), text(v.sku ?? v.gtin))
     }
     for (const v of liveSets)
-      if (!kept.has(v.id)) add(`${v.label ?? "Variant"} (removed)`, `${detail.currency} ${v.shopPriceAmount}`, "—")
+      if (!kept.has(v.id)) add(`${v.label ?? "Variant"} (removed)`, `${detail.currency} ${v.shopPriceAmount}`, "-")
   }
   if (p.primaryCategoryId !== undefined) {
     const to = categories?.find((c) => c.id === p.primaryCategoryId)

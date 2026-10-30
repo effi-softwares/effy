@@ -26,7 +26,7 @@ import kotlinx.coroutines.launch
  *
  * Amplify must be configured before this is used (done at app startup from the in-code config string,
  * D12). Note the interface's deliberate absences: no password write, no global sign-out, no escape
- * hatch — those go to the backend, and the build guard forbids the escape hatch.
+ * hatch - those go to the backend, and the build guard forbids the escape hatch.
  */
 class AmplifyAuthDriver : AuthDriver {
 
@@ -34,7 +34,7 @@ class AmplifyAuthDriver : AuthDriver {
     override val sessionChanges: Flow<Unit> = _sessionChanges.asSharedFlow()
 
     // App-lifetime scope collecting Amplify's Hub, so an SDK-initiated session drop (session expiry, or
-    // the Keystore-failure sign-out — D11) actually fires sessionChanges and SessionManager re-bootstraps.
+    // the Keystore-failure sign-out - D11) actually fires sessionChanges and SessionManager re-bootstraps.
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     init {
@@ -68,7 +68,7 @@ class AmplifyAuthDriver : AuthDriver {
                 accessToken = tokens.accessToken.orEmpty(),
             )
         } else {
-            // Signed in on paper, unusable in practice — clear it rather than leave the two stores
+            // Signed in on paper, unusable in practice - clear it rather than leave the two stores
             // disagreeing. Best-effort: if the purge fails there is nothing further to try here.
             if (session.isSignedIn) runCatching { Amplify.Auth.signOut() }
             null
@@ -86,7 +86,7 @@ class AmplifyAuthDriver : AuthDriver {
 
     override suspend fun signUpPasswordless(email: String): AuthStep =
         step {
-            // No password parameter — Cognito creates a genuinely passwordless user.
+            // No password parameter - Cognito creates a genuinely passwordless user.
             val result = Amplify.Auth.signUp(email, null, signUpOptions(email))
             if (result.isSignUpComplete) autoSignIn() else AuthStep.NeedsSignUpConfirmation(email)
         }
@@ -105,9 +105,9 @@ class AmplifyAuthDriver : AuthDriver {
         // The platform's own SIX-digit code, not Cognito's managed eight-digit EMAIL_OTP
         // (whose length is not configurable by any setting on any object).
         // WITHOUT_SRP, never CUSTOM_AUTH_WITH_SRP: the WITH_SRP variant has a recorded history of
-        // returning done from the first signIn — issuing tokens without presenting the challenge
+        // returning done from the first signIn - issuing tokens without presenting the challenge
         // (amplify-android #2331/#2566, fixed twice, reported recurring).
-        // This is the code route only. The password route above keeps USER_SRP_AUTH — the customer
+        // This is the code route only. The password route above keeps USER_SRP_AUTH - the customer
         // audience is the one audience that may hold a password (constitution v1.7.0).
         val options = AWSCognitoAuthSignInOptions.builder()
             .authFlowType(AuthFlowType.CUSTOM_AUTH_WITHOUT_SRP)
@@ -120,13 +120,13 @@ class AmplifyAuthDriver : AuthDriver {
     }
 
     override suspend fun resendSignUpCode(email: String): AuthStep = step {
-        // Cognito's managed resend — a real API, unlike the sign-in code (see `resendSignInCode`).
+        // Cognito's managed resend - a real API, unlike the sign-in code (see `resendSignInCode`).
         val details = Amplify.Auth.resendSignUpCode(email)
         AuthStep.NeedsSignUpConfirmation(details.destination ?: email)
     }
 
     /**
-     * Not a resend — a fresh sign-in. See the note on `AuthDriver.resendSignInCode`: the custom
+     * Not a resend - a fresh sign-in. See the note on `AuthDriver.resendSignInCode`: the custom
      * challenge has no resend API, `CreateAuthChallenge` reuses its envelope on a re-challenge and
      * sends no email, so only a brand-new `InitiateAuth` produces one.
      */
@@ -156,11 +156,11 @@ class AmplifyAuthDriver : AuthDriver {
      *
      * This is Amplify's own documented recovery ("SignOut the user first before calling signIn"), and
      * it belongs at the driver rather than in a use case: a stale SDK session is an SDK concern. The
-     * closed [AuthError] set has no member for it and should not grow one — the domain has no
+     * closed [AuthError] set has no member for it and should not grow one - the domain has no
      * decision to make here, and the customer certainly does not.
      *
      * Retried exactly once. A second failure is reported, so a genuine invalid-state bug surfaces
-     * instead of spinning. `SignedInException` is matched by type, never by message text — and it is the
+     * instead of spinning. `SignedInException` is matched by type, never by message text - and it is the
      * precise subtype, not its `InvalidStateException` parent, so unrelated invalid states are not
      * retried on the strength of sharing a base class.
      */
@@ -190,7 +190,7 @@ class AmplifyAuthDriver : AuthDriver {
 
     // The `else` below is a silent-failure hazard. Kotlin does not require this `when` to be
     // exhaustive once an `else` exists, so an unhandled Cognito step compiles cleanly and dies at
-    // runtime as an "Unexpected" dead end — no build error, no test failure, just a shopper stuck.
+    // runtime as an "Unexpected" dead end - no build error, no test failure, just a shopper stuck.
     // Every step this app accepts is named explicitly.
     private suspend fun mapSignIn(result: AuthSignInResult): AuthStep = when (result.nextStep.signInStep) {
         AuthSignInStep.DONE -> sessionOrFail()
@@ -216,7 +216,7 @@ class AmplifyAuthDriver : AuthDriver {
             AuthStep.Failed(mapError(e))
         }
 
-    /** Map Amplify exceptions to the closed [AuthError] — matching by simple name to avoid a fragile
+    /** Map Amplify exceptions to the closed [AuthError] - matching by simple name to avoid a fragile
      *  import of every subtype. `UserNotFound` and `NotAuthorized` collapse to one value. */
     private fun mapError(e: Throwable): AuthError = when (e::class.simpleName) {
         "UserNotFoundException", "NotAuthorizedException", "UserNotConfirmedException" -> AuthError.InvalidCredentials

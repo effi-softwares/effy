@@ -120,7 +120,7 @@ data class AuthUiState(
     val submission: AuthSubmission = AuthSubmission.Idle,
     val error: String? = null,
     val info: String? = null,
-    /** The address in play — shown on the code step so the shopper knows where to look. */
+    /** The address in play - shown on the code step so the shopper knows where to look. */
     val email: String = "",
     /** Cognito's masked destination when it gives us one; otherwise the address itself. */
     val maskedDestination: String? = null,
@@ -128,13 +128,13 @@ data class AuthUiState(
     val attemptsUsed: Int = 0,
     /**
      * Codes sent in this flow. The platform allows twenty per address per clock hour and the 21st is
-     * refused while still returning a normal-looking challenge — so the shopper would be shown a code
+     * refused while still returning a normal-looking challenge - so the shopper would be shown a code
      * screen for an email that does not exist. Counting locally is the only honest defence.
      */
     val sendsThisFlow: Int = 0,
     /** Seconds until "send another code" becomes available. */
     val resendRemaining: Int = 0,
-    /** True once the attempt allowance is spent — the session is over, not merely wrong. */
+    /** True once the attempt allowance is spent - the session is over, not merely wrong. */
     val exhausted: Boolean = false,
     val seedPassword: Boolean = false,
     val returnTo: CustomerNavKey? = null,
@@ -148,7 +148,7 @@ data class AuthUiState(
 
 /**
  * The ceiling, the attempt cap and the cooldown now live in
- * `features/auth/domain/OtpFlowRules.kt` as pure functions — see the note there. They were private
+ * `features/auth/domain/OtpFlowRules.kt` as pure functions - see the note there. They were private
  * consts and inline `if`s in this file, which is why the two rules most likely to strand a shopper
  * had no test on either mobile app.
  */
@@ -156,7 +156,7 @@ data class AuthUiState(
 /**
  * The auth flow. Registration (two routes), sign-in (two routes), OTP confirm, recovery.
  * On a terminal step it drives the [session] and navigates via [navigator]. Errors come from the closed
- * [AuthError] set — `UserNotFound` and `NotAuthorized` are the same message, so the app is never
+ * [AuthError] set - `UserNotFound` and `NotAuthorized` are the same message, so the app is never
  * an account-enumeration oracle.
  *
  * Dependencies are **explicit collaborators**, not the whole container (service-locator seam removed).
@@ -185,13 +185,13 @@ class AuthViewModel(
      * The honest refusal for a control that is deliberately not wired.
      *
      * Google is parked: no hosted domain exists, so there is nothing to redirect to. Attempting a real
-     * federated sign-in would surface a generic "something went wrong", which is a lie — nothing went
+     * federated sign-in would surface a generic "something went wrong", which is a lie - nothing went
      * wrong, the capability is not built. Saying which is the whole point of shipping the button now.
      */
     fun showGoogleUnavailable() {
         _state.value = _state.value.copy(
             error = "Google sign-in isn’t available yet. " +
-                "For now, use your email — we’ll send you a code.",
+                "For now, use your email - we’ll send you a code.",
         )
     }
 
@@ -255,7 +255,7 @@ class AuthViewModel(
                     error = null,
                     // Point at the newest email. Two codes can arrive out of order and the older one
                     // no longer works; a shopper reading top-down has no way to tell which is which.
-                    info = "New code sent. Use the most recent email — the older code no longer works.",
+                    info = "New code sent. Use the most recent email - the older code no longer works.",
                     // A resend starts a new Cognito session, whose attempt list is empty.
                     attemptsUsed = tallyAfterResend().used,
                     exhausted = tallyAfterResend().exhausted,
@@ -270,7 +270,7 @@ class AuthViewModel(
             OtpPurpose.SIGN_IN -> drive(AuthSubmission.ConfirmingCode, registration = false) { confirmOtpUseCase(code) }
             OtpPurpose.SIGN_UP -> drive(AuthSubmission.ConfirmingCode, registration = true) { confirmSignUpUseCase(route.email, code) }
             // Recovery has its own screen (code + new password, finished at the backend). This
-            // branch was an empty `{}` — a declared, serialised, round-trip-tested dead branch. It now
+            // branch was an empty `{}` - a declared, serialised, round-trip-tested dead branch. It now
             // says so rather than silently doing nothing when tapped.
             OtpPurpose.RECOVERY ->
                 _state.value = _state.value.copy(error = "Use the reset screen to choose a new password.")
@@ -328,7 +328,7 @@ class AuthViewModel(
 
     // plumbing
 
-    /** Lowercased as well as trimmed — the rate-limit key is `HMAC(email)`. */
+    /** Lowercased as well as trimmed - the rate-limit key is `HMAC(email)`. */
     private fun normalise(email: String) = email.trim().lowercase()
 
     private fun beginFlow(email: String, seedPassword: Boolean, returnTo: CustomerNavKey?) {
@@ -391,7 +391,7 @@ class AuthViewModel(
                     )
                 }
                 is AuthStep.Failed -> {
-                    // A refused code is not a generic failure — it costs one of three attempts, and
+                    // A refused code is not a generic failure - it costs one of three attempts, and
                     // the third ends the session rather than merely being wrong.
                     val codeRefused = step.error == AuthError.CodeIncorrect ||
                         step.error == AuthError.CodeExpired
@@ -419,7 +419,7 @@ class AuthViewModel(
         val returnTo = _state.value.returnTo
         navigator.resetToRoot()
         when {
-            // They were interrupted mid-task — put them back exactly there.
+            // They were interrupted mid-task - put them back exactly there.
             returnTo != null && returnTo !in CUSTOMER_TAB_ROOTS -> navigator.push(returnTo)
             // They tapped a gated TAB and were asked to sign in instead of being shown a dead gate.
             // Take them to the thing they actually pressed. `resetToRoot` has already
@@ -450,7 +450,7 @@ class AuthViewModel(
             if (passwordRoute) "That email or password isn't right."
             else "That didn't work. Send a new code and try again."
         // "wasn't accepted", not "is wrong". On the sign-in route the platform genuinely cannot tell
-        // a mistyped code from an expired or superseded one — the trigger computes a reason and
+        // a mistyped code from an expired or superseded one - the trigger computes a reason and
         // discards it so the answer cannot be used to discover who has an account.
         AuthError.CodeIncorrect -> "That code wasn't accepted. Check it and try again."
         AuthError.CodeExpired -> "That code has expired. Send another one."
@@ -503,13 +503,13 @@ private fun AuthScaffold(
     subtitle: String,
     state: AuthUiState,
     /**
-     * The screen's bottom group — pinned above the keyboard, in the thumb's reach.
+     * The screen's bottom group - pinned above the keyboard, in the thumb's reach.
      *
      * Two different things go here, and which one depends on the screen. On a screen with one
      * committing action (the code step, the name step, a password step) it is that action. On a
      * screen offering several routes (sign-in step 1, sign-up step 1) the actions belong with the
-     * fields they act on, and this holds only the opposite-journey link — "Don't have an account?
-     * Join" — which is genuinely a footer.
+     * fields they act on, and this holds only the opposite-journey link - "Don't have an account?
+     * Join" - which is genuinely a footer.
      */
     bottomBar: (@Composable ColumnScope.() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
@@ -539,7 +539,7 @@ private fun AuthScaffold(
                 .padding(bottom = EffySpacing.xxxl),
         ) {
             // Effy is guest-first, so this is an adaptation of the source and not a copy of it. In
-            // the kit the login screen IS the app's root — nothing precedes it, so it needs no way
+            // the kit the login screen IS the app's root - nothing precedes it, so it needs no way
             // back. Here sign-in is pushed over whatever the shopper was doing, and abandoning it
             // must be possible: without this arrow a guest who tapped Orders was left in the flow
             // with the tab bar hidden. It draws only when there is somewhere to return to.
@@ -567,7 +567,7 @@ private fun AuthScaffold(
             // Group 2: what you do here
             Column(verticalArrangement = Arrangement.spacedBy(EffySpacing.lg)) {
                 content()
-                // An error is black with an icon — the storefront has no red.
+                // An error is black with an icon - the storefront has no red.
                 state.error?.let { EffyInlineError(it) }
                 state.info?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 // No page-level spinner. It used to sit here, loose in the column: it could not say
@@ -597,12 +597,12 @@ private fun SignInScreen(container: AppContainer, vm: AuthViewModel, returnTo: C
             })
         },
     ) {
-        // 087 (Auth board, from checkout) — a shopper sent here by Checkout is told their cart waits
+        // 087 (Auth board, from checkout) - a shopper sent here by Checkout is told their cart waits
         // and where they will land. True only because sign-in really does return to checkout
         // (`returnTo`) and the guest cart is merged into the account on sign-in.
         if (returnTo == CustomerNavKey.Checkout) {
             EffyNotice(
-                "Your cart is saved — sign in and we'll take you straight back to checkout.",
+                "Your cart is saved - sign in and we'll take you straight back to checkout.",
                 icon = Res.drawable.lucide_shopping_cart,
             )
         }
@@ -620,7 +620,7 @@ private fun SignInScreen(container: AppContainer, vm: AuthViewModel, returnTo: C
             loading = state.busyWith(AuthSubmission.SendingCode),
         )
         EffyOrDivider()
-        // The source design offers Google and Facebook. Facebook stays dropped — it is not
+        // The source design offers Google and Facebook. Facebook stays dropped - it is not
         // an Effy credential route. Google is offered because the operator asked for the control now
         // and the capability later; tapping it says so plainly rather than failing generically.
         // Shown only when Google sign-in actually works (it is parked; see AppConfig).
@@ -638,7 +638,7 @@ private fun SignInScreen(container: AppContainer, vm: AuthViewModel, returnTo: C
 }
 
 /**
- * Sign-in, step 2 — the password (036 FR-018 … FR-020).
+ * Sign-in, step 2 - the password (036 FR-018 … FR-020).
  *
  * The address is displayed, never asked again: the previous step already has it.
  */
@@ -693,7 +693,7 @@ private fun SignUpScreen(container: AppContainer, vm: AuthViewModel) {
     var email by remember { mutableStateOf("") }
     AuthScaffold(
         title = "Create your account",
-        subtitle = "Start with your email — we’ll do the rest in a moment.",
+        subtitle = "Start with your email - we’ll do the rest in a moment.",
         state = state,
         bottomBar = {
             EffyInlineLink("Already have an account?", "Sign in", onClick = {
@@ -760,7 +760,7 @@ private fun SignUpPasswordScreen(
         },
     ) {
         // The rule is stated before they type, and it is the rule the platform actually enforces.
-        // No composition rules — current NIST guidance is that they are actively harmful.
+        // No composition rules - current NIST guidance is that they are actively harmful.
         EffyPasswordField(
             "Password",
             password,
@@ -768,7 +768,7 @@ private fun SignUpPasswordScreen(
             placeholder = "At least $PASSWORD_MIN_LENGTH characters",
         )
         Text(
-            "At least $PASSWORD_MIN_LENGTH characters. Use anything you like — no special characters required.",
+            "At least $PASSWORD_MIN_LENGTH characters. Use anything you like - no special characters required.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -809,7 +809,7 @@ private fun VerifyOtpScreen(container: AppContainer, vm: AuthViewModel, route: C
     val state by vm.state.collectAsState()
     var code by remember { mutableStateOf("") }
 
-    // The attempt is over — a step, not a toast. The Cognito session really is finished, so leaving
+    // The attempt is over - a step, not a toast. The Cognito session really is finished, so leaving
     // a form that still looks usable would invite typing into nothing.
     if (state.exhausted) {
         AuthScaffold(
@@ -883,7 +883,7 @@ private fun VerifyOtpScreen(container: AppContainer, vm: AuthViewModel, route: C
  * The terms notice shown wherever an account is actually created.
  *
  * It sits above the button, not below it. Below is the commoner convention, but this button is
- * pinned to the bottom of the screen — so below it would be the last thing pushed off-screen or under
+ * pinned to the bottom of the screen - so below it would be the last thing pushed off-screen or under
  * the keyboard, and "reasonably conspicuous notice" is precisely the limb that inquiry-notice
  * contracts fail on (*Berman v. Freedom Financial*, 9th Cir. 2022, where the terms were "tiny gray
  * font"). Above the action it is always visible at the moment of assent.
@@ -891,13 +891,13 @@ private fun VerifyOtpScreen(container: AppContainer, vm: AuthViewModel, route: C
  * It names two documents, not three. The familiar "Terms, Privacy Policy and Cookie Use" string is
  * a US framing: cookie/tracking consent requires a prior affirmative act under ePrivacy and cannot
  * ride on a passive sentence, so bundling it here would be non-compliant in the eu/uk. Terms are
- * "agreed"; a privacy policy is "acknowledged" — it is a notice, not a thing one consents to.
+ * "agreed"; a privacy policy is "acknowledged" - it is a notice, not a thing one consents to.
  *
  * Full-contrast text, deliberately not `onSurfaceVariant`. Small size combined with low contrast is
  * the exact failure a court criticised, and the muted step is the tempting choice on a neutral ramp.
  *
  * Not tappable on mobile yet, and that is recorded rather than faked. There is no legal screen in
- * this app and no storefront base URL in its build config — `requiredKeys` carries the two API hosts
+ * this app and no storefront base URL in its build config - `requiredKeys` carries the two API hosts
  * and nothing else, so adding one would fail every existing build until each developer updated their
  * `secrets.properties`. The documents are named so the notice is honest; wiring the links needs the
  * config key (or in-app legal routes) and is its own small task. Web links to the real routes.
@@ -937,11 +937,11 @@ private fun ResendControl(state: AuthUiState, onResend: () -> Unit) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         // A text action, not a bordered button. Resending is a recovery affordance, not a route
-        // through the flow — giving it the same weight as "Use a password instead" made two very
+        // through the flow - giving it the same weight as "Use a password instead" made two very
         // different things look equally likely, and put a second full-width bordered control directly
         // above the committing action. `EffyInlineLink` still carries the 48 dp touch target and an
         // underline, which is what makes it legible as an action on a palette with no brand hue.
-        // `Busy` renders the same control, inert — not a different one. A request in flight is a
+        // `Busy` renders the same control, inert - not a different one. A request in flight is a
         // reason not to accept a second tap, not a reason for the affordance to appear or vanish; a row
         // that swaps its content while the shopper waits is what made submitting a code look like it
         // had reset the resend clock.
@@ -1032,7 +1032,7 @@ private fun RecoveryScreen(container: AppContainer, vm: AuthViewModel) {
                 EffyPrimaryButton(
                     "Continue",
                     onClick = { step = RecoveryStep.Password },
-                    // Exactly six digits — a longer paste is kept and refused, never reshaped.
+                    // Exactly six digits - a longer paste is kept and refused, never reshaped.
                     enabled = !state.loading && isCompleteOtp(code),
                 )
                 EffySecondaryButton(
@@ -1055,7 +1055,7 @@ private fun RecoveryScreen(container: AppContainer, vm: AuthViewModel) {
 
         RecoveryStep.Password -> AuthScaffold(
             title = "Choose a new password",
-            subtitle = "Almost done — pick something you’ll remember.",
+            subtitle = "Almost done - pick something you’ll remember.",
             state = state,
             bottomBar = {
                 EffyPrimaryButton(
@@ -1074,7 +1074,7 @@ private fun RecoveryScreen(container: AppContainer, vm: AuthViewModel) {
                 placeholder = "At least $PASSWORD_MIN_LENGTH characters",
             )
             Text(
-                "At least $PASSWORD_MIN_LENGTH characters. Use anything you like — no special characters required.",
+                "At least $PASSWORD_MIN_LENGTH characters. Use anything you like - no special characters required.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

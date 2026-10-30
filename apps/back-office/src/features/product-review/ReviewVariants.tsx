@@ -24,13 +24,13 @@ function variantColumns(
   return [
     ...(named
       ? [
-          {
-            id: "size",
-            header: "Size",
-            cell: ({ row }) => <span className="font-medium">{row.original.label ?? "—"}</span>,
-            meta: { label: "Size", identifying: true, phone: "primary" },
-          } satisfies EffyColumnDef<ReviewVariantDTO>,
-        ]
+        {
+          id: "size",
+          header: "Size",
+          cell: ({ row }) => <span className="font-medium">{row.original.label ?? "-"}</span>,
+          meta: { label: "Size", identifying: true, phone: "primary" },
+        } satisfies EffyColumnDef<ReviewVariantDTO>,
+      ]
       : []),
     {
       id: "code",
@@ -41,13 +41,13 @@ function variantColumns(
     {
       id: "sku",
       header: "Shop code",
-      cell: ({ row }) => <span className="text-xs">{row.original.sku ?? "—"}</span>,
+      cell: ({ row }) => <span className="text-xs">{row.original.sku ?? "-"}</span>,
       meta: { label: "Shop code", align: "mono", priority: 2 },
     },
     {
       id: "gtin",
       header: "Barcode",
-      cell: ({ row }) => <span className="text-xs">{row.original.gtin ?? "—"}</span>,
+      cell: ({ row }) => <span className="text-xs">{row.original.gtin ?? "-"}</span>,
       meta: { label: "Barcode", align: "mono", priority: 3 },
     },
     {
@@ -99,7 +99,7 @@ function variantColumns(
       id: "pack",
       header: "Pack",
       cell: ({ row }) =>
-        row.original.packQuantity ? `${Number(row.original.packQuantity)} ${row.original.packUnit ?? ""}` : "—",
+        row.original.packQuantity ? `${Number(row.original.packQuantity)} ${row.original.packUnit ?? ""}` : "-",
       meta: { label: "Pack", priority: 2 },
     },
     {
@@ -157,7 +157,7 @@ export function ReviewVariants({
                 {v.details.map((d) => (
                   <div key={d.label} className="ef-dl__row">
                     <dt>{d.label}</dt>
-                    <dd className="whitespace-pre-line wrap-break-word">{d.value ?? "—"}</dd>
+                    <dd className="whitespace-pre-line wrap-break-word">{d.value ?? "-"}</dd>
                   </div>
                 ))}
               </dl>

@@ -39,7 +39,7 @@ export function OnDuty() {
           <>
             <span className="min-w-0 flex-1 text-xs text-muted-foreground">
               {late.driverName}'s shift is running long
-              {late.expectedEndAt ? ` — expected to finish ${at12(late.expectedEndAt)}` : ""}.
+              {late.expectedEndAt ? ` - expected to finish ${at12(late.expectedEndAt)}` : ""}.
             </span>
             <Button variant="outline" size="sm" asChild>
               <Link to="/drivers/$driverId" params={{ driverId: late.driverId }}>
@@ -66,7 +66,7 @@ export function OnDuty() {
             const round = day.data?.rounds.find((r) => r.driverId === d.driverId)
             const isBlocked = blocked.has(d.driverName)
             const doing = isBlocked
-              ? "Vehicle check found it unsafe — no work until cleared"
+              ? "Vehicle check found it unsafe - no work until cleared"
               : round
                 ? `${round.round.kind === "collection" ? "Collection run" : "Delivery round"}${round.stageLabel ? ` · ${round.stageLabel}` : ""} · ${round.stopsRemaining} stops left`
                 : "Nothing assigned yet"

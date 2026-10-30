@@ -1,10 +1,10 @@
-# Data model — 084
+# Data model - 084
 
 **No table, column or migration.** Everything below is a read shape over existing data.
 
 ## Wire shapes (in `@effy/shared-types`)
 
-### `PromotionListDTO` — new (`GET /storefront/v1/promotions`)
+### `PromotionListDTO` - new (`GET /storefront/v1/promotions`)
 
 | Field | Type | Note |
 | --- | --- | --- |
@@ -12,7 +12,7 @@
 
 `PromotionDTO` is unchanged (id, title, subtitle, imageUrl, code, terms, validity).
 
-### `SuggestionsDTO` — new (`GET /storefront/v1/suggestions?q=`)
+### `SuggestionsDTO` - new (`GET /storefront/v1/suggestions?q=`)
 
 | Field | Type | Note |
 | --- | --- | --- |
@@ -21,7 +21,7 @@
 
 Validation: `q` trimmed, 2–64 characters; shorter → empty lists, 200.
 
-### `OrderSummaryDTO` — extended (`GET /commerce/v1/orders`)
+### `OrderSummaryDTO` - extended (`GET /commerce/v1/orders`)
 
 | Field | Type | Note |
 | --- | --- | --- |
@@ -33,9 +33,9 @@ Both optional: installed mobile apps and an older server keep working.
 ## View models (customer-web only, never on the wire)
 
 - **Delivery bar**: `{ label, postcode, deliveredBy: "effy" | "courier" | "none" } | null`.
-- **Account overview**: `{ me, activeOrder?, points?, saved: { count, priceDrops, backInStock }, defaultAddress?, defaultCard?, recentOrders[] }` — each part independently absent.
+- **Account overview**: `{ me, activeOrder?, points?, saved: { count, priceDrops, backInStock }, defaultAddress?, defaultCard?, recentOrders[] }` - each part independently absent.
 - **Home shortcuts**: derived from the same reads; a shortcut with nothing true is not rendered.
-- **Help answer**: `{ id, topic, question, answer }` — authored in the app.
+- **Help answer**: `{ id, topic, question, answer }` - authored in the app.
 
 ## State
 

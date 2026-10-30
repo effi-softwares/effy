@@ -14,19 +14,19 @@ import kotlinx.coroutines.sync.withLock
  *
  * The two halves
  *
- * **Reading** ([refresh]) — brings the mirror up to date:
+ * **Reading** ([refresh]) - brings the mirror up to date:
  *  - signed in → `GET /v1/cart`; the account cart IS the truth, adopted by revision.
  *  - guest → `POST /v1/cart/preview`; a guest has no server cart, so the platform prices the
  *  device's own lines and writes nothing.
  *
- * **Writing** ([submit]) — sends what the shopper did. This is the half that makes a cart built on one
+ * **Writing** ([submit]) - sends what the shopper did. This is the half that makes a cart built on one
  * device appear on another: without it the mirror was durable but private, and a shopper signing in
  * on a second device would correctly see nothing, because nothing had ever been sent.
  *
  * Three rules
  *
  *  1. **A guest sends nothing.** There is no server cart to send to. Their whole cart goes across once, at
- *  sign-in, via the merge — which is why [submit] is a no-op for a guest rather than a queued failure.
+ *  sign-in, via the merge - which is why [submit] is a no-op for a guest rather than a queued failure.
  *  2. **The queue drains in order, one at a time.** A remove followed by an add on the same product must
  *  not race; the [Mutex] is what stops two drains interleaving into a cart neither the shopper nor the
  *  platform asked for.
@@ -34,7 +34,7 @@ import kotlinx.coroutines.sync.withLock
  *  class just hands it every answer it gets.
  *
  * A failure never destroys anything. A network error leaves the change queued for the next trigger; a
- * definitive refusal (a 4xx — the product went away, the cart is full) marks it dead so it is not retried
+ * definitive refusal (a 4xx - the product went away, the cart is full) marks it dead so it is not retried
  * forever, and the mirror reconciles to the platform's actual contents.
  *
  * Debouncing, backoff and the offline drain-on-launch are US4. This drains eagerly and retries on the
@@ -58,7 +58,7 @@ class CartSyncCoordinator(
 
     init {
         // A change made before a force-quit is on disk, not in memory. Without this it would sit there
-        // until the shopper happened to touch the cart again — so an edit made in a tunnel, followed by the
+        // until the shopper happened to touch the cart again - so an edit made in a tunnel, followed by the
         // app being killed, would silently never reach the platform.
         scope.launch { drain() }
     }
@@ -69,7 +69,7 @@ class CartSyncCoordinator(
      * Bring the mirror up to date. Safe to call on every cart open and every app foreground.
      *
      * Returns true when the mirror changed. A false means either nothing was newer or the platform could
-     * not be reached — and the caller does not need to care, because either way the mirror is still the
+     * not be reached - and the caller does not need to care, because either way the mirror is still the
      * best available answer and still what the UI shows.
      */
     suspend fun refresh(): Boolean =
@@ -88,7 +88,7 @@ class CartSyncCoordinator(
                 }
             }
         } catch (e: AppException) {
-            // Offline, or the platform is unreachable. Keep what we hold — "we could not check" must never
+            // Offline, or the platform is unreachable. Keep what we hold - "we could not check" must never
             // read to the shopper as "you have nothing".
             false
         }
@@ -110,13 +110,13 @@ class CartSyncCoordinator(
     }
 
     /**
-     * Record a repeated change — a quantity stepper — and send only what the shopper settles on.
+     * Record a repeated change - a quantity stepper - and send only what the shopper settles on.
      *
      * Ten taps in two seconds produce one request: each tap replaces the queued value and
      * restarts a short timer, and only the last one is ever sent. Per product, so adjusting one line never
      * holds up another.
      *
-     * The mirror has already moved by the time this is called, so the debounce is invisible — the shopper
+     * The mirror has already moved by the time this is called, so the debounce is invisible - the shopper
      * sees every tap immediately and the network sees only the answer.
      */
     fun submitDebounced(change: PendingChange) {
@@ -196,7 +196,7 @@ class CartSyncCoordinator(
      * blip silently loses the shopper's change.
      *
      * `Unauthenticated` counts as retryable, and that is a lesson paid for. A rejected token is not the
-     * shopper's mistake and not permanent — an expired access token, a refresh in flight, or a service
+     * shopper's mistake and not permanent - an expired access token, a refresh in flight, or a service
      * configured to accept the wrong app client all produce it, and all are fixed without the shopper
      * doing anything. Treating it as final marked every queued change dead and discarded the shopper's
      * work over something that would have healed on the next attempt.

@@ -50,7 +50,7 @@ function ThresholdForm({ saved }: { saved: string }) {
     <section className="space-y-2">
       <h2 className="text-sm font-semibold">Default low-stock threshold</h2>
       <p className="text-sm text-muted-foreground">
-        Applies to every tracked product without its own threshold. Leave blank to clear it — nothing is then reported
+        Applies to every tracked product without its own threshold. Leave blank to clear it - nothing is then reported
         as running low, though a product that reaches zero is still reported as out of stock.
       </p>
       <div className="flex items-end gap-3">

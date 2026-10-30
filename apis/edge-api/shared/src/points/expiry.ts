@@ -21,7 +21,7 @@ export function expiresAtFor(creditedAt: Date, expiryMonths: number): Date {
   return instantAtLocalTime(y, m, d + 1, 0, 0);
 }
 
-/** The Melbourne date an `expires_at` instant is last usable on — what the customer is told. */
+/** The Melbourne date an `expires_at` instant is last usable on - what the customer is told. */
 export function lastUsableDateOf(expiresAt: Date): string {
   const { year, month, day } = localDateParts(new Date(expiresAt.getTime() - 1000));
   return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;

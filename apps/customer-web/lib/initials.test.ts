@@ -26,14 +26,14 @@ describe("initialsFor", () => {
     expect(initialsFor("   ", "  ")).toBeNull()
   })
 
-  // `str[0]` on this returns half an emoji — a lone surrogate, which renders as a replacement
+  // `str[0]` on this returns half an emoji - a lone surrogate, which renders as a replacement
   // glyph. This is the single most common initials bug in the wild.
   it("NEVER returns half an emoji", () => {
     expect(initialsFor("👨‍👩‍👧", "Smith")).toBe("S") // the emoji yields nothing; the surname still works
     expect(initialsFor("🎉", null)).toBeNull()
   })
 
-  // A single CJK/Arabic/Devanagari character is not an "initial" — it is the name, or a fragment of
+  // A single CJK/Arabic/Devanagari character is not an "initial" - it is the name, or a fragment of
   // one. We do not have a defensible algorithm for scripts we cannot reason about, so we decline.
   it("falls back to the neutral glyph for non-Latin scripts rather than mangling them", () => {
     expect(initialsFor("李", "明")).toBeNull()
@@ -44,7 +44,7 @@ describe("initialsFor", () => {
 
   // Turkish: dotless ı uppercases to İ in tr, to I in en. `toLocaleUpperCase` gets this right;
   // `toUpperCase` does not. We assert only that a letter comes back, since the runtime locale
-  // decides which — the point is that it is not dropped and not mangled.
+  // decides which - the point is that it is not dropped and not mangled.
   it("handles the Turkish dotless i without dropping the initial", () => {
     expect(initialsFor("ırmak", "Yılmaz")).toMatch(/^.Y$/u)
   })

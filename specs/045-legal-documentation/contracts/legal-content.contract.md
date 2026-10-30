@@ -16,7 +16,7 @@ identifiers: RealWorldIdentifiers    // tokens; unresolved placeholders are lega
 
 - Markdown is a **constrained subset**: headings (`#`–`###`), paragraphs, `**bold**`/`*italic*`,
   ordered/unordered lists, links, and pipe tables (refund matrix only). Anything outside the subset is
-  a content error the renderer tests reject — both renderers (web R2, mobile R3) support exactly this
+  a content error the renderer tests reject - both renderers (web R2, mobile R3) support exactly this
   subset so a document cannot render on one surface and break on the other.
 - No runtime/network access. Pure data compiled at build time.
 
@@ -29,13 +29,13 @@ identifiers: RealWorldIdentifiers    // tokens; unresolved placeholders are lega
 ## Guard: `legal:check` (rides `pnpm test` / the repo gate)
 
 MUST fail, and name what is wrong, when any of:
-1. **Drift** — the committed mobile content differs from a fresh `legal:gen` (web ↔ mobile parity, FR-013).
-2. **Unresolved identifier** — any `[UPPER_SNAKE]` placeholder remains in generated web or mobile output
+1. **Drift** - the committed mobile content differs from a fresh `legal:gen` (web ↔ mobile parity, FR-013).
+2. **Unresolved identifier** - any `[UPPER_SNAKE]` placeholder remains in generated web or mobile output
    (constitution "fail loudly", FR-009).
-3. **Manifest integrity** — a `manifest` slug with no document dir/current file, or a document not in the
+3. **Manifest integrity** - a `manifest` slug with no document dir/current file, or a document not in the
    manifest.
-4. **Subset violation** — `body` uses Markdown outside the supported subset.
-5. **Broken internal link** — a document links to a `/legal/*` slug or route that does not exist.
+4. **Subset violation** - `body` uses Markdown outside the supported subset.
+5. **Broken internal link** - a document links to a `/legal/*` slug or route that does not exist.
 
 Proven the way it will break (the platform's guard doctrine): the guard is demonstrated by (a) editing
 one generated mobile line → drift fails; (b) leaving one placeholder → identifier check fails; (c)

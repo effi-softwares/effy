@@ -1,4 +1,4 @@
-# Runbook — moving an order to courier (081)
+# Runbook - moving an order to courier (081)
 
 An emergency move of a paid "Delivered by Effy" order to courier delivery, and back. The console side is
 in [order-console-guide.md](../order-console-guide.md#moving-an-order-between-effy-and-courier-081).
@@ -12,7 +12,7 @@ alarms (`<prefix>-delivery-overrides-daily`).
 
 ## Before it works
 
-- The **new delivery model** must be on — orders placed before it have no delivery type and cannot be
+- The **new delivery model** must be on - orders placed before it have no delivery type and cannot be
   moved.
 - Delivery → **Pricing**: an active **courier fee table** (the move compares it with what the customer
   paid).
@@ -26,7 +26,7 @@ alarms (`<prefix>-delivery-overrides-daily`).
 | Free delivery, as points | A bad week, a repeat failure | Points worth the whole delivery charge |
 | Free delivery, back to the card | The customer asked for money back | The whole delivery charge refunded |
 | Refund the difference | Last resort | The difference refunded |
-| Nothing (say why) | The difference is $0 and no gesture is warranted | Nothing — they are still told |
+| Nothing (say why) | The difference is $0 and no gesture is warranted | Nothing - they are still told |
 
 Points are credited at once. A card refund is recorded with the move and sent straight after.
 

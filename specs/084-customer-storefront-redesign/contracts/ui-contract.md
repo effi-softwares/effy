@@ -1,4 +1,4 @@
-# UI contract — 084
+# UI contract - 084
 
 The reference (`docs/reference-screens/`) is the visual authority. This file fixes what code must
 agree on so that forty screens come out as one site.
@@ -14,7 +14,7 @@ agree on so that forty screens come out as one site.
 | `border` / `input` | `#e4e4e7` | every line |
 | `primary` / `ring` | `#1d4ed8` (+ `primary-foreground` white, `primary-muted` `#eff4ff`) | actions, links, selection, points, courier |
 | `brand` | `#0d7a40` (+ `brand-foreground` white, `brand-muted` `#ebf6ef`) | wordmark dot, Sale, savings, Delivered by Effy, paid, progress |
-| `destructive` | `#09090b` (+ white) | errors, destructive — always with an icon |
+| `destructive` | `#09090b` (+ white) | errors, destructive - always with an icon |
 | radius | sm 4 · md 6 · lg 8 · xl 12 | controls md; cards/dialogs/wells lg; hero xl |
 | shadow | xs (buttons, inputs, cards) · md (popovers) · lg (dialogs, sheets, toasts) | |
 
@@ -36,7 +36,7 @@ icon), Card, Badge, Alert, Separator, Skeleton, Progress, Avatar, Input, Textare
 RadioCard, Switch, Select, ToggleGroup, InputOTP, Tabs, Accordion, Breadcrumb, Pagination, Table,
 Tooltip, DropdownMenu, Dialog, AlertDialog, Sheet, Drawer, ResponsiveDialog, Command, Toast.
 
-**Rule**: a centred Dialog or right Sheet at `md` and up is a bottom Drawer below — always through
+**Rule**: a centred Dialog or right Sheet at `md` and up is a bottom Drawer below - always through
 `ResponsiveDialog`, never decided per screen.
 
 ## Composites (`components/storefront`, `components/chrome`)
@@ -71,7 +71,7 @@ Tooltip, DropdownMenu, Dialog, AlertDialog, Sheet, Drawer, ResponsiveDialog, Com
 
 - Every `data-testid` an e2e spec relies on keeps its meaning (renamed only with its spec).
 - Pinned words come from `@effy/shared-types` (`DELIVERY_TYPE_WORDS`, `DELIVERY_WINDOW_WORDS`,
-  `effyWindowsView`, `COVERAGE_REFUSAL_SENTENCE`, `STATUS_WORD`, fee lines) — never retyped.
+  `effyWindowsView`, `COVERAGE_REFUSAL_SENTENCE`, `STATUS_WORD`, fee lines) - never retyped.
 - Sign-out stays a POST form. Live updates stay on `LiveRefresh`. No timers.
 - JSON-LD, metadata, `sitemap.ts`, `robots.ts`, `manifest.ts` keep their content (manifest colours
   and icons move to the new identity).

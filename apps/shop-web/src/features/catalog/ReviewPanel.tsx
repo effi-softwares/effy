@@ -30,8 +30,8 @@ import { taxonomyQuery, useWithdrawReview } from "./queries"
 import { proposedRows } from "./review"
 
 /**
- * Where the product stands with Effy, as one strip under the page head: Effy's hold first (102) — it decides whether
- * the product sells, whatever review says — then the review. A change names what it changes, each a jump to where the
+ * Where the product stands with Effy, as one strip under the page head: Effy's hold first (102) - it decides whether
+ * the product sells, whatever review says - then the review. A change names what it changes, each a jump to where the
  * page marks it; the side-by-side lives in a dialog.
  */
 export function ReviewPanel({ detail }: { detail: ProductDetail }) {
@@ -40,7 +40,7 @@ export function ReviewPanel({ detail }: { detail: ProductDetail }) {
       {detail.hold ? (
         <Banner tone="problem" icon={Hand} role="region" label="Held by Effy" title="Held by Effy">
           <p>
-            Effy has taken it off sale. Customers can't find or buy it until Effy releases it. You can still edit it —
+            Effy has taken it off sale. Customers can't find or buy it until Effy releases it. You can still edit it -
             changes go to Effy for review as usual.
           </p>
           <BannerQuote>{detail.hold.reason}</BannerQuote>
@@ -118,9 +118,9 @@ function ReviewState({ detail }: { detail: ProductDetail }) {
       actions={
         isChange
           ? [
-              ...(rows.length > 0 ? [{ label: "Compare", primary: true, onClick: () => setComparing(true) }] : []),
-              { label: "Discard change", disabled: withdraw.isPending, onClick: discard },
-            ]
+            ...(rows.length > 0 ? [{ label: "Compare", primary: true, onClick: () => setComparing(true) }] : []),
+            { label: "Discard change", disabled: withdraw.isPending, onClick: discard },
+          ]
           : undefined
       }
     >
@@ -155,9 +155,9 @@ function ReviewState({ detail }: { detail: ProductDetail }) {
                   const section = sectionOf(r.label)
                   const go = section
                     ? () => {
-                        setComparing(false)
-                        document.getElementById(section)?.scrollIntoView({ block: "start" })
-                      }
+                      setComparing(false)
+                      document.getElementById(section)?.scrollIntoView({ block: "start" })
+                    }
                     : undefined
                   return (
                     <TableRow key={r.label} className={cn("align-top", go && "cursor-pointer")} onClick={go}>
@@ -173,7 +173,7 @@ function ReviewState({ detail }: { detail: ProductDetail }) {
                           >
                             {chipOf(r.label)}
                             <ArrowRight aria-hidden="true" className="size-3.5 text-muted-foreground" />
-                            <span className="sr-only">— go to it on the page</span>
+                            <span className="sr-only">- go to it on the page</span>
                           </button>
                         ) : (
                           chipOf(r.label)

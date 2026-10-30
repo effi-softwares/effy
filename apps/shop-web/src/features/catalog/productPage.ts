@@ -39,7 +39,7 @@ export function shopSizes(detail: ProductDetail): SizeView[] {
     })
 }
 
-/** "AUD 9.50 – AUD 38.00" over the sizes on sale (every size when none is), or "—". */
+/** "AUD 9.50 – AUD 38.00" over the sizes on sale (every size when none is), or "-". */
 export function priceRange(detail: ProductDetail, amount: (s: SizeView) => string | null): string {
   const sizes = shopSizes(detail)
   const pool = sizes.some((s) => s.onSale) ? sizes.filter((s) => s.onSale) : sizes
@@ -47,7 +47,7 @@ export function priceRange(detail: ProductDetail, amount: (s: SizeView) => strin
     .map(amount)
     .filter((a): a is string => a !== null)
     .map(Number)
-  if (amounts.length === 0) return "—"
+  if (amounts.length === 0) return "-"
   const lo = Math.min(...amounts).toFixed(2)
   const hi = Math.max(...amounts).toFixed(2)
   return lo === hi
@@ -101,8 +101,8 @@ const PRICE = /^\d+(\.\d{1,2})?$/
 
 /**
  * The sizes on sale as the preview shows them, from the product as the shop is editing it: a size whose price is
- * changing (in the spreadsheet now, or with Effy) shows the shop's new price — what customers pay is Effy's to set on
- * approval — and the others what customers pay today.
+ * changing (in the spreadsheet now, or with Effy) shows the shop's new price - what customers pay is Effy's to set on
+ * approval - and the others what customers pay today.
  */
 export function shopPreviewSizes(detail: ProductDetail, typed: Readonly<Record<string, string>> | null): PreviewSize[] {
   return shopSizes(detail)
@@ -116,7 +116,7 @@ export function shopPreviewSizes(detail: ProductDetail, typed: Readonly<Record<s
           id: s.id,
           label: s.label,
           price: PRICE.test(yours) ? formatMoney(Number(yours).toFixed(2), detail.currency) : null,
-          priceNote: "Your price — Effy sets what customers pay when it approves",
+          priceNote: "Your price - Effy sets what customers pay when it approves",
           unitPrice: null,
           soldOut: s.stock.out,
         }

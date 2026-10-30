@@ -33,7 +33,7 @@ import platform.posix.memcpy
 /**
  * iOS photo capture through the system camera (`UIImagePickerController`).
  *
- * This returned `null`, and the proof screen's shutter calls it — so on iOS the shutter did
+ * This returned `null`, and the proof screen's shutter calls it - so on iOS the shutter did
  * nothing. Photo proof was impossible, and so was a contactless drop, which must be photographed:
  * an iOS driver could complete a delivery by signature only.
  *
@@ -41,7 +41,7 @@ import platform.posix.memcpy
  * full-resolution camera frame is several times the upload ceiling, and proof needs to be legible,
  * not large.
  *
- * A device with no camera — the simulator — falls back to the photo library so the flow can be
+ * A device with no camera - the simulator - falls back to the photo library so the flow can be
  * walked there. Every iPhone a driver carries has a camera, so a driver never sees that path.
  * Needs `NSCameraUsageDescription` in the app's Info.plist; without it iOS ends the app at first use.
  */
@@ -96,7 +96,7 @@ private const val PROOF_MAX_SIDE = 1600.0
 private const val PROOF_JPEG_QUALITY = 0.8
 
 @OptIn(ExperimentalForeignApi::class)
-/** Upright, long side at most 1600px, JPEG — shared with the live viewfinder (`CameraPreviewSurface.ios.kt`). */
+/** Upright, long side at most 1600px, JPEG - shared with the live viewfinder (`CameraPreviewSurface.ios.kt`). */
 internal fun UIImage.toProofJpeg(): ByteArray {
     val (w, h) = size.useContents { width to height }
     if (w <= 0.0 || h <= 0.0) return ByteArray(0)
@@ -115,7 +115,7 @@ internal fun UIImage.toProofJpeg(): ByteArray {
     }
 }
 
-/** The controller currently on screen — what a picker has to be presented from. */
+/** The controller currently on screen - what a picker has to be presented from. */
 private fun topViewController(): UIViewController? {
     var top = UIApplication.sharedApplication.keyWindow?.rootViewController
     while (true) top = top?.presentedViewController ?: break

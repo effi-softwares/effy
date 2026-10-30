@@ -1,18 +1,18 @@
 # @effy mobile-kit (shared mobile navigation shell)
 
 Audience-neutral navigation-shell primitives shared by **both** KMP mobile apps
-(`apps/customer-mobile`, `apps/shop-mobile`) — the mobile analogue of `@effy/web-kit`'s `ConsoleShell`
+(`apps/customer-mobile`, `apps/shop-mobile`) - the mobile analogue of `@effy/web-kit`'s `ConsoleShell`
 (Principle II: shared once, not copy-pasted per app). Introduced by
 [specs/015-mobile-app-shell](../../specs/015-mobile-app-shell/).
 
 **Consumed via `srcDir`** (the mechanism already used for `packages/design-system/compose*`). Neutral
-package root: `com.effyshopping.mobile.kit`. No new external dependency — the shell is built on the **stable
+package root: `com.effyshopping.mobile.kit`. No new external dependency - the shell is built on the **stable
 Material 3** already present (`NavigationBar` / `NavigationRail`) plus `kotlinx.serialization`.
 
 ### ⚠ Layout: `common/` · `android/` · `ios/`
 
 Until 035 this package was a flat, common-only directory srcDir'd straight into `commonMain`. Feature
-035 added its **first platform-specific component** — the one-time-code field, whose iOS actual must be
+035 added its **first platform-specific component** - the one-time-code field, whose iOS actual must be
 a native `UITextField` because `UITextContentTypeOneTimeCode` (the thing that makes iOS offer the code
 from Mail) cannot be requested from a Compose `TextField`. `kotlin.srcDir` takes a directory tree
 recursively, so a flat layout compiled both actuals into `commonMain` and failed with conflicting
@@ -40,12 +40,12 @@ link error in one app only, and it will be the app you are not currently buildin
 
 | File | Purpose |
 |---|---|
-| `ui/WindowSize.kt` | `WindowWidth` class + `widthClassFor` + `AdaptiveContent` — adaptive window sizing (promoted from shop; the customer app had none) |
-| `nav/NavKey.kt` | `AppNavKey` route marker + `navKeySerializersModule { }` — the polymorphic route serialization iOS saved-state restore requires (research R6) |
-| `nav/TabBackStacks.kt` | developer-owned **per-tab back stacks** (`rememberTabBackStacks`) — independent history per tab, re-tap-to-root, saveable across config change + process death |
+| `ui/WindowSize.kt` | `WindowWidth` class + `widthClassFor` + `AdaptiveContent` - adaptive window sizing (promoted from shop; the customer app had none) |
+| `nav/NavKey.kt` | `AppNavKey` route marker + `navKeySerializersModule { }` - the polymorphic route serialization iOS saved-state restore requires (research R6) |
+| `nav/TabBackStacks.kt` | developer-owned **per-tab back stacks** (`rememberTabBackStacks`) - independent history per tab, re-tap-to-root, saveable across config change + process death |
 | `shell/ResponsiveNavigation.kt` | the adaptive chrome: **bottom bar on compact / navigation rail on expanded** from one destination set (`ResponsiveDestination`), with real per-destination icons |
 | `common/ui/EffyComponents.kt` | the shared page/field/action/section vocabulary (safe-area `EffyPage`, `EffyTextField`, `EffyPrimaryAction`, `EffySection`, loading + placeholder states) |
-| `common/ui/OtpInput.kt` + `android/` + `ios/` actuals | **the platform's one-time-code field** (035). One logical accessibility node — never per-digit boxes. `normalizeOtp` strips non-digits and ⚠ **does not truncate**; length is enforced once, at the submit gate, by `isCompleteOtp` |
+| `common/ui/OtpInput.kt` + `android/` + `ios/` actuals | **the platform's one-time-code field** (035). One logical accessibility node - never per-digit boxes. `normalizeOtp` strips non-digits and ⚠ **does not truncate**; length is enforced once, at the submit gate, by `isCompleteOtp` |
 
 Each app inlines its own top-level session gate as an **exhaustive `when(session)`** over its own sealed
 `SessionState` (more type-safe than a generic gate), and its own return-to-intent (the customer app captures

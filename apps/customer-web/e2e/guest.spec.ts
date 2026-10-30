@@ -33,7 +33,7 @@ test.describe("a guest browses with no account (SC-001)", () => {
     page,
   }) => {
     await page.goto("/")
-    // The hero's primary CTA into the single catalogue page (`/search`, "All products" — the
+    // The hero's primary CTA into the single catalogue page (`/search`, "All products" - the
     // standalone `/browse` category index was retired).
     await page.getByRole("link", { name: /shop now/i }).first().click()
     await expect(page).toHaveURL(/\/search$/)
@@ -50,8 +50,8 @@ test.describe("a guest browses with no account (SC-001)", () => {
  * An authentication outage must not take down the storefront.
  *
  * A guest who was never going to sign in should be completely unaffected by the account system
- * being down. This is plausible by construction — guest routes load no auth SDK and make no
- * Cognito call — but "plausible by construction" is exactly the kind of claim that quietly
+ * being down. This is plausible by construction - guest routes load no auth SDK and make no
+ * Cognito call - but "plausible by construction" is exactly the kind of claim that quietly
  * stops being true. So we sever Cognito and check.
  */
 test.describe("an auth outage leaves guest browsing intact (SC-013)", () => {

@@ -1,4 +1,4 @@
-// GENERATED — do not edit. The ap-southeast-2 RDS certificate-authority bundle
+// GENERATED - do not edit. The ap-southeast-2 RDS certificate-authority bundle
 // (PUBLIC certificates, not secrets), embedded so esbuild ships it inside every
 // function bundle with zero packaging patterns. Regenerate when AWS rotates CAs:
 //   curl -sf https://truststore.pki.rds.amazonaws.com/ap-southeast-2/ap-southeast-2-bundle.pem

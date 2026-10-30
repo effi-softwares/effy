@@ -52,7 +52,7 @@ describe("SkinnedPromotion", () => {
 })
 
 describe("⚠ server components can call what they import (095 dev outage)", () => {
-  it("SkinnedPromotion.tsx (\"use client\") exports components only — a helper a server component calls lives in skin-designed.ts", async () => {
+  it("SkinnedPromotion.tsx (\"use client\") exports components only - a helper a server component calls lives in skin-designed.ts", async () => {
     const { readFileSync } = await import("node:fs")
     const src = readFileSync("app/(shop)/_components/SkinnedPromotion.tsx", "utf8")
     expect(src.startsWith('"use client"')).toBe(true)

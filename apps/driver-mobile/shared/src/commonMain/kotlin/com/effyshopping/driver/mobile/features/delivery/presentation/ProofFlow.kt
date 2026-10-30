@@ -90,11 +90,11 @@ import org.jetbrains.compose.resources.decodeToImageBitmap
 
 private fun ProofMethod.title(): String = when (this) {
     ProofMethod.CONTACTLESS -> "Left safely"
-    ProofMethod.PHOTO -> "Handed over — photo"
-    ProofMethod.SIGNATURE -> "Handed over — signature"
+    ProofMethod.PHOTO -> "Handed over - photo"
+    ProofMethod.SIGNATURE -> "Handed over - signature"
 }
 
-/** "How did you hand it over?" — the first of the two taps (canvas `ProofChoose`). */
+/** "How did you hand it over?" - the first of the two taps (canvas `ProofChoose`). */
 @Composable
 internal fun ProofChooser(drop: Drop, selected: ProofMethod, onSelect: (ProofMethod) -> Unit, onContinue: () -> Unit, onDismiss: () -> Unit) {
     DriverSheet(
@@ -239,7 +239,7 @@ internal fun ProofReview(
                 onClick = {
                     onComplete(
                         listOfNotNull(spot?.let { "Left at: ${it.label}" }, note.trim().takeIf { it.isNotEmpty() })
-                            .joinToString(" — ").ifBlank { null },
+                            .joinToString(" - ").ifBlank { null },
                     )
                 },
                 // A spot is required when nobody took it: "left at the door" with no place is the report
@@ -317,7 +317,7 @@ private fun FailureReason.words(): String = when (this) {
     FailureReason.NOBODY_HOME -> "Nobody home"
     FailureReason.WRONG_ADDRESS -> "Wrong or incomplete address"
     FailureReason.CUSTOMER_REFUSED -> "Customer refused it"
-    FailureReason.ACCESS_BLOCKED -> "Couldn't get in — gate, lift, building"
+    FailureReason.ACCESS_BLOCKED -> "Couldn't get in - gate, lift, building"
     FailureReason.OTHER -> "Something else"
 }
 
@@ -384,7 +384,7 @@ internal fun CantDeliverScreen(
     }
 }
 
-/** Delivered (canvas `Delivered`, `Delivered-Offline`). Green means done; offline is blue — saved, sending. */
+/** Delivered (canvas `Delivered`, `Delivered-Offline`). Green means done; offline is blue - saved, sending. */
 @Composable
 internal fun DeliveredView(
     drop: Drop,
@@ -416,7 +416,7 @@ internal fun DeliveredView(
             }
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    if (offline) "Saved — sending when you're back online" else "Proof recorded · customer told",
+                    if (offline) "Saved - sending when you're back online" else "Proof recorded · customer told",
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
                     color = if (offline) MaterialTheme.colorScheme.primary else EffyRoles.brand,
                 )
@@ -434,7 +434,7 @@ internal fun DeliveredView(
                 DriverAlert(
                     DriverAlertKind.Info, Res.drawable.lucide_refresh_ccw,
                     title = "Proof saved on this phone",
-                    description = "You're offline. It sends as soon as there's signal — carry on to the next drop. Don't sign out until it has.",
+                    description = "You're offline. It sends as soon as there's signal - carry on to the next drop. Don't sign out until it has.",
                 )
             }
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -456,9 +456,9 @@ internal fun DeliveredView(
     }
 }
 
-/** "Front door" from the proof note the app wrote ("Left at: Front door — …"); null when there is none. */
+/** "Front door" from the proof note the app wrote ("Left at: Front door - …"); null when there is none. */
 private fun splitLeftAt(note: String?): String? =
-    note?.trim()?.takeIf { it.startsWith("Left at: ") }?.removePrefix("Left at: ")?.substringBefore(" — ")?.ifBlank { null }
+    note?.trim()?.takeIf { it.startsWith("Left at: ") }?.removePrefix("Left at: ")?.substringBefore(" - ")?.ifBlank { null }
 
 /** Not delivered (canvas `CantDeliver-Done`): keep the parcels in the van for the hub. */
 @Composable

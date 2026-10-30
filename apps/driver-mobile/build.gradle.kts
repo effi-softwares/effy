@@ -23,10 +23,10 @@ plugins {
 // `scripts/mobile-guard.sh` refuses secret-shaped key names.
 
 val requiredKeys = listOf(
-    "COGNITO_USER_POOL_ID",   // the driver pool — a name, not a key
-    "COGNITO_APP_CLIENT_ID",  // the driver mobile client id — a name, not a key; NO client secret
+    "COGNITO_USER_POOL_ID",   // the driver pool - a name, not a key
+    "COGNITO_APP_CLIENT_ID",  // the driver mobile client id - a name, not a key; NO client secret
     "COGNITO_REGION",
-    "DRIVER_API_BASE_URL",    // edge-api/driver — the only backend this app calls
+    "DRIVER_API_BASE_URL",    // edge-api/driver - the only backend this app calls
 )
 
 val secretsFile = rootProject.file("secrets.properties") // git-ignored

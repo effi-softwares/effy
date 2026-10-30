@@ -25,7 +25,7 @@ export interface AddressDTO {
   defaultDeliveryInstructions?: DeliveryInstructionsDTO | null;
 }
 
-/** POST /v1/addresses — the first address created becomes the default. */
+/** POST /v1/addresses - the first address created becomes the default. */
 export interface CreateAddressRequest {
   label?: string | null;
   recipientName: string;
@@ -41,7 +41,7 @@ export interface CreateAddressRequest {
   defaultDeliveryInstructions?: DeliveryInstructionsDTO | null;
 }
 
-/** PATCH /v1/addresses/{id} — partial update / set default. */
+/** PATCH /v1/addresses/{id} - partial update / set default. */
 export interface UpdateAddressRequest {
   label?: string | null;
   recipientName?: string;

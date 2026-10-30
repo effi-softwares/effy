@@ -15,7 +15,7 @@ data class CheckoutIntent(
     val orderNumber: String,
     val clientSecret: String,
     // The backend's publishable-key echo (config.go marks it a convenience). Retained to mirror the wire,
-    // but the pay flow uses the client's own key (AppConfig.stripePublishableKey) — see `PaymentViewModel`.
+    // but the pay flow uses the client's own key (AppConfig.stripePublishableKey) - see `PaymentViewModel`.
     val publishableKey: String,
     val grandTotalAmount: String,
     val currency: String,
@@ -163,7 +163,7 @@ data class Receipt(
     val deliveryDiscountAmount: String? = null,
     /**
      * What the shopper told the driver when the order was placed. Null when they said nothing,
-     * which includes every order placed before 066 — and the receipt then shows nothing: no heading,
+     * which includes every order placed before 066 - and the receipt then shows nothing: no heading,
      * no placeholder.
      */
     val deliveryInstructions: DeliveryInstructions? = null,
@@ -189,7 +189,7 @@ data class Receipt(
      * one rule diverges silently because both sides still render something. This screen never works
      * it out from [stage] or the portions.
      *
-     * `false` does not mean "never cancellable" — staff can, right up until the order leaves the
+     * `false` does not mean "never cancellable" - staff can, right up until the order leaves the
      * shop. Any wording built on this must leave that door open.
      */
     val cancellable: Boolean = false,
@@ -200,7 +200,7 @@ data class Receipt(
     /**
      * What the shopper is out of pocket after refunds.
      *
-     * Not a correction to [grandTotalAmount] — that is what was charged, a historical
+     * Not a correction to [grandTotalAmount] - that is what was charged, a historical
      * record. A receipt that rewrote itself after a refund could not be reconciled against a bank
      * statement, which is the one thing a receipt is for.
      */
@@ -220,12 +220,12 @@ data class Receipt(
  * Three states and no failure text. Five internal states collapse to three because a shopper
  * cannot act on the difference between "we have not heard from the provider" and "the provider has
  * it", and whether a refund was *refused* rather than *failed* is a fact about our integration. The
- * provider's own reason is not on the wire at all — the server never selects the column.
+ * provider's own reason is not on the wire at all - the server never selects the column.
  */
 data class CustomerRefund(
     val amount: String,
     val state: CustomerRefundState,
-    /** When the money actually landed. Null until it has — never a promise of when it will. */
+    /** When the money actually landed. Null until it has - never a promise of when it will. */
     val refundedAt: String? = null,
 )
 
@@ -234,7 +234,7 @@ enum class CustomerRefundState { OnItsWay, Completed, ThereWasAProblem }
 /**
  * What placement needs: where it goes, what the shopper chose, and what this screen is showing.
  *
- * The client never sends a fee — the server prices the order — and never anything
+ * The client never sends a fee - the server prices the order - and never anything
  * about how the order splits across suppliers.
  */
 data class PlaceOrder(
@@ -244,8 +244,8 @@ data class PlaceOrder(
     /**
      * What the shopper tells the driver for this order, or null when they said nothing.
      *
-     * The server stores exactly this. It never reads the address's saved default — prefilling from
-     * that is this app's job — which is why editing an address later cannot change a placed order.
+     * The server stores exactly this. It never reads the address's saved default - prefilling from
+     * that is this app's job - which is why editing an address later cannot change a placed order.
      */
     val deliveryInstructions: DeliveryInstructions? = null,
     /**
@@ -261,7 +261,7 @@ data class PlaceOrder(
     /**
      * Who delivers the order, as this screen is showing it ([DeliveryQuote.deliveryType]). A
      * courier order is refused without it, and so is one that says "courier" for an address Effy now
-     * delivers to ([DeliveryChoiceRefusal.DeliveryTypeChanged]) — nobody pays a courier fee for a
+     * delivers to ([DeliveryChoiceRefusal.DeliveryTypeChanged]) - nobody pays a courier fee for a
      * screen that showed Effy's windows.
      */
     val deliveryType: DeliveryType? = null,
@@ -363,7 +363,7 @@ enum class WindowsUnavailable { NoWindows, NoneDefined }
 /** The Effy windows for the whole order, as the quote offers them. */
 data class EffyWindows(val days: List<EffyDay>, val unavailable: WindowsUnavailable?, val asap: EffyAsap? = null) {
     /**
-     * The chosen window as it is offered now — a timed one, or the day's Any time one; null when
+     * The chosen window as it is offered now - a timed one, or the day's Any time one; null when
      * nothing is chosen or it is no longer offered.
      */
     fun find(chosen: ChosenWindow?): EffyWindow? =
@@ -393,7 +393,7 @@ enum class DeliveryPromise { WINDOW, DAY, ASAP }
  * printed through `courierLines` (DeliveryTypeWords.kt), which says so.
  *
  * [noWindowLeft]: the address IS one Effy delivers to, but no window is left and the business sends
- * such an order by courier — the shopper is told there are no windows first, then offered this.
+ * such an order by courier - the shopper is told there are no windows first, then offered this.
  */
 data class CourierDelivery(val estimate: String, val fee: DeliveryFee, val noWindowLeft: Boolean)
 
@@ -427,8 +427,8 @@ sealed interface OrderTracking {
 
 /**
  * The delivery quote for a chosen address, shown before payment. When [serviced] is false nobody
- * delivers there. A serviced address answers exactly one of two things: [effyWindows] — the
- * windows to choose from — or [courier].
+ * delivers there. A serviced address answers exactly one of two things: [effyWindows] - the
+ * windows to choose from - or [courier].
  *
  * One fee for the order, and nothing here says how the order splits across suppliers.
  */
@@ -445,7 +445,7 @@ data class DeliveryQuote(
 ) {
     /**
      * Who delivers the order this quote is for. The quote says, and the same value is sent
-     * back on the intent — the same rule as customer-web's `deliveryTypeOf`.
+     * back on the intent - the same rule as customer-web's `deliveryTypeOf`.
      */
     val deliveryType: DeliveryType?
         get() = when {
@@ -457,7 +457,7 @@ data class DeliveryQuote(
 
     /**
      * The delivery charge for what is chosen: the courier's fee, or the chosen window's. Null
-     * until a window is chosen — nothing to show yet.
+     * until a window is chosen - nothing to show yet.
      * The same rule as customer-web's `chosenFee`; the server re-prices and refuses a mismatch.
      */
     fun feeFor(window: ChosenWindow?, asap: Boolean = false): DeliveryFee? {
@@ -511,7 +511,7 @@ class CreateIntent(private val checkout: CheckoutRepository) {
 }
 
 /**
- * ConfirmOrder — the idempotent fallback finaliser, called the moment the element reports a
+ * ConfirmOrder - the idempotent fallback finaliser, called the moment the element reports a
  * completed payment.
  *
  * The webhook is authoritative; this covers its lag, and a failure here is deliberately
@@ -522,7 +522,7 @@ class ConfirmOrder(private val checkout: CheckoutRepository) {
     suspend operator fun invoke(orderId: String): Boolean = checkout.confirm(orderId)
 }
 
-/** QuoteDelivery — the use case the ViewModel calls when the shipping address is chosen/changed. */
+/** QuoteDelivery - the use case the ViewModel calls when the shipping address is chosen/changed. */
 class QuoteDelivery(private val checkout: CheckoutRepository) {
     suspend operator fun invoke(addressId: String): DeliveryQuote = checkout.quote(addressId)
 }
@@ -536,7 +536,7 @@ data class OrderSummary(
     val currency: String,
     /** Who delivers it. */
     val delivery: OrderDelivery,
-    // 087 (Orders board) — read from fields the orders list has carried since 084/086. Every one is
+    // 087 (Orders board) - read from fields the orders list has carried since 084/086. Every one is
     // optional: an order from before them degrades to the row it always had, never to an invented value.
     /** When it was placed (ISO). */
     val placedAt: String? = null,
@@ -567,7 +567,7 @@ class ListOrders(private val orders: OrdersRepository) {
 /**
  * Ask the platform to send a paid order's receipt again.
  *
- * A use case, not a repository call from the ViewModel — the domain layer depends on nothing and the
+ * A use case, not a repository call from the ViewModel - the domain layer depends on nothing and the
  * data layer implements it (Principle VI).
  */
 fun interface ResendReceipt {
@@ -584,7 +584,7 @@ enum class ResendReceiptResult { Queued, RateLimited, Unavailable, Failed }
  * Cancelling an order.
  *
  * Cancelling *IS* refunding on this platform. The money was captured when the order
- * was paid, so there is no "cancel before we charge you" — there is only returning what was taken.
+ * was paid, so there is no "cancel before we charge you" - there is only returning what was taken.
  * The wording on the screen has to say that, because a shopper who thinks nothing was charged will
  * not look for a refund that has not arrived.
  */
@@ -593,7 +593,7 @@ fun interface CancelOrder {
 }
 
 sealed interface CancelOrderResult {
-    /** Cancelled, and the money is on its way back. Not "refunded" — the bank has not moved it yet. */
+    /** Cancelled, and the money is on its way back. Not "refunded" - the bank has not moved it yet. */
     data class Cancelled(val amount: String) : CancelOrderResult
 
     /**
@@ -623,7 +623,7 @@ data class RefundRequestInput(
     val message: String,
     /**
      * Optional, and they are line ids rather than product ids. An order can carry the same product
-     * on two lines, so a product id cannot identify one — and passing one where the other is expected
+     * on two lines, so a product id cannot identify one - and passing one where the other is expected
      * does not error: the server's join matches nothing and every named item is silently dropped.
      */
     val items: List<RefundRequestItem> = emptyList(),

@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.Flow
  * email → one-time code. Do not add methods here.
  */
 interface AuthDriver {
-    /** Emits when the SDK drops the session without the app asking (Amplify Android Keystore failure — 013 D11). */
+    /** Emits when the SDK drops the session without the app asking (Amplify Android Keystore failure - 013 D11). */
     val sessionChanges: Flow<Unit>
 
     suspend fun currentSession(forceRefresh: Boolean = false): Session?
@@ -25,6 +25,6 @@ interface AuthDriver {
     suspend fun signInWithEmailOtp(email: String): AuthStep   // → NeedsOtp(destination)
     suspend fun confirmOtp(code: String): AuthStep            // → Done(session)
 
-    /** Local sign-out — purge this device's tokens. */
+    /** Local sign-out - purge this device's tokens. */
     suspend fun signOut()
 }

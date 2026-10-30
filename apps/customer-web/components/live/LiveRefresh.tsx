@@ -13,16 +13,16 @@ import { createCoalescer, createLiveClient, type LiveState } from "@effy/web-kit
  *
  * A client island on a server-rendered page, like `CancelOrder` beside it. When the platform says
  * this customer's orders changed, it asks the server to render the page again (`router.refresh`)
- * — the same re-read `CancelOrder` already does after a tap. It holds no order data and patches
+ * - the same re-read `CancelOrder` already does after a tap. It holds no order data and patches
  * nothing: the page is whatever the server says it is.
  *
  * It is told only when the page would change, and never which shop, or how many, is
- * behind the order — the update is the single word "orders".
+ * behind the order - the update is the single word "orders".
  *
  * It renders nothing while live. If the channel cannot be held it says so quietly and offers a
  * refresh; the page itself is always the last thing the server rendered.
  *
- * Mounted only on the order list and order detail — signed-out pages and the storefront load none
+ * Mounted only on the order list and order detail - signed-out pages and the storefront load none
  * of this.
  */
 export function LiveRefresh() {
@@ -99,7 +99,7 @@ export function LiveRefresh() {
   return (
     <p role="status" className="text-muted-foreground mb-4 flex items-center gap-2 text-sm">
       <span>
-        Reconnecting — this page was last updated at{" "}
+        Reconnecting - this page was last updated at{" "}
         {new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" }).format(since)}.
       </span>
       <button type="button" className="text-primary underline underline-offset-2" onClick={() => router.refresh()}>

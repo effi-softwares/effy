@@ -41,7 +41,7 @@ class CustomerNavState internal constructor(
 
     /**
      * A tap on a tab in the bar. Another tab: switch to it, where the shopper left it. The tab
-     * they are already in: return it to its root — the iOS convention, and the only way back to the
+     * they are already in: return it to its root - the iOS convention, and the only way back to the
      * top of a tab after going several pages deep without pressing Back repeatedly.
      */
     fun tapTab(tab: CustomerNavKey) {
@@ -64,7 +64,7 @@ class CustomerNavState internal constructor(
      * as map keys in [stacks], so the tab's identity IS the key. `Search(focus = true)` is a
      * different key from `Search(focus = false)`, and `stacks.getValue(activeTab)` throws the moment
      * the flag is set. Re-keying the map on a separate tab identity is churn in the one file whose
-     * own header documents a permanent wrong-tab bug — not worth it for a transient signal.
+     * own header documents a permanent wrong-tab bug - not worth it for a transient signal.
      *
      * Deliberately not saved across process death. A restored app should show the shopper their
      * results, not reopen the keyboard on top of them.
@@ -76,7 +76,7 @@ class CustomerNavState internal constructor(
     /**
      * Take the pending focus request, if any. Returns `true` at most once per [requestSearchFocus].
      *
-     * The one-shot is what stops the keyboard reappearing every time Search recomposes — and, more
+     * The one-shot is what stops the keyboard reappearing every time Search recomposes - and, more
      * visibly, every time the shopper returns to the Search tab from the bottom bar having never
      * asked for it.
      */
@@ -93,7 +93,7 @@ class CustomerNavState internal constructor(
     /**
      * Pop within the active tab.
      *
-     * Returns false at a tab root, so the caller decides what "back" means there — this app returns
+     * Returns false at a tab root, so the caller decides what "back" means there - this app returns
      * to Home rather than exiting, and only exits from Home.
      */
     fun pop(): Boolean {
@@ -103,18 +103,18 @@ class CustomerNavState internal constructor(
     }
 
     /**
-     * Send the active tab back to its own root — the graph swap (sign-in completing, sign-out
+     * Send the active tab back to its own root - the graph swap (sign-in completing, sign-out
      * returning to guest, an order finishing).
      *
      * Use this, not `resetTo(SomeTabRoot)`
      *
      * This exists because the Nav3 migration got it wrong in a way nothing caught. The old navigator
-     * used `AppRoute.Home` to mean **"the root of whichever sub-graph you are in"** — inside the
+     * used `AppRoute.Home` to mean **"the root of whichever sub-graph you are in"** - inside the
      * account tab it rendered the account screen. The migration renamed it to `CustomerNavKey.Home`,
      * which means the **Discover tab**. Same name, opposite meaning.
      *
      * So `completeSignIn` ran `resetTo(Home)` while the customer was in the Account tab, and set the
-     * account tab's stack to `[Home]`. From then on, tapping Account showed Discover — permanently,
+     * account tab's stack to `[Home]`. From then on, tapping Account showed Discover - permanently,
      * because nothing ever put `Account` back. Signing in broke the account page.
      *
      * Resetting to "the active tab's root" is what every one of those callers actually meant, and it
@@ -131,7 +131,7 @@ class CustomerNavState internal constructor(
      */
     fun resetTo(key: CustomerNavKey) {
         require(key !in CUSTOMER_TAB_ROOTS || key == activeTab) {
-            "resetTo($key) would make $key the root of the $activeTab tab — tapping $activeTab would " +
+            "resetTo($key) would make $key the root of the $activeTab tab - tapping $activeTab would " +
                 "then show $key. Use resetToRoot() to return a tab to its own root."
         }
         currentStack.clear()
@@ -178,7 +178,7 @@ class CustomerNavigator {
         state?.resetTo(key)
     }
 
-    /** Send the active tab back to its own root — see [CustomerNavState.resetToRoot]. */
+    /** Send the active tab back to its own root - see [CustomerNavState.resetToRoot]. */
     fun resetToRoot() {
         state?.resetToRoot()
     }
@@ -187,7 +187,7 @@ class CustomerNavigator {
         state?.selectTab(tab)
     }
 
-    /** Ask Search to open focused — see [CustomerNavState.requestSearchFocus]. */
+    /** Ask Search to open focused - see [CustomerNavState.requestSearchFocus]. */
     fun requestSearchFocus() {
         state?.requestSearchFocus()
     }

@@ -22,7 +22,7 @@ function priced(p: Plan, basketCents: number, premiumCents: number): PricedFee {
   return { planId: p.id, planName: p.name, slotId: premiumCents > 0 ? "slot-1" : null, windowIsToday: premiumCents > 0, breakdown, lines: feeLines(breakdown), totalCents: breakdown.totalCents };
 }
 
-describe("feeDTO — what a customer is given", () => {
+describe("feeDTO - what a customer is given", () => {
   it("is lines and a total, as 2-dp strings, and nothing else", () => {
     const dto = feeDTO(priced(plan(), 5400, 200));
     expect(dto).toEqual({
@@ -39,7 +39,7 @@ describe("feeDTO — what a customer is given", () => {
   });
 });
 
-describe("storedBreakdown — what the order keeps", () => {
+describe("storedBreakdown - what the order keeps", () => {
   it("names the plan, the inputs and every step, with the same lines the customer saw", () => {
     const fee = priced(plan(), 5400, 200);
     expect(storedBreakdown(fee)).toEqual({

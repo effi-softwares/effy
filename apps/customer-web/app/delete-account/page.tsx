@@ -24,7 +24,7 @@ export const metadata: Metadata = {
  * to it as the account-deletion address, and someone who cannot sign in still has to be able to read
  * it and reach us.
  *
- * The contact address is the business's own, read from `@effy/legal-content` — never typed here.
+ * The contact address is the business's own, read from `@effy/legal-content` - never typed here.
  */
 export default function DeleteAccountPage() {
   const { supportEmail } = sellerIdentity()

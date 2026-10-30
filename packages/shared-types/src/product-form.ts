@@ -2,13 +2,13 @@
  * The rules for a product's details against its leaf's form (101), shared by shop-web and the server so both
  * refuse the same input with the same words:
  *
- *  • `validateDetails` — every value fits its attribute (type, unit, limits, allowed values). It does not
+ *  • `validateDetails` - every value fits its attribute (type, unit, limits, allowed values). It does not
  *    demand required details: a draft saves as it goes, and submission asks `missingDetails` (the server asks
  *    `product_missing_required`, its SQL twin).
- *  • `missingDetails` — required details still empty, per variant where a detail differs by variant.
- *  • `recategorise` — what a draft keeps and drops when its category changes.
- *  • `formatAttributeValue` — how a value reads to a customer.
- *  • `isStockDateName` — names the library refuses: those are stock facts (expiry, batch), never details.
+ *  • `missingDetails` - required details still empty, per variant where a detail differs by variant.
+ *  • `recategorise` - what a draft keeps and drops when its category changes.
+ *  • `formatAttributeValue` - how a value reads to a customer.
+ *  • `isStockDateName` - names the library refuses: those are stock facts (expiry, batch), never details.
  */
 import type { GstStatus } from "./documents"
 import type { CategoryFormDTO, CategoryFormRow, DetailInput, DetailValue, FactDefaults, Storage } from "./taxonomy"

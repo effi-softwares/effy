@@ -2,18 +2,18 @@ package com.effyshopping.customer.mobile.core.observability
 
 /**
  * The typed product-analytics taxonomy for customer-mobile. Mirrors the web
- * `StorefrontEvent` union and docs/telemetry/{commerce,platform}-events.md — the same names, so a
+ * `StorefrontEvent` union and docs/telemetry/{commerce,platform}-events.md - the same names, so a
  * funnel spans customer-web + customer-mobile. A `commonTest` drift check asserts every name
  * here is in the documented set.
  *
- * Add an event here first — never a free string at a call site. No PII: props are ids +
+ * Add an event here first - never a free string at a call site. No PII: props are ids +
  * bounded enums only; never an email, name, address, postcode, order total, or search text.
  */
 sealed class AnalyticsEvent(val name: String, val props: Map<String, String> = emptyMap()) {
     // Cross-surface (platform-events.md)
     class ScreenViewed(screen: String) : AnalyticsEvent("screen_viewed", mapOf("name" to screen))
 
-    // Commerce funnel (commerce-events.md) — product ids + counts only.
+    // Commerce funnel (commerce-events.md) - product ids + counts only.
     data object StorefrontViewed : AnalyticsEvent("storefront_viewed")
     class ProductViewed(productId: String) : AnalyticsEvent("product_viewed", mapOf("productId" to productId))
     class ProductAddedToCart(productId: String, quantity: Int) :
@@ -35,7 +35,7 @@ sealed class AnalyticsEvent(val name: String, val props: Map<String, String> = e
      *
      * Never the note, its length or the address. The note is customer-authored and may hold a gate
      * code; the constructor takes a closed value and two booleans so a call site cannot pass text.
-     * Declared, not emitted — like the rest of this app's commerce taxonomy, nothing fires it yet.
+     * Declared, not emitted - like the rest of this app's commerce taxonomy, nothing fires it yet.
      */
     class CheckoutDeliveryInstructionsSet(handover: String, hasNote: Boolean, fromSavedDefault: Boolean) :
         AnalyticsEvent(
@@ -50,7 +50,7 @@ sealed class AnalyticsEvent(val name: String, val props: Map<String, String> = e
      * Counts and offsets, never a time or an address. "The third of four slots, six hours ahead"
      * says which slots people want; a slot's clock time joined to a session would say when a
      * household is home. `position` is 1-based among the options shown.
-     * Declared, not emitted — like the rest of this app's commerce taxonomy, nothing fires them yet.
+     * Declared, not emitted - like the rest of this app's commerce taxonomy, nothing fires them yet.
      */
     class CheckoutDeliverySlotSelected(slotsOffered: Int, position: Int, hoursAhead: Int) :
         AnalyticsEvent(
@@ -68,7 +68,7 @@ sealed class AnalyticsEvent(val name: String, val props: Map<String, String> = e
     class CheckoutDeliveryChoiceRefused(reason: String) :
         AnalyticsEvent("checkout_delivery_choice_refused", mapOf("reason" to reason))
 
-    // Delivery windows (the new delivery model). Which section and how many days ahead — never
+    // Delivery windows (the new delivery model). Which section and how many days ahead - never
     // the window's id or its clock time, for the same reason as the slot event above. The same names
     // and props as customer-web's. Declared, not emitted, like the rest of this app's commerce taxonomy.
     /** `section`: `same_day` | `standard`. `dayOffset`: 0 for today. */
@@ -79,7 +79,7 @@ sealed class AnalyticsEvent(val name: String, val props: Map<String, String> = e
     class CheckoutWindowsUnavailable(reason: String) :
         AnalyticsEvent("checkout_windows_unavailable", mapOf("reason" to reason))
 
-    // Who delivers. The type and why, and nothing else — never a postcode, an address or the
+    // Who delivers. The type and why, and nothing else - never a postcode, an address or the
     // estimate. The same names and props as customer-web's. Declared, not emitted, like the rest of
     // this app's commerce taxonomy.
     /** `type`: `effy` | `courier`. `reason`: `in_coverage` | `out_of_coverage` | `no_window`. */
@@ -107,7 +107,7 @@ sealed class AnalyticsEvent(val name: String, val props: Map<String, String> = e
     /** `share`: `part` | `all`. */
     class CheckoutPaidWithPoints(share: String) : AnalyticsEvent("checkout_paid_with_points", mapOf("share" to share))
 
-    // Push (platform-events.md) — the type only, never order/customer data.
+    // Push (platform-events.md) - the type only, never order/customer data.
     data object PushPermissionPrompted : AnalyticsEvent("push_permission_prompted")
     data object PushPermissionGranted : AnalyticsEvent("push_permission_granted")
     data object PushPermissionDenied : AnalyticsEvent("push_permission_denied")

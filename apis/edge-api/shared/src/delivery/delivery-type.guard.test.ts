@@ -28,7 +28,7 @@ const sources = files(services).map((f) => ({ file: rel(f), src: stripComments(r
 const naming = (needle: string | RegExp) =>
   sources.filter((s) => (typeof needle === "string" ? s.src.includes(needle) : needle.test(s.src))).map((s) => s.file).sort();
 
-describe("079 — the order's delivery type", () => {
+describe("079 - the order's delivery type", () => {
   it("scans the services", () => {
     expect(sources.length).toBeGreaterThan(300);
   });
@@ -53,8 +53,8 @@ describe("079 — the order's delivery type", () => {
   });
 });
 
-describe("085 — what an order was sold has two writers", () => {
-  it("delivery_promise is SET by checkout (the pending order) and by the staff moves — nothing else", () => {
+describe("085 - what an order was sold has two writers", () => {
+  it("delivery_promise is SET by checkout (the pending order) and by the staff moves - nothing else", () => {
     expect(naming(/\bdelivery_promise\s*=\s*\$/)).toEqual([
       "commerce/src/checkout/store.ts",
       "shared/src/delivery/override.ts",
@@ -62,7 +62,7 @@ describe("085 — what an order was sold has two writers", () => {
   });
 });
 
-describe("079 — who takes a package is decided in the database", () => {
+describe("079 - who takes a package is decided in the database", () => {
   it("nothing in the orders or shop services decides it from the window", () => {
     const where = sources
       .filter((s) => /^(orders|shop)\/src\//.test(s.file))
@@ -72,7 +72,7 @@ describe("079 — who takes a package is decided in the database", () => {
   });
 });
 
-describe("079 — whether a courier order can be placed is part of the coverage answer", () => {
+describe("079 - whether a courier order can be placed is part of the coverage answer", () => {
   it("the courier functions are asked from the two places that own the question", () => {
     expect(naming("courier_reaches_postcode(")).toEqual(["shared/src/delivery/coverage.ts"]);
     expect(naming("courier_delivery_state(")).toEqual(["admin/src/delivery/coverage.repository.ts"]);

@@ -6,7 +6,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-/** 101 — the app says 18+ in the website's words. */
+/** 101 - the app says 18+ in the website's words. */
 class AgeWordsTest {
     private val fixture = Json.parseToJsonElement(AGE_WORDS_FIXTURE).jsonObject
 

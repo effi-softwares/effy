@@ -235,7 +235,7 @@ class DeliveryChoiceTest {
     @Test
     fun `the server's refusal decodes - byte for byte what the Go wire test emits`() {
         // Byte-identical to deliveryChoiceRefusalWire in checkout/delivery_wire_contract_test.go.
-        val wire = """{"type":"https://effyshopping.com/problems/conflict","title":"Conflict","status":409,"detail":"that delivery time is no longer available — choose another","instance":"/v1/checkout/intent","request_id":"req-1","code":"slot_unavailable"}"""
+        val wire = """{"type":"https://effyshopping.com/problems/conflict","title":"Conflict","status":409,"detail":"that delivery time is no longer available - choose another","instance":"/v1/checkout/intent","request_id":"req-1","code":"slot_unavailable"}"""
         val refused = assertNotNull(deliveryRefusalOrNull(wire))
         assertEquals(DeliveryChoiceRefusal.SlotUnavailable, refused.reason)
         assertNull(refused.quote)

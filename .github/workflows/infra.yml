@@ -1,4 +1,4 @@
-# CI parity with `make lint` — static checks ONLY. This workflow never runs plan/apply:
+# CI parity with `make lint` - static checks ONLY. This workflow never runs plan/apply:
 # plan needs AWS credentials (add an OIDC role in a later slice if plan-on-PR is wanted),
 # and apply is operator-only by constitution (spec 001-infra-foundation, FR-015).
 name: infra

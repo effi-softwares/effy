@@ -14,7 +14,7 @@ data class TodayItem(
     val title: String,
     val subtitle: String?,
     val status: String,
-    /** Rev 2 — the card's details: a drop's street, the place in one line, counts, window, handover. */
+    /** Rev 2 - the card's details: a drop's street, the place in one line, counts, window, handover. */
     val street: String? = null,
     val place: String? = null,
     val packageCount: Int = 0,
@@ -27,7 +27,7 @@ data class TodayItem(
 }
 
 /**
- * The phase-aware home snapshot. `remainingCount` is a count — the driver never sees currency
+ * The phase-aware home snapshot. `remainingCount` is a count - the driver never sees currency
  * .
  */
 data class Today(
@@ -49,7 +49,7 @@ data class Today(
      * round at a time, because a round only existed for the last 45 minutes before it was due.
      */
     val upcoming: List<UpcomingRound> = emptyList(),
-    /** The last copy kept on the phone, shown with no signal (backlog C3) — not a fresh read. */
+    /** The last copy kept on the phone, shown with no signal (backlog C3) - not a fresh read. */
     val stale: Boolean = false,
     /**
      * The current round's parcels still to return to the hub. When they are all that is left,
@@ -58,7 +58,7 @@ data class Today(
     val toReturn: ParcelsToReturn? = null,
     /** What dispatch changed on the current round, in their words; null when nothing has. */
     val changedNote: String? = null,
-    /** Rev 2 — progress through the current round, and its map. */
+    /** Rev 2 - progress through the current round, and its map. */
     val progress: TodayProgress? = null,
     val map: com.effyshopping.driver.mobile.core.map.RunMap? = null,
     /**
@@ -71,7 +71,7 @@ data class Today(
 /** "Load the van": the run, and how much goes in it. */
 data class LoadStep(val runId: String, val packageCount: Int, val dropCount: Int)
 
-/** Rev 2 — shops collected or drops finished, of all; and the packages in and still to load. */
+/** Rev 2 - shops collected or drops finished, of all; and the packages in and still to load. */
 data class TodayProgress(
     val done: Int,
     val total: Int,
@@ -88,7 +88,7 @@ data class UpcomingRound(
     /** Null = open now. */
     val opening: Opening?,
     val dueLabel: String,
-    /** Shops or drops — the hub is not a place a driver would count. */
+    /** Shops or drops - the hub is not a place a driver would count. */
     val stopCount: Int,
     val packageCount: Int,
 )

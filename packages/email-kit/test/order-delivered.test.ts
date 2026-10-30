@@ -28,7 +28,7 @@ const decodeEntities = (s: string) =>
     .replace(/&#x27;/g, "'")
     .replace(/&quot;/g, '"');
 
-describe("order-delivered — what it says", () => {
+describe("order-delivered - what it says", () => {
   it("names the order and the day it arrived", () => {
     const out = render("order-delivered", vars, "customer", identity);
     expect(out.html).toContain(vars.orderNumber);
@@ -54,7 +54,7 @@ describe("order-delivered — what it says", () => {
   });
 });
 
-describe("order-delivered — what it must NEVER say", () => {
+describe("order-delivered - what it must NEVER say", () => {
   it("has no var that could carry a shop, a package count, or a tracking reference", () => {
     const declared = Object.keys(CATALOG["order-delivered"].vars);
     expect(declared.sort()).toEqual(["deliveredOn", "orderNumber", "orderUrl"]);
@@ -81,7 +81,7 @@ describe("order-delivered — what it must NEVER say", () => {
   });
 });
 
-describe("order-delivered — catalogue rules", () => {
+describe("order-delivered - catalogue rules", () => {
   it("carries no unsubscribe", () => {
     const out = render("order-delivered", vars, "customer", identity);
     expect(out.html.toLowerCase()).not.toContain("unsubscribe");

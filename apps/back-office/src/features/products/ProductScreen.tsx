@@ -175,7 +175,7 @@ function range(sizes: readonly SizeView[], amount: (s: SizeView) => string | nul
     .map(amount)
     .filter((a): a is string => a !== null)
     .map(Number)
-  if (amounts.length === 0) return "—"
+  if (amounts.length === 0) return "-"
   const lo = Math.min(...amounts).toFixed(2)
   const hi = Math.max(...amounts).toFixed(2)
   return lo === hi ? aud(lo) : `${aud(lo)} – ${aud(hi)}`
@@ -327,7 +327,7 @@ function Product({
                   key: "aisle",
                   icon: Folder,
                   label: "Home aisle",
-                  value: p.categoryPath[p.categoryPath.length - 1] ?? "—",
+                  value: p.categoryPath[p.categoryPath.length - 1] ?? "-",
                 },
                 { key: "storage", icon: Thermometer, label: "Storage", value: STORAGE_WORDS[p.facts.storage] },
                 { key: "gst", icon: Receipt, label: "GST", value: GST_STATUS_WORDS[p.facts.gstStatus] },
@@ -447,7 +447,7 @@ function Product({
               <p>
                 It goes on sale by itself once it is complete
                 {missing.size > 0 || !main
-                  ? ` — still missing: ${[...(main ? [] : ["a main picture"]), ...p.missingRequired].join(", ")}.`
+                  ? ` - still missing: ${[...(main ? [] : ["a main picture"]), ...p.missingRequired].join(", ")}.`
                   : "."}
               </p>
             </Banner>
@@ -558,7 +558,7 @@ function Product({
         description="The shop's own words, as shoppers read them."
       >
         <div className="grid gap-7">
-          <p className="max-w-[68ch] text-base leading-relaxed">{row("Short description") ?? "—"}</p>
+          <p className="max-w-[68ch] text-base leading-relaxed">{row("Short description") ?? "-"}</p>
           {long ? (
             <p className="max-w-[72ch] leading-7 whitespace-pre-line text-muted-foreground">{long}</p>
           ) : (
@@ -616,7 +616,7 @@ function Product({
         app="back-office"
         log="bo-product"
         title="Product activity"
-        description={`${p.name} — Effy's decisions on it: review, margin, holds and its sizes on and off sale.`}
+        description={`${p.name} - Effy's decisions on it: review, margin, holds and its sizes on and off sale.`}
         api={api}
         path={`/catalog/v1/products/${p.productId}/activity`}
         queryKey={productKeys.detail(p.productId)}

@@ -20,7 +20,7 @@ sealed interface PromotionUiState {
     /**
      * Two failures, kept apart on purpose, because they ask the shopper to do different things.
      *
-     * [Unavailable] means the promotion is genuinely gone — expired, fully claimed, withdrawn. Offering
+     * [Unavailable] means the promotion is genuinely gone - expired, fully claimed, withdrawn. Offering
      * "Try again" there is a lie: retrying will fail forever, and the shopper is owed the truth so they
      * can stop waiting for a discount that is not coming. [Failed] is a transport or server problem,
      * where retrying is exactly the right advice.
@@ -52,7 +52,7 @@ class PromotionViewModel(
         }
     }
 
-    /** Reload without clearing the screen — pull-to-refresh. A failure keeps what is already shown. */
+    /** Reload without clearing the screen - pull-to-refresh. A failure keeps what is already shown. */
     suspend fun refresh() {
         val next = read()
         // A transport blip must not replace a promotion the shopper is reading with an error screen.
@@ -67,7 +67,7 @@ class PromotionViewModel(
         } catch (e: CancellationException) {
             throw e
         } catch (e: AppException) {
-            // A promotion that no longer qualifies for display is served as 404 — the same answer as
+            // A promotion that no longer qualifies for display is served as 404 - the same answer as
             // an id that never existed. That is deliberate server-side: a distinguishable refusal would
             // let anyone enumerate the operator's private, unadvertised codes by id.
             if (e.error == AppError.NotFound) PromotionUiState.Unavailable else PromotionUiState.Failed

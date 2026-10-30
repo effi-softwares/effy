@@ -1,7 +1,7 @@
 package com.effyshopping.driver.mobile.core.map
 
 /**
- * Rev 2 — where a run's stops roughly are, for the decorative [RunMapView]. A stop's point is its
+ * Rev 2 - where a run's stops roughly are, for the decorative [RunMapView]. A stop's point is its
  * postcode's place (the server's words: never an address, never a device position). Rough by design.
  */
 data class RunMap(val stops: List<RunMapStop>, val hub: GeoPoint?)

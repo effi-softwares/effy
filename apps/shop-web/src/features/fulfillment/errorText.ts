@@ -5,10 +5,10 @@ function isConflict(err: unknown): boolean {
 }
 
 const STALE_STATE_MESSAGE =
-  "This order changed elsewhere — someone else may be working it. Reload to see its current state."
+  "This order changed elsewhere - someone else may be working it. Reload to see its current state."
 
 const BAG_REFUSALS: Record<string, string> = {
-  zone_bag_required: "This order has chilled or frozen items — it needs at least one bag of each.",
+  zone_bag_required: "This order has chilled or frozen items - it needs at least one bag of each.",
   parcel_count: "An order's portion has between 1 and 50 bags.",
   parcels_with_driver: "These bags have already left the shop, so they can't be changed.",
   first_bag_not_voidable: "Bag 1 can't be removed. Change the number of bags instead.",
@@ -46,7 +46,7 @@ export function orderEditError(err: unknown): string {
     if (err.kind === "forbidden") return "You don't have access to this order."
     if (err.kind === "unavailable") return "The service is waking up or unreachable. Try again in a moment."
     if (err.status === 400 || err.status === 422)
-      return "That wasn't accepted — tags are up to 10 short words, and a note can't be empty."
+      return "That wasn't accepted - tags are up to 10 short words, and a note can't be empty."
   }
   return "Something went wrong. Please try again."
 }

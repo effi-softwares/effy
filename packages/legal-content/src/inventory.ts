@@ -7,7 +7,7 @@ export interface SubProcessor {
   name: string
   purpose: string
   dataCategories: string[]
-  overseasDisclosure: boolean // APP 8 — processed outside Australia
+  overseasDisclosure: boolean // APP 8 - processed outside Australia
 }
 
 export interface DataType {

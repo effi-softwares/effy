@@ -9,7 +9,7 @@ import com.google.firebase.crashlytics.FirebaseCrashlytics
  *
  * No PII beyond the subject id (Principle VII). Firebase auto-initialises from the google-services
  * resources (the google-services plugin generates them from google-services.json), so there is nothing
- * to configure here — [init] only sets collection on.
+ * to configure here - [init] only sets collection on.
  */
 class AndroidCrashReporter : CrashReporter {
     private val crashlytics get() = FirebaseCrashlytics.getInstance()
@@ -19,7 +19,7 @@ class AndroidCrashReporter : CrashReporter {
     }
 
     override fun setSubject(sub: String?) {
-        // Crashlytics has no "clear" — the empty string dissociates reports on sign-out.
+        // Crashlytics has no "clear" - the empty string dissociates reports on sign-out.
         crashlytics.setUserId(sub ?: "")
     }
 

@@ -33,6 +33,6 @@
 
 - Q1 resolved (2026-10-14): the notification list is deferred; the page ships with an honest empty state.
 - Design vocabulary (Geist, WCAG AA, "storefront tokens", haptics) is the product's design language, as
-  in 084's spec — not implementation detail.
+  in 084's spec - not implementation detail.
 - Light-only is covered by constitution v3.3.0 (the storefront identity names the customer mobile app);
   no amendment needed.

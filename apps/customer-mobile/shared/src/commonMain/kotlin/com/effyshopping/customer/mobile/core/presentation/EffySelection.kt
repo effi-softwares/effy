@@ -97,7 +97,7 @@ fun EffyChip(
 }
 
 /**
- * The segmented control — Ongoing / Completed, Recent / Available / Aisle (Orders, Saved boards).
+ * The segmented control - Ongoing / Completed, Recent / Available / Aisle (Orders, Saved boards).
  * A white thumb slides between equal segments on a zinc track (200ms; instant under reduced motion).
  */
 @Composable
@@ -152,7 +152,7 @@ fun <T> EffySegmentedToggle(
     }
 }
 
-/** A row that is a checkbox — the whole row is the target (60dp). */
+/** A row that is a checkbox - the whole row is the target (60dp). */
 @Composable
 fun EffyCheckboxRow(
     label: String,
@@ -180,7 +180,7 @@ fun EffyCheckboxRow(
     }
 }
 
-/** A row that is a radio choice — the whole row is the target (60dp). */
+/** A row that is a radio choice - the whole row is the target (60dp). */
 @Composable
 fun EffyRadioRow(
     label: String,
@@ -207,7 +207,7 @@ fun EffyRadioRow(
     }
 }
 
-/** A row with a switch on the right — the whole row toggles it (60dp). */
+/** A row with a switch on the right - the whole row toggles it (60dp). */
 @Composable
 fun EffySwitchRow(
     label: String,

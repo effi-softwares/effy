@@ -8,7 +8,7 @@ describe("itemChangeId", () => {
     ["batch-1", "a", "0c9d79ee-3a09-5187-9977-493fc70f3ef3"],
     ["3f2c1b0a-0000-4000-8000-000000000001", "00000000-0000-0000-0000-000000000001", "faa9be4f-59d4-51bc-a5b8-49b303ad3387"],
     ["", "x", "9b719c04-12c4-5a30-b33d-c08af1d1be7f"],
-  ])("(%j, %j) → %s — byte-identical to the derivation in use before 070", (changeId, productId, want) => {
+  ])("(%j, %j) → %s - byte-identical to the derivation in use before 070", (changeId, productId, want) => {
     expect(itemChangeId(changeId, productId)).toBe(want);
   });
 

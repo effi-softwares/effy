@@ -8,7 +8,7 @@ import { Bone, Loading } from "@/components/ui/skeletons"
 
 const card = "rounded-lg border bg-card p-5 shadow-xs sm:p-6"
 
-/** Step 2 before the quote answers — Effy or courier is not known yet, so its title is a bone too. */
+/** Step 2 before the quote answers - Effy or courier is not known yet, so its title is a bone too. */
 export function DeliveryStepSkeleton() {
   return (
     <div className={card}>

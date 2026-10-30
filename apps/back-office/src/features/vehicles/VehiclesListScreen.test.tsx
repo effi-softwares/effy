@@ -43,7 +43,7 @@ beforeEach(() => {
   listVehicles.mockResolvedValue(onePage([vehicle()]))
 })
 
-describe("VehiclesListScreen — the register", () => {
+describe("VehiclesListScreen - the register", () => {
   it("lists a vehicle with its plate, make, body type and owner", async () => {
     renderScreen()
     expect(await screen.findByText("EFY-001")).toBeInTheDocument()
@@ -81,7 +81,7 @@ describe("VehiclesListScreen — the register", () => {
     expect(await screen.findByText("Sam Rivers")).toBeInTheDocument()
   })
 
-  it("⚠ hides every mutating control from a csa — absent, not disabled", async () => {
+  it("⚠ hides every mutating control from a csa - absent, not disabled", async () => {
     roles.current = ["csa"]
     renderScreen()
     await screen.findByText("EFY-001")

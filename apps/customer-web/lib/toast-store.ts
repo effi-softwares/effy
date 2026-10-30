@@ -64,7 +64,7 @@ export function useToasts(): Toast[] {
   )
 }
 
-/** Reset — tests only. */
+/** Reset - tests only. */
 export function __resetToasts(): void {
   toasts = []
   counter = 0

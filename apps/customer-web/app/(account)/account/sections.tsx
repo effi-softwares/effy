@@ -122,7 +122,7 @@ export function PrivacySection() {
         <p className="mt-2 text-sm text-muted-foreground">
           Deleting removes your account, your saved items, your saved addresses and your personal
           details. We keep completed orders and payment records, because tax and accounting rules
-          require it, and fraud and security signals that protect other customers — as set out in our{" "}
+          require it, and fraud and security signals that protect other customers - as set out in our{" "}
           <Link href="/legal/privacy-policy" className="underline">
             privacy policy
           </Link>

@@ -12,20 +12,20 @@
 
 The Effy Driver app is the platform's **sixth and final client surface** and its **third audience-facing
 mobile app** (after customer and shop). It is a **delivery-operations work tool for salaried Effy
-courier employees** — not a gig-economy app: no earnings, tips, pay, offers, or accept/decline bidding.
+courier employees** - not a gig-economy app: no earnings, tips, pay, offers, or accept/decline bidding.
 Work is **assigned**, not chosen.
 
-Effy runs a **hub-and-spoke logistics model** (settled with the operator on 2026-08-22 — see
+Effy runs a **hub-and-spoke logistics model** (settled with the operator on 2026-08-22 - see
 Clarifications, and now recorded in the platform description). An Effy driver does **not** do
 one-order-one-drop courier runs. Instead a driver:
 
 1. Goes **on duty** and is **auto-assigned packages to collect**.
-2. Drives a **collection run** — a round of fulfillment shops — picking up **all** assigned packages
+2. Drives a **collection run** - a round of fulfillment shops - picking up **all** assigned packages
    (both same-day and standard).
 3. **Checks the packages in at a single central Effy hub/warehouse**, which ends the collection run.
-4. Takes the **same-day** packages and does a **same-day delivery run** — a multi-drop round to
-   customers — completing each drop with **proof** (photo / delivery code / signature / contactless).
-5. **Standard** packages leave the driver app at hub check-in — they are handed to an **external
+4. Takes the **same-day** packages and does a **same-day delivery run** - a multi-drop round to
+   customers - completing each drop with **proof** (photo / delivery code / signature / contactless).
+5. **Standard** packages leave the driver app at hub check-in - they are handed to an **external
    delivery company**. The driver app's responsibility for a standard package **ends at "checked in at
    hub"**.
 
@@ -48,11 +48,11 @@ delivery run) is the shippable MVP and later priorities are carved out during pl
 ### Session 2026-08-22
 
 - Q: How should this one spec be scoped? → A: Full app in one spec, with user stories prioritized (P1 = shippable core loop).
-- Q: How is a delivery assigned to a driver (no dispatch backend exists today)? → A: Automatic assignment engine — deliveries/tasks are pushed to eligible on-duty drivers with no human dispatcher and no accept/decline.
+- Q: How is a delivery assigned to a driver (no dispatch backend exists today)? → A: Automatic assignment engine - deliveries/tasks are pushed to eligible on-duty drivers with no human dispatcher and no accept/decline.
 - Q: How much mapping/location is in scope? → A: External navigation hand-off + a basic in-app stop map (pins + ordered stop list); no live GPS streaming to the backend. Nearest-driver preference, where used, reads a point-in-time location snapshot at assignment.
 - Q: How should the app model the two kinds of work (collection run vs same-day delivery run) relative to a driver? → A: Typed tasks (`collection` / `same_day_delivery`), no hard driver roles; one driver typically does a collection run then a same-day round in a shift.
 - Q: At the hub, is same-day/standard sorting a manual driver decision or already known? → A: Already known per package from checkout (047); the app has an explicit hub check-in step that surfaces the split; no manual sort.
-- Q: Does the driver app perform standard *delivery* drops in v1? → A: No — collection + same-day delivery only; standard packages leave the app at hub check-in and go to an external carrier.
+- Q: Does the driver app perform standard *delivery* drops in v1? → A: No - collection + same-day delivery only; standard packages leave the app at hub check-in and go to an external carrier.
 - Q: How many hubs/warehouses does the app assume? → A: A single central hub (matches 047's single operating-hub point); multi-hub deferred.
 
 ## User Scenarios & Testing *(mandatory)*
@@ -62,11 +62,11 @@ delivery run) is the shippable MVP and later priorities are carved out during pl
 A provisioned driver signs in with their work email and a 6-digit code, goes **on duty**, and is
 **automatically assigned a set of packages to collect**. They see a collection run as an ordered round
 of fulfillment shops, drive to each, verify the item manifest and mark each shop's packages
-**collected**, and finally **check all packages in at the Effy hub** — which shows the same-day vs
+**collected**, and finally **check all packages in at the Effy hub** - which shows the same-day vs
 standard split and ends the run.
 
 **Why this priority**: Collection is the front half of the whole operation and the platform's missing
-link — nothing reaches customers (or the external carrier) until packages leave the shops and reach the
+link - nothing reaches customers (or the external carrier) until packages leave the shops and reach the
 hub. It proves employee auth, the auto-assignment engine, multi-shop pickup, and retires the shop-side
 `ready_for_pickup → collected` dev stub.
 
@@ -102,7 +102,7 @@ package as `collected` and displays the same-day/standard split.
 
 After hub check-in, the driver takes the **same-day** packages and does a **multi-drop delivery round**.
 For each drop they navigate to the customer, mark **arrived**, and **complete the delivery with proof**,
-reaching a success state — and the underlying order moves to `delivered`.
+reaching a success state - and the underlying order moves to `delivered`.
 
 **Why this priority**: This is the back half of the core loop and Effy's premium same-day promise. With
 US1 it forms the complete collection→delivery loop that replaces the 020 dev-only stubs. It is
@@ -165,8 +165,8 @@ them from the driver's active work.
 
 ### User Story 4 - See the route and navigate each run (Priority: P2)
 
-The driver views a full-screen map of the current run's stops — shops + hub for a collection run, hub +
-customer drops for a delivery run — with an ordered stop list, hands off to the device's maps app for
+The driver views a full-screen map of the current run's stops - shops + hub for a collection run, hub +
+customer drops for a delivery run - with an ordered stop list, hands off to the device's maps app for
 turn-by-turn, and contacts the customer through a masked channel.
 
 **Why this priority**: "Get me there" is essential but sits on top of having a run to route (US1/US2),
@@ -186,7 +186,7 @@ the device maps app to the correct address and a masked Contact customer action 
    to that stop's address (the app provides no turn-by-turn of its own).
 4. **Given** a customer drop, **When** the driver taps **Contact customer**, **Then** they can call or
    message via a **masked** channel that exposes neither party's real number.
-5. **Given** any appearance, **When** the map is shown, **Then** its styling — pins and route lines — is
+5. **Given** any appearance, **When** the map is shown, **Then** its styling - pins and route lines - is
    monochrome/neutral in both light and dark, using no third hue.
 
 ---
@@ -275,7 +275,7 @@ sign-in.
 - **Unreachable / non-responding driver**: work assigned to a driver who goes off duty or is unreachable
   returns to the pool for reassignment.
 - **Late package / missed collection cutoff**: a same-day package not collected before the run's cutoff is
-  handled explicitly (flagged, not silently delivered late) — the same-day promise is not quietly broken.
+  handled explicitly (flagged, not silently delivered late) - the same-day promise is not quietly broken.
 - **Mixed-method order**: an order with both same-day and standard packages has its same-day packages
   delivered by the driver and its standard packages handed to the external carrier at hub check-in;
   neither blocks the other.
@@ -286,7 +286,7 @@ sign-in.
   in-app surfacing.
 - **Proof capture interrupted**: a half-captured photo/signature can be retaken/cleared before confirm; a
   drop is never marked delivered without a completed proof.
-- **Empty states**: on duty with no work; no completed history; no activity — each calm and explicit.
+- **Empty states**: on duty with no work; no completed history; no activity - each calm and explicit.
 - **Loading**: run lists and stop detail show skeletons rather than blank screens.
 - **Manifest mismatch**: collected counts are reconciled so a shortfall reported at a shop is visible
   downstream rather than silently accepted.
@@ -302,8 +302,8 @@ sign-in.
   provisioned, active driver MUST NOT obtain a working session.
 - **FR-003**: The OTP entry MUST present distinct states for entering, verifying, invalid code (attempts
   remaining), expired code (resend), and too-many-attempts lockout.
-- **FR-004**: The app MUST prime the driver for the OS permission prompts it needs — **location**,
-  **notifications**, and **camera** — with a plain rationale before each system prompt.
+- **FR-004**: The app MUST prime the driver for the OS permission prompts it needs - **location**,
+  **notifications**, and **camera** - with a plain rationale before each system prompt.
 
 #### Duty
 - **FR-005**: The driver MUST be able to go **on duty** / **off duty**, reachable from the home screen;
@@ -311,12 +311,12 @@ sign-in.
 - **FR-006**: An off-duty driver MUST see a calm "start shift" state and MUST NOT receive new assignments.
 
 #### Work model & automatic assignment
-- **FR-007**: Driver work MUST be modeled as **typed tasks** — `collection` (a package to collect from a
-  shop) and `same_day_delivery` (a customer drop) — grouped into runs; the app MUST NOT hard-code a
+- **FR-007**: Driver work MUST be modeled as **typed tasks** - `collection` (a package to collect from a
+  shop) and `same_day_delivery` (a customer drop) - grouped into runs; the app MUST NOT hard-code a
   "collector" vs "deliverer" role. One driver MAY be assigned collection work, same-day delivery work, or
   both in a shift.
 - **FR-008**: The system MUST **automatically assign** work to eligible on-duty drivers with **no human
-  dispatcher** and **no accept/decline step** — work is assigned, not offered.
+  dispatcher** and **no accept/decline step** - work is assigned, not offered.
 - **FR-009**: A collection task MUST become assignable only when the shop portion is **ready for pickup**
   (020's `ready_for_pickup`). Same-day delivery tasks MUST become assignable only after their packages are
   **checked in at the hub**.
@@ -325,7 +325,7 @@ sign-in.
   driver. Assignment MUST NOT depend on continuous location streaming.
 - **FR-011**: Work assigned to a driver who becomes ineligible (goes off duty, unreachable) MUST be
   **returned to the assignment pool** for reassignment, never orphaned. Releasing work MUST only affect
-  **not-yet-collected** packages / not-yet-started drops — an in-progress step MUST NOT be yanked
+  **not-yet-collected** packages / not-yet-started drops - an in-progress step MUST NOT be yanked
   mid-action; and a driver MUST NOT be able to abandon an in-progress run silently (either they are
   prevented from going off duty mid-step, or the remaining stops are explicitly released).
 - **FR-012**: Each driver MUST see only the work assigned to them; a driver MUST NOT view or act on
@@ -336,14 +336,14 @@ sign-in.
   showing the shop name + address and the package/item count to collect, with pull-to-refresh; rows MUST
   NOT show any monetary value.
 - **FR-014**: At a shop the driver MUST see the **package manifest** as a **checkable (tick-or-scan)
-  list** — each package showing its reference, destination suburb, and same-day/standard method — and a
+  list** - each package showing its reference, destination suburb, and same-day/standard method - and a
   large collect confirm (swipe-to-confirm); marking a shop's packages collected MUST advance that shop
   portion to `collected`.
 - **FR-015**: The driver MUST be able to **report a missing or short package** at a shop, recording the
   affected item and a reason, without blocking collection of the rest.
 - **FR-016**: When all assigned shops are collected, the app MUST present a **hub check-in** step that
   confirms the packages in (a scanned/checked total), surfaces the **same-day vs standard split** as
-  counts (each package's method already known from checkout — the driver does not classify), and via a
+  counts (each package's method already known from checkout - the driver does not classify), and via a
   single confirm (swipe) **ends the collection run** and **unlocks** the same-day delivery run. A
   "nothing same-day today" variant MUST exist.
 - **FR-017**: At hub check-in, **standard** packages MUST be staged/labelled for the **external delivery
@@ -362,16 +362,16 @@ sign-in.
 - **FR-020**: The drop detail MUST show the customer name + full address + delivery instructions (pinned
   during en-route and arrived), the packages for the drop, a mini-map, and the current status + next
   action.
-- **FR-021**: The home ("Today") MUST be **phase-aware** — a two-up phase indicator showing **Collection
+- **FR-021**: The home ("Today") MUST be **phase-aware** - a two-up phase indicator showing **Collection
   run vs Same-day run** with the current phase active and the active stop/drop shown below it, plus the
-  queue — and MUST show a **counts-only** "N stops/drops remaining today" summary (never currency).
+  queue - and MUST show a **counts-only** "N stops/drops remaining today" summary (never currency).
 
 #### Navigation & contact
 - **FR-022**: The app MUST hand off turn-by-turn navigation to the device's maps application directed to
   the selected stop's address; it MUST NOT provide its own turn-by-turn.
 - **FR-023**: The app MUST provide a **contact customer** affordance on a drop, and any contact it
   enables MUST go through a **masked** channel (call/message) that exposes neither party's real contact
-  details — the app MUST NEVER surface a real phone number. ⚠ The masking **relay is a platform
+  details - the app MUST NEVER surface a real phone number. ⚠ The masking **relay is a platform
   dependency that does not exist yet** (research R6); until it does, the affordance MAY be
   disabled/limited rather than exposing raw details. The masked relay itself is a recorded follow-on.
 
@@ -395,12 +395,12 @@ sign-in.
   **segmented control** (collection: shop pins → **hub**; delivery: **hub** → customer drop pins), with
   the hub shown as a distinct pin, current location, and a bottom sheet listing the ordered stops; tapping
   a stop MUST open its detail.
-- **FR-030**: Map styling — pins and route lines — MUST be **monochrome/neutral** in both light and dark,
+- **FR-030**: Map styling - pins and route lines - MUST be **monochrome/neutral** in both light and dark,
   using no third hue.
 
 #### Notifications
-- **FR-031**: The system MUST record driver-facing events — **new assignment**, **packages ready to
-  collect**, the **same-day delivery window start**, and **completion/shift reminders** — and surface
+- **FR-031**: The system MUST record driver-facing events - **new assignment**, **packages ready to
+  collect**, the **same-day delivery window start**, and **completion/shift reminders** - and surface
   them so a driver learns of new work without polling; tapping an assignment MUST open the relevant
   run/stop. ⚠ **Push delivery** of these events is **deferred with a recorded dependency on the platform
   notifications path** (FCM/APNs), which is not yet built; the **in-app activity feed (FR-032) is the
@@ -409,8 +409,8 @@ sign-in.
   an empty state.
 
 #### History
-- **FR-033**: The app MUST provide a **read-only** history holding **both record types** — completed
-  **collection runs** (with their own timeline) and completed **same-day drops** (with captured proof) —
+- **FR-033**: The app MUST provide a **read-only** history holding **both record types** - completed
+  **collection runs** (with their own timeline) and completed **same-day drops** (with captured proof) -
   grouped by day; drop rows MUST show order reference, customer suburb, completion time, and a proof
   indicator; an empty state MUST exist.
 - **FR-034**: A history detail MUST show the status timeline with timestamps, the captured proof (for
@@ -436,7 +436,7 @@ sign-in.
   chrome); **no web surface** is in scope.
 - **FR-041**: The entire UI MUST follow the platform's **monochrome** design system: a neutral grayscale
   ramp as the only accent (inverting between light and dark), the typeface **General Sans**, and exactly
-  two semantic colors — error and a non-text success indicator — with **no third hue**.
+  two semantic colors - error and a non-text success indicator - with **no third hue**.
 - **FR-042**: **Dark mode is required** and every screen MUST be designed for both light and dark with
   **WCAG AA** text contrast in both.
 - **FR-043**: Primary actions MUST be large, thumb-reachable, and use **fat-finger touch targets** (every
@@ -446,26 +446,26 @@ sign-in.
 
 ### Key Entities *(include if feature involves data)*
 
-- **Driver**: an Effy courier employee — identity (name, work email, avatar), assigned **delivery zone**,
+- **Driver**: an Effy courier employee - identity (name, work email, avatar), assigned **delivery zone**,
   assigned **hub**, **vehicle** info (type, plate), current **duty status**, and account status
   (active/disabled).
 - **Duty session**: a period a driver is on duty (start/end), gating assignment.
 - **Hub**: the single central Effy warehouse packages are collected back to and same-day runs dispatch
-  from — a configurable location (aligned to 047's operating-hub point).
-- **Package**: a per-shop portion of a customer order (maps to a shop fulfilment portion) — references the
+  from - a configurable location (aligned to 047's operating-hub point).
+- **Package**: a per-shop portion of a customer order (maps to a shop fulfilment portion) - references the
   order and the shop, carries the **method** (same-day / standard, known from checkout), and moves through
   collection and (for same-day) delivery.
 - **Collection task / run**: an assigned task to collect a package (or a shop's packages) from a shop; a
   collection run is the ordered set a driver works before hub check-in.
-- **Hub check-in**: the event ending a collection run — records packages as `collected`/received at the
+- **Hub check-in**: the event ending a collection run - records packages as `collected`/received at the
   hub and splits same-day (→ delivery run) from standard (→ external carrier).
 - **Same-day delivery task / run**: an assigned customer drop for that customer's same-day packages at the
   hub; a delivery run is the ordered set of drops a driver works.
-- **Proof of delivery**: completion evidence for a drop — method (photo/code/signature/contactless), the
+- **Proof of delivery**: completion evidence for a drop - method (photo/code/signature/contactless), the
   captured artifact and optional note, timestamped, stored privately.
 - **Failure record**: the reason + note when a drop is marked undeliverable (or a package missing/short at
   a shop).
-- **Status event**: an entry in a task's timeline — status + timestamp — powering history.
+- **Status event**: an entry in a task's timeline - status + timestamp - powering history.
 - **Notification / activity item**: a driver-facing event (new assignment, ready-to-collect, delivery
   window start, reminder) with a type, timestamp, and link to the relevant run/stop.
 
@@ -537,8 +537,8 @@ sign-in.
 
 ## Dependencies
 
-- **Fulfilment lifecycle (020)** produces `ready_for_pickup` shop portions — the trigger for a collection
-  task — and defines the shop-side states this app advances (`collected`). This slice retires 020's
+- **Fulfilment lifecycle (020)** produces `ready_for_pickup` shop portions - the trigger for a collection
+  task - and defines the shop-side states this app advances (`collected`). This slice retires 020's
   dev-only `collected`/`delivered` stubs.
 - **Commerce flow / fan-out (019/020)** provides orders, per-shop fulfilment split, customer address, and
   package manifests the driver consumes.
@@ -554,7 +554,7 @@ sign-in.
 
 - **Return-to-hub for undelivered packages is not yet designed.** A failed/undeliverable drop (FR-028)
   records the failure, but the physical "bring the package back to the hub" step is a v2 "try next" idea,
-  not a built screen — treat it as a later refinement, not part of this slice's happy path.
+  not a built screen - treat it as a later refinement, not part of this slice's happy path.
 - **Scan-driven check-in is optional.** The design supports tick-or-scan at shop stops and hub check-in;
   a fully scan-driven (barcode) check-in is a possible enhancement, not required by this spec.
 - **Partially-completed same-day run** presentation and richer notification anatomy are design polish items

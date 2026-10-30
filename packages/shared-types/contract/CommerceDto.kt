@@ -1,4 +1,4 @@
-// GENERATED FROM packages/shared-types/src/{storefront,cart,order,checkout,address,saved-item}.ts — DO NOT EDIT.
+// GENERATED FROM packages/shared-types/src/{storefront,cart,order,checkout,address,saved-item}.ts - DO NOT EDIT.
 // Regenerate: pnpm --filter @effy/shared-types commerce-contract:gen
 // The wire contract lives in TypeScript ONCE (Principle II); this file is derived and diff-guarded (019).
 
@@ -290,7 +290,7 @@ data class CartLimitsDTO (
 )
 
 /**
- * A cart line, or a set-aside line — the same shape; re-priced against the catalog on every
+ * A cart line, or a set-aside line - the same shape; re-priced against the catalog on every
  * read.
  */
 @Serializable
@@ -571,7 +571,7 @@ data class ConfirmCheckoutRequest (
 )
 
 /**
- * POST /v1/addresses — the first address created becomes the default.
+ * POST /v1/addresses - the first address created becomes the default.
  */
 @Serializable
 data class CreateAddressRequest (
@@ -1114,7 +1114,7 @@ data class CheckoutPointsDTO (
 )
 
 /**
- * `GET /commerce/v1/orders/{id}/delivery-note` — what was supplied, line by line.
+ * `GET /commerce/v1/orders/{id}/delivery-note` - what was supplied, line by line.
  */
 @Serializable
 data class DeliveryNoteDTO (
@@ -1352,7 +1352,7 @@ data class ProductOfferDTO (
 )
 
 /**
- * GET /v1/payment-methods — the shopper's kept cards.
+ * GET /v1/payment-methods - the shopper's kept cards.
  */
 @Serializable
 data class ListPaymentMethodsResponse (
@@ -2229,7 +2229,7 @@ data class StorefrontVariantDTO (
     val id: String,
 
     /**
-     * The variant's own picture, or null — show the product's gallery.
+     * The variant's own picture, or null - show the product's gallery.
      */
     @SerialName("imageUrl")
     val imageURL: String? = null,
@@ -3167,7 +3167,7 @@ data class ProductSearchResultDTO (
 )
 
 /**
- * PATCH /v1/addresses/{id} — partial update / set default.
+ * PATCH /v1/addresses/{id} - partial update / set default.
  */
 @Serializable
 data class UpdateAddressRequest (

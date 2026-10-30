@@ -53,7 +53,7 @@ import * as vehiclesRepo from "./vehicles/repository";
 
 const RUN = process.env.CONTAINER_TESTS === "1";
 
-describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
+describe.skipIf(!RUN)("fleet SQL - against real PostgreSQL", () => {
   let container: StartedPostgreSqlContainer;
   let pool: Pool;
 
@@ -170,7 +170,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
     };
   }
 
-  describe("SC-013 — the register pages 500 drivers with no duplicate and no gap", () => {
+  describe("SC-013 - the register pages 500 drivers with no duplicate and no gap", () => {
     it("returns every driver exactly once across the full paging sequence", async () => {
       const names = Array.from({ length: 500 }, (_, i) => `Driver ${String(i).padStart(3, "0")}`);
       for (const n of names) await seedDriver(n);
@@ -198,7 +198,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
     });
   });
 
-  describe("SC-010 — every optional field can be cleared and stays cleared", () => {
+  describe("SC-010 - every optional field can be cleared and stays cleared", () => {
     it("⚠ a null in the patch CLEARS the column; an absent key leaves it alone", async () => {
       const zoneId = await seedZone();
       const id = await seedDriver("Clearable", { zoneId });
@@ -253,7 +253,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
     });
   });
 
-  describe("FR-014 — the duplicate work email is refused by the DATABASE, not just the service", () => {
+  describe("FR-014 - the duplicate work email is refused by the DATABASE, not just the service", () => {
     it("⚠ a second insert on the same address raises rather than upserting", async () => {
       await pool.query(
         `INSERT INTO public.driver (cognito_sub, name, work_email) VALUES ('s1', 'Jo', 'jo@effyshopping.com')`,
@@ -316,7 +316,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
       const [row] = await dutyRepo.listOnDuty();
       expect(row!.overdue).toBe(true);
 
-      const noop = async () => {};
+      const noop = async () => { };
       expect(await dutyRepo.endSession(row!.sessionId, noop)).toBe("ended");
       expect(await dutyRepo.endSession(row!.sessionId, noop)).toBe("already_ended");
       expect(await dutyRepo.listOnDuty()).toHaveLength(0);
@@ -339,9 +339,9 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
     return r.rows[0]!.id;
   }
 
-  describe("061 C1/C2 — the two exclusion rules, PROVEN UNDER CONCURRENCY", () => {
+  describe("061 C1/C2 - the two exclusion rules, PROVEN UNDER CONCURRENCY", () => {
     /** Both inserts race unawaited; exactly one survives and the database refuses the other. */
-    it("⚠ C1 — two CONCURRENT issues of ONE VEHICLE: exactly one succeeds", async () => {
+    it("⚠ C1 - two CONCURRENT issues of ONE VEHICLE: exactly one succeeds", async () => {
       const v = await seedVehicle("EFY-C1");
       const a = await seedDriver("Alpha One");
       const b = await seedDriver("Bravo One");
@@ -362,7 +362,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
     });
 
     /** One driver, two vehicles, at once. */
-    it("⚠ C2 — two CONCURRENT issues to ONE DRIVER: exactly one succeeds", async () => {
+    it("⚠ C2 - two CONCURRENT issues to ONE DRIVER: exactly one succeeds", async () => {
       const d = await seedDriver("Charlie Two");
       const v1 = await seedVehicle("EFY-C2A");
       const v2 = await seedVehicle("EFY-C2B");
@@ -378,7 +378,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
     });
 
     /** Returning frees both sides. */
-    it("C6 — returning a holding frees both the vehicle and the driver", async () => {
+    it("C6 - returning a holding frees both the vehicle and the driver", async () => {
       const v = await seedVehicle("EFY-C6");
       const d = await seedDriver("Delta Six");
       await pool.query(`INSERT INTO public.vehicle_holding (vehicle_id, driver_id) VALUES ($1, $2)`, [v, d]);
@@ -397,9 +397,9 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
     });
   });
 
-  describe("061 C3/C4/C5 — schema rules a mocked test cannot see", () => {
+  describe("061 C3/C4/C5 - schema rules a mocked test cannot see", () => {
     /** The odometer rule is the database's, so it holds for every writer. */
-    it("C3 — a closing odometer below the opening is refused by the database", async () => {
+    it("C3 - a closing odometer below the opening is refused by the database", async () => {
       const v = await seedVehicle("EFY-C3");
       const d = await seedDriver("Foxtrot Three");
       const h = await pool.query<{ id: string }>(
@@ -418,7 +418,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
     });
 
     /** Plate uniqueness is scoped to non-retired vehicles: a retired van's plate can be reissued. */
-    it("C4 — a duplicate plate is refused, and the SAME plate is accepted once the first is retired", async () => {
+    it("C4 - a duplicate plate is refused, and the SAME plate is accepted once the first is retired", async () => {
       const first = await seedVehicle("EFY-C4");
       await expect(seedVehicle("EFY-C4")).rejects.toMatchObject({ constraint: "vehicle_plate_active_uq" });
 
@@ -427,13 +427,13 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
     });
 
     /** `abc123` and `ABC123` are the same plate. */
-    it("C5 — plate uniqueness is case-insensitive", async () => {
+    it("C5 - plate uniqueness is case-insensitive", async () => {
       await seedVehicle("efy-c5");
       await expect(seedVehicle("EFY-C5")).rejects.toMatchObject({ constraint: "vehicle_plate_active_uq" });
     });
 
     /** Retiring keeps the history. */
-    it("C7 — retiring a vehicle leaves its holding history readable", async () => {
+    it("C7 - retiring a vehicle leaves its holding history readable", async () => {
       const v = await seedVehicle("EFY-C7");
       const d = await seedDriver("Golf Seven");
       await pool.query(
@@ -451,7 +451,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
       expect(history.rows[0]!.odometer_end_km).toBe(99);
     });
 
-    it("103: pages, searches and filters on the server — never just the rows on screen", async () => {
+    it("103: pages, searches and filters on the server - never just the rows on screen", async () => {
       for (let i = 0; i < 30; i++) await seedVehicle(`EFY-L${String(i).padStart(2, "0")}`);
       const list = (qs: Record<string, string>) => vehiclesRepo.listVehicles(parseListQuery({ pageSize: "25", ...qs }, VEHICLE_LIST_SPEC));
       const p1 = await list({});
@@ -477,12 +477,12 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
     });
   });
 
-  describe("061 C8/C9/C10 — every blocking reason, stated and complete", () => {
+  describe("061 C8/C9/C10 - every blocking reason, stated and complete", () => {
     /** Every applicable reason, not the first found: each has a different remedy. */
-    it("⚠ C8 — emits EVERY applicable reason at once, not just the first", async () => {
+    it("⚠ C8 - emits EVERY applicable reason at once, not just the first", async () => {
       // Suspended and no zone and licence expired and no vehicle: four causes, one driver.
       const id = await seedDriver("Hotel Eight", {
-              status: "suspended",
+        status: "suspended",
         licenceExpires: "2020-01-01",
       });
       const d = await driversRepo.getDriver(id);
@@ -492,7 +492,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
     });
 
     /** Proven by causing it. */
-    it("⚠ C9 — an expired licence is reported, and the reason names the licence", async () => {
+    it("⚠ C9 - an expired licence is reported, and the reason names the licence", async () => {
       const zoneId = await seedZone();
       const id = await seedDriver("India Nine", { zoneId, licenceExpires: "2020-01-01" });
       const d = await driversRepo.getDriver(id);
@@ -500,7 +500,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
     });
 
     /** The reason names the vehicle's problem (its registration lapsed), not the driver's. */
-    it("⚠ C10 — a holder of a non-compliant vehicle is blocked, and NOT for a licence reason", async () => {
+    it("⚠ C10 - a holder of a non-compliant vehicle is blocked, and NOT for a licence reason", async () => {
       const zoneId = await seedZone();
       const id = await seedDriver("Juliet Ten", { zoneId, licenceExpires: "2030-01-01" });
       const v = await seedVehicle("EFY-C10", { regExpires: "2020-01-01" });
@@ -513,7 +513,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
     });
 
     /** A driver who can work appears nowhere in the readiness view. */
-    it("⚠ FR-028 — an unblocked driver is ABSENT from the readiness view entirely", async () => {
+    it("⚠ FR-028 - an unblocked driver is ABSENT from the readiness view entirely", async () => {
       const zoneId = await seedZone();
       const ok = await seedDriver("Ready Romeo", { zoneId, licenceExpires: "2030-01-01" });
       const v = await seedVehicle("EFY-RDY", { regExpires: "2030-01-01" });
@@ -551,7 +551,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
     });
   });
 
-  describe("061 FR-019 — the SQL behind the stand-down guard", () => {
+  describe("061 FR-019 - the SQL behind the stand-down guard", () => {
     /** The stand-down guard's input: the query finds a held vehicle. */
     it("⚠ finds the vehicle a driver is holding, with enough to NAME it in a refusal", async () => {
       const driverId = await seedDriver("Mike Holding");
@@ -583,9 +583,9 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
 
   // Clearances and coverage.
 
-  describe("062 C1–C8 — clearances", () => {
+  describe("062 C1–C8 - clearances", () => {
     /** A repeated grant succeeds; two at once both win. */
-    it("C1 — granting the same clearance twice is refused by the index, and surfaces as a no-op", async () => {
+    it("C1 - granting the same clearance twice is refused by the index, and surfaces as a no-op", async () => {
       const z = await seedZone("C1 Zone");
       const d = await seedDriver("Alpha Cap");
       await capRepo.grant(d, "delivery", z, "actor-1");
@@ -606,7 +606,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
     });
 
     /** `NULLS NOT DISTINCT`: without it the every-zone grant could be inserted twice. */
-    it("⚠ C2 — two identical EVERY-ZONE grants cannot both exist", async () => {
+    it("⚠ C2 - two identical EVERY-ZONE grants cannot both exist", async () => {
       const d = await seedDriver("Bravo Every");
       await capRepo.grant(d, "collection", null, "actor-1");
 
@@ -626,7 +626,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
     });
 
     /** A driver cleared for every zone covers a zone created later; caused here by creating one mid-test. */
-    it("⚠⚠ C3 — an EVERY-ZONE driver covers a zone CREATED AFTERWARDS", async () => {
+    it("⚠⚠ C3 - an EVERY-ZONE driver covers a zone CREATED AFTERWARDS", async () => {
       // The driver must be able to work, or coverage would correctly report `all_cleared_unavailable` instead.
       const d = await seedDriver("Charlie Everywhere", { licenceExpires: "2030-01-01" });
       const v = await seedVehicle("EFY-C3", { regExpires: "2030-01-01" });
@@ -655,7 +655,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
     });
 
     /** A zone-specific grant must not leak to another zone. */
-    it("C4 — a zone-specific grant does not match a different zone", async () => {
+    it("C4 - a zone-specific grant does not match a different zone", async () => {
       const a = await seedZone("C4 Alpha");
       const b = await seedZone("C4 Bravo");
       const d = await seedDriver("Delta Narrow");
@@ -671,7 +671,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
       expect(inB.rows[0]!.ok).toBe(false);
     });
 
-    it("C5 — revoking one clearance leaves the driver's others intact", async () => {
+    it("C5 - revoking one clearance leaves the driver's others intact", async () => {
       const z = await seedZone("C5 Zone");
       const d = await seedDriver("Echo Multi");
       await capRepo.grant(d, "collection", z, "actor-1");
@@ -687,14 +687,14 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
     });
 
     /** Revoking what is not held is a success. */
-    it("C6 — revoking a clearance the driver does not hold is a no-op, not a failure", async () => {
+    it("C6 - revoking a clearance the driver does not hold is a no-op, not a failure", async () => {
       const d = await seedDriver("Foxtrot None");
       const removed = await capRepo.revoke(d, "00000000-0000-0000-0000-000000000000");
       expect(removed).toBe(false);
       await expect(capRepo.listForDriver(d)).resolves.toEqual([]);
     });
 
-    it("C7 — DELETING a zone removes clearances naming it, and leaves every-zone grants untouched", async () => {
+    it("C7 - DELETING a zone removes clearances naming it, and leaves every-zone grants untouched", async () => {
       const z = await seedZone("C7 Doomed");
       const d = await seedDriver("Golf Mixed");
       await capRepo.grant(d, "delivery", z, "actor-1");
@@ -708,7 +708,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
     });
 
     /** Disabling is not deleting: re-enabling must restore cover without re-granting. */
-    it("⚠ C8 — DISABLING a zone hides its clearances but does NOT delete them; re-enabling restores cover", async () => {
+    it("⚠ C8 - DISABLING a zone hides its clearances but does NOT delete them; re-enabling restores cover", async () => {
       const z = await seedZone("C8 Toggle");
       const d = await seedDriver("Hotel Toggle");
       await capRepo.grant(d, "delivery", z, "actor-1");
@@ -727,8 +727,8 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
     });
   });
 
-  describe("062 C9–C14 — coverage", () => {
-    it("C9 — a zone nobody is cleared for reports no_driver_cleared", async () => {
+  describe("062 C9–C14 - coverage", () => {
+    it("C9 - a zone nobody is cleared for reports no_driver_cleared", async () => {
       const z = await seedZone("C9 Empty", { sameDay: false });
       const gaps = await coverageRepo.coverageGaps();
       const mine = gaps.filter((g) => g.zoneId === z);
@@ -740,7 +740,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
     });
 
     /** Two reasons with different remedies: nobody cleared, or the cleared cannot work. */
-    it("⚠ C10 — a zone whose cleared drivers are all BLOCKED reports all_cleared_unavailable", async () => {
+    it("⚠ C10 - a zone whose cleared drivers are all BLOCKED reports all_cleared_unavailable", async () => {
       const z = await seedZone("C10 Blocked", { sameDay: false });
       const d = await seedDriver("India Expired", { licenceExpires: "2020-01-01" });
       for (const fn of ["collection", "delivery"] as const) {
@@ -757,7 +757,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
     });
 
     /** A list of problems, not a matrix. */
-    it("⚠ C11 — a COVERED combination emits no row at all", async () => {
+    it("⚠ C11 - a COVERED combination emits no row at all", async () => {
       const z = await seedZone("C11 Covered", { sameDay: false });
       const v = await seedVehicle("EFY-C11", { regExpires: "2030-01-01" });
       const d = await seedDriver("Juliet Able", { licenceExpires: "2030-01-01" });
@@ -771,7 +771,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
     });
 
     /** One gap per area and function. */
-    it("⚠ C12 — a gap is per area and function, with no method, whether or not same-day was sold there", async () => {
+    it("⚠ C12 - a gap is per area and function, with no method, whether or not same-day was sold there", async () => {
       const a = await seedZone("C12 Standard Only", { sameDay: false });
       const b = await seedZone("C12 Same Day", { sameDay: true });
 
@@ -784,7 +784,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
     });
 
     /** One row per clearance: granting what is held adds none, revoking removes the one there is. */
-    it("⚠ 083 P14 — one row per clearance: grant twice adds none, revoke removes it", async () => {
+    it("⚠ 083 P14 - one row per clearance: grant twice adds none, revoke removes it", async () => {
       const z = await seedZone("P14 Zone");
       const d = await seedDriver("P14 Driver");
       const first = await capRepo.grant(d, "delivery", z, "actor-1");
@@ -805,7 +805,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
     });
 
     /** The two views read one availability rule. */
-    it("⚠ C13 — coverage and readiness agree about whether a driver can work", async () => {
+    it("⚠ C13 - coverage and readiness agree about whether a driver can work", async () => {
       const z = await seedZone("C13 Agree", { sameDay: false });
       const d = await seedDriver("Kilo Agree", { licenceExpires: "2020-01-01" });
       for (const fn of ["collection", "delivery"] as const) {
@@ -821,7 +821,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
       expect(coverageSaysUnavailable).toBe(true);
     });
 
-    it("C14 — an offboarded driver's clearances do not count toward coverage", async () => {
+    it("C14 - an offboarded driver's clearances do not count toward coverage", async () => {
       const z = await seedZone("C14 Departed", { sameDay: false });
       const d = await seedDriver("Lima Gone", { status: "offboarded" });
       for (const fn of ["collection", "delivery"] as const) {
@@ -834,7 +834,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
     });
   });
 
-  describe("SC-009 — readiness surfaces the gap before an order is affected", () => {
+  describe("SC-009 - readiness surfaces the gap before an order is affected", () => {
     it("⚠ flags a driver cleared for NOTHING as unable to receive work", async () => {
       await seedDriver("Uncleared");
       const blocked = await readinessRepo.blockedDrivers();
@@ -894,7 +894,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
     });
   });
 
-  describe("FR-005 — offboarded drivers are hidden by default", () => {
+  describe("FR-005 - offboarded drivers are hidden by default", () => {
     it("excludes them unless asked for, and includes them when asked", async () => {
       await seedDriver("Current");
       await seedDriver("Departed", { status: "offboarded" });

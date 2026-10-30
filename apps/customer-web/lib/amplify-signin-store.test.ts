@@ -31,7 +31,7 @@ describe("Amplify's sign-in challenge store (036 R1)", () => {
 
   it("⚠ still PERSISTS the challenge rather than holding it only in memory", () => {
     // If this goes, a soft navigation between steps still works but a reload loses the challenge with
-    // no warning — and the "degrade to step 1" path becomes the common case instead of the edge one.
+    // no warning - and the "degrade to step 1" path becomes the common case instead of the edge one.
     expect(source).toMatch(/sessionStorage/i)
   })
 
@@ -52,7 +52,7 @@ describe("Amplify's sign-in challenge store (036 R1)", () => {
   })
 
   it("pins the version this behaviour was verified against", () => {
-    // Not a lockfile substitute — a breadcrumb. The behaviour above was read out of this version's
+    // Not a lockfile substitute - a breadcrumb. The behaviour above was read out of this version's
     // source; a major bump is a prompt to re-read it rather than to trust these greps.
     const pkg = require("@aws-amplify/auth/package.json") as { version: string }
     expect(pkg.version.startsWith("6."), `verified against 6.x, found ${pkg.version}`).toBe(true)

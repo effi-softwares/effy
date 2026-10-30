@@ -46,7 +46,7 @@ describe("ICO container assembly", () => {
     assert.equal(ico.length, 6 + 3 * 16 + pngs.reduce((a, b) => a + b.length, 0))
   })
 
-  test("256 is encoded as 0 — the field is one byte", () => {
+  test("256 is encoded as 0 - the field is one byte", () => {
     const ico = buildIco([{ size: 256, png: fakePng(10) }])
     assert.equal(ico.readUInt8(6), 0)
     assert.equal(readIcoDirectory(ico)[0].width, 256)

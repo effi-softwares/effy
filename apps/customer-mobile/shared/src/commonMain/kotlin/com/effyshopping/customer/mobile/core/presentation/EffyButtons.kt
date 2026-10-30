@@ -32,7 +32,7 @@ import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 
 /**
- * The primary action — full width, Effy blue, 52dp, 6dp corners (Foundations board).
+ * The primary action - full width, Effy blue, 52dp, 6dp corners (Foundations board).
  *
  * [destructive] draws it black: the storefront has no red, so a destructive action is said with its
  * words and an icon, never a hue (constitution v3.3.0). [loading] puts the spinner inside the button
@@ -78,7 +78,7 @@ fun EffyPrimaryButton(
     }
 }
 
-/** The secondary action — white inside a hairline border, 48dp. */
+/** The secondary action - white inside a hairline border, 48dp. */
 @Composable
 fun EffySecondaryButton(
     label: String,
@@ -115,7 +115,7 @@ fun EffySecondaryButton(
 }
 
 /**
- * A quiet, full-width action — "Cancel", "Stay signed in", "Skip". 48dp target, no border.
+ * A quiet, full-width action - "Cancel", "Stay signed in", "Skip". 48dp target, no border.
  * [color] defaults to the text colour; pass `primary` for a blue text action.
  */
 @Composable
@@ -144,7 +144,7 @@ fun EffyGhostButton(
     }
 }
 
-/** A blue text action inside content — "See all", "Change", "Need a specific time?". 48dp target. */
+/** A blue text action inside content - "See all", "Change", "Need a specific time?". 48dp target. */
 @Composable
 fun EffyTextLink(
     label: String,
@@ -174,7 +174,7 @@ internal fun EffyButtonSpinner(color: Color) {
     CircularProgressIndicator(modifier = Modifier.size(18.dp), color = color, strokeWidth = 2.dp)
 }
 
-/** "Or" between two ways of doing one thing: hairline — word — hairline. */
+/** "Or" between two ways of doing one thing: hairline - word - hairline. */
 @Composable
 fun EffyOrDivider(label: String = "Or", modifier: Modifier = Modifier) {
     Row(
@@ -189,7 +189,7 @@ fun EffyOrDivider(label: String = "Or", modifier: Modifier = Modifier) {
 }
 
 /**
- * The inline link line — "Don't have an account? Join". The action is blue (the storefront's link
+ * The inline link line - "Don't have an account? Join". The action is blue (the storefront's link
  * colour) and 48dp tall; [enabled] dims it while a request is in flight rather than removing it.
  */
 @Composable

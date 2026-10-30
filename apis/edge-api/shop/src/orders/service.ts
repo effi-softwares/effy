@@ -186,7 +186,7 @@ const STATE_WORDS: Record<string, string> = {
 
 const REFUND_WORDS: Record<string, string> = {
   submitting: "being sent",
-  submitted: "sent — waiting for the bank",
+  submitted: "sent - waiting for the bank",
   succeeded: "returned",
   failed: "failed",
   refused: "refused by the provider",
@@ -210,7 +210,7 @@ export function toEntry(r: ActivityRecord): ActivityEntry {
     case "collection":
       return {
         ...base,
-        title: r.to_status === "short" ? "Collected by an Effy driver — reported short" : "Collected by an Effy driver",
+        title: r.to_status === "short" ? "Collected by an Effy driver - reported short" : "Collected by an Effy driver",
         tone: r.to_status === "short" ? "negative" : "quiet",
       };
     case "arrival":
@@ -229,7 +229,7 @@ function eventWords(r: ActivityRecord): { title: string; tone: ActivityEntry["to
     case "state_changed": {
       const to = r.to_status ?? "";
       if (r.from_status === "pending" && to === "received") {
-        return { title: "Order opened — acknowledged", tone: "quiet" };
+        return { title: "Order opened - acknowledged", tone: "quiet" };
       }
       if (r.from_status === "ready_for_pickup" && to === "picking") {
         return { title: "Picking reopened", tone: "strong" };
@@ -240,20 +240,20 @@ function eventWords(r: ActivityRecord): { title: string; tone: ActivityEntry["to
         tone: to === "unfulfillable" || to === "withdrawn" ? "negative" : "quiet",
       };
     }
-    // "{item} — picked in full" / "{n} of {m} picked" / "marked unavailable", plus the note.
+    // "{item} - picked in full" / "{n} of {m} picked" / "marked unavailable", plus the note.
     case "item_gathered": {
       const ordered = r.item_ordered;
-      if (qty === 0) return { title: `${item} — picking cleared${note}`, tone: "quiet" };
-      if (ordered !== null && qty >= ordered) return { title: `${item} — picked in full${note}`, tone: "quiet" };
+      if (qty === 0) return { title: `${item} - picking cleared${note}`, tone: "quiet" };
+      if (ordered !== null && qty >= ordered) return { title: `${item} - picked in full${note}`, tone: "quiet" };
       return {
-        title: ordered !== null ? `${item} — ${qty} of ${ordered} picked${note}` : `${item} — ${qty} picked${note}`,
+        title: ordered !== null ? `${item} - ${qty} of ${ordered} picked${note}` : `${item} - ${qty} picked${note}`,
         tone: "quiet",
       };
     }
     case "item_unavailable":
-      return { title: `${item} — marked unavailable${note}`, tone: "negative" };
+      return { title: `${item} - marked unavailable${note}`, tone: "negative" };
     case "item_restored":
-      return { title: `${item} — found, no longer unavailable${note}`, tone: "quiet" };
+      return { title: `${item} - found, no longer unavailable${note}`, tone: "quiet" };
     case "note_added":
       return { title: "Internal note added", tone: "quiet" };
     case "tags_changed":

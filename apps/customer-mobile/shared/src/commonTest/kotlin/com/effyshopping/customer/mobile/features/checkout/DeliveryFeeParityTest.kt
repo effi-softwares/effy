@@ -10,7 +10,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * 077 P25 — the app shows the same delivery lines as the website for the same quote. The fixture is
+ * 077 P25 - the app shows the same delivery lines as the website for the same quote. The fixture is
  * [DeliveryWireContractTest.DELIVERY_QUOTE_WIRE]; customer-web's `DeliveryFeeLines.parity.test.tsx`
  * renders it and asserts these exact strings.
  */

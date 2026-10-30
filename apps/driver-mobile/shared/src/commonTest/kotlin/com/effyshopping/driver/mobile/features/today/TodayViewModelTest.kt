@@ -56,9 +56,9 @@ class TodayViewModelTest {
         TodayViewModel(initialDuty = duty, getToday = GetToday(repo), setDuty = SetDuty(drivers), newChangeId = { "c" }, now = { 42L })
 
     /**
-     * Rev 2 — the reported defect: a driver collected the first shop, came back, and Today still
+     * Rev 2 - the reported defect: a driver collected the first shop, came back, and Today still
      * said "Next · stop 1". Their own change is never announced back to them, so coming back is when
-     * Today must re-read — quietly, with no spinner over the run already on screen.
+     * Today must re-read - quietly, with no spinner over the run already on screen.
      */
     @Test fun coming_back_to_today_reads_it_again_quietly() = runTest {
         val repo = Repo(run)

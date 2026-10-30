@@ -48,7 +48,7 @@ export function RepairDialog({ address, state }: { address: string; state: Email
               <>
                 {" "}
                 Messages to it were being <strong>permanently rejected</strong>. Only do this once you know the mailbox
-                works again — another failure spends Effy&apos;s sending reputation, which every audience&apos;s sign-in
+                works again - another failure spends Effy&apos;s sending reputation, which every audience&apos;s sign-in
                 depends on.
               </>
             )}

@@ -32,14 +32,14 @@ type MissingReason = "not_at_hub" | "damaged" | "wrong_temperature" | "other";
 interface LoadRequest {
   changeId: string;
   packages?: PackageHandover[];
-  /** 093 — packages not loaded. Every package on the run is either handed over or listed here. */
+  /** 093 - packages not loaded. Every package on the run is either handed over or listed here. */
   notLoaded?: Array<{ packageId?: string; packageCode?: string; reason: MissingReason; note?: string | null }>;
 }
 interface LoadResponse { loaded: number; held: number; dropsRemoved: number }
 
 interface HubCheckinRequest {
   runId: string; changeId: string; packages?: PackageHandover[];
-  /** 093 — collected packages that are not in the van. */
+  /** 093 - collected packages that are not in the van. */
   missing?: Array<{ packageId?: string; packageCode?: string }>;
 }
 interface HubCheckinResponse { /* unchanged */ held: number }

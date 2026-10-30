@@ -33,7 +33,7 @@ async function setVariant(productId: string, set: string, args: unknown[] = []) 
 const savedCount = async (customerId: string) =>
   (await pool.query<{ n: number }>(`SELECT count(*)::int AS n FROM public.customer_saved_item WHERE customer_id = $1`, [customerId])).rows[0]!.n;
 
-d("070 — saved items and lists against the real schema", () => {
+d("070 - saved items and lists against the real schema", () => {
   beforeAll(async () => {
     container = await new PostgreSqlContainer("postgres:16-alpine").start();
     pool = new Pool({ connectionString: container.getConnectionUri(), max: 12 });
@@ -103,7 +103,7 @@ SELECT id::text AS id FROM p`,
     expect(await savedCount(me)).toBe(CAP);
   });
 
-  it("the cap counts DISTINCT products — placing a saved product in another list never trips it", async () => {
+  it("the cap counts DISTINCT products - placing a saved product in another list never trips it", async () => {
     await repo.addEntry(me, DEFAULT_LIST_REF, products[0]!, null, 1);
     const listId = await repo.createList(me, "Weekly", null, 20, 1);
     await expect(repo.addEntry(me, listId, products[0]!, null, 1)).resolves.toBeUndefined();
@@ -132,13 +132,13 @@ SELECT id::text AS id FROM p`,
     });
   });
 
-  it("098 — remembers the variant saved with, and its price and verdict are that variant's", async () => {
+  it("098 - remembers the variant saved with, and its price and verdict are that variant's", async () => {
     const v = (await pool.query<{ id: string }>(`SELECT id::text FROM public.product_variant WHERE product_id = $1`, [products[4]])).rows[0]!.id;
     await repo.addEntry(me, DEFAULT_LIST_REF, products[4]!, null, 200, v);
     await setVariant(products[4]!, "price_amount = 7.50, stock_tracked = true, stock_on_hand = 0");
     const [row] = await repo.list(me, DEFAULT_LIST_REF);
     expect(row).toMatchObject({ product_id: products[4], variant_id: v, price_amount: "7.50", verdict: "temporarily_unavailable", variant_count: 1 });
-    // A variant id that is not the product's is simply not remembered — the save itself still works.
+    // A variant id that is not the product's is simply not remembered - the save itself still works.
     await repo.addEntry(me, DEFAULT_LIST_REF, products[5]!, null, 200, v);
     expect((await repo.list(me, DEFAULT_LIST_REF)).find((r) => r.product_id === products[5])?.variant_id).toBeNull();
   });
@@ -190,7 +190,7 @@ SELECT id::text AS id FROM p`,
     await expect(repo.createList(me, "Third", null, 2, 200)).rejects.toBeInstanceOf(ListLimitError);
   });
 
-  it("creating a list WITH a product is atomic — a missing product leaves no empty list behind", async () => {
+  it("creating a list WITH a product is atomic - a missing product leaves no empty list behind", async () => {
     await expect(repo.createList(me, "Ghost", "00000000-0000-0000-0000-000000000000", 20, 200)).rejects.toBeInstanceOf(ProductNotFoundError);
     expect((await repo.lists(me, null)).map((l) => l.name)).not.toContain("Ghost");
   });
@@ -209,7 +209,7 @@ SELECT id::text AS id FROM p`,
     await expect(repo.deleteList(me, realDefault)).rejects.toBeInstanceOf(DefaultListError);
   });
 
-  it("⚠ one shopper's lists are invisible and untouchable to another — always 'not found'", async () => {
+  it("⚠ one shopper's lists are invisible and untouchable to another - always 'not found'", async () => {
     const mine = await repo.createList(me, "Private", products[0]!, 20, 200);
     await expect(repo.list(other, mine)).rejects.toBeInstanceOf(ListNotFoundError);
     await expect(repo.renameList(other, mine, "Stolen")).rejects.toBeInstanceOf(ListNotFoundError);

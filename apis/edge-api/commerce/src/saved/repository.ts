@@ -11,15 +11,15 @@ import { ListNameTakenError } from "./list-name";
 
 export const DEFAULT_LIST_REF = DEFAULT_LIST_ID;
 
-export class ProductNotFoundError extends Error {}
+export class ProductNotFoundError extends Error { }
 /** Refused; never resolved by evicting something saved. */
-export class CapReachedError extends Error {}
+export class CapReachedError extends Error { }
 /** Unknown or someone else's, alike. */
-export class ListNotFoundError extends Error {}
-export class ListLimitError extends Error {}
-export class DefaultListError extends Error {}
+export class ListNotFoundError extends Error { }
+export class ListLimitError extends Error { }
+export class DefaultListError extends Error { }
 /** The heart's un-save, refused because the product is in a named list. */
-export class InNamedListsError extends Error {}
+export class InNamedListsError extends Error { }
 
 export interface ListRow {
   product_id: string;
@@ -85,7 +85,7 @@ SELECT s.product_id::text                        AS product_id,
        dv.id::text                               AS shown_variant_id,
        ${variantLabelSql("rv")}                  AS variant_label,
        (SELECT count(*)::int FROM public.product_variant cv
-         -- availability-exempt: product_variant — counting the choices, not deciding a sale.
+         -- availability-exempt: product_variant - counting the choices, not deciding a sale.
          WHERE cv.product_id = p.id AND cv.state = 'active') AS variant_count,
        COALESCE(rv.pack_quantity, dv.pack_quantity)::text AS pack_quantity,
        COALESCE(rv.pack_unit, dv.pack_unit)      AS pack_unit,
@@ -103,7 +103,7 @@ SELECT s.product_id::text                        AS product_id,
        p.created_at >= now() - interval '14 days' AS is_new,
        (p.currency = s.saved_currency AND COALESCE(rv.price_amount, p.list_price_amount) < s.saved_price_amount) AS price_dropped,
        -- availability-exempt: public.product / product_variant, and deliberately. This CASE does not
-       -- decide WHETHER something is purchasable — it classifies WHY it is not, into the two answers a
+       -- decide WHETHER something is purchasable - it classifies WHY it is not, into the two answers a
        -- shopper can act on differently ("wait" vs "give up"). The predicate collapses both into one
        -- boolean, which loses exactly this distinction.
        CASE
@@ -112,7 +112,7 @@ SELECT s.product_id::text                        AS product_id,
          WHEN rv.id IS NOT NULL AND rv.state <> 'active' THEN 'temporarily_unavailable'
          WHEN rv.id IS NOT NULL AND rv.stock_tracked AND coalesce(rv.stock_on_hand, 0) <= 0 THEN 'temporarily_unavailable'
          WHEN rv.id IS NULL AND NOT EXISTS (
-              -- availability-exempt: product_variant — classifying WHY (the CASE above), not deciding.
+              -- availability-exempt: product_variant - classifying WHY (the CASE above), not deciding.
               SELECT 1 FROM public.product_variant sv
                WHERE sv.product_id = p.id AND sv.state = 'active'
                  AND (NOT sv.stock_tracked OR sv.stock_on_hand > 0)) THEN 'temporarily_unavailable'
@@ -126,7 +126,7 @@ LEFT JOIN public.product_variant rv ON rv.id = s.variant_id AND rv.state <> 'rem
 -- The variant the listing price comes from, for a pack size when none is remembered.
 LEFT JOIN LATERAL (
     SELECT x.id, x.pack_quantity, x.pack_unit FROM public.product_variant x
-     -- availability-exempt: product_variant — the shown price's variant, not a sale.
+     -- availability-exempt: product_variant - the shown price's variant, not a sale.
      WHERE x.product_id = p.id AND x.state = 'active'
      ORDER BY x.price_amount NULLS LAST, x.position LIMIT 1
 ) dv ON true
@@ -420,7 +420,7 @@ export function createSavedRepository(db: Queryable = pooled, transact: Transact
         const listId =
           listRef === DEFAULT_LIST_REF
             ?
-              (await tx.query<{ id: string }>(ENSURE_DEFAULT, [customerId])).rows[0]!.id
+            (await tx.query<{ id: string }>(ENSURE_DEFAULT, [customerId])).rows[0]!.id
             : (await resolveList(tx, customerId, listRef))!;
         await addEntryTx(tx, customerId, listId, productId, at, cap, variantId);
       }),

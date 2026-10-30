@@ -63,7 +63,7 @@ export function PasswordCard({
               Password
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              You sign in with a code we email you — there&rsquo;s no password on this account. You
+              You sign in with a code we email you - there&rsquo;s no password on this account. You
               can add one if you&rsquo;d prefer to sign in that way.
             </p>
           </div>

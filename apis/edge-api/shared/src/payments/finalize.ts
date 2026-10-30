@@ -210,7 +210,7 @@ SELECT ss.cognito_sub, 'shop', 'shop_new_order',
        jsonb_build_object('entityId', sf.id::text, 'deepLink', 'effy://queue/' || sf.id::text),
        'shop_new_order:' || ss.cognito_sub || ':' || sf.id::text
 FROM public.shop_fulfillment sf
--- availability-exempt: public.shop_staff — who may be notified, not what may be sold.
+-- availability-exempt: public.shop_staff - who may be notified, not what may be sold.
 JOIN public.shop_staff ss ON ss.shop_id = sf.shop_id AND ss.status = 'active'
 WHERE sf.order_id = $1
 ON CONFLICT (dedupe_key) DO NOTHING`,

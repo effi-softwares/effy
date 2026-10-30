@@ -9,7 +9,7 @@ import { applyPromo, removePromo } from "@/lib/cart-actions"
 /**
  * The promotional-code field.
  *
- * The refusal it shows is the platform's, verbatim and specific — "expired", "already used", "below the
+ * The refusal it shows is the platform's, verbatim and specific - "expired", "already used", "below the
  * minimum" each call for a different response from the shopper, and a single "that code doesn't work"
  * would leave them guessing which. Nothing here judges a code; it only carries the answer.
  *
@@ -25,7 +25,7 @@ export function PromoField({ applied }: { applied: CartDiscountDTO | null }) {
     return (
       <div className="flex items-center justify-between gap-2 border-t pt-4">
         <span className="text-sm font-medium">
-          {applied.code} applied — {applied.label}
+          {applied.code} applied - {applied.label}
         </span>
         <button
           type="button"
@@ -56,10 +56,10 @@ export function PromoField({ applied }: { applied: CartDiscountDTO | null }) {
     // platform keeps inflicting.
     // Imported dynamically, and the reason is measured, not stylistic: a static
     // `import { capture } from "@/lib/telemetry"` here costs **+1.0 KB on four guest routes** and puts
-    // `/search` and `/cart` over the 174 KB budget — one client component reaching telemetry re-shapes
+    // `/search` and `/cart` over the 174 KB budget - one client component reaching telemetry re-shapes
     // Turbopack's shared chunks for the whole storefront. Applying a code is a rare, signed-in-only
     // action, so paying for the module at that moment costs a guest nothing. `lib/telemetry` holds
-    // module-level state, and a dynamic import of the same module is the same instance — so this is the
+    // module-level state, and a dynamic import of the same module is the same instance - so this is the
     // same PostHog client the rest of the app uses, not a second one.
     void import("@/lib/telemetry").then(({ capture }) =>
       capture(

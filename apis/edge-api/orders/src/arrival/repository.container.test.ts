@@ -39,7 +39,7 @@ import { recordArrival } from "./repository";
 const RUN = process.env.CONTAINER_TESTS === "1";
 const ACTOR = "staff-sub-admin";
 
-describe.skipIf(!RUN)("recordArrival — against real PostgreSQL", () => {
+describe.skipIf(!RUN)("recordArrival - against real PostgreSQL", () => {
   let container: StartedPostgreSqlContainer;
   let pool: Pool;
 

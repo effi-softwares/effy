@@ -5,8 +5,8 @@
 locals {
   # where → what the operator reads in the alarm.
   courier_late_alarms = {
-    hub      = "080 — a courier parcel at the hub has missed its courier service's pickup for 2 hours. Back-office → Orders → Courier → Late at the hub."
-    supplier = "080 — a courier pickup from a supplier has gone past its booked window for 2 hours with no handover. Back-office → Orders → Courier → Supplier pickups; switch the order to via the hub if the courier cannot come."
+    hub      = "080 - a courier parcel at the hub has missed its courier service's pickup for 2 hours. Back-office → Orders → Courier → Late at the hub."
+    supplier = "080 - a courier pickup from a supplier has gone past its booked window for 2 hours with no handover. Back-office → Orders → Courier → Supplier pickups; switch the order to via the hub if the courier cannot come."
   }
 }
 
@@ -27,7 +27,7 @@ resource "aws_cloudwatch_metric_alarm" "courier_parcels_late" {
   threshold           = 1
   comparison_operator = "GreaterThanOrEqualToThreshold"
   # missing data is breaching: the sweep emits 0 when nothing is late, so "no data" means it has
-  # stopped — the alarm going blind.
+  # stopped - the alarm going blind.
   treat_missing_data = "breaching"
   alarm_actions      = [aws_sns_topic.alerts.arn]
   ok_actions         = [aws_sns_topic.alerts.arn]
@@ -39,7 +39,7 @@ resource "aws_cloudwatch_metric_alarm" "courier_parcels_late" {
 
 resource "aws_cloudwatch_metric_alarm" "delivery_overrides_daily" {
   alarm_name          = "${module.shared.name_prefix}-delivery-overrides-daily"
-  alarm_description   = "081 — more than ${var.delivery_override_daily_alarm} orders were moved from Effy delivery to courier in a day. Moves are meant to be rare emergencies. Back-office → Orders: each moved order lists who moved it and why."
+  alarm_description   = "081 - more than ${var.delivery_override_daily_alarm} orders were moved from Effy delivery to courier in a day. Moves are meant to be rare emergencies. Back-office → Orders: each moved order lists who moved it and why."
   namespace           = "Effy/Orders"
   metric_name         = "DeliveryOverrides"
   dimensions          = { to = "courier" }

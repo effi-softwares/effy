@@ -1,6 +1,6 @@
 # Contract: the customer UI kit (087)
 
-The only way a customer screen draws shared UI. Lives in `CM/core/presentation/` (customer-only — **not**
+The only way a customer screen draws shared UI. Lives in `CM/core/presentation/` (customer-only - **not**
 mobile-kit, which shop and driver share). Each component cites its canvas board. Sizes in dp/sp.
 
 ## Theme
@@ -30,7 +30,7 @@ mobile-kit, which shop and driver share). Each component cites its canvas board.
 | `EffyConfirmSheet(icon, title, body, confirmLabel, destructive, cancelLabel, onConfirm)` | Security, DeleteAccount, Order | Centred icon, 20sp title, body, footer: 52 primary (or black destructive) + 48 ghost |
 | `EffySnackbar` / `LocalEffySnackbar` | Patterns | One host per screen, bottom, above tab bar or pinned bar; optional action ("Undo"); slide-up 200ms |
 | `EffyConsentBanner` | Patterns | Bottom, above tab bar, two equal buttons |
-| ❌ `AlertDialog`, `Dialog`, `DropdownMenu`, raw `ModalBottomSheet` | — | Forbidden in customer source (guard) |
+| ❌ `AlertDialog`, `Dialog`, `DropdownMenu`, raw `ModalBottomSheet` | - | Forbidden in customer source (guard) |
 
 ## Controls
 
@@ -58,5 +58,5 @@ mobile-kit, which shop and driver share). Each component cites its canvas board.
 | `EffySkeleton*` | Patterns | shapes of the content to come; shimmer 1100ms; static when motion ≠ Full |
 | `EffyEmptyState(icon, title, body, action)` | Patterns | 56 icon chip, 20sp title, one primary action |
 | `EffyErrorState(onRetry)` | Patterns | alert icon, black, "Try again" always present |
-| `ProductImage` | — | Coil crossfade 200ms; grey well on failure (no broken image, no letter mark) |
+| `ProductImage` | - | Coil crossfade 200ms; grey well on failure (no broken image, no letter mark) |
 | `EffyWordmark` | App bar | "effy." vector, full stop in `brand` |

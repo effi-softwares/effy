@@ -8,7 +8,7 @@ import { jwtExpiry, SESSION_COOKIES, sessionCookieOptions } from "@/lib/session-
 /**
  * Runs before a request is rendered. Two jobs, both about the session cookies.
  *
- * This file is `proxy.ts`, not `middleware.ts` — Next 16 renamed it. The runtime is Node.js.
+ * This file is `proxy.ts`, not `middleware.ts` - Next 16 renamed it. The runtime is Node.js.
  *
  * 1. Keep the session fresh. Id and access tokens last an hour. This is the one place that swaps
  *  expired ones for new ones, because it is the one place that can both write the new cookies to

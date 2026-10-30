@@ -37,7 +37,7 @@ export function SessionCard() {
           device's token keeps working until it expires (up to an hour). */}
       <p className="mt-3 text-sm text-muted-foreground">
         Signing out on all devices ends every session, including this one. It can take up to an hour
-        to take effect on other devices — if you think someone else has access to your account,
+        to take effect on other devices - if you think someone else has access to your account,
         change your password too.
       </p>
     </section>

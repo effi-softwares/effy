@@ -35,15 +35,15 @@ import org.jetbrains.compose.resources.DrawableResource
 
 /** How a button looks (the canvas's component sheet). */
 enum class DriverButtonStyle {
-    /** Effy blue — the one next action on a screen. */
+    /** Effy blue - the one next action on a screen. */
     Primary,
-    /** Bordered — a second action beside the primary. */
+    /** Bordered - a second action beside the primary. */
     Outline,
-    /** No border — a quiet action ("Back to the run"). */
+    /** No border - a quiet action ("Back to the run"). */
     Ghost,
-    /** Grey fill — a quiet action beside an outline one ("View stop" before a run opens). */
+    /** Grey fill - a quiet action beside an outline one ("View stop" before a run opens). */
     Secondary,
-    /** Black — a problem or a destructive action. Never red (v3.5.0). */
+    /** Black - a problem or a destructive action. Never red (v3.5.0). */
     Problem,
 }
 

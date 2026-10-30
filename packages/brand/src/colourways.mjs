@@ -42,16 +42,16 @@ export function mono(colour) {
 /** Retired values, named only so the tests can prove they never appear (check-no-emerald.sh excludes this file). */
 export const RETIRED_JADE = ["#0fb57e", "#047857"]
 export const RETIRED_EMERALD = [
-  "#065f46", // emerald-800 — the accent
-  "#10b981", // emerald-500 — the dark ring + the old mark body
+  "#065f46", // emerald-800 - the accent
+  "#10b981", // emerald-500 - the dark ring + the old mark body
   "#d0735a", // terracotta as supplied
   "#bf5540", // terracotta AA-tuned for light
   "#dd8368", // terracotta lifted for dark
   "#69b08b", // the emerald tint on dark surfaces
-  "#0ea5e9", // sky-500 — the old shop mark body
-  "#075985", // sky-800 — the old shop mark fold
-  "#4ade80", // green-400 — the old customer splash ground
-  "#3b82f6", // blue-500 — the old shop splash ground
+  "#0ea5e9", // sky-500 - the old shop mark body
+  "#075985", // sky-800 - the old shop mark fold
+  "#4ade80", // green-400 - the old customer splash ground
+  "#3b82f6", // blue-500 - the old shop splash ground
   "#0c1d36", // the navy outline the monochrome mark replaced
 ]
 

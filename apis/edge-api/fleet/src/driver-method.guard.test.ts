@@ -26,7 +26,7 @@ const fleet = read("fleet/src");
 const ordersConsole = read("orders/src/orders");
 const naming = (sources: typeof fleet, re: RegExp) => sources.filter((s) => re.test(s.src)).map((s) => s.file).sort();
 
-describe("082 — driver work has no delivery method", () => {
+describe("082 - driver work has no delivery method", () => {
   it("scans the services", () => {
     expect(fleet.length).toBeGreaterThan(60);
     expect(ordersConsole.length).toBeGreaterThan(2);

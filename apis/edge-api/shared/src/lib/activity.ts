@@ -4,7 +4,7 @@
 //
 // A log is an ACTIVITY SOURCE: a raw-SQL SELECT scoped to one record (an order, a shop, a driver …) that yields
 // `id, at, kind, action, actor, search_text, facts`, and a function that turns one row into words. The helper
-// wraps the source — it never re-writes it — and adds the search, the Type filter, the date range, the keyset
+// wraps the source - it never re-writes it - and adds the search, the Type filter, the date range, the keyset
 // page and the capped count, or (for `?export=csv`) every matching row as CSV.
 import type { APIGatewayProxyStructuredResultV2 } from "aws-lambda";
 
@@ -51,7 +51,7 @@ export interface ActivityRow {
   kind: string;
   /** The source's own name for what happened; `actionWords` says it in words for search. */
   action: string;
-  /** Who, in words; null when nobody is named. The source resolves names — never a `sub`. */
+  /** Who, in words; null when nobody is named. The source resolves names - never a `sub`. */
   actor: string | null;
   /** The raw facts an entry's words are made from (names, numbers, notes, reasons), searched with ILIKE. */
   search_text: string | null;
@@ -124,7 +124,7 @@ export function parseActivityQuery(
   };
 }
 
-/** The actions whose words contain `q` — how a search reaches words composed in TypeScript. */
+/** The actions whose words contain `q` - how a search reaches words composed in TypeScript. */
 export function actionsMatching(words: Readonly<Record<string, string>>, q: string): string[] {
   const needle = q.toLowerCase();
   return Object.entries(words)
@@ -260,7 +260,7 @@ export async function activityResponse(
 
 /**
  * A back-office person's name from a sign-in subject: the staff record's name (else its email), "Former staff"
- * when the record is gone, NULL when there is no subject. ⚠ Back-office logs only — a shop never names Effy staff.
+ * when the record is gone, NULL when there is no subject. ⚠ Back-office logs only - a shop never names Effy staff.
  */
 export function staffNameSql(sub: string): string {
   return `CASE WHEN ${sub} IS NULL THEN NULL ELSE COALESCE(
@@ -315,7 +315,7 @@ export function csvWhen(at: Date): string {
 
 /**
  * One CSV cell. Quoted when it holds a comma, quote or line break; a cell a spreadsheet would run as a formula
- * (`=`, `+`, `-`, `@`, tab, CR) is prefixed with `'` — a log carries words people typed.
+ * (`=`, `+`, `-`, `@`, tab, CR) is prefixed with `'` - a log carries words people typed.
  */
 export function csvCell(value: string): string {
   const safe = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;

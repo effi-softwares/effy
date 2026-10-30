@@ -62,11 +62,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
 
 /**
- * Account deletion — the mobile half.
+ * Account deletion - the mobile half.
  *
  * The word is "DELETE", and there is no alternative on offer. No screen here says
  * deactivate, disable, freeze or pause, and no such state exists to reach. Both documented App Review
- * rejections in this area were deactivation flows with a support agent in the loop — the difference
+ * rejections in this area were deactivation flows with a support agent in the loop - the difference
  * between shipping and being rejected is that erasure runs automatically once requested.
  *
  * The flow is: read the preview → show what happens and what blocks it → email a code → confirm.
@@ -99,14 +99,14 @@ class DeleteAccountViewModel(
         if (preview.activeRequest != null) session.setClosing()
     }
 
-    /** Step 1 — email the code. Refused server-side if a blocker appeared since the preview. */
+    /** Step 1 - email the code. Refused server-side if a blocker appeared since the preview. */
     fun sendCode() = launch {
         val masked = requestCodeUseCase()
         _state.value = _state.value.copy(maskedDestination = masked)
     }
 
     /**
-     * Step 2 — verify the code and close.
+     * Step 2 - verify the code and close.
      *
      * On success every session is dead, including this one, so the app returns to the signed-out
      * storefront. There is nothing to navigate back TO: the account this screen belonged to is gone.
@@ -114,10 +114,10 @@ class DeleteAccountViewModel(
     fun confirm(code: String) = launch {
         val eraseAfter = closeUseCase(code)
         _state.value = _state.value.copy(eraseAfterIso = eraseAfter)
-        // Every session is dead, including this one. Back to the signed-out storefront — there is
+        // Every session is dead, including this one. Back to the signed-out storefront - there is
         // nothing to navigate back TO, because the account this screen belonged to is closed.
         session.signOutLocally()
-        // Home, not this tab's root — the Account tab has no guest page to return to, and a closed
+        // Home, not this tab's root - the Account tab has no guest page to return to, and a closed
         // account least of all. Both stacks are cleared: `resetToRoot` acts on the active tab only.
         navigator.resetToRoot()
         navigator.selectTab(CustomerNavKey.Home)
@@ -216,7 +216,7 @@ fun DeleteAccountScreen(container: AppContainer) {
                 return@Column
             }
 
-            // What deletion does — 087 (Delete account board): cards, a table, pinned actions.
+            // What deletion does - 087 (Delete account board): cards, a table, pinned actions.
             EffyCard {
                 Text("What happens when you delete", style = MaterialTheme.typography.titleMedium)
                 Text(
@@ -299,7 +299,7 @@ fun DeleteAccountScreen(container: AppContainer) {
         }
 
         // The decision is pinned: the one irreversible action, and "Keep my account" beneath it
-        // (board). Nothing is offered while a blocker stands — the page itself says what to do.
+        // (board). Nothing is offered while a blocker stands - the page itself says what to do.
         val preview = state.preview
         if (preview != null && preview.blockers.isEmpty()) {
             EffyPinnedBar {
@@ -309,7 +309,7 @@ fun DeleteAccountScreen(container: AppContainer) {
                     EffyPrimaryButton(
                         label = "Delete my account",
                         onClick = { vm.confirm(code) },
-                        // Exactly six digits — a wrong-length value is refused, not reshaped.
+                        // Exactly six digits - a wrong-length value is refused, not reshaped.
                         enabled = !state.loading && isCompleteOtp(code),
                         loading = state.loading,
                         destructive = true,

@@ -16,7 +16,7 @@ import com.google.firebase.messaging.RemoteMessage
  * listener ([TokenRefreshHolder]) so the device re-registers. Registered in
  * androidApp/AndroidManifest.xml.
  *
- * A message that arrives while the app is open is handed here and the system shows nothing — so a
+ * A message that arrives while the app is open is handed here and the system shows nothing - so a
  * driver looking at a stop was never told a new round had been assigned. It is shown from here now.
  * A message that arrives while the app is closed is still shown by the system tray, as before.
  */
@@ -34,7 +34,7 @@ class EffyFirebaseMessagingService : FirebaseMessagingService() {
                 NotificationChannel(CHANNEL_ID, "Work updates", NotificationManager.IMPORTANCE_HIGH),
             )
         }
-        // Tapping it brings the app forward and tells it what kind of thing was tapped — the same
+        // Tapping it brings the app forward and tells it what kind of thing was tapped - the same
         // `type` the system tray hands over for a message shown while the app was closed.
         val open = packageManager.getLaunchIntentForPackage(packageName)?.apply {
             addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
@@ -69,7 +69,7 @@ class EffyFirebaseMessagingService : FirebaseMessagingService() {
 
 /**
  * What a tapped notification carries into the app: the kind of thing it was about and, for a round,
- * which one (backlog D4) — an id, never an address or an order.
+ * which one (backlog D4) - an id, never an address or an order.
  */
 object PushOpen {
     /** The data keys the notifications worker sends (`dataFor` in `notifications/src/worker/copy.ts`). */

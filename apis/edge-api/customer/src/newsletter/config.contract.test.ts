@@ -37,13 +37,13 @@ function readEnvKeysUsedBySource(): Set<string> {
   return keys
 }
 
-describe("newsletter deployment contract — serverless.yml declares what the code reads", () => {
+describe("newsletter deployment contract - serverless.yml declares what the code reads", () => {
   const declared = readServerlessEnvKeys()
 
   it("declares every environment variable the newsletter service reads", () => {
     const used = readEnvKeysUsedBySource()
 
-    expect(used.size, "the service reads no env at all — did the parser break?").toBeGreaterThan(0)
+    expect(used.size, "the service reads no env at all - did the parser break?").toBeGreaterThan(0)
 
     const missing = [...used].filter((k) => !declared.has(k))
     expect(missing, `serverless.yml is missing: ${missing.join(", ")}`).toEqual([])
@@ -66,7 +66,7 @@ describe("newsletter deployment contract — serverless.yml declares what the co
   })
 })
 
-describe("newsletter routes — the public posture is intentional and stays that way", () => {
+describe("newsletter routes - the public posture is intentional and stays that way", () => {
   const yaml = readFileSync(resolve(serviceRoot, "serverless.yml"), "utf8")
 
   /** These two routes must stay public. */

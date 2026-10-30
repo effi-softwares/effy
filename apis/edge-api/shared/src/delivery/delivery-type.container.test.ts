@@ -50,7 +50,7 @@ const history = async (orderId: string) =>
     )
   ).rows;
 
-d("079 — the order's delivery type", () => {
+d("079 - the order's delivery type", () => {
   beforeAll(async () => {
     container = await new PostgreSqlContainer("postgres:16-alpine").start();
     pool = new Pool({ connectionString: container.getConnectionUri() });
@@ -82,7 +82,7 @@ d("079 — the order's delivery type", () => {
     await order(null);
   });
 
-  it("P8 — the first entry is written once, however many times payment is finalised", async () => {
+  it("P8 - the first entry is written once, however many times payment is finalised", async () => {
     const id = await order("courier", "out_of_coverage", "2–4 business days");
     expect(await tx((c) => recordDeliveryType(c, { orderId: id, actor: { kind: "checkout" } }))).toBe(true);
     expect(await tx((c) => recordDeliveryType(c, { orderId: id, actor: { kind: "checkout" } }))).toBe(false);
@@ -97,7 +97,7 @@ d("079 — the order's delivery type", () => {
     expect(await history(id)).toEqual([]);
   });
 
-  it("a later change moves the order and adds an entry with who and why — the first entry stays", async () => {
+  it("a later change moves the order and adds an entry with who and why - the first entry stays", async () => {
     const id = await order("effy", "in_coverage");
     await tx((c) => recordDeliveryType(c, { orderId: id, actor: { kind: "checkout" } }));
     expect(
@@ -122,7 +122,7 @@ d("079 — the order's delivery type", () => {
     expect(await history(id)).toHaveLength(2);
   });
 
-  it("P14 — the role checkout runs as can add to the history and can never rewrite it", async () => {
+  it("P14 - the role checkout runs as can add to the history and can never rewrite it", async () => {
     const id = await order("effy", "in_coverage");
     await tx((c) => recordDeliveryType(c, { orderId: id, actor: { kind: "checkout" } }));
     const shopper = await pool.connect();

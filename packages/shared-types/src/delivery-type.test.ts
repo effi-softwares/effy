@@ -22,7 +22,7 @@ const fixtures = JSON.parse(readFileSync(resolve(here, "delivery-type.fixtures.j
 const kotlinConstant = (source: string, name: string) =>
   new RegExp(`const val ${name}\\s*=\\s*"((?:[^"\\\\]|\\\\.)*)"`).exec(source)?.[1];
 
-describe("deliverySummary — how an order is delivered, as words (079 P16)", () => {
+describe("deliverySummary - how an order is delivered, as words (079 P16)", () => {
   it.each(fixtures.cases)("$name", (c) => {
     expect(deliverySummary(c.input, new Date(c.now))).toEqual(c.expect);
   });
@@ -43,7 +43,7 @@ describe("deliverySummary — how an order is delivered, as words (079 P16)", ()
     expect(courierLines("2–4 business days")[1]).toMatch(/estimate, not a guaranteed date\.$/);
   });
 
-  it("081 — a move never says why, and says nothing was given by saying nothing", () => {
+  it("081 - a move never says why, and says nothing was given by saying nothing", () => {
     for (const c of fixtures.cases.filter((x) => x.input.delivery?.moved)) {
       const said = c.expect.lines.join(" ");
       expect(said).not.toMatch(/reason|because|courier fee|difference|cost/i);
@@ -58,14 +58,14 @@ describe("deliverySummary — how an order is delivered, as words (079 P16)", ()
   });
 });
 
-describe("085 — a day with no time, and as soon as possible", () => {
+describe("085 - a day with no time, and as soon as possible", () => {
   const of = (part: string) => fixtures.cases.filter((c) => c.name.includes(part));
 
   it("a day with no time never prints hours", () => {
     for (const c of of("a day with no time")) expect(c.expect.lines.join(" ")).not.toMatch(/\b(am|pm)\b/);
   });
 
-  it("⚠ as soon as possible never prints a day or a time — only the estimate", () => {
+  it("⚠ as soon as possible never prints a day or a time - only the estimate", () => {
     const asap = of("as soon as possible");
     expect(asap.length).toBeGreaterThan(1);
     for (const c of asap) {

@@ -66,7 +66,7 @@ const untouched: AddressInput = {
   makeDefault: false,
 };
 
-d("066 — address default delivery instructions against real PostgreSQL", () => {
+d("066 - address default delivery instructions against real PostgreSQL", () => {
   beforeAll(async () => {
     container = await new PostgreSqlContainer("postgres:16-alpine").start();
     pool = new Pool({ connectionString: container.getConnectionUri() });
@@ -178,7 +178,7 @@ d("066 — address default delivery instructions against real PostgreSQL", () =>
   });
 
   /** The address book's answer is the deciding function's, and today's, on create, list and update. */
-  it("⚠ 076 — each address carries who delivers there NOW, on every read and write", async () => {
+  it("⚠ 076 - each address carries who delivers there NOW, on every read and write", async () => {
     await pool.query(`
       INSERT INTO public.locality (name, state, postcode) VALUES ('CARLTON', 'VIC', '3053'), ('HOBART', 'TAS', '7000')
         ON CONFLICT DO NOTHING;

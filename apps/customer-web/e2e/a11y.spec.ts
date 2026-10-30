@@ -14,7 +14,7 @@ test.describe("keyboard and assistive technology (SC-009)", () => {
   test("every interactive element in the storefront chrome has an accessible name", async ({ page }) => {
     await page.goto("/")
 
-    // The three controls 025 added to the chrome, each addressed by name — which only passes if the
+    // The three controls 025 added to the chrome, each addressed by name - which only passes if the
     // name exists.
     await expect(page.getByRole("button", { name: /delivery location/i })).toBeVisible()
     await expect(page.getByRole("searchbox", { name: /search products/i }).first()).toBeVisible()
@@ -60,7 +60,7 @@ test.describe("keyboard and assistive technology (SC-009)", () => {
   test("a guest can traverse the storefront by keyboard alone with focus always visible", async ({ page }) => {
     await page.goto("/")
 
-    // Walk the chrome. The assertion is that focus keeps landing on something real — a keyboard trap
+    // Walk the chrome. The assertion is that focus keeps landing on something real - a keyboard trap
     // or an unreachable control shows up here as focus that stops moving.
     const seen = new Set<string>()
     for (let i = 0; i < 12; i++) {
@@ -80,9 +80,9 @@ test.describe("keyboard and assistive technology (SC-009)", () => {
 
   test("product availability and refinement state survive grayscale (FR-047)", async ({ page }) => {
     await page.goto("/search")
-    await page.emulateMedia({ forcedColors: "active" }).catch(() => {})
+    await page.emulateMedia({ forcedColors: "active" }).catch(() => { })
 
-    // The on-sale filter reports its state through aria-pressed, not only through colour — so its
+    // The on-sale filter reports its state through aria-pressed, not only through colour - so its
     // meaning is available in grayscale, to a screen reader, and under forced colours alike.
     const chip = page.getByRole("button", { name: "On sale" })
     await expect(chip).toHaveAttribute("aria-pressed", /true|false/)
@@ -100,8 +100,8 @@ test.describe("home page accessibility (039, SC-009)", () => {
   test.use({ storageState: { cookies: [], origins: [] } })
 
   /**
-   * The invariant that had to survive all six sections. Exactly one `h1` — the screen-reader-only
-   * page title — and every section heads itself at `h2`. The hero's headline is visually the largest
+   * The invariant that had to survive all six sections. Exactly one `h1` - the screen-reader-only
+   * page title - and every section heads itself at `h2`. The hero's headline is visually the largest
    * type on the page, which is precisely why it is tempting to mark it up as `h1`.
    */
   test("has exactly one h1 and no skipped heading level", async ({ page }) => {
@@ -144,7 +144,7 @@ test.describe("home page accessibility (039, SC-009)", () => {
           .filter((e) => {
             const r = e.getBoundingClientRect()
             if (r.width === 0 || r.height === 0) return false // not rendered
-            // Inline in a sentence — the WCAG 2.2 exception.
+            // Inline in a sentence - the WCAG 2.2 exception.
             if (e.closest("p")) return false
             const label = e.getAttribute("aria-label") ?? ""
             if (known.some((k) => new RegExp(k.slice(1, k.lastIndexOf("/")), "i").test(label))) {
@@ -163,7 +163,7 @@ test.describe("home page accessibility (039, SC-009)", () => {
   })
 
   /**
-   * Every image on this page is decorative — the surrounding text names the thing. What must never
+   * Every image on this page is decorative - the surrounding text names the thing. What must never
    * happen is an image with NO alt attribute at all, which a screen reader reads as its filename.
    */
   test("no image is missing an alt attribute", async ({ page }) => {
@@ -180,7 +180,7 @@ test.describe("home page accessibility (039, SC-009)", () => {
   })
 
   /**
-   * The store badges are the case this protects. They are `<span>`s, not disabled links — a disabled
+   * The store badges are the case this protects. They are `<span>`s, not disabled links - a disabled
    * `<a>` is still announced as a link and promises a destination that does not exist. "Coming soon"
    * has to be in the accessible name, not implied by dimming, or a screen-reader user is told the apps
    * are available.
@@ -188,8 +188,8 @@ test.describe("home page accessibility (039, SC-009)", () => {
   test("the unpublished app badges announce that they are coming soon", async ({ page }) => {
     await page.goto("/")
 
-    await expect(page.getByLabel("Google Play — coming soon")).toBeVisible()
-    await expect(page.getByLabel("App Store — coming soon")).toBeVisible()
+    await expect(page.getByLabel("Google Play - coming soon")).toBeVisible()
+    await expect(page.getByLabel("App Store - coming soon")).toBeVisible()
 
     // And neither is reachable as a link or a button.
     await expect(page.getByRole("link", { name: /google play/i })).toHaveCount(0)

@@ -53,7 +53,7 @@ describe("the amount is computed, never typed (FR-003 / A7a)", () => {
     renderPanel()
     await userEvent.click(await screen.findByLabelText(/milk/i))
     expect(await screen.findByText("10.00")).toBeInTheDocument()
-    // The only editable number for a line is its quantity — never the money.
+    // The only editable number for a line is its quantity - never the money.
     expect(screen.queryByLabelText(/^amount$/i)).not.toBeInTheDocument()
   })
 
@@ -64,7 +64,7 @@ describe("the amount is computed, never typed (FR-003 / A7a)", () => {
 })
 
 describe("confirmation", () => {
-  it("does NOT issue on the first click — it asks, naming the amount", async () => {
+  it("does NOT issue on the first click - it asks, naming the amount", async () => {
     renderPanel()
     await userEvent.click(await screen.findByLabelText(/milk/i))
     await userEvent.click(screen.getByRole("button", { name: /^refund…$/i }))
@@ -132,7 +132,7 @@ describe("what the operator is told", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(/only 4\.50 remains refundable/i)
   })
 
-  it("on an unreachable service, tells the operator to CHECK — not to retry", async () => {
+  it("on an unreachable service, tells the operator to CHECK - not to retry", async () => {
     issueRefund.mockRejectedValue({ kind: "unavailable", status: 503, title: "Service unavailable" })
     renderPanel()
     await userEvent.click(await screen.findByLabelText(/milk/i))

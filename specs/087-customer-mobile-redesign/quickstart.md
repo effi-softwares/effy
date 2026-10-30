@@ -23,7 +23,7 @@ pnpm --filter @effy/shared-types test             # pinned delivery wording twin
 
 Expected: all green; shop-mobile and driver-mobile still build unchanged (`./gradlew assembleDebug` in each).
 
-## Walk (operator, on iPhone and Android) — per spec success criteria
+## Walk (operator, on iPhone and Android) - per spec success criteria
 
 1. **Frame (US1)**: launch → Home shows "effy." wordmark, bell, light-blue search, no dark band, no header
    line; five tabs; add an item → Cart badge bumps; open a product → page slides in, tab bar hidden, "‹ Back";

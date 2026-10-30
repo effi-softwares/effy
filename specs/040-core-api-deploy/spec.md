@@ -10,7 +10,7 @@
 
 ## Context & Framing
 
-The **hot path** — the Go backend the platform calls `core-api` — is the latency-sensitive customer
+The **hot path** - the Go backend the platform calls `core-api` - is the latency-sensitive customer
 backend (storefront reads, cart, checkout/payment, orders, favourites/saved items). It has been built
 and proven across many slices (019, 027, 028, 029, 033…) but has **only ever run locally in Docker**.
 Every "operator run pending" item that depends on it and every live customer-facing walk has been
@@ -18,8 +18,8 @@ blocked on the same missing thing: **core-api has no cloud home.** The constitut
 as its own slice; this is that slice.
 
 This feature gives the hot path a durable, publicly reachable cloud presence at a **stable, branded
-HTTPS address, one per environment** — `core-api.dev.effyshopping.com` today, `core-api.effyshopping.com`
-when production is stood up — mirroring how the cold path already lives at `edge-api.dev.effyshopping.com`.
+HTTPS address, one per environment** - `core-api.dev.effyshopping.com` today, `core-api.effyshopping.com`
+when production is stood up - mirroring how the cold path already lives at `edge-api.dev.effyshopping.com`.
 Its consumers are the **customer web storefront** (server-side rendering calls) and the **customer
 mobile app** (direct calls from devices), so the address must be reachable from the public internet
 over trusted TLS.
@@ -27,23 +27,23 @@ over trusted TLS.
 **The overriding constraint is cost.** The operator has stated, explicitly and repeatedly, that this
 must be the **cheapest** viable deployment and that they are willing to **sacrifice robustness,
 redundancy and elasticity for price**. Concretely that means: **a single fixed instance, no
-autoscaling, the smallest compute size, and none of the optional managed extras** — accepting the
+autoscaling, the smallest compute size, and none of the optional managed extras** - accepting the
 consequences (brief unavailability during a deploy or a crash, no horizontal headroom) as a deliberate
-trade. The load balancer is retained (the operator's firm decision — the deployment "won't work as
+trade. The load balancer is retained (the operator's firm decision - the deployment "won't work as
 expected" without it) even though it is the single largest fixed line item, because it is what provides
 trusted HTTPS at a stable address and only routes traffic to a healthy instance.
 
 **What this feature is:** an infrastructure and delivery slice. It stands up the runtime, the front
 door, the branded address, the health-gated routing, secure runtime configuration, and a repeatable way
-to ship a new version — **parameterised by environment** so production is the same shape with different
+to ship a new version - **parameterised by environment** so production is the same shape with different
 values. It does **not** change core-api's application behaviour, its API surface, its database schema,
 or any client.
 
 **Explicitly out of scope:** any change to the hot-path application code beyond what deployment strictly
 requires (e.g. binding to the expected port, honouring a health signal); autoscaling or elasticity of
 any kind; a CDN/edge cache in front of the API; the production environment's actual provisioning (this
-slice makes production a **configuration change**, but standing prod up — including its distinct
-apex-level hostname, certificate and private-database posture — is a separate operator action tracked as
+slice makes production a **configuration change**, but standing prod up - including its distinct
+apex-level hostname, certificate and private-database posture - is a separate operator action tracked as
 a dependency); and the cold path, which already has its own cloud presence.
 
 ## User Scenarios & Testing *(mandatory)*
@@ -51,8 +51,8 @@ a dependency); and the cold path, which already has its own cloud presence.
 ### User Story 1 - The hot path is reachable in the cloud over a trusted, branded HTTPS address (Priority: P1)
 
 The customer web storefront (server-side) and the customer mobile app can call the hot path at a single,
-stable, branded HTTPS hostname and receive real responses from the running Go backend — the same
-responses they get locally today — with a valid, trusted TLS certificate and no browser or client
+stable, branded HTTPS hostname and receive real responses from the running Go backend - the same
+responses they get locally today - with a valid, trusted TLS certificate and no browser or client
 security warning.
 
 **Why this priority**: This is the entire point of the slice. Without a reachable cloud address for the
@@ -83,7 +83,7 @@ backend (not a load-balancer error page, not a certificate-name mismatch).
 
 The branded address follows a single naming pattern keyed on the environment, so bringing up a new
 environment (production) yields `core-api.effyshopping.com` with the same machinery and **no application
-code change and no per-environment bespoke wiring** — only environment configuration differs.
+code change and no per-environment bespoke wiring** - only environment configuration differs.
 
 **Why this priority**: The operator called this out directly ("when we deploy prod it should be just
 `core-api.effyshopping.com`"). Parity between environments is what makes dev a faithful rehearsal of
@@ -100,7 +100,7 @@ application source or the deployment templates' logic.
 1. **Given** the dev configuration, **When** the deployment is applied, **Then** the address resolves to
    `core-api.dev.effyshopping.com`.
 2. **Given** the same templates with production configuration, **When** they are read, **Then** they
-   would produce `core-api.effyshopping.com` with no change to application code or template logic — only
+   would produce `core-api.effyshopping.com` with no change to application code or template logic - only
    configuration values differ.
 3. **Given** the deployment definition, **When** it is reviewed, **Then** no environment-specific literal
    (hostname, region, account, secret) is embedded in a way that a promotion would silently carry the
@@ -117,7 +117,7 @@ attributable to this slice is known and documented before it is applied.
 
 **Why this priority**: Cost is the operator's stated overriding constraint and the explicit reason for
 every "sacrifice" they pre-authorised. Getting the cheapest posture right (and proving no accidental
-cost — no NAT gateway, no autoscaling group, no second instance, no unused managed feature) is a
+cost - no NAT gateway, no autoscaling group, no second instance, no unused managed feature) is a
 first-class deliverable, not an afterthought.
 
 **Independent Test**: Enumerate every billable resource the slice creates and confirm each is the
@@ -169,8 +169,8 @@ it were serving correctly; then restore health and confirm traffic resumes.
 
 ### User Story 5 - Runtime configuration and secrets delivered securely, never baked in (Priority: P2)
 
-The running service receives everything it needs to run in this environment — database connection, payment
-provider secret, authentication issuer settings, region and other environment values — **from the
+The running service receives everything it needs to run in this environment - database connection, payment
+provider secret, authentication issuer settings, region and other environment values - **from the
 platform's existing configuration and secret contract at runtime**, with **no secret material baked into
 the shipped image or exposed in logs**.
 
@@ -187,7 +187,7 @@ values.
 **Acceptance Scenarios**:
 
 1. **Given** the shipped image, **When** it is inspected, **Then** it contains no secret values (database
-   password, payment secret, tokens) — secrets are supplied to the running instance at runtime.
+   password, payment secret, tokens) - secrets are supplied to the running instance at runtime.
 2. **Given** the running service, **When** it starts, **Then** it resolves its database, payment,
    authentication and region configuration from the existing per-environment platform contract.
 3. **Given** the service's logs, **When** they are reviewed, **Then** no secret material (payment secret,
@@ -224,7 +224,7 @@ version and rolls it in, confirming the new version serves without manual, undoc
 ### Edge Cases
 
 - **Deploy / crash gap.** With a single instance and no redundancy, a deploy or a crash causes a brief
-  window where the service is unavailable. This is the accepted, documented cost trade — not a defect.
+  window where the service is unavailable. This is the accepted, documented cost trade - not a defect.
   During that window the front door returns an honest error, never a stale or insecure response.
 - **Unhealthy start-up (dependency down).** If the database or another critical dependency is unreachable
   at start-up, the instance reports unhealthy and is kept out of the traffic path rather than serving
@@ -237,7 +237,7 @@ version and rolls it in, confirming the new version serves without manual, undoc
 - **Wrong-architecture image.** An image built for the wrong CPU architecture must fail the deploy
   loudly (health never goes green), not run degraded or crash-loop silently.
 - **Production hostname differs in shape.** Production's address sits directly under the platform apex
-  (`core-api.effyshopping.com`), not under a `prod.` child namespace like dev's — so production needs its
+  (`core-api.effyshopping.com`), not under a `prod.` child namespace like dev's - so production needs its
   own certificate coverage and apex-level DNS record. This is a known production dependency, flagged, not
   solved here.
 - **Production database is private.** The accepted cheap dev posture (public database, no NAT) is
@@ -251,7 +251,7 @@ version and rolls it in, confirming the new version serves without manual, undoc
 - **FR-001**: The hot-path backend MUST run in the cloud as a continuously running service reachable from
   the public internet (its consumers include mobile devices and server-side web rendering).
 - **FR-002**: The service MUST be reachable over HTTPS at a single stable hostname per environment,
-  following the pattern `core-api.<environment-namespace>` — `core-api.dev.effyshopping.com` for dev and
+  following the pattern `core-api.<environment-namespace>` - `core-api.dev.effyshopping.com` for dev and
   `core-api.effyshopping.com` for production.
 - **FR-003**: The HTTPS certificate MUST be publicly trusted and match the served hostname exactly; a
   request to an uncovered hostname MUST NOT be served as if valid.
@@ -312,7 +312,7 @@ version and rolls it in, confirming the new version serves without manual, undoc
 - **Image**: the shipped, architecture-specific build artefact of the backend, free of secret material;
   attributes: version/tag, target architecture.
 - **Runtime configuration/secret references**: the per-environment values (database, payment secret, auth
-  issuers, region) resolved from the existing platform contract at start-up — referenced, never embedded.
+  issuers, region) resolved from the existing platform contract at start-up - referenced, never embedded.
 
 ## Success Criteria *(mandatory)*
 
@@ -323,7 +323,7 @@ version and rolls it in, confirming the new version serves without manual, undoc
   receiving a correct response from the running backend.
 - **SC-002**: The customer mobile app and the customer web storefront (server-side) both successfully call
   the hot path in the environment with **no application-code change beyond the base URL**.
-- **SC-003**: Producing the production deployment requires changing **only** environment configuration —
+- **SC-003**: Producing the production deployment requires changing **only** environment configuration -
   reviewers confirm zero application-source or template-logic edits are needed to yield
   `core-api.effyshopping.com`.
 - **SC-004**: Exactly **one** running instance exists and **no** autoscaling resource is present; an audit
@@ -331,7 +331,7 @@ version and rolls it in, confirming the new version serves without manual, undoc
 - **SC-005**: The recurring AWS cost attributable to the slice in dev is at or below the agreed target and
   is recorded in the feature documentation.
 - **SC-006**: When the instance is made unhealthy, the front door stops routing customer traffic to it
-  within the documented interval; when health is restored, traffic resumes — observed, not inferred.
+  within the documented interval; when health is restored, traffic resumes - observed, not inferred.
 - **SC-007**: A plain HTTP request to the address is redirected to HTTPS; no API response is ever served in
   cleartext.
 - **SC-008**: Inspection of the shipped image and the running instance's logs finds **no** secret material
@@ -346,8 +346,8 @@ version and rolls it in, confirming the new version serves without manual, undoc
 
 - **Dev is the immediate deliverable; production is a configuration-ready follow-on.** This slice brings
   the hot path live in **dev** at `core-api.dev.effyshopping.com` and makes production a configuration
-  change. Actually standing production up — including its apex-level hostname/certificate and its
-  mandatory private-database network posture — is a separate operator action, tracked as a dependency.
+  change. Actually standing production up - including its apex-level hostname/certificate and its
+  mandatory private-database network posture - is a separate operator action, tracked as a dependency.
 - **The load balancer is retained by operator decision**, despite being the largest fixed cost, because it
   provides trusted HTTPS at a stable address and health-gated routing. It is not to be replaced with a
   cheaper front door in this slice.
@@ -356,10 +356,10 @@ version and rolls it in, confirming the new version serves without manual, undoc
   trade ("totally ok to sacrifice things over price").
 - **Reuse of existing shared resources.** The environment's DNS zone and its already-issued regional
   wildcard certificate (which covers `core-api.<namespace>` as a single label in dev), the existing
-  database, and the existing SSM/secret parameter contract are reused as-is — no new zone, certificate,
+  database, and the existing SSM/secret parameter contract are reused as-is - no new zone, certificate,
   database or secret store is created for dev.
 - **The dev cheap network posture is the already-accepted one.** Dev's database is reachable over its
-  public endpoint (forced TLS), so the running instance can reach it **without a NAT gateway** — the
+  public endpoint (forced TLS), so the running instance can reach it **without a NAT gateway** - the
   cheapest network path, and the same accepted dev trade the cold path already relies on. This posture is
   explicitly **not** valid for production.
 - **The backend already exposes the primitives deployment needs**: a health signal (liveness/readiness)

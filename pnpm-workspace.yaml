@@ -1,4 +1,4 @@
-# JS/TS workspace (Turborepo + pnpm — CLAUDE.md locked). First member landed with
+# JS/TS workspace (Turborepo + pnpm - CLAUDE.md locked). First member landed with
 # 004-backend-bootstrap; the web surfaces and shared packages (design-system,
 # api-client, shared-types) join here with their own slices.
 packages:

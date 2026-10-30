@@ -1,9 +1,9 @@
-# Tasks: Shop Floor Signals — Collection, Pick Order, Availability and Quality
+# Tasks: Shop Floor Signals - Collection, Pick Order, Availability and Quality
 
 **Input**: Design documents from `specs/099-shop-floor-signals/`
 **Prerequisites**: plan.md, spec.md, research.md, data-model.md, contracts/api.md, quickstart.md
 
-**Tests**: included — every backend part gets unit and container tests and every screen a component
+**Tests**: included - every backend part gets unit and container tests and every screen a component
 test, per the constitution's quality gate (verified against acceptance criteria).
 
 ## Format: `[ID] [P?] [Story] Description`
@@ -18,7 +18,7 @@ test, per the constitution's quality gate (verified against acceptance criteria)
 - [x] T003 [P] Unit tests for the moved `dueRun` (Effy with window, Effy without window, courier, missed due run → caller uses next) in `apis/edge-api/shared/src/lib/collection-run-for.test.ts`
 - [x] T004 Add the shared types from contracts/api.md: `CollectionDriver`, `ShopCollectionRunDTO`, `ShopNextCollectionDTO`, `ShopOrderCollectionDTO`, `StorageClass`, `STORAGE_CLASS_WORDS` in `packages/shared-types/src/shop-order-console.ts`; export from the package index
 
-## Phase 3: User Story 1 — Know when the next collection comes (P1) 🎯 MVP
+## Phase 3: User Story 1 - Know when the next collection comes (P1) 🎯 MVP
 
 **Goal**: Today, the queue and an order's page say when the next run reaches the shop, what is due on it and whether a driver is on the way.
 **Independent test**: quickstart walk steps 1–4.
@@ -40,7 +40,7 @@ test, per the constitution's quality gate (verified against acceptance criteria)
 
 **Checkpoint**: US1 deployable alone (shop + fleet + driver + shop-web).
 
-## Phase 4: User Story 2 — Pick in walking order (P2)
+## Phase 4: User Story 2 - Pick in walking order (P2)
 
 **Goal**: the pick list grouped Ambient → Chilled → Frozen, on screen and on paper.
 **Independent test**: quickstart walk step 5.
@@ -51,7 +51,7 @@ test, per the constitution's quality gate (verified against acceptance criteria)
 - [x] T022 [US2] shop-web: group the printed pick list the same way in `apps/shop-web/src/features/fulfillment/pickList.ts` and its callers (`OrderDetailScreen.tsx`, `features/today/printPickLists.ts`)
 - [x] T023 [P] [US2] Tests: grouping order and single-group case in `apps/shop-web/src/features/fulfillment/OrderDetailScreen.test.tsx`; backend mapping in `apis/edge-api/shop/src/orders/repository.container.test.ts`
 
-## Phase 5: User Story 3 — Take a size off sale in one tap (P2)
+## Phase 5: User Story 3 - Take a size off sale in one tap (P2)
 
 **Goal**: Catalog › Availability lists every sellable size with stock and an on-sale switch.
 **Independent test**: quickstart walk step 6.
@@ -64,7 +64,7 @@ test, per the constitution's quality gate (verified against acceptance criteria)
 - [x] T029 [US3] shop-web: `AvailabilityScreen` (page head, view tabs All/Off sale/Out of stock with counts, search, rows with picture · name · size · code · stock word · switch; last-on-sale switch disabled with reason and product link; phone rows) in `apps/shop-web/src/features/catalog/AvailabilityScreen.tsx`, route `apps/shop-web/src/routes/catalog.availability.tsx`, registered in `apps/shop-web/src/router.tsx`; "Availability" button on the Catalog head; "Take a size off sale" in the palette
 - [x] T030 [P] [US3] Test the screen (toggle calls the state route, refusal shown, filters) in `apps/shop-web/src/features/catalog/__tests__/availability.test.tsx`
 
-## Phase 6: User Story 4 — See how well the shop fulfils (P3)
+## Phase 6: User Story 4 - See how well the shop fulfils (P3)
 
 **Goal**: Found rate, can't-supply rate and average time to ready on Insights.
 **Independent test**: quickstart walk step 7.
@@ -73,7 +73,7 @@ test, per the constitution's quality gate (verified against acceptance criteria)
 - [x] T032 [US4] Rollup: compute the five columns (first ready per portion; unfulfillable; withdrawn excluded; units ordered/supplied from `fulfillment_item`) in `apis/edge-api/shop/src/insights/rollup.ts`
 - [x] T033 [US4] Read and compare: sum the columns over the window and the comparison window, build `quality` (`null` when nothing to measure) in `apis/edge-api/shop/src/insights/{repository,service}.ts`; add `quality` to `ShopInsightsDTO` in `packages/shared-types/src/shop-insights.ts`
 - [x] T034 [P] [US4] Container test (reopened picking counted once, withdrawn excluded, hand-counted rates) in `apis/edge-api/shop/src/insights/repository.container.test.ts`
-- [x] T035 [US4] shop-web: `QualityStrip` (three cells, "—" when null, change in words/glyph) on Insights in `apps/shop-web/src/features/insights/QualityStrip.tsx` and `InsightsScreen.tsx`; CSV export gains the three figures in `features/insights/exportCsv.ts`
+- [x] T035 [US4] shop-web: `QualityStrip` (three cells, "-" when null, change in words/glyph) on Insights in `apps/shop-web/src/features/insights/QualityStrip.tsx` and `InsightsScreen.tsx`; CSV export gains the three figures in `features/insights/exportCsv.ts`
 - [x] T036 [P] [US4] Tests in `apps/shop-web/src/features/insights/__tests__/insights.test.tsx`
 
 ## Phase 7: Polish & cross-cutting

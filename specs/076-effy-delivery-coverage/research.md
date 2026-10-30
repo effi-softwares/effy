@@ -6,7 +6,7 @@ Read from `dev` after 075. Backlog: `docs/prd/2026-10-delivery-model-v2-backlog.
 
 ---
 
-## F1 — What exists today (047, 062, 063, 069)
+## F1 - What exists today (047, 062, 063, 069)
 
 | Thing | Where | Who reads it |
 |---|---|---|
@@ -22,7 +22,7 @@ Read from `dev` after 075. Backlog: `docs/prd/2026-10-delivery-model-v2-backlog.
 
 Two facts shape everything below:
 
-1. **`delivery_zone_postcode.postcode` is already UNIQUE** — it already *is* a flat list of postcodes,
+1. **`delivery_zone_postcode.postcode` is already UNIQUE** - it already *is* a flat list of postcodes,
    each in exactly one zone.
 2. **Thirteen source files across five services join these two tables**, and the live checkout, the
    live fee and the live driver planner all depend on them until epics E3, E5 and E8 replace those
@@ -34,14 +34,14 @@ different address above."` (`CheckoutFlow.tsx`). Saved addresses are not checked
 
 ---
 
-## R1 — Evolve the two tables in place; do not create a second list
+## R1 - Evolve the two tables in place; do not create a second list
 
 **Decision.** The coverage list **is** `delivery_zone_postcode`, and a coverage group **is**
 `delivery_zone`. They gain columns and lose constraints; they are not copied into new tables. The
 tables keep their names until the cutover (E9), which renames them.
 
 **Rationale.** The backlog sketched new `effy_coverage_*` tables filled by a copy. Until E3/E5/E8 land,
-the live quote, fee and planner must keep reading the old tables — so there would be **two lists of
+the live quote, fee and planner must keep reading the old tables - so there would be **two lists of
 where Effy delivers**: the one staff edit and the one checkout obeys. Add Richmond to the new list and
 the address screen says "Delivered by Effy" while checkout refuses it. This repository has shipped that
 defect shape five times (CLAUDE.md, "two sources for one fact"). One list cannot disagree with itself.
@@ -49,12 +49,12 @@ defect shape five times (CLAUDE.md, "two sources for one fact"). One list cannot
 **Cost.** For a few features the names say "zone" where the product says "group". Table and column
 comments say so; the shared library and every DTO use the new words.
 
-**Alternative rejected.** New tables with triggers keeping the old ones in step — two lists plus the
+**Alternative rejected.** New tables with triggers keeping the old ones in step - two lists plus the
 machinery to pretend they are one.
 
 ---
 
-## R2 — One function decides the answer
+## R2 - One function decides the answer
 
 **Decision.** `public.coverage_for_postcode(p_postcode text)` returns one row:
 `kind` (`effy` | `courier` | `none`), `reason` (a closed set, below), `distance_km`, `group_id`,
@@ -76,10 +76,10 @@ stored, never recomputed elsewhere (FR-020, FR-021).
 
 ---
 
-## R3 — Distance is worked out in SQL
+## R3 - Distance is worked out in SQL
 
 **Decision.** Two SQL functions: `public.haversine_km(lat1, lon1, lat2, lon2)` and
-`public.coverage_computed_distance_km(p_postcode)` — the straight-line distance from
+`public.coverage_computed_distance_km(p_postcode)` - the straight-line distance from
 `delivery_settings`' hub point to the postcode's **primary place**: the `locality` row for that
 postcode with coordinates and the highest `address_count` (ties: name). NULL when the postcode has no
 place with coordinates.
@@ -90,7 +90,7 @@ Each list row stores `distance_km NOT NULL` and `distance_source` (`computed` | 
 `UPDATE … WHERE distance_source = 'computed'` inside the same transaction as the settings change, and
 it returns the counts the screen reports. In TypeScript it is a loop over hundreds of rows with the
 formula living in a second place. The existing `haversineKm` in `admin/src/delivery/suggest.ts` is
-retired with ring suggestion (R5) — the formula exists once.
+retired with ring suggestion (R5) - the formula exists once.
 
 Hub latitude/longitude are NOT NULL today, so "the hub has no location" (spec US6-4) cannot occur in
 practice; the function still returns NULL defensively and the add flow then requires a manual distance.
@@ -99,13 +99,13 @@ A manual distance is bounded 0–5000 km (wider than the country; rejects a typo
 
 ---
 
-## R4 — A group is the old zone; removing one never removes its postcodes
+## R4 - A group is the old zone; removing one never removes its postcodes
 
 **Decision.**
 
 - `delivery_zone_postcode.zone_id` becomes **nullable**, and its foreign key changes from
   `ON DELETE CASCADE` to **`ON DELETE SET NULL`**. Today, deleting a zone deletes every postcode in it
-  — the exact opposite of FR-015.
+  - the exact opposite of FR-015.
 - "Remove a group" is a **soft removal**: the zone row is set `status = 'disabled'` and its postcodes'
   `zone_id` set NULL, in one transaction. The row stays because `round_stop.zone_id` and driver
   clearances reference it, and delivery history must keep its group names.
@@ -114,27 +114,27 @@ A manual distance is bounded 0–5000 km (wider than the country; rejects a typo
 
 **At release** (FR-029): postcodes belonging to a zone that is `disabled` today are **not served
 today**, so the migration removes them from the list (and writes one audit row naming them). Every
-postcode in an active zone stays, in its zone. SC-002 — zero gained, zero lost — is proved by a
+postcode in an active zone stays, in its zone. SC-002 - zero gained, zero lost - is proved by a
 container test comparing `serviceableForPostcode` for every postcode before and after the migration.
 
 ---
 
-## R5 — The live fee and same-day rules keep working from frozen settings
+## R5 - The live fee and same-day rules keep working from frozen settings
 
 The spec's assumption: same-day and standard keep selling until E5/E9; this feature removes the
 *controls*. Three bridges, each a `COALESCE` in `zoneForPostcode`, each deleted by the epic named:
 
 | Live rule (until) | For a postcode in a pre-076 group | For a postcode added after, or ungrouped |
 |---|---|---|
-| **Fee tier** (E3) | the zone's `ring_id`, unchanged — nobody's fee moves at release | the tier whose `suggest_upper_km` covers the postcode's distance (the existing `ringForDistance` rule, moved into SQL as `public.coverage_ring_for_km`) |
-| **Same-day eligible** (E5) | the zone's `sameday_eligible`, unchanged | **true** — under the new model Effy delivers same day to everything on its list |
+| **Fee tier** (E3) | the zone's `ring_id`, unchanged - nobody's fee moves at release | the tier whose `suggest_upper_km` covers the postcode's distance (the existing `ringForDistance` rule, moved into SQL as `public.coverage_ring_for_km`) |
+| **Same-day eligible** (E5) | the zone's `sameday_eligible`, unchanged | **true** - under the new model Effy delivers same day to everything on its list |
 | **Per-shop same-day exception** (E5) | existing rows, unchanged | none |
 
 `delivery_zone.ring_id` becomes nullable; groups created from 076 on have NULL and are priced by
 distance. `sameday_eligible` gets default `true`.
 
 **Routes removed** (controls gone, FR-030): ring create, zone create/patch, zone-postcode add/remove,
-suggest-ring, the three same-day-exception routes, postcode-check — **11**. **Ring *list* stays**,
+suggest-ring, the three same-day-exception routes, postcode-check - **11**. **Ring *list* stays**,
 read-only: the fee-plan dialog prices per tier until E3.
 
 **Invariant kept.** `ServedZoneUnpricedError` (047 FR-029) still fires if the active plan does not price
@@ -144,7 +144,7 @@ adds a far postcode and quotes it.
 
 ---
 
-## R6 — ⚠ Driver clearances still hang off groups until E8
+## R6 - ⚠ Driver clearances still hang off groups until E8
 
 `driver_zone_capability` grants a driver work in one zone, or in every zone (`zone_id IS NULL`).
 Eligibility is `c.zoneId === null || c.zoneId === work.zoneId` (`shared/src/lib/driver-eligibility.ts`).
@@ -153,7 +153,7 @@ Eligibility is `c.zoneId === null || c.zoneId === work.zoneId` (`shared/src/lib/
 driver matches. So until E8 (driver operations realignment), a group is not *purely* organisational
 inside the building: it is also what a driver is cleared for.
 
-This does not break FR-014 as written — no customer's answer, price or offered service changes with a
+This does not break FR-014 as written - no customer's answer, price or offered service changes with a
 group. But an ungrouped postcode with no every-zone driver on duty would be *sold* and then left
 unplanned (the existing unplanned-work alarm fires).
 
@@ -166,12 +166,12 @@ by accident:
   confirmation in words;
 - recorded in SIGNOFF as a limitation E8 removes.
 
-**Alternative rejected.** Teach the planner "ungrouped = any delivery driver" now — it is E8's design
+**Alternative rejected.** Teach the planner "ungrouped = any delivery driver" now - it is E8's design
 decision, made early in a feature that should not touch dispatch.
 
 ---
 
-## R7 — Courier reach: a switch that cannot yet be turned on
+## R7 - Courier reach: a switch that cannot yet be turned on
 
 **Decision.** `delivery_settings.courier_offered boolean NOT NULL DEFAULT false` and a table
 `courier_excluded_postcode (postcode PK, reason NOT NULL, added_by, created_at)`.
@@ -181,7 +181,7 @@ Turning the switch on is **refused** (`409 courier_ordering_unavailable`) while
 courier order can actually be placed.
 
 **Rationale.** Spec assumption 1. Without the lock, one click makes every address in the country say
-"Courier delivery" while checkout — which cannot sell one — refuses it: FR-020 broken by a setting.
+"Courier delivery" while checkout - which cannot sell one - refuses it: FR-020 broken by a setting.
 Fail loudly (constitution, Real-World Identifiers' "a build that stops beats a value that silently
 works" applies in spirit). Exclusions can be maintained now.
 
@@ -190,7 +190,7 @@ in the country's data.
 
 ---
 
-## R8 — One refusal sentence, in one file
+## R8 - One refusal sentence, in one file
 
 **Decision.** `packages/shared-types/src/delivery.ts` exports
 
@@ -208,7 +208,7 @@ The customer-facing names are constants beside it: `"Delivered by Effy"`, `"Cour
 
 ---
 
-## R9 — Where the customer meets the answer (no new customer route)
+## R9 - Where the customer meets the answer (no new customer route)
 
 The shared gateway is at 53%; still, three existing responses gain a field rather than adding routes:
 
@@ -229,12 +229,12 @@ Mobile already-released builds ignore the new field and keep reading `serviced`.
 
 ---
 
-## R10 — Back-office routes: service `admin`, staff gateway
+## R10 - Back-office routes: service `admin`, staff gateway
 
 `admin` owns delivery configuration (path-assignment). All routes take the back-office authorizer on
 the **staff** gateway.
 
-Removed 11 (R5), added 13 ([contracts/routes.md](contracts/routes.md)) — **net +2**. Staff gateway
+Removed 11 (R5), added 13 ([contracts/routes.md](contracts/routes.md)) - **net +2**. Staff gateway
 144 → 146 of 300. The `admin` stack is at 374 of CloudFormation's 500 resources; +2 functions ≈ +10.
 
 Authorization, from the `admin.staff` record (existing `delivery/authz.ts`): **read** = any active
@@ -245,7 +245,7 @@ repository already follows) with before and after (FR-027). No new audit table.
 
 ---
 
-## R11 — Live update
+## R11 - Live update
 
 `LIVE_KINDS` gains `"coverage"`, announced on the ops channel after any coverage write commits
 (FR-028). Back-office maps it to the coverage query keys. Not sent to customers, shops or drivers: a
@@ -256,13 +256,13 @@ about coverage changed somewhere".
 
 ---
 
-## R12 — The screen
+## R12 - The screen
 
 `DeliveryScreen.tsx` today has tabs for zones, rings, plans, settings, collection runs, slots, days.
 **Zones** and **Rings** are replaced by **Coverage**: one table (postcode, places, group, distance,
 how obtained, drivers), filters, a place-search add dialog, a checker, a groups panel and a courier
 panel. Tables and panels, no cards (Principle V). `NewRingDialog`, `NewZoneDialog`,
-`AddPostcodeDialog`, `SameDayExceptionsDialog` are deleted — not left unreferenced (their routes are
+`AddPostcodeDialog`, `SameDayExceptionsDialog` are deleted - not left unreferenced (their routes are
 gone, and dead dialogs calling dead routes are how a later feature revives one).
 
 Shop console: it has **no** same-day-exception or coverage control today (checked), so FR-030/031
@@ -276,5 +276,5 @@ None blocking. Two things are **checked by the first tasks** rather than assumed
 
 - that no disabled zone in dev holds postcodes someone expects to keep (the migration lists what it
   removes; the operator sees the list in the migration's NOTICE output before anything else deploys);
-- the count of `locality` rows without coordinates among currently listed postcodes — those become
+- the count of `locality` rows without coordinates among currently listed postcodes - those become
   `manual` distances seeded from the zone's `hub_distance_km`, and are flagged for review.

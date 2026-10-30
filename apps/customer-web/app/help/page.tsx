@@ -14,7 +14,7 @@ import { HelpAnswers } from "./HelpAnswers"
 export const metadata: Metadata = {
   title: "Help & feedback",
   description:
-    "Answers about orders, delivery, payments, refunds, Effy points and your account — or send Effy a message and we'll reply by email.",
+    "Answers about orders, delivery, payments, refunds, Effy points and your account - or send Effy a message and we'll reply by email.",
   alternates: { canonical: "/help" },
 }
 

@@ -12,7 +12,7 @@ test.describe("the sign-in demand is deferred to the point of ordering", () => {
     }
   })
 
-  test("the demand appears at CHECKOUT — and only there (FR-019)", async ({ page }) => {
+  test("the demand appears at CHECKOUT - and only there (FR-019)", async ({ page }) => {
     await page.goto("/checkout")
 
     await expect(page).toHaveURL(/\/sign-in/)
@@ -35,7 +35,7 @@ test.describe("the sign-in demand is deferred to the point of ordering", () => {
     expect(new URL(page.url()).searchParams.get("next")).toBe("/account")
   })
 
-  test("declining is not punished — the customer keeps browsing (FR-021 / SC-009)", async ({
+  test("declining is not punished - the customer keeps browsing (FR-021 / SC-009)", async ({
     page,
   }) => {
     await page.goto("/checkout")
@@ -54,7 +54,7 @@ test.describe("the sign-in demand is deferred to the point of ordering", () => {
  *
  * `?next=` is attacker-controlled: anyone can craft `/sign-in?next=https://evil.example` and send
  * it to a customer. If we honoured it, they would see a real Effy sign-in page and then land on a
- * convincing fake — with our own referrer vouching for it. This is the classic vulnerability in
+ * convincing fake - with our own referrer vouching for it. This is the classic vulnerability in
  * exactly this feature, so it is tested at the boundary as well as in the unit tests.
  */
 test.describe("the return destination cannot be weaponised", () => {
@@ -89,7 +89,7 @@ test.describe("the credential routes on offer", () => {
   test("sign-in offers email code and password", async ({ page }) => {
     await page.goto("/sign-in")
 
-    await expect(page.getByTestId("submit-email")).toBeVisible() // route (b) — the default
+    await expect(page.getByTestId("submit-email")).toBeVisible() // route (b) - the default
 
     await page.locator("#email").fill("shopper@example.com")
     await page.getByTestId("toggle-mode").click()
@@ -99,7 +99,7 @@ test.describe("the credential routes on offer", () => {
   test("sign-up defaults to the PASSWORDLESS route", async ({ page }) => {
     await page.goto("/sign-up")
 
-    // The fewer passwords the platform stores, the fewer it can lose — so the code route is the
+    // The fewer passwords the platform stores, the fewer it can lose - so the code route is the
     // path of least resistance, and the password is a deliberate opt-in.
     await expect(page.getByTestId("submit-email")).toBeVisible()
 
@@ -130,7 +130,7 @@ test.describe("the credential routes on offer", () => {
     page,
   }) => {
     // Replaces a test that asserted a "confirm password" field and a mismatch guard. 012's FR-023
-    // states the platform must not ask for a re-typed confirmation — the reveal toggle replaces it,
+    // states the platform must not ask for a re-typed confirmation - the reveal toggle replaces it,
     // which is GOV.UK's published reasoning and what the account page already did. Web sign-up was
     // the one surface still disagreeing; mobile never had a confirm field.
     await page.goto("/sign-up")
@@ -148,7 +148,7 @@ test.describe("the credential routes on offer", () => {
     page,
   }) => {
     // The old copy promised "at least 8 characters, with upper and lower case letters and a
-    // number" — both too short and falsely restrictive, since the real policy is 12 with no
+    // number" - both too short and falsely restrictive, since the real policy is 12 with no
     // composition rules. A rule stated wrongly is worse than none: it rejects valid passwords.
     await page.goto("/sign-up")
     await page.getByTestId("toggle-route").click()
@@ -162,7 +162,7 @@ test.describe("the credential routes on offer", () => {
   }) => {
     // Inverts the old assertion of `toHaveCount(0)`. The operator asked for the control to ship now
     // and the capability later. The mitigation for an unbacked button is FR-039: a specific,
-    // non-alarming refusal — never the generic "Something went wrong", which would be a lie, because
+    // non-alarming refusal - never the generic "Something went wrong", which would be a lie, because
     // nothing went wrong.
     await page.goto("/sign-in")
     await expect(page.getByTestId("google-signin")).toBeVisible()
@@ -177,12 +177,12 @@ test.describe("the credential routes on offer", () => {
     page,
   }) => {
     // What this can and cannot prove, stated plainly. It cannot prove the server answers identically
-    // — that is a live property, and quickstart §3.7 is where a person checks it against a real pool.
+    // - that is a live property, and quickstart §3.7 is where a person checks it against a real pool.
     // What it can prove, and what no live walk would reliably catch, is that our client contains no
     // existence-dependent branch: given the same response, two different addresses must produce the
     // same screen, the same controls and the same words.
     //
-    // That is worth pinning because the branch is easy to add by accident — a well-meaning "we don't
+    // That is worth pinning because the branch is easy to add by accident - a well-meaning "we don't
     // recognise that email" would be an account-enumeration oracle on the platform's only public
     // surface, and it would look like a helpfulness improvement in review.
     await page.route("**/cognito-idp.*.amazonaws.com/**", (route) =>

@@ -3,10 +3,10 @@
  * list plus a settings document; the website, back-office's previews and the customer app all draw from
  * this declaration. Every function is pure and runs on both sides:
  *
- *  validateSkin — the shape, the bounds and the layout's own rules;
- *  skinContrast — WCAG aa for every piece of text on what it sits on (the server refuses an unreadable skin);
- *  skinGeometry — the sizes both renderers draw, pinned by `promotion-skins.fixtures.json`;
- *  buttonWords / labelWords / pickPicture — choices both renderers make the same way.
+ *  validateSkin - the shape, the bounds and the layout's own rules;
+ *  skinContrast - WCAG aa for every piece of text on what it sits on (the server refuses an unreadable skin);
+ *  skinGeometry - the sizes both renderers draw, pinned by `promotion-skins.fixtures.json`;
+ *  buttonWords / labelWords / pickPicture - choices both renderers make the same way.
  *
  * `classic` is the one built-in skin: each client keeps its own drawing for it, and the admin service
  * never updates or removes it.

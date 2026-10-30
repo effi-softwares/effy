@@ -111,7 +111,7 @@ export function FeeSimulator({ plans, kind }: { plans: FeePlanDTO[]; kind: FeePl
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__none">None — a later day</SelectItem>
+                  <SelectItem value="__none">None - a later day</SelectItem>
                   {(slots.data ?? [])
                     .filter((s) => !s.anyTime)
                     .map((s) => (
@@ -163,7 +163,7 @@ export function FeeSimulator({ plans, kind }: { plans: FeePlanDTO[]; kind: FeePl
                   </dl>
                 </div>
                 <div>
-                  <p className="font-medium">How it was built{result.plan ? ` — ${result.plan.name}` : ""}</p>
+                  <p className="font-medium">How it was built{result.plan ? ` - ${result.plan.name}` : ""}</p>
                   <dl className="mt-1 divide-y border-y">
                     {result.steps.map((s, i) => (
                       <div key={`${s.label}-${i}`} className="grid grid-cols-[8rem_1fr_auto] gap-2 py-2">

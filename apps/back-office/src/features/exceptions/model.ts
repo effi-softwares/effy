@@ -14,7 +14,7 @@ export function reasonLabel(reason: DeliveryFailureReason): string {
 }
 
 export function locationLabel(e: DeliveryExceptionDTO): string {
-  if (e.packageLocation === "with_driver") return `With ${e.driverName} — to return`
+  if (e.packageLocation === "with_driver") return `With ${e.driverName} - to return`
   // Back at the hub; when, if a return recorded it.
   return e.returnedAt ? `Returned ${new Date(e.returnedAt).toLocaleString()}` : "At hub"
 }

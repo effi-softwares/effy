@@ -44,7 +44,7 @@ export interface OtpSignInCardProps {
   chrome?: "card" | "bare" | "page";
   /** Fired when the flow completes and a session exists. The surface navigates. */
   onAuthenticated: () => Promise<void> | void;
-  /** Optional analytics hooks — the surface owns its event taxonomy. */
+  /** Optional analytics hooks - the surface owns its event taxonomy. */
   onSignInStarted?: () => void;
   onOtpSubmitted?: () => void;
   onSignInFailed?: (reason: "start" | "otp") => void;
@@ -134,7 +134,7 @@ export function OtpSignInCard({
       >
         <div className="space-y-2">
           <h1 className="text-2xl font-semibold tracking-tight">Sign in to {title}</h1>
-          <p className="text-sm text-muted-foreground">Sign in with your work email — we'll send a one-time code.</p>
+          <p className="text-sm text-muted-foreground">Sign in with your work email - we'll send a one-time code.</p>
         </div>
         <emailForm.Field name="email">
           {(field) => (
@@ -165,7 +165,7 @@ export function OtpSignInCard({
           )}
         </emailForm.Subscribe>
         <p className="text-xs text-muted-foreground">
-          There are no passwords for staff. Access is set up by an administrator — ask yours if you can't get in.
+          There are no passwords for staff. Access is set up by an administrator - ask yours if you can't get in.
         </p>
       </form>
     ) : (
@@ -262,106 +262,106 @@ export function OtpSignInCard({
   const body = (
     <>
       {step === "email" ? (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              void emailForm.handleSubmit();
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            void emailForm.handleSubmit();
+          }}
+          className="space-y-4"
+          noValidate
+        >
+          <emailForm.Field name="email">
+            {(field) => (
+              <div className="space-y-2">
+                <Label htmlFor="email">Work email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  autoComplete="email"
+                  autoFocus
+                  required
+                  value={field.state.value}
+                  onChange={(e) => field.handleChange(e.target.value)}
+                  onBlur={field.handleBlur}
+                />
+              </div>
+            )}
+          </emailForm.Field>
+          {formError ? <p className="text-sm text-destructive">{formError}</p> : null}
+          <emailForm.Subscribe selector={(s) => s.isSubmitting}>
+            {(isSubmitting) => (
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting ? "Sending…" : "Send code"}
+              </Button>
+            )}
+          </emailForm.Subscribe>
+        </form>
+      ) : (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            void otpForm.handleSubmit();
+          }}
+          className="space-y-4"
+          noValidate
+        >
+          <otpForm.Field name="code">
+            {(field) => (
+              <div className="space-y-2">
+                {/* The label text is matched by several test files. */}
+                <Label htmlFor="code">One-time code</Label>
+                <OtpInput
+                  id="code"
+                  autoFocus
+                  required
+                  value={field.state.value}
+                  onChange={(e) => field.handleChange(e.target.value)}
+                  onBlur={field.handleBlur}
+                />
+              </div>
+            )}
+          </otpForm.Field>
+          {formError ? <p className="text-sm text-destructive">{formError}</p> : null}
+          <otpForm.Subscribe selector={(s) => s.isSubmitting}>
+            {(isSubmitting) => (
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting ? "Verifying…" : "Verify & sign in"}
+              </Button>
+            )}
+          </otpForm.Subscribe>
+          <Button
+            type="button"
+            variant="ghost"
+            className="w-full"
+            onClick={() => {
+              setFormError(null);
+              setStep("email");
             }}
-            className="space-y-4"
-            noValidate
           >
-            <emailForm.Field name="email">
-              {(field) => (
-                <div className="space-y-2">
-                  <Label htmlFor="email">Work email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    autoComplete="email"
-                    autoFocus
-                    required
-                    value={field.state.value}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                    onBlur={field.handleBlur}
-                  />
-                </div>
-              )}
-            </emailForm.Field>
-            {formError ? <p className="text-sm text-destructive">{formError}</p> : null}
-            <emailForm.Subscribe selector={(s) => s.isSubmitting}>
-              {(isSubmitting) => (
-                <Button type="submit" className="w-full" disabled={isSubmitting}>
-                  {isSubmitting ? "Sending…" : "Send code"}
-                </Button>
-              )}
-            </emailForm.Subscribe>
-          </form>
-        ) : (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              void otpForm.handleSubmit();
-            }}
-            className="space-y-4"
-            noValidate
-          >
-            <otpForm.Field name="code">
-              {(field) => (
-                <div className="space-y-2">
-                  {/* The label text is matched by several test files. */}
-                  <Label htmlFor="code">One-time code</Label>
-                  <OtpInput
-                    id="code"
-                    autoFocus
-                    required
-                    value={field.state.value}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                    onBlur={field.handleBlur}
-                  />
-                </div>
-              )}
-            </otpForm.Field>
-            {formError ? <p className="text-sm text-destructive">{formError}</p> : null}
-            <otpForm.Subscribe selector={(s) => s.isSubmitting}>
-              {(isSubmitting) => (
-                <Button type="submit" className="w-full" disabled={isSubmitting}>
-                  {isSubmitting ? "Verifying…" : "Verify & sign in"}
-                </Button>
-              )}
-            </otpForm.Subscribe>
-            <Button
-              type="button"
-              variant="ghost"
-              className="w-full"
-              onClick={() => {
-                setFormError(null);
-                setStep("email");
-              }}
-            >
-              Use a different email
-            </Button>
+            Use a different email
+          </Button>
 
-            {/*
+          {/*
               The uniform escape hatch, shown to everyone always. For the passwordless audiences an
               emailed code is the only credential, so an address that stopped accepting mail is a
               lockout and this line is the way back. Making it conditional would reveal whether an
               address has an account.
             */}
-            <p className="text-center text-xs text-muted-foreground" data-testid="stuck-note">
-              Still not arriving?{" "}
-              <a className="underline underline-offset-2" href="mailto:hello@effyshopping.com">
-                hello@effyshopping.com
-              </a>
-            </p>
-          </form>
-        )}
+          <p className="text-center text-xs text-muted-foreground" data-testid="stuck-note">
+            Still not arriving?{" "}
+            <a className="underline underline-offset-2" href="mailto:hello@effyshopping.com">
+              hello@effyshopping.com
+            </a>
+          </p>
+        </form>
+      )}
     </>
   );
 
   // `bare` keeps the step description ("Enter the code we sent to …") and drops only the frame and title.
   const description =
     step === "email"
-      ? "Sign in with your work email — we'll send a one-time code."
+      ? "Sign in with your work email - we'll send a one-time code."
       : `Enter the code we sent to ${email}.`;
 
   if (chrome === "bare") {
@@ -376,8 +376,8 @@ export function OtpSignInCard({
   return (
     <Card className="w-full max-w-sm">
       <CardHeader>
-          <CardTitle className="text-primary">{title}</CardTitle>
-          <CardDescription>{description}</CardDescription>
+        <CardTitle className="text-primary">{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent>{body}</CardContent>
     </Card>

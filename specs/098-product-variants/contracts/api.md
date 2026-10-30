@@ -1,4 +1,4 @@
-# API Contract — 098 Product Variants
+# API Contract - 098 Product Variants
 
 Wire types live in `@effy/shared-types` (Principle II); Kotlin DTOs are regenerated from them
 (`gen-kotlin-commerce-contract.mjs`). Money is a 2-dp string, as everywhere. Only CHANGES are listed.
@@ -11,7 +11,7 @@ export type UnitBasis = "per_100g" | "per_kg" | "per_100ml" | "per_l" | "each";
 export type PackUnit = "g" | "kg" | "ml" | "l" | "each";
 export type VariantState = "active" | "inactive" | "removed";
 
-export interface UnitPriceDTO { amount: string; basis: UnitBasis }      // R12 — server-computed
+export interface UnitPriceDTO { amount: string; basis: UnitBasis }      // R12 - server-computed
 
 export interface OptionDTO { id: string; position: 1 | 2; name: string; values: OptionValueDTO[] }
 export interface OptionValueDTO { id: string; value: string; position: number }
@@ -56,7 +56,7 @@ export interface OptionInputDTO { id: string; position: 1 | 2; name: string; val
 `UNIT_BASIS_WORDS` ("/ 100 g", "/ kg", "/ 100 ml", "/ L", "each"); pinned by `unit-price.fixtures.json`
 with a Kotlin twin test in the customer app.
 
-## Storefront (shared gateway, `storefront`) — shapes only, no new routes
+## Storefront (shared gateway, `storefront`) - shapes only, no new routes
 
 - `StorefrontProductCardDTO` + `priceVaries: boolean` ("From"), `variantId: string` (the variant the card
   stands for: the code-matched one in a search, else the default), `variantCount: number`,
@@ -64,12 +64,12 @@ with a Kotlin twin test in the customer app.
   product's list price (R4).
 - `StorefrontProductDetailDTO` + `options: OptionDTO[]`, `variants: StorefrontVariantDTO[]` (active only,
   display order), `defaultVariantId: string` (FR-014), `unitBasis: UnitBasis | null`.
-- `GET /storefront/v1/products/{id}` — `defaultVariantId` is the first variant that can be bought (else the first).
+- `GET /storefront/v1/products/{id}` - `defaultVariantId` is the first variant that can be bought (else the first).
   The page's `?variant={variantId}` is resolved by the CLIENT (`initialVariantId`): a named variant on sale wins,
   anything else falls back to `defaultVariantId`. The server read takes no variant parameter, so it stays cacheable.
-- `GET /storefront/v1/products?q=` — matches an active variant's exact SKU or barcode (R13).
+- `GET /storefront/v1/products?q=` - matches an active variant's exact SKU or barcode (R13).
 
-## Commerce (shared gateway, `commerce`) — path params renamed, no new routes
+## Commerce (shared gateway, `commerce`) - path params renamed, no new routes
 
 | Before | After |
 |---|---|
@@ -85,7 +85,7 @@ with a Kotlin twin test in the customer app.
   `variantId: string | null` (the size "Add to cart" adds: the remembered one, else the product's only one;
   null when several are sold and none is remembered), `variantLabel: string | null`, `variantCount`,
   `unitPrice`. Add-to-cart results skip such an item with reason `"choose_variant"` (FR-015a). Lists:
-  `SavedListCreateRequest` / `SavedListEntryRequest` + `variantId?` — it updates the product's saved item;
+  `SavedListCreateRequest` / `SavedListEntryRequest` + `variantId?` - it updates the product's saved item;
   a list entry itself has NO variant column (lists hold products).
 - Checkout: payment intent refuses a cart line whose variant is not purchasable (`409 item_unavailable`
   as today, naming the line).
@@ -95,7 +95,7 @@ with a Kotlin twin test in the customer app.
 
 - `CreateProductRequest`: removes `sku`, `gtin`, `priceAmount`, `compareAtAmount`, `weightGrams`;
   adds `options: OptionInputDTO[]` (0–2), `variants: VariantInputDTO[]` (1–50), `unitBasis?: UnitBasis | null`.
-- `UpdateProductRequest`: same removals; adds optional `options`, `variants`, `unitBasis` — whole target
+- `UpdateProductRequest`: same removals; adds optional `options`, `variants`, `unitBasis` - whole target
   sets when present. Draft → written live; approved → into the pending change (R6).
 - `ProductDetailDTO`: removes the moved fields; adds `options`, `variants: ShopVariantDTO[]` (all states,
   removed last), `unitBasis`. `ProductChangeProposalDTO` adds `options?`, `variants?`, `unitBasis?`.
@@ -103,18 +103,18 @@ with a Kotlin twin test in the customer app.
 - **NEW** `POST /shop/v1/products/{id}/variants/{variantId}/state` `{ state: "active" | "inactive" | "removed" }`
   → `ProductDetailDTO`. Immediate; `409 last_variant` when it would leave no active-or-inactive variant;
   announces `{"k":"stock"}` to the shop (its stock and attention lists change). Product edits announce
-  nothing today and still do not — catalogue reads are not live (071's change map is unchanged).
+  nothing today and still do not - catalogue reads are not live (071's change map is unchanged).
 - Order console, pick lists, fulfilments, team activity: every item line + `variantLabel`, `sku`, `gtin`
   from the order-line snapshot.
 
-## Inventory (shared + staff gateways) — renamed keys, same counts
+## Inventory (shared + staff gateways) - renamed keys, same counts
 
 `/inventory/v1/products/{productId}/stock[/tracking|/adjustments|/threshold]` →
 `/inventory/v1/variants/{variantId}/stock[…]`; staff:
 `/inventory/v1/admin/shops/{shopId}/variants/{variantId}/stock[…]`. `LowStockRowDTO` + `variantId`,
 `variantLabel`. Bodies unchanged.
 
-## Catalog (staff gateway, `catalog`) — shapes only
+## Catalog (staff gateway, `catalog`) - shapes only
 
 - Review item: `variants: { id, label, shopPriceAmount, shopCompareAtAmount, resultingPriceAmount,
   resultingCompareAtAmount, sku, gtin, weightGrams, packQuantity, packUnit }[]`, recomputed live as the
@@ -126,8 +126,8 @@ with a Kotlin twin test in the customer app.
 ## Driver, orders, notifications, documents
 
 Item lines gain `variantLabel` (string | null) from the snapshot: driver manifest DTO (`driver.ts`;
-optional field — installed driver apps ignore it), back-office `order-admin.ts`, receipt/email models,
-delivery note and tax invoice line text ("Basmati Rice — 1 kg").
+optional field - installed driver apps ignore it), back-office `order-admin.ts`, receipt/email models,
+delivery note and tax invoice line text ("Basmati Rice - 1 kg").
 
 ## Live updates (071)
 

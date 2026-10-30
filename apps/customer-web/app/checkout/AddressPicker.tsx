@@ -29,7 +29,7 @@ export function AddressPicker({
   selectedId: string | null
   /** A switch to an existing saved address (radio). */
   onSelect: (id: string) => void
-  /** A newly created address — the parent appends it and decides to select it. */
+  /** A newly created address - the parent appends it and decides to select it. */
   onAddressAdded: (address: AddressDTO) => void
   /** Distinguishes the shipping vs billing radio groups on one page. */
   idPrefix: string

@@ -93,7 +93,7 @@ class CollectionViewModelTest {
     }
 
     /**
-     * Rev 2 — "work changed" while the driver is on a stop: the stop's packages are re-read. A tick
+     * Rev 2 - "work changed" while the driver is on a stop: the stop's packages are re-read. A tick
      * on a package still there is kept (it is the work in progress); one on a package dispatch withdrew
      * is dropped, so the collect never names a package the stop no longer has.
      */
@@ -108,7 +108,7 @@ class CollectionViewModelTest {
         assertEquals(setOf("c"), v.state.value.reportedPackages.keys)
     }
 
-    /** Backlog C1 — collecting with no signal moves the driver on; it is not an error. */
+    /** Backlog C1 - collecting with no signal moves the driver on; it is not an error. */
     @Test fun a_collect_saved_offline_moves_the_driver_on() = runTest {
         val repo = FakeCollectionRepo().apply { offline = true }
         var done = false
@@ -116,7 +116,7 @@ class CollectionViewModelTest {
         assertTrue(done)
     }
 
-    /** Backlog C1 — a retry of the same action is the same write, so the queue cannot hold it twice. */
+    /** Backlog C1 - a retry of the same action is the same write, so the queue cannot hold it twice. */
     @Test fun a_retried_collect_keeps_its_change_id() = runTest {
         val repo = FakeCollectionRepo(fail = AppError.Unavailable)
         val v = vm(repo).apply { loadStop("s1") }
@@ -126,7 +126,7 @@ class CollectionViewModelTest {
         assertEquals(listOf("cid-0"), repo.changeIds)
     }
 
-    /** Backlog C2 — a check-in with no signal is saved, then read again once it has been sent. */
+    /** Backlog C2 - a check-in with no signal is saved, then read again once it has been sent. */
     @Test fun an_offline_check_in_shows_its_split_once_sent() = runTest {
         val pending = MutableStateFlow(setOf<String>())
         val split = HubSplit(3, 0, emptyList())
@@ -154,7 +154,7 @@ class CollectionViewModelTest {
         val reopened = vm(repo, drafts)
         reopened.loadStop("s1")
         assertEquals(setOf("a"), reopened.state.value.confirmedPackageIds)
-        assertEquals("Damaged — torn", reopened.state.value.reportedPackages["b"]?.asNote())
+        assertEquals("Damaged - torn", reopened.state.value.reportedPackages["b"]?.asNote())
 
         reopened.collect("s1") {}
         val after = vm(repo, drafts)
@@ -203,11 +203,11 @@ class CollectionViewModelTest {
         var done = false
         v.collect("s1") { done = true }
         assertEquals(false, done)
-        assertEquals("1 more package was added — collect it before you leave.", v.state.value.message)
+        assertEquals("1 more package was added - collect it before you leave.", v.state.value.message)
         assertEquals(listOf("a", "b"), v.state.value.stop?.packages?.map { it.packageId })
     }
 
-    /** 093/096 — bags not in the van ride the check-in, each with its reason. */
+    /** 093/096 - bags not in the van ride the check-in, each with its reason. */
     @Test fun missing_bags_ride_the_check_in() = runTest {
         val repo = FakeCollectionRepo(split = HubSplit(1, 0, emptyList()))
         val v = vm(repo)
@@ -231,13 +231,13 @@ class CollectionViewModelTest {
         v.reportPackage("b", "Damaged", "box crushed")
         v.collect("s1") {}
         assertEquals(
-            listOf(PackageOutcome("a", true, null), PackageOutcome("b", false, "Damaged — box crushed")),
+            listOf(PackageOutcome("a", true, null), PackageOutcome("b", false, "Damaged - box crushed")),
             repo.outcomes,
         )
     }
 
     /**
-     * 092/096 — a scanned stop says how each BAG came: scanned, typed, or (unscanned) by hand; a bag
+     * 092/096 - a scanned stop says how each BAG came: scanned, typed, or (unscanned) by hand; a bag
      * declared not at the shop is not handed over, and rides the collect with its reason.
      */
     @Test fun a_scanned_collect_sends_each_bags_method() = runTest {
@@ -306,7 +306,7 @@ class CollectionViewModelTest {
 
     /**
      * The platform refused a collect because the round has not opened. The driver is told when
-     * it opens, in the server's words — not "someone else changed this", and not a generic failure.
+     * it opens, in the server's words - not "someone else changed this", and not a generic failure.
      */
     @Test fun a_collect_before_the_round_opens_says_when_it_opens() = runTest {
         val opening = com.effyshopping.driver.mobile.core.opening.Opening(1_791_436_500_000L, "4:15 pm")

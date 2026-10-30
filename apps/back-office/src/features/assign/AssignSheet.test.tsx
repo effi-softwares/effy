@@ -88,10 +88,10 @@ describe("Assign to… (073)", () => {
       status: 409,
       title: "",
       type: "changed",
-      detail: "This changed a moment ago — showing the latest.",
+      detail: "This changed a moment ago - showing the latest.",
     })
     renderSheet()
     fireEvent.click(await screen.findByRole("button", { name: /Ada/ }))
-    await waitFor(() => expect(toast).toHaveBeenCalledWith("This changed a moment ago — showing the latest."))
+    await waitFor(() => expect(toast).toHaveBeenCalledWith("This changed a moment ago - showing the latest."))
   })
 })

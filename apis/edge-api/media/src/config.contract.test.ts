@@ -54,7 +54,7 @@ describe("media worker deployment contract", () => {
     expect(yaml).not.toMatch(/s3:DeleteObject/);
   });
 
-  it("packages sharp for Lambda — external, installed for linux arm64, the same version as package.json", () => {
+  it("packages sharp for Lambda - external, installed for linux arm64, the same version as package.json", () => {
     expect(yaml).toMatch(/external:\s*\n\s+- sharp/);
     const pinned = pkg.dependencies.sharp;
     expect(pinned).toMatch(/^\d+\.\d+\.\d+$/);

@@ -71,7 +71,7 @@ package:
 functions:
   healthz:
     handler: src/functions/healthz-get.handler
-    description: Liveness — is the inventory service deployed and executing? Touches nothing. Public.
+    description: Liveness - is the inventory service deployed and executing? Touches nothing. Public.
     events:
       - httpApi:
           method: GET
@@ -79,7 +79,7 @@ functions:
 
   readyz:
     handler: src/functions/readyz-get.handler
-    description: Readiness — can the inventory service serve? Probes the DB under a 2s budget. Public.
+    description: Readiness - can the inventory service serve? Probes the DB under a 2s budget. Public.
     events:
       - httpApi:
           method: GET
@@ -89,7 +89,7 @@ functions:
 
   stockActivityV1:
     handler: src/functions/stock-activity-v1-get.handler
-    description: A product's stock activity — every size's movements, searched, filtered, paged and exported (104).
+    description: A product's stock activity - every size's movements, searched, filtered, paged and exported (104).
     events:
       - httpApi:
           method: GET
@@ -177,7 +177,7 @@ functions:
 
   lowStockGetV1:
     handler: src/functions/low-stock-v1-get.handler
-    description: The caller's own shop's restock list — everything out of stock or at/below its threshold (054 US5, FR-029).
+    description: The caller's own shop's restock list - everything out of stock or at/below its threshold (054 US5, FR-029).
     events:
       - httpApi:
           method: GET

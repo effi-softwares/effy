@@ -1,7 +1,7 @@
-# Cleanup — Phase 1 inventory (2026-10-23)
+# Cleanup - Phase 1 inventory (2026-10-23)
 
 Survey approved 2026-10-23 ("do what is best"). **Phase 2 status** is noted per section; see
-"Phase 2 — done" at the end.
+"Phase 2 - done" at the end.
 
 **Method.** All 92 migrations applied to a local throwaway Postgres to get the real final schema
 (130 tables, 1,194 columns, 28 functions, 11 triggers, 1 view, 0 enums). Every static SQL statement
@@ -102,15 +102,15 @@ Kept on purpose: `admin.role` and `public.shop_role` (lookup tables enforced by 
 
 ---
 
-## Phase 2 — done (2026-10-23)
+## Phase 2 - done (2026-10-23)
 
-**Routes removed (16; 356 remain):** the 10 in B, plus four found while removing them —
+**Routes removed (16; 356 remain):** the 10 in B, plus four found while removing them -
 `GET /shop/v1/status` and `GET /shop/v2/status` (demo routes), `GET /fleet/v1/custody`,
 `PUT /inventory/v1/admin/shops/{shopId}/variants/{variantId}/stock/threshold`, and `GET /driver/v1/activity`
 next to its `read`. Background functions removed: `deliveryModelSwitchSweep`, `renditionBackfill`.
 
 **Kept on purpose:** `POST /orders/v1/orders/{orderId}/cancel` (055 staff cancel + refund). No back-office
-screen calls it — **a UI gap, not dead code.**
+screen calls it - **a UI gap, not dead code.**
 
 **Also removed with them:** the back-office Go-live tab, the orders list "Placed before delivery types"
 filter, `shared/src/delivery/{legacy,readiness,locality}.ts`, the shop `status/` slice, ~40 dead exported
@@ -128,9 +128,9 @@ one alarm entry and the `rendition_queue_url` parameter); redeploy back-office.
 `orders/src/orders/repository.container.test.ts` builds a hand-written mini schema that lacks
 `round_opens_at`. That is fixture drift, not a product bug; Phase 5 moves such tests onto the single
 baseline migration. Running files in parallel causes setup timeouts and shared-key collisions in
-driver/fleet/commerce — run them with `--no-file-parallelism`.
+driver/fleet/commerce - run them with `--no-file-parallelism`.
 
-## Phase 3 — in progress (2026-10-23)
+## Phase 3 - in progress (2026-10-23)
 
 Done so far, all suites green (JS typecheck + tests, customer and driver app host tests, guard scripts):
 - **Unused code guarded:** 65 unused imports/locals removed; `noUnusedLocals` + `noUnusedParameters` on in all
@@ -149,20 +149,20 @@ Done so far, all suites green (JS typecheck + tests, customer and driver app hos
 - Also fixed: 5 promotion-skin icons that were never declared in the design-system asset source.
 
 Open findings for the operator:
-- The customer app never calls its Kotlin `deliverySummary` — its screens word deliveries themselves, so the
+- The customer app never calls its Kotlin `deliverySummary` - its screens word deliveries themselves, so the
   "one wording" rule is enforced only by a test of an unused function.
 - Back-office cancel-order route has no button (kept).
 - Container-test fixtures still create orders with no `delivery_type`: fixed together with Phase 5's NOT NULL.
 - Effy planner/dispatch code still handles "a package with no window" (orders before 069); every Effy order
-  now has one — verify and remove with Phase 5.
+  now has one - verify and remove with Phase 5.
 
-## Phase 4 — comments (done 2026-10-23)
+## Phase 4 - comments (done 2026-10-23)
 
 Every surface's comments rewritten to say what the code does now: feature numbers, dates, defect stories and
 "used to" history removed, including SQL `--` comments inside TypeScript strings. Verified code-identical
 outside an explicit list of intentional edits.
 
-## Phase 5 — one baseline migration (done 2026-10-23)
+## Phase 5 - one baseline migration (done 2026-10-23)
 
 - `db/migrations/` is ONE file, `20261023000000_baseline.sql`: the schema (pg_dump of all 92 migrations
   plus the cleanup below, applied by goose and diffed back to identical) and its reference data (roles,

@@ -27,12 +27,12 @@ const SALE_HREF = "/search?saleOnly=true"
  * The aisle row under the masthead: All aisles, Deals, then every top-level aisle on one line.
  *
  * It never wraps. More aisles than fit scroll sideways (no scrollbar), and every one of them is
- * also in the All aisles menu — so nothing is reachable only by scrolling.
+ * also in the All aisles menu - so nothing is reachable only by scrolling.
  *
  * The All aisles menu (reference: Home · All aisles mega menu) opens on hover or press: the aisles
  * down the left, the chosen aisle's groups and sub-aisles in the middle, offers and information on
  * the right. Its content is rendered here, on the server; `AisleMenu` only opens and switches it.
- * Phones never see this row — their aisles are in the menu drawer.
+ * Phones never see this row - their aisles are in the menu drawer.
  */
 export async function AisleRow() {
   const categories = await getCategoriesSafe()
@@ -125,7 +125,7 @@ export async function AisleRow() {
 /**
  * One aisle's contents: its groups, each with the number of products under it and its sub-aisles.
  *
- * An aisle with no groups says so and still offers the aisle itself — a taxonomy two levels deep
+ * An aisle with no groups says so and still offers the aisle itself - a taxonomy two levels deep
  * (or one) must not open onto an empty panel.
  */
 function AislePanel({
@@ -172,7 +172,7 @@ function AislePanel({
   )
 }
 
-/** An information slide: what it is, a line about it, and the way in — on the tinted panel. */
+/** An information slide: what it is, a line about it, and the way in - on the tinted panel. */
 function Slide({
   badge,
   title,
@@ -239,7 +239,7 @@ function OfferSlide({
 
 /**
  * What Effy does, said where a shopper is deciding what to buy. Every line is true of the product
- * today — a claim nobody can keep (a delivery time, a free-delivery amount) is not made here.
+ * today - a claim nobody can keep (a delivery time, a free-delivery amount) is not made here.
  */
 const INFORMATION = [
   <Slide
@@ -261,7 +261,7 @@ const INFORMATION = [
 ]
 
 /**
- * The current offers, then the information slides. With no offers — or no answer — just those.
+ * The current offers, then the information slides. With no offers - or no answer - just those.
  *
  * The offers are the `mega-nav` display group (it started with what `home.banners` held, so the
  * menu did not change), read through the public group read: the menu is drawn for everyone, so it never

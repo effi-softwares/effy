@@ -2,7 +2,7 @@
 
 Phase 1 data design. Tables live in the **`public`** schema (operational, alongside `public.shop`),
 raw SQL, Goose forward-only migration, `text CHECK` enums (no native PG enums, no `updated_by`, no
-triggers — plain `created_at`/`updated_at timestamptz NOT NULL DEFAULT now()`), an index on every FK,
+triggers - plain `created_at`/`updated_at timestamptz NOT NULL DEFAULT now()`), an index on every FK,
 `COMMENT ON` for each table/column. DTOs live once in `@effy/shared-types` (`catalog.ts`); the
 shop-facing subset regenerates to Kotlin for shop-mobile.
 
@@ -46,7 +46,7 @@ Legend: **PK** primary key · **FK** foreign key · `∎` platform-owned (never 
 
 ## 2. Tables
 
-### 2.1 `public.product_type` — back-office classification
+### 2.1 `public.product_type` - back-office classification
 | Column | Type | Notes |
 |---|---|---|
 | `id` | `uuid PK DEFAULT gen_random_uuid()` | |
@@ -56,7 +56,7 @@ Legend: **PK** primary key · **FK** foreign key · `∎` platform-owned (never 
 | `status` ∎ | `text NOT NULL DEFAULT 'active' CHECK (status IN ('active','retired'))` | retired hides from new-product creation; existing products keep it |
 | `created_at`/`updated_at` | `timestamptz NOT NULL DEFAULT now()` | |
 
-### 2.2 `public.attribute_definition` — reusable attribute
+### 2.2 `public.attribute_definition` - reusable attribute
 | Column | Type | Notes |
 |---|---|---|
 | `id` | `uuid PK` | |
@@ -69,7 +69,7 @@ Legend: **PK** primary key · **FK** foreign key · `∎` platform-owned (never 
 | `status` ∎ | `text NOT NULL DEFAULT 'active' CHECK (status IN ('active','retired'))` | retire blocked/handled if in use (FR-006) |
 | `created_at`/`updated_at` | `timestamptz` | |
 
-### 2.3 `public.attribute_allowed_value` — options for select types
+### 2.3 `public.attribute_allowed_value` - options for select types
 | Column | Type | Notes |
 |---|---|---|
 | `id` | `uuid PK` | |
@@ -77,9 +77,9 @@ Legend: **PK** primary key · **FK** foreign key · `∎` platform-owned (never 
 | `value` | `text NOT NULL` | stored value |
 | `label` | `text NOT NULL` | display |
 | `display_order` | `int NOT NULL DEFAULT 0` | |
-| — | `UNIQUE (attribute_definition_id, value)` | removing an in-use value is blocked (FR-006) |
+| - | `UNIQUE (attribute_definition_id, value)` | removing an in-use value is blocked (FR-006) |
 
-### 2.4 `public.product_type_attribute` — assignment (type ↔ attribute)
+### 2.4 `public.product_type_attribute` - assignment (type ↔ attribute)
 | Column | Type | Notes |
 |---|---|---|
 | `id` | `uuid PK` | |
@@ -88,9 +88,9 @@ Legend: **PK** primary key · **FK** foreign key · `∎` platform-owned (never 
 | `is_mandatory` ∎ | `boolean NOT NULL DEFAULT false` | drives required-field enforcement |
 | `display_order` | `int NOT NULL DEFAULT 0` | step-form order |
 | `group_label` | `text` | nullable; groups fields into form steps / detail sections |
-| — | `UNIQUE (product_type_id, attribute_definition_id)` | |
+| - | `UNIQUE (product_type_id, attribute_definition_id)` | |
 
-### 2.5 `public.category` — platform taxonomy (hierarchical)
+### 2.5 `public.category` - platform taxonomy (hierarchical)
 | Column | Type | Notes |
 |---|---|---|
 | `id` | `uuid PK` | |
@@ -101,7 +101,7 @@ Legend: **PK** primary key · **FK** foreign key · `∎` platform-owned (never 
 | `status` ∎ | `text NOT NULL DEFAULT 'active' CHECK (status IN ('active','retired'))` | |
 | `created_at`/`updated_at` | `timestamptz` | |
 
-### 2.6 `public.product` — the shop-owned catalog item
+### 2.6 `public.product` - the shop-owned catalog item
 | Column | Type | Notes |
 |---|---|---|
 | `id` | `uuid PK` | |
@@ -127,7 +127,7 @@ Indexes: `product_shop_id_idx (shop_id)`, `product_shop_status_idx (shop_id, sta
 partial unique `product_shop_sku_uq (shop_id, sku) WHERE sku IS NOT NULL`,
 and a `pg_trgm` GIN over `lower(name||' '||coalesce(sku,'')||' '||coalesce(brand,'')||' '||short_description)` for `q`.
 
-### 2.7 `public.product_attribute_value` — EAV value
+### 2.7 `public.product_attribute_value` - EAV value
 | Column | Type | Notes |
 |---|---|---|
 | `id` | `uuid PK` | |
@@ -138,7 +138,7 @@ and a `pg_trgm` GIN over `lower(name||' '||coalesce(sku,'')||' '||coalesce(brand
 | `value_boolean` | `boolean` | boolean |
 | `value_options` | `text[]` | multi_select |
 | `created_at`/`updated_at` | `timestamptz` | |
-| — | `UNIQUE (product_id, attribute_definition_id)` | one value row per attribute |
+| - | `UNIQUE (product_id, attribute_definition_id)` | one value row per attribute |
 
 Exactly one `value_*` column is populated per row, matching the attribute's `data_type` (enforced in
 the service layer; a CHECK can assert not-all-null).
@@ -153,9 +153,9 @@ the service layer; a CHECK can assert not-all-null).
 | `display_order` | `int NOT NULL DEFAULT 0` | gallery order |
 | `alt_text` | `text` | nullable |
 | `created_at` | `timestamptz` | |
-| — | partial unique `product_media_primary_uq (product_id) WHERE is_primary` | at most one primary |
+| - | partial unique `product_media_primary_uq (product_id) WHERE is_primary` | at most one primary |
 
-### 2.9 `public.shop_section` — shop-local grouping
+### 2.9 `public.shop_section` - shop-local grouping
 | Column | Type | Notes |
 |---|---|---|
 | `id` | `uuid PK` | |
@@ -163,21 +163,21 @@ the service layer; a CHECK can assert not-all-null).
 | `name` | `text NOT NULL` | |
 | `display_order` | `int NOT NULL DEFAULT 0` | |
 | `created_at`/`updated_at` | `timestamptz` | |
-| — | `UNIQUE (shop_id, name)` | |
+| - | `UNIQUE (shop_id, name)` | |
 
-### 2.10 `public.product_section` — M:N join
+### 2.10 `public.product_section` - M:N join
 | Column | Type | Notes |
 |---|---|---|
 | `product_id` | `uuid NOT NULL REFERENCES product(id) ON DELETE CASCADE` | |
 | `shop_section_id` | `uuid NOT NULL REFERENCES shop_section(id) ON DELETE CASCADE` | |
-| — | `PRIMARY KEY (product_id, shop_section_id)` | |
+| - | `PRIMARY KEY (product_id, shop_section_id)` | |
 
-### 2.11 `admin.audit_log` (existing) — new actions
+### 2.11 `admin.audit_log` (existing) - new actions
 Schema mutations write an audit row inside the same transaction (verified 009 pattern):
 `product_type.create/update/retire`, `attribute.create/update/retire`,
 `attribute_value.add/remove`, `category.create/update/retire`. `target_type ∈ {product_type,
 attribute_definition, category}`; `detail jsonb`. (Shop-side product CRUD is **not** audited in this
-slice — consistent with 007/009 shop side; a future enhancement.)
+slice - consistent with 007/009 shop side; a future enhancement.)
 
 ---
 
@@ -198,7 +198,7 @@ slice — consistent with 007/009 shop side; a future enhancement.)
 - **Focused-edit concurrency (FR-023a)**: `PATCH /shop/v1/products/{id}` carries `expectedUpdatedAt`
   (the `updated_at` the client last read). The update runs `... WHERE id = :id AND shop_id = :actorShopId
   AND updated_at = :expectedUpdatedAt`; **0 rows affected → 409 conflict** ("product changed, reload").
-  This is optimistic concurrency using the existing `updated_at` — no version column is added. Edits to
+  This is optimistic concurrency using the existing `updated_at` - no version column is added. Edits to
   different sections still both succeed unless they race the *same* row's `updated_at`.
 - **Schema-drift indicator (FR-020a)**: on detail read, the service computes the set of the product
   type's currently-mandatory attributes that the product has no `product_attribute_value` for, and
@@ -208,13 +208,13 @@ slice — consistent with 007/009 shop side; a future enhancement.)
   is referenced by any `product_attribute_value` is blocked (409) with the conflict surfaced; retiring a
   product type does not corrupt existing products.
 - **Shop isolation (every shop query)**: `WHERE shop_id = :actorShopId` derived from the operator's
-  `shop_staff` record — never from a client-supplied shop id (FR-019/FR-031, SC-005).
+  `shop_staff` record - never from a client-supplied shop id (FR-019/FR-031, SC-005).
 - **Hard-delete guard**: `DELETE` refused (409 → "archive instead") unless the product is `draft` and
   never activated / unreferenced (R8).
 
 ---
 
-## 4. State transitions — `product.status`
+## 4. State transitions - `product.status`
 
 ```
         create
@@ -255,8 +255,8 @@ attributes + active category tree, for the create form), `ProductListItemDTO` (t
 brand, primaryImageUrl, typeName, categoryName, price, currency, status, sku), `ProductDetailDTO`
 (full + `brand` + `updatedAt` (the concurrency token) + `attributes: ProductAttributeValueDTO[]` +
 `media: ProductMediaDTO[]` + `sections: string[]` + `missingMandatoryAttributes: string[]` (FR-020a)),
-`CreateProductRequest` (incl. optional `brand`), `UpdateProductRequest` (all fields optional — focused
-edits PATCH a subset — plus a required `expectedUpdatedAt` concurrency token, FR-023a),
+`CreateProductRequest` (incl. optional `brand`), `UpdateProductRequest` (all fields optional - focused
+edits PATCH a subset - plus a required `expectedUpdatedAt` concurrency token, FR-023a),
 `ChangeProductStatusRequest`, `ProductMediaDTO`, `CreatePresignedUploadRequest`/`Response`,
 `ShopSectionDTO`, `CreateShopSectionRequest`. List envelope: `PagedDTO<ProductListItemDTO>`.
 
@@ -265,7 +265,7 @@ narrowing helper (the `toShopRoles` pattern) for values authored by the back off
 
 ---
 
-## 6. Seed (starter schema — back-office-editable)
+## 6. Seed (starter schema - back-office-editable)
 
 Inserted `ON CONFLICT (key) DO NOTHING`: product types `prepared_food`, `packaged_grocery`,
 `beverage`, `household`; a starter attribute library (`dietary_labels` multi_select,

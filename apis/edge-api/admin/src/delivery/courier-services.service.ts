@@ -55,7 +55,7 @@ function values(body: CourierServiceInput, base: CourierServiceDTO | null): repo
   const isDefault = flag("isDefault");
   const status = body.status ?? base?.status ?? "active";
   if (status !== "active" && status !== "retired") errors.push({ field: "status", message: "active or retired" });
-  if (status === "retired" && isDefault) errors.push({ field: "status", message: "the default service cannot be retired — choose another default first" });
+  if (status === "retired" && isDefault) errors.push({ field: "status", message: "the default service cannot be retired - choose another default first" });
 
   if (errors.length > 0) throw new CoverageError(422, "invalid_service", "check the courier service", { fields: errors });
   return {

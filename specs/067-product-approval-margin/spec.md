@@ -6,7 +6,7 @@
 
 **Status**: Draft
 
-**Input**: User description: "Product approval and Effy margin" — client feedback round of October
+**Input**: User description: "Product approval and Effy margin" - client feedback round of October
 2026, requirements R1 and R2 in
 [docs/prd/2026-10-client-feedback-prd.md](../../docs/prd/2026-10-client-feedback-prd.md).
 

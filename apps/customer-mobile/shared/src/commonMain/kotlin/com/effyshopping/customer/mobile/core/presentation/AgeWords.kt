@@ -1,7 +1,7 @@
 package com.effyshopping.customer.mobile.core.presentation
 
 /**
- * How an age-restricted (18+) product is said (101) — the twin of `packages/shared-types/src/age-words.ts`,
+ * How an age-restricted (18+) product is said (101) - the twin of `packages/shared-types/src/age-words.ts`,
  * pinned to `age-words.fixtures.json` by `AgeWordsTest`. Labelling only: an age check comes later.
  */
 object AgeWords {

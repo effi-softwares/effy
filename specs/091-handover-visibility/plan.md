@@ -5,13 +5,13 @@
 ## Summary
 
 Three read-only, additive reads of 090's `package_handover`, each in the service that already owns the
-screen — no new route, no migration:
+screen - no new route, no migration:
 
 | Screen | Service / read | Field |
 |---|---|---|
-| Order (back-office) | `orders` — order detail packages | `AdminOrderPackageDTO.handovers[]` `{ step, method, at, driverName }` |
-| Round (dispatch) | `fleet` — `readRound` stops | `handovers?: { scan, typed, manual }` per stop (records on THIS round) |
-| Shop (back-office) | `admin` — shop detail | `ShopDetailDTO.labelScanning?: { scanned, notScanned, sinceDays: 30 }` |
+| Order (back-office) | `orders` - order detail packages | `AdminOrderPackageDTO.handovers[]` `{ step, method, at, driverName }` |
+| Round (dispatch) | `fleet` - `readRound` stops | `handovers?: { scan, typed, manual }` per stop (records on THIS round) |
+| Shop (back-office) | `admin` - shop detail | `ShopDetailDTO.labelScanning?: { scanned, notScanned, sinceDays: 30 }` |
 
 ## Technical Context
 
@@ -25,7 +25,7 @@ per service, back-office component tests.
 | II. Shared contracts | ✅ additive fields in `@effy/shared-types` |
 | III. One backend; gateways | ✅ no route added (staff gateway unchanged) |
 | IV. Auth isolation | ✅ staff reads only; no customer/shop/driver contract gains a field (FR-005) |
-| V. Design | ✅ lines and inline counts in existing tables — no cards |
+| V. Design | ✅ lines and inline counts in existing tables - no cards |
 | VI. Layering | ✅ SQL in repositories |
 
 ## Project Structure

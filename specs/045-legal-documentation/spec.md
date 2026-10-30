@@ -6,7 +6,7 @@
 
 **Status**: Draft
 
-**Input**: User description: "understand the platform very well and check customer web app and customer mobile app and identify all the documentation, legal documentation like privacy policy documentations, terms and conditions and all the related things, identify what we have here. I do not think we have correct content in all of these files. also you have to go internet, do a deep research on what we need to have in our mobile app to put them in Apple App Store and Google Play Store. Identify all of them and create pages/components/documents about them, write correct legal documents and other documents in a legal way, and each file needs to link in correct places. Author all the documents needed — I will verify them by a lawyer later."
+**Input**: User description: "understand the platform very well and check customer web app and customer mobile app and identify all the documentation, legal documentation like privacy policy documentations, terms and conditions and all the related things, identify what we have here. I do not think we have correct content in all of these files. also you have to go internet, do a deep research on what we need to have in our mobile app to put them in Apple App Store and Google Play Store. Identify all of them and create pages/components/documents about them, write correct legal documents and other documents in a legal way, and each file needs to link in correct places. Author all the documents needed - I will verify them by a lawyer later."
 
 ---
 
@@ -20,7 +20,7 @@ store-compliance placeholder, not as real content:
   built public `/delete-account` page. Consent text on sign-up already names *Terms of Service* and
   *Privacy Policy*; the account page and delete-account page link to `/legal/privacy` and `/legal/terms`.
 - **customer-mobile** has a *Privacy & data* screen under Account with rows for "Privacy policy",
-  "Terms of service" and "Delete account" — but **both the Privacy and Terms rows currently open the same
+  "Terms of service" and "Delete account" - but **both the Privacy and Terms rows currently open the same
   placeholder screen** (a wiring defect), and there is no rendered document behind either.
 
 Feature 034 deliberately shipped placeholder prose and recorded, in
@@ -35,7 +35,7 @@ every document into the places a customer and a store reviewer expect to find it
 store-submission collateral (Apple App Privacy details, Google Data safety mapping, reviewer notes,
 policy/deletion URLs, EULA posture) so the two mobile apps can actually be submitted.
 
-**Scope boundary — this is the whole legal-documentation feature in one slice.** A prior plan split
+**Scope boundary - this is the whole legal-documentation feature in one slice.** A prior plan split
 this into "build the system" and "author the prose" as two specs; the operator's instruction to author
 the documents *now* consolidates them here. Where a document makes a factual claim about the platform
 (what data is collected, what is retained, how deletion works), that claim MUST be true of the system
@@ -43,7 +43,7 @@ as built (the SC-010 discipline), or the document MUST describe the current beha
 aspirational one.
 
 **This slice is customer-facing documentation and its wiring. It is NOT:** new data collection, new
-account/deletion mechanics, the background erasure worker (a tracked dependency — see Dependencies),
+account/deletion mechanics, the background erasure worker (a tracked dependency - see Dependencies),
 or changes to what the platform actually does with data. If a required document would have to state
 something untrue to be store-acceptable, that gap is surfaced as a dependency, not papered over.
 
@@ -53,7 +53,7 @@ something untrue to be store-acceptable, that gap is surfaced as a dependency, n
 
 ### User Story 1 - A customer can read accurate, complete legal documents before and after they buy (Priority: P1)
 
-A shopper — guest or signed-in, on web or in either mobile app — can find and read Effy's Privacy
+A shopper - guest or signed-in, on web or in either mobile app - can find and read Effy's Privacy
 Policy, Terms of Service, and the other customer-facing legal documents, each written in plain,
 lawful language, each carrying an effective date, each accurately describing what Effy actually does
 with their information and money.
@@ -74,7 +74,7 @@ built. Deliverable value: a reviewable, publishable legal corpus.
 1. **Given** a guest on the web storefront, **When** they open the Privacy Policy from the footer,
    **Then** they see a complete policy stating what personal information Effy collects, why, who it is
    shared with, how long it is kept, how it is protected, and how to access, correct, delete or
-   complain — with an effective date.
+   complain - with an effective date.
 2. **Given** a signed-in customer in the mobile app, **When** they open Account → Privacy & data →
    Terms of service, **Then** they see the actual Terms (not the Privacy screen, not a placeholder),
    covering ordering, pricing, substitutions, delivery, cancellations and refunds, acceptable use,
@@ -98,10 +98,10 @@ path, or store metadata.
 link, an inconsistent Data safety answer, or an unreachable deletion URL blocks the entire release,
 and these are the most-reported rejection reasons in this area.
 
-**Independent Test**: Walk each store's published requirements against the feature's deliverables —
+**Independent Test**: Walk each store's published requirements against the feature's deliverables -
 in-app privacy policy link, public non-geofenced privacy policy URL, in-app account deletion, public
 deletion URL matching the privacy policy, App Privacy details mapping, Data safety mapping, EULA
-posture, reviewer notes — and confirm each is satisfied and self-consistent.
+posture, reviewer notes - and confirm each is satisfied and self-consistent.
 
 **Acceptance Scenarios**:
 
@@ -119,7 +119,7 @@ posture, reviewer notes — and confirm each is satisfied and self-consistent.
 4. **Given** Apple's App Privacy details and Google's Data safety section, **When** the operator fills
    each console form, **Then** a documented data-type mapping exists that lists every data type the app
    and its third-party SDKs collect, how each is used, and whether it is linked to identity or used for
-   tracking — and the two mappings and the privacy policy agree with one another.
+   tracking - and the two mappings and the privacy policy agree with one another.
 5. **Given** the account-deletion reviewer trap, **When** submission notes are prepared, **Then** they
    instruct the reviewer to register a throwaway account before testing deletion (rather than deleting
    the demo account), with no special-cased account in code.
@@ -131,10 +131,10 @@ posture, reviewer notes — and confirm each is satisfied and self-consistent.
 
 ### User Story 3 - Every document is discoverable from the right place, on both surfaces (Priority: P2)
 
-A customer never has to hunt for a legal document: it appears where the decision it governs is made —
+A customer never has to hunt for a legal document: it appears where the decision it governs is made -
 consent at sign-up, refund/returns and delivery terms at checkout, marketing consent at newsletter
 sign-up, the full set in the footer and in Account → Privacy & data, and the licenses/about
-information in the mobile About screen — and each link resolves to the correct, current document.
+information in the mobile About screen - and each link resolves to the correct, current document.
 
 **Why this priority**: Store policies require *accessibility*, not mere existence; and a document that
 exists but is unlinked (the current `/legal/*` state, and the mobile Terms-opens-Privacy defect) fails
@@ -186,7 +186,7 @@ version).
 
 - **A document would have to lie to pass review.** If store acceptance would require stating something
   untrue of the built system (e.g. "your data is permanently erased after 30 days" while the erasure
-  worker is not yet built — Dependencies), the document MUST describe current behaviour truthfully, and
+  worker is not yet built - Dependencies), the document MUST describe current behaviour truthfully, and
   the gap MUST be recorded as a submission dependency rather than resolved by an inaccurate claim.
 - **A real-world identifier is unknown.** Legal entity name, ABN/ACN, registered business address,
   governing-law jurisdiction, and the privacy/legal contact address are real-world identifiers. Per the
@@ -239,9 +239,9 @@ version).
   identifiers used on web and mobile, their purposes, and how a person can control them where possible.
 - **FR-005**: The feature MUST establish an **Acceptable Use Policy** (as its own document or an
   identifiable Terms section) stating prohibited conduct on the platform.
-- **FR-006**: The feature MUST decide and record the platform's **EULA posture** for the mobile apps —
+- **FR-006**: The feature MUST decide and record the platform's **EULA posture** for the mobile apps -
   either relying on Apple's Standard Licensed Application EULA plus Google Play's terms (with the
-  service governed by Effy's Terms of Service), or supplying a custom EULA — and if custom, the EULA
+  service governed by Effy's Terms of Service), or supplying a custom EULA - and if custom, the EULA
   MUST meet Apple's minimum terms (agreement solely between the user and Effy not Apple; Effy solely
   responsible for the app and its content; a limited, revocable, non-transferable licence; Apple named
   as a third-party beneficiary entitled to enforce).
@@ -301,10 +301,10 @@ version).
 
 - **FR-024**: The feature MUST produce an **Apple App Privacy details mapping**: every data type the
   app and its third-party SDKs collect, its purpose, whether it is linked to identity, and whether it
-  is used for tracking — sufficient to fill the App Store Connect App Privacy questionnaire and
+  is used for tracking - sufficient to fill the App Store Connect App Privacy questionnaire and
   consistent with the Privacy Policy.
 - **FR-025**: The feature MUST produce a **Google Play Data safety mapping** covering the same data
-  types, collection/sharing, security practices, retention and deletion — consistent with the Apple
+  types, collection/sharing, security practices, retention and deletion - consistent with the Apple
   mapping and the Privacy Policy, and stating the in-app and web deletion paths.
 - **FR-026**: The feature MUST document the **privacy policy URL and the account-deletion URL** to enter
   in both consoles, and MUST ensure the deletion URL cited in the Play Console equals the one cited in
@@ -324,7 +324,7 @@ version).
 - **Document Version**: A prior or current revision of a Legal Document, with an effective date and
   version identifier, viewable in the version-history route.
 - **Data-Type Disclosure**: A row in the store-mapping artifacts pairing a category of collected data
-  with its purpose, linkage-to-identity, tracking use, and the sub-processor(s) involved — the bridge
+  with its purpose, linkage-to-identity, tracking use, and the sub-processor(s) involved - the bridge
   between the Privacy Policy prose and the Apple/Google console forms.
 - **Sub-processor / Third Party**: An external service that receives personal information (payment
   processor, cloud/identity/email provider, product-analytics provider, crash-reporting/push provider,
@@ -340,7 +340,7 @@ version).
 
 - **SC-001**: 100% of the required customer-facing documents (Privacy Policy, Terms of Service, Refund/
   Returns/Cancellations, Cookie & Tracking Notice, Acceptable Use, EULA posture, Acknowledgements,
-  About/Contact) exist as complete authored prose — zero placeholders remaining on any legal route on
+  About/Contact) exist as complete authored prose - zero placeholders remaining on any legal route on
   either surface.
 - **SC-002**: Every factual claim in the Privacy Policy about collected data, sub-processors, retention
   categories and deletion behaviour is verified to match the system as built; a reviewer checking any
@@ -349,11 +349,11 @@ version).
   requirement in the submission checklist, with no item left in a "blocked" state except those recorded
   as explicit external/operator dependencies.
 - **SC-004**: The Apple App Privacy mapping, the Google Data safety mapping, and the Privacy Policy are
-  mutually consistent — the same data types, purposes and sharing appear in all three with no
+  mutually consistent - the same data types, purposes and sharing appear in all three with no
   contradiction.
 - **SC-005**: Every entry point (footer, sign-up consent, checkout, newsletter, account privacy
   section, mobile About, `/delete-account`, `/legal` index) links to the correct current document on
-  the correct surface, with zero broken or wrong-document links — including the fixed mobile
+  the correct surface, with zero broken or wrong-document links - including the fixed mobile
   Terms→Privacy defect.
 - **SC-006**: The same document read on web and on mobile presents identical substantive content (no
   drift), demonstrable by comparing the two.
@@ -369,8 +369,8 @@ version).
 
 - **Jurisdiction is Australia.** The platform operates from Australia (Sydney) on the
   `effyshopping.com` domain and serves Australian customers; the documents are framed for Australian
-  law — the Privacy Act 1988 and the Australian Privacy Principles, the Australian Consumer Law, and the
-  Spam Act 2003 — as the primary regime. If Effy serves customers in other jurisdictions (e.g. the EU),
+  law - the Privacy Act 1988 and the Australian Privacy Principles, the Australian Consumer Law, and the
+  Spam Act 2003 - as the primary regime. If Effy serves customers in other jurisdictions (e.g. the EU),
   additional regime coverage is a follow-on, not assumed here.
 - **The documents are drafts for legal review.** The operator will have a lawyer verify and finalise
   the authored prose; the feature's job is correct, complete, well-structured drafts grounded in the
@@ -380,8 +380,8 @@ version).
   never inferred; drafts use fail-loud placeholders until supplied. (The `support@effyshopping.com`
   address currently hard-coded in the built delete-account page is treated as operator-confirmed unless
   the operator says otherwise; new addresses are not invented.)
-- **The retained-data categories are those the system already enforces** — completed orders, payment
-  records, and fraud/security signals (per the closure service's `RETAINED` set) — and the Privacy
+- **The retained-data categories are those the system already enforces** - completed orders, payment
+  records, and fraud/security signals (per the closure service's `RETAINED` set) - and the Privacy
   Policy describes these rather than a different set.
 - **Existing routes and mechanics are reused, not rebuilt.** `/legal/privacy`, `/legal/terms`,
   `/legal/[type]/versions`, `/delete-account`, the mobile Privacy & data screen and the account-closure

@@ -27,7 +27,7 @@ describe("shopperHandler", () => {
     expect(out.mock.calls.some((c) => String(c[0]).includes("ShopperConnectionsRefused"))).toBe(true);
   });
 
-  it("answers anything else as the opaque 500 — the cause stays in the log", async () => {
+  it("answers anything else as the opaque 500 - the cause stays in the log", async () => {
     const res = await shopperHandler(async () => {
       throw new Error("relation \"secret_table\" does not exist");
     })(event, context);

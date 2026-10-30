@@ -14,14 +14,14 @@ change (DSN-from-parts); everything else is proven by `terraform validate`/`plan
 acceptance walk in quickstart.md. No broad TDD suite is generated (none was requested and none fits IaC).
 
 **Organization**: Tasks are grouped by the six user stories. Because this is one Terraform module +
-one env wrapper, several stories necessarily touch the same files — those tasks are sequential (not
+one env wrapper, several stories necessarily touch the same files - those tasks are sequential (not
 `[P]`). Independence is expressed at the **acceptance** level: each story has its own live proof.
 
 ## Format: `[ID] [P?] [Story] Description`
 
 - **[P]**: Can run in parallel (different files, no dependency on an incomplete task)
 - **[Story]**: US1–US6 (maps to spec.md). Setup/Foundational/Polish carry no story label.
-- ⚙️ **OPERATOR** marks a live-AWS step Claude does NOT run — handed off with exact commands (mode of work).
+- ⚙️ **OPERATOR** marks a live-AWS step Claude does NOT run - handed off with exact commands (mode of work).
 
 ## Path Conventions
 
@@ -51,12 +51,12 @@ one env wrapper, several stories necessarily touch the same files — those task
 **⚠️ CRITICAL**: Blocks Phase 3+.
 
 - [X] T006 In `infra/modules/ecs-fargate-web-service/main.tf`, resolve networking via data sources: default VPC (`data "aws_vpc" "default" { default = true }`) and its public subnets (`data "aws_subnets"`), overridable by `var.subnet_ids`; fail loudly if no default VPC exists (research R3).
-- [X] T007 [P] Security groups in `main.tf`: ALB SG (ingress 80+443 from `0.0.0.0/0`, egress all) and task SG (ingress `var.container_port` from the ALB SG **only**, egress all — so the app port is never public, FR-019).
+- [X] T007 [P] Security groups in `main.tf`: ALB SG (ingress 80+443 from `0.0.0.0/0`, egress all) and task SG (ingress `var.container_port` from the ALB SG **only**, egress all - so the app port is never public, FR-019).
 - [X] T008 [P] CloudWatch log group in `infra/modules/ecs-fargate-web-service/logs.tf`: `/ecs/${var.name_prefix}-core-api`, `retention_in_days = var.log_retention` (default 7).
 - [X] T009 [P] IAM role skeletons in `infra/modules/ecs-fargate-web-service/iam.tf`: execution role (trust `ecs-tasks.amazonaws.com` + attach `AmazonECSTaskExecutionRolePolicy`) and task role (trust only for now). Scoped secret/kms (US5) and S3 (US5) policies are added in their phases.
 - [X] T010 Full input surface in `infra/modules/ecs-fargate-web-service/variables.tf`: `env`, `name_prefix`, `aws_region`, `subnet_ids`, `assign_public_ip`, `cpu`, `memory`, `container_port`, `health_check_path`, `image_tag`, `certificate_arn`, `zone_id`, `hostname`, `environment` (map), `secrets` (map of name→valueFrom ARN), `task_role_s3_bucket_arn`, `desired_count`, `min_healthy_percent`, `max_percent`, `idle_timeout`, `log_retention`. Every one documented; no literal that should be config.
 
-**Checkpoint**: Substrate ready — the service, ALB, IAM detail, ECR and DNS can now be built.
+**Checkpoint**: Substrate ready - the service, ALB, IAM detail, ECR and DNS can now be built.
 
 ---
 
@@ -66,7 +66,7 @@ one env wrapper, several stories necessarily touch the same files — those task
 
 **Independent Test**: `curl https://core-api.dev.effyshopping.com/healthz` → `200` over a publicly-trusted cert for that exact host; `/v1/storefront/home` returns real data once secrets (US5) are present.
 
-- [X] T011 [US1] ECS cluster in `infra/modules/ecs-fargate-web-service/main.tf` (`${name_prefix}-core-api`, Container Insights OFF — paid feature).
+- [X] T011 [US1] ECS cluster in `infra/modules/ecs-fargate-web-service/main.tf` (`${name_prefix}-core-api`, Container Insights OFF - paid feature).
 - [X] T012 [US1] Task definition in `main.tf`: Fargate, `cpu = var.cpu` (256) / `memory = var.memory` (512), `runtime_platform { cpu_architecture = "ARM64", operating_system_family = "LINUX" }`, one container `core-api` on `var.container_port` (8080), awslogs → the T008 group, `environment` from `var.environment`, `secrets` from `var.secrets`, `execution_role_arn` + `task_role_arn` from T009.
 - [X] T013 [US1] ECS service in `main.tf`: `desired_count = var.desired_count` (1), `launch_type = FARGATE`, `network_configuration` (T006 subnets, task SG, `assign_public_ip = var.assign_public_ip`), `load_balancer` → the T015 target group, `wait_for_steady_state = false` (research R7).
 - [X] T014 [US1] Internet-facing ALB in `main.tf`: `${name_prefix}-core-api`, ALB SG, two public subnets/two AZs, `idle_timeout = var.idle_timeout` (120).
@@ -83,7 +83,7 @@ one env wrapper, several stories necessarily touch the same files — those task
 
 ## Phase 4: User Story 2 - One address pattern, per environment, config-only (Priority: P1)
 
-**Goal**: Producing `core-api.effyshopping.com` for prod is a configuration change only — no app or template-logic edit.
+**Goal**: Producing `core-api.effyshopping.com` for prod is a configuration change only - no app or template-logic edit.
 
 **Independent Test**: Review confirms every env-specific value is a variable; swapping dev config for prod config yields the apex hostname with no source edit.
 
@@ -97,12 +97,12 @@ one env wrapper, several stories necessarily touch the same files — those task
 
 ## Phase 5: User Story 3 - Lowest cost, no autoscaling, documented spend (Priority: P1)
 
-**Goal**: The cheapest shape — single task, no autoscaling, no NAT, thrifty registry/logs — with a recorded cost figure and an auditable negative space.
+**Goal**: The cheapest shape - single task, no autoscaling, no NAT, thrifty registry/logs - with a recorded cost figure and an auditable negative space.
 
 **Independent Test**: `terraform plan` / `state list` shows exactly one service, no autoscaling, no NAT/endpoint/new-cert/new-secret/new-DB; recorded cost ≤ $32/mo.
 
 - [X] T024 [P] [US3] ECR repository + lifecycle in `infra/modules/ecs-fargate-web-service/ecr.tf`: `${name_prefix}-core-api`, `scan_on_push = true`, lifecycle policy keep last 10 images / expire untagged after 1 day. Feed `ecr_repository_url` to the task-def image reference (T012) and output (T017).
-- [X] T025 [US3] Set the cheapest single-task rollout on the service (T013): `deployment_minimum_healthy_percent = var.min_healthy_percent` (0) and `deployment_maximum_percent = var.max_percent` (100) — ECS never runs two tasks (research R8).
+- [X] T025 [US3] Set the cheapest single-task rollout on the service (T013): `deployment_minimum_healthy_percent = var.min_healthy_percent` (0) and `deployment_maximum_percent = var.max_percent` (100) - ECS never runs two tasks (research R8).
 - [X] T026 [US3] Negative-space guarantee: confirm the module + wrapper declare **no** `aws_appautoscaling_*`, **no** `aws_nat_gateway`/`aws_eip`(nat)/`aws_vpc_endpoint`, **no** new `aws_acm_certificate`/`aws_secretsmanager_secret`/`aws_db_instance`. Record this list as a comment in `core-api.tf` for the reviewer/audit.
 - [X] T027 [US3] Confirm the recorded cost breakdown (~$30/mo, target ≤ $32) is consistent across `research.md` R12, `plan.md`, and `quickstart.md` (FR-020/SC-005).
 
@@ -116,9 +116,9 @@ one env wrapper, several stories necessarily touch the same files — those task
 
 **Independent Test**: Make the task unhealthy → ALB deregisters it and returns 503; restore → traffic resumes. Push a health-failing image → circuit breaker rolls back to the last good task def.
 
-- [X] T028 [US4] Tune the target-group health check (T015): `path = /healthz` (liveness, NOT `/readyz` — research R9), `matcher = 200`, `interval = 30`, `healthy_threshold = 3`, `unhealthy_threshold = 3`, `timeout = 5`, `deregistration_delay = 30`.
-- [X] T029 [US4] On the service (T013): `deployment_circuit_breaker { enable = true, rollback = true }` and `health_check_grace_period_seconds = 60` (FR-009 — a health-failing deploy is observable and auto-reverted).
-- [X] T030 [US4] Set `enable_execute_command = true` on the service for shell-less debugging (ECS Exec) — no bastion, no cost.
+- [X] T028 [US4] Tune the target-group health check (T015): `path = /healthz` (liveness, NOT `/readyz` - research R9), `matcher = 200`, `interval = 30`, `healthy_threshold = 3`, `unhealthy_threshold = 3`, `timeout = 5`, `deregistration_delay = 30`.
+- [X] T029 [US4] On the service (T013): `deployment_circuit_breaker { enable = true, rollback = true }` and `health_check_grace_period_seconds = 60` (FR-009 - a health-failing deploy is observable and auto-reverted).
+- [X] T030 [US4] Set `enable_execute_command = true` on the service for shell-less debugging (ECS Exec) - no bastion, no cost.
 
 **Checkpoint**: Routing is health-gated and a broken deploy cannot silently become the serving state.
 
@@ -149,7 +149,7 @@ one env wrapper, several stories necessarily touch the same files — those task
 - [X] T036 [P] [US6] Makefile target `core-image-push`: `docker buildx build --platform linux/arm64 --target runtime -t <ecr>:$(TAG) apis/core-api --push` (default `TAG=latest`; prod uses a git-sha).
 - [X] T037 [US6] Makefile target `core-deploy`: `aws ecs update-service --force-new-deployment` on the cluster/service, then `aws ecs wait services-stable`.
 - [X] T038 [US6] Confirm `wait_for_steady_state = false` (T013) so the first `terraform apply` returns before any image exists (research R7).
-- [X] T039 [US6] Finalize `quickstart.md` runbook against the real Makefile target names, cluster/service names and SSM key — prechecks, apply, push, deploy, rollback proof, client repoint.
+- [X] T039 [US6] Finalize `quickstart.md` runbook against the real Makefile target names, cluster/service names and SSM key - prechecks, apply, push, deploy, rollback proof, client repoint.
 
 **Checkpoint**: Bring-up and version rolls are one documented flow.
 
@@ -163,7 +163,7 @@ one env wrapper, several stories necessarily touch the same files — those task
 - [X] T043 Update the `CLAUDE.md` "Current status" hot-path line to note core-api's dev cloud deploy slice (040) and that its prod go-live carries the recorded dependencies.
 - [X] T044 Record the post-design Constitution re-check result (PASS) in `plan.md` (already noted) and confirm no new outward-facing identifier was introduced.
 
-### ⚙️ Operator live-AWS steps (handed off — Claude does NOT run these)
+### ⚙️ Operator live-AWS steps (handed off - Claude does NOT run these)
 
 - [X] T045 ⚙️ OPERATOR [US3] `cd infra/envs/dev && terraform plan -out core-api.plan` → **cost/negative-space audit** (one service, no autoscaling/NAT/endpoint/new-cert/new-secret/new-DB) → `terraform apply core-api.plan`.
 - [X] T046 ⚙️ OPERATOR [US6] `make core-ecr-login ENV=dev` → `make core-image-push ENV=dev TAG=latest` → `make core-deploy ENV=dev`; `aws ecs wait services-stable`.
@@ -188,13 +188,13 @@ one env wrapper, several stories necessarily touch the same files — those task
 
 ### Story dependencies (honest for IaC)
 
-- **US1** is the spine; **US5** is required for the service to actually boot (DSN needs the injected password) and for real reads — US1's *liveness* proof (`/healthz`) is independent, its *data* proof needs US5.
+- **US1** is the spine; **US5** is required for the service to actually boot (DSN needs the injected password) and for real reads - US1's *liveness* proof (`/healthz`) is independent, its *data* proof needs US5.
 - **US2/US3/US4** are properties layered onto US1's resources; each has its own live proof and none blocks another.
 
 ### Parallel opportunities
 
 - Setup: T001, T002, T004 in parallel (app + docker), T005 alongside.
-- Foundational: T007, T008, T009 in parallel (SGs / logs / IAM — different files).
+- Foundational: T007, T008, T009 in parallel (SGs / logs / IAM - different files).
 - US1: T016 (dns.tf) parallel with the main.tf work once the ALB exists.
 - US2: T021 (variables.tf) parallel with module work.
 - US3: T024 (ecr.tf) parallel.
@@ -220,12 +220,12 @@ Task: "IAM role skeletons in .../iam.tf"                                       #
 
 1. Phase 1 Setup (app DSN change + module skeleton).
 2. Phase 2 Foundational (networking, SGs, IAM, logs).
-3. Phase 3 US1 (front door + service + DNS) **and** Phase 7 US5 (secrets/config) — together the service boots and is reachable.
+3. Phase 3 US1 (front door + service + DNS) **and** Phase 7 US5 (secrets/config) - together the service boots and is reachable.
 4. **STOP & VALIDATE**: operator applies, pushes the image, curls `/healthz` and a real read over HTTPS.
 
 ### Incremental hardening
 
-5. US3 (cost audit + ECR/log thrift), US4 (health gating + rollback), US2 (parameterization review), US6 (deploy tooling + runbook) — each with its own live proof.
+5. US3 (cost audit + ECR/log thrift), US4 (health gating + rollback), US2 (parameterization review), US6 (deploy tooling + runbook) - each with its own live proof.
 6. Polish + operator sign-off.
 
 ---
@@ -233,6 +233,6 @@ Task: "IAM role skeletons in .../iam.tf"                                       #
 ## Notes
 
 - `[P]` = different files, no incomplete dependency. Same-module-file tasks are sequential by design.
-- ⚙️ OPERATOR tasks are the only ones touching live AWS (apply / push / deploy / acceptance) — per the platform mode of work, Claude authors everything and hands these off with exact commands.
+- ⚙️ OPERATOR tasks are the only ones touching live AWS (apply / push / deploy / acceptance) - per the platform mode of work, Claude authors everything and hands these off with exact commands.
 - The only application change is T001/T002 (DSN-from-parts); the local `make core-run` path stays on `DB_DSN` and must remain green (T003).
 - Production is a configuration change **plus** two recorded dependencies (apex cert/record; private DB + NAT/endpoints) that are NOT built here.

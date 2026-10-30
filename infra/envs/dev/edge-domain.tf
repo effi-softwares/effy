@@ -1,4 +1,4 @@
-# The shared HTTP api's platform-owned address — api.dev.effyshopping.com.
+# The shared HTTP api's platform-owned address - api.dev.effyshopping.com.
 #
 # the point: the api's provider-generated hostname is an artifact of the resource, not a platform
 # asset. Recreate the gateway (as the 2026-07-12 region relocation did) and the hostname changes,
@@ -30,7 +30,7 @@ resource "aws_apigatewayv2_api_mapping" "edge" {
   stage       = aws_apigatewayv2_stage.default.id
 }
 
-# alias records (not cname) — they resolve straight to the gateway's regional target, cost nothing to
+# alias records (not cname) - they resolve straight to the gateway's regional target, cost nothing to
 # query, and repoint transparently if the endpoint behind them is destroyed and recreated.
 resource "aws_route53_record" "api_a" {
   zone_id = module.dns.zone_id

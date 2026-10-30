@@ -155,7 +155,7 @@ function OrderRulesForm({
                   onBlur={field.handleBlur}
                 />
                 <p className="text-xs text-muted-foreground">
-                  0.00 turns the minimum off entirely — the cart then shows nothing about it at all.
+                  0.00 turns the minimum off entirely - the cart then shows nothing about it at all.
                 </p>
               </div>
             )}
@@ -220,11 +220,11 @@ function formatTime(iso: string): string {
   return Number.isNaN(d.getTime())
     ? iso
     : d.toLocaleString("en-AU", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-        timeZone: "Australia/Melbourne",
-      })
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      timeZone: "Australia/Melbourne",
+    })
 }

@@ -43,7 +43,7 @@ describe("SavedCards (051 US3)", () => {
 
   /**
    * FR-023, and the half that actually matters is unselectable. A card that is merely dimmed still
-   * lets a shopper choose it and find out from their bank — which is the worst place to learn it.
+   * lets a shopper choose it and find out from their bank - which is the worst place to learn it.
    */
   it("shows an unusable card with its reason and refuses to let it be chosen", () => {
     render(

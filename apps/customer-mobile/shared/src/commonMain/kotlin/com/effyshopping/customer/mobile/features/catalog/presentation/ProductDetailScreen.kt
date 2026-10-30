@@ -140,7 +140,7 @@ import com.effyshopping.customer.mobile.features.catalog.domain.ProductDetail
 
 /**
  * Product detail. Gallery placeholder, price + sale, description, and attributes as sectioned
- * detail rows (never cards — doctrine-2). Add-to-cart writes to the device-local guest cart; Save gates
+ * detail rows (never cards - doctrine-2). Add-to-cart writes to the device-local guest cart; Save gates
  * a guest through deferred sign-in ([onRequireSignIn]) then favorites via the commerce service.
  */
 @Composable
@@ -240,7 +240,7 @@ fun ProductDetailScreen(
     }
 }
 
-/** What the delivery & points card says — signed-in only, both best-effort reads. */
+/** What the delivery & points card says - signed-in only, both best-effort reads. */
 private data class ProductContext(val address: SavedAddress?, val points: PointsBalance?)
 
 /**
@@ -292,7 +292,7 @@ private fun ProductBody(
         Text(card.name, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(top = EffySpacing.xs))
         if (card.ageRestricted) AgeBadge(Modifier.padding(top = EffySpacing.s))
 
-        // The price: what is charged largest, the old price struck, the saving as a green badge — and
+        // The price: what is charged largest, the old price struck, the saving as a green badge - and
         // said in words, so nobody has to do the sum.
         val percentOff = discountPercent(card.priceAmount, card.compareAtAmount)
         Row(
@@ -375,7 +375,7 @@ private fun ProductBody(
             )
         }
 
-        // Delivery & points (Product board) — only what is true for this shopper: who delivers to their
+        // Delivery & points (Product board) - only what is true for this shopper: who delivers to their
         // address in the pinned coverage words, and the points they hold. A guest sees neither.
         val address = context.address
         val coverageWords = address?.coverage?.let { CoverageWords.describe(it) }
@@ -417,7 +417,7 @@ private fun ProductBody(
             Text(it, style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 26.sp), color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = EffySpacing.md))
         }
 
-        // Item specifics — bordered two-column tables (Product board), one per section, the brand first. They
+        // Item specifics - bordered two-column tables (Product board), one per section, the brand first. They
         // are the selected size's (101): a detail that differs by size (a flavour's allergens) follows the selector.
         val groups = (selected ?: product.variants.firstOrNull())?.details.orEmpty()
         val sections = buildList {
@@ -591,7 +591,7 @@ private fun multiplyAmount(unit: String, qty: Int): String {
 /**
  * "More like this".
  *
- * Reuses the existing product search filtered by the product's own category — no recommendation
+ * Reuses the existing product search filtered by the product's own category - no recommendation
  * engine and no new relationship, because a category is the only relatedness the catalogue models.
  * Renders nothing at all when the category yields no other products.
  */

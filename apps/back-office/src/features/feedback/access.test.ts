@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import { canReplyFeedback } from "./access"
 
-describe("canReplyFeedback — reflects the backend reply gate (research D7)", () => {
+describe("canReplyFeedback - reflects the backend reply gate (research D7)", () => {
   it("allows admin and manager", () => {
     expect(canReplyFeedback(["admin"])).toBe(true)
     expect(canReplyFeedback(["manager"])).toBe(true)

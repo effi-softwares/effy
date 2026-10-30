@@ -34,7 +34,7 @@ pickup). Decisions: [research.md](research.md) R1–R10.
 ```text
 packages/design-system/scripts/{gen-compose-theme,gen-lucide-drawables}.mjs ; compose-driver/* (regenerated)
 apps/driver-mobile/shared/src/commonMain/composeResources/{font,drawable}
-apps/driver-mobile/shared/src/commonMain/kotlin/.../core/presentation/   (the driver kit — NEW files)
+apps/driver-mobile/shared/src/commonMain/kotlin/.../core/presentation/   (the driver kit - NEW files)
 apps/driver-mobile/shared/src/commonMain/kotlin/.../core/scan/ScanPanel.kt (+ platform ScanFeedback)
 apps/driver-mobile/shared/src/commonMain/kotlin/.../features/{today,collection,delivery,history,account,auth,onboarding}/presentation/*
 apps/driver-mobile/shared/src/commonMain/kotlin/.../app/{DriverShell,App}.kt ; core/nav/DriverRoutes.kt

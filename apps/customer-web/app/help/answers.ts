@@ -1,12 +1,12 @@
 /**
- * Help answers — authored content.
+ * Help answers - authored content.
  *
  * Operator review required before launch, like other authored prose. These were written from
  * how the platform behaves, and each says only what the platform can be seen to do:
  *  - who delivers is said in the pinned words ("Delivered by Effy", "Courier delivery");
  *  - a courier arrival is always "an estimate", never a date;
  *  - points are "a way of paying", never a discount;
- *  - nothing promises a timeframe, a fee amount, or a refund outcome — those are in the linked
+ *  - nothing promises a timeframe, a fee amount, or a refund outcome - those are in the linked
  *  policies and on the order itself.
  * An answer that needs a number or a promise belongs in a legal document, not here.
  */
@@ -37,7 +37,7 @@ export const HELP_ANSWERS: readonly HelpAnswer[] = [
     topic: "Orders & delivery",
     question: "When will my order arrive?",
     answer:
-      "Effy deliveries arrive in the window you chose at checkout. Courier deliveries show how long they usually take — that is an estimate, not a guaranteed date. Your order page shows where your order is up to and updates on its own.",
+      "Effy deliveries arrive in the window you chose at checkout. Courier deliveries show how long they usually take - that is an estimate, not a guaranteed date. Your order page shows where your order is up to and updates on its own.",
     link: { label: "Your orders", href: "/orders" },
   },
   {
@@ -45,7 +45,7 @@ export const HELP_ANSWERS: readonly HelpAnswer[] = [
     topic: "Orders & delivery",
     question: "How is delivery priced?",
     answer:
-      "There is one delivery fee for the whole order. Checkout shows it, line by line, before you pay — including any window surcharge, and free delivery when your order qualifies. The amount you are shown is the amount you are charged.",
+      "There is one delivery fee for the whole order. Checkout shows it, line by line, before you pay - including any window surcharge, and free delivery when your order qualifies. The amount you are shown is the amount you are charged.",
     link: { label: "Delivery policy", href: "/legal/delivery-policy" },
   },
   {
@@ -61,21 +61,21 @@ export const HELP_ANSWERS: readonly HelpAnswer[] = [
     topic: "Orders & delivery",
     question: "What happens if something I ordered is out of stock?",
     answer:
-      "The item is left out and you are not charged for it — it is refunded to your original payment method. Your order page lists anything that could not be included.",
+      "The item is left out and you are not charged for it - it is refunded to your original payment method. Your order page lists anything that could not be included.",
   },
   {
     id: "how-to-pay",
     topic: "Payments & refunds",
     question: "How can I pay?",
     answer:
-      "By card, and with the wallets and pay-later options your device and bank support — checkout shows the ones available to you. You can also pay with Effy points. Card details are entered with our payment provider; Effy never sees or stores your card number.",
+      "By card, and with the wallets and pay-later options your device and bank support - checkout shows the ones available to you. You can also pay with Effy points. Card details are entered with our payment provider; Effy never sees or stores your card number.",
   },
   {
     id: "cancel",
     topic: "Payments & refunds",
     question: "Can I cancel an order?",
     answer:
-      "While an order can still be cancelled, its page shows a Cancel option. Once it has moved too far along, that option is no longer shown — get in touch below and we will help.",
+      "While an order can still be cancelled, its page shows a Cancel option. Once it has moved too far along, that option is no longer shown - get in touch below and we will help.",
     link: { label: "Your orders", href: "/orders" },
   },
   {
@@ -91,7 +91,7 @@ export const HELP_ANSWERS: readonly HelpAnswer[] = [
     topic: "Payments & refunds",
     question: "How do I add or remove a saved card?",
     answer:
-      "Cards are added when you pay — tick the box to save one at checkout. You can remove a saved card at any time from Payment methods in your account.",
+      "Cards are added when you pay - tick the box to save one at checkout. You can remove a saved card at any time from Payment methods in your account.",
     link: { label: "Payment methods", href: "/account/payment" },
   },
   {
@@ -122,7 +122,7 @@ export const HELP_ANSWERS: readonly HelpAnswer[] = [
     topic: "Your account",
     question: "How do I sign in?",
     answer:
-      "With a code we email you, with a password, or with Google — all three reach the same account. You can browse and fill your cart without signing in; we ask only when you check out.",
+      "With a code we email you, with a password, or with Google - all three reach the same account. You can browse and fill your cart without signing in; we ask only when you check out.",
     link: { label: "Sign in", href: "/sign-in" },
   },
   {

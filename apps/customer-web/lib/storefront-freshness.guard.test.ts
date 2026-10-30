@@ -29,7 +29,7 @@ const ALLOWED: Record<string, readonly (keyof typeof CACHE_LIFE)[]> = {
 
 /**
  * Every file that may use the fetch-level `cached` option. The order rules are identical for every
- * shopper and carry no stock — nothing a 5-minute-old copy can make untrue at the payment gate, which
+ * shopper and carry no stock - nothing a 5-minute-old copy can make untrue at the payment gate, which
  * re-reads them.
  */
 const ALLOWED_FETCH_CACHE = ["app/api/cart/policy/route.ts"]
@@ -49,7 +49,7 @@ function* files(dir: string): Generator<string> {
 const sources = ["app", "components", "lib"].flatMap((d) => [...files(join(root, d))])
 const rel = (file: string) => file.slice(root.length + 1)
 
-/** The directive as a statement — not the phrase in prose. */
+/** The directive as a statement - not the phrase in prose. */
 const USE_CACHE = /^\s*["']use cache(?::[a-z]+)?["'];?\s*$/m
 
 describe("storefront reads keep only what FR-015a allows (054)", () => {
@@ -58,8 +58,8 @@ describe("storefront reads keep only what FR-015a allows (054)", () => {
     expect(
       offences.filter((f) => !(f in ALLOWED)),
       `A read acquired "use cache". Stock changes must reach a shopper within 60 seconds and the ` +
-        `product page at once (FR-015a). Add the file to ALLOWED with the profile it takes — and ` +
-        `only after FR-015a says it may be kept that long.`,
+      `product page at once (FR-015a). Add the file to ALLOWED with the profile it takes - and ` +
+      `only after FR-015a says it may be kept that long.`,
     ).toEqual([])
   })
 
@@ -68,13 +68,13 @@ describe("storefront reads keep only what FR-015a allows (054)", () => {
       .filter((f) => /\bcached\s*\(\s*\{/.test(readFileSync(f, "utf8")))
       .map(rel)
       .filter((f) => !ALLOWED_FETCH_CACHE.includes(f))
-    expect(offences, "A read acquired cached() — the same rule as \"use cache\" applies").toEqual([])
+    expect(offences, "A read acquired cached() - the same rule as \"use cache\" applies").toEqual([])
   })
 
   it("every allow-listed file still caches, and names only its own profiles", () => {
     for (const [file, profiles] of Object.entries(ALLOWED)) {
       const src = readFileSync(join(root, file), "utf8")
-      expect(USE_CACHE.test(src), `${file} is allow-listed but no longer caches — drop it`).toBe(true)
+      expect(USE_CACHE.test(src), `${file} is allow-listed but no longer caches - drop it`).toBe(true)
       const named = [...src.matchAll(/cacheLife\(([^)]*)\)/g)].flatMap((m) =>
         [...m[1]!.matchAll(/CACHE_LIFE\.([a-z]+)/g)].map((n) => n[1]!),
       )
@@ -128,7 +128,7 @@ describe("storefront reads keep only what FR-015a allows (054)", () => {
     expect(page).toMatch(/products\/\$\{encodeURIComponent\(id\)\}`, uncached\(\)/)
   })
 
-  it("is actually reading the storefront — a guard that scans nothing always passes", () => {
+  it("is actually reading the storefront - a guard that scans nothing always passes", () => {
     expect(sources.length).toBeGreaterThan(50)
     expect(sources.some((f) => f.includes("product"))).toBe(true)
   })

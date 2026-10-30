@@ -15,7 +15,7 @@ import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 
-/** `X-Effy-Access-Token` — the second header of the two-token protocol. Lowercase on the wire. */
+/** `X-Effy-Access-Token` - the second header of the two-token protocol. Lowercase on the wire. */
 const val ACCESS_TOKEN_HEADER = "X-Effy-Access-Token"
 
 internal val effyJson = Json {
@@ -24,7 +24,7 @@ internal val effyJson = Json {
 }
 
 /**
- * [sessionProvider] delegates to the AuthDriver — Amplify owns refresh, so we never refresh over HTTP.
+ * [sessionProvider] delegates to the AuthDriver - Amplify owns refresh, so we never refresh over HTTP.
  * A guest (null session) sends no auth headers, which is correct for public routes.
  */
 private fun effyAuth(sessionProvider: suspend () -> Session?) =
@@ -48,7 +48,7 @@ internal fun authHeadersFor(session: Session): Map<String, String> = mapOf(
 
 /**
  * The client for the backend gateway. [debug]
- * gates request logging — never `BODY` in release, and the Authorization header is redacted even in
+ * gates request logging - never `BODY` in release, and the Authorization header is redacted even in
  * debug: no password, code, or token reaches a log.
  */
 fun createHttpClient(

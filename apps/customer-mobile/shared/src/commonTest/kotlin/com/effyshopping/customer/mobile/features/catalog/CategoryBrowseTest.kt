@@ -17,7 +17,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 
-/** 101 FR-033 — the app browses the tree level by level, down to five, and a leaf opens its products. */
+/** 101 FR-033 - the app browses the tree level by level, down to five, and a leaf opens its products. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class CategoryBrowseTest {
     private fun cat(key: String, parent: String?, depth: Int, leaf: Boolean, count: Int = 3) =

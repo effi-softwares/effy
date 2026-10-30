@@ -67,7 +67,7 @@ export function CourierPanel({ courier, canManage }: { courier: CourierReachDTO;
           Courier delivery
         </h2>
         <p className="max-w-2xl text-sm text-muted-foreground">
-          An address that is not on Effy's list is offered courier delivery — everywhere in the country except the
+          An address that is not on Effy's list is offered courier delivery - everywhere in the country except the
           postcodes excluded below.
         </p>
       </div>
@@ -99,11 +99,11 @@ export function CourierPanel({ courier, canManage }: { courier: CourierReachDTO;
         <p className="max-w-2xl text-sm text-muted-foreground">
           {courier.defaultService ? (
             <>
-              “{courierEstimateSentence(courier.defaultService.estimateText)}” — the timeframe of{" "}
+              “{courierEstimateSentence(courier.defaultService.estimateText)}” - the timeframe of{" "}
               {courier.defaultService.label}, the default service. An order keeps the estimate it was sold.
             </>
           ) : (
-            "Nothing yet — checkout tells a courier customer the default courier service's timeframe."
+            "Nothing yet - checkout tells a courier customer the default courier service's timeframe."
           )}
         </p>
       </div>
@@ -122,14 +122,14 @@ export function CourierPanel({ courier, canManage }: { courier: CourierReachDTO;
           <label className="flex items-start gap-2 text-sm">
             <RadioGroupItem value="hub" aria-label="Via the hub" />
             <span>
-              <span className="font-medium">Via the hub</span> — Effy's drivers collect from suppliers, and the hub
+              <span className="font-medium">Via the hub</span> - Effy's drivers collect from suppliers, and the hub
               hands parcels to the courier.
             </span>
           </label>
           <label className="flex items-start gap-2 text-sm">
             <RadioGroupItem value="supplier" aria-label="Pickup from the supplier" />
             <span>
-              <span className="font-medium">Pickup from the supplier</span> — the courier collects each parcel from the
+              <span className="font-medium">Pickup from the supplier</span> - the courier collects each parcel from the
               supplier that packed it.
             </span>
           </label>
@@ -161,7 +161,7 @@ export function CourierPanel({ courier, canManage }: { courier: CourierReachDTO;
         <h3 className="text-sm font-medium">Excluded postcodes</h3>
         {courier.exclusions.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            None — courier delivery would be offered everywhere off Effy's list.
+            None - courier delivery would be offered everywhere off Effy's list.
           </p>
         ) : (
           <ul className="divide-y rounded-md border text-sm" data-testid="courier-exclusions">
@@ -235,7 +235,7 @@ export function CourierPanelSkeleton() {
         <div className="space-y-1">
           <h2 className="text-base font-semibold">Courier delivery</h2>
           <p className="max-w-2xl text-sm text-muted-foreground">
-            An address that is not on Effy's list is offered courier delivery — everywhere in the country except the
+            An address that is not on Effy's list is offered courier delivery - everywhere in the country except the
             postcodes excluded below.
           </p>
         </div>

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Probe every service individually, on the gateway it is attached to — liveness and readiness, side by side.
+# Probe every service individually, on the gateway it is attached to - liveness and readiness, side by side.
 #
 # The pair localizes a fault instantly, which a single combined probe cannot:
 #
@@ -8,7 +8,7 @@
 # healthz ✓ readyz ✗ → the service is fine; its database is not
 # healthz ✗ → the service itself is not there (bad deploy / wrong route / dead)
 #
-# Both are public — no token needed. A probe you can only run when you hold a credential is a probe
+# Both are public - no token needed. A probe you can only run when you hold a credential is a probe
 # you cannot run when things are actually broken.
 #
 # Usage: make edge-health ENV=dev

@@ -2,7 +2,7 @@
  * Turning a provider's refusal into something a shopper can act on.
  *
  * This file exists because "SOMETHING WENT WRONG" is not an answer. A shopper told only that has no
- * way to decide whether to wait, try a different card, or give up — so they abandon the basket, which
+ * way to decide whether to wait, try a different card, or give up - so they abandon the basket, which
  * is the outcome nobody wanted. Every message below names a cause and points at a next step.
  *
  * And because a provider's own string is written for a developer. "Your card was declined" is fine;
@@ -69,7 +69,7 @@ export function failureForDeclineCode(code: string | undefined): PaymentFailure 
     case "card_velocity_exceeded":
       return {
         title: "Your bank has blocked this card for now.",
-        detail: `${NOTHING_CHARGED} It's usually a temporary limit — try a different card, or contact your bank.`,
+        detail: `${NOTHING_CHARGED} It's usually a temporary limit - try a different card, or contact your bank.`,
         retryable: false,
       }
     case "do_not_honor":
@@ -83,7 +83,7 @@ export function failureForDeclineCode(code: string | undefined): PaymentFailure 
     case "lost_card":
     case "stolen_card":
       // Deliberately vague, and that is not an oversight. Stripe's own guidance is not to tell the
-      // person at the keyboard that a card was reported lost or stolen — they may not be the
+      // person at the keyboard that a card was reported lost or stolen - they may not be the
       // cardholder. The message is truthful without being an alert to a thief.
       return {
         title: "Your bank declined this card.",
@@ -99,7 +99,7 @@ export function failureForDeclineCode(code: string | undefined): PaymentFailure 
  * The failure a shopper is shown, from whatever the provider returned.
  *
  * `providerMessage` is Stripe's own `error.message`. It is preferred over a generic sentence because it
- * is localised and specific — but only when a decline code has not already given us something better.
+ * is localised and specific - but only when a decline code has not already given us something better.
  */
 export function failureFor(input: {
   declineCode?: string
@@ -134,7 +134,7 @@ export const ABANDONED_AT_PROVIDER: PaymentFailure = {
  * The bank wants the shopper to approve the payment (3DS).
  *
  * Not a failure, and it must not read like one. This is the single most common moment a shopper
- * panics and closes the tab — being told in advance that their bank will ask, and that they will be
+ * panics and closes the tab - being told in advance that their bank will ask, and that they will be
  * brought back, is what stops that.
  */
 export const BANK_APPROVAL_REQUIRED = {

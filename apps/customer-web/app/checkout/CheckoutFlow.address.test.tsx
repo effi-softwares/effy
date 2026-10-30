@@ -18,8 +18,8 @@ vi.mock("@/lib/stripe", () => ({
 vi.mock("@stripe/react-stripe-js", () => ({
   Elements: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }))
-// The paying step is out of scope here — stub the Stripe form so placement succeeds without the SDK.
-// PaymentForm is gone — the payment step is PaymentStep, and it carries no order content.
+// The paying step is out of scope here - stub the Stripe form so placement succeeds without the SDK.
+// PaymentForm is gone - the payment step is PaymentStep, and it carries no order content.
 vi.mock("./PaymentStep", () => ({ PaymentStep: () => <div>Payment step</div> }))
 vi.mock("@effy/design-system/hooks/use-mobile", () => ({ useIsMobile: () => false }))
 vi.mock("@/lib/telemetry", () => ({ capture: vi.fn() }))
@@ -68,7 +68,7 @@ beforeEach(() => {
       }
       if (u.endsWith("/api/checkout/quote")) {
         // Serviced, $5 delivery. A courier quote on purpose: one fee and nothing to choose, so
-        // these tests go straight to paying — they are not about picking a delivery window.
+        // these tests go straight to paying - they are not about picking a delivery window.
         return jsonRes({
           postcode: "3000",
           serviced: true,

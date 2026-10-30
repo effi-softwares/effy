@@ -161,7 +161,7 @@ export function RefundSheet({
           {formatMoney((totalCents / 100).toFixed(2), detail.currency)}
         </output>
       </div>
-      <p className="text-sm text-muted-foreground">A preview — Effy prices the refund when it is issued.</p>
+      <p className="text-sm text-muted-foreground">A preview - Effy prices the refund when it is issued.</p>
     </DesignSheet>
   )
 }

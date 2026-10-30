@@ -1,14 +1,14 @@
-# Research 08 — Labels, scanning and printed documents: industry vs Effy
+# Research 08 - Labels, scanning and printed documents: industry vs Effy
 
-2026-10-21. Question from the operator: how does the industry handle order paperwork and barcodes —
-barcode and box-label printing, scanning, bills — what are the methods and best practices, how does
+2026-10-21. Question from the operator: how does the industry handle order paperwork and barcodes -
+barcode and box-label printing, scanning, bills - what are the methods and best practices, how does
 Effy compare, and what have we done wrong? Scope: shop-web, the driver app, back-office and the
 customer surfaces. **The shop mobile app is out of scope** (stopped 2026-10-21).
 
 > **Status:** §5's plan is **built as feature 096** ([specs/096-parcel-labels-scanning](../../../specs/096-parcel-labels-scanning/tasks.md),
 > 2026-10-22): a code and label per bag, per-bag hand-overs and reads, pack scanning, scan-to-find, the hub
 > station, the hand-over report, the delivery note, GST status and the tax invoice. Not yet migrated, deployed
-> or walked — see FEATURE-HISTORY.md (096). The analysis below is kept as written.
+> or walked - see FEATURE-HISTORY.md (096). The analysis below is kept as written.
 
 **Short answer.** The label *code* is well designed: a permanent code with no look-alike characters, a
 versioned prefix, one definition shared by TypeScript and Kotlin, and no customer details on the label.
@@ -37,7 +37,7 @@ what the code is attached to and in everything around it:**
 |---|---|---|
 | **Every handling unit has its own ID** | GS1's logistic label rests on one mandatory element: a unique serial per logistic unit (the SSCC, 18 digits, AI `(00)`, in GS1-128), "like a licence plate". Each unit's ID is shown both as a barcode and in human-readable text. | [GS1 AU logistic labels](https://www.gs1au.org/download/GS1au-fact-sheet-logistic-labels.pdf/file), [GS1 Logistic Label Guideline 1.3](https://www.gs1.org/standards/gs1-logistic-label-guideline), [GS1 UK SSCC](https://www.gs1uk.org/knowledge-hub/barcodes/how-do-i-create-ssccs-and-logistics-labels) |
 | **Multi-piece shipments: each piece scanned on its own** | "Each piece in an MPS is labeled and scanned individually, so it has its own barcode and piece-level tracking number", linked to a master number and printed "2 of 4". Amazon FBA box labels use per-box suffixes (`…U000001`, `…U000002`). Global-e makes a per-parcel code mandatory on a split order. | [Racklify MPS](https://racklify.com/encyclopedia/foundations-of-multi-piece-shipments-mps/), [Amazon FBA label spec](https://docs.developer.amazonservices.com/en_DE/fba_guide/FBAGuide_ShipLabelSpec.html), [Global-e labels](https://docs.global-e.com/preview/en/labels-and-shipping-documents.html), [Shippo MPS](https://docs.goshippo.com/shipments/multi-piece-shipment) |
-| **Dark stores: every bag tagged and scanned at hand-over** | The picker bags, labels and stages the order. "Each bag is scanned and tagged to the specific order ID." The rider scans the bag at hand-over, and that scan is what starts live tracking. Readiness is a clear set of states: packed, staged, ready, handed to rider. | [Forbes India — dark stores](https://www.forbesindia.com/article/enterprise/startups/dark-stores-explained-the-tech-behind-10-min-delivery/2987880/1), [Shipsy dark-store dispatch](https://www.shipsy.ai/insights/quick-commerce-dark-store-dispatch-operations), [Dark store WMS checklist](https://www.webbytemplate.com/blog/dark-store-wms-checklist-quick-commerce/) |
+| **Dark stores: every bag tagged and scanned at hand-over** | The picker bags, labels and stages the order. "Each bag is scanned and tagged to the specific order ID." The rider scans the bag at hand-over, and that scan is what starts live tracking. Readiness is a clear set of states: packed, staged, ready, handed to rider. | [Forbes India - dark stores](https://www.forbesindia.com/article/enterprise/startups/dark-stores-explained-the-tech-behind-10-min-delivery/2987880/1), [Shipsy dark-store dispatch](https://www.shipsy.ai/insights/quick-commerce-dark-store-dispatch-operations), [Dark store WMS checklist](https://www.webbytemplate.com/blog/dark-store-wms-checklist-quick-commerce/) |
 
 ### 1.2 Picking and packing are verified by scanning
 
@@ -66,7 +66,7 @@ Sources: [StrongPoint picking whitepaper](https://www.strongpoint.com/app/upload
 | Practice | Source |
 |---|---|
 | **The standard parcel label is 4×6 in / 100×150 mm (A6) on a direct-thermal printer.** Australia Post's label API offers `THERMAL-LABEL-A6-1PP` alongside A4. Shopify supports thermal 4×6, Letter and A4, and can combine a packing slip with the label. The GS1 AU logistic label is a constant 105 mm wide. | [AusPost labels API](https://developers.auspost.com.au/content/apis/shipping-and-tracking/info/api-resources/labels.html), [Shopify labels](https://help.shopify.com/en/manual/fulfillment/shopify-shipping/managing-labels/printing-shipping-documents?ld=1), [GS1 AU](https://www.gs1au.org/download/GS1au-fact-sheet-logistic-labels.pdf/file) |
-| **Web apps print to thermal printers directly, without the browser's dialog**, by sending ZPL (Zebra's printer language). The two common routes are Zebra Browser Print (free, a local helper on the PC) and QZ Tray (silent printing needs a paid licence: US$749/yr+). | [Zebra — print from a web application](https://developer.zebra.com/content/print-web-application), [QZ](https://qz.io/) |
+| **Web apps print to thermal printers directly, without the browser's dialog**, by sending ZPL (Zebra's printer language). The two common routes are Zebra Browser Print (free, a local helper on the PC) and QZ Tray (silent printing needs a paid licence: US$749/yr+). | [Zebra - print from a web application](https://developer.zebra.com/content/print-web-application), [QZ](https://qz.io/) |
 | **Bar width is a whole number of printer dots.** At 203 dpi one dot is 0.125 mm. A 2-dot (0.25 mm, ~10 mil) or 3-dot (0.375 mm) module prints cleanly. A width between dots is rounded per bar, so bars come out uneven. Print quality is graded A–F under ISO/IEC 15416, and C is the minimum. | [TSC](https://fs.tscprinters.com/fr/dl/3/7795), [Seagull X-dimension](https://support.seagullsoftware.com/hc/de/community/posts/216570067-X-Dimension-Label-Width) |
 | **Each label records whether it was printed**, and reprinting is a normal, recorded action. Batch printing runs from the order list (Shopify: up to 100 labels). Pop-up blockers are a known failure. | [Shopify labels](https://help.shopify.com/en/manual/fulfillment/shopify-shipping/managing-labels/printing-shipping-documents?ld=1) |
 | **Courier labels come from the carrier's API**, as A6 PDF or ZPL, with the tracking number attached automatically. They are not uploaded by hand. | [AusPost labels API](https://developers.auspost.com.au/content/apis/shipping-and-tracking/info/api-resources/labels.html), [EasyPost AusPost](https://docs.easypost.com/carriers/australia-post-guide) |
@@ -98,7 +98,7 @@ with a complete record and exceptions per 1,000 hand-overs.
 
 Sources: [Racklify chain of custody](https://racklify.com/encyclopedia/how-to-implement-chain-of-custody-delivery-in-your-warehouse/),
 [Racklify best practices](https://racklify.com/encyclopedia/chain-of-custody-best-practices-implementation-vs-alternatives/),
-[IT Supply Chain — status is an event](https://itsupplychain.com/a-shipment-status-is-an-event-not-a-location/),
+[IT Supply Chain - status is an event](https://itsupplychain.com/a-shipment-status-is-an-event-not-a-location/),
 [PackageX](https://packagex.io/blog/chain-of-custody-in-logistics).
 
 ### 1.7 Documents
@@ -169,7 +169,7 @@ Sources: [Racklify chain of custody](https://racklify.com/encyclopedia/how-to-im
 
 ## 4. What we did wrong (the deep dive)
 
-### W1 — The barcode identifies a shop's portion, not a bag (the root mistake)
+### W1 - The barcode identifies a shop's portion, not a bag (the root mistake)
 
 `package_code` sits on `shop_fulfillment`: one shop's share of one order. A grocery portion is often
 several physical bags. The label has a `copies` option, and it prints **the same code** on each bag.
@@ -186,21 +186,21 @@ What follows:
 Industry practice (§1.1) is unambiguous: **the scannable ID belongs to the physical unit**, with a
 link up to the order.
 
-### W2 — Temperature is a word, not a bag
+### W2 - Temperature is a word, not a bag
 
 The label's cold mark is the *coldest* class in the portion. A portion with ice cream and bread gets
 one FROZEN label. Nothing tells the shop to pack frozen separately, and nothing lets the hub or van
 keep it cold or check that it was. The driver manifest (065) knows each line's storage class, but the
 physical bags do not. This is food safety, not just tidiness.
 
-### W3 — Picking trusts a tick, and the product barcode cannot be trusted
+### W3 - Picking trusts a tick, and the product barcode cannot be trusted
 
 Picking is one click per line. Even if we added scanning, `product.gtin` is unvalidated free text with
 no canonical form, so a scanned EAN-13 would not reliably match what the shop typed (leading zeros,
 UPC vs EAN, typos). Weighed goods are not modelled at all. **Validated barcode data has to come first,
 and scanning can only be built on top of it.**
 
-### W4 — Printing assumes the browser behaves like a label printer
+### W4 - Printing assumes the browser behaves like a label printer
 
 - The labels are HTML sent to `window.print()`. Browsers default to scaling ("fit to page") and add
   margins, so a bar width chosen in mm reaches the paper at a different size, and pop-up blockers stop
@@ -212,7 +212,7 @@ and scanning can only be built on top of it.**
 - No label is ever recorded as printed. "Mark ready for pickup" does not require one, so a package can
   be handed to a driver with no label, and the driver's scan step then has nothing to scan.
 
-### W5 — The custody record says less than it seems to
+### W5 - The custody record says less than it seems to
 
 `package_handover` stores the step and what **the app says** the method was, timed by the server.
 What is missing:
@@ -227,7 +227,7 @@ What is missing:
 091's "8 scanned · 2 not scanned" is accurate about what was *reported*, but it cannot show which
 labels fail to read.
 
-### W6 — The bag goes out with no paper, and the customer gets no tax invoice
+### W6 - The bag goes out with no paper, and the customer gets no tax invoice
 
 - **No delivery note in the bag.** The customer cannot check contents at the door, and a part-picked
   or unavailable line shows up only on a screen. Because Effy hides which shop fulfilled an order, the
@@ -237,13 +237,13 @@ labels fail to read.
   produced today. Most basic food in Australia is GST-free, but many grocery lines are not, so it has
   to be per product. This is a legal obligation when a customer asks (> $82.50), not a nice-to-have.
 
-### W7 — Back-office and the hub cannot scan
+### W7 - Back-office and the hub cannot scan
 
 Staff can see a code but cannot scan one: there is no "scan anything to find it" box, and no hub
 station screen for hub staff (check-in and sort are driver-only today). When a label is found on the
 floor, someone has to type its code into a search that does not search by code.
 
-### W8 — We kept building on a foundation nobody had used
+### W8 - We kept building on a foundation nobody had used
 
 Five features (089–093) are stacked on each other, and none has been migrated, deployed and walked on
 a device with a printed label. W1 and W4 would very likely have surfaced in the first walk: three bags
@@ -267,14 +267,14 @@ on a counter and a 4×6 label through Chrome's print dialog.
 Order matters. **Phase 0 comes first**, because every later feature changes code that has not been
 run yet.
 
-### Phase 0 — Make 088–093 real (no new feature; operator steps plus one fix)
+### Phase 0 - Make 088–093 real (no new feature; operator steps plus one fix)
 
 1. Migrate and deploy 088–093 to dev in the recorded order. Walk 089's quickstart with a **real
    printer and a real handheld scanner**, then walk 092 and 093 on a device.
 2. Quick fix before the walk: snap `barModuleMm` to whole dots (0.25 or 0.375 mm at 203 dpi) and
    print at 100% scale with `@page` margins of 0.
 
-### F1 — Parcels: one barcode per physical bag (fixes W1 and W2)
+### F1 - Parcels: one barcode per physical bag (fixes W1 and W2)
 
 - New `package_parcel`: `parcel_code` (same alphabet and same uniqueness space as package codes, so
   the `EFY1:` token and the parser are unchanged), `shop_fulfillment_id`, sequence, `temperature_zone`
@@ -289,7 +289,7 @@ run yet.
   labels printed before F1 keep working. The customer is **never** shown a bag count, because that
   would reveal how many shops filled the order.
 
-### F2 — Validated product barcodes (fixes the first half of W3)
+### F2 - Validated product barcodes (fixes the first half of W3)
 
 - Check-digit validation on `gtin` (GTIN-8/12/13/14). Store a canonical 14-digit `gtin14`, indexed
   but not unique (one product can be stocked by more than one shop). Find products by barcode in the
@@ -299,7 +299,7 @@ run yet.
   later.
 - Accept GS1 Digital Link and DataMatrix input as well as EAN/UPC (Sunrise 2027).
 
-### F3 — Scanning in shop-web: pick and pack (fixes the second half of W3, and W10)
+### F3 - Scanning in shop-web: pick and pack (fixes the second half of W3, and W10)
 
 - One web scanner module in `@effy/web-kit`, used by both shop-web and back-office:
   - Keyboard wedge: a prefix/suffix plus a timing burst, kept out of focused fields.
@@ -311,7 +311,7 @@ run yet.
 - **Pack:** scan each bag's label as it is filled, so every bag label is confirmed. A portion can be
   marked ready **only once every bag label is printed and scanned**.
 
-### F4 — Printing done properly (fixes W4)
+### F4 - Printing done properly (fixes W4)
 
 - Render labels for the printer's dots: 203/300 dpi profiles, whole-dot bar widths and fixed-size
   output. Optional **direct thermal printing** through Zebra Browser Print (ZPL), with the browser
@@ -320,7 +320,7 @@ run yet.
   Batch print from the order list.
 - **Hardware is a decision for you:** which printers and scanners shops have, or should be given.
 
-### F5 — Documents: delivery note and tax invoice (fixes W6)
+### F5 - Documents: delivery note and tax invoice (fixes W6)
 
 - **Delivery note** (Effy-branded, no shop, no prices): items, quantities, what was part-picked or
   unavailable, and Effy contact. Printed with the labels, one per **order**. ⚠ Open design question:
@@ -331,7 +331,7 @@ run yet.
   words "Tax invoice", and a downloadable PDF from customer-web and the app. Handle buyer identity at
   $1,000 or more. Refunds may need adjustment notes (to be checked during the plan).
 
-### F6 — Custody record and back-office scanning (fixes W5 and W7)
+### F6 - Custody record and back-office scanning (fixes W5 and W7)
 
 - An append-only `scan_event` for every read, including refused ones: raw value, outcome, device scan
   time, device and app version, step, and actor (driver **or shop staff or hub staff**). The driver app
@@ -342,7 +342,7 @@ run yet.
 - Reports built on the events: labels that fail to read, exceptions per 1,000 hand-overs, and shops
   with a high rate of manual hand-overs.
 
-### F7 — Courier labels from the carrier (W "16"; deferred)
+### F7 - Courier labels from the carrier (W "16"; deferred)
 
 Book through a carrier or aggregator API (AusPost eParcel / Sendle / an aggregator) and receive the
 A6 label (PDF or ZPL) and tracking automatically, replacing the hand upload. **Needs a carrier

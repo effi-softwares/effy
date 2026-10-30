@@ -82,8 +82,8 @@ describe("public.refund is append-only except for its state machine (055)", () =
     }
     expect(
       offences,
-      `public.refund records that MONEY MOVED. A row is never removed — it is the only child of an ` +
-        `order with ON DELETE RESTRICT for exactly that reason:\n\n  ${offences.join("\n  ")}\n`,
+      `public.refund records that MONEY MOVED. A row is never removed - it is the only child of an ` +
+      `order with ON DELETE RESTRICT for exactly that reason:\n\n  ${offences.join("\n  ")}\n`,
     ).toEqual([]);
   });
 
@@ -102,16 +102,16 @@ describe("public.refund is append-only except for its state machine (055)", () =
     expect(
       offences,
       `Only ${[...MUTABLE].join(", ")} may be updated on public.refund. Changing 'amount' would ` +
-        `rewrite what a customer was refunded after the fact — the receipt they hold would no longer ` +
-        `match the record. Changing 'order_id' would move a refund onto somebody else's order:\n\n` +
-        `  ${offences.join("\n  ")}\n`,
+      `rewrite what a customer was refunded after the fact - the receipt they hold would no longer ` +
+      `match the record. Changing 'order_id' would move a refund onto somebody else's order:\n\n` +
+      `  ${offences.join("\n  ")}\n`,
     ).toEqual([]);
   });
 
-  it("is actually looking at source — a guard that scans nothing always passes", () => {
+  it("is actually looking at source - a guard that scans nothing always passes", () => {
     // A source scan that finds no files must not pass.
     for (const root of SEARCH_ROOTS) {
-      expect([...sourceFiles(join(repoRoot, root))].length, `${root} has no source — was it moved?`).toBeGreaterThan(0);
+      expect([...sourceFiles(join(repoRoot, root))].length, `${root} has no source - was it moved?`).toBeGreaterThan(0);
     }
     const files = [...sourceFiles(join(repoRoot, "apis/edge-api/shared/src"))];
     expect(files.length).toBeGreaterThan(40);
@@ -123,7 +123,7 @@ describe("public.refund is append-only except for its state machine (055)", () =
     expect(new Set(found.flatMap((f) => f.columns))).toEqual(MUTABLE);
   });
 
-  it("every transition names the states it may leave — a settled refund is never reopened", () => {
+  it("every transition names the states it may leave - a settled refund is never reopened", () => {
     for (const { where } of assignedColumns(readFileSync(join(repoRoot, REFUND_REPOSITORY), "utf8"))) {
       expect(where, "an UPDATE on public.refund with no status guard can reopen a terminal refund").toMatch(
         /status (= 'submitting'|IN \('submitting', 'submitted'\))/,

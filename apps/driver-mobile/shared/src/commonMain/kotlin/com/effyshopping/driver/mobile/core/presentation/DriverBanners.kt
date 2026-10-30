@@ -24,7 +24,7 @@ enum class DriverBanner { Offline, Waiting, Refused, LivePaused }
 
 /**
  * Which banners show, top to bottom: offline first (it explains the others), then what is waiting to
- * send, then what was refused, then live updates paused — which says nothing new while offline, so it
+ * send, then what was refused, then live updates paused - which says nothing new while offline, so it
  * is left out then.
  */
 fun driverBanners(offline: Boolean, waiting: Int, refused: Int, livePaused: Boolean): List<DriverBanner> = buildList {
@@ -40,7 +40,7 @@ data class DriverBannerState(
     /** When the copy on screen was last read; null when not known. */
     val syncedAtEpochMillis: Long? = null,
     val waitingLabels: List<String> = emptyList(),
-    /** Proofs waiting to upload — counted with the waiting updates. */
+    /** Proofs waiting to upload - counted with the waiting updates. */
     val waitingProofs: Int = 0,
     val refusedLabels: List<String> = emptyList(),
     /** The live channel has been down for a few seconds. */
@@ -69,7 +69,7 @@ fun DriverBanners(
                     DriverAlertKind.Muted, Res.drawable.lucide_wifi_off,
                     title = "You're offline",
                     description = (state.syncedAtEpochMillis?.let { "Showing what loaded at ${localTimeText(it, withDay = false)}. " } ?: "") +
-                        "Keep working — what you do is saved on this phone.",
+                        "Keep working - what you do is saved on this phone.",
                 )
                 DriverBanner.Waiting -> DriverAlert(
                     DriverAlertKind.Info, Res.drawable.lucide_refresh_ccw,
@@ -82,7 +82,7 @@ fun DriverBanners(
                 DriverBanner.Refused -> DriverAlert(
                     DriverAlertKind.Problem, Res.drawable.lucide_circle_alert,
                     title = "Not recorded: ${state.refusedLabels.distinct().joinToString(", ")}",
-                    description = "It was saved while you were offline and has since been refused — the work may have moved to " +
+                    description = "It was saved while you were offline and has since been refused - the work may have moved to " +
                         "another driver. Check the packages and call dispatch.",
                     actions = {
                         if (onCallDispatch != null) {
@@ -103,7 +103,7 @@ fun DriverBanners(
 }
 
 /**
- * Whether the live channel has been down long enough to say so — a few seconds, because every launch
+ * Whether the live channel has been down long enough to say so - a few seconds, because every launch
  * and every brief blip passes through "reconnecting".
  */
 @Composable

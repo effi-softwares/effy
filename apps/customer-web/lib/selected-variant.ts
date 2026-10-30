@@ -4,8 +4,8 @@ import { useSyncExternalStore } from "react"
 
 /**
  * The size the product page's buy box has selected (101), so the details further down the page follow it:
- * a flavour's allergens are that flavour's. The same idiom as `checkout-step.ts` — the buy box sets it,
- * the details read it — with no provider around the page.
+ * a flavour's allergens are that flavour's. The same idiom as `checkout-step.ts` - the buy box sets it,
+ * the details read it - with no provider around the page.
  *
  * Display only. Keyed by product so a stale value from another product page is never shown.
  */

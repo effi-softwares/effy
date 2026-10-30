@@ -2,7 +2,7 @@
 
 The app↔infra parameter contract for the hot-path deployment. One new writer; several existing readers.
 
-## Published by this slice (single writer — Principle II)
+## Published by this slice (single writer - Principle II)
 
 | Key | Type | Value | Read by |
 |---|---|---|---|
@@ -11,7 +11,7 @@ The app↔infra parameter contract for the hot-path deployment. One new writer; 
 Clients MUST read the hot-path base URL from this key, never hard-code the hostname (the alias survives
 ALB recreation; the key survives a region move).
 
-## Consumed by this slice (existing contract — reused, not duplicated)
+## Consumed by this slice (existing contract - reused, not duplicated)
 
 | Key / source | Used for |
 |---|---|
@@ -28,7 +28,7 @@ ALB recreation; the key survives a region move).
 ## Failure posture (constitution: Real-World Identifiers)
 
 - A **missing required** consumed value (DB parts, secret ARNs, media bucket, pool/client ids) MUST make
-  `terraform plan`/`apply` or task start **fail loudly** — never default to a guess.
+  `terraform plan`/`apply` or task start **fail loudly** - never default to a guess.
 - No new outward-facing identifier is introduced. The hostname derives from the approved namespace;
   mail/reply/endpoint contracts are untouched by this slice.
 

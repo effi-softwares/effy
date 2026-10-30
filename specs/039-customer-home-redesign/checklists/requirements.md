@@ -1,4 +1,4 @@
-# Specification Quality Checklist: Customer Web Home — Merchandised Landing Redesign
+# Specification Quality Checklist: Customer Web Home - Merchandised Landing Redesign
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2026-08-07
@@ -33,7 +33,7 @@
 
 - The four upfront operator decisions (image-led hero with operator-supplied art; reuse existing rails
   with no new catalogue API; app badges non-linking/"coming soon"; newsletter wired to a real subscribe
-  endpoint) are all resolved in the spec — no open clarifications remain.
+  endpoint) are all resolved in the spec - no open clarifications remain.
 - Spec references existing platform capabilities (storefront rails, advertised banners, categories,
   email system) as reused dependencies rather than prescribing new implementation. The only new
   capability (newsletter subscribe) is described at the WHAT level; the HOW (cold-path endpoint, storage,

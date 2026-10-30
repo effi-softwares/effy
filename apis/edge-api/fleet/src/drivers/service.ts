@@ -128,7 +128,7 @@ export async function createDriver(
       // A sign-in account with no record: refused, never adopted.
       throw conflict(
         "a sign-in account already exists for this work email but no driver record does; " +
-          "resolve the orphaned account before creating this driver",
+        "resolve the orphaned account before creating this driver",
         [{ field: "workEmail", message: "an unlinked sign-in account already uses this address" }],
       );
     }
@@ -235,7 +235,7 @@ export async function setStatus(
     if (held) {
       throw conflict(
         `${current.name} still has ${held.registrationPlate} (${held.make} ${held.model}). ` +
-          `Record its return before standing them down — otherwise nothing at Effy knows who has it.`,
+        `Record its return before standing them down - otherwise nothing at Effy knows who has it.`,
         [
           {
             field: "vehicle",

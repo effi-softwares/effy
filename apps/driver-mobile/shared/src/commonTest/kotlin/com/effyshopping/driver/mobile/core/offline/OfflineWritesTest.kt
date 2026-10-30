@@ -10,7 +10,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 
-/** Backlog C1 / B3 — what happens to a write when there is no signal. */
+/** Backlog C1 / B3 - what happens to a write when there is no signal. */
 class OfflineWritesTest {
     private fun queue() = OfflineQueue(MapSettings())
 

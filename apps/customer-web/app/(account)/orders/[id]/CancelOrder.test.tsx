@@ -21,7 +21,7 @@ beforeEach(() => {
 })
 
 describe("confirmation", () => {
-  it("does not cancel on the first tap — it asks, and says what will happen", async () => {
+  it("does not cancel on the first tap - it asks, and says what will happen", async () => {
     render(<CancelOrder orderId="o1" />)
     await userEvent.click(screen.getByRole("button", { name: /cancel this order/i }))
 

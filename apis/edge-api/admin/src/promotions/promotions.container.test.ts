@@ -57,7 +57,7 @@ async function codeOf(p: Promise<unknown>): Promise<string> {
 
 const CART_CODE = { name: "Spring", kind: "cart", trigger: "code", valueType: "percent", percentOff: 20, maxDiscount: "15.00", minSubtotal: "40.00", sharedCode: "spring 20" };
 
-d("094 — back-office promotions", () => {
+d("094 - back-office promotions", () => {
   beforeAll(async () => {
     container = await new PostgreSqlContainer("postgres:16-alpine").start();
     pool = new Pool({ connectionString: container.getConnectionUri(), max: 6 });
@@ -100,7 +100,7 @@ d("094 — back-office promotions", () => {
     expect(list.counts.archived).toBe(1);
   });
 
-  it("once used, what it gives and who it is for are fixed — but its dates and words are not", async () => {
+  it("once used, what it gives and who it is for are fixed - but its dates and words are not", async () => {
     const p = await svc.createPromotion({ name: "Used", kind: "cart", trigger: "automatic", valueType: "amount", amountOff: "5.00", publish: true }, SUB);
     const cust = (await pool.query<{ id: string }>(`INSERT INTO public.customer (cognito_sub, email) VALUES ('u1', 'u1@example.test') RETURNING id::text AS id`)).rows[0]!.id;
     const order = (await pool.query<{ id: string }>(
@@ -121,7 +121,7 @@ d("094 — back-office promotions", () => {
     await svc.updatePromotion(p.id, { name: "Mine", expectedUpdatedAt: p.updatedAt }, SUB);
   });
 
-  it("puts a promotion in groups — and needs a headline to", async () => {
+  it("puts a promotion in groups - and needs a headline to", async () => {
     const g = (await pool.query<{ id: string }>(`SELECT id::text FROM public.promotion_group WHERE key = 'offers'`)).rows[0]!.id;
     const body = { name: "Grouped", kind: "cart", trigger: "automatic", valueType: "amount", amountOff: "3.00", groupIds: [g] };
     expect(await codeOf(svc.createPromotion(body, SUB))).toBe("validation_failed");

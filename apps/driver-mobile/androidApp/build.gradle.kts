@@ -23,7 +23,7 @@ dependencies {
 
     implementation(libs.compose.uiToolingPreview)
     debugImplementation(libs.compose.uiTooling)
-    // Rev 2 — the debug-only design gallery draws screens directly.
+    // Rev 2 - the debug-only design gallery draws screens directly.
     debugImplementation(libs.compose.foundation)
     debugImplementation(libs.compose.material3)
 
@@ -47,7 +47,7 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
-    // Release signing — from the git-ignored keystore.properties at the project root
+    // Release signing - from the git-ignored keystore.properties at the project root
     // (keystore.properties.example). Absent, a release build comes out "-unsigned" and will not install.
     val keystoreFile = rootProject.file("keystore.properties")
     val releaseSigning = if (keystoreFile.exists()) {

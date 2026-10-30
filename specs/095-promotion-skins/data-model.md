@@ -9,7 +9,7 @@ rule); every rule below that is not a CHECK or FK is enforced in the admin servi
 |---|---|---|
 | id | uuid PK | |
 | name | text | 1–60 chars, UNIQUE (case-insensitive) |
-| layout | text | `classic` \| `panel` \| `header_card` \| `full_picture` \| `picture_beside` \| `tile` \| `strip` (`classic`: the one built-in skin, settings `{}`, never updated or deleted — service) |
+| layout | text | `classic` \| `panel` \| `header_card` \| `full_picture` \| `picture_beside` \| `tile` \| `strip` (`classic`: the one built-in skin, settings `{}`, never updated or deleted - service) |
 | settings | jsonb | shape per layout, `SkinSettings` (contracts/skin-settings.md); validated + contrast-checked by the service |
 | version | int | starts 1; +1 per update; update requires `expectedVersion` |
 | created_by / updated_by | text | staff sub |
@@ -64,7 +64,7 @@ picture = member.image_id (if the skin's layout shows a picture)
 2. `promotion_group.size` for the five 094 groups; every default = Classic.
 3. Group `mega-nav` (name "Aisles menu", size `small`, default Classic), members = today's `home-hero` then
    `home-between` members, deduplicated, in that order.
-4. Members keep `skin_id = NULL` (they wear the group default — FR-025).
+4. Members keep `skin_id = NULL` (they wear the group default - FR-025).
 
 Migration order: create `promotion_skin`, insert seeds, add group columns NULL, set them, then `SET NOT NULL`.
 
@@ -72,7 +72,7 @@ Migration order: create `promotion_skin`, insert seeds, add group columns NULL, 
 
 | Layout | Fits sizes | Shows picture | Preferred ratio |
 |---|---|---|---|
-| classic | all | as before 095 | — |
+| classic | all | as before 095 | - |
 | panel | large, medium | optional (background) | 16:9 (large) / 4:3 (medium) |
 | header_card | medium, small | optional (header) | 16:9 |
 | full_picture | large, medium | required (falls back to colour) | 16:9 |

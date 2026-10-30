@@ -1,6 +1,6 @@
-# Sign-off — 068 Customer Lists
+# Sign-off - 068 Customer Lists
 
-**Date**: 2026-10-04 · **Status**: 🚧 **58/61 — CODE-COMPLETE AND MACHINE-VERIFIED. NOT DEPLOYED, NOT
+**Date**: 2026-10-04 · **Status**: 🚧 **58/61 - CODE-COMPLETE AND MACHINE-VERIFIED. NOT DEPLOYED, NOT
 COMMITTED, NOT WALKED BY A PERSON.** Open: the deploy (T060), the walks (T061), and part of the
 accessibility pass (T054: the end-to-end a11y suite was not extended, and no screen reader has been
 run).
@@ -28,7 +28,7 @@ Also now true, and not before:
 
 | Layer | What |
 |---|---|
-| Migration | `20261004090557_customer_lists.sql` — `customer_list`, `customer_list_entry`, an idempotent backfill. No column change to `customer_saved_item`; its comments state its new meaning |
+| Migration | `20261004090557_customer_lists.sql` - `customer_list`, `customer_list_entry`, an idempotent backfill. No column change to `customer_saved_item`; its comments state its new meaning |
 | `shared-types` | list DTOs, `LIST_LIMIT`, `LIST_NAME_MAX`, `DEFAULT_LIST_ID`, `SavedListRefusal`, `namedProductIds` on the membership; Kotlin contract regenerated |
 | `api-client` | `DomainError.type` (the problem's `type`), additive |
 | `core-api` | `saveditems`: 8 new `/v1/lists` routes; `/v1/saved/*` kept as "the default list"; the un-save refusal; one list query for every list |

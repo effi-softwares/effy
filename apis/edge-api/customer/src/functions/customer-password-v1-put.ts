@@ -116,7 +116,7 @@ function mapError(
   }
 
   if (err instanceof CustomerBarredError || err instanceof CustomerNotFoundError) {
-    scope.log.warn({ sub }, "password write: refused — barred or unknown customer")
+    scope.log.warn({ sub }, "password write: refused - barred or unknown customer")
     return problem(403, ProblemType.Forbidden, "Not permitted", "this account cannot be used", scope)
   }
 
@@ -124,17 +124,17 @@ function mapError(
 
   // The step-up code was wrong, expired or used; the password write is never reached.
   if (name === "CodeMismatchException") {
-    scope.log.warn({ sub }, "set-password: refused — bad step-up code")
+    scope.log.warn({ sub }, "set-password: refused - bad step-up code")
     return badRequest(scope, "That code isn't right. Check it and try again.")
   }
   if (name === "ExpiredCodeException") {
-    scope.log.warn({ sub }, "set-password: refused — expired step-up code")
+    scope.log.warn({ sub }, "set-password: refused - expired step-up code")
     return badRequest(scope, "That code has expired. Ask for a new one.")
   }
 
   // Names the field: "your current password is wrong".
   if (name === "NotAuthorizedException") {
-    scope.log.warn({ sub, mode }, "change-password: refused — wrong current password")
+    scope.log.warn({ sub, mode }, "change-password: refused - wrong current password")
     return problem(
       401,
       ProblemType.Unauthenticated,

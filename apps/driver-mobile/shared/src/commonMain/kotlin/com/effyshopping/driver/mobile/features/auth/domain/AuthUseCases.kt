@@ -4,15 +4,15 @@ import com.effyshopping.driver.mobile.core.auth.AuthDriver
 import com.effyshopping.driver.mobile.core.auth.AuthStep
 
 /**
- * The auth domain layer. One class per use case, over the domain [AuthDriver] boundary — the
+ * The auth domain layer. One class per use case, over the domain [AuthDriver] boundary - the
  * ViewModel depends on these, not the driver. Each owns input normalization (trimming) so the
  * presentation layer passes raw input and the rule lives in one place.
  *
  * The audience's rules are the absence of use cases here: there is no register / password / recovery
- * use case, because there is no such flow (Principle IV — passwordless, admin-provisioned).
+ * use case, because there is no such flow (Principle IV - passwordless, admin-provisioned).
  */
 
-/** Request an emailed one-time code for [email] — the only credential flow. */
+/** Request an emailed one-time code for [email] - the only credential flow. */
 class RequestSignInCode(private val authDriver: AuthDriver) {
     suspend operator fun invoke(email: String): AuthStep = authDriver.signInWithEmailOtp(email.trim())
 }

@@ -40,12 +40,12 @@ data class HistoryDetail(
     val addressFull: String?,
     /** A run's stops in order; empty for a drop. */
     val stops: List<HistoryStopRow> = emptyList(),
-    /** Rev 2 — a run's map; a drop's order, package count and (when it came back) why. */
+    /** Rev 2 - a run's map; a drop's order, package count and (when it came back) why. */
     val map: com.effyshopping.driver.mobile.core.map.RunMap? = null,
     val orderRef: String? = null,
     val packageCount: Int = 0,
     val failureReason: String? = null,
-    /** Rev 2 — the window in words: a run's span, or the one a drop was sold. */
+    /** Rev 2 - the window in words: a run's span, or the one a drop was sold. */
     val window: String? = null,
 )
 

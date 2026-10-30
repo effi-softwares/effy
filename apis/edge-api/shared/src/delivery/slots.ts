@@ -162,7 +162,7 @@ const toSlot = (r: SlotRow): Slot => ({
 export async function loadSlots(q: Queryable): Promise<Slot[]> {
   const rows = await q.query<SlotRow>(`
 		SELECT ${SLOT_COLUMNS}
-		-- availability-exempt: public.delivery_slot — a delivery window's lifecycle.
+		-- availability-exempt: public.delivery_slot - a delivery window's lifecycle.
 		FROM public.delivery_slot WHERE status = 'active' ORDER BY start_time, end_time`);
   return rows.rows.map(toSlot);
 }
@@ -176,7 +176,7 @@ export async function lockSlot(tx: Queryable, slotId: string): Promise<Slot | nu
     await tx.query<SlotRow>(
       `
 		SELECT ${SLOT_COLUMNS}
-		-- availability-exempt: public.delivery_slot — a delivery window's lifecycle.
+		-- availability-exempt: public.delivery_slot - a delivery window's lifecycle.
 		FROM public.delivery_slot WHERE id = $1 AND status = 'active'
 		FOR UPDATE`,
       [slotId],

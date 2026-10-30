@@ -127,7 +127,7 @@ const items = (orderId: string, lines: IssueInput["lines"], over: Partial<IssueI
 const setPortions = (orderId: string, status: string, shop?: string) =>
   pool.query(`UPDATE public.shop_fulfillment SET status = $2 WHERE order_id = $1 AND ($3::uuid IS NULL OR shop_id = $3::uuid)`, [orderId, status, shop ?? null]);
 
-d("070 — refunds and cancellation against the real schema", () => {
+d("070 - refunds and cancellation against the real schema", () => {
   beforeAll(async () => {
     container = await new PostgreSqlContainer("postgres:16-alpine").start();
     pool = new Pool({ connectionString: container.getConnectionUri(), max: 12 });
@@ -237,7 +237,7 @@ SELECT id::text AS id FROM p`,
     expect(provider.created()).toBe(1);
   });
 
-  it("⚠ a refund still on its way to the provider already holds the ceiling — the window the old backend left open", async () => {
+  it("⚠ a refund still on its way to the provider already holds the ceiling - the window the old backend left open", async () => {
     const o = await paidOrder();
     // The first refund is committed and its provider call held open.
     let letProviderAnswer!: () => void;
@@ -296,7 +296,7 @@ SELECT id::text AS id FROM p`,
     ).rejects.toBeInstanceOf(LinesNotYoursError);
   });
 
-  it("a submission that gets no answer is left `submitting`, said to be stalled — counted while in flight, and not once it has stalled", async () => {
+  it("a submission that gets no answer is left `submitting`, said to be stalled - counted while in flight, and not once it has stalled", async () => {
     const o = await paidOrder();
     provider.set("timeout");
     const r = await svc.issue(goodwill(o.orderId, "20.00"));
@@ -322,7 +322,7 @@ SELECT id::text AS id FROM p`,
     expect((await refunds(o.orderId)).map((x) => x.status).sort()).toEqual(["refused", "submitted"]);
   });
 
-  it("⚠ the reconciler resolves it: recorded when the provider has it, submitted under the stored key when it does not — never twice", async () => {
+  it("⚠ the reconciler resolves it: recorded when the provider has it, submitted under the stored key when it does not - never twice", async () => {
     // (a) the provider accepted it and the answer was lost.
     const a = await paidOrder();
     provider.set("timeout-after-accepting");
@@ -381,7 +381,7 @@ SELECT id::text AS id FROM p`,
     await expect(svc.issue(goodwill(o.orderId, "22.00", { note: "again" }))).rejects.toBeInstanceOf(CeilingExceededError);
   });
 
-  it("a refund made by hand at the provider is recorded as external and unattributed — once — and one on someone else's payment is not", async () => {
+  it("a refund made by hand at the provider is recorded as external and unattributed - once - and one on someone else's payment is not", async () => {
     const o = await paidOrder();
     const evt = refundEvent("re_by_hand", "succeeded", { refundAmountCents: 400, refundPaymentIntentId: o.intent });
     expect(await svc.handleRefundEvent(pool, evt)).toEqual({ recognised: false, changed: true });
@@ -413,7 +413,7 @@ SELECT id::text AS id FROM p`,
     expect(await refunds(o.orderId)).toMatchObject([{ kind: "cancellation", amount: "26.00", status: "submitted", actor_kind: "customer", actor_sub: o.customerId }]);
   });
 
-  it("cancelling twice — or by a customer and staff at the same moment — refunds once", async () => {
+  it("cancelling twice - or by a customer and staff at the same moment - refunds once", async () => {
     const o = await paidOrder();
     const [a, b] = await Promise.all([svc.cancel(asCustomer(o)), svc.cancel(asStaff(o.orderId))]);
     expect([a.status, b.status].sort()).toEqual(["submitted", "succeeded"]); // one did it; the other found it done
@@ -435,7 +435,7 @@ SELECT id::text AS id FROM p`,
     expect(await svc.cancel(asStaff(o.orderId))).toMatchObject({ status: "submitted", amount: "26.00" });
   });
 
-  it("another shopper's order is not found — the same answer as one that does not exist", async () => {
+  it("another shopper's order is not found - the same answer as one that does not exist", async () => {
     const o = await paidOrder();
     const stranger = await paidOrder();
     await expect(svc.cancel({ ...asCustomer(o), customerId: stranger.customerId })).rejects.toBeInstanceOf(RefundOrderNotFoundError);
@@ -497,7 +497,7 @@ SELECT id::text AS id FROM p`,
 
   // Orders paid with points.
 
-  it("081 — a refund recorded in a transaction that rolls back leaves nothing", async () => {
+  it("081 - a refund recorded in a transaction that rolls back leaves nothing", async () => {
     const o = await paidOrder();
     await expect(transact(async (tx) => {
       await recordRefundIn(tx, {
@@ -509,7 +509,7 @@ SELECT id::text AS id FROM p`,
     expect(await refunds(o.orderId)).toEqual([]);
   });
 
-  it("081 — a recorded refund is submitted after commit, once however often it is asked", async () => {
+  it("081 - a recorded refund is submitted after commit, once however often it is asked", async () => {
     const o = await paidOrder();
     const rec = await transact((tx) => recordRefundIn(tx, {
       orderId: o.orderId, kind: "delivery", amountCents: 600, currency: "AUD", reason: "courier_override", note: null,
@@ -524,7 +524,7 @@ SELECT id::text AS id FROM p`,
     expect(provider.calls[0]).toMatchObject({ amountCents: 600, idempotencyKey: `courier_override:${o.orderId}` });
   });
 
-  it("081 — a refused recorded refund is reported, not thrown", async () => {
+  it("081 - a refused recorded refund is reported, not thrown", async () => {
     const o = await paidOrder();
     const rec = await transact((tx) => recordRefundIn(tx, {
       orderId: o.orderId, kind: "delivery", amountCents: 250, currency: "AUD", reason: "courier_override", note: null,
@@ -535,7 +535,7 @@ SELECT id::text AS id FROM p`,
     expect((await refunds(o.orderId))[0]).toMatchObject({ status: "refused" });
   });
 
-  it("081 — a delivery refund must carry its own reason, and only it may", async () => {
+  it("081 - a delivery refund must carry its own reason, and only it may", async () => {
     const o = await paidOrder();
     await expect(pool.query(
       `INSERT INTO public.refund (order_id, kind, amount, reason, idempotency_key, actor_kind, actor_sub) VALUES ($1, 'delivery', 1, 'goodwill', 'x-081-a', 'back_office', 's')`,
@@ -547,7 +547,7 @@ SELECT id::text AS id FROM p`,
     )).rejects.toThrow(/refund_delivery_reason_ck|refund_goodwill_reason_ck/);
   });
 
-  it("074 — a mixed order's refund is split in proportion; only the card part reaches the provider; points come back on submission (P10)", async () => {
+  it("074 - a mixed order's refund is split in proportion; only the card part reaches the provider; points come back on submission (P10)", async () => {
     const o = await pointsPaidOrder(1600); // 16.00 card + 1,000 points
     const r = await svc.issue(goodwill(o.orderId, "13.00"));
     expect(r).toMatchObject({ status: "submitted", amount: "13.00", cardAmount: "8.00", pointsReturned: 500 });
@@ -556,14 +556,14 @@ SELECT id::text AS id FROM p`,
     expect(await pointsBack(o.orderId)).toBe(500);
   });
 
-  it("074 — a refund the provider refuses returns no points", async () => {
+  it("074 - a refund the provider refuses returns no points", async () => {
     const o = await pointsPaidOrder(1600);
     provider.set("refuse");
     await expect(svc.issue(goodwill(o.orderId, "13.00"))).rejects.toBeInstanceOf(ProviderRefusedError);
     expect(await pointsBack(o.orderId)).toBe(0);
   });
 
-  it("074 — a points-only order's refund never reaches the provider: recorded succeeded, points back at once (P10)", async () => {
+  it("074 - a points-only order's refund never reaches the provider: recorded succeeded, points back at once (P10)", async () => {
     const o = await pointsPaidOrder(0);
     const r = await svc.issue(goodwill(o.orderId, "5.00"));
     expect(r).toMatchObject({ status: "succeeded", cardAmount: "0.00", pointsReturned: 500 });
@@ -571,7 +571,7 @@ SELECT id::text AS id FROM p`,
     expect(await pointsBack(o.orderId)).toBe(500);
   });
 
-  it("074 — partial refunds that add up to the order end at exactly the points spent and the card paid", async () => {
+  it("074 - partial refunds that add up to the order end at exactly the points spent and the card paid", async () => {
     const o = await pointsPaidOrder(1599); // 15.99 card + 1,001 points
     for (const [amount, note] of [["3.33", "a"], ["10.01", "b"], ["12.66", "c"]] as const) {
       await svc.issue(goodwill(o.orderId, amount, { note }));
@@ -583,7 +583,7 @@ SELECT id::text AS id FROM p`,
     await expect(svc.issue(goodwill(o.orderId, "0.01", { note: "d" }))).rejects.toBeInstanceOf(CeilingExceededError);
   });
 
-  it("074 — cancelling a mixed order splits what remains; cancelling a points-only order returns only points (P11)", async () => {
+  it("074 - cancelling a mixed order splits what remains; cancelling a points-only order returns only points (P11)", async () => {
     const mixed = await pointsPaidOrder(1600);
     const a = await svc.cancel({ orderId: mixed.orderId, customerId: null, actorKind: "back_office", actorSub: "staff-1" });
     expect(a).toMatchObject({ status: "submitted", amount: "26.00", cardAmount: "16.00", pointsReturned: 1000 });
@@ -598,7 +598,7 @@ SELECT id::text AS id FROM p`,
     expect(await pointsBack(only.orderId)).toBe(2600);
   });
 
-  it("074 — a stalled refund the reconciler later finds returns its points exactly once (P10)", async () => {
+  it("074 - a stalled refund the reconciler later finds returns its points exactly once (P10)", async () => {
     const o = await pointsPaidOrder(1600);
     provider.set("timeout-after-accepting");
     const r = await svc.issue(goodwill(o.orderId, "13.00"));

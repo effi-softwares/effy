@@ -50,7 +50,7 @@ export function ProductCardSkeleton({ index = 0 }: { index?: number }) {
   )
 }
 
-/** The grid before its products arrive — the same tiles, so the swap-in moves nothing. */
+/** The grid before its products arrive - the same tiles, so the swap-in moves nothing. */
 export function ProductGridSkeleton({ className, count = 8 }: { className: string; count?: number }) {
   return (
     <Loading label="Loading products">
@@ -63,11 +63,11 @@ export function ProductGridSkeleton({ className, count = 8 }: { className: strin
   )
 }
 
-/** How many cards open a listing above the fold — one row at the widest layout the rails and the search grid share. */
+/** How many cards open a listing above the fold - one row at the widest layout the rails and the search grid share. */
 export const FIRST_ROW = 4
 
 /**
- * The product page, opened on the size this tile stands for when there is a choice — a search
+ * The product page, opened on the size this tile stands for when there is a choice - a search
  * that matched one size's stock code or barcode opens on that size.
  */
 export function productHref(product: Pick<StorefrontProductCardDTO, "id" | "variantId" | "variantCount">): string {
@@ -83,7 +83,7 @@ export function ProductCard({
   saveControl?: React.ReactNode
   /**
    * The card opens the page's first listing: its picture is fetched with the document instead of
-   * waiting for layout to prove it is on screen. No preload in the head — that would also write a
+   * waiting for layout to prove it is on screen. No preload in the head - that would also write a
    * preload into the head, and four of those would compete with the stylesheet and the typeface.
    */
   priority?: boolean
@@ -92,10 +92,10 @@ export function ProductCard({
   const percentOff =
     discounted && product.compareAtAmount
       ? Math.round(
-          ((Number(product.compareAtAmount) - Number(product.priceAmount)) /
-            Number(product.compareAtAmount)) *
-            100,
-        )
+        ((Number(product.compareAtAmount) - Number(product.priceAmount)) /
+          Number(product.compareAtAmount)) *
+        100,
+      )
       : null
   const isNew = product.badges.includes("new")
 

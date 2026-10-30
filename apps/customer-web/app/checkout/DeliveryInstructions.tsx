@@ -13,7 +13,7 @@ import {
 
 /**
  * Delivery instructions: how the shopper wants the order handed over, and a short note for
- * the driver. Optional — an untouched control sends nothing, and nothing is then shown anywhere.
+ * the driver. Optional - an untouched control sends nothing, and nothing is then shown anywhere.
  *
  * A controlled section, like the billing one beside it: the draft lives in the parent so it survives
  * the move to the payment step and a failed payment, and so the address book's form can
@@ -41,7 +41,7 @@ export function DeliveryInstructions({
   hint?: string
   /** Its place in a numbered flow (checkout's third step). Absent anywhere it is not one of a sequence. */
   step?: number
-  /** Rendered under the note — checkout puts its "save to this address" choice here. */
+  /** Rendered under the note - checkout puts its "save to this address" choice here. */
   children?: React.ReactNode
 }) {
   const noteId = useId()

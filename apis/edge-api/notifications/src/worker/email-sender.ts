@@ -150,7 +150,7 @@ export function createEmailSender(opts: EmailSenderOptions) {
     identity = identityFromEnv();
   } catch (err) {
     if (!(err instanceof MailConfigError)) throw err;
-    logger.warn({ err }, "notifications: mail is not configured — email rows will retry");
+    logger.warn({ err }, "notifications: mail is not configured - email rows will retry");
   }
 
   return {

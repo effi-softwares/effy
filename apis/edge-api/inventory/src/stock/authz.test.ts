@@ -10,7 +10,7 @@ function sql(): string {
 }
 
 describe("the shop stock gate", () => {
-  it("⚠ is ROLE-AGNOSTIC — both shop roles manage stock (FR-010, A7)", async () => {
+  it("⚠ is ROLE-AGNOSTIC - both shop roles manage stock (FR-010, A7)", async () => {
     queryMock.mockResolvedValue({ rows: [{ shop_id: "shop-1" }] });
     await authorizeShopMember("sub");
 
@@ -28,7 +28,7 @@ describe("the shop stock gate", () => {
     expect(sql()).toContain("JOIN public.shop");
   });
 
-  it("returns null — the uniform deny — when nothing matches", async () => {
+  it("returns null - the uniform deny - when nothing matches", async () => {
     queryMock.mockResolvedValue({ rows: [] });
     await expect(authorizeShopMember("nobody")).resolves.toBeNull();
   });
@@ -40,7 +40,7 @@ describe("the shop stock gate", () => {
     expect(queryMock.mock.calls.at(-1)?.[1]).toEqual(["sub"]);
   });
 
-  it("fails CLOSED — a gate that cannot be evaluated throws rather than allowing", async () => {
+  it("fails CLOSED - a gate that cannot be evaluated throws rather than allowing", async () => {
     queryMock.mockRejectedValue(new Error("database is down"));
     await expect(authorizeShopMember("sub")).rejects.toThrow();
   });

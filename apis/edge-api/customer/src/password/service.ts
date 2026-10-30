@@ -101,7 +101,7 @@ export async function writePassword(
 
   if (input.mode === "set") {
     if (row.has_password) {
-      throw new WrongModeError("this account already has a password — change it instead")
+      throw new WrongModeError("this account already has a password - change it instead")
     }
 
     // Prove the inbox (throws CodeMismatch/ExpiredCode → 400).
@@ -111,7 +111,7 @@ export async function writePassword(
     await cognito.unsafeSetFirstPassword(accessToken, input.newPassword)
   } else {
     if (!row.has_password) {
-      throw new WrongModeError("this account has no password — set one instead")
+      throw new WrongModeError("this account has no password - set one instead")
     }
 
     // Cognito verifies the current password itself.

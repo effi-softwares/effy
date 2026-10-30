@@ -4,7 +4,7 @@
 //
 // What the helper owns: validating the query string, the whitelisted ORDER BY (always ending in the row's
 // id, so two rows never tie at a page edge), the offset or keyset clause, the capped count and the
-// envelope. What it does not own: a list's SQL — its SELECT, its joins and its filters stay in its
+// envelope. What it does not own: a list's SQL - its SELECT, its joins and its filters stay in its
 // repository, as raw SQL (Principle VI).
 import type { APIGatewayProxyStructuredResultV2 } from "aws-lambda";
 
@@ -32,7 +32,7 @@ export type SortValueType = "text" | "timestamptz" | "numeric" | "int" | "date";
 
 export interface SortSpec {
   /**
-   * The SQL expression, from this whitelist only — a client string never reaches SQL. ⚠ It must never be
+   * The SQL expression, from this whitelist only - a client string never reaches SQL. ⚠ It must never be
    * NULL (wrap a nullable column in COALESCE): a keyset row comparison against NULL matches nothing.
    */
   sql: string;
@@ -42,7 +42,7 @@ export interface SortSpec {
   type?: SortValueType;
   /**
    * Offset lists only: rows without a value go last in both directions (a product never priced). A keyset list
-   * may not use it — its sort expression must never be NULL.
+   * may not use it - its sort expression must never be NULL.
    */
   nullsLast?: true;
 }
@@ -165,8 +165,8 @@ const DAY = /^\d{4}-\d{2}-\d{2}$/;
 export const listFilter = {
   oneOf:
     <T extends string>(values: readonly T[]): FilterParser<T> =>
-    (raw) =>
-      (values as readonly string[]).includes(raw) ? (raw as T) : undefined,
+      (raw) =>
+        (values as readonly string[]).includes(raw) ? (raw as T) : undefined,
   uuid: ((raw) => (UUID.test(raw) ? raw.toLowerCase() : undefined)) as FilterParser<string>,
   /** A calendar day `YYYY-MM-DD` that exists. */
   day: ((raw) => {
@@ -189,14 +189,14 @@ export function likePattern(q: string): string {
   return `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
 }
 
-/** `text%` — a prefix match with the same escaping. */
+/** `text%` - a prefix match with the same escaping. */
 export function prefixPattern(q: string): string {
   return `${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
 }
 
 const SQL_DIR: Record<SortDir, string> = { asc: "ASC", desc: "DESC" };
 
-/** `ORDER BY <whitelisted expression> <dir>, <id> <dir>` — a total order, so no row ties at a page edge. */
+/** `ORDER BY <whitelisted expression> <dir>, <id> <dir>` - a total order, so no row ties at a page edge. */
 export function orderBy<S extends string, F>(spec: ListOrder<S>, req: ListRequest<S, F>): string {
   const d = SQL_DIR[req.dir];
   const s = spec.sorts[req.sort];
@@ -241,7 +241,7 @@ export function keysetColumns<S extends string, F>(spec: ListOrder<S>, req: List
 
 /**
  * A day-range filter on a timestamp column: `from` and `to` are calendar days (`YYYY-MM-DD`, both inclusive)
- * in the operating time zone — the day a person in the business means — pushing its values onto `args`.
+ * in the operating time zone - the day a person in the business means - pushing its values onto `args`.
  * Null when neither end is set. Written as a range on the bare column so its index serves it.
  */
 export function dayRangeCondition(column: string, range: { from?: string; to?: string }, args: unknown[]): string | null {
@@ -275,7 +275,7 @@ export function encodeCursor(value: string, id: string): string {
   return Buffer.from(JSON.stringify([value, id]), "utf8").toString("base64url");
 }
 
-/** A malformed cursor is null — the list restarts at its first page rather than failing. */
+/** A malformed cursor is null - the list restarts at its first page rather than failing. */
 export function decodeCursor(raw: string): { value: string; id: string } | null {
   try {
     const parsed: unknown = JSON.parse(Buffer.from(raw, "base64url").toString("utf8"));

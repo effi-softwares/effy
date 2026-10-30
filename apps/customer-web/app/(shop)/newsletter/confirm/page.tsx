@@ -11,7 +11,7 @@ import { ActionLink } from "@/components/storefront/kit"
 import { edgeApiPublic, perCustomer } from "@/lib/api/edge"
 
 /**
- * `/newsletter/confirm` — the destination of the double opt-in link.
+ * `/newsletter/confirm` - the destination of the double opt-in link.
  *
  * Zero client js. Nothing here is interactive: it reads a token, calls the confirm endpoint
  * server-side, and renders one of two outcomes with a link back to the store.
@@ -24,7 +24,7 @@ import { edgeApiPublic, perCustomer } from "@/lib/api/edge"
  * touching `searchParams` at the top level would make the whole route dynamic.
  */
 export const metadata: Metadata = {
-  title: "Confirm your subscription — Effy",
+  title: "Confirm your subscription - Effy",
   robots: { index: false, follow: false },
 }
 
@@ -49,7 +49,7 @@ export default function NewsletterConfirmPage({
  * confirmed / expired).
  *
  * An expired link is not a dead end: the same subscribe form is right there, and it sends a fresh
- * link. The address is never shown back — this page is reached from a link that can be forwarded.
+ * link. The address is never shown back - this page is reached from a link that can be forwarded.
  */
 async function ConfirmOutcome({ searchParams }: { searchParams: Promise<{ token?: string }> }) {
   const { token } = await searchParams

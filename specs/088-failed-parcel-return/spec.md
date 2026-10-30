@@ -10,7 +10,7 @@
 
 ### Session 2026-10-16
 
-- Q: What happens to a returned parcel — re-offered automatically, held for staff, or by reason? → A:
+- Q: What happens to a returned parcel - re-offered automatically, held for staff, or by reason? → A:
   Held for staff to choose its next step (option A, the recommended default; operator proceeded to
   planning without choosing otherwise).
 
@@ -20,7 +20,7 @@
 
 An Effy driver works a delivery round from the hub to customers. When a drop cannot be completed, the
 driver records why (nobody home, wrong address, customer refused, access blocked, other). The goods
-are still in the driver's van — but from that moment nothing on the platform says so. The drop leaves
+are still in the driver's van - but from that moment nothing on the platform says so. The drop leaves
 the driver's work, the round can finish, and the parcel's status reads "Problem" for ever: nobody is
 asked to bring it back, nobody at the hub is expecting it, and it cannot be delivered again because
 it is still recorded as on the round. A parcel can be physically lost without anything noticing.
@@ -67,7 +67,7 @@ with a driver from one that has been returned, and who has it.
 see the result. A failed parcel out with a driver at the end of a shift is the case staff must chase.
 
 **Independent Test**: Fail a drop. In back-office the parcel shows as a problem that is "with
-[driver] — to return". After the driver returns it, it shows as returned to the hub, with the
+[driver] - to return". After the driver returns it, it shows as returned to the hub, with the
 failure reason.
 
 **Acceptance Scenarios**:
@@ -167,10 +167,10 @@ staff member.
 
 **After the return**
 
-- **FR-010**: A returned parcel MUST be held at the hub as needing a staff decision — it is NOT offered
+- **FR-010**: A returned parcel MUST be held at the hub as needing a staff decision - it is NOT offered
   for delivery again by itself. It MUST appear among the things back-office has to act on until a
   staff member gives it a next step (FR-011). *(Decided 2026-10-16: a person decides, because the
-  reason it failed — a wrong address, a refusal — usually needs a person to look at it.)*
+  reason it failed - a wrong address, a refusal - usually needs a person to look at it.)*
 - **FR-011**: A returned parcel MUST be able to be delivered again, moved to courier delivery, or
   cancelled and refunded through the actions back-office already has for an order's delivery; none of
   them may treat it as still on the failed round.
@@ -190,10 +190,10 @@ staff member.
 
 ### Key Entities
 
-- **Failed attempt** (exists): a drop that could not be completed — reason, note, when, which driver.
+- **Failed attempt** (exists): a drop that could not be completed - reason, note, when, which driver.
 - **Parcel to return**: a parcel from a failed drop, still with the driver who attempted it; belongs
   to that driver and the round it failed on.
-- **Return**: the record that parcels came back to the hub — which parcels, who recorded it (driver or
+- **Return**: the record that parcels came back to the hub - which parcels, who recorded it (driver or
   staff member), when, and the round they came from.
 
 ## Success Criteria *(mandatory)*
@@ -207,7 +207,7 @@ staff member.
 - **SC-003**: No delivery round is finished while a parcel from it is still in a driver's van.
 - **SC-004**: Staff can find every failed parcel still out with a driver from one screen, in under a
   minute.
-- **SC-005**: Every returned parcel reaches a next step (FR-010) — none remains at the hub with no
+- **SC-005**: Every returned parcel reaches a next step (FR-010) - none remains at the hub with no
   owner or action pending.
 
 ## Assumptions

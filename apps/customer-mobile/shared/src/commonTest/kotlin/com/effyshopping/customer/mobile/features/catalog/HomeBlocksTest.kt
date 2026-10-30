@@ -37,7 +37,7 @@ class HomeBlocksTest {
     private fun rail(key: String, size: Int = 2) =
         Rail(key = key, title = key.replaceFirstChar { it.uppercase() }, products = List(size) { product("$key-$it") })
 
-    /** An inline banner — 028's between-sections placement, which these interleaving tests are about. */
+    /** An inline banner - 028's between-sections placement, which these interleaving tests are about. */
     private fun banner(key: String, position: Int) =
         Banner(
             key = key, title = "Banner $key", subtitle = null, imageUrl = null, href = null,
@@ -66,7 +66,7 @@ class HomeBlocksTest {
         assertEquals(
             listOf("featured", "on_sale"),
             blocks.filterIsInstance<HomeBlock.Section>().map { it.rail.key },
-            "the server owns section order — composeHome must never reorder (research R8)",
+            "the server owns section order - composeHome must never reorder (research R8)",
         )
     }
 
@@ -103,7 +103,7 @@ class HomeBlocksTest {
         assertEquals(
             listOf("grocery", "milk"),
             shortcuts.map { it.key },
-            "depth is NOT the filter — products are. A leaf category holding stock is exactly what a " +
+            "depth is NOT the filter - products are. A leaf category holding stock is exactly what a " +
                 "shopper can usefully tap; the empty one is what must be omitted.",
         )
     }
@@ -115,7 +115,7 @@ class HomeBlocksTest {
         // Every product's primary category is a leaf. The three top-level categories report
         // productCount = 0 because the count does not roll up to descendants. The original filter
         // ("top-level with products") therefore rendered an empty category row against live data
-        // 13 authored icons showing nothing — and every unit test passed, because the fixtures gave
+        // 13 authored icons showing nothing - and every unit test passed, because the fixtures gave
         // top-level categories a product count the real ones do not have.
         val blocks = composeHome(
             HomeContent(banners = emptyList(), rails = listOf(rail("featured"))),
@@ -200,7 +200,7 @@ class HomeBlocksTest {
                     is HomeBlock.Offers -> "Offers"
                 }
             },
-            "position n means 'after the nth section' — that is what makes FR-030's 'between sections' real",
+            "position n means 'after the nth section' - that is what makes FR-030's 'between sections' real",
         )
     }
 
@@ -313,7 +313,7 @@ class HomeBlocksTest {
             emptyList(),
         )
 
-        // Absent entirely — no heading, no empty frame.
+        // Absent entirely - no heading, no empty frame.
         assertTrue(blocks.none { it is HomeBlock.Offers })
     }
 
@@ -327,7 +327,7 @@ class HomeBlocksTest {
 
         val shown = blocks.filterIsInstance<HomeBlock.Offers>().single().banners
         // A swipeable set stops being explorable somewhere, and most shoppers never reach the
-        // last slide anyway. The drop must be logged at the render site — a silent cap reads to an
+        // last slide anyway. The drop must be logged at the render site - a silent cap reads to an
         // operator as "my promotion did not save".
         assertEquals(MAX_OFFERS, shown.size)
         assertEquals(listOf("o1", "o2", "o3", "o4", "o5", "o6"), shown.map { it.key })

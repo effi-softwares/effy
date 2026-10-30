@@ -173,50 +173,50 @@ export function CoveragePanel({ canManage }: { canManage: boolean }) {
             selection={
               canManage
                 ? {
-                    selected,
-                    onChange: setSelected,
-                    label: (r) => r.postcode,
-                    barLabel: "Selected postcodes",
-                    busy: patch.isPending,
-                    actions: (
-                      <>
-                        <Select value={moveTo} onValueChange={setMoveTo}>
-                          <ActionBarSelectTrigger aria-label="Move to group">
-                            <SelectValue placeholder="Move to group…" />
-                          </ActionBarSelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="none">No group</SelectItem>
-                            {groups.map((g) => (
-                              <SelectItem key={g.id} value={g.id}>
-                                {g.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <ActionBarButton
-                          disabled={!moveTo || patch.isPending}
-                          onClick={() => void move(moveTo === "none" ? null : moveTo)}
-                        >
-                          Move
-                        </ActionBarButton>
-                        <Select value={todayTo} onValueChange={(next) => setTodayTo(next as "" | "offer" | "stop")}>
-                          <ActionBarSelectTrigger aria-label="Delivery today">
-                            <SelectValue placeholder="Delivery today…" />
-                          </ActionBarSelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="offer">Offer</SelectItem>
-                            <SelectItem value="stop">Don't offer</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <ActionBarButton
-                          disabled={!todayTo || patch.isPending}
-                          onClick={() => void setToday(todayTo === "offer")}
-                        >
-                          Apply
-                        </ActionBarButton>
-                      </>
-                    ),
-                  }
+                  selected,
+                  onChange: setSelected,
+                  label: (r) => r.postcode,
+                  barLabel: "Selected postcodes",
+                  busy: patch.isPending,
+                  actions: (
+                    <>
+                      <Select value={moveTo} onValueChange={setMoveTo}>
+                        <ActionBarSelectTrigger aria-label="Move to group">
+                          <SelectValue placeholder="Move to group…" />
+                        </ActionBarSelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">No group</SelectItem>
+                          {groups.map((g) => (
+                            <SelectItem key={g.id} value={g.id}>
+                              {g.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <ActionBarButton
+                        disabled={!moveTo || patch.isPending}
+                        onClick={() => void move(moveTo === "none" ? null : moveTo)}
+                      >
+                        Move
+                      </ActionBarButton>
+                      <Select value={todayTo} onValueChange={(next) => setTodayTo(next as "" | "offer" | "stop")}>
+                        <ActionBarSelectTrigger aria-label="Delivery today">
+                          <SelectValue placeholder="Delivery today…" />
+                        </ActionBarSelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="offer">Offer</SelectItem>
+                          <SelectItem value="stop">Don't offer</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <ActionBarButton
+                        disabled={!todayTo || patch.isPending}
+                        onClick={() => void setToday(todayTo === "offer")}
+                      >
+                        Apply
+                      </ActionBarButton>
+                    </>
+                  ),
+                }
                 : undefined
             }
             empty={{ icon: MapPin, title: "No postcodes yet", description: "Effy delivers nowhere until a place is added." }}
@@ -353,7 +353,7 @@ function coverageColumns(groupName: ReadonlyMap<string, string>, actions: RowAct
         const r = row.original
         return (
           <>
-            {r.places.slice(0, 3).join(", ") || "—"}
+            {r.places.slice(0, 3).join(", ") || "-"}
             {r.places.length > 3 ? <span className="text-muted-foreground"> +{r.places.length - 3} more</span> : null}
             {r.state ? <span className="text-muted-foreground"> · {r.state}</span> : null}
           </>
@@ -365,7 +365,7 @@ function coverageColumns(groupName: ReadonlyMap<string, string>, actions: RowAct
       id: "group",
       header: "Group",
       cell: ({ row }) => (
-        <span className="text-muted-foreground">{row.original.groupId ? (groupName.get(row.original.groupId) ?? "—") : "No group"}</span>
+        <span className="text-muted-foreground">{row.original.groupId ? (groupName.get(row.original.groupId) ?? "-") : "No group"}</span>
       ),
       meta: { label: "Group" },
     },
@@ -393,22 +393,22 @@ function coverageColumns(groupName: ReadonlyMap<string, string>, actions: RowAct
     },
     ...(actions
       ? [
-          {
-            id: "actions",
-            header: () => <span className="sr-only">Actions</span>,
-            cell: ({ row }) => (
-              <span className="flex justify-end gap-1">
-                <Button variant="outline" size="sm" onClick={() => actions.onDistance(row.original)}>
-                  Distance
-                </Button>
-                <Button variant="ghost" size="sm" onClick={() => actions.onRemove(row.original)}>
-                  Remove
-                </Button>
-              </span>
-            ),
-            meta: { label: "Actions", phone: "full", className: "text-right" },
-          } satisfies EffyColumnDef<CoveragePostcodeDTO>,
-        ]
+        {
+          id: "actions",
+          header: () => <span className="sr-only">Actions</span>,
+          cell: ({ row }) => (
+            <span className="flex justify-end gap-1">
+              <Button variant="outline" size="sm" onClick={() => actions.onDistance(row.original)}>
+                Distance
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => actions.onRemove(row.original)}>
+                Remove
+              </Button>
+            </span>
+          ),
+          meta: { label: "Actions", phone: "full", className: "text-right" },
+        } satisfies EffyColumnDef<CoveragePostcodeDTO>,
+      ]
       : []),
   ]
 }

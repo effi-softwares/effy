@@ -26,8 +26,8 @@ const DAY = /^\d{4}-\d{2}-\d{2}$/;
 export const searchFilter = {
   oneOf:
     <T extends string>(values: readonly T[]): ClientFilterParser<T> =>
-    (raw) =>
-      typeof raw === "string" && (values as readonly string[]).includes(raw) ? (raw as T) : undefined,
+      (raw) =>
+        typeof raw === "string" && (values as readonly string[]).includes(raw) ? (raw as T) : undefined,
   uuid: ((raw) => (typeof raw === "string" && UUID.test(raw) ? raw.toLowerCase() : undefined)) as ClientFilterParser<string>,
   day: ((raw) => (typeof raw === "string" && DAY.test(raw) ? raw : undefined)) as ClientFilterParser<string>,
   /** `true` only (a flag); absent means off. The router may hand back a boolean or the string. */
@@ -169,7 +169,7 @@ export function defineListSearch<S extends string, F extends Record<string, Filt
   };
 }
 
-/** Whether any filter or a search is set — the difference between "no matches" and "nothing yet". */
+/** Whether any filter or a search is set - the difference between "no matches" and "nothing yet". */
 export function isFiltered<S extends string, F extends Record<string, FilterValue>>(
   view: ListView<S, F>,
   except: readonly (keyof F)[] = [],

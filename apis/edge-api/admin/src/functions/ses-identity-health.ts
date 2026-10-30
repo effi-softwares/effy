@@ -19,7 +19,7 @@ export const handler = async (_event: unknown, context: Context): Promise<void> 
 
   const identity = process.env.MAIL_SENDING_DOMAIN
   if (!identity) {
-    logger.error("MAIL_SENDING_DOMAIN is not configured — the MAIL FROM probe cannot run")
+    logger.error("MAIL_SENDING_DOMAIN is not configured - the MAIL FROM probe cannot run")
     // Emit nothing: the alarm treats missing data as breaching.
     return
   }

@@ -127,7 +127,7 @@ async function withBands(q: Queryable, row: PlanRow): Promise<Plan> {
     q.query<{ slot_id: string; add_amount: string }>(
       `SELECT p.slot_id::text AS slot_id, p.add_amount::text AS add_amount
          FROM public.delivery_slot_premium p
-         -- availability-exempt: public.delivery_slot — a delivery window's lifecycle, not a product's.
+         -- availability-exempt: public.delivery_slot - a delivery window's lifecycle, not a product's.
          JOIN public.delivery_slot s ON s.id = p.slot_id AND s.status = 'active'
         WHERE p.plan_id = $1`,
       [row.id],

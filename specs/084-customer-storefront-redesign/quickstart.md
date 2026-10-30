@@ -1,4 +1,4 @@
-# Quickstart — validating 084
+# Quickstart - validating 084
 
 ## Run
 
@@ -26,7 +26,7 @@ pnpm --filter @effy/edge-shared test -- gateway-capacity
 ## Operator steps
 
 ```sh
-# backend first — the web reads new fields defensively, so order is safe either way
+# backend first - the web reads new fields defensively, so order is safe either way
 AWS_PROFILE=ef make deploy SERVICE=storefront ENV=dev
 AWS_PROFILE=ef make deploy SERVICE=commerce ENV=dev
 AWS_PROFILE=ef make gateway-usage ENV=dev
@@ -40,8 +40,8 @@ at 1440 wide (D) or 390 wide (P) and tick it. States that need setting up:
 
 | State | How |
 | --- | --- |
-| Home — empty store / unavailable | point `EDGE_API_URL` at an empty env / an unreachable host |
-| Checkout — courier only / not serviced | an address outside the postcode list, with courier on / off |
+| Home - empty store / unavailable | point `EDGE_API_URL` at an empty env / an unreachable host |
+| Checkout - courier only / not serviced | an address outside the postcode list, with courier on / off |
 | Window closed / full | a window past cutoff; a window at capacity |
 | Payment declined / 3DS | Stripe test cards `4000 0000 0000 0002` / `4000 0027 6000 3184` |
 | Confirmation pending / not completed | return with `redirect_status=processing` / `failed` |

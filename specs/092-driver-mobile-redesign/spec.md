@@ -8,13 +8,13 @@
 
 **Input**: User description: "Move on to the redesign of the driver app UI (driver backlog G1–G3), from the
 design canvas 'Effy Driver Mobile Redesign' (docs/reference-screens/Effy Driver Mobile v2/), the redesign
-brief and the scanning design — including the simplifications it implies (E1–E5), customer contact (F1),
+brief and the scanning design - including the simplifications it implies (E1–E5), customer contact (F1),
 the scanning screens (H6–H11) and the offline and notification states."
 
 ## Background
 
-The driver app works but carries more than a simple work tool needs — a Map tab, an activity feed, day
-stats and a shift timer, a four-step drop — and its look predates the platform's current identity.
+The driver app works but carries more than a simple work tool needs - a Map tab, an activity feed, day
+stats and a shift timer, a four-step drop - and its look predates the platform's current identity.
 The redesign canvas (61 artboards, light and dark, committed in
 `docs/reference-screens/Effy Driver Mobile v2/`) is the target: three tabs, the customer app's identity
 used for a work tool, bigger targets for one-handed outdoor use, scanning as the main way to move work
@@ -28,9 +28,9 @@ hub instructions and "load the van" (090). This feature is the screens.
 
 ### Session 2026-10-16
 
-- Q: Which identity — the brief's console palette or the canvas's? → A: **The canvas** (operator, 2026-10-16):
+- Q: Which identity - the brief's console palette or the canvas's? → A: **The canvas** (operator, 2026-10-16):
   the storefront identity (Effy blue for the next action, Effy green for done, a problem is black with an
-  icon — no red or orange), Geist, Lucide icons, its light and dark palettes. Constitution amended to v3.5.0.
+  icon - no red or orange), Geist, Lucide icons, its light and dark palettes. Constitution amended to v3.5.0.
 - Q: How does the driver reach the customer? → A: **A direct call from the drop** (operator, 2026-10-16), to
   the number the customer gave at checkout, sent only to the driver holding that drop and only while it
   is open. No masked relay (it would need a telephony vendor).
@@ -67,7 +67,7 @@ cover it. There is no Map tab, no activity feed, no day stats and no shift timer
 ### User Story 2 - Two taps to a delivered drop (Priority: P1)
 
 From a drop: **Deliver** (or **Scan to deliver**) → how it was handed over (photo, signature, left safely
-— led by the customer's preference) → **Delivered**, with **Next drop**. Arrival is recorded by itself; there
+- led by the customer's preference) → **Delivered**, with **Next drop**. Arrival is recorded by itself; there
 is no separate Start / On my way / Arrived. **Can't deliver** records a reason (Other needs a note) and tells
 the driver to keep the parcels for the hub. The drop shows the customer's first name, address, window
 (Due now / Late), instructions, packages by position, **Navigate** and **Call** the customer.
@@ -80,7 +80,7 @@ the driver to keep the parcels for the hub. The drop shows the customer's first 
 
 1. **Given** a drop, **When** the driver taps Deliver and takes a photo, **Then** the drop is delivered
    (arrival recorded with it) and Next drop is offered.
-2. **Given** no signal, **When** a drop is delivered, **Then** it reads "Saved — sending when you're back online"
+2. **Given** no signal, **When** a drop is delivered, **Then** it reads "Saved - sending when you're back online"
    and the driver carries on.
 3. **Given** a drop, **When** the driver taps Call, **Then** the phone dials the customer's number.
 4. **Given** Can't deliver → Something else with no note, **Then** the platform's own message shows at the field.
@@ -92,8 +92,8 @@ the driver to keep the parcels for the hub. The drop shows the customer's first 
 The run overview lists the shops in order (Collected / Short / Next / To collect), ending at the hub. At a
 shop the driver ticks each package (or reports it missing, damaged, not ready), sees EFFY · window or
 COURIER per package, and swipes "Collected n of m"; an unticked package asks first. At the hub, one action
-checks everything in and shows where parcels go — Effy by day and window (load now / shelve) and Courier
-(with the next courier pickup) — or, offline, "Checked in — sending".
+checks everything in and shows where parcels go - Effy by day and window (load now / shelve) and Courier
+(with the next courier pickup) - or, offline, "Checked in - sending".
 
 **Why this priority**: Half of every driver's day.
 
@@ -120,7 +120,7 @@ package stops the driver.
 
 History lists finished runs and deliveries by day, with a delivery's proof. Account shows the driver, hub,
 vehicle, duty, appearance (Match phone / Light / Dark inline), notifications and camera status, Help (call
-dispatch, call the hub desk, handbook — "Not set up" when unconfigured), the app version and Sign out
+dispatch, call the hub desk, handbook - "Not set up" when unconfigured), the app version and Sign out
 (which says it also goes off duty and warns about held work).
 
 **Independent Test**: Open each; sign out holding work.
@@ -130,16 +130,16 @@ dispatch, call the hub desk, handbook — "Not set up" when unconfigured), the a
 ### User Story 6 - Getting in (Priority: P3)
 
 Splash, sign in by work email, the 6-digit code (wrong, expired, too many, offline), account can't be used,
-the permissions explainer (asked once) and permission refused — in the new identity.
+the permissions explainer (asked once) and permission refused - in the new identity.
 
 **Independent Test**: Sign in from scratch, with a wrong code, and as a disabled driver.
 
 ### Edge Cases
 
-- A run reassigned while open — "This stop was moved", back to Today.
-- An action before the round opens — "Opens at …", nothing changed.
-- An offline write later refused — the "Not recorded" banner with Call dispatch.
-- A driver with no vehicle or hub — the row says so, never blank.
+- A run reassigned while open - "This stop was moved", back to Today.
+- An action before the round opens - "Opens at …", nothing changed.
+- An offline write later refused - the "Not recorded" banner with Call dispatch.
+- A driver with no vehicle or hub - the row says so, never blank.
 - Installed builds in the field keep working until the new build reaches them (every new server field is optional).
 
 ## Requirements *(mandatory)*
@@ -148,7 +148,7 @@ the permissions explainer (asked once) and permission refused — in the new ide
 
 **Shell and identity**
 
-- **FR-001**: The app MUST have three tabs — Today, History, Account — on phones, and a rail on tablets;
+- **FR-001**: The app MUST have three tabs - Today, History, Account - on phones, and a rail on tablets;
   no Map tab and no activity feed.
 - **FR-002**: The app MUST use the identity of the canvas: its colours in light and dark (chosen in Account:
   Match phone / Light / Dark), Geist (Geist Mono for references), Lucide icons, its radii, and targets of at
@@ -165,7 +165,7 @@ the permissions explainer (asked once) and permission refused — in the new ide
 
 **Delivery**
 
-- **FR-006**: A drop MUST be delivered in two steps — Deliver (or a completed door scan), then proof — with
+- **FR-006**: A drop MUST be delivered in two steps - Deliver (or a completed door scan), then proof - with
   arrival recorded as part of it.
 - **FR-007**: The proof choice MUST lead with the customer's handover preference; left safely MUST take a
   photo and a "left at" place.

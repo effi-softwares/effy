@@ -17,12 +17,12 @@ import { UnitPrice } from "./UnitPrice"
 
 /**
  * The product page's buy box: price, the size selector, availability and the add / save / list
- * controls — all following the one selected variant.
+ * controls - all following the one selected variant.
  *
  * The selection is always one variant. Picking a value moves to a variant that has it
  * (`lib/variant-selection.ts`), so price, "Available now" and the add button never describe a size
  * that does not exist. A sold-out size stays in the selector, marked in words and struck through
- *  — never by colour alone.
+ *  - never by colour alone.
  *
  * The URL follows the choice (`?variant=`) with `replaceState`, not a navigation: a shared link
  * opens on the same size, and choosing a size costs no request. The gallery is zero-JS (scroll-snap
@@ -43,7 +43,7 @@ export function VariantBuyBox({
   initialVariantId: string
   offer: ProductOfferDTO | null | undefined
   currency: string
-  /** The gallery's picture addresses, in slide order — to show a size's own picture. */
+  /** The gallery's picture addresses, in slide order - to show a size's own picture. */
   gallery: string[]
 }) {
   const [selectedId, setSelectedId] = useState(initialVariantId)
@@ -99,7 +99,7 @@ export function VariantBuyBox({
           Save {formatMoney(saving.toFixed(2), currency)} ({percentOff}% off)
         </p>
       )}
-      {/* "Available" is all that is said — never a count. */}
+      {/* "Available" is all that is said - never a count. */}
       <p role="status" className={`mt-4 flex items-center gap-2 text-sm font-medium ${selected.available ? "text-brand" : ""}`}>
         {selected.available ? <CircleCheck aria-hidden="true" className="size-4" /> : <CircleX aria-hidden="true" className="size-4" />}
         {selected.available ? "Available now" : options.length > 0 ? "This size is sold out" : "Currently unavailable"}
@@ -121,12 +121,11 @@ export function VariantBuyBox({
                 type="button"
                 aria-pressed={v.selected}
                 onClick={() => choose(pickValue(variants, selected.optionValueIds, row.slot, v.id))}
-                className={`inline-flex h-10 min-w-12 items-center justify-center rounded-md border px-3 text-sm font-medium shadow-xs transition hover:bg-accent ${
-                  v.selected ? "border-primary" : "border-input bg-background"
-                } ${v.state === "sold_out" ? "text-muted-foreground line-through" : ""}`}
+                className={`inline-flex h-10 min-w-12 items-center justify-center rounded-md border px-3 text-sm font-medium shadow-xs transition hover:bg-accent ${v.selected ? "border-primary" : "border-input bg-background"
+                  } ${v.state === "sold_out" ? "text-muted-foreground line-through" : ""}`}
               >
                 {v.value}
-                {v.state === "sold_out" ? <span className="sr-only"> — sold out</span> : null}
+                {v.state === "sold_out" ? <span className="sr-only"> - sold out</span> : null}
               </button>
             ))}
           </div>

@@ -5,16 +5,16 @@ import type { OrderStage } from "@effy/shared-types"
 import { cn } from "@/lib/utils"
 
 /**
- * The order's progress: four steps, the one it is at marked (reference: Orders · Order — on the way).
+ * The order's progress: four steps, the one it is at marked (reference: Orders · Order - on the way).
  *
  * The stage is the server's one word for the whole order. Nothing here reads packages, and nothing
  * here can show that an order was filled by more than one supplier.
  *
  * Every state is said as well as drawn: a finished step carries a tick and "completed", the current
- * one "current step" — a colour alone tells a screen reader, and a colour-blind customer, nothing.
+ * one "current step" - a colour alone tells a screen reader, and a colour-blind customer, nothing.
  *
  * A row from the width of a phone up; a column in anything narrower (the checkout confirmation's side
- * panel) — decided by the space it is given, not the screen, so the same component fits both.
+ * panel) - decided by the space it is given, not the screen, so the same component fits both.
  */
 const STEPS: ReadonlyArray<{ stage: OrderStage; label: string; note: string; icon: LucideIcon }> = [
   { stage: "confirmed", label: "Confirmed", note: "We've received your payment", icon: Check },
@@ -64,8 +64,8 @@ export function ProgressTrack({ stage, className }: { stage: OrderStage; classNa
               <span>
                 <span className={cn("block text-sm", reached ? "font-semibold" : "font-medium text-muted-foreground")}>
                   {step.label}
-                  {isCurrent ? <span className="sr-only"> — current step</span> : null}
-                  {done ? <span className="sr-only"> — completed</span> : null}
+                  {isCurrent ? <span className="sr-only"> - current step</span> : null}
+                  {done ? <span className="sr-only"> - completed</span> : null}
                 </span>
                 <span className="block text-xs text-muted-foreground">{step.note}</span>
               </span>

@@ -8,13 +8,13 @@ import kotlinx.serialization.Serializable
  * Why this exists at all
  *
  * A tap must land immediately, and the network must not be in that path. So a change is applied
- * to the mirror, queued here, and persisted — in that order — before any request exists. If the process
+ * to the mirror, queued here, and persisted - in that order - before any request exists. If the process
  * dies before the request goes out, the queue is still on disk and the change is applied on the next
  * launch.
  *
  * [changeId] is minted once per shopper action and reused by every retry of it. That is the whole
  * point: when a request reaches the platform but its response never reaches the client, the client cannot
- * tell success from failure — so it retries, and the platform recognises the id and does nothing. Minting
+ * tell success from failure - so it retries, and the platform recognises the id and does nothing. Minting
  * a fresh id per attempt would turn "add 1 milk" into "add 1 milk twice" precisely when the network is
  * worst.
  *
@@ -31,7 +31,7 @@ data class PendingChange(
     val variantId: String = "",
     /** The absolute quantity for SetQuantity, the increment for Add, otherwise ignored. */
     val quantity: Int = 0,
-    /** Only for [PendingChangeKind.Merge] — the device lines being folded in. */
+    /** Only for [PendingChangeKind.Merge] - the device lines being folded in. */
     val lines: List<PendingLine> = emptyList(),
     val status: PendingStatus = PendingStatus.Queued,
     /** How many times sending has been attempted, for backoff and for giving up. */
@@ -39,7 +39,7 @@ data class PendingChange(
     /** Set when the platform refused this definitively; surfaced to the shopper. */
     val failure: String? = null,
 ) {
-    /** A change the coordinator should stop retrying — a definitive refusal, not a network blip. */
+    /** A change the coordinator should stop retrying - a definitive refusal, not a network blip. */
     val isDead: Boolean get() = status == PendingStatus.Failed
 }
 

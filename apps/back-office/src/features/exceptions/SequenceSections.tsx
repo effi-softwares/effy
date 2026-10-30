@@ -35,9 +35,9 @@ import { useClearVehicleCheck, useResolveHold } from "./queries"
 import { ReasonDialog } from "./ReasonDialog"
 
 export function sequenceActionError(err: unknown): string {
-  if (!isDomainError(err)) return "Something went wrong. Nothing was changed — try again."
+  if (!isDomainError(err)) return "Something went wrong. Nothing was changed - try again."
   if (err.status === 403) return "Only an admin or a manager can do that."
-  if (err.status === 404) return "That is no longer there — somebody may have dealt with it. Reload to see."
+  if (err.status === 404) return "That is no longer there - somebody may have dealt with it. Reload to see."
   return err.detail ?? "That could not be done. Nothing was changed."
 }
 
@@ -162,7 +162,7 @@ export function HeldPanel({ data, canAct }: { data: DeliveryExceptionListDTO; ca
                               .catch(() => undefined)
                           }
                         >
-                          Found — plan again
+                          Found - plan again
                         </Button>
                         <LostButton
                           hold={h}
@@ -263,7 +263,7 @@ export function VehicleChecksPanel({ data, canAct }: { data: DeliveryExceptionLi
                             )}
                             <span>
                               {VEHICLE_CHECK_WORDS[a.item as VehicleCheckItem] ?? a.item}
-                              {a.note ? <span className="text-muted-foreground"> — {a.note}</span> : null}
+                              {a.note ? <span className="text-muted-foreground"> - {a.note}</span> : null}
                             </span>
                           </li>
                         ))}
@@ -277,7 +277,7 @@ export function VehicleChecksPanel({ data, canAct }: { data: DeliveryExceptionLi
                       <span className="text-xs text-muted-foreground">No action needed</span>
                     ) : c.clearedAt ? (
                       <span className="text-xs text-muted-foreground">
-                        Cleared{c.clearNote ? ` — ${c.clearNote}` : ""}
+                        Cleared{c.clearNote ? ` - ${c.clearNote}` : ""}
                       </span>
                     ) : canAct ? (
                       <ReasonDialog

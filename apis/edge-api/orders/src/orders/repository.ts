@@ -94,7 +94,7 @@ function baseWhere(params: ListParams): { where: string[]; args: unknown[] } {
     const code = args.length;
     where.push(
       `(o.order_number ILIKE $${like} OR c.email::text ILIKE $${like}` +
-        ` OR EXISTS (SELECT 1 FROM public.shop_fulfillment pc WHERE pc.order_id = o.id AND pc.package_code = $${code}))`,
+      ` OR EXISTS (SELECT 1 FROM public.shop_fulfillment pc WHERE pc.order_id = o.id AND pc.package_code = $${code}))`,
     );
   }
   if (params.status) {
@@ -368,14 +368,23 @@ export interface OrderItemRow {
   quantity: number;
   line_subtotal_amount: string;
   shop_id: string;
+  /** The variant's picture, else the product's main one (as the shop's pick list chooses it). */
+  image_key: string | null;
 }
 
 export async function items(orderId: string): Promise<OrderItemRow[]> {
   const res = await query<OrderItemRow>(
     `SELECT oi.id AS order_item_id, oi.product_id, oi.product_name,
             oi.variant_id::text AS variant_id, oi.variant_label, oi.variant_code, oi.sku,
-            oi.unit_price_amount::text, oi.quantity, oi.line_subtotal_amount::text, oi.shop_id
+            oi.unit_price_amount::text, oi.quantity, oi.line_subtotal_amount::text, oi.shop_id,
+            pm.storage_key AS image_key
        FROM public.order_item oi
+  LEFT JOIN public.product_variant pv ON pv.id = oi.variant_id
+  LEFT JOIN LATERAL (
+      SELECT m.storage_key FROM public.product_media m
+       WHERE m.product_id = oi.product_id AND (m.id = pv.media_id OR m.is_primary)
+       ORDER BY (m.id = pv.media_id) DESC LIMIT 1
+  ) pm ON true
       WHERE oi.order_id = $1
    ORDER BY oi.product_name, oi.variant_label NULLS FIRST`,
     [orderId],
@@ -461,6 +470,54 @@ export async function packages(orderId: string): Promise<PackageRow[]> {
   return res.rows;
 }
 
+export interface MilestoneRow {
+  package_id: string;
+  placed_at: Date | null;
+  ready_at: Date | null;
+  collected_at: Date | null;
+  checked_in_at: Date | null;
+  loaded_at: Date | null;
+  carrier_at: Date | null;
+  arrived_at: Date | null;
+}
+
+/**
+ * When each package reached each step, from the records that already say so - nothing is stored for it. Bags are
+ * handed over one by one: a step counts from its first bag. "Ready" is the latest, since picking can be reopened.
+ */
+export async function milestones(packageIds: string[]): Promise<MilestoneRow[]> {
+  if (packageIds.length === 0) return [];
+  const step = (s: string) =>
+    `(SELECT min(h.recorded_at) FROM public.package_handover h WHERE h.shop_fulfillment_id = sf.id AND h.step ${s})`;
+  const res = await query<MilestoneRow>(
+    `SELECT sf.id::text AS package_id,
+            o.placed_at,
+            (SELECT max(fe.occurred_at) FROM public.fulfillment_event fe
+              WHERE fe.shop_fulfillment_id = sf.id AND fe.to_status = 'ready_for_pickup') AS ready_at,
+            ${step("= 'collect'")} AS collected_at,
+            ${step("= 'checkin'")} AS checked_in_at,
+            ${step("= 'load'")} AS loaded_at,
+            COALESCE(${step("IN ('courier_handover', 'shop_pickup')")}, ch.handed_over_at) AS carrier_at,
+            pa.arrived_at
+       FROM public.shop_fulfillment sf
+       JOIN public."order" o ON o.id = sf.order_id
+  LEFT JOIN public.carrier_handoff ch ON ch.shop_fulfillment_id = sf.id
+  LEFT JOIN public.package_arrival pa ON pa.shop_fulfillment_id = sf.id
+      WHERE sf.id = ANY($1::uuid[])`,
+    [packageIds],
+  );
+  return res.rows;
+}
+
+/** The customer's paid orders, for the order page's Customer section. */
+export async function paidOrderCount(customerId: string): Promise<number> {
+  const res = await query<{ n: number }>(
+    `SELECT count(*)::int AS n FROM public."order" WHERE customer_id = $1 AND status = 'paid'`,
+    [customerId],
+  );
+  return res.rows[0]?.n ?? 0;
+}
+
 export interface CourierParcelRow {
   fulfillment_id: string;
   order_id: string;
@@ -485,7 +542,7 @@ export interface CourierParcelRow {
 }
 
 /**
- * Every unfinished courier parcel of an order sold as courier delivery — no cap (103): the set is bounded by
+ * Every unfinished courier parcel of an order sold as courier delivery - no cap (103): the set is bounded by
  * what is in flight, and the service decides each one's stage and due time (`nextCourierPickup`), then pages.
  */
 export async function courierParcels(): Promise<CourierParcelRow[]> {

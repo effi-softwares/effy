@@ -35,7 +35,7 @@ import org.jetbrains.compose.resources.DrawableResource
 
 /**
  * The two permissions, explained before the phone asks (canvas `Permissions`). Asked once; "Not now"
- * goes straight in — the app never blocks on a grant.
+ * goes straight in - the app never blocks on a grant.
  */
 @Composable
 fun PermissionPrimingScreen(firstName: String?, onContinue: () -> Unit) {
@@ -48,7 +48,7 @@ fun PermissionPrimingScreen(firstName: String?, onContinue: () -> Unit) {
             Text(firstName?.let { "Welcome, $it" } ?: "Welcome", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text("Two things the app needs", fontSize = 28.sp, lineHeight = 34.sp, fontWeight = FontWeight.Bold)
             Text("Your phone will ask next. Here's what each one is for.", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Reason(Res.drawable.lucide_bell, "Notifications", "So you hear the moment a run is assigned or changes — even with the app closed.")
+            Reason(Res.drawable.lucide_bell, "Notifications", "So you hear the moment a run is assigned or changes - even with the app closed.")
             Reason(Res.drawable.lucide_camera, "Camera", "To photograph proof of delivery at the door. Photos are only taken when you press the shutter.")
         }
         Column(Modifier.padding(vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {

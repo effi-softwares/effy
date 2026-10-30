@@ -8,13 +8,13 @@ working; the change is that brand and attribute facets now accept **repeated** p
 | Param | Before | Now |
 |---|---|---|
 | `attr.<key>` | single value taken (`vals[0]`) | **all** repeated values taken → OR within the facet |
-| `brand` | — (not a filter) | **new**, repeatable → `product.brand = ANY($brands)` |
+| `brand` | - (not a filter) | **new**, repeatable → `product.brand = ANY($brands)` |
 
 Unchanged: `q`, `categoryKey`, `minPrice`, `maxPrice`, `saleOnly`, `sort`, `cursor`, `limit`, and the
-`ids=` hydration variant. Response shape (`ProductSearchResultDTO`) is **unchanged** — `items`,
+`ids=` hydration variant. Response shape (`ProductSearchResultDTO`) is **unchanged** - `items`,
 `nextCursor`, `total`, `sort`.
 
-## Shared-types change (`@effy/shared-types` storefront.ts — single source, Kotlin generated from it)
+## Shared-types change (`@effy/shared-types` storefront.ts - single source, Kotlin generated from it)
 
 ```ts
 export interface ProductSearchQuery {
@@ -23,8 +23,8 @@ export interface ProductSearchQuery {
   minPrice?: string;
   maxPrice?: string;
   saleOnly?: boolean;
-  brands?: string[];                       // NEW — OR within
-  attributes?: Record<string, string[]>;   // CHANGED from Record<string,string> — OR within, AND across keys
+  brands?: string[];                       // NEW - OR within
+  attributes?: Record<string, string[]>;   // CHANGED from Record<string,string> - OR within, AND across keys
   sort?: ProductSort;
   cursor?: string;
   limit?: number;
@@ -37,7 +37,7 @@ export interface ProductSearchQuery {
 - Repeated `attr.<key>` → the attribute `EXISTS` predicate matches when the product's value is any of
   the supplied values (`value_text = ANY($vals) OR value_options && $vals`).
 - Different facet keys AND together (existing behaviour).
-- `total` counts the same predicate set as the page (the single shared `filters()` builder — extended,
+- `total` counts the same predicate set as the page (the single shared `filters()` builder - extended,
   not duplicated).
 
 ## Guards

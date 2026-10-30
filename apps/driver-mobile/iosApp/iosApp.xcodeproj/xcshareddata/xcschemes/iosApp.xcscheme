@@ -4,23 +4,23 @@
 
   ⚠ WHY THIS FILE EXISTS AT ALL. Before 060 this project had NO shared scheme, so Xcode generated an
   implicit one per machine and every developer silently inherited Xcode's defaults. The run
-  configuration was unreproducible and invisible — which is how the setting below went unnoticed.
+  configuration was unreproducible and invisible - which is how the setting below went unnoticed.
 
-  ⚠ METAL API VALIDATION IS ON — Xcode's default, restored deliberately.
+  ⚠ METAL API VALIDATION IS ON - Xcode's default, restored deliberately.
 
   It was previously disabled here (enableGPUValidationMode = "0") for ONE reason: MapLibre Native's
   Metal backend aborted under the validation layer, so tapping the Map tab killed the app with
   SIGABRT on MapLibre's render thread. The note that stood here said outright "THIS DOES NOT FIX A
   BUG, IT HIDES ONE".
 
-  ⚠ MAPLIBRE WAS THEN REMOVED FROM THIS APP ENTIRELY (060 — see EffyMapCanvas and
+  ⚠ MAPLIBRE WAS THEN REMOVED FROM THIS APP ENTIRELY (060 - see EffyMapCanvas and
   MapLibreAbsentGuardTest), which left the suppression with nothing to suppress. It was not removed
   at the same time, so for a while this app silently ran with a debugging safety net switched off
   to accommodate a dependency that was no longer here. A workaround MUST NOT outlive its cause: the
   next person to hit a real Metal fault would have been debugging blind and had no way to know.
 
   The app now draws a schematic (EffyMapCanvas) with no GPU-heavy dependency, so validation has
-  nothing to object to. If it ever fires again, that is a REAL defect in this app — investigate it,
+  nothing to object to. If it ever fires again, that is a REAL defect in this app - investigate it,
   do not turn this off.
 -->
 <Scheme LastUpgradeVersion = "1700" version = "1.7">

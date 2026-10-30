@@ -7,7 +7,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 
-/** Backlog B2 — the proof, presign and fail routes answer 422 with a sentence for the driver. */
+/** Backlog B2 - the proof, presign and fail routes answer 422 with a sentence for the driver. */
 class HttpErrorsTest {
     private val note = "Tell us what happened, so someone can follow it up."
 

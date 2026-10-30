@@ -33,7 +33,7 @@ type StockDialog = { kind: "receive" | "count" | "rules"; variantId: string; ope
 
 /**
  * The product's sizes: one at a time (each size's price, stock and codes, edited where they are shown) or as a
- * spreadsheet the shop types prices, codes and weights into — one draft for both, so switching keeps what is typed.
+ * spreadsheet the shop types prices, codes and weights into - one draft for both, so switching keeps what is typed.
  * Adding, removing or re-labelling sizes is the sizes dialog's. Turning a size off sale and stock are immediate; a
  * price, code or weight on an approved product goes to Effy for review.
  */
@@ -93,9 +93,9 @@ export function ProductSizes({
           disabled={setState.isPending || last || readOnly || heldOff}
           title={
             heldOff
-              ? "Effy is holding this product — no size can go back on sale until Effy releases it"
+              ? "Effy is holding this product - no size can go back on sale until Effy releases it"
               : last
-                ? "The last size on sale — make the product unavailable instead"
+                ? "The last size on sale - make the product unavailable instead"
                 : undefined
           }
           onCheckedChange={(on) => void change(s, on ? "active" : "inactive")}
@@ -177,41 +177,41 @@ export function ProductSizes({
           footer={
             hasOptions && !readOnly
               ? (s) => (
-                  <Button
-                    variant="ghost"
-                    className="text-destructive hover:bg-destructive-soft hover:text-destructive"
-                    disabled={setState.isPending || (s.onSale && onSale <= 1)}
-                    onClick={() => setRemoving(s)}
-                  >
-                    <Trash2 aria-hidden="true" />
-                    Remove {s.label}
-                  </Button>
-                )
+                <Button
+                  variant="ghost"
+                  className="text-destructive hover:bg-destructive-soft hover:text-destructive"
+                  disabled={setState.isPending || (s.onSale && onSale <= 1)}
+                  onClick={() => setRemoving(s)}
+                >
+                  <Trash2 aria-hidden="true" />
+                  Remove {s.label}
+                </Button>
+              )
               : undefined
           }
           edit={
             readOnly
               ? undefined
               : {
-                  sizeId: editingId,
-                  onStart: setEditingId,
-                  value: draft.typed,
-                  initial: draft.initial,
-                  errors: draft.errors,
-                  onChange: draft.change,
-                  onSave: () => draft.save(() => setEditingId(null)),
-                  onCancel: () => {
-                    draft.discard()
-                    setEditingId(null)
-                  },
-                  currency: detail.currency,
-                  saveLabel: draft.saveLabel,
-                  note: draft.invalid ? "Fix the marked fields first." : draft.note,
-                  customerPriceWhileChanging: draft.approved ? "Set by Effy on approval" : "Set when Effy approves it",
-                  saving: draft.saving,
-                  error: draft.error,
-                  onReload: draft.stale ? draft.reload : undefined,
-                }
+                sizeId: editingId,
+                onStart: setEditingId,
+                value: draft.typed,
+                initial: draft.initial,
+                errors: draft.errors,
+                onChange: draft.change,
+                onSave: () => draft.save(() => setEditingId(null)),
+                onCancel: () => {
+                  draft.discard()
+                  setEditingId(null)
+                },
+                currency: detail.currency,
+                saveLabel: draft.saveLabel,
+                note: draft.invalid ? "Fix the marked fields first." : draft.note,
+                customerPriceWhileChanging: draft.approved ? "Set by Effy on approval" : "Set when Effy approves it",
+                saving: draft.saving,
+                error: draft.error,
+                onReload: draft.stale ? draft.reload : undefined,
+              }
           }
           addSize={
             !readOnly && onEditSizes ? (
@@ -320,28 +320,28 @@ function SheetEditor({
           readOnly
             ? undefined
             : {
-                value: draft.typed,
-                initial: draft.initial,
-                errors: draft.errors,
-                disabled: draft.saving,
-                onChange: draft.change,
-              }
+              value: draft.typed,
+              initial: draft.initial,
+              errors: draft.errors,
+              disabled: draft.saving,
+              onChange: draft.change,
+            }
         }
         onSaleControl={saleControl}
         stockAction={
           readOnly
             ? undefined
             : (s) => (
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={() => onReceive(s.id)}
-                  aria-label={`Receive stock of ${s.label}`}
-                  title="Receive stock"
-                >
-                  <Plus />
-                </Button>
-              )
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => onReceive(s.id)}
+                aria-label={`Receive stock of ${s.label}`}
+                title="Receive stock"
+              >
+                <Plus />
+              </Button>
+            )
         }
       />
       {readOnly ? null : (

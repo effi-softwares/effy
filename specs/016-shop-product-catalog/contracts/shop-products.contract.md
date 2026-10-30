@@ -6,8 +6,8 @@
 
 **Authz** (`authz.ts`, from the `shop_staff` record, backend-authoritative, fail-closed):
 `authorizeShopMember(sub)` = `shop_staff.status='active' AND shop.status='active'` on the operator's
-assigned shop (**any** role — `shop_manager` or `shop_staff`, R5). **Every** query is scoped
-`WHERE shop_id = :actorShopId`, derived from the record — never from client input (FR-019/FR-031).
+assigned shop (**any** role - `shop_manager` or `shop_staff`, R5). **Every** query is scoped
+`WHERE shop_id = :actorShopId`, derived from the record - never from client input (FR-019/FR-031).
 Denials are uniform (403) and never disclose which term failed; infra throw → 503.
 
 **Errors**: RFC 9457; `validation`→400 (+`errors[]`), `not_found`→404, `conflict`→409
@@ -20,37 +20,37 @@ bodies never leak internals.
 
 | Method | Path | Response |
 |---|---|---|
-| GET | `/shop/v1/catalog/schema` | `CatalogSchemaDTO` — active `product-types` each with their assigned attributes (mandatory/optional, order, group) + the active `category` tree. One call bootstraps the step form. |
+| GET | `/shop/v1/catalog/schema` | `CatalogSchemaDTO` - active `product-types` each with their assigned attributes (mandatory/optional, order, group) + the active `category` tree. One call bootstraps the step form. |
 
 ## Products
 
 | Method | Path | Query / Body | Response |
 |---|---|---|---|
-| GET | `/shop/v1/products` | `page,pageSize,q,type,category,section,status,priceMin,priceMax,sort(name\|price\|recent),order(asc\|desc)` | `PagedDTO<ProductListItemDTO>` (`items,total,page,pageSize`) — **all backend-computed** (FR-017); `pageSize` clamped ≤100; `q` matches name/sku/brand/short_description |
-| GET | `/shop/v1/products/{id}` | — | `ProductDetailDTO` (+ `brand`, `updatedAt` token, attributes, media w/ presigned GET urls, sections, `missingMandatoryAttributes[]` per FR-020a); 404 if not this shop's |
-| POST | `/shop/v1/products` | `CreateProductRequest` (incl. optional `brand`) | `201 ProductDetailDTO` — validates universal + type-mandatory attributes; 400 field errors; 409 on dup SKU |
-| PATCH | `/shop/v1/products/{id}` | `UpdateProductRequest` (subset + `expectedUpdatedAt`) | `ProductDetailDTO` — **focused edit**: updates only supplied fields/attributes, re-validates them (mandatory cannot be cleared) (FR-023/FR-024); **409 if `expectedUpdatedAt` is stale** (optimistic concurrency, FR-023a) |
-| POST | `/shop/v1/products/{id}/status` | `ChangeProductStatusRequest` (`draft\|active\|unavailable\|archived`) | `ProductDetailDTO` — publish re-validates mandatory; archive is the default "remove" |
-| DELETE | `/shop/v1/products/{id}` | — | `204` — **hard delete only if unreferenced/draft** else `409` "archive instead" (R8) |
+| GET | `/shop/v1/products` | `page,pageSize,q,type,category,section,status,priceMin,priceMax,sort(name\|price\|recent),order(asc\|desc)` | `PagedDTO<ProductListItemDTO>` (`items,total,page,pageSize`) - **all backend-computed** (FR-017); `pageSize` clamped ≤100; `q` matches name/sku/brand/short_description |
+| GET | `/shop/v1/products/{id}` | - | `ProductDetailDTO` (+ `brand`, `updatedAt` token, attributes, media w/ presigned GET urls, sections, `missingMandatoryAttributes[]` per FR-020a); 404 if not this shop's |
+| POST | `/shop/v1/products` | `CreateProductRequest` (incl. optional `brand`) | `201 ProductDetailDTO` - validates universal + type-mandatory attributes; 400 field errors; 409 on dup SKU |
+| PATCH | `/shop/v1/products/{id}` | `UpdateProductRequest` (subset + `expectedUpdatedAt`) | `ProductDetailDTO` - **focused edit**: updates only supplied fields/attributes, re-validates them (mandatory cannot be cleared) (FR-023/FR-024); **409 if `expectedUpdatedAt` is stale** (optimistic concurrency, FR-023a) |
+| POST | `/shop/v1/products/{id}/status` | `ChangeProductStatusRequest` (`draft\|active\|unavailable\|archived`) | `ProductDetailDTO` - publish re-validates mandatory; archive is the default "remove" |
+| DELETE | `/shop/v1/products/{id}` | - | `204` - **hard delete only if unreferenced/draft** else `409` "archive instead" (R8) |
 
 ## Product media (presigned direct-to-S3)
 
 | Method | Path | Body | Response |
 |---|---|---|---|
-| POST | `/shop/v1/products/{id}/media` | `CreatePresignedUploadRequest` (`contentType`, `fileSize`) | `CreatePresignedUploadResponse` (`uploadUrl`, `storageKey`) — validates type ∈ jpeg/png/webp + max size (FR-026) |
-| POST | `/shop/v1/products/{id}/media/register` | `{storageKey, isPrimary?, altText?}` | `ProductMediaDTO` — records the uploaded object |
-| PATCH | `/shop/v1/products/{id}/media/{mediaId}` | `{isPrimary?, displayOrder?, altText?}` | `ProductMediaDTO` — reorder / set primary |
-| DELETE | `/shop/v1/products/{id}/media/{mediaId}` | — | `204` — cannot delete the last/primary of an active product (400) |
+| POST | `/shop/v1/products/{id}/media` | `CreatePresignedUploadRequest` (`contentType`, `fileSize`) | `CreatePresignedUploadResponse` (`uploadUrl`, `storageKey`) - validates type ∈ jpeg/png/webp + max size (FR-026) |
+| POST | `/shop/v1/products/{id}/media/register` | `{storageKey, isPrimary?, altText?}` | `ProductMediaDTO` - records the uploaded object |
+| PATCH | `/shop/v1/products/{id}/media/{mediaId}` | `{isPrimary?, displayOrder?, altText?}` | `ProductMediaDTO` - reorder / set primary |
+| DELETE | `/shop/v1/products/{id}/media/{mediaId}` | - | `204` - cannot delete the last/primary of an active product (400) |
 
 ## Shop sections (shop-local)
 
 | Method | Path | Body | Response |
 |---|---|---|---|
-| GET | `/shop/v1/sections` | — | `ShopSectionDTO[]` (this shop) |
-| POST | `/shop/v1/sections` | `CreateShopSectionRequest` (`name`, `displayOrder?`) | `201 ShopSectionDTO` — 409 on dup name in shop |
+| GET | `/shop/v1/sections` | - | `ShopSectionDTO[]` (this shop) |
+| POST | `/shop/v1/sections` | `CreateShopSectionRequest` (`name`, `displayOrder?`) | `201 ShopSectionDTO` - 409 on dup name in shop |
 | PATCH | `/shop/v1/sections/{id}` | `{name?, displayOrder?}` | `ShopSectionDTO` |
-| DELETE | `/shop/v1/sections/{id}` | — | `204` (unassigns products via cascade) |
-| PATCH | `/shop/v1/products/{id}/sections` | `{sectionIds: string[]}` | `ProductDetailDTO` — set a product's section membership |
+| DELETE | `/shop/v1/sections/{id}` | - | `204` (unassigns products via cascade) |
+| PATCH | `/shop/v1/products/{id}/sections` | `{sectionIds: string[]}` | `ProductDetailDTO` - set a product's section membership |
 
 ---
 

@@ -25,11 +25,11 @@ import org.jetbrains.compose.resources.DrawableResource
 
 /** The canvas's three alert looks. */
 enum class DriverAlertKind {
-    /** Grey — a state to know about (offline, a later run, live updates paused). */
+    /** Grey - a state to know about (offline, a later run, live updates paused). */
     Muted,
-    /** Blue tint — saved and sending, opens at, a dispatch change. */
+    /** Blue tint - saved and sending, opens at, a dispatch change. */
     Info,
-    /** Black outline — something the driver must act on (not recorded, notifications off). Never red. */
+    /** Black outline - something the driver must act on (not recorded, notifications off). Never red. */
     Problem,
 }
 

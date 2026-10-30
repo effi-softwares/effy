@@ -4,7 +4,7 @@
 
 **Created**: 2026-08-16
 
-**Status**: ✅ Concluded (partial by design) — 2026-08-17. Code-complete + fully machine-verified
+**Status**: ✅ Concluded (partial by design) - 2026-08-17. Code-complete + fully machine-verified
 across all six surfaces; operator deploy + live/device walk are the only open items (see
 [SIGNOFF.md](SIGNOFF.md)).
 
@@ -12,14 +12,14 @@ across all six surfaces; operator deploy + live/device walk are the only open it
 
 ## Overview
 
-Effy's checkout header already invites shoppers to "Give us feedback" and links to `/feedback` — a
+Effy's checkout header already invites shoppers to "Give us feedback" and links to `/feedback` - a
 route that does not exist. This feature makes that invitation real, end to end: a public feedback
 form on the customer web storefront and in the customer mobile app; a submission that is stored and
 acknowledged with a thank-you email; and a back-office capability for staff to read, search, filter,
 triage, and reply to feedback, where a reply is delivered to the submitter as an email.
 
-It is a **listening channel**, not a support ticketing system. A person tells Effy something — a bug,
-an idea, a complaint, or a compliment — Effy records it, thanks them, and staff can respond. It is
+It is a **listening channel**, not a support ticketing system. A person tells Effy something - a bug,
+an idea, a complaint, or a compliment - Effy records it, thanks them, and staff can respond. It is
 distinct from order support, returns, and account recovery, which are separate flows.
 
 ## User Scenarios & Testing *(mandatory)*
@@ -29,12 +29,12 @@ distinct from order support, returns, and account recovery, which are separate f
 A shopper (signed-in customer or a guest) opens the feedback page from the checkout header or a
 navigation entry, chooses what kind of feedback it is, writes a message, optionally leaves a rating,
 provides a contact email if they want a reply, and submits. They immediately see an on-screen
-confirmation, and — when they gave a contactable email — they receive a "thank you for your feedback"
+confirmation, and - when they gave a contactable email - they receive a "thank you for your feedback"
 email shortly after. The same capability is available in the customer mobile app.
 
 **Why this priority**: This is the MVP. Without it the checkout header links to a dead route and the
 platform has no way for shoppers to reach it at all. It delivers standalone value the moment it ships
-(shoppers can be heard) even if no staff-facing tooling yet exists — the submissions are captured for
+(shoppers can be heard) even if no staff-facing tooling yet exists - the submissions are captured for
 later reading.
 
 **Independent Test**: Submit feedback from the web form and from the mobile app as both a signed-in
@@ -73,7 +73,7 @@ It is independently testable and valuable even before replies exist.
 
 **Independent Test**: With several submissions of varying category, status, and date present, load the
 console list, apply each filter and a text search, open a submission to view its full detail and
-context, change its status, and add an internal note — verifying the note is not visible to the
+context, change its status, and add an internal note - verifying the note is not visible to the
 submitter.
 
 **Acceptance Scenarios**:
@@ -256,7 +256,7 @@ submission's status becomes replied, and confirm the reply is listed in the subm
   analytics beyond what platform telemetry rules already permit.
 - **FR-040**: Feedback submissions MUST be retained so staff can read and act on them; a submission's
   recorded context (customer link at submission time, origin, platform) MUST be immutable once stored
-  (staff-owned fields — status, notes, replies — are the mutable parts).
+  (staff-owned fields - status, notes, replies - are the mutable parts).
 
 ### Key Entities *(include if data involved)*
 
@@ -305,7 +305,7 @@ submission's status becomes replied, and confirm the reply is listed in the subm
   is reachable without an account, so anonymous submission is in scope; an email is optional and, when
   supplied by a guest, is treated as unverified and used only to send the acknowledgement/reply.
 - **Cold path (edge API), not the hot path.** Feedback is low-frequency and its work is asynchronous
-  email — the user explicitly directed the edge API — so it does not engage the hot-path commerce
+  email - the user explicitly directed the edge API - so it does not engage the hot-path commerce
   routing rule. Public submission fits the storefront's existing public cold-path precedent
   (newsletter, health checks); back-office reading/replying fits the existing admin console
   cold-path pattern with a role-gated authorizer.
@@ -328,7 +328,7 @@ submission's status becomes replied, and confirm the reply is listed in the subm
   order-specific problems, returns, and account recovery remain their own flows.
 - **Reply failure means send-time failure (v1).** "Staff see that delivery did not succeed" covers a
   synchronous send failure at reply time. An **asynchronous hard-bounce** arriving hours later is out
-  of scope for this slice — the platform already tracks per-address delivery health in the
+  of scope for this slice - the platform already tracks per-address delivery health in the
   deliverability path (037), and reconciling a feedback reply against that signal is a later
   enhancement, not part of v1.
 - **Message/reply/note lengths have fixed defaults** (message and reply 5000 characters, internal

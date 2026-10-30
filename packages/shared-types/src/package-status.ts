@@ -40,7 +40,7 @@ export const STATUS_WORD: Record<PackageStatus, string> = {
 };
 
 /**
- * How the pill is coloured — the platform's closed status mapping: in progress → brand,
+ * How the pill is coloured - the platform's closed status mapping: in progress → brand,
  * complete → success, waiting → warning, failed → destructive, inert → muted. Always shown with the
  * word; the tone only reinforces it.
  */
@@ -59,7 +59,7 @@ export const STATUS_TONE: Record<PackageStatus, "brand" | "success" | "warning" 
 /** A package's status as a screen shows it. */
 export interface PackageStatusView {
   status: PackageStatus;
-  /** `STATUS_WORD[status]` — sent so a client that cannot import this file (the driver app) shows the same word. */
+  /** `STATUS_WORD[status]` - sent so a client that cannot import this file (the driver app) shows the same word. */
   word: string;
   /** One line for `problem` ("Not collected at the shop"); null otherwise. */
   detail: string | null;
@@ -67,7 +67,7 @@ export interface PackageStatusView {
   driverName: string | null;
 }
 
-/** The least advanced of several packages — what an order row shows. Problem and cancelled win. */
+/** The least advanced of several packages - what an order row shows. Problem and cancelled win. */
 export function leastAdvanced(views: readonly PackageStatusView[]): PackageStatusView | null {
   if (views.length === 0) return null;
   const problem = views.find((v) => v.status === "problem");

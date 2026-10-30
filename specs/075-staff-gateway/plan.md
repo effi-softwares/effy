@@ -11,7 +11,7 @@ limit cannot be raised (research F1). 074's deploy was refused and only complete
 routes. Nothing more can be added.
 
 Back-office moves to a **second gateway, the staff gateway**, on its own hostname. That is 142 routes
-— `admin`, `fleet`, `orders`, `catalog` and the back-office part of `inventory` — leaving the shared
+- `admin`, `fleet`, `orders`, `catalog` and the back-office part of `inventory` - leaving the shared
 gateway at about 158 (53%) and the staff gateway at about 142 (47%).
 
 The approach, in six decisions (reasoning in [research.md](research.md)):
@@ -19,7 +19,7 @@ The approach, in six decisions (reasoning in [research.md](research.md)):
 1. **A second HTTP API for back-office only** (R1). No code moves between services; each back-office
    stack changes which gateway it attaches to.
 2. **Its own hostname**, `<staff_api_subdomain>.<env zone>`, default label `staff-api` (R2). Paths are
-   unchanged, so no route table and no back-office API call changes — only the website's base address.
+   unchanged, so no route table and no back-office API call changes - only the website's base address.
 3. **One authorizer per audience boundary** (R3). The staff gateway has only the back-office
    authorizer; the shared gateway loses it at the end. Audience separation becomes structural.
 4. **`inventory` becomes two stacks from one source** (R4): `serverless.yml` (shop) and
@@ -37,20 +37,20 @@ Principle III is amended to **v3.2.0**: one backend, two gateways (R7).
 **Language/Version**: Terraform (AWS provider, as pinned in `infra/envs/dev`); Serverless Framework v3
 YAML; TypeScript on Node 22 (one scheduled function, contract tests); Bash (two scripts); Make.
 
-**Primary Dependencies**: one added — `@aws-sdk/client-apigatewayv2` in `apis/edge-api/admin` (the
+**Primary Dependencies**: one added - `@aws-sdk/client-apigatewayv2` in `apis/edge-api/admin` (the
 usage reader). Everything else exists.
 
 **Storage**: none. No migration, no table.
 
 **Testing**: Vitest contract tests reading every `serverless*.yml` and the Terraform sources (G1–G7 in
 [quickstart.md](quickstart.md)); a unit test for the usage function with a faked client;
-`terraform validate`. The move itself is verified by the walks W1–W7 — a gateway cutover is a property
+`terraform validate`. The move itself is verified by the walks W1–W7 - a gateway cutover is a property
 of the live environment and is not unit-testable.
 
 **Target Platform**: `infra/envs/dev`; services `admin`, `fleet`, `orders`, `catalog`, `inventory`;
 app `back-office` (configuration only).
 
-**Project Type**: monorepo — infrastructure + backend configuration + one small function.
+**Project Type**: monorepo - infrastructure + backend configuration + one small function.
 
 **Performance Goals**: none new. During the move a forwarded request makes one extra hop inside the
 region (shared gateway → staff gateway); it disappears at step 5.
@@ -102,7 +102,7 @@ specs/075-staff-gateway/
 ### Source Code (repository root)
 
 ```text
-.specify/memory/constitution.md               # v3.2.0 — Principle III: one backend, two gateways
+.specify/memory/constitution.md               # v3.2.0 - Principle III: one backend, two gateways
 
 infra/envs/dev/
 ├── staff-gateway.tf            NEW  # API, $default stage, back-office authorizer, CORS, domain,
@@ -140,7 +140,7 @@ apis/edge-api/
     └── background-alarms.contract.test.ts        # reads stacks through serverless-stacks.ts (G6)
    shared/src/live/live.contract.test.ts          # same
    {catalog,inventory,orders,fleet}/…/config.contract.test.ts   # expect /staff/ parameters
-   {commerce,driver}/…/config.contract.test.ts                  # unchanged — still /edge/
+   {commerce,driver}/…/config.contract.test.ts                  # unchanged - still /edge/
 
 Makefile                             # edge-deploy/edge-remove/edge-offline: SERVICE=inventory-staff →
                                      #   inventory dir + --config serverless.staff.yml; the deploy
@@ -176,7 +176,7 @@ future extra stack file cannot be invisible to a guard.
 
 1. **Amend the constitution** to v3.2.0 (sync-impact report at the top, Principle III text,
    Technology Standards line for the gateways).
-2. **Guards first**: `serverless-stacks.ts`; the capacity test (G1) — it must fail on today's tree if a
+2. **Guards first**: `serverless-stacks.ts`; the capacity test (G1) - it must fail on today's tree if a
    route is added, proving it would have caught 074; the placement tests (G2–G5), written against the
    target and red until step 4.
 3. **Infrastructure**: variables with validation; `staff-gateway.tf`; the conditionals in
@@ -198,7 +198,7 @@ moves when the operator redeploys it.
 
 | Risk | What limits it |
 |---|---|
-| A stack does not move cleanly between gateways (orphan routes, or a failed CloudFormation update) | `catalog` goes first — 7 routes, one screen. Fallback for that stack: `edge-remove` then `edge-deploy` (research, Unknowns). The move stops there until understood. |
+| A stack does not move cleanly between gateways (orphan routes, or a failed CloudFormation update) | `catalog` goes first - 7 routes, one screen. Fallback for that stack: `edge-remove` then `edge-deploy` (research, Unknowns). The move stops there until understood. |
 | Forwarded requests lose the sign-in header or fail CORS | Checked at step 3 on product review alone, before anything else depends on forwarding. The shared gateway answers the browser's preflight itself, as today. |
 | An unrelated `make apply` during the move removes the forwarding routes | The cutover value lives in `dev.tfvars`, not on a command line. |
 | Step 6 run too early | AWS refuses to delete an authorizer a route still uses; the apply fails without breaking anything. |
@@ -209,6 +209,6 @@ moves when the operator redeploys it.
 
 | Violation | Why Needed | Simpler Alternative Rejected Because |
 |-----------|------------|-------------------------------------|
-| Principle III: "behind the shared HTTP gateway" / "every client calls the one gateway" — a second gateway | The integration limit (300 per HTTP API) is not adjustable and is reached; no route can be added to the platform. | *Raise the quota*: integrations cannot be raised. *One function per service with an internal router*: gives up per-route authorizers, per-function permissions and timeouts, and rewrites every service. *Fewer, fatter routes*: what 074 was forced into; it changes contracts to fit a counter. Resolved by amending to **v3.2.0** before any build task; a third gateway needs the same amendment. |
+| Principle III: "behind the shared HTTP gateway" / "every client calls the one gateway" - a second gateway | The integration limit (300 per HTTP API) is not adjustable and is reached; no route can be added to the platform. | *Raise the quota*: integrations cannot be raised. *One function per service with an internal router*: gives up per-route authorizers, per-function permissions and timeouts, and rewrites every service. *Fewer, fatter routes*: what 074 was forced into; it changes contracts to fit a counter. Resolved by amending to **v3.2.0** before any build task; a third gateway needs the same amendment. |
 | A second Serverless stack in one service directory (`inventory`) | A stack attaches to exactly one gateway, and `inventory` serves two audiences. | *A new service directory*: its handlers would import another service's source. *Moving the routes into `admin`*: stock rules in two services. |
 | Temporary infrastructure (5 forwarding routes) that exists only for the move | Without it, back-office is partly dead for the whole sequence of deployments (FR-009). | *Move all, then rebuild the website*: tens of minutes of partial outage. *Two base addresses in the website*: permanent client complexity for a one-off. Gated by a variable whose default removes them. |

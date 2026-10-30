@@ -9,7 +9,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ productI
   return proxyToEdge((c) => c.put(`/commerce/v1/saved/${encodeURIComponent(productId)}`, body))
 }
 
-/** Always succeeds when the membership is absent — un-saving something not saved is a no-op. */
+/** Always succeeds when the membership is absent - un-saving something not saved is a no-op. */
 export async function DELETE(_req: Request, { params }: { params: Promise<{ productId: string }> }) {
   const { productId } = await params
   return proxyToEdge((c) => c.delete(`/commerce/v1/saved/${encodeURIComponent(productId)}`))

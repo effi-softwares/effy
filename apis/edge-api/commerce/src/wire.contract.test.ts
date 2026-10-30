@@ -52,7 +52,7 @@ describe("saved items and lists", () => {
     );
   });
 
-  it("membership — and its count is a whole number on the wire", async () => {
+  it("membership - and its count is a whole number on the wire", async () => {
     const m = await savedWith({ membershipIds: async () => [EGGS, MILK], namedProductIds: async () => [EGGS] }).membership("c");
     expect(wire(m)).toEqual(kotlinFixtureJson(SAVED, "SAVED_MEMBERSHIP_WIRE_JSON"));
     expect(JSON.stringify(m)).toContain(`"count":2`);
@@ -60,7 +60,7 @@ describe("saved items and lists", () => {
     expect(JSON.stringify(await savedWith({}).membership("c"))).toBe(`{"productIds":[],"count":0,"namedProductIds":[]}`);
   });
 
-  it("lists — the default list is addressed as \"default\", and `containsProduct` is absent unless a product was named", async () => {
+  it("lists - the default list is addressed as \"default\", and `containsProduct` is absent unless a product was named", async () => {
     const [wantDefault, wantNamed] = kotlinFixtureJson(SAVED, "SAVED_LISTS_WIRE_JSON") as [unknown, unknown];
     const rows: ListSummaryRow[] = [
       { id: "0d000000-0000-0000-0000-00000000000d", is_default: true, name: null, count: 12, only_here: 9, contains: false },
@@ -124,7 +124,7 @@ describe("the delivery quote", () => {
   }) as unknown as QuoteResult;
   const day = (date: string, isToday: boolean, windows: unknown[], closedReason: string | null) => ({ date, isToday, nonDelivery: false, windows, closedReason });
 
-  it("windows on offer — byte for byte: one fee per window, every time with the Melbourne offset, nothing about suppliers", () => {
+  it("windows on offer - byte for byte: one fee per window, every time with the Melbourne offset, nothing about suppliers", () => {
     const q = effy({
       freeDeliveryRemainingCents: 2600,
       effyWindows: {
@@ -138,7 +138,7 @@ describe("the delivery quote", () => {
     expect(got).not.toMatch(/shop|package|pkg-/);
   });
 
-  it("no window anywhere — byte for byte", () => {
+  it("no window anywhere - byte for byte", () => {
     const q = effy({ effyWindows: { days: [day("2026-08-24", true, [], "closed")], fees: new Map(), unavailable: "no_windows" } });
     expect(JSON.stringify(toQuoteDTO("3121", q, now))).toBe(kotlinFixture(DELIVERY, "DELIVERY_QUOTE_NO_WINDOWS_WIRE"));
   });

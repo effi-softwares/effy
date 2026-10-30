@@ -57,7 +57,7 @@ class HttpCatalogRepository(private val edge: HttpClient) : CatalogRepository {
 
     /**
      * Display groups by key. Signed in, commerce answers with the shopper's personal offers (first
-     * order, chosen customers); signed out — or when commerce refuses — the storefront's public answer.
+     * order, chosen customers); signed out - or when commerce refuses - the storefront's public answer.
      */
     private suspend fun promotionGroups(keys: List<String>): Map<String, List<ShopperPromotionDTO>> {
         val joined = keys.joinToString(",")

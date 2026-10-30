@@ -68,12 +68,12 @@ class PersonalDetailsViewModel(
     /**
      * Save one edited detail, carrying the others through unchanged.
      *
-     * Every field is sent, not just the edited one — the backend's PATCH writes the columns it
+     * Every field is sent, not just the edited one - the backend's PATCH writes the columns it
      * names, so an omitted field would be cleared. `""` means "cleared"; a `null` would be dropped by
      * `explicitNulls = false` and the clear would silently no-op.
      *
      * [onSaved] fires only on success. A failed save must leave the sheet open with
-     * what the shopper typed still in it — including when the failure is an expired session, where the
+     * what the shopper typed still in it - including when the failure is an expired session, where the
      * temptation to close and bounce to sign-in would discard their work on the way.
      */
     fun save(customer: Customer, field: EditableDetail, value: String, onSaved: () -> Unit) {
@@ -137,7 +137,7 @@ fun PersonalDetailsScreen(container: AppContainer, customer: Customer) {
             EffyHairline()
 
             // No verified indicator. The value is self-asserted and this feature never
-            // verifies it, so a tick would be a claim the platform cannot support — and one a shopper
+            // verifies it, so a tick would be a claim the platform cannot support - and one a shopper
             // would reasonably rely on.
             EffyValueRow("Phone number", customer.phone, {
                 draft = customer.phone.orEmpty(); editing = EditableDetail.PHONE
@@ -154,7 +154,7 @@ fun PersonalDetailsScreen(container: AppContainer, customer: Customer) {
                 editable = false,
                 trailingNote = "Can't be changed",
             )
-            // 087 (Personal info board) — the reason is said up front, under the row, not only on a tap.
+            // 087 (Personal info board) - the reason is said up front, under the row, not only on a tap.
             Text(
                 "Your email is how you sign in. To change it, contact us.",
                 style = MaterialTheme.typography.bodySmall,
@@ -182,7 +182,7 @@ fun PersonalDetailsScreen(container: AppContainer, customer: Customer) {
             EditableDetail.PHONE -> customer.phone.orEmpty()
         }
         DetailEditSheet(
-            // 087 (board) — the phone sheet names the field "Mobile number" and says what it is for.
+            // 087 (board) - the phone sheet names the field "Mobile number" and says what it is for.
             label = if (field == EditableDetail.PHONE) "Mobile number" else null,
             helper = if (field == EditableDetail.PHONE) "We'll only call or text about a delivery." else null,
             title = when (field) {
@@ -233,7 +233,7 @@ private fun DetailEditSheet(
         onPrimary = onSave,
         primaryEnabled = !saving,
     ) {
-        // No label that repeats the title — the sheet already says "First name"; printing it twice
+        // No label that repeats the title - the sheet already says "First name"; printing it twice
         // is what the first build shipped. The phone's label differs ("Mobile number"), so it stays.
         EffyField(
             label = label,

@@ -1,11 +1,11 @@
-# Store Submission Checklist — customer-mobile (iOS + Android)
+# Store Submission Checklist - customer-mobile (iOS + Android)
 
 The itemised legal/privacy/deletion gate for submitting customer-mobile. States for each row:
 `satisfied` · `operator-action` (built; the operator must enter it in the console) ·
 `blocked-dependency` (needs work outside this feature). Feature 045.
 
 Supersedes `specs/034-customer-account-center/SUBMISSION-BLOCKERS.md` Blocker 2 (privacy/terms did not
-exist — they now do) and keeps its other blockers honest.
+exist - they now do) and keeps its other blockers honest.
 
 | # | Requirement | Store | State | Evidence / note |
 | --- | --- | --- | --- | --- |
@@ -18,7 +18,7 @@ exist — they now do) and keeps its other blockers honest.
 | 7 | Privacy Manifest (`PrivacyInfo.xcprivacy`) + SDK manifests | Apple | operator-action | App-level manifest **written**: `apps/customer-mobile/iosApp/iosApp/PrivacyInfo.xcprivacy` (auto-included via Xcode synchronized group). Operator: build + confirm the aggregated report (SDK manifests from Stripe/Firebase/PostHog) matches [app-privacy-mapping.md](./app-privacy-mapping.md) |
 | 8 | EULA posture configured | Both | operator-action | Apple **Standard EULA** (no custom); see [eula](../../packages/legal-content/src/documents/eula/v1.md) |
 | 9 | Reviewer notes: throwaway account for deletion test | Apple | satisfied | [review-notes.md](./review-notes.md) |
-| 10 | Permanent erasure matches the deletion claim | Both | **blocked-dependency** | Erasure worker not built (034 Blocker 1). Policy is written to CURRENT behaviour (immediate closure + stated retention), so no untrue claim ships — but the stronger "permanently erased" wording is unlocked only when the worker + its Cognito `AdminDeleteUser` IAM + restore-safety land |
+| 10 | Permanent erasure matches the deletion claim | Both | **blocked-dependency** | Erasure worker not built (034 Blocker 1). Policy is written to CURRENT behaviour (immediate closure + stated retention), so no untrue claim ships - but the stronger "permanently erased" wording is unlocked only when the worker + its Cognito `AdminDeleteUser` IAM + restore-safety land |
 | 11 | Real-world identifiers resolved | Both | **operator-action** | Entity name, ABN, registered address, governing-law state are fail-loud placeholders in `packages/legal-content/src/identifiers.json`; `legal:check --release` blocks a release until supplied and lawyer-reviewed |
 | 12 | Documents rendered/linked inside the mobile app | Both | operator-action | **Built**: native render of all 11 (`LegalScreens.kt` + `LegalMarkdown.kt`), nav, Terms→Privacy fixed, consent links at sign-up + checkout. Machine-verified (mobile-guard); operator: Gradle/iOS compile + on-device walk |
 

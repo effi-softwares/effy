@@ -1,4 +1,4 @@
-// An order's activity in back-office (104): ONE log over every record the platform keeps about an order —
+// An order's activity in back-office (104): ONE log over every record the platform keeps about an order -
 // packing (`fulfillment_event`), each bag's hand-overs (`package_handover`), the carrier hand-off and arrival,
 // the delivery type's history, back-office moves (`delivery_override`), courier collection changes, the
 // consignment's steps, and refunds. A read-side projection: nothing here is stored as a timeline.
@@ -60,7 +60,7 @@ const COMPENSATION_WORDS: Record<string, string> = {
 
 const REFUND_STATUS_WORDS: Record<string, string> = {
   submitting: "being sent",
-  submitted: "sent — waiting for the bank",
+  submitted: "sent - waiting for the bank",
   succeeded: "returned",
   failed: "failed",
   refused: "refused by the provider",
@@ -113,7 +113,7 @@ function entry(r: ActivityRow) {
         case "item_gathered":
           return { title: "Item picked", detail: [item, qty !== null ? `× ${qty}` : null, note].filter(Boolean).join(" ") || null, subject: shop };
         case "item_unavailable":
-          return { title: "Item marked unavailable", detail: [item, note].filter(Boolean).join(" — ") || null, subject: shop, tone: "problem" as const };
+          return { title: "Item marked unavailable", detail: [item, note].filter(Boolean).join(" - ") || null, subject: shop, tone: "problem" as const };
         case "item_restored":
           return { title: "Item restored", detail: item, subject: shop };
         case "note_added":
@@ -155,7 +155,7 @@ function entry(r: ActivityRow) {
       const reason = activityFact(r, "reason");
       return {
         title: from ? `${typeWords(from)} → ${typeWords(to)}` : `${typeWords(to)}`,
-        detail: [reason ? (DELIVERY_REASON_WORDS[reason] ?? reason) : null, note].filter(Boolean).join(" — ") || null,
+        detail: [reason ? (DELIVERY_REASON_WORDS[reason] ?? reason) : null, note].filter(Boolean).join(" - ") || null,
       };
     }
     case "move": {
@@ -165,20 +165,19 @@ function entry(r: ActivityRow) {
       const lines =
         sub === "courier"
           ? [
-              `Paid ${money(activityFactNumber(r, "paidCents"))} · courier ${money(activityFactNumber(r, "courierCents"))} · difference ${money(activityFactNumber(r, "differenceCents"))}`,
-              comp === "none" || !comp
-                ? `Nothing given${activityFact(r, "compensationNote") ? ` — ${activityFact(r, "compensationNote")}` : ""}`
-                : `${COMPENSATION_WORDS[comp] ?? comp}: ${points !== null ? `${points} points (${amount})` : amount}${
-                    activityFact(r, "refundStatus") ? ` · refund ${REFUND_STATUS_WORDS[activityFact(r, "refundStatus")!] ?? activityFact(r, "refundStatus")}` : ""
-                  }`,
-            ]
+            `Paid ${money(activityFactNumber(r, "paidCents"))} · courier ${money(activityFactNumber(r, "courierCents"))} · difference ${money(activityFactNumber(r, "differenceCents"))}`,
+            comp === "none" || !comp
+              ? `Nothing given${activityFact(r, "compensationNote") ? ` - ${activityFact(r, "compensationNote")}` : ""}`
+              : `${COMPENSATION_WORDS[comp] ?? comp}: ${points !== null ? `${points} points (${amount})` : amount}${activityFact(r, "refundStatus") ? ` · refund ${REFUND_STATUS_WORDS[activityFact(r, "refundStatus")!] ?? activityFact(r, "refundStatus")}` : ""
+              }`,
+          ]
           : ["No money moved"];
       return { title: WORDS[r.action] ?? "Moved", detail: lines.join(" · "), tone: "problem" as const };
     }
     case "collection":
       return {
         title: "Courier collection changed",
-        detail: [`${MODE_WORDS[activityFact(r, "from") ?? ""] ?? "?"} → ${MODE_WORDS[activityFact(r, "to") ?? ""] ?? "?"}`, note].filter(Boolean).join(" — "),
+        detail: [`${MODE_WORDS[activityFact(r, "from") ?? ""] ?? "?"} → ${MODE_WORDS[activityFact(r, "to") ?? ""] ?? "?"}`, note].filter(Boolean).join(" - "),
       };
     case "refund": {
       const kind = activityFact(r, "refundKind");
@@ -186,7 +185,7 @@ function entry(r: ActivityRow) {
       const what = kind === "cancellation" ? "Cancellation refund" : kind === "delivery" ? "Delivery refund" : "Refund";
       return {
         title: `${what} of $${activityFact(r, "amount") ?? "0.00"} ${REFUND_STATUS_WORDS[status] ?? status}`,
-        detail: [reasonWords(activityFact(r, "reason")), note].filter(Boolean).join(" — ") || null,
+        detail: [reasonWords(activityFact(r, "reason")), note].filter(Boolean).join(" - ") || null,
         tone: status === "failed" || status === "refused" ? ("problem" as const) : ("primary" as const),
       };
     }

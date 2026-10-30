@@ -7,7 +7,7 @@
 ## Summary
 
 Rebuild the appearance and layout of every `apps/customer-web` screen to the 139 reference screens
-([screen-index.md](screen-index.md)), on a new **storefront identity** — zinc greys, blue for action,
+([screen-index.md](screen-index.md)), on a new **storefront identity** - zinc greys, blue for action,
 green for brand, black for destructive, light only, Geist self-hosted, the "effy." wordmark. The old
 storefront look is deleted, not layered over. Behaviour, wording, totals and the wire contracts the
 installed apps use are unchanged. Two public routes are added and one read is extended, all in existing
@@ -21,12 +21,12 @@ texted mobile-number verification held out; build foundation first, then screens
 **Language/Version**: TypeScript 5.9 (web + Lambdas), Node 22
 
 **Primary Dependencies**: Next.js 16.2 App Router (SSR/PPR), React 19.2, Tailwind v4, shadcn/ui on
-`radix-ui`, `lucide-react`, `@stripe/react-stripe-js` (Payment Element + Express Checkout — already in
+`radix-ui`, `lucide-react`, `@stripe/react-stripe-js` (Payment Element + Express Checkout - already in
 use), `aws-amplify`. New client dependencies: `vaul` (phone drawers), `cmdk` (search suggestions),
-`input-otp` only if the existing OTP field cannot take the reference shape — each measured against
+`input-otp` only if the existing OTP field cannot take the reference shape - each measured against
 the bundle budget before it is kept.
 
-**Storage**: PostgreSQL 16, raw SQL. **No migration** — every new read is over existing tables.
+**Storage**: PostgreSQL 16, raw SQL. **No migration** - every new read is over existing tables.
 
 **Testing**: Vitest + Testing Library (customer-web, edge-api), Playwright e2e (`apps/customer-web/e2e`),
 design-system guards (`pnpm --filter @effy/design-system test`), repo sweeps under `scripts/`.
@@ -35,7 +35,7 @@ design-system guards (`pnpm --filter @effy/design-system test`), repo sweeps und
 
 **Project Type**: web application (one web surface + two backend services + one shared package).
 
-**Performance Goals**: guest bundle within `scripts/bundle-budget.mjs` (176 KB) — any rise is measured
+**Performance Goals**: guest bundle within `scripts/bundle-budget.mjs` (176 KB) - any rise is measured
 and recorded, never assumed; first view of home and product no slower than today (SC-007); search
 suggestions within 500 ms of a pause (SC-008).
 
@@ -60,7 +60,7 @@ routes, 1 extended read.
 | VII. Observability | PASS | new routes use the shared log/metric helper; new client events go through the typed taxonomy (`cart_saved_for_later`, `search_suggestion_selected`, `offers_viewed`) |
 | Real-world identifiers | PASS | only `hello@effyshopping.com` (already approved, customer-facing) appears in the footer/help |
 
-**Post-design re-check**: unchanged — V passes once the amendment (task T001) lands; nothing else moved.
+**Post-design re-check**: unchanged - V passes once the amendment (task T001) lands; nothing else moved.
 
 ## Project Structure
 
@@ -85,11 +85,11 @@ specs/084-customer-storefront-redesign/
 ```text
 packages/design-system/
 ├── src/storefront/
-│   ├── tokens.css            # NEW — the storefront identity (the one file); own @theme, no .dark
-│   └── fonts/                # NEW — Geist-Variable.woff2, GeistMono-Variable.woff2
-├── stripe/storefront-appearance.ts   # NEW (generated) — Payment Element theme for the storefront
+│   ├── tokens.css            # NEW - the storefront identity (the one file); own @theme, no .dark
+│   └── fonts/                # NEW - Geist-Variable.woff2, GeistMono-Variable.woff2
+├── stripe/storefront-appearance.ts   # NEW (generated) - Payment Element theme for the storefront
 └── scripts/
-    ├── check-storefront-tokens.mjs   # NEW — AA pairs, no red, no .dark, key set
+    ├── check-storefront-tokens.mjs   # NEW - AA pairs, no red, no .dark, key set
     ├── check-token-usage.mjs         # + scans apps/customer-web against the storefront @theme
     └── gen-stripe-appearance.mjs     # + emits the storefront appearance
 
@@ -118,7 +118,7 @@ apps/customer-web/
 └── e2e/                            # updated selectors; + offers, overview, save-for-later
 ```
 
-**Structure Decision**: customer-web keeps its own `components/ui` (it already does — the shared
+**Structure Decision**: customer-web keeps its own `components/ui` (it already does - the shared
 `@effy/design-system/ui` set is shaped and guarded for the consoles, and pulling its barrel onto the
 guest path is what the bundle budget exists to stop). The **palette** lives in the design-system
 package, once, so customer-mobile can later generate its Compose theme from the same file.
@@ -140,7 +140,7 @@ new field is read defensively (absent → the element is absent), so the web nev
 
 ## Operator steps (Claude writes, the operator runs)
 
-1. `SERVICE=storefront` and `SERVICE=commerce` deploys to dev (`AWS_PROFILE=ef`) — after
+1. `SERVICE=storefront` and `SERVICE=commerce` deploys to dev (`AWS_PROFILE=ef`) - after
    `gateway-capacity.contract.test.ts` passes.
 2. customer-web deploy (Amplify, per 042).
 3. The reference walk: every row of screen-index.md, desktop and phone.
@@ -151,10 +151,10 @@ No migration. No Terraform.
 
 | Violation | Why needed | Simpler alternative rejected because |
 | --- | --- | --- |
-| **A second palette file** (Principle V "one palette, one file"; Quality Gate "a second file restating the platform palette is a defect") | The operator adopted a different identity for the storefront only. It is **not a restatement** of the platform palette — different greys, a green brand, black destructive, no dark block — so there is no single fact held twice. | Replacing `tokens.css` restyles two consoles and three mobile apps the operator said to leave alone. Overriding platform tokens inside customer-web's own CSS is exactly the scoped layer 057 was deleted for; putting the file in the design-system package keeps "the design system owns every palette" true. |
+| **A second palette file** (Principle V "one palette, one file"; Quality Gate "a second file restating the platform palette is a defect") | The operator adopted a different identity for the storefront only. It is **not a restatement** of the platform palette - different greys, a green brand, black destructive, no dark block - so there is no single fact held twice. | Replacing `tokens.css` restyles two consoles and three mobile apps the operator said to leave alone. Overriding platform tokens inside customer-web's own CSS is exactly the scoped layer 057 was deleted for; putting the file in the design-system package keeps "the design system owns every palette" true. |
 | **Light only** (V "dark mode REQUIRED on every surface") | The reference is light only by design. | Deriving a dark storefront nobody designed invents an identity; the amendment scopes the dark-mode requirement to the consoles and mobile. |
 | **`--brand` ≠ `--primary`; green brand** (V "one brand hue carries every action") | In the storefront, blue is still the only *action* colour; green is brand and positive state (savings, paid, Delivered by Effy, progress). | Mapping green to platform `--success` forbids the Sale badge and tracker fill (`--success` may never be a fill with a label). |
-| **`--destructive` is black; no red** | Reference rule; errors carry an icon and wording instead of a hue. | — |
-| **Cards with `shadow-xs`; card layouts** (V "bordered, never shadowed"; "no card layouts") | The reference is card-built (checkout sections, order rows, account Overview) with shadcn's hairline shadow. Recorded justification: a storefront's units — a product, an address, a delivery section — are discrete choosable objects, which is what a card is for; the doctrine targets dashboard metric tiles on consoles. | Flattening them is redesigning the reference. |
+| **`--destructive` is black; no red** | Reference rule; errors carry an icon and wording instead of a hue. | - |
+| **Cards with `shadow-xs`; card layouts** (V "bordered, never shadowed"; "no card layouts") | The reference is card-built (checkout sections, order rows, account Overview) with shadcn's hairline shadow. Recorded justification: a storefront's units - a product, an address, a delivery section - are discrete choosable objects, which is what a card is for; the doctrine targets dashboard metric tiles on consoles. | Flattening them is redesigning the reference. |
 | **Radius**: cards/dialogs 8, buttons/inputs 6 (V four-step scale has containers 10, buttons 8) | Reference shape. | The storefront guard asserts its own scale; `check-component-shape.mjs` keeps guarding the console primitives. |
-| **Input border 1.3:1** (below WCAG 1.4.11's 3:1) | Reference's recorded deviation; borders are already the constitution's one contrast exception. Mitigation is binding: every field has a visible label and the focus ring is 3:1+ with a halo. | — |
+| **Input border 1.3:1** (below WCAG 1.4.11's 3:1) | Reference's recorded deviation; borders are already the constitution's one contrast exception. Mitigation is binding: every field has a visible label and the focus ring is 3:1+ with a halo. | - |

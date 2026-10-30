@@ -38,7 +38,7 @@ describe("the receipt", () => {
     await expect(svc.get(scope, "cust", ORDER)).rejects.toBeInstanceOf(OrderNotFoundError);
   });
 
-  it("carries exactly the contract's keys for an ordinary order — and none of the optional ones", async () => {
+  it("carries exactly the contract's keys for an ordinary order - and none of the optional ones", async () => {
     const o = await read();
     expect(Object.keys(o).sort()).toEqual([
       "arrivalEstimates", "cancellable", "currency", "delivery", "deliveryAddress", "deliveryDiscountAmount", "deliveryFee", "deliveryFeeAmount", "deliveryInstructions", "discountAmount",
@@ -51,7 +51,7 @@ describe("the receipt", () => {
     expect(o.arrivalEstimates).toEqual([]);
   });
 
-  it("081 P11 — a moved order says where to, when and what the customer got; never why, the fee or the difference", async () => {
+  it("081 P11 - a moved order says where to, when and what the customer got; never why, the fee or the difference", async () => {
     const base = await repoWith().get("cust", ORDER);
     const moved = (over: Record<string, unknown>) => read({ get: async () => ({ ...base!, delivery_type: "courier", courier_estimate: "2–4 business days", ...over }) });
 
@@ -119,7 +119,7 @@ describe("the receipt", () => {
     expect(JSON.stringify({ ...o, deliveryFee: undefined })).not.toMatch(/failureReason|kind|reason/);
   });
 
-  it("how it was paid is the family, the brand and the last four — nothing else", async () => {
+  it("how it was paid is the family, the brand and the last four - nothing else", async () => {
     const o = await read({ paymentMethod: async () => ({ method_type: "card", method_brand: "visa", method_last4: "4242" }) });
     expect(o.paymentMethod).toEqual({ type: "card", brand: "visa", last4: "4242" });
   });
@@ -162,7 +162,7 @@ describe("what the order list says beside the totals (084)", () => {
   const list = async (row: object) =>
     (await createOrdersService({ repo: repoWith({ list: async () => [{ ...base, ...row } as never] }), imageAddress }).list("cust"))[0]!;
 
-  it("⚠ the stage is the least advanced package's — one word, never the packages", async () => {
+  it("⚠ the stage is the least advanced package's - one word, never the packages", async () => {
     const o = await list({ status: "paid", delivery_type: "effy", portion_statuses: ["collected", "received"] });
     expect(o.stage).toBe("packing");
     expect(JSON.stringify(o)).not.toContain("collected");
@@ -179,9 +179,11 @@ describe("what the order list says beside the totals (084)", () => {
     expect(o.arrivalEstimates).toHaveLength(1);
   });
 
-  it("⚠ a courier order carries no arrival promise — its estimate is the delivery's own", async () => {
-    const o = await list({ status: "paid", delivery_type: "courier", courier_estimate: "2 to 4 business days", portion_statuses: ["received"],
-      arrivals: [{ method: "standard", promised_from: null, promised_to: null, window_start: null, window_end: null }] });
+  it("⚠ a courier order carries no arrival promise - its estimate is the delivery's own", async () => {
+    const o = await list({
+      status: "paid", delivery_type: "courier", courier_estimate: "2 to 4 business days", portion_statuses: ["received"],
+      arrivals: [{ method: "standard", promised_from: null, promised_to: null, window_start: null, window_end: null }]
+    });
     expect(o).not.toHaveProperty("arrivalEstimates");
     expect(o.delivery?.courierEstimate).toBe("2 to 4 business days");
   });
@@ -247,7 +249,7 @@ describe("what happened to the shopper's money", () => {
     expect(b).not.toHaveProperty("fullyRefunded");
   });
 
-  it("fully refunded is derived from the totals — reached line by line or in one act — and never for a free order", () => {
+  it("fully refunded is derived from the totals - reached line by line or in one act - and never for a free order", () => {
     expect(refundBlock("10.00", [r("4.00", "succeeded"), r("6.00", "submitted")]).fullyRefunded).toBe(true);
     expect(refundBlock("10.00", [r("10.00", "succeeded")]).fullyRefunded).toBe(true);
     expect(refundBlock("10.00", [r("9.99", "succeeded")])).not.toHaveProperty("fullyRefunded");
@@ -255,7 +257,7 @@ describe("what happened to the shopper's money", () => {
   });
 });
 
-describe("085 — the customer is told what was SOLD, not what the packages carry", () => {
+describe("085 - the customer is told what was SOLD, not what the packages carry", () => {
   // The Any-time window: an untimed order's packages carry its hours, 12 pm – 9 pm.
   const pkg = (date: string) => ({
     method: date === "2026-10-08" ? "same_day" : "standard", promised_from: date, promised_to: date,
@@ -272,7 +274,7 @@ describe("085 — the customer is told what was SOLD, not what the packages carr
     expect(o.arrivalEstimates).toEqual([{ method: "standard", promisedFrom: "2026-10-10", promisedTo: "2026-10-10", windowStart: null, windowEnd: null }]);
   });
 
-  it("⚠ as soon as possible: the estimate, and no day at all — even when it was planned for today", async () => {
+  it("⚠ as soon as possible: the estimate, and no day at all - even when it was planned for today", async () => {
     const o = await effy({ delivery_promise: "asap", asap_estimate: "usually within 2–3 days" }, pkg("2026-10-08"));
     expect(o.delivery).toEqual({ type: "effy", courierEstimate: null, promise: "asap", asapEstimate: "usually within 2–3 days" });
     expect(o.arrivalEstimates).toEqual([]);

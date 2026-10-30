@@ -1,15 +1,15 @@
-# App Store / Play — Reviewer Notes (customer-mobile)
+# App Store / Play - Reviewer Notes (customer-mobile)
 
 Paste the relevant note into App Store Connect "App Review Information → Notes" and, where useful, the
 Play Console review notes.
 
-## ⚠ Account deletion test — register a throwaway account first
+## ⚠ Account deletion test - register a throwaway account first
 
 Effy supports in-app account deletion (Apple 5.1.1(v); Google User Data policy). **Please register a
 new test account before testing deletion**, rather than deleting the demo account provided.
 
 Deleting the demo account will close it permanently, and the **next** submission's sign-in will then
-fail — a repeatedly reported false "login bug" rejection. There is intentionally **no special-cased or
+fail - a repeatedly reported false "login bug" rejection. There is intentionally **no special-cased or
 undeletable account** in the app (that would be a weaker, second authorization path), so the demo
 account deletes like any other.
 

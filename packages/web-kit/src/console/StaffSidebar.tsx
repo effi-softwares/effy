@@ -39,10 +39,10 @@ import {
 } from "./staff-nav";
 
 /**
- * The consoles' sidebar — shadcn sidebar-07 (`collapsible="icon"`), dressed as the redesign's
- * "Sidebar — expanded" / "Sidebar — icon rail" boards (styles: @effy/design-system/console.css).
+ * The consoles' sidebar - shadcn sidebar-07 (`collapsible="icon"`), dressed as the redesign's
+ * "Sidebar - expanded" / "Sidebar - icon rail" boards (styles: @effy/design-system/console.css).
  *
- * 256px expanded; folded (⌘B, or always at 768–1023) a 96px labelled rail — icon over word; below 768
+ * 256px expanded; folded (⌘B, or always at 768–1023) a 96px labelled rail - icon over word; below 768
  * the same content in a left sheet opened from the header's menu button.
  */
 export interface StaffSidebarProps {
@@ -52,7 +52,7 @@ export interface StaffSidebarProps {
   counts: Readonly<Partial<Record<string, number>>>;
 }
 
-/** Search and the account menu live in the header only — the rail carries the menu and nothing else. */
+/** Search and the account menu live in the header only - the rail carries the menu and nothing else. */
 export function StaffSidebar({ brand, groups, defaultTabs, counts }: StaffSidebarProps) {
   const { pathname, search } = useLocation();
   const tab = typeof (search as { tab?: unknown }).tab === "string" ? (search as { tab: string }).tab : undefined;
@@ -127,7 +127,7 @@ export function StaffSidebar({ brand, groups, defaultTabs, counts }: StaffSideba
         ))}
       </SidebarContent>
       {/* More of the menu below the edge: the list fades out there, and this nudges down three times
-          when it appears, then rests. A tap scrolls most of a screen — scrolling still works as ever. */}
+          when it appears, then rests. A tap scrolls most of a screen - scrolling still works as ever. */}
       {more.below ? (
         <button
           type="button"
@@ -145,7 +145,7 @@ export function StaffSidebar({ brand, groups, defaultTabs, counts }: StaffSideba
 }
 
 /**
- * Whether the menu runs past its top or bottom edge — the scroll hint's only input. Re-measured on
+ * Whether the menu runs past its top or bottom edge - the scroll hint's only input. Re-measured on
  * scroll, on resize (of the rail or of the menu, e.g. a group opening) and when the rail folds.
  */
 function useOverflow(deps: readonly unknown[]) {
@@ -177,7 +177,7 @@ function useOverflow(deps: readonly unknown[]) {
 
 /**
  * An entry with sub-pages. The chevron turns and the sub-pages slide open under it (220 ms); the group
- * holding the page on screen opens itself on load without animating — motion explains a change the
+ * holding the page on screen opens itself on load without animating - motion explains a change the
  * person made, never one the page made for them.
  */
 function NavGroupItem({
@@ -205,7 +205,7 @@ function NavGroupItem({
   const strong = subs.some((s) => s.countTone === "strong");
 
   // In the folded rail the sub-pages cannot open under the entry, so a TAP opens them in a menu beside
-  // the rail — never hover, which a finger cannot do. 44px rows (touch.css), each with its count; the
+  // the rail - never hover, which a finger cannot do. 44px rows (touch.css), each with its count; the
   // page on screen is marked. A small chevron on the rail item says it holds more than one page.
   if (state === "collapsed" && !isMobile) {
     return (

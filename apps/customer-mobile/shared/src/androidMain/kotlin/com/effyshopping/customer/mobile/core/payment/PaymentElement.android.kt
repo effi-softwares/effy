@@ -25,11 +25,11 @@ import kotlin.coroutines.resume
  * The Android in-app payment element.
  *
  * The deferred flow is the `CreateIntentCallback` variant, chosen deliberately. Spike S1 found the SDK
- * offers three, and the docs show a different one — `CreateIntentWithConfirmationTokenCallback`, where
+ * offers three, and the docs show a different one - `CreateIntentWithConfirmationTokenCallback`, where
  * the server creates and confirms, which would have needed a new endpoint. This variant takes the client
  * secret `POST /v1/checkout/intent` already returns, so the settlement path is untouched.
  *
- * The callback also receives `shouldSavePaymentMethod` — the shopper's save consent, arriving from the
+ * The callback also receives `shouldSavePaymentMethod` - the shopper's save consent, arriving from the
  * element's own checkbox. The server does not decide it and must not.
  */
 private class AndroidPaymentElementHandle(
@@ -76,7 +76,7 @@ actual fun rememberPaymentElement(config: PaymentElementConfig): PaymentElementH
     val builder = remember(config.clientSecret) {
         EmbeddedPaymentElement.Builder(
             createIntentCallback = { _, _ ->
-                // The order and its intent already exist — the server created both before this screen
+                // The order and its intent already exist - the server created both before this screen
                 // opened. Handing back the client secret it issued is the whole of the deferred flow.
                 CreateIntentResult.Success(config.clientSecret)
             },
@@ -195,7 +195,7 @@ private fun paymentConfiguration(config: PaymentElementConfig, dark: Boolean): E
         // rendering it in the screen would be a compliance failure, not a style choice.
         .embeddedViewDisplaysMandateText(false)
         // The typeface is a real Android font resource. General Sans lives in
-        // `shared/src/androidMain/res/font/` for exactly this reason — the Compose Resources copy has no
+        // `shared/src/androidMain/res/font/` for exactly this reason - the Compose Resources copy has no
         // R.font id, and passing none renders the payment form in the system font beside Effy's own type
         // with nothing failing to compile.
         .appearance(EffyPaymentAppearance.of(R.font.geist, dark))
@@ -204,6 +204,6 @@ private fun paymentConfiguration(config: PaymentElementConfig, dark: Boolean): E
 @Composable
 actual fun PaymentElementContent(handle: PaymentElementHandle, modifier: Modifier) {
     val android = handle as? AndroidPaymentElementHandle ?: return
-    // The provider's method list — the only pixels on this screen it owns.
+    // The provider's method list - the only pixels on this screen it owns.
     Box(modifier) { android.element.Content() }
 }

@@ -101,7 +101,7 @@ export async function updateVehicle(
 ): Promise<VehicleDetail> {
   if (!body?.updatedAt) {
     throw validationError("the vehicle could not be saved", [
-      { field: "updatedAt", message: "is required — reload the vehicle and try again" },
+      { field: "updatedAt", message: "is required - reload the vehicle and try again" },
     ]);
   }
   assertBody(body, false);

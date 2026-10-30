@@ -79,7 +79,7 @@ export interface WavePlan {
   /** roundId → packages added to an existing round. */
   additions: Map<string, PlannablePackage[]>;
   unassigned: PlannablePackage[];
-  /** packageId → how it was placed, in plain words ("Auto-assigned — fewest packages today (2)"). */
+  /** packageId → how it was placed, in plain words ("Auto-assigned - fewest packages today (2)"). */
   notes: Map<string, string>;
   /** Set when a person made this plan; written onto each row. */
   assignedBySub?: string | null;

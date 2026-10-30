@@ -164,7 +164,7 @@ function ProductDetailBody({ productId, initialSize }: { productId: string; init
                     ? "Effy is holding it, so shoppers can't see it now. This is how it looks when it is back."
                     : !visible
                       ? "Shoppers can't see it now. This is how it looks when it is on sale."
-                      : "Sold as Effy — shoppers never see which shop supplies it."
+                      : "Sold as Effy - shoppers never see which shop supplies it."
               }
             />
           </InspectorSection>
@@ -296,7 +296,7 @@ function ProductDetailBody({ productId, initialSize }: { productId: string; init
                 }
               >
                 <span aria-hidden="true" className="size-2 rounded-full bg-current" />
-                {detail.hold ? "No — held by Effy" : visible ? "Yes" : readOnly ? "Not yet" : "No"}
+                {detail.hold ? "No - held by Effy" : visible ? "Yes" : readOnly ? "Not yet" : "No"}
               </span>
             ),
             note: visible
@@ -308,7 +308,7 @@ function ProductDetailBody({ productId, initialSize }: { productId: string; init
           {
             key: "customer",
             label: "Customers pay",
-            value: approved ? priceRange(detail, (s) => s.customerPrice) : "—",
+            value: approved ? priceRange(detail, (s) => s.customerPrice) : "-",
             note: approved ? "What shoppers are charged" : "Set when Effy approves it",
           },
           {
@@ -352,13 +352,13 @@ function ProductDetailBody({ productId, initialSize }: { productId: string; init
               readOnly
                 ? undefined
                 : [
-                    {
-                      label: "Go to Details",
-                      primary: true,
-                      onClick: () =>
-                        document.getElementById("details")?.scrollIntoView({ block: "start" }),
-                    },
-                  ]
+                  {
+                    label: "Go to Details",
+                    primary: true,
+                    onClick: () =>
+                      document.getElementById("details")?.scrollIntoView({ block: "start" }),
+                  },
+                ]
             }
           >
             <p>
@@ -438,7 +438,7 @@ function ProductDetailBody({ productId, initialSize }: { productId: string; init
         app="shop-web"
         log="shop-stock"
         title="Stock activity"
-        description={`${detail.name} — every change to the count of each size, with who made it and why.`}
+        description={`${detail.name} - every change to the count of each size, with who made it and why.`}
         api={api}
         path={`/inventory/v1/products/${detail.id}/stock/activity`}
         queryKey={["shop", "stock", "product", detail.id]}
@@ -601,13 +601,13 @@ function FormSections({ detail, onEdit }: { detail: ProductDetail; onEdit?: (sec
       onAdd={
         onEdit
           ? (row) => {
-              const section = groups.find((g) => g.rows.some((r) => r.key === row.key))?.title
-              return section ? (
-                <Button variant="outline" size="sm" onClick={() => onEdit(section)}>
-                  Add
-                </Button>
-              ) : null
-            }
+            const section = groups.find((g) => g.rows.some((r) => r.key === row.key))?.title
+            return section ? (
+              <Button variant="outline" size="sm" onClick={() => onEdit(section)}>
+                Add
+              </Button>
+            ) : null
+          }
           : undefined
       }
     />

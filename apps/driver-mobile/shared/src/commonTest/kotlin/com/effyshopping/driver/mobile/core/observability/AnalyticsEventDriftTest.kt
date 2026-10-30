@@ -43,7 +43,7 @@ class AnalyticsEventDriftTest {
         for (e in allEvents) {
             assertTrue(
                 e.name in documented,
-                "AnalyticsEvent '${e.name}' is not in the documented taxonomy — add it to docs/telemetry.",
+                "AnalyticsEvent '${e.name}' is not in the documented taxonomy - add it to docs/telemetry.",
             )
         }
     }
@@ -52,7 +52,7 @@ class AnalyticsEventDriftTest {
     fun no_prop_value_looks_like_pii() {
         for (e in allEvents) {
             for ((k, v) in e.props) {
-                assertTrue('@' !in v, "prop '$k' on '${e.name}' looks like an email — no PII (Principle VII)")
+                assertTrue('@' !in v, "prop '$k' on '${e.name}' looks like an email - no PII (Principle VII)")
             }
         }
     }

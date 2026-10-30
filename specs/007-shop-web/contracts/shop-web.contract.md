@@ -1,4 +1,4 @@
-# Contract — `shop-web` client behavior
+# Contract - `shop-web` client behavior
 
 **Feature**: 007 (FR-007, FR-010, FR-011, FR-013, FR-014, FR-016) · **Surface**:
 `apps/shop-web` · **Status**: to build this slice.
@@ -19,7 +19,7 @@ email → startSignIn({ authFlowType: "USER_AUTH", preferredChallenge: "EMAIL_OT
       → CONFIRM_SIGN_IN_WITH_EMAIL_CODE → submitOtp(code) → DONE → session
 ```
 
-Both steps come from `@effy/web-kit` (`auth/otp.ts`) — identical to back-office, not copied.
+Both steps come from `@effy/web-kit` (`auth/otp.ts`) - identical to back-office, not copied.
 
 - **Session** persists across reload (Amplify token storage) until legitimate expiry.
 - **Protected routes** sit under one route with `beforeLoad: requireSession(...)`, which redirects
@@ -46,18 +46,18 @@ Never surfaced: which of the above occurred for an *unknown* email, or whether t
 ## 2. The client error-handling contract (single, documented)
 
 Every backend failure arrives as a `DomainError` from `@effy/api-client` (RFC 9457 problem+json →
-`kind`). Screens render a human state keyed on `kind` — **never** the raw `detail`, a stack trace,
+`kind`). Screens render a human state keyed on `kind` - **never** the raw `detail`, a stack trace,
 a token, or a status code.
 
 | `kind` | Rendered as | Recovery |
 |---|---|---|
 | `unauthenticated` | "Your session has expired." | recover session, else route to sign-in |
 | `forbidden` | access-denied state; **no privileged data** | none (correct outcome) |
-| `unavailable` | degraded state — "The service is waking up or unreachable." | **Retry** button |
+| `unavailable` | degraded state - "The service is waking up or unreachable." | **Retry** button |
 | `not-found` | not-found state | back to dashboard |
 | `unknown` | generic "Something went wrong." | Retry |
 
-`createQueryClient` (web-kit) does **not** retry `forbidden` / `unauthenticated` / `not-found` —
+`createQueryClient` (web-kit) does **not** retry `forbidden` / `unauthenticated` / `not-found` -
 retrying a correct denial wastes the operator's time and hammers the gate. Everything else retries
 twice.
 
@@ -84,7 +84,7 @@ export function visibleNav(roles: readonly ShopRole[]): NavItem[]
   `/shop/v1/manager-ping` if they navigate to `/manager` directly.
 - A **role-less** operator sees no privileged item and reaches nothing privileged.
 - An operator with **no shop assignment** is admitted to the shell and sees a clear "no shop
-  assigned" state on the dashboard — explained, not a blank screen.
+  assigned" state on the dashboard - explained, not a blank screen.
 
 Roles come from the **platform record** (`/shop/v1/me`), not from the token, for everything the
 interface renders about privilege. The token's claim is only ever an input to the backend's
@@ -99,7 +99,7 @@ reconcile.
   location, and a main content region into which every screen renders (FR-014).
 - `shop-web` **defines no theme of its own** (FR-013, SC-007). Brand, dark mode, and neutral
   surfaces with a single jade accent are inherited from `@effy/design-system` (`tokens.css`);
-  sizing is the shadcn/Tailwind default. **Zero** local theme rules — asserted by a token-guard
+  sizing is the shadcn/Tailwind default. **Zero** local theme rules - asserted by a token-guard
   test, mirroring back-office's. *(2026-07-15: the shared `scale.css` fluid large-display scaling
   this once also inherited was removed platform-wide; the guard still forbids any local
   `font-size: clamp()`.)*
@@ -132,12 +132,12 @@ Runtime errors route to PostHog as `$exception`. Absent `VITE_POSTHOG_KEY` ⇒ e
 
 ---
 
-## 7. Add a screen — walkthrough
+## 7. Add a screen - walkthrough
 
 1. Create `src/features/<domain>/` with `repo.ts` (calls `api`, maps DTO → domain), `queries.ts`
    (`queryOptions` + key), and `<Screen>.tsx` (renders states, never raw errors).
 2. Add the route in `src/routes/app.tsx` as a child of `appRoute`; register it in `router.tsx`.
-3. Add a `NAV` entry in `src/components/layout/nav.ts`, with `requiredRole` if privileged — and
+3. Add a `NAV` entry in `src/components/layout/nav.ts`, with `requiredRole` if privileged - and
    **add the matching backend gate**. A hidden nav item is not a gate.
 4. **Update the parity register** (`docs/audiences/shop-capabilities.md`): a capability added to
    the web surface must record its state on the mobile surface (FR-023a). This step is not optional.

@@ -31,7 +31,7 @@ const base: Omit<SplitInput, "amountCents"> = {
   refundedBeforeCents: 0, cardRefundedBeforeCents: 0, pointsReturnedBefore: 0,
 };
 
-describe("074 — splitRefund (P1)", () => {
+describe("074 - splitRefund (P1)", () => {
   it("splits one refund in the proportion the order was paid", () => {
     // $40.00 paid as $30.00 card + $10.00 points; an $8.00 refund is $6.00 card + 200 points.
     expect(splitRefund({ ...base, amountCents: 800 })).toEqual({ cardCents: 600, points: 200, pointsValueCents: 200 });

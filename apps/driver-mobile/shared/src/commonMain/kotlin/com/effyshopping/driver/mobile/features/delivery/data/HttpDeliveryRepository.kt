@@ -62,7 +62,7 @@ class HttpDeliveryRepository(
     /** Proof captured with no signal, waiting to be sent (backlog B3). */
     private val proofs: ProofOutbox,
     private val json: Json = Json { encodeDefaults = true },
-    /** Told when a proof image did not reach storage, with a bounded reason — never the image. */
+    /** Told when a proof image did not reach storage, with a bounded reason - never the image. */
     private val onProofUploadFailed: (reason: String) -> Unit = {},
 ) : DeliveryRepository {
 
@@ -278,7 +278,7 @@ private fun DeliveryRunDTO.toDomain() = DeliveryRun(
     stageLabel = stageLabel?.takeIf { it.isNotBlank() },
 )
 
-/** 088/092 — the wire's parcels to return → the domain's. Shared with Today's read. */
+/** 088/092 - the wire's parcels to return → the domain's. Shared with Today's read. */
 internal fun com.effyshopping.driver.mobile.contract.ParcelsToReturn.toParcels() = ParcelsToReturn(
     runID, count.toInt(), orders,
     parcels = parcels.map { ReturnParcel(it.ref, it.packageCode, it.place?.takeIf { p -> p.isNotBlank() }, it.reason?.toDomain(), bags = it.parcels.map { b -> b.toDomain() }) },

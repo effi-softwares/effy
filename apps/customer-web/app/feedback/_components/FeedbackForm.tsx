@@ -14,15 +14,15 @@ import { Field, btnClass, input, select } from "@/components/storefront/kit"
 import { submitFeedbackAction } from "../actions"
 
 /**
- * The feedback form — the one client island on `/feedback`.
+ * The feedback form - the one client island on `/feedback`.
  *
  * Controlled fields, for the same reason NewsletterForm holds its email in state: React resets an
  * uncontrolled form once its action completes, so an uncontrolled form would wipe everything the
- * shopper typed on a failed submit — the outcome whose whole point is that their words survive. Holding
+ * shopper typed on a failed submit - the outcome whose whole point is that their words survive. Holding
  * the values in state takes them out of React's reset path; only success clears them (by swapping to
  * the confirmation view).
  *
- * For a signed-in shopper the email is shown read-only from their profile and not posted — the
+ * For a signed-in shopper the email is shown read-only from their profile and not posted - the
  * authed route takes the trusted profile email regardless. A guest gets an editable, optional email.
  */
 export function FeedbackForm({
@@ -130,11 +130,10 @@ export function FeedbackForm({
           {[1, 2, 3, 4, 5].map((n) => (
             <label
               key={n}
-              className={`cursor-pointer rounded-md border px-4 py-2 text-sm transition-colors ${
-                rating === String(n)
+              className={`cursor-pointer rounded-md border px-4 py-2 text-sm transition-colors ${rating === String(n)
                   ? "border-primary bg-primary-fill text-primary-foreground"
                   : "border-input hover:border-ring"
-              }`}
+                }`}
             >
               <input
                 type="radio"
@@ -174,7 +173,7 @@ export function FeedbackForm({
 
       {signedIn ? (
         <Field label="We'll reply to" htmlFor="feedback-email-readonly">
-          {/* Not posted — the authed route uses the verified profile email. Shown so the shopper
+          {/* Not posted - the authed route uses the verified profile email. Shown so the shopper
               knows where a reply would land. */}
           <input
             id="feedback-email-readonly"
@@ -227,8 +226,8 @@ const FEEDBACK_ERROR_MESSAGES: Record<
   string
 > = {
   invalid: "Please check the highlighted fields and try again.",
-  rate_limited: "You've sent us a few messages just now — please give it a little while before sending another.",
-  error: "We couldn't send that just now. Your message is still here — try again in a moment.",
+  rate_limited: "You've sent us a few messages just now - please give it a little while before sending another.",
+  error: "We couldn't send that just now. Your message is still here - try again in a moment.",
 }
 
 function FeedbackError({ result }: { result: Exclude<SubmitFeedbackResult, { status: "ok" }> }) {
@@ -246,7 +245,7 @@ function FeedbackError({ result }: { result: Exclude<SubmitFeedbackResult, { sta
 function FeedbackConfirmation({ referenceCode }: { referenceCode: string }) {
   return (
     <div className="mt-8 rounded-lg border border-dashed px-6 py-12 text-center" role="status">
-      <h2 className="text-lg font-semibold">Thanks — we've got it</h2>
+      <h2 className="text-lg font-semibold">Thanks - we've got it</h2>
       <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
         A real person will read what you sent. If it needs a reply, we'll email you back.
       </p>

@@ -5,7 +5,7 @@ import "./globals.css"
 /**
  * The last resort: the root layout itself failed, so there is no storefront to draw this inside
  * (reference: Help & info · Error). It brings its own <html> and <body> and loads nothing it does not
- * need — a page that exists because something broke must not depend on the thing that broke.
+ * need - a page that exists because something broke must not depend on the thing that broke.
  */
 export default function GlobalError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   return (

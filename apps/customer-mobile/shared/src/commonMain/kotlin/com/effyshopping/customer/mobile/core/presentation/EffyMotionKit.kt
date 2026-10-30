@@ -56,7 +56,7 @@ object EffyStorefrontMotion {
     const val ShimmerMillis = 1100
     const val MorphMillis = 250
 
-    /** The iOS navigation curve — a quick start that settles softly. */
+    /** The iOS navigation curve - a quick start that settles softly. */
     val IosEase = CubicBezierEasing(0.32f, 0.72f, 0f, 1f)
 
     /** A sheet's spring: settles without a visible bounce. */
@@ -78,7 +78,7 @@ fun effyDuration(full: Int): Int = when (LocalMotionLevel.current) {
 
 /**
  * Press feedback: the element sinks slightly while held. Tiles 0.97, buttons 0.98 (Motion board).
- * Off under reduced motion — the tap still works, only the movement goes.
+ * Off under reduced motion - the tap still works, only the movement goes.
  */
 @Composable
 fun Modifier.effyPress(interactions: InteractionSource, pressedScale: Float = 0.98f): Modifier {
@@ -93,7 +93,7 @@ fun Modifier.effyPress(interactions: InteractionSource, pressedScale: Float = 0.
 }
 
 /**
- * A bump: scale 1 → 1.25 → 1 on a spring whenever [trigger] changes (not on first composition) — the
+ * A bump: scale 1 → 1.25 → 1 on a spring whenever [trigger] changes (not on first composition) - the
  * cart badge when something is added. Off under reduced motion.
  */
 @Composable

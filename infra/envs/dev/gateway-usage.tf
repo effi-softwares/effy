@@ -5,8 +5,8 @@
 # The admin service's hourly `gatewayUsage` function emits `GatewayUsagePercent` in `Effy/Platform` by
 # gateway and limit; each alarm watches the higher of a gateway's two readings. Two levels
 # (docs/api/path-assignment.md):
-# 75% — plan. There is room for roughly a feature or two. Decide what moves, before it is urgent.
-# 90% — stop adding routes to this gateway until something has moved.
+# 75% - plan. There is room for roughly a feature or two. Decide what moves, before it is urgent.
+# 90% - stop adding routes to this gateway until something has moved.
 #
 # Missing data is not breaching (the check stopping has its own alarm in background-functions.tf). No
 # `ok_actions`.

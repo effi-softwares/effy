@@ -22,7 +22,7 @@ export const handler: PreSignUpTriggerHandler = async (event) => {
         event.response.autoConfirmUser = true
         logger.info(
           { sub: event.userName },
-          "pre-sign-up: auto-confirming (035 — email remains UNVERIFIED until a code is answered)",
+          "pre-sign-up: auto-confirming (035 - email remains UNVERIFIED until a code is answered)",
         )
       }
       return event
@@ -53,7 +53,7 @@ async function handleFederated(
   if (result.outcome === "refused") {
     logger.warn(
       { reason: result.reason },
-      "federated sign-in REFUSED — refusing to link an unverified identity",
+      "federated sign-in REFUSED - refusing to link an unverified identity",
     )
     // Fail closed: an error beats linking an attacker into someone's account.
     throw new Error(result.reason)

@@ -37,7 +37,7 @@ async function sentFor(platform: "android" | "ios" | "web", type = "shop_new_ord
   return send.mock.calls.at(-1)![0];
 }
 
-describe("⚠ P1 — the sender branches on platform", () => {
+describe("⚠ P1 - the sender branches on platform", () => {
   it("sends a WEB token data-only, with NO notification block", async () => {
     const msg = await sentFor("web");
 
@@ -73,7 +73,7 @@ describe("⚠ P1 — the sender branches on platform", () => {
   });
 });
 
-describe("⚠ P2 — every data value is a string, for every type and platform", () => {
+describe("⚠ P2 - every data value is a string, for every type and platform", () => {
   it("never hands FCM a non-string data value", async () => {
     // FCM rejects a non-string `data` value deep inside a provider error.
     for (const type of NOTIFICATION_TYPES) {

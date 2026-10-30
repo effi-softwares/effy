@@ -6,7 +6,7 @@
 
 **Status**: Draft
 
-**Input**: User description: "Customer lists" — client feedback round of October 2026, requirement
+**Input**: User description: "Customer lists" - client feedback round of October 2026, requirement
 R3 in [docs/prd/2026-10-client-feedback-prd.md](../../docs/prd/2026-10-client-feedback-prd.md).
 
 ## Why this slice exists

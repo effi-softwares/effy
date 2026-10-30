@@ -32,7 +32,7 @@ export async function grantCapability(
   if (!(body && "zoneId" in body)) {
     fields.push({
       field: "zoneId",
-      message: "is required — send a zone id, or null to mean every zone",
+      message: "is required - send a zone id, or null to mean every zone",
     });
   }
   if (fields.length > 0) throw validationError("the clearance could not be granted", fields);

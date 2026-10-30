@@ -3,7 +3,7 @@
 Errors are RFC 9457 as everywhere (`code`, optional `fields[]`). Staff routes: staff gateway, back-office authorizer;
 writes need `admin` or `manager`, reads any staff role.
 
-## Skins (admin, staff gateway) — 6 routes
+## Skins (admin, staff gateway) - 6 routes
 
 | Method & path | Body / query | Answer |
 |---|---|---|
@@ -14,7 +14,7 @@ writes need `admin` or `manager`, reads any staff role.
 | `POST /admin/v1/promotion-skins/{id}/duplicate` | `{ name }` | 201 `AdminSkinDTO` |
 | `DELETE /admin/v1/promotion-skins/{id}` | | 204 · 409 `skin_in_use` with `usage` |
 
-## Promotion pictures (admin, staff gateway) — 4 routes
+## Promotion pictures (admin, staff gateway) - 4 routes
 
 | Method & path | Body | Answer |
 |---|---|---|
@@ -26,7 +26,7 @@ writes need `admin` or `manager`, reads any staff role.
 `AdminPromotionDTO` (094) gains `images: AdminPromotionImageDTO[]`
 (`id, url, imageWidths?, width, height, alt, focusX, focusY, position, usedIn: {key,name}[]`).
 
-## Groups (admin, extended — no new routes)
+## Groups (admin, extended - no new routes)
 
 - `AdminPromotionGroupDTO` gains `size`, `defaultSkin: {id,name,layout}`, `defaultCodeSkin: {...} | null`.
 - `PATCH /admin/v1/promotion-groups/{id}` accepts `size?`, `defaultSkinId?`, `defaultCodeSkinId?` → 422
@@ -38,7 +38,7 @@ writes need `admin` or `manager`, reads any staff role.
   the preview.
 - `GET /admin/v1/promotion-groups/{id}/preview` (094) returns `shown[]` with `skin` resolved.
 
-## Shopper reads (storefront public / commerce personal — unchanged routes)
+## Shopper reads (storefront public / commerce personal - unchanged routes)
 
 `ShopperPromotionDTO` gains, additively:
 

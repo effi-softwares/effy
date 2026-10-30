@@ -82,7 +82,7 @@ dev before this feature's walk.
 
 ---
 
-## Phase 3: User Story 1 — Every bag has its own label (P1) 🎯 MVP
+## Phase 3: User Story 1 - Every bag has its own label (P1) 🎯 MVP
 
 **Goal**: the shop declares bags per zone, and each bag is a parcel with its own code. Bags can be voided. 089 labels still work.
 **Independent test**: spec US1. Declare 2 ambient + 1 chilled + 1 frozen, and get 4 distinct codes numbered 1–4 of 4. A frozen line with no frozen bag is refused. A voided code is refused everywhere.
@@ -116,7 +116,7 @@ dev before this feature's walk.
 
 ---
 
-## Phase 4: User Story 10 — A professional, carrier-style label (P1)
+## Phase 4: User Story 10 - A professional, carrier-style label (P1)
 
 **Goal**: the label in contracts/label.md. One SVG renderer, whole-dot bars, fitted text, black only.
 **Independent test**: spec US10 and SC-011. Every size, every zone, Effy and courier, long name and long address: every block present, nothing clipped, one page per label.
@@ -145,7 +145,7 @@ dev before this feature's walk.
 
 ---
 
-## Phase 5: User Story 2 — Labels print reliably, and the console knows (P1)
+## Phase 5: User Story 2 - Labels print reliably, and the console knows (P1)
 
 **Goal**: print records, Printed/Not printed, the ready gate, batch printing, and optional Zebra direct print.
 **Independent test**: spec US2. Marking ready with an unprinted bag is refused. A batch print records every bag. A blocked print records nothing.
@@ -175,7 +175,7 @@ dev before this feature's walk.
 
 ---
 
-## Phase 6: User Story 3 — The driver accounts for every bag (P1)
+## Phase 6: User Story 3 - The driver accounts for every bag (P1)
 
 **Goal**: every driver step is per parcel and enforced by the server. Missing bags are held one by one. Reads are recorded.
 **Independent test**: spec US3 and SC-003. Withhold 1 bag of a 4-bag portion: every step stays unable to complete until it is scanned or declared missing.
@@ -222,7 +222,7 @@ dev before this feature's walk.
 
 ---
 
-## Phase 7: User Story 4 — The shop confirms each bag as it is packed (P2)
+## Phase 7: User Story 4 - The shop confirms each bag as it is packed (P2)
 
 **Goal**: pack-scan in shop-web, the per-shop requirement, and the custody each bag shows.
 **Independent test**: spec US4. Scan 3 of 4 labels: 1 unconfirmed. With "required" on, ready is refused.
@@ -236,14 +236,14 @@ dev before this feature's walk.
   Export it from `packages/web-kit/package.json` `exports`.
 - [X] T042 [P] [US4] Write `WK/scanner/wedge.test.ts`: a burst counts as a scan, slow typing does not, an Enter/Tab/idle suffix, Caps Lock, a stray key before, and no leak into an input.
 - [X] T043 [US4] Write `SHP/parcels/service.ts` `packScan(actor, fulfillmentId, reads)`. It judges each read against this package's parcels (`resolveCode`), sets `pack_scanned_at`/`by` for accepted ones, records a `pack` hand-over and the reads, and refuses a different package with a sentence. Add the handler `SHP/functions/parcel-pack-scans-v1-post.ts` and register it.
-- [X] T044 [US4] (Courier hand-over only — the pickup route is a dev-only scaffold marked do-not-extend.) Record shop hand-overs per parcel in the existing courier hand-over and pickup routes (`SHP/functions/fulfillment-courier-handover-v1-post.ts`, `fulfillment-pickup-v1-post.ts`), with actor shop staff and steps `courier_handover` / `shop_pickup`.
+- [X] T044 [US4] (Courier hand-over only - the pickup route is a dev-only scaffold marked do-not-extend.) Record shop hand-overs per parcel in the existing courier hand-over and pickup routes (`SHP/functions/fulfillment-courier-handover-v1-post.ts`, `fulfillment-pickup-v1-post.ts`), with actor shop staff and steps `courier_handover` / `shop_pickup`.
 - [X] T045 [US4] In shop-web's `PackBags.tsx`, add a "Scan bags" `ScanField`, "Packed n of N" and a result line per read. Each bag shows its custody ("At shop", "Packed", "With driver", "With courier") and never a driver's name.
 - [X] T046 [US4] Back-office: add a "Require pack scanning" switch to the shop detail settings in `BO/features/shops/*`. The admin route is not touched: add a shop-settings field to the existing `SHP`/`orders` path that already sets shop fields, or confirm the owning route with `grep -rn "pack\|settings" apis/edge-api/admin/src/shops` before adding a route anywhere.
 - [X] T047 [P] [US4] Write `SHP/parcels/pack-scan.container.test.ts` (accepted, foreign package, repeat counted once, the required gate) and `SW/fulfillment/__tests__/pack-scan.test.tsx`.
 
 ---
 
-## Phase 8: User Story 5 — Back-office scan-to-find and the hub station (P2)
+## Phase 8: User Story 5 - Back-office scan-to-find and the hub station (P2)
 
 **Goal**: one scan box finds anything, and hub staff check bags in.
 **Independent test**: spec US5. Scan a bag, an 089 package label or an order number, and the order opens highlighted. A hub check-in shows At hub with the sort words.
@@ -268,7 +268,7 @@ dev before this feature's walk.
 
 ---
 
-## Phase 9: User Story 6 — Every read is on record, and the failures are visible (P2)
+## Phase 9: User Story 6 - Every read is on record, and the failures are visible (P2)
 
 **Goal**: reports over reads and hand-overs, and parcel holds on Exceptions.
 **Independent test**: spec US6. A scan, a typed entry, a manual tick, a wrong-shop scan and a void each appear with every field, and the reports count them.
@@ -280,7 +280,7 @@ dev before this feature's walk.
 
 ---
 
-## Phase 10: User Story 7 — A delivery note travels with the order (P2)
+## Phase 10: User Story 7 - A delivery note travels with the order (P2)
 
 **Goal**: a digital delivery note, as JSON and PDF, on the web and in the app, linked from the delivered message.
 **Independent test**: spec US7. A part-picked and an unavailable line are both correct. No price, no shop.
@@ -299,7 +299,7 @@ dev before this feature's walk.
 
 ---
 
-## Phase 11: User Story 9 — Every product carries a GST status (P3; required before US8)
+## Phase 11: User Story 9 - Every product carries a GST status (P3; required before US8)
 
 **Goal**: GST status on products: the shop sets it, back-office reviews it, bulk setting exists, and it is captured on order lines.
 **Independent test**: spec US9. Set it through each path, and the count of unclassified products goes to zero.
@@ -312,7 +312,7 @@ dev before this feature's walk.
 
 ---
 
-## Phase 12: User Story 8 — The customer can get a tax invoice (P2)
+## Phase 12: User Story 8 - The customer can get a tax invoice (P2)
 
 **Goal**: ATO-compliant tax invoices and adjustment notes, operator-set tax details, and a fail-loud state while unset.
 **Independent test**: spec US8 and SC-008. Every required element is present, GST is correct to the cent across the test set, and an issued invoice is never altered.
@@ -333,7 +333,7 @@ dev before this feature's walk.
   - Return 409 `buyer_identity_required` at $1,000 or more with no name.
   - Make it owner-only, and register it.
 
-  Declare the CloudWatch alarm on the metric in Terraform beside the existing commerce alarms (`infra/` — find them with `grep -rn "metric_name" infra | grep -i commerce`).
+  Declare the CloudWatch alarm on the metric in Terraform beside the existing commerce alarms (`infra/` - find them with `grep -rn "metric_name" infra | grep -i commerce`).
 - [X] T073 [US8] Back-office: add `BO/features/settings/tax/*` (legal name, ABN, fee treatment, enable switch, a link to the GST-missing list). Customer web and app: add "Tax invoice" and "Adjustment notes" rows to the Documents section (T061/T062), the "not available yet" sentence, and the business identity sheet for $1,000 or more.
 - [X] T074 [P] [US8] Write `ESH/documents/tax-invoice.container.test.ts` (issued once, the snapshot unchanged after a product's GST changes, numbering, an adjustment per refund) and `COM/documents/tax.container.test.ts` (disabled, the buyer identity gate, owner-only, PDF bytes). Add a guard that `tax_document` has no UPDATE anywhere.
 

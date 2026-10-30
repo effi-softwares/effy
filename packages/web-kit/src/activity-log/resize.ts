@@ -31,7 +31,7 @@ function write(w: number | null): void {
 
 /**
  * The activity drawer's width (104), set by dragging its left edge (or the arrow keys on it) and kept on the device.
- * `null` is the default — half the window. A double-click or Enter on the edge goes back to it.
+ * `null` is the default - half the window. A double-click or Enter on the edge goes back to it.
  */
 export function useDrawerWidth() {
   const [width, setWidth] = useState<number | null>(() => read());

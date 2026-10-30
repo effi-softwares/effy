@@ -1,4 +1,4 @@
-# Feature Specification: Promotion Skins — Designed by Staff, Chosen per Placement
+# Feature Specification: Promotion Skins - Designed by Staff, Chosen per Placement
 
 **Feature Branch**: `095-promotion-skins`
 
@@ -19,7 +19,7 @@ builder), and may use any colour as long as the text stays readable.
 of two fixed looks, in one colour, with a fixed icon, and no picture can be attached. Marketing cannot make a
 seasonal campaign look seasonal, cannot use product photography, and cannot make the same offer look right both as a
 large Home banner and as a small tile in the aisles menu. This feature lets staff design reusable **skins** in
-back-office, attach pictures to promotions, and pick which skin a promotion wears in each place it appears — and the
+back-office, attach pictures to promotions, and pick which skin a promotion wears in each place it appears - and the
 website and the app draw exactly that.
 
 ## Clarifications
@@ -62,9 +62,9 @@ the picture on the website and in the app.
 
 ### User Story 2 - Build a skin (Priority: P1)
 
-A manager opens **Skins** in back-office, creates a skin, picks a layout, and adjusts every part of it — background
+A manager opens **Skins** in back-office, creates a skin, picks a layout, and adjusts every part of it - background
 colour or picture, the tint over a picture, the colours, sizes, weights and alignment of the small label, headline and
-supporting line, the button's style, colours and words, the code chip, the decorations, the corners and the spacing —
+supporting line, the button's style, colours and words, the code chip, the decorations, the corners and the spacing -
 while a live preview shows it with a real promotion, at phone and desktop widths, and in the app's light and dark
 appearance.
 
@@ -243,14 +243,14 @@ An app version that does not know a newer layout draws the promotion in the grou
 - **FR-006**: Staff with promotion-editing rights MUST be able to create, edit, duplicate, rename and remove skins;
   customer-service staff MUST be able to view skins and their previews but change nothing.
 - **FR-007**: A skin MUST be built on one layout from a closed list maintained by Effy. The list at launch:
-  - **Panel** — colour or picture background, text top-left, code chip and button bottom-left, decorations right
+  - **Panel** - colour or picture background, text top-left, code chip and button bottom-left, decorations right
     (today's first look);
-  - **Header card** — coloured or picture header with label and headline over a white body with a tag and a link
+  - **Header card** - coloured or picture header with label and headline over a white body with a tag and a link
     (today's second look);
-  - **Full picture** — the picture fills the skin, text over a tint, aligned to a chosen corner or centre;
-  - **Picture beside text** — picture on one side (left or right), text and action on the other;
-  - **Tile** — a small square or near-square tile: picture or colour, short headline, no supporting line;
-  - **Strip** — a thin full-width band: one line of text, optional code chip and action, optional small picture.
+  - **Full picture** - the picture fills the skin, text over a tint, aligned to a chosen corner or centre;
+  - **Picture beside text** - picture on one side (left or right), text and action on the other;
+  - **Tile** - a small square or near-square tile: picture or colour, short headline, no supporting line;
+  - **Strip** - a thin full-width band: one line of text, optional code chip and action, optional small picture.
 - **FR-008**: Each layout MUST state which places it fits (large, medium, small, strip) and which settings it has.
   Across layouts, the settings a skin MAY carry are:
   - background: a colour, a picture from the promotion, or a picture with a tint (colour and strength);
@@ -309,7 +309,7 @@ An app version that does not know a newer layout draws the promotion in the grou
 
 - **FR-025**: On release, a built-in **Classic** skin MUST draw each place exactly as it is drawn today (it cannot be
   edited or removed); every group MUST default to it and every placement MUST wear its group's default, so no shopper
-  sees a change. Starter skins in today's two looks ("Panel — Effy blue", "Header card — Effy orange") MUST be
+  sees a change. Starter skins in today's two looks ("Panel - Effy blue", "Header card - Effy orange") MUST be
   available to pick and duplicate. The aisles menu's offers MUST come from `mega-nav`, seeded with the promotions it
   shows today.
 - **FR-026**: Every change to a skin, a picture or a placement's skin MUST be recorded in the promotion's history
@@ -319,8 +319,8 @@ An app version that does not know a newer layout draws the promotion in the grou
 
 ### Key Entities
 
-- **Promotion picture**: a picture attached to one promotion — its sized copies, shape, description and focus point.
-- **Skin**: a named, reusable design — one layout plus its settings (FR-008); has a version, a history and a list of
+- **Promotion picture**: a picture attached to one promotion - its sized copies, shape, description and focus point.
+- **Skin**: a named, reusable design - one layout plus its settings (FR-008); has a version, a history and a list of
   where it is used.
 - **Layout**: one of Effy's closed list of arrangements (FR-007); states the places it fits and the settings it takes.
 - **Display group** (094, extended): gains a size and a default skin.

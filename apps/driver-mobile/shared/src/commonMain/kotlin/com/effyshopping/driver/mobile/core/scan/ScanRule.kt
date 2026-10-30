@@ -3,11 +3,11 @@ package com.effyshopping.driver.mobile.core.scan
 /**
  * What one read means at one step. One rule for every scanning step (shop, hub, load, door,
  * return): each screen is a view of these outcomes, never its own judgement. Pure, and decided from what
- * the phone already holds — so it works with no signal.
+ * the phone already holds - so it works with no signal.
  *
  * The kotlin twin of `packages/shared-types/src/scan-rule.ts`. Both are held to the same rows,
  * `scan-rule.fixtures.json` (embedded as `ScanRuleFixture.kt`): the same outcomes and the same words on
- * every surface. What a step counts is bags — each with its own code.
+ * every surface. What a step counts is bags - each with its own code.
  */
 sealed interface ScanOutcome {
     /** A bag expected here, not yet scanned. It counts. */
@@ -17,7 +17,7 @@ sealed interface ScanOutcome {
     data class AlreadyScanned(val code: String) : ScanOutcome
 
     /**
-     * A hard stop. The bag belongs to another stop or drop on the driver's work — handing it over
+     * A hard stop. The bag belongs to another stop or drop on the driver's work - handing it over
      * here is the wrong-bag mistake scanning exists to prevent. [where] names where it belongs.
      */
     data class BelongsElsewhere(val code: String, val where: String) : ScanOutcome
@@ -31,7 +31,7 @@ sealed interface ScanOutcome {
     /** A bag whose order was cancelled. Never counted. */
     data class Cancelled(val code: String) : ScanOutcome
 
-    /** Not an Effy label — a product's own barcode. Ignored silently. */
+    /** Not an Effy label - a product's own barcode. Ignored silently. */
     data object NotALabel : ScanOutcome
 }
 
@@ -40,7 +40,7 @@ data class BagNumber(val seq: Int, val of: Int)
 
 /**
  * What a step expects: the codes that belong here, and the codes elsewhere on the driver's work with
- * where they belong (the words the hard stop says). 096 — [bags] numbers each expected bag; [voided] and
+ * where they belong (the words the hard stop says). 096 - [bags] numbers each expected bag; [voided] and
  * [cancelled] are bags that must never count.
  */
 data class ScanContext(
@@ -79,7 +79,7 @@ object ScanRule {
     fun words(outcome: ScanOutcome, context: ScanContext): String = when (outcome) {
         is ScanOutcome.Accepted -> context.bags[outcome.code]?.let { "Bag ${it.seq} of ${it.of}" } ?: "Counted"
         is ScanOutcome.AlreadyScanned -> "Already scanned"
-        is ScanOutcome.BelongsElsewhere -> "For ${outcome.where} — not here"
+        is ScanOutcome.BelongsElsewhere -> "For ${outcome.where} - not here"
         is ScanOutcome.NotOnYourWork -> "Not expected here"
         is ScanOutcome.Voided -> "This label is no longer used"
         is ScanOutcome.Cancelled -> "This order was cancelled"

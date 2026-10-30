@@ -5,7 +5,7 @@ import com.effyshopping.customer.mobile.commerce.contract.CoverageKind
 /**
  * Who delivers to an address: Effy's own drivers, a courier, or nobody.
  *
- * Worked out by the server when the address or the quote is read, never kept on the device — a
+ * Worked out by the server when the address or the quote is read, never kept on the device - a
  * postcode that leaves Effy's list changes the answer the next time it is shown.
  */
 enum class Coverage { Effy, Courier, None }

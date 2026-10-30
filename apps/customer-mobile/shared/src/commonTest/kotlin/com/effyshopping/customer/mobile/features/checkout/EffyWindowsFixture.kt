@@ -6,7 +6,7 @@ package com.effyshopping.customer.mobile.features.checkout
  */
 internal const val EFFY_WINDOWS_FIXTURE = """
 {
-  "_comment": "078 — shared by packages/shared-types (TypeScript: effyWindowsView) and customer-mobile (Kotlin: effyWindowsView). `input` is a quote's effyWindows; `expect` is what the picker shows at `now`. A case that passes in one and fails in the other is the defect this file exists to catch. 085 — a day's `anyTime` and `asap` are part of the view.",
+  "_comment": "078 - shared by packages/shared-types (TypeScript: effyWindowsView) and customer-mobile (Kotlin: effyWindowsView). `input` is a quote's effyWindows; `expect` is what the picker shows at `now`. A case that passes in one and fails in the other is the defect this file exists to catch. 085 - a day's `anyTime` and `asap` are part of the view.",
   "cases": [
     {
       "name": "today has two windows left; a full Saturday; a surcharged evening",
@@ -599,7 +599,7 @@ internal const val EFFY_WINDOWS_FIXTURE = """
       }
     },
     {
-      "name": "085 — a day with no time: offered on a later day, on a day whose windows are all taken, never today; and as soon as possible",
+      "name": "085 - a day with no time: offered on a later day, on a day whose windows are all taken, never today; and as soon as possible",
       "now": "2026-10-08T09:00:00+11:00",
       "input": {
         "unavailable": null,
@@ -910,7 +910,7 @@ internal const val EFFY_WINDOWS_FIXTURE = """
       }
     },
     {
-      "name": "097 — today not offered at this address: no same_day day is sent, so there is no Same-day section; the later days are exactly as before",
+      "name": "097 - today not offered at this address: no same_day day is sent, so there is no Same-day section; the later days are exactly as before",
       "now": "2026-10-08T09:00:00+11:00",
       "input": {
         "unavailable": null,

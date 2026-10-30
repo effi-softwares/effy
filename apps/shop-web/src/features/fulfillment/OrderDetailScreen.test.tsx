@@ -41,7 +41,7 @@ vi.mock("@/features/auth/queries", () => ({ sessionQuery }))
 
 import { OrderDetailScreen } from "./OrderDetailScreen"
 
-/** Every loading shape has gone — a skeleton writes the page's real titles, so a title alone does not mean loaded. */
+/** Every loading shape has gone - a skeleton writes the page's real titles, so a title alone does not mean loaded. */
 const loaded = () => waitFor(() => expect(screen.queryAllByRole("status", { busy: true })).toHaveLength(0))
 
 const EGGS = orderDetail().lines[0]!
@@ -59,6 +59,8 @@ const MILK = line({
 })
 
 function wrap(children: ReactNode, roles: string[] = ["shop_staff"]) {
+  // A desktop window: the rail docks beside the page (below 1280px it is a drawer).
+  window.innerWidth = 1600
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
   qc.setQueryData(["session"], { status: "signed-in", identity: { subject: "s1", email: "x@y.z", roles } })
   return render(<QueryClientProvider client={qc}>{children}</QueryClientProvider>)
@@ -79,7 +81,7 @@ describe("the summary bar", () => {
   it("shows the total, the pills and 'placed · channel'", async () => {
     open(orderDetail({ atRisk: true, payment: { ...orderDetail().payment, state: "partially_refunded" } }))
     // The pill is the shared status ("Preparing" covers new, received and picking).
-    expect(await screen.findByText("Preparing")).toBeInTheDocument()
+    expect((await screen.findAllByText("Preparing")).length).toBeGreaterThanOrEqual(1)
     expect(screen.getAllByText("Partially refunded").length).toBeGreaterThanOrEqual(1)
     expect(screen.getByText("At risk")).toBeInTheDocument()
     expect(screen.getByText(/ · Online store ·/)).toBeInTheDocument()
@@ -87,16 +89,18 @@ describe("the summary bar", () => {
     expect(screen.getByLabelText("Package code")).toHaveTextContent("7K3Q9M")
   })
 
-  it("089 — offers a label for the bag, at a remembered size", async () => {
+  it("089 - offers a label for the bag, at a remembered size", async () => {
     open()
     expect(await screen.findByRole("button", { name: "Print label" })).toBeInTheDocument()
     expect(screen.getByRole("combobox", { name: "Label size" })).toBeInTheDocument()
   })
 
-  it("offers Activity and the next step — and none of the controls Effy cannot perform", async () => {
+  it("offers the next step on the action bar, the rest under More - and none of the controls Effy cannot perform", async () => {
     open()
-    expect(await screen.findByRole("button", { name: "Activity" })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: /mark ready for pickup/i })).toBeInTheDocument()
+    const bar = await screen.findByRole("region", { name: "Order" })
+    expect(within(bar).getByRole("button", { name: /mark ready/i })).toBeInTheDocument()
+    expect(within(bar).getByRole("button", { name: /can't supply/i })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "More actions" })).toBeInTheDocument()
     for (const name of [
       /capture/i,
       /duplicate/i,
@@ -109,10 +113,26 @@ describe("the summary bar", () => {
     }
   })
 
-  it("carries no previous/next of its own", async () => {
-    open()
-    await loaded()
-    expect(screen.queryByRole("button", { name: /previous order|next order/i })).not.toBeInTheDocument()
+  it("puts its place in the order list and previous / next on the action bar", async () => {
+    const d = orderDetail()
+    getOrder.mockResolvedValue(d)
+    listOrders.mockResolvedValue(orderList([{ id: "a" }, { id: d.id }, { id: "c" }] as never, { total: 3 }))
+    wrap(<OrderDetailScreen fulfillmentId={d.id} />)
+    const bar = await screen.findByRole("region", { name: "Order" })
+    await waitFor(() => expect(bar).toHaveTextContent("2 of 3"))
+    expect(within(bar).getByRole("button", { name: "Previous order (←)" })).toBeEnabled()
+    await userEvent.click(within(bar).getByRole("button", { name: "Next order (→)" }))
+    expect(router.navigate).toHaveBeenCalledWith(expect.objectContaining({ to: "/orders/$fulfillmentId", params: { fulfillmentId: "c" } }))
+  })
+
+  it("disables the arrow at the end of the list", async () => {
+    const d = orderDetail()
+    getOrder.mockResolvedValue(d)
+    listOrders.mockResolvedValue(orderList([{ id: "a" }, { id: d.id }] as never, { total: 2 }))
+    wrap(<OrderDetailScreen fulfillmentId={d.id} />)
+    const bar = await screen.findByRole("region", { name: "Order" })
+    await waitFor(() => expect(bar).toHaveTextContent("2 of 2"))
+    expect(within(bar).getByRole("button", { name: "Next order (→)" })).toBeDisabled()
   })
 
   it("shows a shop-scoped, non-disclosing refusal", async () => {
@@ -124,27 +144,24 @@ describe("the summary bar", () => {
 })
 
 describe("layout", () => {
-  it("puts Items and fulfilment, Bags & labels (096) and Internal notes in the main column, then Payment and Customer and delivery on the rail", async () => {
+  it("puts the Pick list, Bags & labels (096) and Team notes in the main column, then where it is, Customer and delivery and Payment on the rail", async () => {
     open()
     await loaded()
-    const titles = screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent)
-    expect(titles).toEqual([
-      "Items and fulfilment",
-      "Bags & labels",
-      "Internal notes",
-      "Payment",
-      "Customer and delivery",
-    ])
+    const titles = screen.getAllByRole("heading").map((h) => h.textContent)
+    for (const t of ["Pick list", "Bags & labels", "Team notes", "Where it is", "Customer and delivery", "Payment"]) {
+      expect(titles).toContain(t)
+    }
     expect(screen.queryByRole("heading", { name: "Fulfilment" })).not.toBeInTheDocument()
     // The activity log is a sheet, not a section.
     expect(screen.queryByText("Activity log")).not.toBeInTheDocument()
   })
 
-  it('keeps the payment and its verbs on the rail — and calls the shop\'s one way out "Can\'t supply it", never "Cancel order"', async () => {
+  it('keeps the payment on the rail - and calls the shop\'s one way out "Can\'t supply it", never "Cancel order"', async () => {
     open(orderDetail({ tags: ["fragile"] }))
-    expect(await screen.findByText("Visa •••• 4242 · $57.80 captured at checkout")).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Print pick list" })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: /can't supply it/i })).toBeInTheDocument()
+    expect(await screen.findByText("Visa •••• 4242 · AUD 57.80 captured at checkout")).toBeInTheDocument()
+    await userEvent.click(screen.getByRole("button", { name: "More actions" }))
+    expect(await screen.findByRole("menuitem", { name: /print pick list/i })).toBeInTheDocument()
+    expect(screen.getByRole("menuitem", { name: /can't supply it/i })).toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "Cancel order" })).not.toBeInTheDocument()
   })
 
@@ -169,7 +186,7 @@ describe("layout", () => {
     open()
     await loaded()
     expect(screen.queryByText("Items from other shops")).not.toBeInTheDocument()
-    expect(screen.queryByText("$30.00")).not.toBeInTheDocument()
+    expect(screen.queryByText("AUD 30.00")).not.toBeInTheDocument()
     expect(document.body.textContent ?? "").not.toMatch(/\b(VAT|GST)\b/)
     // No delivery or shipping amount reaches a shop.
     expect(screen.queryByText("Shipping")).toBeNull()
@@ -225,7 +242,7 @@ describe("item-level picking", () => {
     expect(screen.getByText("Not picked")).toBeInTheDocument()
   })
 
-  it("one click marks the whole line picked — no steppers", async () => {
+  it("one click marks the whole line picked - no steppers", async () => {
     setOrderPicks.mockResolvedValue(orderDetail())
     open(orderDetail({ lines: [line({ gatheredQuantity: 0 })] }))
     await userEvent.click(await screen.findByRole("checkbox", { name: /mark barossa .* picked/i }))
@@ -286,7 +303,7 @@ describe("Adjust this line", () => {
     expect(within(dialog).getByText("Adjust this line")).toBeInTheDocument()
     expect(within(dialog).getByText("Use this when the line cannot simply be marked picked.")).toBeInTheDocument()
     expect(within(dialog).getByLabelText("Availability")).toBeInTheDocument()
-    expect(within(dialog).getByPlaceholderText("Optional — what happened with this line")).toBeInTheDocument()
+    expect(within(dialog).getByPlaceholderText("Optional - what happened with this line")).toBeInTheDocument()
     // Units only for Part picked.
     expect(within(dialog).queryByLabelText("Units picked")).not.toBeInTheDocument()
   })
@@ -332,15 +349,8 @@ describe("Adjust this line", () => {
   })
 })
 
-describe("Fulfil", () => {
-  it("reads 'Fulfil picked items' and only toasts when nothing is ticked", async () => {
-    open(orderDetail({ lines: [line({ gatheredQuantity: 0 })] }))
-    const button = await screen.findByRole("button", { name: "Fulfil picked items" })
-    await userEvent.click(button)
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
-  })
-
-  it("counts lines picked in full, and hands over — marking untouched lines unavailable first", async () => {
+describe("Mark ready", () => {
+  it("opens the hand-over check from the action bar - marking untouched lines unavailable first", async () => {
     setOrderPicks.mockResolvedValue(orderDetail())
     transitionFulfillment.mockResolvedValue({
       id: "f1",
@@ -349,7 +359,8 @@ describe("Fulfil", () => {
       items: [],
     })
     open(orderDetail({ lines: [line({ gatheredQuantity: 2 }), MILK] }))
-    await userEvent.click(await screen.findByRole("button", { name: "Fulfil 1 item" }))
+    const bar = await screen.findByRole("region", { name: "Order" })
+    await userEvent.click(within(bar).getByRole("button", { name: /mark ready/i }))
     const dialog = await screen.findByRole("dialog")
     expect(within(dialog).getByText("In this parcel")).toBeInTheDocument()
     expect(within(dialog).queryByLabelText(/carrier|tracking/i)).not.toBeInTheDocument()
@@ -359,6 +370,13 @@ describe("Fulfil", () => {
     expect(setOrderPicks).toHaveBeenCalledWith("f1", { lines: [{ orderItemId: "oi2", mode: "unavailable" }] })
     expect(setOrderPicks.mock.invocationCallOrder[0]!).toBeLessThan(transitionFulfillment.mock.invocationCallOrder[0]!)
   })
+
+  it("offers Reopen picking once it is ready", async () => {
+    open(orderDetail({ status: "ready_for_pickup" }))
+    const bar = await screen.findByRole("region", { name: "Order" })
+    expect(within(bar).getByRole("button", { name: /reopen picking/i })).toBeInTheDocument()
+    expect(within(bar).queryByRole("button", { name: /mark ready/i })).not.toBeInTheDocument()
+  })
 })
 
 describe("the activity drawer (104)", () => {
@@ -367,14 +385,15 @@ describe("the activity drawer (104)", () => {
     await loaded()
     expect(apiGet).not.toHaveBeenCalled()
 
-    await userEvent.click(screen.getByRole("button", { name: "Activity" }))
+    await userEvent.click(screen.getByRole("button", { name: "More actions" }))
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Activity" }))
     const opened = router.navigate.mock.calls[0]![0] as {
       search: (prev: Record<string, unknown>) => Record<string, unknown>
     }
     expect(opened.search({ tab: "picking" })).toEqual({ tab: "picking", log: 1 })
   })
 
-  it("lists the order's own log — what, who, when — from its route", async () => {
+  it("lists the order's own log - what, who, when - from its route", async () => {
     router.search = { log: 1 }
     apiGet.mockResolvedValue({
       items: [
@@ -382,7 +401,7 @@ describe("the activity drawer (104)", () => {
           id: "e1",
           at: "2026-09-10T02:30:00Z",
           kind: "picking",
-          title: "Oat milk — marked unavailable · supplier short",
+          title: "Oat milk - marked unavailable · supplier short",
           detail: null,
           subject: null,
           actor: "Sam",
@@ -399,7 +418,7 @@ describe("the activity drawer (104)", () => {
     open()
     const drawer = await screen.findByRole("dialog")
     expect(within(drawer).getByText(/everything that has happened on this order/i)).toBeInTheDocument()
-    expect(await within(drawer).findByText("Oat milk — marked unavailable · supplier short")).toBeInTheDocument()
+    expect(await within(drawer).findByText("Oat milk - marked unavailable · supplier short")).toBeInTheDocument()
     expect(within(drawer).getByText("Sam")).toBeInTheDocument()
     expect(String(apiGet.mock.calls[0]![0])).toMatch(/^\/shop\/v1\/orders\/[^/]+\/activity\?/)
     expect(within(drawer).getByRole("button", { name: "Export CSV" })).toBeInTheDocument()

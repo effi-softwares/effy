@@ -46,7 +46,7 @@ describe("deployment configuration", () => {
     expect(missing, `serverless.yml is missing: ${missing.join(", ")}`).toEqual([])
   })
 
-  it("⚠ notify.ts itself reads NO process.env — the env is email-kit's to read", () => {
+  it("⚠ notify.ts itself reads NO process.env - the env is email-kit's to read", () => {
     // No stray `process.env.MAIL_*` in notify.ts: a second, uncontracted reader.
     const used = readEnvKeysUsedBy("src/password/notify.ts")
     expect([...used], `notify.ts must not read env directly: ${[...used].join(", ")}`).toEqual([])
@@ -95,7 +95,7 @@ describe("deployment configuration", () => {
     expect(resources, "must name this environment's identity").toContain("/ses/identity_arn")
     expect(
       resources,
-      "must ALSO name the configuration set — a send that specifies one is authorized against both",
+      "must ALSO name the configuration set - a send that specifies one is authorized against both",
     ).toContain("/ses/configuration_set_arn")
   })
 

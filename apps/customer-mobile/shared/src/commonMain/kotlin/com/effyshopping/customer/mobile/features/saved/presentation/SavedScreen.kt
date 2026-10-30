@@ -118,14 +118,14 @@ fun SavedScreen(
     var naming by remember { mutableStateOf<Naming?>(null) }
     var deleting by remember { mutableStateOf(false) }
     val pendingUndo by vm.undo.collectAsState()
-    // What is already in the cart, read from the cart's own mirror — never a second copy.
+    // What is already in the cart, read from the cart's own mirror - never a second copy.
     //
     // An item stays on the list after being added: this is a watchlist, and the save-time
     // price it is watching against would be destroyed by consuming the entry. eBay's watchlist behaves
     // the same way, and the constitution names eBay as this capability's reference.
     //
     // But a row that keeps saying "Add to cart" when the thing is already in the cart invites the
-    // shopper to tap again — and a second tap does not no-op, it increments the quantity. So the row
+    // shopper to tap again - and a second tap does not no-op, it increments the quantity. So the row
     // says where the item is and offers the way there, which is eBay's answer to the same problem.
     val cart by container.cart.state.collectAsState()
     val inCart = cart.lines.associate { it.productId to it.quantity }
@@ -139,7 +139,7 @@ fun SavedScreen(
 
     // The mirror is re-checked on arrival, because this screen now renders from it. A cart filled on
     // another device would otherwise leave every row offering "Add to cart" for something already in
-    // there — which is the defect this whole feature exists to remove, one list over. A failure changes
+    // there - which is the defect this whole feature exists to remove, one list over. A failure changes
     // nothing: the mirror stays and the rows degrade to "Add to cart", never to a false "in your cart".
     LaunchedEffect(Unit) { runCatching { container.syncCart() } }
 
@@ -147,7 +147,7 @@ fun SavedScreen(
      * Removal offers undo, and the item comes back in the position it held.
      *
      * The ViewModel has published this since the slice was built and nothing rendered it, so a
-     * mis-tap on the list was unrecoverable — the same one-tap mistake the cart's own undo exists to
+     * mis-tap on the list was unrecoverable - the same one-tap mistake the cart's own undo exists to
      * forgive.
      */
     LaunchedEffect(pendingUndo) {
@@ -164,7 +164,7 @@ fun SavedScreen(
     /**
      * Add one saved item to the cart.
      *
-     * It stays on the list. A watchlist entry is not consumed by being bought — the whole
+     * It stays on the list. A watchlist entry is not consumed by being bought - the whole
      * point is to keep watching what it costs.
      */
     fun addOne(item: SavedItem) {
@@ -181,7 +181,7 @@ fun SavedScreen(
                 unitPriceAmount = item.priceAmount,
                 currency = item.currency,
                 quantity = 1,
-                // The saved-item contract carries no package token — it is captured at add time from
+                // The saved-item contract carries no package token - it is captured at add time from
                 // a storefront read, and this list is not one. A blank key degrades to a single
                 // anonymous package, which the platform re-decides on the next re-price.
             ),
@@ -205,7 +205,7 @@ fun SavedScreen(
                 container.syncCart()
                 snackbarHost.showSnackbar(bulkSummary(outcome))
             } catch (_: Throwable) {
-                // Transient — the cart is unchanged and the shopper can try again.
+                // Transient - the cart is unchanged and the shopper can try again.
                 snackbarHost.showSnackbar("We couldn't add those just now. Please try again.")
             } finally {
                 bulkBusy = false
@@ -216,7 +216,7 @@ fun SavedScreen(
     // The snackbar is an overlay at the bottom, not a row in the column.
     //
     // As a column child it reserved layout space at the TOP of the screen and shoved the content down
-    // whenever it appeared — which is a banner, not a toast. Over the bottom of the screen it covers
+    // whenever it appeared - which is a banner, not a toast. Over the bottom of the screen it covers
     // the action bar for a few seconds and takes nothing away permanently, which is the whole point of
     // a transient message.
     Box(modifier = Modifier.fillMaxSize()) {
@@ -244,7 +244,7 @@ fun SavedScreen(
 
         when (val s = state) {
             // A content-shaped skeleton, not an empty box. The old loading state rendered a bare
-            // `Column {}` inside the refresh container — nothing to scroll, so the gesture it was
+            // `Column {}` inside the refresh container - nothing to scroll, so the gesture it was
             // wrapped in could not fire, and nothing to look at while it could not.
             is SavedUiState.Loading -> EffyPullToRefresh(
                 onRefresh = { vm.refresh() },
@@ -331,7 +331,7 @@ fun SavedScreen(
                         LazyColumn(
                             modifier = Modifier.fillMaxSize().padding(horizontal = EffySpacing.lg),
                         ) {
-                            // 087 (Saved board) — "12 items · 3 dropped in price": what is here, and the
+                            // 087 (Saved board) - "12 items · 3 dropped in price": what is here, and the
                             // one thing worth coming back for, in green.
                             item(key = "summary") {
                                 val dropped = s.items.count { it.priceDropped }
@@ -351,7 +351,7 @@ fun SavedScreen(
                                 )
                             }
                             // Only shown when there is enough to sort. A control over three items is
-                            // noise. It scrolls with the list — unlike the bulk action below, it is not
+                            // noise. It scrolls with the list - unlike the bulk action below, it is not
                             // worth permanent space. Chips, as the board draws them.
                             if (s.items.size > 3) {
                                 item(key = "sort") {
@@ -393,7 +393,7 @@ fun SavedScreen(
                         Column(modifier = Modifier.padding(EffySpacing.lg)) {
                             // The bar answers the same question the rows do. When everything
                             // available is already in the cart, "Add everything available to cart" is
-                            // an invitation to buy two of each — the bulk add is not idempotent across
+                            // an invitation to buy two of each - the bulk add is not idempotent across
                             // taps (each tap is a new batch; only a retry of one batch is deduped). So
                             // at that point the action becomes the useful one instead of the harmful
                             // one.
@@ -459,7 +459,7 @@ fun SavedScreen(
 private enum class Naming { New, Rename }
 
 /**
- * One saved item — the cart row's composition, carrying the watchlist's own facts.
+ * One saved item - the cart row's composition, carrying the watchlist's own facts.
  *
  * Two stacked rows, for the reason `CartRow` records: controls sharing a row with a two-line
  * product name get whatever width is left after a thumbnail and a price, which on a phone is not
@@ -473,11 +473,11 @@ private fun SavedRow(
      * Why the last bulk add left this item out, or null.
      *
      * It belongs here rather than in a report above the list. "SunRice Premium Long Grain White Rice
-     * 1kg — couldn't be added right now" printed at the top of the screen makes the shopper match a
+     * 1kg - couldn't be added right now" printed at the top of the screen makes the shopper match a
      * name to a row; on the row it names nothing and simply says what happened.
      */
     skipNote: String?,
-    /** How many of this product are already in the cart — 0 when none. */
+    /** How many of this product are already in the cart - 0 when none. */
     cartQuantity: Int,
     onOpen: (String) -> Unit,
     onAddToCart: () -> Unit,
@@ -535,10 +535,10 @@ private fun SavedRow(
                 if (note != null) EffyInlineError(note)
 
                 // The bulk add's own refusal, which is not the same thing as the verdict above. An
-                // item can be perfectly purchasable and still be turned away by the cart — because the
-                // cart is full, say — and flattening the two would tell the shopper the product is
+                // item can be perfectly purchasable and still be turned away by the cart - because the
+                // cart is full, say - and flattening the two would tell the shopper the product is
                 // unavailable when it is their cart that is.
-                if (skipNote != null) EffyInlineError("Not added — $skipNote")
+                if (skipNote != null) EffyInlineError("Not added - $skipNote")
             }
 
             Column(horizontalAlignment = Alignment.End) {
@@ -548,7 +548,7 @@ private fun SavedRow(
                 )
                 UnitPriceText(item.unitPrice)
                 // The watchlist's whole reason for existing: what changed since it was saved. There
-                // is deliberately no equivalent for a rise — the current price is always
+                // is deliberately no equivalent for a rise - the current price is always
                 // shown, so nothing is concealed, but a rise is not something a shopper can act on.
                 if (item.priceDropped) {
                     // A price drop is a saving: said in Effy green.
@@ -582,7 +582,7 @@ private fun SavedRow(
             Spacer(Modifier.weight(1f))
             // The labelled way into the list chooser from a row.
             if (onAddToList != null) EffyTextLink("Add to list", onClick = onAddToList)
-            // The cart's destructive icon, in the cart's error tint — one visual language for "this
+            // The cart's destructive icon, in the cart's error tint - one visual language for "this
             // takes the thing away", both places it can happen. Removal is undoable.
             // Black, not red (the storefront has no red); removal is undoable.
             EffyIconButton(Res.drawable.lucide_trash_2, contentDescription = removeLabel, onClick = onRemove)
@@ -593,7 +593,7 @@ private fun SavedRow(
 /**
  * What a bulk add did, in one line a shopper reads once.
  *
- * The counts only. Every omission is still accounted for — the *reason* goes to the row it concerns
+ * The counts only. Every omission is still accounted for - the *reason* goes to the row it concerns
  * (see [SavedRow]'s `skipNote`), which is where it can be acted on. A toast listing three product
  * names is a toast nobody finishes reading, and the previous block that did list them held permanent
  * space at the top of the screen for a transient result.
@@ -611,14 +611,14 @@ private fun bulkSummary(outcome: SavedAddToCartOutcome): String {
     }
     return when (skipped) {
         0 -> "$addedPart."
-        1 -> "$addedPart · 1 couldn't be added — see the note on it."
-        else -> "$addedPart · $skipped couldn't be added — see the notes on them."
+        1 -> "$addedPart · 1 couldn't be added - see the note on it."
+        else -> "$addedPart · $skipped couldn't be added - see the notes on them."
     }
 }
 
 /**
- * A skip reason is either one of the verdicts — so the bulk add and the list can never explain the
- * same item differently — or one of the cart's own refusals, which mean different things and must not
+ * A skip reason is either one of the verdicts - so the bulk add and the list can never explain the
+ * same item differently - or one of the cart's own refusals, which mean different things and must not
  * be flattened into "couldn't add". Mirrors `saved-display.ts` / `SavedList.tsx` on the web.
  */
 private fun skipReason(reason: String): String = when (reason) {
@@ -631,7 +631,7 @@ private fun skipReason(reason: String): String = when (reason) {
     else -> "couldn't be added right now"
 }
 
-/** How many placeholder rows a loading list reserves — roughly one phone's worth. */
+/** How many placeholder rows a loading list reserves - roughly one phone's worth. */
 private const val SkeletonRowCount = 6
 
 /** The loading placeholder, built from the same row geometry so the content does not jump into it. */
@@ -660,7 +660,7 @@ enum class SavedOrder(val label: String) {
 }
 
 /**
- * `sortedBy` returns a new list rather than sorting in place — the state list must not be mutated
+ * `sortedBy` returns a new list rather than sorting in place - the state list must not be mutated
  * out from under Compose.
  *
  * "By aisle" is grocery-native: a shopper walking a list thinks in categories, not in save order.

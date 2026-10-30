@@ -31,7 +31,7 @@ internal fun AddressDTO.toDomain(): SavedAddress = SavedAddress(
     coverage = coverage.toCoverage(),
 )
 
-// create: Never sends makeDefault — the backend auto-defaults only the customer's first address;
+// create: Never sends makeDefault - the backend auto-defaults only the customer's first address;
 // the deliberate per-row set-default is the only way to change it afterwards.
 internal fun AddressDraft.toCreateRequest(): CreateAddressRequest = CreateAddressRequest(
     recipientName = recipientName,
@@ -45,7 +45,7 @@ internal fun AddressDraft.toCreateRequest(): CreateAddressRequest = CreateAddres
     defaultDeliveryInstructions = defaultInstructions?.toWireDefault(),
 )
 
-// edit: sends the fields only — default status is left untouched unless set-default is used.
+// edit: sends the fields only - default status is left untouched unless set-default is used.
 internal fun AddressDraft.toUpdateRequest(): UpdateAddressRequest = UpdateAddressRequest(
     recipientName = recipientName,
     line1 = line1,

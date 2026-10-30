@@ -12,16 +12,16 @@ import { formatMoney } from "@/lib/money"
 import { cn } from "@/lib/utils"
 
 /**
- * The receipt document — the itemised record of one paid order.
+ * The receipt document - the itemised record of one paid order.
  *
  * Not a card layout, and Principle V requires that to be argued rather than assumed. The banned
  * pattern is a dashboard aesthetic: tiled content boxes and metric cards at the top of a page. There
- * are none here. The border is the edge of the paper and the shaded block is a totals block — the
+ * are none here. The border is the edge of the paper and the shaded block is a totals block - the
  * conventional anatomy of an invoice, and what eBay and Amazon order detail render (Principle V's own
  * reference platforms). The interior is what the principle prefers: a line-item table, a totals table,
  * and labelled detail rows. Recorded in plan.md § Constitution Check.
  *
- * It discloses NO fulfilment structure — no shop, count, distance or ring.
+ * It discloses NO fulfilment structure - no shop, count, distance or ring.
  *
  * Pure and synchronous, so it is unit-testable: the pages hosting it are async Server Components,
  * which Vitest cannot render. (The same reasoning as `OrderAddresses`.)
@@ -37,7 +37,7 @@ export function ReceiptDocument({
   unavailable?: readonly string[]
   /** Offer "Buy again" on each line (the order page; not the confirmation a moment after buying). */
   buyAgain?: boolean
-  /** The receipt's foot — where it was sent, and to whom it was billed. */
+  /** The receipt's foot - where it was sent, and to whom it was billed. */
   children?: React.ReactNode
 }) {
   const missing = new Set(unavailable)
@@ -175,7 +175,7 @@ function LineItem({
       <td className="px-2 py-3">
         <div className="flex items-center gap-3">
           {/*
-            Decoration only. A missing picture is a plain tile and the line stays whole — nothing
+            Decoration only. A missing picture is a plain tile and the line stays whole - nothing
             here is gated on it. Every other field is the order's own immutable snapshot,
             which is why a renamed or re-priced product still shows what was actually bought.
           */}
@@ -196,7 +196,7 @@ function LineItem({
             {/* The unit price beside the line total: what makes a line checkable, not merely stated. */}
             <div className="text-xs text-muted-foreground">
               <span>{formatMoney(item.unitPriceAmount, currency)} each</span>
-              {unavailable && <span> · Out of stock — not included</span>}
+              {unavailable && <span> · Out of stock - not included</span>}
             </div>
           </div>
         </div>
@@ -291,7 +291,7 @@ function Row({ label, value }: { label: React.ReactNode; value: string }) {
 }
 
 /**
- * How it was paid. Rendered only when captured — a pre-052 order, or one whose
+ * How it was paid. Rendered only when captured - a pre-052 order, or one whose
  * post-commit capture failed, simply has no such line. Absent, never blank.
  */
 function PaidWith({ method }: { method: PaymentMethodSummaryDTO }) {

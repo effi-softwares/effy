@@ -66,7 +66,7 @@ export const catalogList = defineListSearch({
 
 const money = (amount: string, currency: string) => {
   const n = Number(amount)
-  return Number.isFinite(n) ? new Intl.NumberFormat("en-AU", { style: "currency", currency }).format(n) : "—"
+  return Number.isFinite(n) ? new Intl.NumberFormat("en-AU", { style: "currency", currency }).format(n) : "-"
 }
 
 const columns: EffyColumnDef<ProductListItem>[] = [

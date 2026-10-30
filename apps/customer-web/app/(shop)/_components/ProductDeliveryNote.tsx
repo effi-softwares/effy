@@ -45,7 +45,7 @@ export async function ProductDeliveryNote() {
         ? DELIVERY_TYPE_WORDS.courierPartner
         : address?.coverage === "none"
           ? "Choose another address at checkout."
-          : "Who delivers depends on your address — you'll see it at checkout."
+          : "Who delivers depends on your address - you'll see it at checkout."
 
   return (
     <div className="rounded-lg border shadow-xs">

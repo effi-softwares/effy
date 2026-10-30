@@ -84,12 +84,12 @@ Response: `{ productId; customerPriceAmount; marginKind; marginValue }`.
 
 ## POST send-back
 
-`{ version: string; reason: string }` — reason 1 to 500 characters after trimming. `409` as above.
+`{ version: string; reason: string }` - reason 1 to 500 characters after trimming. `409` as above.
 Leaves the live product untouched.
 
 ## POST margin
 
-`{ margin: MarginInput; expectedCurrent: MarginInput | null }` — `409` if the current margin is not
+`{ margin: MarginInput; expectedCurrent: MarginInput | null }` - `409` if the current margin is not
 `expectedCurrent`. Only for a product with `approved_at`. Updates `price_amount` (and
 `compare_at_amount`) at once; writes an audit row. Sends no shop notification.
 

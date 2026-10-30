@@ -62,7 +62,7 @@ function checkDrift() {
   const after = generatedFiles();
   for (const path of new Set([...Object.keys(before), ...Object.keys(after)])) {
     if (before[path] !== after[path]) {
-      fail(path.slice(PKG.length + 1), "is stale — run `make email-gen` and commit the result");
+      fail(path.slice(PKG.length + 1), "is stale - run `make email-gen` and commit the result");
     }
   }
 }
@@ -73,8 +73,8 @@ function checkSources() {
       const source = read(resolve(SRC, dir, file));
       const subject = `${dir}/${file}`;
       if (/<!--/.test(source)) fail(subject, "has an HTML comment");
-      if (/(?<!&)#[0-9a-fA-F]{3,8}\b/.test(source)) fail(subject, "writes a hex colour — use an mj-class or a %role% colour");
-      if (/font-family/i.test(source)) fail(subject, "writes a font-family — the theme sets it");
+      if (/(?<!&)#[0-9a-fA-F]{3,8}\b/.test(source)) fail(subject, "writes a hex colour - use an mj-class or a %role% colour");
+      if (/font-family/i.test(source)) fail(subject, "writes a font-family - the theme sets it");
       if (/\{\{\{/.test(source)) fail(subject, "uses {{{ }}}, which turns off escaping");
     }
   }
@@ -100,8 +100,8 @@ function checkHtml(id, html) {
   }
 
   const bytes = Buffer.byteLength(html, "utf8");
-  if (bytes > GMAIL_FAIL) fail(id, `is ${bytes} B — over Gmail's ~${GMAIL_FAIL} B clip`);
-  else if (bytes > GMAIL_WARN) console.warn(`  ⚠ ${id} is ${bytes} B — close to Gmail's clip`);
+  if (bytes > GMAIL_FAIL) fail(id, `is ${bytes} B - over Gmail's ~${GMAIL_FAIL} B clip`);
+  else if (bytes > GMAIL_WARN) console.warn(`  ⚠ ${id} is ${bytes} B - close to Gmail's clip`);
 }
 
 function checkText(id, text) {
@@ -130,8 +130,8 @@ for (const id of ids) {
 }
 
 if (problems.length) {
-  console.error(`✗ email-check — ${problems.length} problem(s):\n`);
+  console.error(`✗ email-check - ${problems.length} problem(s):\n`);
   for (const p of problems) console.error(`  ${p}`);
   process.exit(1);
 }
-console.log(`✓ email-check — ${ids.length} template(s) clean`);
+console.log(`✓ email-check - ${ids.length} template(s) clean`);

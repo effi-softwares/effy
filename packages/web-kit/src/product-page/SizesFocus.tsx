@@ -71,7 +71,7 @@ interface Props {
   priceLabel: string;
   /** The shop's own code's name: "Your code" to a shop, "Shop code" to staff. */
   codeLabel: string;
-  /** Staff only: the margin's name ("Effy's margin · 10%") — its amount is shown between the two prices. */
+  /** Staff only: the margin's name ("Effy's margin · 10%") - its amount is shown between the two prices. */
   marginLabel?: string;
   /** What customers pay says before the product is first approved. */
   unsetCustomerPrice?: string;
@@ -87,7 +87,7 @@ interface Props {
 }
 
 /**
- * A product's sizes one at a time: the list on the left, and everything about the chosen size on the right — its
+ * A product's sizes one at a time: the list on the left, and everything about the chosen size on the right - its
  * price from the shop's to the customer's with the unit price across sizes, its stock and its codes.
  */
 export function SizesFocus({
@@ -182,7 +182,7 @@ export function SizesFocus({
           <SizeMark size={size} large />
           <div className="min-w-0">
             <h3 className="text-xl leading-7 font-semibold tracking-[-0.02em]">{size.label}</h3>
-            {size.code ? <CodeChip code={size.code} /> : <span className="text-sm text-muted-foreground">New size — its code comes on approval</span>}
+            {size.code ? <CodeChip code={size.code} /> : <span className="text-sm text-muted-foreground">New size - its code comes on approval</span>}
           </div>
           <div className="ml-auto flex flex-wrap items-center gap-4">
             {onSaleControl ? <div className="flex items-center gap-3 text-sm font-medium">{onSaleControl(size)}</div> : null}
@@ -252,7 +252,7 @@ export function SizesFocus({
             <div className="mt-6 grid max-w-[640px] gap-2.5">
               <p className="text-xs text-muted-foreground">
                 What each size costs a customer {ladder[0]!.unit.basis === "each" ? "per item" : "for the same amount"}
-                {best && best.id === size.id ? ` — ${size.label} is the best value` : ""}
+                {best && best.id === size.id ? ` - ${size.label} is the best value` : ""}
               </p>
               {ladder.map((row) => (
                 <div
@@ -288,7 +288,7 @@ export function SizesFocus({
         <Block title="Codes and shipping">
           <dl className="m-0 grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-x-8 gap-y-5">
             <Fact label="Effy code" mono>
-              {size.code ?? "—"}
+              {size.code ?? "-"}
             </Fact>
             {editing && row ? (
               <>
@@ -326,7 +326,7 @@ export function SizesFocus({
             ) : (
               <>
                 <Fact label={codeLabel} mono>
-                  {size.sku ?? "—"}
+                  {size.sku ?? "-"}
                 </Fact>
                 <Fact label="Barcode" mono={!!size.gtin}>
                   {size.gtin ?? <span className="text-muted-foreground">None</span>}
@@ -338,7 +338,7 @@ export function SizesFocus({
               </>
             )}
             <Fact label="Net quantity">
-              {size.quantity ? `${size.quantity.amount} ${size.quantity.unit}` : <span className="text-muted-foreground">—</span>}
+              {size.quantity ? `${size.quantity.amount} ${size.quantity.unit}` : <span className="text-muted-foreground">-</span>}
             </Fact>
           </dl>
         </Block>

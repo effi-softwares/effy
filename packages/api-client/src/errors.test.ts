@@ -25,7 +25,7 @@ describe("toDomainError reads field issues off the wire", () => {
 });
 
 describe("isDomainError", () => {
-  it("recognises the PLAIN OBJECT the client throws — not an Error instance", () => {
+  it("recognises the PLAIN OBJECT the client throws - not an Error instance", () => {
     // Nothing here throws an Error, so `e instanceof Error` would discard every refusal.
     const thrown: unknown = toDomainError(403, { title: "Not permitted", status: 403 } as never);
     expect(thrown instanceof Error).toBe(false);

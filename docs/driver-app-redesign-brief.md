@@ -1,4 +1,4 @@
-# Effy Driver App — Redesign Brief for Claude Design (v2, 2026-10-15)
+# Effy Driver App - Redesign Brief for Claude Design (v2, 2026-10-15)
 
 > **Use this one.** It supersedes [driver-app-design-brief.md](driver-app-design-brief.md), which
 > describes the delivery model removed in 083, a monochrome theme that has since been replaced, and a
@@ -47,7 +47,7 @@ drop flow. The redesign removes them. Aim for the fewest screens and taps that s
   4 pm – 6 pm", "Any time · 9 am – 9 pm"). At the hub a parcel goes either with **Effy** (with its
   window) or to a **Courier**.
 
-## 3. Visual identity (fixed — use these values)
+## 3. Visual identity (fixed - use these values)
 
 Effy's platform identity. Flat, calm, operational. Reference apps: Uber Driver, Bolt Driver,
 DoorDash Dasher, and the simplicity of Apple's Wallet passes.
@@ -56,7 +56,7 @@ DoorDash Dasher, and the simplicity of Apple's Wallet passes.
 - background `#ffffff`
 - text `#0b1220`; muted text `#5c6b86`
 - muted surface `#f1f5fb`; hairline border `#e1e8f3`
-- **primary action — cobalt `#1d4ed8`**, white label; soft `#e9f0ff`, ink `#11317f`
+- **primary action - cobalt `#1d4ed8`**, white label; soft `#e9f0ff`, ink `#11317f`
 - success `#0d8043` on `#e8f8ee`
 - warning `#a85c05` on `#fff5e5`
 - destructive `#cf2b1f` on `#fef2f1`
@@ -90,13 +90,13 @@ Success and warning are **text on their own tint**, never a filled button.
 - **Avoid card-heavy layouts:** prefer lists, sections and detail rows. The one exception is the
   current-stop "hero" on Today.
 
-**Motion:** short and functional — screen transitions, the swipe-to-confirm, success ticks. Respect
+**Motion:** short and functional - screen transitions, the swipe-to-confirm, success ticks. Respect
 the reduced-motion setting.
 
 **Native feel:** iOS follows HIG (large titles, sheets), Android follows Material 3. Same layout and
 identity on both.
 
-## 4. Navigation — three tabs
+## 4. Navigation - three tabs
 
 **Today · History · Account.** There is no Map tab. Each stop and drop has a **Navigate** button that
 opens Google Maps or Apple Maps with the address.
@@ -104,40 +104,40 @@ opens Google Maps or Apple Maps with the address.
 ## 5. Screens to design (every screen in light and dark)
 
 ### 5.1 Getting in
-1. **Splash** — the Effy mark on a cobalt ground.
-2. **Sign in, email** — work email field and "Send code". States: invalid email, sending, offline,
+1. **Splash** - the Effy mark on a cobalt ground.
+2. **Sign in, email** - work email field and "Send code". States: invalid email, sending, offline,
    "We couldn't sign you in".
-3. **Sign in, code** — six-digit code boxes, "sent to j•••@effyshopping.com", resend countdown.
+3. **Sign in, code** - six-digit code boxes, "sent to j•••@effyshopping.com", resend countdown.
    States: wrong code, expired code, too many attempts, offline.
-4. **Account can't be used** — a disabled driver: a short message and Sign out.
-5. **Permissions explainer (once)** — why notifications ("new work, changes to your run") and why the
+4. **Account can't be used** - a disabled driver: a short message and Sign out.
+5. **Permissions explainer (once)** - why notifications ("new work, changes to your run") and why the
    camera ("proof of delivery"). "Allow" and "Not now".
-6. **Permission refused** — what stops working and how to turn it on in Settings.
+6. **Permission refused** - what stops working and how to turn it on in Settings.
 
-### 5.2 Today (home) — the most important screen
+### 5.2 Today (home) - the most important screen
 Design each state:
-- **Off duty** — a large "Go on duty" control. Nothing else competes with it.
-- **On duty, no work** — "No work yet. You'll get a notification." Also show the **notifications are
+- **Off duty** - a large "Go on duty" control. Nothing else competes with it.
+- **On duty, no work** - "No work yet. You'll get a notification." Also show the **notifications are
   off** variant, which links to settings.
-- **On duty, round not open yet** — the round shown in full, with "Opens at 3:15 pm" and the actions
+- **On duty, round not open yet** - the round shown in full, with "Opens at 3:15 pm" and the actions
   disabled, with that reason stated.
-- **Collection run in progress** — a hero for the current shop (name, address, package count,
+- **Collection run in progress** - a hero for the current shop (name, address, package count,
   **Navigate**, **Open stop**), then "Up next" (remaining shops, ending with "Hub check-in"), then
   "Later today" (other rounds held, with their times).
-- **Delivery run in progress** — a hero for the current drop (suburb, window with a Due now / Late
+- **Delivery run in progress** - a hero for the current drop (suburb, window with a Due now / Late
   chip, package count, **Navigate**, **Deliver**), then the remaining drops.
-- **Round changed by dispatch** — an inline note ("Dispatch added 2 drops") that can be dismissed.
-- **Failed parcels to return** — a "Return 2 parcels to the hub" item that ends the delivery run.
+- **Round changed by dispatch** - an inline note ("Dispatch added 2 drops") that can be dismissed.
+- **Failed parcels to return** - a "Return 2 parcels to the hub" item that ends the delivery run.
 - **Banners** that stack above everything:
-  - Offline — "Showing what was loaded at 2:41 pm".
-  - "2 updates saved — sending when you're back online".
+  - Offline - "Showing what was loaded at 2:41 pm".
+  - "2 updates saved - sending when you're back online".
   - "Not recorded: … tell dispatch" (error tint).
-  - "Live updates paused — pull to refresh".
-- **Duty control** — a compact toggle in the header when on duty. Going off duty while holding work
+  - "Live updates paused - pull to refresh".
+- **Duty control** - a compact toggle in the header when on duty. Going off duty while holding work
   asks for confirmation.
 
 ### 5.3 Collection run
-1. **Run overview** — an ordered list of shops (status chip: To collect / Collected / Short), ending
+1. **Run overview** - an ordered list of shops (status chip: To collect / Collected / Short), ending
    at the hub. Header shows the due time.
 2. **Shop stop**
    - Shop name, address, Navigate.
@@ -147,13 +147,13 @@ Design each state:
    - **Swipe to confirm "Collected 5 of 6"**, then a confirmation if any package is neither ticked
      nor reported.
    - States: loading, saved on phone (offline), last-loaded copy (stale).
-3. **Report a problem** — a bottom sheet: which package, what is wrong, a note.
-4. **Hub check-in** — confirm, then the result: **Effy** grouped by day and window ("Today, 4–6 pm ·
-   8 parcels — load now"; "Thu 15 Oct, 10–12 · 3 parcels — shelve") and **Courier · 4 parcels**. Also
-   design the offline state: "Checked in — sending, the split will show when you're back online".
+3. **Report a problem** - a bottom sheet: which package, what is wrong, a note.
+4. **Hub check-in** - confirm, then the result: **Effy** grouped by day and window ("Today, 4–6 pm ·
+   8 parcels - load now"; "Thu 15 Oct, 10–12 · 3 parcels - shelve") and **Courier · 4 parcels**. Also
+   design the offline state: "Checked in - sending, the split will show when you're back online".
 
-### 5.4 Delivery run — two taps to a delivered drop
-1. **Run overview** — drops in order, each with suburb, window, package count and a status chip
+### 5.4 Delivery run - two taps to a delivered drop
+1. **Run overview** - drops in order, each with suburb, window, package count and a status chip
    (Next / Delivered / Failed). A progress bar (counts, never money).
 2. **Drop**
    - Customer first name, full address, window chip, the customer's instructions (a highlighted
@@ -161,21 +161,21 @@ Design each state:
    - Packages by position, with cold markers.
    - **Navigate** and **Call customer**.
    - One primary button, **Deliver**, and a secondary **Can't deliver**.
-3. **Choose proof** — a bottom sheet led by the customer's preference: **Photo** (handed over),
+3. **Choose proof** - a bottom sheet led by the customer's preference: **Photo** (handed over),
    **Signature**, **Left safely (contactless)**.
-4. **Photo capture** — full-screen viewfinder, shutter, retake / use. For contactless, add a "Left
+4. **Photo capture** - full-screen viewfinder, shutter, retake / use. For contactless, add a "Left
    at" picker (Front door / Reception / Mailroom / With a neighbour) and an optional note.
-5. **Signature** — a full-width pad, the customer's name, clear / done.
-6. **Delivered** — a success tick, "Drop 4 of 7 done", **Next drop**. Also design the offline
-   variant: "Delivered — proof saved on this phone, sending when you're back online".
-7. **Can't deliver** — a reason list (Nobody home / Wrong address / Customer refused / Access
-   blocked / Other — Other requires a note), Submit, then "Keep the parcel — return it to the hub".
-8. **Return to hub** — a list of the failed parcels and "Checked in at hub".
+5. **Signature** - a full-width pad, the customer's name, clear / done.
+6. **Delivered** - a success tick, "Drop 4 of 7 done", **Next drop**. Also design the offline
+   variant: "Delivered - proof saved on this phone, sending when you're back online".
+7. **Can't deliver** - a reason list (Nobody home / Wrong address / Customer refused / Access
+   blocked / Other - Other requires a note), Submit, then "Keep the parcel - return it to the hub".
+8. **Return to hub** - a list of the failed parcels and "Checked in at hub".
 
 ### 5.5 History
 - A list by day: runs (collection or delivery, time, stop count) and deliveries (suburb, time, a
   "proof captured" mark).
-- **Detail** — a run's stops, or a delivery's proof (photo or signature thumbnail, method, time,
+- **Detail** - a run's stops, or a delivery's proof (photo or signature thumbnail, method, time,
   note).
 - An empty state.
 
@@ -190,8 +190,8 @@ Design each state:
   work, warn them.
 
 ### 5.7 Notifications (system tray, both platforms)
-- "New run assigned — Collection run, 5 shops, opens 3:15 pm"
-- "Your run changed — 2 drops added"
+- "New run assigned - Collection run, 5 shops, opens 3:15 pm"
+- "Your run changed - 2 drops added"
 - "Run withdrawn"
 - "Your delivery run opens in 15 minutes"
 
@@ -201,7 +201,7 @@ Tapping a notification opens that run.
 - Loading skeletons, matching each list.
 - Error with Retry.
 - "No longer yours" (reassigned): a short message and Back to Today.
-- "Not open yet — opens at…" on any action.
+- "Not open yet - opens at…" on any action.
 - A validation message from the server, shown inline.
 - A refusal sheet for an offline write that the server refused.
 
@@ -237,9 +237,9 @@ dashboards · sign-up or passwords · shop names at the customer's door · the w
 Design a simple iOS + Android app for Effy's salaried delivery drivers, with three tabs: Today,
 History, Account. A driver signs in with a work email and a 6-digit code and goes on duty. Today
 shows the current round:
-- a **collection run** — visit shops, tick packages, swipe to confirm, check in at the hub, which
+- a **collection run** - visit shops, tick packages, swipe to confirm, check in at the hub, which
   splits parcels into Effy windows and Courier;
-- or a **delivery run** — Navigate, **Deliver**, choose proof (photo, signature, or left safely with
+- or a **delivery run** - Navigate, **Deliver**, choose proof (photo, signature, or left safely with
   a photo), done → next drop; or **Can't deliver** with a reason, then return the parcel to the hub.
 
 Every screen has an offline state ("saved on this phone, sending later"). There is no map tab, no

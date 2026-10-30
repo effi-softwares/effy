@@ -44,7 +44,7 @@ describe("announcePaid (071)", () => {
     expect(changes).not.toContainEqual({ scope: "shop", shopId: "shop-b", kind: "stock" });
   });
 
-  it("says nothing for a redelivery — nothing was applied, so nothing changed", async () => {
+  it("says nothing for a redelivery - nothing was applied, so nothing changed", async () => {
     await announcePaid(paid({ applied: false, shopIds: [], customerSub: null }));
     expect(announce).not.toHaveBeenCalled();
   });
@@ -57,7 +57,7 @@ describe("announcePaid (071)", () => {
     expect(forCustomer).toEqual([{ scope: "customer", sub: "sub-1", kind: "orders" }]);
   });
 
-  it("074 — tells the customer their points changed when the order spent some, and not otherwise", async () => {
+  it("074 - tells the customer their points changed when the order spent some, and not otherwise", async () => {
     await announcePaid(paid({ pointsSpent: 500 }));
     expect(announce.mock.calls[0]![0]).toEqual(expect.arrayContaining([{ scope: "customer", sub: "sub-1", kind: "points" }]));
     announce.mockClear();

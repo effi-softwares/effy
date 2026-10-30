@@ -111,17 +111,17 @@ export function MediaGallery({
         {progress != null ? <Progress value={progress} height={8} label="Upload progress" /> : null}
         <PictureGallery
           pictures={media.map((m) => ({ id: m.id, url: m.url, altText: m.altText }))}
-          empty={readOnly ? "No pictures yet — Effy adds them while it sets this product up." : undefined}
+          empty={readOnly ? "No pictures yet - Effy adds them while it sets this product up." : undefined}
           actions={
             readOnly
               ? undefined
               : {
-                  busy,
-                  onAdd: () => inputRef.current?.click(),
-                  onMakeMain: (mediaId) => void run(() => patch.mutateAsync({ mediaId, body: { isPrimary: true } })),
-                  onMove: move,
-                  onRemove: (mediaId) => void run(() => remove.mutateAsync(mediaId)),
-                }
+                busy,
+                onAdd: () => inputRef.current?.click(),
+                onMakeMain: (mediaId) => void run(() => patch.mutateAsync({ mediaId, body: { isPrimary: true } })),
+                onMove: move,
+                onRemove: (mediaId) => void run(() => remove.mutateAsync(mediaId)),
+              }
           }
         />
         {error ? (

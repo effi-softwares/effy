@@ -52,7 +52,7 @@ finished. A courier portion is never given an Effy run.
 | `productId`, `productName`, `brand`, `productStatus` (`active` / `unavailable`) | `product` |
 | `variantId`, `label` (null for a one-size product), `code`, `sku`, `gtin` | `product_variant` |
 | `onSale` | `state = 'active'` |
-| `stock` | `{ tracked, onHand, low, outOfStock }` — the existing `stockState` rule |
+| `stock` | `{ tracked, onHand, low, outOfStock }` - the existing `stockState` rule |
 | `lastOnSale` | this is the product's only `active` variant |
 | `imageUrl` | the product's primary picture (renditions as elsewhere) |
 

@@ -18,7 +18,7 @@ export const REASON_TEXT: Record<ExclusionReasonDTO, string> = {
   over_capacity: "Round too heavy for the vehicle",
   cannot_meet_deadline: "Cannot finish in time",
   vehicle_check_due: "Vehicle not checked today",
-  vehicle_unsafe: "Vehicle found unsafe — clear it on Exceptions",
+  vehicle_unsafe: "Vehicle found unsafe - clear it on Exceptions",
 }
 
 export function describeReasons(reasons: ExclusionReasonDTO[]): string {

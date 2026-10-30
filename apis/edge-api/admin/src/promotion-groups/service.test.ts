@@ -26,7 +26,7 @@ beforeEach(() => {
   repo.updateGroup.mockResolvedValue({ reset: [] });
 });
 
-describe("095 — groups carry a size and skins", () => {
+describe("095 - groups carry a size and skins", () => {
   it("a new group is medium unless told; an unknown size is refused", async () => {
     repo.createGroup.mockResolvedValue({ id: G });
     await createGroup({ key: "summer", name: "Summer" }, "s");
@@ -57,7 +57,7 @@ describe("095 — groups carry a size and skins", () => {
   });
 });
 
-describe("103 — the set of groups is capped", () => {
+describe("103 - the set of groups is capped", () => {
   it("refuses a new group once the set is full, with the one sentence, and writes nothing", async () => {
     repo.isFull.mockResolvedValueOnce(true);
     await expect(createGroup({ key: "one-more", name: "One more" }, "s")).rejects.toMatchObject({

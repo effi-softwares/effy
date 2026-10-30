@@ -38,7 +38,7 @@ import platform.darwin.dispatch_get_global_queue
 import platform.darwin.dispatch_get_main_queue
 
 /**
- * iOS: AVFoundation's metadata output, restricted to QR and Code 128, written in Kotlin/Native — no
+ * iOS: AVFoundation's metadata output, restricted to QR and Code 128, written in Kotlin/Native - no
  * Swift bridge is needed for AVFoundation. Works on every supported iPhone (VisionKit's scanner needs
  * iOS 16 and an A12, so it is not the only path). Needs `NSCameraUsageDescription`, which photo proof
  * already declares.

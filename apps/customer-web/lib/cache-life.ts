@@ -21,7 +21,7 @@ export const CACHE_LIFE = {
   /** Stock-derived reads: the aisle list (its counts), the home rails and banners. FR-015a's tier. */
   listing: { stale: 30, revalidate: 15, expire: 30 },
   /**
-   * A product's words and pictures — never its price or availability, which are read live beside it.
+   * A product's words and pictures - never its price or availability, which are read live beside it.
    * A staff edit shows within 20 minutes at the outside.
    */
   catalogue: { stale: 300, revalidate: 300, expire: 900 },

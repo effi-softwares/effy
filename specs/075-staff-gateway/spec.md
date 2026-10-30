@@ -21,15 +21,15 @@ Every Effy app talks to the platform through **one shared front door**. That doo
 number of places, and on **2026-10-08 it filled up**: the deployment of customer points (074) was
 refused at 299 + 2 of 300, and could only be completed by folding two destinations into one. The door
 now stands at **300 of 300**. Nothing further can be added to the platform through it, and every
-planned feature — starting with the delivery model programme
-(`docs/prd/2026-10-delivery-model-v2-backlog.md`) — needs to add more.
+planned feature - starting with the delivery model programme
+(`docs/prd/2026-10-delivery-model-v2-backlog.md`) - needs to add more.
 
 Nobody saw it coming: no screen showed how full the door was, and the first warning was a failed
 deployment that took twelve minutes to roll back.
 
 Back-office accounts for roughly **half** of everything behind the door, it is where most new work
 lands next, and only one app uses it. Giving back-office **its own front door** frees about half the
-room on the existing one and gives both doors space to grow — and moves the least-risky audience: an
+room on the existing one and gives both doors space to grow - and moves the least-risky audience: an
 internal website, with no public traffic and no app-store release.
 
 The operator agreed to this direction on 2026-10-08 ("we can move some services to own gateway, so
@@ -65,7 +65,7 @@ succeed, and each door reports how much room is left.
 ### User Story 2 - Nobody using Effy notices (Priority: P1)
 
 A back-office manager is refunding an order while the move happens. Afterwards every screen works
-exactly as before — orders, customers, dispatch, drivers, delivery settings, product review, feedback —
+exactly as before - orders, customers, dispatch, drivers, delivery settings, product review, feedback -
 including screens that update on their own when something changes. A customer placing an order, a shop
 packing one and a driver on a round notice nothing at all, during or after.
 
@@ -123,7 +123,7 @@ valid staff sign-in at the shared door for a shop-only and a customer-only capab
 ### User Story 4 - The operator sees a door filling up long before it is full (Priority: P2)
 
 The operator opens the platform's health view and sees how full each front door is. Months later one of
-them passes three-quarters full; the operator is told then — not on the day a deployment fails.
+them passes three-quarters full; the operator is told then - not on the day a deployment fails.
 
 **Why this priority**: The ceiling was a surprise because nothing measured it. Without this, the same
 failure returns on the second door.
@@ -138,7 +138,7 @@ the warning arrives.
 2. **Given** either front door passes 75% of any limit, **When** the regular check runs, **Then** the
    operator is warned through the platform's usual alert, naming the door, the limit and the numbers.
 3. **Given** a change that would take a door past its ceiling, **When** it is checked before deployment,
-   **Then** the check fails and says so — the ceiling is never again discovered by a failed deployment.
+   **Then** the check fails and says so - the ceiling is never again discovered by a failed deployment.
 4. **Given** the check itself stops running, **When** that happens, **Then** the operator is told, as
    for every other scheduled check on the platform.
 
@@ -173,7 +173,7 @@ The move goes wrong in dev. The operator puts back-office back behind the shared
 written set of steps. Later, when a production environment is created, it gets two front doors from the
 start by the same means.
 
-**Why this priority**: Dev is the only environment today, so a slow recovery is tolerable — but the
+**Why this priority**: Dev is the only environment today, so a slow recovery is tolerable - but the
 procedure must exist, and production must not need this work repeated by hand.
 
 **Independent Test**: In dev, perform the move, undo it, and perform it again, following only the
@@ -182,7 +182,7 @@ written steps.
 **Acceptance Scenarios**:
 
 1. **Given** the move has been made, **When** the operator follows the written undo steps, **Then**
-   back-office works behind the shared door again, as long as the shared door still has room for it —
+   back-office works behind the shared door again, as long as the shared door still has room for it -
    and the steps say so plainly if it no longer does.
 2. **Given** a new environment is created, **When** it is set up, **Then** it has both front doors
    without any manual step beyond those every environment already needs.
@@ -286,8 +286,8 @@ written steps.
   places it can lead to. Two after this feature: shared (customers, shops, drivers) and back-office.
 - **Capability**: one thing an app can ask the platform to do, reached through exactly one front door
   per audience.
-- **Audience**: customer, shop, driver, or back-office — each with its own sign-in and trust level.
-- **Fullness reading**: for a front door and one of its limits — the number in use, the ceiling, and
+- **Audience**: customer, shop, driver, or back-office - each with its own sign-in and trust level.
+- **Fullness reading**: for a front door and one of its limits - the number in use, the ceiling, and
   when it was read.
 
 ## Success Criteria *(mandatory)*
@@ -314,8 +314,8 @@ written steps.
 ## Assumptions
 
 - **Back-office is the audience to move**, not customers, shops or drivers: it is about half of what is
-  behind the shared door, it is where the next features add most, and only one app — an internal
-  website — depends on it (operator agreed 2026-10-08).
+  behind the shared door, it is where the next features add most, and only one app - an internal
+  website - depends on it (operator agreed 2026-10-08).
 - **Two front doors, not one per audience.** Shop and driver stay on the shared door; a third door is a
   future decision, made the same deliberate way.
 - **The back-office website may be given a new address for the platform** as part of the move; staff
@@ -329,5 +329,5 @@ written steps.
   feature.
 - **This feature precedes the delivery model programme's next spec** (coverage). The backlog's proposed
   numbers 075–082 each shift by one.
-- **The standing rule "one shared front door" is changed by this feature** — a deliberate amendment to
+- **The standing rule "one shared front door" is changed by this feature** - a deliberate amendment to
   the platform's constitution, not an exception to it.

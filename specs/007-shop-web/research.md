@@ -1,4 +1,4 @@
-# Phase 0 — Research: Shop Web Foundation (Bootstrap)
+# Phase 0 - Research: Shop Web Foundation (Bootstrap)
 
 **Feature**: 007-shop-web · **Date**: 2026-07-09 · **Input**: [spec.md](./spec.md),
 [operator-directives.md](./operator-directives.md), constitution v1.4.0,
@@ -10,13 +10,13 @@ assumptions and are called out as such.
 
 ---
 
-## Terminology — the `shop` / `store` split
+## Terminology - the `shop` / `store` split
 
 > **SUPERSEDED by 008-shop-naming-unification (2026-07-10).** This section recorded a decision to
 > *keep* a two-name split for this audience. That split was retired: the audience, its pool, its
 > authorizer, its service, its routes, its tables, and its roles are now all named **shop**, and
-> `make verify-naming` enforces it. The record below is preserved because R1's argument — and the
-> cost estimate it got wrong — is the reason 008 exists.
+> `make verify-naming` enforces it. The record below is preserved because R1's argument - and the
+> cost estimate it got wrong - is the reason 008 exists.
 
 The repository carried two names for one audience. 007 chose not to rename what was deployed:
 
@@ -29,13 +29,13 @@ The repository carried two names for one audience. 007 chose not to rename what 
 | The mobile surface | shop | shop (unchanged) |
 | The web surface | `shop-web` ← decided by R1 | shop-web (unchanged) |
 
-### R1 — The web surface is `apps/shop-web` (package `@effy/shop-web`)
+### R1 - The web surface is `apps/shop-web` (package `@effy/shop-web`)
 
 **Decision**: name the directory and package `shop-web`, not `store-web`. **Still correct.**
 
 **Rationale**: the parity pair this slice exists to establish (FR-023a) is `shop-web` ↔
 `shop-mobile`. Naming the web half `store-web` would put the two surfaces of one audience under two
-different prefixes — precisely the drift the parity register prevents.
+different prefixes - precisely the drift the parity register prevents.
 
 **Where R1 was wrong.** It also declined to rename the backend service, reasoning that "a live
 deployed stack, live SSM contract, and `/store/v1/*` paths already consumed" made renaming "churn
@@ -47,16 +47,16 @@ inside the slice was cumulative: every subsequent reader, author, and agent paid
 every shop feature, forever. 008 pays the one-time cost instead.
 
 **Rule for readers (as of 008)**: *it is `shop` everywhere.* The four surviving senses of the word
-"store" — the TanStack Store library, the customer "storefront", AWS "Parameter Store", and the
-English verb — are enumerated in
+"store" - the TanStack Store library, the customer "storefront", AWS "Parameter Store", and the
+English verb - are enumerated in
 [008's naming contract](../008-shop-naming-unification/contracts/naming.contract.md).
 
 ---
 
-## R2 — RBAC on the shop pool (spec Q1) and the constitution tension
+## R2 - RBAC on the shop pool (spec Q1) and the constitution tension
 
-**Decision**: two Cognito groups on the shop pool — **`shop_manager`** (higher privilege)
-and **`shop_staff`** (baseline operator) — created by the existing
+**Decision**: two Cognito groups on the shop pool - **`shop_manager`** (higher privilege)
+and **`shop_staff`** (baseline operator) - created by the existing
 `infra/modules/cognito-user-pool` `groups` variable. Roles originate in the identity
 provider (`cognito:groups` claim), are reconciled into the platform record on every visit,
 and the access decision is made from the platform record (role **and** status **and** shop
@@ -68,7 +68,7 @@ scope), never from the claim alone.
 module is a structural twin of the admin one, and the module already supports it: `groups`
 is a `list(object({name, description}))` defaulting to `[]`, materialized as
 `aws_cognito_user_group` under `for_each`. Adding groups to an existing pool is an additive,
-create-only Terraform change — **no pool replacement, no user disruption**.
+create-only Terraform change - **no pool replacement, no user disruption**.
 
 **Group naming**: prefixed (`shop_manager`, not `manager`) even though pool isolation makes
 collision structurally impossible. The prefix keeps group names unambiguous in logs, JWT
@@ -98,22 +98,22 @@ expansion of guidance → MINOR bump → v1.5.0**, not a silent deviation.
 
 ---
 
-## R3 — Shop entity + staff schema: shape, data area, and the three-term gate (spec Q2)
+## R3 - Shop entity + staff schema: shape, data area, and the three-term gate (spec Q2)
 
-**Decision**: four tables in the **`public`** (customer-operational) schema —
-`public.shop`, `public.shop_staff`, `public.shop_role`, `public.shop_staff_role` — via
+**Decision**: four tables in the **`public`** (customer-operational) schema -
+`public.shop`, `public.shop_staff`, `public.shop_role`, `public.shop_staff_role` - via
 the 003 forward-only Goose workflow. Authorization is **role AND status AND shop scope**.
 
 **Why `public` and not `admin`**: the `admin` schema's designated purpose is *back-office
 accounts + audit* (`db/migrations/20260705095817_baseline_admin_schema.sql`). A shop is a
-fulfillment node — an operational entity every future slice (inventory, picking, orders)
+fulfillment node - an operational entity every future slice (inventory, picking, orders)
 will join against. Putting `shop` in `admin` would mean the operational schema's most
 central entity lives in the back-office schema. Shop staff follow their shop.
 
 **This is the platform's first `public` table.** Everything to date lives in `admin`. Worth
 naming: the 003 workflow's forward-only guarantees and the `db-up` commit-guard are
 schema-agnostic (`Makefile:119-125` greps `git status --porcelain db/migrations`), so no
-workflow change is needed — but this is the first exercise of the operational half of the
+workflow change is needed - but this is the first exercise of the operational half of the
 two-schema model.
 
 **Shop assignment is nullable.** `shop_staff.shop_id uuid NULL REFERENCES public.shop(id)
@@ -151,12 +151,12 @@ SC-005a with no extra branch.
 
 ---
 
-## R4 — Backend placement, endpoints, and versioning
+## R4 - Backend placement, endpoints, and versioning
 
 **Path assignment** (`docs/api/path-assignment.md` requires this line verbatim in the plan):
 
-> **Path: edge — rule 2** (an internal operator console; latency-tolerant, low-frequency,
-> cold starts acceptable). **Service: shop —** the shop/operator domain, behind the shop
+> **Path: edge - rule 2** (an internal operator console; latency-tolerant, low-frequency,
+> cold starts acceptable). **Service: shop -** the shop/operator domain, behind the shop
 > pool's authorizer.
 
 **Decision**: extend the existing `apis/edge-api/shop/` service with two authenticated
@@ -169,15 +169,15 @@ routes, and restructure its source to the admin service's nested-domain layout.
 
 Existing routes are untouched: `/shop/healthz`, `/shop/v1/status`, `/shop/v2/status`,
 `/shop/v1/ping` (the token-echo proving route from 004). `/me` **admits role-less callers**
-— its job is to *record* them; privilege gating lives on `/manager-ping`. This mirrors the
+- its job is to *record* them; privilege gating lives on `/manager-ping`. This mirrors the
 admin service's `/me` vs `/admin-ping` split exactly.
 
 **Versioning**: both routes are born under `/v1` per `docs/api/versioning-policy.md` rule 1.
-Adding new operations to an existing version is *additive* (rule 3) — no `/v2`.
+Adding new operations to an existing version is *additive* (rule 3) - no `/v2`.
 
 **Layout change**: `shop/src/` currently keeps its single domain flat
 (`types.ts`/`repository.ts`/`service.ts` at `src/`). Adding a second domain (staff) forces a
-choice. Adopt the admin service's nested form — `src/staff/{types,repository,service}.ts` —
+choice. Adopt the admin service's nested form - `src/staff/{types,repository,service}.ts` -
 and move the existing status domain to `src/status/`. This is a mechanical move that makes
 the two services structurally identical, which is the point of Principle VI.
 
@@ -187,7 +187,7 @@ the two services structurally identical, which is the point of Principle VI.
 
 ---
 
-## R5 — The shared-foundation extraction (the slice's largest cost)
+## R5 - The shared-foundation extraction (the slice's largest cost)
 
 **Problem**: FR-012 requires the console to consume the shared foundation with **zero**
 surface-local re-implementation, and SC-009 measures it. But today the reusable half of the
@@ -198,12 +198,12 @@ back-office console is *inside the app*, not in a package:
 | brand tokens, `cn`, scaling | `@effy/design-system` | ✅ already shared |
 | authed fetch + RFC 9457 → `DomainError` | `@effy/api-client` | ✅ already shared |
 | DTOs, role narrowing | `@effy/shared-types` | ✅ already shared (needs a `shop.ts`) |
-| shadcn primitives (12 files), `use-mobile` | `apps/back-office/src/components/ui/` | ✅ — Principle V: *one* design system drives every surface |
-| config load + fail-fast, Amplify wiring | `apps/back-office/src/lib/{env,amplify}.ts` | ✅ — Principle II names **configuration** as a shared concern |
-| EMAIL_OTP flow, session/token/claims, route guard | `.../features/auth/{repo,guards}.ts`, `lib/auth-session.ts` | ✅ — identical for every pool |
-| query-client retry policy, telemetry, ui-store | `apps/back-office/src/lib/` | ✅ — identical |
-| console shell (sidebar / header / user menu / nav) | `.../components/layout/` | ✅ — differs only by nav config + brand label |
-| the sign-in card | `.../features/auth/SignInScreen.tsx` | ✅ — differs only by brand copy |
+| shadcn primitives (12 files), `use-mobile` | `apps/back-office/src/components/ui/` | ✅ - Principle V: *one* design system drives every surface |
+| config load + fail-fast, Amplify wiring | `apps/back-office/src/lib/{env,amplify}.ts` | ✅ - Principle II names **configuration** as a shared concern |
+| EMAIL_OTP flow, session/token/claims, route guard | `.../features/auth/{repo,guards}.ts`, `lib/auth-session.ts` | ✅ - identical for every pool |
+| query-client retry policy, telemetry, ui-store | `apps/back-office/src/lib/` | ✅ - identical |
+| console shell (sidebar / header / user menu / nav) | `.../components/layout/` | ✅ - differs only by nav config + brand label |
+| the sign-in card | `.../features/auth/SignInScreen.tsx` | ✅ - differs only by brand copy |
 | proving/manager screens, nav items, role type | `.../features/*` | ❌ per-surface |
 
 Copying any row marked ✅ into `shop-web` is exactly what Principle II forbids ("Copy-paste of
@@ -211,20 +211,20 @@ cross-cutting logic across surfaces is prohibited") and what SC-009 fails on.
 
 **Decision**: extract before building the second surface.
 
-1. **`@effy/design-system` grows a `./ui` subpath** — the 12 shadcn primitives plus
+1. **`@effy/design-system` grows a `./ui` subpath** - the 12 shadcn primitives plus
    `hooks/use-mobile`. Both apps point `components.json` `aliases.ui` at
    `@effy/design-system/ui`. React moves to a `peerDependency`.
 2. **New package `@effy/web-kit`** with two entry points:
-   - `@effy/web-kit` — the runtime: `createConfig(requiredKeys)`, `configureAmplify`,
+   - `@effy/web-kit` - the runtime: `createConfig(requiredKeys)`, `configureAmplify`,
      `getAccessToken/getSubject/getGroups`, `startSignIn/submitOtp/signOut/otpErrorMessage`,
      `createSessionGuard`, `createQueryClient`, `createTelemetry<TEvent>`, `createUiStore`.
-   - `@effy/web-kit/console` — the SPA chrome: `<ConsoleShell>`, `<ConsoleSidebar>`,
+   - `@effy/web-kit/console` - the SPA chrome: `<ConsoleShell>`, `<ConsoleSidebar>`,
      `<ConsoleHeader>`, `<ConsoleUserMenu>`, `<NavList>`, `<OtpSignInCard>`, `<ErrorState>`
-     — each parameterized by brand, nav config, and role type (generic over the role union).
+     - each parameterized by brand, nav config, and role type (generic over the role union).
 3. **`apps/back-office` is refactored to consume both**, and its **20 tests must stay green**.
    The tests that cover moved code move with it.
 
-**This contradicts a spec assumption** — *"No new shared packages are assumed necessary."*
+**This contradicts a spec assumption** - *"No new shared packages are assumed necessary."*
 That assumption was a guess made before the foundation was inspected; the inspection shows it
 is false. Per constitution Principle I ("a gap discovered downstream MUST be fixed by
 returning to the earliest affected artifact"), **the spec's assumption is corrected as part of
@@ -248,7 +248,7 @@ extraction path.
 
 ---
 
-## R6 — Where `/shop/v1/me` gets the operator's email (and a defect this surfaces in 005)
+## R6 - Where `/shop/v1/me` gets the operator's email (and a defect this surfaces in 005)
 
 **Problem**: the shop pool sets `username_attributes = ["email"]`
 (`infra/modules/cognito-user-pool/main.tf`). In that configuration Cognito's internal
@@ -261,22 +261,22 @@ const email = claim(event, "username") ?? sub;   // apis/edge-api/admin/src/func
 ```
 
 If `username` is a UUID, then **`admin.staff.email` is currently storing a UUID, not an
-email** — a latent defect in 005, not in this slice. I could not settle Cognito's exact
+email** - a latent defect in 005, not in this slice. I could not settle Cognito's exact
 behavior for this pool configuration from the repository alone, and I am not going to guess
 in a migration.
 
-**Decision** — design so the answer does not matter, then verify cheaply:
+**Decision** - design so the answer does not matter, then verify cheaply:
 
 1. `public.shop_staff.email` is **nullable**.
 2. `/shop/v1/me` resolves email as `claim("email") ?? emailShaped(claim("username")) ?? null`
    and **never overwrites a non-null stored email with null**.
-3. The **staff-management step is authoritative** for email — back-office shop management writes
+3. The **staff-management step is authoritative** for email - back-office shop management writes
    it (next slice), exactly as 006 seeds `admin.staff.name` out-of-band. Until then `email` stays
    null for operators whose token carries no address, which is a correct, visible state rather than
    a wrong value.
 4. A **2-minute operator verification task** decodes a real shop-pool access token and records
    the actual claim set in this file. If `email` is present, step 2's first branch wins and
-   nothing changes. If it is absent, nothing changes either — the record is already correct
+   nothing changes. If it is absent, nothing changes either - the record is already correct
    via step 3.
 
 FR-020 ("capturing at least each member's ... contact email") is satisfied: provisioning
@@ -298,14 +298,14 @@ reconciliation, but it must not be silently inherited.
 
 ---
 
-## R7 — Dev origin, CORS, and config
+## R7 - Dev origin, CORS, and config
 
 **Decision**: `shop-web` runs on **`http://localhost:5174`** (`strictPort: true`), and
 `infra/envs/dev/edge-gateway.tf` adds that origin to the shared gateway's
 `cors_configuration.allow_origins` (today: `5173`, `3000`).
 
 The gateway owns CORS because a service attaching to an external HTTP API cannot configure it
-(A3). This is therefore a **Terraform change in the same `make apply` as the shop groups** —
+(A3). This is therefore a **Terraform change in the same `make apply` as the shop groups** -
 one operator apply, not two.
 
 **Config contract** (`apps/shop-web/.env.example`, all build-time `VITE_*`, all non-secret):
@@ -322,9 +322,9 @@ page rather than silently pointing at the wrong pool.
 
 ---
 
-## R8 — Telemetry (Principle VII declaration)
+## R8 - Telemetry (Principle VII declaration)
 
-**Product analytics + web error tracking — PostHog**, via `createTelemetry` from `web-kit`,
+**Product analytics + web error tracking - PostHog**, via `createTelemetry` from `web-kit`,
 with a `surface: "shop-web"` super-property on every event so shop-audience events are
 distinguishable from back-office events (FR-016). Typed event union, no PII beyond `subject`:
 
@@ -333,7 +333,7 @@ distinguishable from back-office events (FR-016). Typed event union, no PII beyo
 `shop_assignment_missing`
 
 **Metrics/alerts**: per-function CloudWatch alarms in `shop/serverless.yml`, matching the
-admin service's set — `Errors > 0` on both new functions, plus `Duration p95 > 5000ms` on
+admin service's set - `Errors > 0` on both new functions, plus `Duration p95 > 5000ms` on
 `/shop/v1/me` (the DB-touching read). The API-level 5xx alarm already exists in Terraform.
 
 **No alerting on the console itself** this slice: it is local-only (FR-001), so there is no
@@ -341,7 +341,7 @@ hosted surface to alert on.
 
 ---
 
-## R9 — Cross-pool isolation: how SC-004 is actually proven
+## R9 - Cross-pool isolation: how SC-004 is actually proven
 
 Both directions are enforced by the gateway's per-pool JWT authorizers
 (`aws_apigatewayv2_authorizer.pool`, `for_each` over four pools, each pinned to one issuer +
@@ -349,7 +349,7 @@ one client id). A back-office token presented to `/shop/v1/me` fails `aud`/`iss`
 **at the authorizer**, returning 401 before any handler runs; a shop token at `/admin/v1/me`
 likewise.
 
-This is **structural, not code** — which means it cannot be unit-tested, and asserting it in
+This is **structural, not code** - which means it cannot be unit-tested, and asserting it in
 a vitest suite would prove nothing. SC-004 is therefore an **operator-run `curl` check** with
 two real tokens, scripted in [quickstart.md](./quickstart.md) §5. That is the honest
 verification, and it is the first time the platform proves the four-pool claim end to end
@@ -369,6 +369,6 @@ rather than assuming it.
 | R6 | Email claim source | nullable + operator-authoritative; verify token claims; 005 defect flagged |
 | R7 | Dev origin / CORS / config | `:5174`; gateway CORS updated in the same apply |
 | R8 | Telemetry | PostHog typed events with `surface` property; 3 new CloudWatch alarms |
-| R9 | Isolation proof | operator `curl`, both directions — structural, not unit-testable |
+| R9 | Isolation proof | operator `curl`, both directions - structural, not unit-testable |
 
 **No NEEDS CLARIFICATION remains.**

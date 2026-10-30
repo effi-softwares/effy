@@ -146,7 +146,7 @@ export function VehiclesListScreen() {
         empty={{
           icon: Truck,
           title: "No vehicles yet",
-          description: "Add one to record what Effy runs — until then, nothing can be issued to a driver.",
+          description: "Add one to record what Effy runs - until then, nothing can be issued to a driver.",
         }}
         toolbar={
           <>

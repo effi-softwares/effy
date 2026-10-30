@@ -47,7 +47,7 @@ beforeEach(() => {
   vi.mocked(markPasswordSet).mockResolvedValue(row({ has_password: true }))
 })
 
-describe("writePassword — mode: set (THE SECURITY CORE, SC-004)", () => {
+describe("writePassword - mode: set (THE SECURITY CORE, SC-004)", () => {
   it("verifies the step-up code BEFORE writing the password", async () => {
     vi.mocked(findByCognitoSub).mockResolvedValue(row({ has_password: false }))
     const order: string[] = []
@@ -99,7 +99,7 @@ describe("writePassword — mode: set (THE SECURITY CORE, SC-004)", () => {
   })
 })
 
-describe("writePassword — mode: change (SC-005)", () => {
+describe("writePassword - mode: change (SC-005)", () => {
   it("refuses `change` on an account that has NO password", async () => {
     vi.mocked(findByCognitoSub).mockResolvedValue(row({ has_password: false }))
 
@@ -186,7 +186,7 @@ describe("the barred customer (FR-034 / SC-009)", () => {
 })
 
 describe("sendPasswordChallenge", () => {
-  it("grants nothing — it only sends a code, and returns a MASKED destination", async () => {
+  it("grants nothing - it only sends a code, and returns a MASKED destination", async () => {
     vi.mocked(findByCognitoSub).mockResolvedValue(row({ has_password: false }))
     vi.mocked(cognito.sendEmailVerificationCode).mockResolvedValue(undefined)
 

@@ -4,7 +4,7 @@ import com.effyshopping.customer.mobile.core.storage.DevicePreferences
 
 /**
  * The customer's analytics-consent choice, persisted device-locally so it survives
- * relaunch and gates analytics init on every start (Principle VII — consent-respecting for the public
+ * relaunch and gates analytics init on every start (Principle VII - consent-respecting for the public
  * audience).
  *
  * Governs product analytics only. Crash reporting is independent and always on (clarification Q1)

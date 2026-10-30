@@ -19,7 +19,7 @@ describe("a listing's query", () => {
     })
   })
 
-  it("101 — reads and writes number ranges, either end open, and drops a malformed one", () => {
+  it("101 - reads and writes number ranges, either end open, and drops a malformed one", () => {
     const r = from("range.net_weight=0.5..2&range.age=..12&range.bad=abc")
     expect(r.ranges).toEqual({ net_weight: { min: "0.5", max: "2" }, age: { min: "", max: "12" } })
     expect(facetsQuery(r)).toBe("range.net_weight=0.5..2&range.age=..12")

@@ -19,7 +19,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 /**
- * The payment screen's ViewModel — `ViewModel → UseCase → Driver` (Principle VI).
+ * The payment screen's ViewModel - `ViewModel → UseCase → Driver` (Principle VI).
  *
  * The screen carries the amount and nothing else. No basket lines, no address, no delivery
  * row: the shopper confirmed all of it on the step before, and restating it invites a second review
@@ -30,7 +30,7 @@ data class PaymentUiState(
     val currency: String = "AUD",
     /** True while a confirmation is in flight. The pay control reads this and refuses a second press. */
     val paying: Boolean = false,
-    /** A refusal the shopper can act on — never a provider error code. */
+    /** A refusal the shopper can act on - never a provider error code. */
     val error: String? = null,
     /** Set once the payment is accepted; the screen navigates to the receipt. */
     val paidOrderId: String? = null,
@@ -52,7 +52,7 @@ class PaymentViewModel(
     val state: StateFlow<PaymentUiState> = _state.asStateFlow()
 
     /**
-     * What the platform element needs. Assembled here, from the intent — the element decides nothing.
+     * What the platform element needs. Assembled here, from the intent - the element decides nothing.
      *
      * `billingDetails` is the half that makes the short form legal. The element is configured to
      * collect no address and no name, so if these are absent the provider refuses the payment outright
@@ -90,7 +90,7 @@ class PaymentViewModel(
         // continuing again re-runs the intent, which holds the place afresh or says it has gone.
         if (holdLapsed(intent.slotHeldUntil, nowEpochMillis())) {
             _state.value = _state.value.copy(
-                error = "Your delivery time is no longer held. Nothing has been charged — go back and continue again to check it’s still available.",
+                error = "Your delivery time is no longer held. Nothing has been charged - go back and continue again to check it’s still available.",
             )
             return
         }
@@ -141,7 +141,7 @@ class PaymentViewModel(
 
     /**
      * Every message is ours, and every one says what the shopper can do next. None is
-     * "something went wrong" — a shopper told only that has no way to decide whether to wait, try
+     * "something went wrong" - a shopper told only that has no way to decide whether to wait, try
      * another card, or give up, so they abandon the basket.
      *
      * Every message names what happened to the money. "Nothing has been charged" is the single most
@@ -151,11 +151,11 @@ class PaymentViewModel(
     private fun message(e: AppError): String = when (e) {
         is AppError.Validation -> e.message
         AppError.Network ->
-            "No connection. Nothing has been charged and your basket is still here — check your network and try again."
+            "No connection. Nothing has been charged and your basket is still here - check your network and try again."
         AppError.Unavailable ->
             "We're having trouble taking payments right now. Nothing has been charged; try again shortly."
         else ->
-            "We couldn't take that payment. Nothing has been charged and your basket is still here — try again, or use a different payment method."
+            "We couldn't take that payment. Nothing has been charged and your basket is still here - try again, or use a different payment method."
     }
 }
 

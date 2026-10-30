@@ -15,11 +15,11 @@ function deps(over: Partial<DrainDeps> & { pending?: PendingRequest[] }): DrainD
     resolveTokens: vi.fn(async (): Promise<RecipientToken[]> => []),
     send: vi.fn(async (): Promise<SendResult> => ({ ok: true, prune: false })),
     sendEmail: vi.fn(async (): Promise<SendResult> => ({ ok: true, prune: false })),
-    markSent: vi.fn(async () => {}),
-    markSkipped: vi.fn(async () => {}),
-    markRetry: vi.fn(async () => {}),
-    markFailed: vi.fn(async () => {}),
-    pruneToken: vi.fn(async () => {}),
+    markSent: vi.fn(async () => { }),
+    markSkipped: vi.fn(async () => { }),
+    markRetry: vi.fn(async () => { }),
+    markFailed: vi.fn(async () => { }),
+    pruneToken: vi.fn(async () => { }),
     ...over,
   };
 }
@@ -127,7 +127,7 @@ describe("drainOnce", () => {
   });
 });
 
-describe("drainOnce — the email channel", () => {
+describe("drainOnce - the email channel", () => {
   const emailReq = (over: Partial<PendingRequest> = {}) =>
     req({
       channel: "email",
@@ -164,7 +164,7 @@ describe("drainOnce — the email channel", () => {
     expect(exhausted.markFailed).toHaveBeenCalledWith("r1", "send_failed");
   });
 
-  it("skips (does not fail) a row with no address — there is nothing to retry toward", async () => {
+  it("skips (does not fail) a row with no address - there is nothing to retry toward", async () => {
     const d = deps({ pending: [emailReq({ recipientEmail: null })] });
     const s = await drainOnce(d);
     expect(s.skipped).toBe(1);

@@ -37,11 +37,11 @@ resource "aws_ssm_parameter" "alerts_topic_arn" {
 }
 
 output "alerts_topic_arn" {
-  description = "The operator alert topic. ⚠ If an email endpoint is set, check the subscription is CONFIRMED — an unconfirmed one notifies nobody while looking perfectly healthy."
+  description = "The operator alert topic. ⚠ If an email endpoint is set, check the subscription is CONFIRMED - an unconfirmed one notifies nobody while looking perfectly healthy."
   value       = aws_sns_topic.alerts.arn
 }
 
 output "alerts_endpoint_configured" {
-  description = "⚠ false means every alarm in this environment currently pages NOBODY. Set alert_email in this env's tfvars — the value must be operator-chosen."
+  description = "⚠ false means every alarm in this environment currently pages NOBODY. Set alert_email in this env's tfvars - the value must be operator-chosen."
   value       = var.alert_email != ""
 }

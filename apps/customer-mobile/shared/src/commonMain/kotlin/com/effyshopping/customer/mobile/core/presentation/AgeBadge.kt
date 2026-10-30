@@ -12,7 +12,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.effyshopping.customer.mobile.design.EffyStorefrontShape
 
-/** "18+" on an age-restricted product (101): a neutral outlined label — tile, product page, cart, checkout, orders. */
+/** "18+" on an age-restricted product (101): a neutral outlined label - tile, product page, cart, checkout, orders. */
 @Composable
 fun AgeBadge(modifier: Modifier = Modifier) {
     Text(

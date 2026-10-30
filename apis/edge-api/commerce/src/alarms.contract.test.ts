@@ -33,7 +33,7 @@ function alarmedMetrics(): { metric: string; dimensions: Record<string, string> 
 describe("the commerce alarms watch what the code emits", () => {
   const alarms = alarmedMetrics();
 
-  it("found the alarms — eleven conditions over twelve series", () => {
+  it("found the alarms - eleven conditions over twelve series", () => {
     expect(alarms.map((a) => a.metric).sort()).toEqual([
       "DeliveryQuoteFailures", "EffyWindowsNoneDefined", "PointsHoldShortfall", "PointsInvariantViolations", "RefundOutcomes", "RefundSubmitFailures",
       "RefundSubmitFailures", "RefundsStuck", "SlotBookings", "StockBlocked",

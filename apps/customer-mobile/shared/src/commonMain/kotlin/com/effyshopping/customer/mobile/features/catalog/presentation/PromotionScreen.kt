@@ -205,7 +205,7 @@ private fun PromotionBody(
             // The code
             //
             // The reason a shopper opened this screen. It is selectable-looking and copyable rather
-            // than something to memorise and retype — a mistyped code reads to a shopper as a refused
+            // than something to memorise and retype - a mistyped code reads to a shopper as a refused
             // offer, and they blame the offer.
             Row(
                 modifier = Modifier.fillMaxWidth().padding(EffySpacing.lg),
@@ -246,7 +246,7 @@ private fun PromotionBody(
 
             EffyHairline()
 
-            // 087 (Offer board) — the terms as a bordered two-row table.
+            // 087 (Offer board) - the terms as a bordered two-row table.
             Column(
                 Modifier
                     .padding(EffySpacing.lg)
@@ -286,7 +286,7 @@ private fun PromotionBody(
 }
 
 /**
- * The artwork, at the same locked ratio and maximum width the banner uses — so the picture is the one
+ * The artwork, at the same locked ratio and maximum width the banner uses - so the picture is the one
  * the operator approved, at the one shape the platform accepts, and a tablet gets no promotional slab.
  * No scrim: nothing is drawn over it here, so nothing needs protecting from it.
  */

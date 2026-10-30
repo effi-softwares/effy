@@ -33,9 +33,9 @@ describe("reason labels", () => {
   })
 })
 
-describe("⚠ FR-020 — where the package actually is", () => {
+describe("⚠ FR-020 - where the package actually is", () => {
   it("distinguishes a van from the hub", () => {
-    expect(locationLabel(row({ packageLocation: "with_driver" }))).toBe(`With ${row().driverName} — to return`)
+    expect(locationLabel(row({ packageLocation: "with_driver" }))).toBe(`With ${row().driverName} - to return`)
     expect(locationLabel(row({ packageLocation: "at_hub" }))).toBe("At hub")
     // A recorded return says so.
     expect(locationLabel(row({ packageLocation: "at_hub", returnedAt: "2026-10-16T05:00:00.000Z" }))).toMatch(
@@ -50,7 +50,7 @@ describe("who may close an exception (FR-021)", () => {
     expect(canResolveExceptions(["manager"])).toBe(true)
   })
 
-  it("⚠ csa may NOT — while still reading every row", () => {
+  it("⚠ csa may NOT - while still reading every row", () => {
     expect(canResolveExceptions(["csa"])).toBe(false)
   })
 

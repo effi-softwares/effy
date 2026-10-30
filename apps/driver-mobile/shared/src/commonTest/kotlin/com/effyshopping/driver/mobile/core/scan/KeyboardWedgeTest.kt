@@ -47,7 +47,7 @@ class KeyboardWedgeTest {
         assertEquals('E', keyChar(androidx.compose.ui.input.key.Key.E, shift = false))
         assertEquals('1', keyChar(androidx.compose.ui.input.key.Key.One, shift = false))
         assertEquals(':', keyChar(androidx.compose.ui.input.key.Key.Semicolon, shift = true))
-        assertNull(keyChar(androidx.compose.ui.input.key.Key.One, shift = true)) // "!" — not in a label
+        assertNull(keyChar(androidx.compose.ui.input.key.Key.One, shift = true)) // "!" - not in a label
         assertNull(keyChar(androidx.compose.ui.input.key.Key.Back, shift = false))
     }
 

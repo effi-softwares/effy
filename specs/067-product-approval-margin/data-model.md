@@ -3,7 +3,7 @@
 One forward-only migration `<ts>_product_approval_margin.sql`. Additive plus a backfill; the CHECK
 is added last, after the backfill.
 
-## `public.product` — new columns
+## `public.product` - new columns
 
 | Column | Type | Null | Notes |
 |---|---|---|---|
@@ -20,10 +20,10 @@ is added last, after the backfill.
 
 **Constraints**
 
-- `CHECK (status <> 'active' OR approved_at IS NOT NULL)` — never on sale without an approval.
-- `CHECK ((margin_kind IS NULL) = (margin_value IS NULL))` — both or neither.
+- `CHECK (status <> 'active' OR approved_at IS NOT NULL)` - never on sale without an approval.
+- `CHECK ((margin_kind IS NULL) = (margin_value IS NULL))` - both or neither.
 - `CHECK (margin_value IS NULL OR margin_value >= 0)`.
-- `CHECK (review_state = 'none' OR approved_at IS NULL)` — `review_state` describes a
+- `CHECK (review_state = 'none' OR approved_at IS NULL)` - `review_state` describes a
   never-approved product; an approved product's review lives in `product_change`.
 - `CHECK (review_state <> 'sent_back' OR review_reason IS NOT NULL)`.
 - `CHECK (review_state <> 'in_review' OR submitted_at IS NOT NULL)`.
@@ -57,12 +57,12 @@ approved ──shop edits a detail──▶ change in_review ──approve──
                                         └──withdraw / equals live──▶ change deleted
 ```
 
-## `public.product_change` — new
+## `public.product_change` - new
 
 | Column | Type | Notes |
 |---|---|---|
 | `id` | `uuid` PK | |
-| `product_id` | `uuid` FK → product, `ON DELETE CASCADE` | `UNIQUE` — one open change per product |
+| `product_id` | `uuid` FK → product, `ON DELETE CASCADE` | `UNIQUE` - one open change per product |
 | `shop_id` | `uuid` FK → shop | Denormalised for queue filtering |
 | `proposed` | `jsonb` not null | Proposed scalar details and attribute values. Only keys that differ from the live product |
 | `media_changed` | `boolean` not null default false | True when `product_change_media` holds the proposed image set |
@@ -75,7 +75,7 @@ approved ──shop edits a detail──▶ change in_review ──approve──
 `gtin`, `primaryCategoryId`, `productTypeId`, `shopPriceAmount`, `shopCompareAtAmount`,
 `weightGrams`, `attributes` (attribute definition id → value).
 
-## `public.product_change_media` — new
+## `public.product_change_media` - new
 
 The complete proposed image set, present only when `media_changed`.
 
@@ -92,7 +92,7 @@ The complete proposed image set, present only when `media_changed`.
 Approval replaces the product's `product_media` rows with this set in the decision transaction.
 Storefront media reads never see this table.
 
-## `public.order_item` and `public.shop_fulfillment` — new columns
+## `public.order_item` and `public.shop_fulfillment` - new columns
 
 | Table | Column | Null | Meaning |
 |---|---|---|---|

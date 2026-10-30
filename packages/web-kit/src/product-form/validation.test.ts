@@ -94,7 +94,7 @@ const base = (): ProductDraft => ({
   shortDescription: "Thick",
 });
 
-describe("101 — the details step", () => {
+describe("101 - the details step", () => {
   it("basics need a name, a leaf and a short description; facts are their own step", () => {
     expect(basicsComplete(base())).toBe(true);
     expect(basicsComplete({ ...base(), name: " " })).toBe(false);

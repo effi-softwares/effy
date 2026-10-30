@@ -20,7 +20,7 @@ describe("the toast store", () => {
     vi.useFakeTimers()
     const id = toast("Added to cart")
     dismissToast(id)
-    // Dismissing an already-dismissed toast must be harmless — a shopper can tap X twice.
+    // Dismissing an already-dismissed toast must be harmless - a shopper can tap X twice.
     expect(() => dismissToast(id)).not.toThrow()
   })
 

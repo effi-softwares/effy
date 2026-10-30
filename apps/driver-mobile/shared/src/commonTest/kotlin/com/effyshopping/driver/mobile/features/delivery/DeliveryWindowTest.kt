@@ -20,7 +20,7 @@ import kotlin.time.Instant
 /**
  * The driver is told whether a drop's window is open, still to come, or missed.
  *
- * The state cases are the same ones `packages/shared-types` tests `windowStateAt` with — the
+ * The state cases are the same ones `packages/shared-types` tests `windowStateAt` with - the
  * function the dispatcher's console uses (see [DELIVERY_WINDOW_FIXTURE] for why it is a copy and what
  * keeps the copy honest). A dispatcher told a drop is late while the driver's app says it is due is
  * two people working from different facts.

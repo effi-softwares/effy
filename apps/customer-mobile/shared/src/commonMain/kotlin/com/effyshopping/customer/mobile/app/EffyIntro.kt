@@ -39,23 +39,23 @@ import com.effyshopping.mobile.kit.ui.MotionLevel
 import kotlinx.coroutines.flow.first
 
 /**
- * The launch intro — the native splash's "e." becomes "effy." letter by letter, then hands over to
+ * The launch intro - the native splash's "e." becomes "effy." letter by letter, then hands over to
  * the app.
  *
  * The first frame is the native splash, pixel for pixel, so the swap is invisible. The splash is the
  * brand's "e." mark (packages/brand `logo.svg`) on #09090B: the wordmark's own "e" and full stop, ×5,
  * centred in an 836.67-unit canvas that the platform draws at 192pt (iOS `LaunchLogo`, centred in the
  * safe area) or 288dp (Android's splash icon, centred in the window). This draws the same letter shapes
- * — outlined from Geist Bold in `packages/brand/src/wordmark.svg`, copied below — at the same size, in
+ * - outlined from Geist Bold in `packages/brand/src/wordmark.svg`, copied below - at the same size, in
  * the same place, on the same ground (`--foreground`, which IS #09090B).
  *
- * Then the full stop leads: e. → ef. → eff. → effy. — in three steps the dot slides right and drags the
+ * Then the full stop leads: e. → ef. → eff. → effy. - in three steps the dot slides right and drags the
  * next letter out from behind the previous one (clipped at that letter's right edge, so nothing shows
- * through the e's counter), each step on the iOS curve; the word drifts so it stays centred. After a short hold — and only once the
- * session is known, so the app never appears half-restored — the ground turns white and the word black
+ * through the e's counter), each step on the iOS curve; the word drifts so it stays centred. After a short hold - and only once the
+ * session is known, so the app never appears half-restored - the ground turns white and the word black
  * (the light app's colours), and the intro fades away.
  *
- * Lightweight: five paths parsed once, one animated clock, drawn in a Canvas — the clock is read only
+ * Lightweight: five paths parsed once, one animated clock, drawn in a Canvas - the clock is read only
  * in the draw phase, so a frame redraws and nothing recomposes. Reduce motion: the letters fade in
  * where they belong (no sliding); no motion at all: the finished wordmark, then straight to the app.
  */
@@ -88,7 +88,7 @@ internal fun EffyIntro(ready: Boolean, darkTheme: Boolean, onFinished: () -> Uni
     val ios = remember { platformTag() == "ios" }
     // From the splash's fixed colours to the app's: white ground + black word on the light theme; on the
     // dark theme the ground stays near-black and the word white.
-    val dark = EffyRoles.splashGround // #09090B — the splash ground (packages/brand SPLASH_GROUND)
+    val dark = EffyRoles.splashGround // #09090B - the splash ground (packages/brand SPLASH_GROUND)
     val light = MaterialTheme.colorScheme.background
     val splashInk = EffyRoles.splashInk
     val appInk = MaterialTheme.colorScheme.onSurface
@@ -128,7 +128,7 @@ internal fun EffyIntro(ready: Boolean, darkTheme: Boolean, onFinished: () -> Uni
 private const val SPLASH_CANVAS_UNITS = 836.6667f
 private const val WORD_WIDTH = 198.2f
 private const val LETTER_START_MS = 150f
-/** One step of the dot: e. → ef. → eff. → effy. — three steps, one after another. */
+/** One step of the dot: e. → ef. → eff. → effy. - three steps, one after another. */
 private const val STEP_MS = 230f
 private const val REVEALED_MS = LETTER_START_MS + 3 * STEP_MS + 250f // + a short hold
 private const val HOLD_END_MS = REVEALED_MS
@@ -151,7 +151,7 @@ private class IntroLetters {
     private val y = path(PATH_Y)
     private val dot = path(PATH_DOT)
 
-    // Right edges of e, f, f, y — read off the outlines.
+    // Right edges of e, f, f, y - read off the outlines.
     private val rights = floatArrayOf(53.1f, 91.5f, 131.3f, 186.2f)
     private val trailing = listOf(f1, f2, y)
 
@@ -162,7 +162,7 @@ private class IntroLetters {
      * "e." spans 0 … 75.3 and centres on 44.2 vertically; the word keeps that line and stays centred.
      */
     fun draw(scope: DrawScope, p: FloatArray, reduced: Boolean, unit: Float, ink: Color, dotColour: Color) = with(scope) {
-        // Where the dot rests after each step: 6 units after e, f, f — and tucked into the y's tail.
+        // Where the dot rests after each step: 6 units after e, f, f - and tucked into the y's tail.
         val q = FloatArray(3) { ease(p[it]) }
         var dotLeft = DOT_REST[0]
         for (i in 1..3) dotLeft += (DOT_REST[i] - DOT_REST[i - 1]) * q[i - 1]

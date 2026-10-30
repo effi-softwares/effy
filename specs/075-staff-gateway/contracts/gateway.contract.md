@@ -16,7 +16,7 @@ Unchanged: `/effy/<env>/edge/http_api_id`, `/effy/<env>/edge/api_endpoint`,
 `/effy/<env>/edge/authorizer/{customer,shop,driver}_id`.
 
 **Removed at the end of the move:** `/effy/<env>/edge/authorizer/back-office_id`. A service that still
-reads it fails at deploy — loudly, which is the point.
+reads it fails at deploy - loudly, which is the point.
 
 ## A back-office service's attachment
 
@@ -37,8 +37,8 @@ functions:
 
 ## The staff gateway itself
 
-- **Stage**: `$default`, auto-deploy — paths carry no stage segment, as on the shared gateway.
-- **Authorizer**: exactly one — JWT, issuer = the back-office Cognito pool, audience = its app client.
+- **Stage**: `$default`, auto-deploy - paths carry no stage segment, as on the shared gateway.
+- **Authorizer**: exactly one - JWT, issuer = the back-office Cognito pool, audience = its app client.
 - **CORS**: allowed origins = the deployed back-office console origin and `http://localhost:5173`;
   methods, headers and exposed headers identical to the shared gateway's.
 - **Public routes**: only each service's `/<service>/healthz` and `/<service>/readyz`.
@@ -50,12 +50,12 @@ functions:
 | Caller | At the staff gateway | At the shared gateway |
 |---|---|---|
 | no token, on an authenticated route | 401 | 401 |
-| customer / shop / driver token | **401** — no authorizer accepts it | as today |
+| customer / shop / driver token | **401** - no authorizer accepts it | as today |
 | back-office token | accepted; then the staff record decides (403 if not permitted) | **401** on every route after the move |
 
 ## The cutover variable
 
-`var.staff_gateway_cutover` (string, validated — any other value is refused). The staff gateway itself
+`var.staff_gateway_cutover` (string, validated - any other value is refused). The staff gateway itself
 exists at every value.
 
 | Value | Shared gateway's back-office authorizer + CORS origin | Forwarding routes | Back-office website's API address |

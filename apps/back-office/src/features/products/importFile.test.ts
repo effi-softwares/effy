@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import { readSheetFile, sheetToRows } from "./importFile"
 
-describe("102 — reading an import sheet in the browser", () => {
+describe("102 - reading an import sheet in the browser", () => {
   it("takes the first non-empty row as the header, keeps sheet row numbers and drops empty rows", () => {
     expect(
       sheetToRows([

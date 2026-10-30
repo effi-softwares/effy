@@ -1,7 +1,7 @@
 /**
  * Surface configuration.
  *
- * Every backend address is configuration, never a literal — an environment is repointed
+ * Every backend address is configuration, never a literal - an environment is repointed
  * with an env change and **no code edit**. If you find yourself typing an http:// literal into a
  * component, this is the file you wanted.
  */
@@ -49,13 +49,13 @@ export function cognitoConfig() {
       "NEXT_PUBLIC_COGNITO_CLIENT_ID",
       process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID,
     ),
-    // The Cognito hosted domain. Required only for Google federation — there is no pure-SDK
+    // The Cognito hosted domain. Required only for Google federation - there is no pure-SDK
     // federation path. Absent until the Google IdP is applied.
     domain: process.env.NEXT_PUBLIC_COGNITO_DOMAIN ?? "",
   }
 }
 
-/** PostHog. Analytics is consent-gated (Principle VII) — see lib/telemetry.ts. */
+/** PostHog. Analytics is consent-gated (Principle VII) - see lib/telemetry.ts. */
 export function posthogConfig() {
   return {
     key: process.env.NEXT_PUBLIC_POSTHOG_KEY ?? "",
@@ -76,7 +76,7 @@ export function telemetryEnabled(): boolean {
 }
 
 /**
- * Stripe (019 checkout). The publishable key is browser-safe — it is a name, not a secret (research
+ * Stripe (019 checkout). The publishable key is browser-safe - it is a name, not a secret (research
  * R3): it can only confirm an intent the backend already authorized. The secret key lives only in
  * the backend's secret store and never appears here. Test-mode (`pk_test_…`) in dev.
  */

@@ -65,7 +65,7 @@ export async function resolveHold(holdId: string, resolution: "found" | "lost", 
       tx,
     );
     return {
-      message: resolution === "found" ? "Back in planning — it goes on the next run." : "Recorded as lost. It will not be planned again.",
+      message: resolution === "found" ? "Back in planning - it goes on the next run." : "Recorded as lost. It will not be planned again.",
     };
   });
 }
@@ -89,7 +89,7 @@ export async function clearVehicleCheck(checkId: string, note: string, actorSub:
       { actorSub, action: "vehicle.check_cleared", targetType: "vehicle_check", driverId: checkId, detail: { note: note.trim() } },
       tx,
     );
-    return { message: `Cleared — ${r.driver_name} can take work from the next planning pass.`, driverId: r.driver_id };
+    return { message: `Cleared - ${r.driver_name} can take work from the next planning pass.`, driverId: r.driver_id };
   });
 }
 

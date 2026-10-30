@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# wipe-dev.sh — reset dev to an empty platform: database rebuilt from every migration, every Cognito
+# wipe-dev.sh - reset dev to an empty platform: database rebuilt from every migration, every Cognito
 # user in the four pools deleted, the media bucket emptied (all versions).
 #
 # Kept: the database roles (effy_shopper keeps its password), every AWS resource, Stripe test data.
@@ -15,14 +15,14 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MIGRATIONS_DIR="$ROOT/db/migrations"
 POOLS=(customer driver shop back-office)
 
-[[ "$ENV" == "dev" ]] || { echo "wipe-dev: refusing ENV=$ENV — this only ever runs against dev." >&2; exit 1; }
+[[ "$ENV" == "dev" ]] || { echo "wipe-dev: refusing ENV=$ENV - this only ever runs against dev." >&2; exit 1; }
 
 for tool in psql goose aws jq; do
   command -v "$tool" >/dev/null || { echo "wipe-dev: $tool not found on PATH" >&2; exit 1; }
 done
 
 if [[ -n "$(git -C "$ROOT" status --porcelain db/migrations)" ]]; then
-  echo "wipe-dev: uncommitted changes under db/migrations — commit them first." >&2
+  echo "wipe-dev: uncommitted changes under db/migrations - commit them first." >&2
   exit 1
 fi
 
@@ -47,7 +47,7 @@ done
 echo "  media      every object and version in s3://$BUCKET"
 echo
 read -r -p "Type 'wipe dev' to continue: " answer
-[[ "$answer" == "wipe dev" ]] || { echo "aborted — nothing changed"; exit 1; }
+[[ "$answer" == "wipe dev" ]] || { echo "aborted - nothing changed"; exit 1; }
 
 bash "$ROOT/infra/scripts/db-schedules.sh" pause "$ENV"
 trap 'bash "$ROOT/infra/scripts/db-schedules.sh" resume "$ENV"' EXIT

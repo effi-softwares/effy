@@ -141,66 +141,66 @@ function mobileTargets(app, surface, colourway) {
 /** Favicon set for a Vite SPA (public/ + explicit <link> tags in index.html). */
 /**
  * @param {boolean} [pwa] also emit the four manifest icons (the installable consoles).
- * @param {boolean} [push] also emit the notification badge (shop-web only — the one console sent push).
+ * @param {boolean} [push] also emit the notification badge (shop-web only - the one console sent push).
  */
 function viteWebTargets(app, surface, colourway, pwa = false, push = false) {
   const pub = `apps/${app}/public`
   const pwaTargets = !pwa
     ? []
     : [
-        // Both purposes: with only `maskable`, launchers expecting an unmasked icon show an over-zoomed mark.
-        {
-          surface,
-          slot: "pwa-192",
-          colourway,
-          composition: "maskable",
-          kind: KIND.PNG,
-          sizes: [192],
-          path: `${pub}/web-app-manifest-192x192.png`,
-        },
-        {
-          surface,
-          slot: "pwa-512",
-          colourway,
-          composition: "maskable",
-          kind: KIND.PNG,
-          sizes: [512],
-          path: `${pub}/web-app-manifest-512x512.png`,
-        },
-        {
-          surface,
-          slot: "pwa-any-192",
-          colourway,
-          composition: "web-icon",
-          kind: KIND.PNG,
-          sizes: [192],
-          path: `${pub}/web-app-icon-192.png`,
-        },
-        {
-          surface,
-          slot: "pwa-any-512",
-          colourway,
-          composition: "web-icon",
-          kind: KIND.PNG,
-          sizes: [512],
-          path: `${pub}/web-app-icon-512.png`,
-        },
-      ]
+      // Both purposes: with only `maskable`, launchers expecting an unmasked icon show an over-zoomed mark.
+      {
+        surface,
+        slot: "pwa-192",
+        colourway,
+        composition: "maskable",
+        kind: KIND.PNG,
+        sizes: [192],
+        path: `${pub}/web-app-manifest-192x192.png`,
+      },
+      {
+        surface,
+        slot: "pwa-512",
+        colourway,
+        composition: "maskable",
+        kind: KIND.PNG,
+        sizes: [512],
+        path: `${pub}/web-app-manifest-512x512.png`,
+      },
+      {
+        surface,
+        slot: "pwa-any-192",
+        colourway,
+        composition: "web-icon",
+        kind: KIND.PNG,
+        sizes: [192],
+        path: `${pub}/web-app-icon-192.png`,
+      },
+      {
+        surface,
+        slot: "pwa-any-512",
+        colourway,
+        composition: "web-icon",
+        kind: KIND.PNG,
+        sizes: [512],
+        path: `${pub}/web-app-icon-512.png`,
+      },
+    ]
   const pushTargets = !push
     ? []
     : [
-        // The notification badge: Android renders it as a white silhouette, so it is the mark alone in one colour.
-        {
-          surface,
-          slot: "pwa-badge",
-          colourway,
-          composition: "badge",
-          mono: "#ffffff",
-          kind: KIND.PNG,
-          sizes: [96],
-          path: `${pub}/notification-badge-96.png`,
-        },
-      ]
+      // The notification badge: Android renders it as a white silhouette, so it is the mark alone in one colour.
+      {
+        surface,
+        slot: "pwa-badge",
+        colourway,
+        composition: "badge",
+        mono: "#ffffff",
+        kind: KIND.PNG,
+        sizes: [96],
+        path: `${pub}/notification-badge-96.png`,
+      },
+    ]
   return [
     {
       surface,

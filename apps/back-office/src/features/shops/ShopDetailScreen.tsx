@@ -64,14 +64,14 @@ export function ShopDetailScreen({ shopId }: { shopId: string }) {
   // Where a driver is told to collect from. A missing address is a named gap.
   const address = shop.address?.addressLine1
     ? [
-        shop.address.addressLine1,
-        shop.address.addressLine2,
-        shop.address.suburb,
-        shop.address.state,
-        shop.address.postcode,
-      ]
-        .filter(Boolean)
-        .join(", ")
+      shop.address.addressLine1,
+      shop.address.addressLine2,
+      shop.address.suburb,
+      shop.address.state,
+      shop.address.postcode,
+    ]
+      .filter(Boolean)
+      .join(", ")
     : null
 
   return (
@@ -161,11 +161,11 @@ export function ShopDetailScreen({ shopId }: { shopId: string }) {
                     {
                       label: "Address",
                       value: address ?? (
-                        <span className="font-medium">No address recorded — a driver cannot be sent here</span>
+                        <span className="font-medium">No address recorded - a driver cannot be sent here</span>
                       ),
                     },
-                    { label: "Contact phone", value: shop.contactPhone ?? "—" },
-                    { label: "Notes", value: shop.notes ?? "—" },
+                    { label: "Contact phone", value: shop.contactPhone ?? "-" },
+                    { label: "Notes", value: shop.notes ?? "-" },
                     { label: "Created", value: formatTime(shop.createdAt) },
                     { label: "Updated", value: formatTime(shop.updatedAt) },
                   ]}
@@ -175,7 +175,7 @@ export function ShopDetailScreen({ shopId }: { shopId: string }) {
               {scanning ? (
                 <Panel
                   title="Label scanning"
-                  description="How packages left this shop — scanned at collection, or recorded without a scan."
+                  description="How packages left this shop - scanned at collection, or recorded without a scan."
                   actions={
                     <span className="mt-0.5 block text-sm text-muted-foreground">Last {scanning.sinceDays} days</span>
                   }
@@ -287,7 +287,7 @@ export function ShopDetailScreen({ shopId }: { shopId: string }) {
                 { label: "Staff", value: `${active.length - managers} active` },
                 {
                   label: "Low stock",
-                  value: lowStock.data ? (low + out === 0 ? "Nothing low" : `${low} low · ${out} out of stock`) : "—",
+                  value: lowStock.data ? (low + out === 0 ? "Nothing low" : `${low} low · ${out} out of stock`) : "-",
                 },
                 { label: "Address", value: address ? "Recorded" : <span className="font-medium">Not recorded</span> },
               ]}
@@ -319,7 +319,7 @@ export function ShopDetailScreen({ shopId }: { shopId: string }) {
         app="back-office"
         log="bo-shop"
         title="Shop activity"
-        description={`${shop.name} — every change to the shop and its team.`}
+        description={`${shop.name} - every change to the shop and its team.`}
         api={api}
         path={`/admin/v1/shops/${shop.id}/audit`}
         queryKey={[...SHOPS_ROOT, "detail", shop.id]}

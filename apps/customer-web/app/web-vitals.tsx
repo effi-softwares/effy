@@ -9,13 +9,13 @@ export function WebVitals() {
   useReportWebVitals((metric) => {
     if (getConsent() !== "granted") return
 
-    // Not routed through `capture` — the taxonomy in lib/telemetry.ts is the product event
+    // Not routed through `capture` - the taxonomy in lib/telemetry.ts is the product event
     // vocabulary, and a performance metric is not a product event. Keeping them separate keeps
     // "what did people do" and "how fast was it" from contaminating each other.
     //
     // Obtained via `analytics` rather than a static `import posthog from "posthog-js"`. This
     // component is rendered from the root layout, so a static import here would put the whole SDK
-    // in the shared chunk of every page — the exact mistake the Amplify quarantine exists to
+    // in the shared chunk of every page - the exact mistake the Amplify quarantine exists to
     // prevent, with a different package. Null until a consenting customer has loaded it.
     const ph = analytics()
     if (!ph) return

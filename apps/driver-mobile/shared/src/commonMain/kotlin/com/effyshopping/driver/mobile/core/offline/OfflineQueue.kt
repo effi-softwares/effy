@@ -12,7 +12,7 @@ import kotlinx.serialization.json.Json
  * process death (multiplatform-settings = SharedPreferences / NSUserDefaults). Deduplicated by
  * `changeId` so the same action is never queued twice.
  *
- * This holds only status-advance actions — small, low-frequency, and idempotent by `changeId`. It is
+ * This holds only status-advance actions - small, low-frequency, and idempotent by `changeId`. It is
  * not a general write-behind cache.
  */
 class OfflineQueue(private val settings: Settings, private val json: Json = Json { ignoreUnknownKeys = true }) {

@@ -43,7 +43,7 @@ class ManifestTest {
         assertEquals(ClassSummary(2, 3, 6), ClassSummaryDto(chilled = 3, frozen = 2, normal = 6).toDomain())
     }
 
-    /** FR-015 — a class with nothing in it is left out, not shown as zero. */
+    /** FR-015 - a class with nothing in it is left out, not shown as zero. */
     @Test
     fun `only classes that are present are listed - cold first`() {
         val s = ClassSummary(frozen = 0, chilled = 3, normal = 6)

@@ -4,9 +4,9 @@ Every finding was read from the code on `dev` at 2026-10-04.
 
 ## R1. Which column is "the price"
 
-**Finding**: `product.price_amount` is read in **33 places** on the hot path — `cart/repository.go`
+**Finding**: `product.price_amount` is read in **33 places** on the hot path - `cart/repository.go`
 (8), `saveditems/repository.go` (9), `storefront/search.go` (7), `storefront/repository.go` (4),
-`checkout/store.go` (3), `storefront/product_detail.go` (2) — plus `platform/delivery/plan.go` and
+`checkout/store.go` (3), `storefront/product_detail.go` (2) - plus `platform/delivery/plan.go` and
 five cold-path services (receipts, back-office orders, refund proposals, shop orders, shop
 products). Every one means "what the customer pays".
 
@@ -37,9 +37,9 @@ product is created `draft`.
 
 **Decision**: a new product in review **stays `draft`**. Three additions:
 
-- `approved_at timestamptz` — NULL until first approval.
-- `review_state` — `none` | `in_review` | `sent_back` (for never-approved products).
-- `CHECK (status <> 'active' OR approved_at IS NOT NULL)` — "on sale without an approval" is
+- `approved_at timestamptz` - NULL until first approval.
+- `review_state` - `none` | `in_review` | `sent_back` (for never-approved products).
+- `CHECK (status <> 'active' OR approved_at IS NOT NULL)` - "on sale without an approval" is
   unrepresentable (FR-001), whatever a service does.
 
 **Rationale**: FR-003 then needs no hot-path change at all, and the guarantee is the database's.
@@ -54,10 +54,10 @@ pins it.
 
 **Decision**: two new tables.
 
-- `product_change` — one row per product with an open proposal (`UNIQUE (product_id)`):
+- `product_change` - one row per product with an open proposal (`UNIQUE (product_id)`):
   `proposed jsonb` (the proposed scalar details and attribute values), `state`
   (`in_review` | `sent_back`), `reason`, `submitted_at`, `base_version`, `updated_at`.
-- `product_change_media` — the proposed image set: `storage_key`, `alt_text`, `display_order`,
+- `product_change_media` - the proposed image set: `storage_key`, `alt_text`, `display_order`,
   `is_primary`, and `source_media_id` when it is an existing live image being kept.
 
 The live `product`, `product_attribute_value` and `product_media` rows are never touched by a shop
@@ -87,12 +87,12 @@ applied whole, and the set of proposable details will grow.
 |---|---|---|
 | update details / attributes | writes the product (draft), as today | writes `product_change` |
 | media register / patch / delete | writes `product_media`, as today | writes `product_change_media` |
-| status → `active` | **refused** — use submit | allowed (no detail change involved) |
+| status → `active` | **refused** - use submit | allowed (no detail change involved) |
 | status → `unavailable` / `archived` | allowed | allowed, immediate (FR-024) |
 | delete | as today (drafts only) | as today (refused) |
 | **submit** (new) | runs the publish checks → `in_review` | submits the open change |
 | **withdraw** (new) | → `none` | deletes the change |
-| sections | unchanged — shop-internal organisation, not a customer-facing detail | unchanged |
+| sections | unchanged - shop-internal organisation, not a customer-facing detail | unchanged |
 
 Stock routes live in `edge-api/inventory` and are not touched (FR-023). `weight_grams` is a detail
 (it prices delivery) and goes through the change.
@@ -124,7 +124,7 @@ not fit, they move to `edge-catalog` behind the shop authorizer.
 Written by the hot path where the line and the fan-out are already written
 (`checkout/store.go`: the line read gains `p.shop_price_amount`; the INSERT and the fan-out
 `SUM` gain the shop columns). `unit_price_amount`, `line_subtotal_amount` and
-`shop_fulfillment.subtotal_amount` keep meaning customer money — the customer's own order page
+`shop_fulfillment.subtotal_amount` keep meaning customer money - the customer's own order page
 reads the per-portion subtotal, and 019's "Σ portion subtotals = order subtotal" still holds.
 
 **Readers that switch to shop prices** (FR-044): `shop/src/orders/repository.ts`,
@@ -172,7 +172,7 @@ addressed to the shop's active staff as `shop_new_order` is, written in the deci
 with a dedupe key of (decision id, staff).
 
 **Reader audit** (to complete as a task before the migration is final): every place that
-enumerates notification types — the table's CHECK, `edge-notifications` copy map and worker,
+enumerates notification types - the table's CHECK, `edge-notifications` copy map and worker,
 `shared-types/src/device.ts`, shop-web's service worker routing, shop-mobile's handler. 059
 recorded that an unknown type once threw in the worker and stopped every audience's drain.
 
@@ -223,24 +223,24 @@ shop-mobile.
 core-api can deploy any time after the migration: until it does, new order lines have NULL shop
 prices, which readers treat as "equal to the customer price" (the same rule as the backfill).
 
-## As built — what the measurements and the build changed
+## As built - what the measurements and the build changed
 
-- **R1** — `shop_price_amount` is **nullable**, not `NOT NULL`. Every existing writer that inserts a
+- **R1** - `shop_price_amount` is **nullable**, not `NOT NULL`. Every existing writer that inserts a
   product without it (seeds, fixtures, an older shop service during the deploy window) would have
   failed. `NULL` means "the same as `price_amount`", and every reader takes
   `COALESCE(shop_price_amount, price_amount)`. The backfill still fills every existing row.
-- **R5 (T002)** — `edge-shop` packaged to **320 / 500** CloudFormation resources (package of
+- **R5 (T002)** - `edge-shop` packaged to **320 / 500** CloudFormation resources (package of
   2026-09-28), so the two new shop routes (submit, withdraw) stay in `edge-shop`. The back-office
   routes are a new service, `edge-catalog`, under `/catalog/v1/…`.
-- **R9 (T003)** — the readers of `notification_request.type`: the table CHECK (widened by this
-  migration); `edge-shared/lib/notification-types.ts` (the catalogue — two types added, group
+- **R9 (T003)** - the readers of `notification_request.type`: the table CHECK (widened by this
+  migration); `edge-shared/lib/notification-types.ts` (the catalogue - two types added, group
   `attention`); `edge-notifications/worker/copy.ts` (copy added; `repository.ts` and `drain.ts`
   go through `isKnownNotificationType` and needed no change); three catalogue guard tests in
   `edge-shop` (expectations moved from 5 to 7 types); shop-web's service worker (routes on the
   server-set `webPath`, no type table of its own); `shared-types/device.ts` (platforms, not types);
   core-api producers (write only their own types). shop-mobile has no tap-routing yet (050 T047).
-  The types are named `shop_product_approved` / `shop_product_sent_back` — every shop-audience type
+  The types are named `shop_product_approved` / `shop_product_sent_back` - every shop-audience type
   carries the `shop_` prefix, and the plan's `product_*` would have been the only two that did not.
-- **R6** — the shop order console keeps ORDER-level money as the customer paid it (057 A3, operator
+- **R6** - the shop order console keeps ORDER-level money as the customer paid it (057 A3, operator
   decision); its LINES and the shop's own subtotal are at the shop's price. Insights are entirely at
   the shop's price.

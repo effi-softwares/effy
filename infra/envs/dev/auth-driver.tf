@@ -1,4 +1,4 @@
-# Driver audience — Effy employees; staff-provisioned, NO self-signup.
+# Driver audience - Effy employees; staff-provisioned, NO self-signup.
 # The SignUp API is structurally rejected; accounts are created by staff (console for now).
 
 module "driver_pool" {
@@ -89,10 +89,10 @@ resource "aws_cognito_user_pool_client" "driver_mobile" {
   # Don't leak whether an email is a provisioned driver.
   prevent_user_existence_errors = "ENABLED"
 
-  # cognito only — the driver audience has no federation, ever.
+  # cognito only - the driver audience has no federation, ever.
   supported_identity_providers = ["COGNITO"]
 
-  # 60-minute access/ID tokens (platform default); 30-DAY refresh — shared-device posture (matches
+  # 60-minute access/ID tokens (platform default); 30-DAY refresh - shared-device posture (matches
   # shop_mobile, not the customer app's 90). No hosted-UI callbacks: native EMAIL_OTP uses none.
   access_token_validity  = 60
   id_token_validity      = 60
@@ -113,6 +113,6 @@ resource "aws_ssm_parameter" "driver_mobile_app_client_id" {
 }
 
 output "driver_mobile_app_client_id" {
-  description = "Driver MOBILE public app client id (049) — the value for the app's COGNITO_APP_CLIENT_ID."
+  description = "Driver MOBILE public app client id (049) - the value for the app's COGNITO_APP_CLIENT_ID."
   value       = aws_cognito_user_pool_client.driver_mobile.id
 }

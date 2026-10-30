@@ -50,7 +50,7 @@ beforeEach(() => {
   deliveryRepo.listCourierServices.mockResolvedValue({ items: [], collectionDefault: "hub" })
 })
 
-describe("080 — the consignment on the order page", () => {
+describe("080 - the consignment on the order page", () => {
   it("offers only the steps the server allows from each state", () => {
     expect(nextSteps(null)).toEqual([])
     expect(nextSteps("booked")).toEqual(["cancelled"])

@@ -32,7 +32,7 @@ const testPlan = (over: Partial<Plan> = {}): Plan => ({
 describe("windowPremiumCents", () => {
   const plan = testPlan();
 
-  it("no window adds nothing — a later day is the plain fee", () => {
+  it("no window adds nothing - a later day is the plain fee", () => {
     expect(windowPremiumCents(plan, null, false)).toBe(0);
     expect(windowPremiumCents(plan, null, true)).toBe(0);
   });
@@ -49,7 +49,7 @@ describe("windowPremiumCents", () => {
 });
 
 describe("priceEffyOrder", () => {
-  it("prices a later day and a window today from one plan — today is dearer by the premium", () => {
+  it("prices a later day and a window today from one plan - today is dearer by the premium", () => {
     const later = priceEffyOrder(testPlan(), "3121", 3.4, 7000, 5000, null, false);
     const today = priceEffyOrder(testPlan(), "3121", 3.4, 7000, 5000, "slot-plain", true);
     expect(later.totalCents).toBe(1150); // 6.00 + 5.50
@@ -63,7 +63,7 @@ describe("priceEffyOrder", () => {
     expect(fee.breakdown.premiumCents).toBe(450);
   });
 
-  it("a plan that cannot price the postcode fails LOUD and names it — never a zero", () => {
+  it("a plan that cannot price the postcode fails LOUD and names it - never a zero", () => {
     const closed = testPlan({ distanceBands: [{ upperKm: 10, addCents: 600 }] });
     expect(() => priceEffyOrder(closed, "3550", 130, 100, 5000, null, false)).toThrow(ListedPostcodeUnpricedError);
     expect(() => priceEffyOrder(closed, "3550", 130, 100, 5000, null, false)).toThrow(/3550/);

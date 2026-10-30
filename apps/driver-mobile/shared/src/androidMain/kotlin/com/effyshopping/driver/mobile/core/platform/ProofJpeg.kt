@@ -7,13 +7,13 @@ import android.media.ExifInterface
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 
-/** The longest side a proof photograph is kept at, in pixels — legible, and well under 1 MB. */
+/** The longest side a proof photograph is kept at, in pixels - legible, and well under 1 MB. */
 private const val PROOF_MAX_SIDE = 1600
 private const val PROOF_JPEG_QUALITY = 80
 
 /**
  * Turn a camera JPEG into proof: upright, the long side at most [PROOF_MAX_SIDE], JPEG at
- * [PROOF_JPEG_QUALITY] (backlog B1). Call it off the main thread — decoding a 12 MP frame takes time.
+ * [PROOF_JPEG_QUALITY] (backlog B1). Call it off the main thread - decoding a 12 MP frame takes time.
  *
  * [rotationDegrees] is CameraX's rotation for the frame; when null the photo's own exif orientation is
  * used (the system camera writes a file and records its orientation there). Returns null when the

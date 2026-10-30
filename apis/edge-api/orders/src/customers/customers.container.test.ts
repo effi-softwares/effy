@@ -23,7 +23,7 @@ import { createCustomerService, CustomerNotFoundError } from "./service";
 
 const RUN = process.env.CONTAINER_TESTS === "1";
 
-describe.skipIf(!RUN)("074 — back-office customers and points", () => {
+describe.skipIf(!RUN)("074 - back-office customers and points", () => {
   let container: StartedPostgreSqlContainer;
   let pool: Pool;
   const writers = new Set(["manager-1", "admin-1"]);
@@ -88,14 +88,14 @@ describe.skipIf(!RUN)("074 — back-office customers and points", () => {
     const entries = await log(pointsActivitySource(c));
     expect(o).toBeTruthy();
     expect(entries[0]).toMatchObject({
-      kind: "credit", title: "Points added: +5,000", detail: "Late delivery — phoned in", subject: "EFY-CR0001",
+      kind: "credit", title: "Points added: +5,000", detail: "Late delivery - phoned in", subject: "EFY-CR0001",
     });
     const detail = await svc.detail(c);
     expect(detail.points).toMatchObject({ usable: 5000, valueAmount: "50.00", held: 0 });
     expect(detail.recentOrders.map((r) => r.orderNumber)).toEqual(["EFY-CR0001"]);
   });
 
-  it("P12 — a csa credits within the limit, is refused above it, and cannot credit someone else's order", async () => {
+  it("P12 - a csa credits within the limit, is refused above it, and cannot credit someone else's order", async () => {
     const c = await customer();
     const elsewhere = await paidOrder(await customer(), "EFY-NOTYRS");
     await expect(svc.credit("csa-1", c, { points: 2000, reason: "goodwill" })).resolves.toMatchObject({ usable: 2000 });
@@ -105,7 +105,7 @@ describe.skipIf(!RUN)("074 — back-office customers and points", () => {
     await expect(svc.credit("manager-1", "not-a-uuid", { points: 1, reason: "goodwill" })).rejects.toBeInstanceOf(CustomerNotFoundError);
   });
 
-  it("P12 — a debit above what is usable is refused; a debit and a credit both stay in the history", async () => {
+  it("P12 - a debit above what is usable is refused; a debit and a credit both stay in the history", async () => {
     const c = await customer();
     await svc.credit("manager-1", c, { points: 500, reason: "goodwill" });
     await expect(svc.debit("manager-1", c, { points: 501, reason: "correction" })).rejects.toBeInstanceOf(InsufficientPointsError);

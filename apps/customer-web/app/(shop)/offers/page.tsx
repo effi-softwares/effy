@@ -84,7 +84,7 @@ async function OfferList() {
       <EmptyState
         icon={Tag}
         title="No offers right now"
-        description="Check back soon — or see what's on sale today."
+        description="Check back soon - or see what's on sale today."
         action={{ label: "See what's on sale", href: "/search?saleOnly=true" }}
       />
     )

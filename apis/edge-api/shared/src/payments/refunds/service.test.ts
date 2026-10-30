@@ -73,7 +73,7 @@ describe("the provider's outcomes", () => {
 const EXPECTED_KEY = "777f0f468478fdebb4c2c22196ccbca70c3f7b6af9b9a89cbf1bdae1d2cb9fc7";
 
 describe("where money metrics go", () => {
-  it("one namespace for every service that moves money — the alarms watch exactly this one", async () => {
+  it("one namespace for every service that moves money - the alarms watch exactly this one", async () => {
     const { MONEY_METRIC_NAMESPACE } = await import("../index");
     expect(MONEY_METRIC_NAMESPACE).toBe("Effy/Commerce");
     // The service's own copy (it cannot import the index that imports it).

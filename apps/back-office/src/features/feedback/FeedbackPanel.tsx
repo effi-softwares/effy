@@ -112,7 +112,7 @@ export function FeedbackPanel({
           <h3 className="text-xs font-medium text-muted-foreground">Details</h3>
           <dl className="ef-dl [&_.ef-dl__row]:grid-cols-[minmax(0,1fr)] [&_.ef-dl__row]:gap-1">
             <Row label="Category">{FEEDBACK_CATEGORY_LABELS[detail.category]}</Row>
-            <Row label="Rating">{detail.rating ? `${detail.rating}/5` : "—"}</Row>
+            <Row label="Rating">{detail.rating ? `${detail.rating}/5` : "-"}</Row>
             <Row label="From">
               {s.kind === "customer" ? "Signed-in customer" : "Guest"}
               {s.name ? ` · ${s.name}` : ""}
@@ -124,7 +124,7 @@ export function FeedbackPanel({
                   <span className="text-xs text-muted-foreground">({s.emailVerified ? "verified" : "unverified"})</span>
                 </>
               ) : (
-                <span className="text-muted-foreground">none — cannot reply</span>
+                <span className="text-muted-foreground">none - cannot reply</span>
               )}
             </Row>
             <Row label="Source">{detail.source}</Row>
@@ -217,7 +217,7 @@ function Composer({ detail, mayReply }: { detail: FeedbackDetailDTO; mayReply: b
     try {
       await mutation.mutateAsync(body.trim())
       setBody("")
-    } catch {}
+    } catch { }
   }
 
   return (
@@ -258,7 +258,7 @@ function Composer({ detail, mayReply }: { detail: FeedbackDetailDTO; mayReply: b
             maxLength={max}
             onChange={(e) => setBody(e.target.value)}
             placeholder={
-              mode === "reply" ? "Write a reply — it will be emailed to the submitter…" : "Add an internal note…"
+              mode === "reply" ? "Write a reply - it will be emailed to the submitter…" : "Add an internal note…"
             }
           />
           <div className="flex items-center justify-between gap-2 border-t border-t-border py-2 pr-2 pl-3">
@@ -281,7 +281,7 @@ function Composer({ detail, mayReply }: { detail: FeedbackDetailDTO; mayReply: b
       )}
       {reply.isError && mode === "reply" ? (
         <p className="text-xs font-medium">
-          The reply wasn&rsquo;t delivered. It was not marked as replied — try again.
+          The reply wasn&rsquo;t delivered. It was not marked as replied - try again.
         </p>
       ) : null}
       {note.isError && mode === "note" ? <p className="text-xs font-medium">Couldn&rsquo;t save that note.</p> : null}

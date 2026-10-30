@@ -20,7 +20,7 @@ export function supplied(value: string | null | undefined): string | null {
 }
 
 export interface SellerIdentity {
-  /** Always present — the brand a customer knows. */
+  /** Always present - the brand a customer knows. */
   tradingName: string
   /** The customer-facing mailbox. */
   supportEmail: string

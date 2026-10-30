@@ -67,7 +67,7 @@ export function HoldDialog({
             placeholder="e.g. The maker has recalled this batch."
           />
           <p className="mt-0.5 block text-sm text-muted-foreground">
-            The shop sees this, from Effy — not from you by name.
+            The shop sees this, from Effy - not from you by name.
           </p>
         </div>
         {error ? (

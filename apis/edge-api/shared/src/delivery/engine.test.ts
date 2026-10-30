@@ -34,9 +34,9 @@ const price = (km: number, grams: number, over: Partial<EffyPlanValues> = {}, ba
 
 const sum = (b: FeeBreakdown) => feeLines(b).reduce((s, l) => s + l.cents, 0);
 
-describe("effyFee — P1, to the cent", () => {
+describe("effyFee - P1, to the cent", () => {
   it.each([
-    // km, grams, expected delivery cents — and why
+    // km, grams, expected delivery cents - and why
     [0, 1, 400], //  300 → under the minimum → 400
     [10, 1, 400], //  exactly on the boundary: the lower band
     [10.01, 1, 500], //  300 + 200
@@ -123,7 +123,7 @@ describe("a plan that cannot price fails LOUD, never free", () => {
   });
 });
 
-describe("P2 — heavier is never cheaper, farther is never cheaper", () => {
+describe("P2 - heavier is never cheaper, farther is never cheaper", () => {
   // Monotonic plans only: activation refuses the others (`delivery_plan_gaps`).
   const plans: EffyPlanValues[] = [];
   for (const base of [0, 250, 999])
@@ -160,10 +160,10 @@ describe("P2 — heavier is never cheaper, farther is never cheaper", () => {
   });
 });
 
-describe("P4 — free delivery", () => {
+describe("P4 - free delivery", () => {
   const free = { freeOverCents: 8000 };
 
-  it("a basket exactly at the amount is free — window surcharge included", () => {
+  it("a basket exactly at the amount is free - window surcharge included", () => {
     const b = price(15, 6000, free, 8000, 300);
     expect(b.freeApplied).toBe(true);
     expect(b.deliveryCents).toBe(0);
@@ -183,7 +183,7 @@ describe("P4 — free delivery", () => {
   });
 });
 
-describe("P5 — the small-order fee", () => {
+describe("P5 - the small-order fee", () => {
   const small = { smallOrderUnderCents: 2000, smallOrderFeeCents: 300 };
 
   it("is added under the amount, on top of the delivery fee", () => {
@@ -196,7 +196,7 @@ describe("P5 — the small-order fee", () => {
     expect(price(1, 1, small, 2000).smallOrderCents).toBe(0);
   });
 
-  it("sits OUTSIDE the maximum — a capped fee still gains it", () => {
+  it("sits OUTSIDE the maximum - a capped fee still gains it", () => {
     const b = price(25, 80000, { ...small, capCents: 1000 }, 500);
     expect(b.clamp).toBe("cap");
     expect(b.deliveryCents).toBe(1000);
@@ -204,7 +204,7 @@ describe("P5 — the small-order fee", () => {
   });
 });
 
-describe("P6 — the customer's lines", () => {
+describe("P6 - the customer's lines", () => {
   it("sum to the total for every case above", () => {
     const overrides: Partial<EffyPlanValues>[] = [
       {}, { freeOverCents: 8000 }, { smallOrderUnderCents: 2000, smallOrderFeeCents: 300 },
@@ -232,7 +232,7 @@ describe("P6 — the customer's lines", () => {
     ]);
   });
 
-  it("at the maximum the surcharge line is what the window REALLY added — here, less than its premium", () => {
+  it("at the maximum the surcharge line is what the window REALLY added - here, less than its premium", () => {
     // Without the premium: 300+500+400 = 1200. With $5 more: 1700 → held at 1500. The window added $3.
     const b = price(25, 80000, {}, 5000, 500);
     expect(feeLines(b)).toEqual([
@@ -262,7 +262,7 @@ describe("P6 — the customer's lines", () => {
   });
 });
 
-describe("P18 — courierFee", () => {
+describe("P18 - courierFee", () => {
   const courier = (over: Partial<CourierPlanValues> = {}): CourierPlanValues => ({
     baseCents: 900,
     weightBands: [{ upperGrams: 5000, addCents: 0 }, { upperGrams: 20000, addCents: 425 }],

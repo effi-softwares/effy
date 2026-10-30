@@ -113,13 +113,13 @@ function OtpCells({
         {...props}
       />
 
-      {/* The scenery. Skipped entirely while the value is too long — the input above is showing real
+      {/* The scenery. Skipped entirely while the value is too long - the input above is showing real
           text at that point and boxes behind it would be nonsense. */}
       {!overflowing && (
         <div
           aria-hidden
           // Flex, not a stretching grid. Each cell is a fixed square (see `Cell`), so the row must
-          // not stretch them to fill the column — it lays them out left-aligned at their own size,
+          // not stretch them to fill the column - it lays them out left-aligned at their own size,
           // still flush with the label above (the group stays `w-full`, so the transparent input
           // overlay keeps covering the full field). The cell count still comes from `POSITIONS`
           // (derived from `OTP_LENGTH`), so no literal "six" is written down here.
@@ -181,8 +181,8 @@ function Cell({
         invalid && "border-destructive",
         // The active position, revealed only while the field actually has focus.
         active &&
-          !invalid &&
-          "group-focus-within:border-foreground"
+        !invalid &&
+        "group-focus-within:border-foreground"
       )}
     >
       {char ?? ""}

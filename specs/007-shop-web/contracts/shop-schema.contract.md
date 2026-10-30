@@ -1,4 +1,4 @@
-# Contract — Shop staff/RBAC schema (`public`, NEW)
+# Contract - Shop staff/RBAC schema (`public`, NEW)
 
 **Feature**: 007 (FR-019–FR-022) · **Owner**: `db/migrations/` (Goose, forward-only) ·
 **Status**: to build this slice.
@@ -10,7 +10,7 @@ provisioning commands.
 
 ## Data area
 
-`public` — the customer-operational schema. **Not** `admin`, whose designated purpose is
+`public` - the customer-operational schema. **Not** `admin`, whose designated purpose is
 back-office accounts + audit (`db/migrations/20260705095817_baseline_admin_schema.sql`). A shop is
 an operational entity every future slice (inventory, picking, orders) joins against; shop staff
 follow their shop.
@@ -34,8 +34,8 @@ shop; deactivate instead).
 | `roles` (`shop_staff_role`) | reconcile from the `cognito:groups` claim on every `/shop/v1/me` | the console |
 | `status` | back-office shop-staff management (later slice) | **any token data** |
 | `shop_id` | back-office shop-staff management (later slice) | **any token data** |
-| `email` | back-office management (authoritative); `/me` refreshes it **only** when the token carries a real email, and **never** overwrites a non-null value with null | — |
-| `last_seen_at` | `/me`, every authenticated contact | — |
+| `email` | back-office management (authoritative); `/me` refreshes it **only** when the token carries a real email, and **never** overwrites a non-null value with null | - |
+| `last_seen_at` | `/me`, every authenticated contact | - |
 
 The identity provider is the **origin of role assignment**; the platform record is **authoritative
 for the access decision** (FR-006a). The two never silently diverge, because the decision reads only
@@ -48,7 +48,7 @@ The `/shop/v1/me` reconcile runs inside one `withTransaction`:
 1. `INSERT INTO public.shop_staff (cognito_sub, email, last_seen_at) VALUES ($1,$2,now())
    ON CONFLICT (cognito_sub) DO UPDATE SET email = COALESCE(EXCLUDED.email, shop_staff.email),
    last_seen_at = now(), updated_at = now() RETURNING id`
-   — note the `COALESCE`: a null token email never clobbers a stored one.
+   - note the `COALESCE`: a null token email never clobbers a stored one.
 2. `DELETE FROM public.shop_staff_role WHERE staff_id = $1 AND role_key <> ALL($2::text[])`
 3. `INSERT INTO public.shop_staff_role (staff_id, role_key) VALUES ($1,$2) ON CONFLICT DO NOTHING`
 
@@ -85,16 +85,16 @@ query builder (Principle VI).
   apply it**.
 - Reads/writes only platform-owned objects. No `admin`-schema object is touched.
 
-## Who writes what — and what this slice deliberately cannot write
+## Who writes what - and what this slice deliberately cannot write
 
 | Object / column | Written by | Available in 007? |
 |---|---|---|
-| `public.shop` rows | back-office **shop management** | ❌ — no interface, no command, no seed file (FR-019) |
+| `public.shop` rows | back-office **shop management** | ❌ - no interface, no command, no seed file (FR-019) |
 | `shop_staff` row (create) | the JIT upsert on first authenticated contact | ✅ automatic |
 | `shop_staff_role` | reconcile from `cognito:groups`, every `/shop/v1/me` | ✅ automatic |
-| `shop_staff.shop_id` | back-office **shop-staff management** | ❌ — there is no shop to assign |
+| `shop_staff.shop_id` | back-office **shop-staff management** | ❌ - there is no shop to assign |
 | `shop_staff.status` | back-office **shop-staff management** | ❌ |
-| `shop_staff.email` | back-office management (authoritative); `/me` refreshes it opportunistically | partial — set only when the token carries a real address |
+| `shop_staff.email` | back-office management (authoritative); `/me` refreshes it opportunistically | partial - set only when the token carries a real address |
 
 **This slice ships no write path for the platform-owned columns.** That is intentional: they are
 management concerns, and management belongs in the back-office console (the next slice). Shipping a
@@ -106,9 +106,9 @@ shop row to exist that the product never created.
 The authorization predicate **inner-joins** `public.shop`. With no shop in existence, no operator
 can hold an assignment, so:
 
-- ✅ **provable now** — `shop_staff` refused, role-less refused, and an **unassigned
+- ✅ **provable now** - `shop_staff` refused, role-less refused, and an **unassigned
   `shop_manager` refused despite a sufficient role** (the shop-scope term, doing real work).
-- ⏳ **proven in the shop-management slice** — a manager at an **active** shop is *served*; the
+- ⏳ **proven in the shop-management slice** - a manager at an **active** shop is *served*; the
   same manager is refused once the shop is **deactivated**; a **disabled** operator is refused.
   Each needs data only that slice can create.
 
@@ -118,4 +118,4 @@ The role and shop-scope terms are therefore demonstrated live here; the `status`
 ### Identity provisioning (unchanged, and out of the database)
 
 Creating a shop-pool account and granting it `shop_manager` / `shop_staff` happens in Cognito, via
-its own administrative commands — see [quickstart.md](../quickstart.md) §3. No self-signup exists.
+its own administrative commands - see [quickstart.md](../quickstart.md) §3. No self-signup exists.

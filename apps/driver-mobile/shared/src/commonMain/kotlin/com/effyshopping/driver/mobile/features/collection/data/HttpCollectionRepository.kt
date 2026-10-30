@@ -75,7 +75,7 @@ class HttpCollectionRepository(
         val path = "driver/v1/collection/runs/$runId/stops/$stopId/collect"
         // Each package's outcome travels IN the collect. The separate `/issue` call
         // this app used to make named no package, and the platform reads "no package" as "every
-        // package at this stop" — one report marked the whole stop unavailable.
+        // package at this stop" - one report marked the whole stop unavailable.
         val body = CollectRequest(
             changeID = changeId,
             packages = outcomes.map {
@@ -156,7 +156,7 @@ private fun DriverCollectionRunDTO.toDomain() = CollectionRun(
     map = map?.toDomain(),
 )
 
-/** Never fails on a kind this build does not know — the label still says what to do. */
+/** Never fails on a kind this build does not know - the label still says what to do. */
 private fun hubSortKind(kind: String): HubSortKind = when (kind) {
     "load_now" -> HubSortKind.LOAD_NOW
     "shelve" -> HubSortKind.SHELVE

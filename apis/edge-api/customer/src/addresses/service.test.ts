@@ -75,7 +75,7 @@ beforeEach(() => {
   vi.mocked(findByCognitoSub).mockResolvedValue(customerRow());
 });
 
-describe("addresses service — the access decision (FR-020, SC-005)", () => {
+describe("addresses service - the access decision (FR-020, SC-005)", () => {
   it("refuses a caller with no record (never did GET /me) → CustomerNotFoundError", async () => {
     vi.mocked(findByCognitoSub).mockResolvedValue(null);
     await expect(listAddresses(SUB)).rejects.toBeInstanceOf(CustomerNotFoundError);
@@ -125,7 +125,7 @@ describe("updateAddress", () => {
   });
 });
 
-describe("deleteAddress — the delete-default guard (FR-016a, SC-010)", () => {
+describe("deleteAddress - the delete-default guard (FR-016a, SC-010)", () => {
   it("not_found → AddressNotFoundError", async () => {
     vi.mocked(remove).mockResolvedValue("not_found");
     await expect(deleteAddress(SUB, "x")).rejects.toBeInstanceOf(AddressNotFoundError);
@@ -142,7 +142,7 @@ describe("deleteAddress — the delete-default guard (FR-016a, SC-010)", () => {
   });
 });
 
-describe("066 — an address's default delivery instructions", () => {
+describe("066 - an address's default delivery instructions", () => {
   beforeEach(() => {
     vi.mocked(findByCognitoSub).mockResolvedValue(customerRow());
     vi.mocked(create).mockResolvedValue(addressRow());

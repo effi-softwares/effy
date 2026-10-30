@@ -20,12 +20,12 @@ import com.effyshopping.customer.mobile.core.observability.IosCrashReporter
 fun MainViewController(
     authBridge: IosAuthBridge,
     // Observability bridges (Firebase Crashlytics + PostHog iOS). Push stays NoOp on iOS until
-    // APNs is set up (Apple Developer account — see docs/observability-apple-blockers.md).
+    // APNs is set up (Apple Developer account - see docs/observability-apple-blockers.md).
     crashBridge: IosCrashBridge,
     analyticsBridge: IosAnalyticsBridge,
 ) =
     ComposeUIViewController {
-        // `remember` the container so a root recomposition does not rebuild it — a fresh AppContainer
+        // `remember` the container so a root recomposition does not rebuild it - a fresh AppContainer
         // means a fresh, empty in-memory GuestCartStore, which is why the cart appeared to empty on iOS
         // when returning from checkout/sign-in. Android already holds one Application-scoped instance.
         val container = remember {

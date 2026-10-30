@@ -41,7 +41,7 @@ async function order(customerId: string) {
 const give = (customerId: string, points: number, now: Date) =>
   transact((tx) => credit(tx, { customerId, points, kind: "staff_credit", reason: "goodwill", author: staff, now }));
 
-d("074 — the points ledger against the real schema", () => {
+d("074 - the points ledger against the real schema", () => {
   beforeAll(async () => {
     container = await new PostgreSqlContainer("postgres:16-alpine").start();
     pool = new Pool({ connectionString: container.getConnectionUri(), max: 12 });
@@ -83,7 +83,7 @@ d("074 — the points ledger against the real schema", () => {
     expect(await usable(pool, c, now)).toBe(300);
   });
 
-  it("081 — a quiet credit is the same lot, and sends no message (its caller says it)", async () => {
+  it("081 - a quiet credit is the same lot, and sends no message (its caller says it)", async () => {
     const c = await customer();
     const now = new Date();
     const { entryId } = await transact((tx) => credit(tx, {
@@ -95,7 +95,7 @@ d("074 — the points ledger against the real schema", () => {
     expect(Number(n.n)).toBe(0);
   });
 
-  it("P2 — spends the soonest-expiring lot first", async () => {
+  it("P2 - spends the soonest-expiring lot first", async () => {
     const c = await customer();
     const now = new Date();
     await transact((tx) => updateSettings(tx, { expiryMonths: 12 }, "admin"));
@@ -110,7 +110,7 @@ d("074 — the points ledger against the real schema", () => {
     expect(await usable(pool, c, now)).toBe(50);
   });
 
-  it("P3 — an expired lot stops counting the instant it expires, with no sweep run", async () => {
+  it("P3 - an expired lot stops counting the instant it expires, with no sweep run", async () => {
     const c = await customer();
     const now = new Date();
     const { expiresAt } = await give(c, 400, now);
@@ -132,7 +132,7 @@ d("074 — the points ledger against the real schema", () => {
     expect(Number(n.n)).toBe(1);
   });
 
-  it("P5 — concurrent debits never take a balance below zero", async () => {
+  it("P5 - concurrent debits never take a balance below zero", async () => {
     const c = await customer();
     const now = new Date();
     await give(c, 100, now);

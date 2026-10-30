@@ -124,7 +124,7 @@ WITH base AS (
      -- Who takes it away.
      AND ($6::text = 'any' OR delivered_by = $6)
      AND (   $5::text = 'any'
-          -- ⚠ "Today" is the Melbourne day, not the server's UTC day — a 9am
+          -- ⚠ "Today" is the Melbourne day, not the server's UTC day - a 9am
           -- order in Melbourne is still "yesterday" in UTC.
           OR ($5::text = 'today' AND placed_at >= (date_trunc('day', now() AT TIME ZONE 'Australia/Melbourne')
                                              AT TIME ZONE 'Australia/Melbourne'))
@@ -320,7 +320,7 @@ SELECT oi.id AS order_item_id,
           JOIN public.refund r ON r.id = rl.refund_id
          WHERE rl.order_item_id = oi.id
            AND r.status NOT IN ('failed', 'refused')) AS refunded_quantity,
-       -- ⚠ a shop is shown its OWN price for a line — what it is owed — not what the customer paid.
+       -- ⚠ a shop is shown its OWN price for a line - what it is owed - not what the customer paid.
        oi.shop_unit_price_amount AS unit_price_amount,
        oi.shop_line_subtotal_amount AS line_subtotal_amount
   FROM public.shop_fulfillment sf

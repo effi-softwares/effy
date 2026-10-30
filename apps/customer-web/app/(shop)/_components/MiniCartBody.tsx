@@ -43,7 +43,7 @@ export function MiniCartBody({
   ) : (
     <>
       {/* The only scrolling region. The header and the footer are pinned by the flex column,
-          so the subtotal and the primary action never scroll out of reach — which on a long
+          so the subtotal and the primary action never scroll out of reach - which on a long
           cart is the difference between a usable drawer and one you have to hunt through. */}
       <ul className="flex-1 divide-y overflow-y-auto border-t px-4">
         {lines.map((line) => (
@@ -66,7 +66,7 @@ export function MiniCartBody({
                 {line.name}
                 {/* The size chosen. */}
                 {line.variantLabel ? <span className="font-normal text-muted-foreground"> · {line.variantLabel}</span> : null}
-            {line.ageRestricted ? <AgeBadge className="ml-2 align-middle" /> : null}
+                {line.ageRestricted ? <AgeBadge className="ml-2 align-middle" /> : null}
               </span>
               <span className="mt-1 text-xs text-muted-foreground">
                 {formatMoney(line.unitPriceAmount, line.currency)} each
@@ -75,7 +75,7 @@ export function MiniCartBody({
               <div className="mt-2 flex items-center justify-between gap-2">
                 {/* One bordered group rather than two loose buttons: it reads as a single
                     control operating on the number between them.
-                    `leading-none` on the glyphs — `−` and `+` sit on different baselines
+                    `leading-none` on the glyphs - `−` and `+` sit on different baselines
                     to the box, and without it the row looks a pixel out of true. */}
                 <div className="inline-flex items-center overflow-hidden rounded-md border border-input shadow-xs">
                   <button

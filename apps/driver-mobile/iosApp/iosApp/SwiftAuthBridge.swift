@@ -8,7 +8,7 @@ import AWSCognitoAuthPlugin
 /// the common `AuthDriver` contract. Plain callbacks, so there is no `suspend`/`Flow` to produce here.
 ///
 /// NOTE the deliberate absences mirror `AuthDriver`: there is ONLY the email-OTP flow and a local
-/// sign-out — NO sign-up, NO password sign-in, NO recovery, NO global sign-out (014 FR-008/FR-028).
+/// sign-out - NO sign-up, NO password sign-in, NO recovery, NO global sign-out (014 FR-008/FR-028).
 /// Do not add them.
 final class SwiftAuthBridge: NSObject, IosAuthBridge {
 
@@ -31,7 +31,7 @@ final class SwiftAuthBridge: NSObject, IosAuthBridge {
         }
     }
 
-    /// Whether this device holds a sign-in, from the stored credentials — answers with no signal, when
+    /// Whether this device holds a sign-in, from the stored credentials - answers with no signal, when
     /// `fetchSession` cannot refresh the tokens (driver backlog C3).
     func holdsSignIn(onResult: @escaping (KotlinBoolean) -> Void) {
         Task {
@@ -45,7 +45,7 @@ final class SwiftAuthBridge: NSObject, IosAuthBridge {
     func signInWithEmailOtp(email: String, onResult: @escaping (BridgeAuthResult) -> Void) {
         Task {
             do {
-                // ⚠ 035 — the platform's own SIX-digit code, not Cognito's managed eight-digit
+                // ⚠ 035 - the platform's own SIX-digit code, not Cognito's managed eight-digit
                 // EMAIL_OTP (whose length is not configurable by any setting on any object).
                 // ⚠ .customWithoutSRP, never .customWithSRP: the WITH_SRP variant has a recorded
                 // history of completing sign-in WITHOUT presenting the challenge, and there is no
@@ -82,7 +82,7 @@ final class SwiftAuthBridge: NSObject, IosAuthBridge {
         switch result.nextStep {
         case .done:
             return BridgeAuthResult(outcome: "done", destination: nil, errorKind: nil)
-        // 035 — the platform's own 6-digit code.
+        // 035 - the platform's own 6-digit code.
         case .confirmSignInWithCustomChallenge(let info):
             return BridgeAuthResult(outcome: "otp", destination: info?["maskedDestination"], errorKind: nil)
         // ⚠ Kept during rollout: both flows coexist on the pool, so a revert is a one-constant
@@ -106,7 +106,7 @@ final class SwiftAuthBridge: NSObject, IosAuthBridge {
         BridgeAuthResult(outcome: "failed", destination: nil, errorKind: errorKind(error))
     }
 
-    /// `userNotFound` and `notAuthorized` BOTH map to invalidCredentials — never leak whether an email
+    /// `userNotFound` and `notAuthorized` BOTH map to invalidCredentials - never leak whether an email
     /// is a provisioned operator (FR-011).
     private func errorKind(_ error: Error) -> String {
         guard let authError = error as? CognitoAuthError else { return "unexpected" }

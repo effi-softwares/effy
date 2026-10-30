@@ -81,7 +81,7 @@ internal fun EffyTabBar(
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         // A fixed height, never "fill". The navigation layout measures the bar with the whole screen
         // as its maximum, so anything that fills (fillMaxHeight, an unbounded BoxWithConstraints)
-        // becomes a full-screen tab bar with the page squeezed out — the first 087 build did exactly that.
+        // becomes a full-screen tab bar with the page squeezed out - the first 087 build did exactly that.
         BoxWithConstraints(modifier = Modifier.fillMaxWidth().height(TabBarHeight)) {
             val cell = maxWidth / tabs.size
             val index = tabs.indexOf(selected).coerceAtLeast(0)

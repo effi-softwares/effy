@@ -1,4 +1,4 @@
-# Label contract — 096 (US10, R9–R11)
+# Label contract - 096 (US10, R9–R11)
 
 The design reference is [label-redesign.md](../label-redesign.md) and [label-mockup.html](../label-mockup.html).
 
@@ -68,6 +68,6 @@ renderLabelSvg(doc: LabelDocument, layout: LabelLayout, dpi: PrinterDpi): string
   and zone bands are 8 mm.
 - The code beside the QR is printed as one word (`HACQZ2`), not grouped.
 - The browser print page is fixed at the label's size, so a label can no longer spill its footer onto a second page.
-- Deliver to shows the FULL shipping address — address line 1 and line 2 each on their own line, suburb and state
-  beside the postcode, then the country — and the recipient's phone ("Ph …"). Never the billing address: when it
+- Deliver to shows the FULL shipping address - address line 1 and line 2 each on their own line, suburb and state
+  beside the postcode, then the country - and the recipient's phone ("Ph …"). Never the billing address: when it
   differs from shipping, the label shows shipping only. The shop already received the phone with the order.

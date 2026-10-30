@@ -34,7 +34,7 @@ import org.jetbrains.compose.resources.DrawableResource
 
 /**
  * A labelled text field (the canvas's `ui-input` / `ui-textarea`). A problem is said under it in words
- * with a heavier border — never red.
+ * with a heavier border - never red.
  */
 @Composable
 fun DriverTextField(

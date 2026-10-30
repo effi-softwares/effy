@@ -107,7 +107,7 @@ describe("size budgets", () => {
     for (const id of templateIds()) {
       if (sentByOf(id) !== "platform") continue;
       const bytes = Buffer.byteLength(dist(`${id}.html`), "utf8");
-      expect(bytes, `${id} artifact is ${bytes} B — over Gmail's ~${GMAIL_FAIL} B`).toBeLessThan(
+      expect(bytes, `${id} artifact is ${bytes} B - over Gmail's ~${GMAIL_FAIL} B`).toBeLessThan(
         GMAIL_FAIL,
       );
     }

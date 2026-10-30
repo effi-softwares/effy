@@ -44,15 +44,15 @@ function renderIt() {
 
 beforeEach(() => vi.clearAllMocks())
 
-describe("081 — Send by courier…", () => {
+describe("081 - Send by courier…", () => {
   it("shows the server's figures, preselects points for the difference, and marks the last resort", async () => {
     previewDeliveryMove.mockResolvedValue(PREVIEW)
     renderIt()
     expect(await screen.findByText("$9.00")).toBeInTheDocument()
     expect(screen.getByText("$6.50")).toBeInTheDocument()
-    expect(screen.getByLabelText(/Points for the difference — 250 points \(\$2.50\)/)).toBeChecked()
+    expect(screen.getByLabelText(/Points for the difference - 250 points \(\$2.50\)/)).toBeChecked()
     expect(screen.getByText(/last resort/)).toBeInTheDocument()
-    expect(screen.getByText(/Usually arrives in 2–4 business days — an estimate/)).toBeInTheDocument()
+    expect(screen.getByText(/Usually arrives in 2–4 business days - an estimate/)).toBeInTheDocument()
     // No reason yet: nothing can be confirmed.
     expect(screen.getByRole("button", { name: "Send by courier" })).toBeDisabled()
   })

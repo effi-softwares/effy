@@ -41,7 +41,7 @@ interface ExceptionRow {
 const iso = (v: Date | string) => (v instanceof Date ? v.toISOString() : new Date(v).toISOString());
 
 /**
- * The exceptions board: one page of failed deliveries (open by default — records are never deleted), the
+ * The exceptions board: one page of failed deliveries (open by default - records are never deleted), the
  * open count, and what else needs a dispatcher.
  */
 export async function listExceptions(req: ExceptionListRequest): Promise<DeliveryExceptionListDTO> {

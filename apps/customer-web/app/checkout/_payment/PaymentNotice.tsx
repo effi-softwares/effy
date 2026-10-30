@@ -10,7 +10,7 @@ export function PaymentNotice({
   kind = "error",
 }: {
   failure: Pick<PaymentFailure, "title" | "detail">
-  /** `waiting` is for states that are not failures — a bank approval in progress, for instance. */
+  /** `waiting` is for states that are not failures - a bank approval in progress, for instance. */
   kind?: "error" | "waiting" | "secure"
 }) {
   const Icon = kind === "waiting" ? Clock : kind === "secure" ? Lock : AlertCircle

@@ -94,7 +94,7 @@ const columns: EffyColumnDef<AdminPromotionListItemDTO>[] = [
   {
     id: "shownIn",
     header: "Shown in",
-    cell: ({ row }) => <span className="text-muted-foreground">{row.original.groups.length ? row.original.groups.join(", ") : "—"}</span>,
+    cell: ({ row }) => <span className="text-muted-foreground">{row.original.groups.length ? row.original.groups.join(", ") : "-"}</span>,
     meta: { label: "Shown in", priority: 3 },
   },
 ]
@@ -113,8 +113,8 @@ export function PromotionsListScreen() {
     counts
       ? v === "all"
         ? Object.entries(counts)
-            .filter(([s]) => s !== "archived")
-            .reduce((a, [, n]) => a + n, 0)
+          .filter(([s]) => s !== "archived")
+          .reduce((a, [, n]) => a + n, 0)
         : counts[v]
       : undefined
 
@@ -164,7 +164,7 @@ export function PromotionsListScreen() {
         empty={{
           icon: TicketPercent,
           title: "No promotions yet.",
-          description: "Create a promotion to give shoppers money off — automatically or with a code.",
+          description: "Create a promotion to give shoppers money off - automatically or with a code.",
         }}
         toolbar={
           <>
@@ -202,7 +202,7 @@ export function PromotionsListScreen() {
         }
       />
       <p className="text-sm text-muted-foreground">
-        Status is worked out from a promotion's dates, uses, budget and whether it is paused — it is never stored.
+        Status is worked out from a promotion's dates, uses, budget and whether it is paused - it is never stored.
         Customer service can read every promotion; changing one needs a manager or an administrator.
       </p>
     </ListPage>

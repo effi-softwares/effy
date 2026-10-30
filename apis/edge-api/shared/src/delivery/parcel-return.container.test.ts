@@ -74,7 +74,7 @@ const roundStatus = async () =>
 const custody = async () =>
   (await pool.query<{ package_id: string; to_return: boolean }>(CUSTODY_BY_DRIVER, [driverId])).rows;
 
-d("088 — parcels to return to the hub", () => {
+d("088 - parcels to return to the hub", () => {
   beforeAll(async () => {
     container = await new PostgreSqlContainer("postgres:16-alpine").start();
     pool = new Pool({ connectionString: container.getConnectionUri() });

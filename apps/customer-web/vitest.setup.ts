@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom/vitest"
 
 // jsdom omits a few browser APIs that Radix Dialog / AlertDialog and vaul Drawer touch on mount.
-// Polyfilling them here (once) keeps the overlay components — used by the address book — testable.
+// Polyfilling them here (once) keeps the overlay components - used by the address book - testable.
 if (typeof window !== "undefined") {
   if (!window.matchMedia) {
     window.matchMedia = (query: string) =>
@@ -9,10 +9,10 @@ if (typeof window !== "undefined") {
         matches: false,
         media: query,
         onchange: null,
-        addEventListener: () => {},
-        removeEventListener: () => {},
-        addListener: () => {},
-        removeListener: () => {},
+        addEventListener: () => { },
+        removeEventListener: () => { },
+        addListener: () => { },
+        removeListener: () => { },
         dispatchEvent: () => false,
       }) as unknown as MediaQueryList
   }
@@ -20,15 +20,15 @@ if (typeof window !== "undefined") {
   const win = window as unknown as { ResizeObserver?: unknown }
   if (!win.ResizeObserver) {
     win.ResizeObserver = class {
-      observe() {}
-      unobserve() {}
-      disconnect() {}
+      observe() { }
+      unobserve() { }
+      disconnect() { }
     }
   }
 
   const proto = window.HTMLElement.prototype
-  proto.scrollIntoView ??= () => {}
+  proto.scrollIntoView ??= () => { }
   proto.hasPointerCapture ??= () => false
-  proto.setPointerCapture ??= () => {}
-  proto.releasePointerCapture ??= () => {}
+  proto.setPointerCapture ??= () => { }
+  proto.releasePointerCapture ??= () => { }
 }

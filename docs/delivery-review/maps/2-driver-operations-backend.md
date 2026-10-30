@@ -1,4 +1,4 @@
-# Map 2 — Driver operations / dispatch / fulfilment backend (after payment)
+# Map 2 - Driver operations / dispatch / fulfilment backend (after payment)
 
 Read-only map of `/Users/janith/Projects/effy`, verified against code on 2026-10-18 (branch `dev`, HEAD `f9118e04`).
 Paths are relative to `apis/edge-api/` unless they start with `db/`, `docs/` or `apps/`. I checked the docs (`docs/logistics-engine-architecture.md`,
@@ -24,15 +24,15 @@ There is **no geometry anywhere**: no geocoding, no distances, no ETA, no live l
 | Assignment of a package to a stop | `round_package.state` | `assigned → picked_up / not_available` (collection); `assigned → delivered / failed / returned` (delivery). **`failed` is never written by any code** (see §4) |
 | Stop progress | `round_stop.status` | `pending, out_for_delivery, en_route, arrived, done, skipped` (`20260930173242_round_stop_in_transit_states.sql`) |
 | Round | `driver_round.status` | `planned → in_progress → completed / cancelled` |
-| At hub | **existence of** `hub_checkin` row for the collection round | — |
-| Delivered | `package_arrival` row (unique per package; `source` driver_proof / staff_recorded / carrier_signal) and `shop_fulfillment.status='delivered'` | — |
+| At hub | **existence of** `hub_checkin` row for the collection round | - |
+| Delivered | `package_arrival` row (unique per package; `source` driver_proof / staff_recorded / carrier_signal) and `shop_fulfillment.status='delivered'` | - |
 | Failed attempt | `delivery_attempt_failure` (unresolved = `resolved_at IS NULL`) | reasons nobody_home, wrong_address, customer_refused, access_blocked, other |
-| Returned to hub | `round_package.state='returned'` + `parcel_return` row | — |
+| Returned to hub | `round_package.state='returned'` + `parcel_return` row | - |
 | Missing / held (093) | `package_hold` (open, or resolved `lost`) | step load/checkin; reasons not_at_hub, damaged, wrong_temperature, not_in_van, other |
 | Courier | `carrier_handoff`, `courier_consignment(.state)`, `courier_consignment_event` | consignment state incl. failed/lost/damaged/returned |
 | Derived word shown to staff and shop | `packageStatus()` in `shared/src/status/status.ts:60` over `PACKAGE_STATUS_FACTS` (`shared/src/status/sql.ts:10`) | Preparing · Ready · With driver · At hub · Out for delivery · With carrier · Delivered · Problem · Cancelled |
-| Derived word shown to the customer | `stageFor()` in `shared/src/lib/order-completion.ts:121` — the **least advanced** `shop_fulfillment.status` | confirmed · packing · on_the_way · delivered |
-| Derived run stage (093) | `stageOfRound()` / `ROUND_STAGE_LATERAL` in `shared/src/delivery/round-stage.ts` → `runStage` in shared-types | — |
+| Derived word shown to the customer | `stageFor()` in `shared/src/lib/order-completion.ts:121` - the **least advanced** `shop_fulfillment.status` | confirmed · packing · on_the_way · delivered |
+| Derived run stage (093) | `stageOfRound()` / `ROUND_STAGE_LATERAL` in `shared/src/delivery/round-stage.ts` → `runStage` in shared-types | - |
 
 ### 1.2 Happy path: an Effy-delivered package
 
@@ -104,11 +104,11 @@ stop out_for_delivery/en_route/arrived
   │   delivery_attempt_failure ; stop → skipped ; rp stays 'assigned'  (nothing to the customer)
   ▼
 "to return" = TO_RETURN_SQL (shared/src/delivery/parcel-return.ts): delivery rp assigned on a skipped stop, no arrival
-  packageStatus → "Problem — Delivery attempt failed — <reason>" (with driver); custody counts it; the round cannot complete
+  packageStatus → "Problem - Delivery attempt failed - <reason>" (with driver); custody counts it; the round cannot complete
   │ POST /driver/v1/delivery/runs/{runId}/return  OR  POST /fleet/v1/dispatch/rounds/{roundId}/return (staff)
   │   recordParcelReturn: parcel_return row ; rp → returned ; round may complete
   ▼
-packageStatus → "At hub — Returned after a failed delivery — needs a next step"
+packageStatus → "At hub - Returned after a failed delivery - needs a next step"
   GATHER_DELIVERY skips it while the failure is unresolved
   │ staff: POST /fleet/v1/exceptions/{id}/resolve (just sets resolved_at)  OR  orders delivery-move / delivery-window
   │   (override.ts moveToCourier/moveToEffy/changeEffyWindow resolve the open failures themselves)
@@ -120,10 +120,10 @@ next pass re-gathers it automatically → a new delivery round (end-of-day deadl
 
 | Branch | Trigger and code | Result |
 |---|---|---|
-| Not available at shop | collect with outcome `not_available`, or `POST .../stops/{stopId}/issue` (`complete.ts:357 reportIssue`) | rp `not_available`; sf stays `ready_for_pickup` ⇒ "Problem — Not collected at the shop" until the **next pass re-assigns it automatically** (the gather excludes only `assigned` rows) |
-| Shop can't supply | shop → `unfulfillable` (reason required) | "Problem — Shop can't supply"; refund proposal flow (055) |
+| Not available at shop | collect with outcome `not_available`, or `POST .../stops/{stopId}/issue` (`complete.ts:357 reportIssue`) | rp `not_available`; sf stays `ready_for_pickup` ⇒ "Problem - Not collected at the shop" until the **next pass re-assigns it automatically** (the gather excludes only `assigned` rows) |
+| Shop can't supply | shop → `unfulfillable` (reason required) | "Problem - Shop can't supply"; refund proposal flow (055) |
 | Cancelled | platform cancellation writes `withdrawn` | "Cancelled" |
-| Missing at load | `notLoaded[]` on load | `package_hold(load)`; removed from the round; held out of both gathers until dispatch says `found` (re-planned) or `lost` (never planned again) — `POST /fleet/v1/held-packages/{holdId}/resolve` |
+| Missing at load | `notLoaded[]` on load | `package_hold(load)`; removed from the round; held out of both gathers until dispatch says `found` (re-planned) or `lost` (never planned again) - `POST /fleet/v1/held-packages/{holdId}/resolve` |
 | Missing at check-in | `missing[]` on check-in | `package_hold(checkin,not_in_van)`; excluded from the arrived count |
 | Driver goes off duty or is stood down | `planner/release.ts releaseUnworkable` (first step of each pass) | uncollected `assigned` rows deleted, planned rounds cancelled, push `run_changed`/`run_withdrawn`; **a delivery round in progress is never touched**; `picked_up` goods are never released. Off duty itself is refused while holding goods (`driver/src/driver/service.ts HoldingPackagesError`) |
 | Collection run deleted | `release.ts` checks planned collection rounds against the schedule | released `run_removed` |
@@ -138,7 +138,7 @@ next pass re-gathers it automatically → a new delivery round (end-of-day deadl
 |---|---|
 | `shop_fulfillment.status → collected` | `driver/src/work/complete.ts` collectStop; `shared/src/delivery/consignment.ts:284` handOver; shop dev stub `collectViaStub` (`shop/src/fulfillments/repository.ts`, no route registered) |
 | `→ delivered` | `driver/src/proof/sql.ts MARK_FULFILLMENT_DELIVERED`; `orders/src/arrival/repository.ts`; `consignment.ts:379`; shop stub `deliverViaStub` |
-| `package_arrival` INSERT | `driver/src/proof/sql.ts:97`; `orders/src/arrival/repository.ts`; `consignment.ts:374` — **three writers**, even though CLAUDE.md implies consignment.ts is the one path |
+| `package_arrival` INSERT | `driver/src/proof/sql.ts:97`; `orders/src/arrival/repository.ts`; `consignment.ts:374` - **three writers**, even though CLAUDE.md implies consignment.ts is the one path |
 | `round_package` INSERT | only `planner/repository.ts commitWave` (also used by manual Assign) |
 | `round_package` DELETE | `driver-work.ts removeAssignment` (load, unassign-package, override); `planner/sql.ts RELEASE_ASSIGNED`; **`fleet/src/dispatch/service.ts unassign` deletes directly** (a second path) |
 | `driver_round.status → completed` | hubCheckin; `completeDeliveryRoundIfFinished`; migration `20261016120000` one-off backfill |
@@ -152,8 +152,8 @@ next pass re-gathers it automatically → a new delivery round (end-of-day deadl
 |---|---|---|
 | `shop_fulfillment` | 019 `20260719120000`, widened 020/047/055/089 | `order_id, shop_id` UNIQUE; `status`; `state_changed_at` (ready_since); `delivery_method` (legacy routing word); `unfulfillable_reason`; `package_code` 6-char UNIQUE default `new_package_code()` (089) |
 | `fulfillment_item`, `fulfillment_event` | `20260720093119` | the shop's pick progress and audit trail |
-| `order_package_delivery` | 047 | per (order, shop): `method`, `slot_id`, `window_start`, `window_end` (069/078) — what the planner reads for windows |
-| `delivery_collection_run` | 047 | `run_time` (Melbourne wall clock) UNIQUE, `status` active/disabled — **the collection schedule** |
+| `order_package_delivery` | 047 | per (order, shop): `method`, `slot_id`, `window_start`, `window_end` (069/078) - what the planner reads for windows |
+| `delivery_collection_run` | 047 | `run_time` (Melbourne wall clock) UNIQUE, `status` active/disabled - **the collection schedule** |
 | `delivery_settings` (singleton id=1) | many | hub lat/lng; `sameday_prep_buffer_min`; `sameday_hub_turnaround_min` (used by collectionRunFor); `standard_no_delivery_weekdays`; `planning_lead_min` 45; `per_stop_allowance_min` 12; `load_overdue_min` 20; `checkin_overdue_min` 30; `vehicle_check_required` false (093) |
 | `driver` | `20260822120000` + 056 + fleet | `status` active/suspended/offboarded, licence_expires_on, licence_class, contact |
 | `driver_duty_session` | 049/056 | one open per driver; `expected_end_at` (nullable; feeds the feasibility gate); location columns dropped (D22) |
@@ -168,11 +168,11 @@ next pass re-gathers it automatically → a new delivery round (end-of-day deadl
 | `delivery_proof` | `20260921215440` | UNIQUE stop_id, UNIQUE change_id; method photo/signature/contactless; media_key required for photo/signature |
 | `delivery_attempt_failure` | same | stop_id, reason, note (required for other), resolved_at, change_id UNIQUE |
 | `carrier_handoff`, `package_arrival` | 053 `20260826232728` | both UNIQUE per package |
-| `courier_service`, `courier_consignment(_event)`, `order_courier_collection_change` | 080 `20261009051347` | — |
+| `courier_service`, `courier_consignment(_event)`, `order_courier_collection_change` | 080 `20261009051347` | - |
 | `delivery_override`, `order_delivery_type_change` | 081 / 079 | append-only |
 | `parcel_return` | 088 `20261016140000` | round_id, driver_id, recorded_by driver/staff, package_count, change_id UNIQUE |
 | `package_handover` | 090 `20261016160000` | package, round, driver, step collect/checkin/load/deliver/return, handover_method scan/typed/manual |
-| `package_hold`, `round_sequence_waiver`, `vehicle_check` | **093 `20261017100000` — NOT MIGRATED** | hold: one open per package, resolution found/lost; waiver: PK round_id; check: one per (driver, vehicle, local_date), answers jsonb, unsafe/minor, cleared_* |
+| `package_hold`, `round_sequence_waiver`, `vehicle_check` | **093 `20261017100000` - NOT MIGRATED** | hold: one open per package, resolution found/lost; waiver: PK round_id; check: one per (driver, vehicle, local_date), answers jsonb, unsafe/minor, cleared_* |
 | `notification_request` | 050 + `20261016130000` | types incl. order_ready, order_out_for_delivery, order_delivered, order_with_courier, run_assigned/changed/withdrawn/opens_soon |
 | `event_outbox` | 019 | `order.placed` written, **never drained** (no SNS publisher exists) |
 
@@ -187,7 +187,7 @@ outbox drained by the `notifications` worker (push/email), and (c) AppSync "kind
 
 ## 3. Sub-areas
 
-### 3.1 Planner (wave planning and the assignment pass) — `fleet/src/planner/`
+### 3.1 Planner (wave planning and the assignment pass) - `fleet/src/planner/`
 - **Trigger:** `plan-waves-scheduled` on `rate(5 minutes)` (`fleet/serverless.yml:427-439`). `runPass()` is one transaction under
   `pg_try_advisory_xact_lock(72063001)`; a second concurrent pass skips. Order of work: release → collection → delivery →
   standing exclusions → `enqueueRoundsOpeningSoon` (push 15 min before a round opens) → after commit, announce. It also emits EMF
@@ -221,14 +221,14 @@ outbox drained by the `notifications` worker (push/email), and (c) AppSync "kind
   `planner.container.test.ts`, `fleet/src/driver-method.guard.test.ts` (driver work asks `package_delivered_by`, never a method),
   `change-map.guard.test.ts` (writes must announce).
 
-### 3.2 Route ordering — `shared/src/lib/round-ordering.ts orderRoundStops`
+### 3.2 Route ordering - `shared/src/lib/round-ordering.ts orderRoundStops`
 There is **no route optimisation**. Stops are sorted by status rank (pending first, then in transit, then done, then skipped) → dispatcher
 `seq` if set → due time (window start) → `zone_id` → `shop_id` → id. Zones and shops sort by **UUID**, so "grouped by zone" means adjacent
 but in an arbitrary order across zones. Since 076 most postcodes may have no zone (`zone_id` NULL), and those all sort last together.
 Manual reorder: `POST /fleet/v1/dispatch/rounds/{id}/reorder`. Navigation hands one stop's address string to the phone's maps app.
 `driver/src/work/run-map.ts` draws a decorative schematic from postcode centroids (`locality`), for display only (D25).
 
-### 3.3 Driver execution service — `driver/src/` (shared gateway)
+### 3.3 Driver execution service - `driver/src/` (shared gateway)
 Routes (`driver/serverless.yml`): `GET /driver/v1/today`, `/collection/runs/{runId}`, `/collection/runs/{runId}/stops/{stopId}`,
 `/delivery/runs/{runId}`, `/delivery/drops/{dropId}`, `/history`, `/history/{kind}/{id}`, `/activity`, `/me`, `/live`;
 `POST /collection/runs/{runId}/stops/{stopId}/collect`, `.../issue`, `/hub/checkin`, `/delivery/runs/{runId}/load`,
@@ -245,7 +245,7 @@ Routes (`driver/serverless.yml`): `GET /driver/v1/today`, `/collection/runs/{run
 - **Duty:** `POST /driver/v1/duty` opens or closes `driver_duty_session` with an optional `expected_end_at`. Going off is refused while holding goods (custody SQL `shared/src/lib/custody.ts`).
 - **Vehicle check (093):** six items, `vehicle_check` one per driver+vehicle per day, unsafe ⇒ ineligible until staff clear it. **Off by default.**
 
-### 3.4 Proof of delivery — `driver/src/proof/`
+### 3.4 Proof of delivery - `driver/src/proof/`
 - Methods: **photo** (needs media), **signature** (needs media, a drawn image), **contactless** (needs a photo). `code` (OTP/PIN) is
   explicitly refused: "no delivery code is issued for an order". D16's attended-PIN design is not built.
 - Upload: presigned S3 PUT under `proof/` (`presignUpload(PROOF_MEDIA_PREFIX, dropId, …)`); archival lifecycle in `infra/envs/dev/media.tf:81+` (`proof-prefix.guard.test.ts`).
@@ -253,7 +253,7 @@ Routes (`driver/serverless.yml`): `GET /driver/v1/today`, `/collection/runs/{run
   recipient name, no age check, no photo-at-location metadata.
 - Read back: driver history detail (presigned GET); back-office order view.
 
-### 3.5 Failed delivery, return, exceptions — 064/088 + `fleet/src/exceptions/`
+### 3.5 Failed delivery, return, exceptions - 064/088 + `fleet/src/exceptions/`
 - Failure reasons are fixed (5). Failure ⇒ stop `skipped`; the parcel stays with the driver ("to return") until `parcel_return`.
 - Exceptions list (`fleet/src/exceptions/sql.ts LIST_EXCEPTIONS`) shows package location with_driver/at_hub, plus held packages, overdue runs
   and today's vehicle checks (093).
@@ -261,7 +261,7 @@ Routes (`driver/serverless.yml`): `GET /driver/v1/today`, `/collection/runs/{run
   (only `noteProvided` in the audit). The next pass then re-plans the parcel automatically: **the redelivery is implicit**.
 - No attempt counter, no maximum attempts, no return-to-shop/RTS flow, and **no customer notification on a failed attempt**.
 
-### 3.6 Shop side — `shop/src/fulfillments/`
+### 3.6 Shop side - `shop/src/fulfillments/`
 - `POST /shop/v1/fulfillments/{id}/status` (picking | ready_for_pickup | unfulfillable), `PATCH .../items/{orderItemId}` (pick progress),
   `GET /shop/v1/pick-lists`, `POST /shop/v1/orders/{id}/picks`, `POST /shop/v1/fulfillments/{id}/courier-handover` (supplier pickup → consignment.ts).
 - One permitted reversal: ready_for_pickup → picking (even while the package is on a collection round; nothing removes the assignment).
@@ -271,13 +271,13 @@ Routes (`driver/serverless.yml`): `GET /driver/v1/today`, `/collection/runs/{run
 - **Dead code:** `fulfillment-pickup-v1-post.ts` / `fulfillment-deliver-v1-post.ts` + `collectViaStub` / `deliverViaStub` (020 dev stub, deliberately unrouted).
   Its own removal trigger ("when the driver slice ships a real dispatch path") has been met since 063.
 
-### 3.7 Orders service (back-office, staff gateway) — `orders/src/`
+### 3.7 Orders service (back-office, staff gateway) - `orders/src/`
 `GET /orders/v1/orders`, `/orders/{id}` (package status via `packageStatuses`, handovers 091), `GET /orders/v1/handovers`,
 `POST /orders/v1/fulfillments/{id}/handoff` (carrier handoff), `PUT .../consignment`, `POST .../consignment/events`, `POST .../consignment/label`,
 `POST .../arrival` (staff-recorded delivered), `GET|POST /orders/v1/orders/{id}/delivery-move`, `POST .../delivery-window`, `PUT .../courier-collection`,
 cancel/refund routes. Schedule: `courier-late-sweep` every 30 min emits `CourierParcelsLate{where=hub|supplier|courier}`.
 
-### 3.8 Fleet admin — `fleet/src/drivers|capabilities|duty|vehicles|holdings|slots|deliverydays`
+### 3.8 Fleet admin - `fleet/src/drivers|capabilities|duty|vehicles|holdings|slots|deliverydays`
 Drivers CRUD/status/audit (Cognito provisioning in `drivers/cognito.ts`), capabilities grant/revoke, duty list and force-end, vehicles CRUD/status,
 issue/return holdings, delivery slots (windows) and delivery days. Vehicle issue refuses retired/off-road vehicles and inactive drivers.
 
@@ -298,8 +298,8 @@ delivery-day dates · `load_overdue_min` 20 / `checkin_overdue_min` 30 · `vehic
 4. `driver_round.status` (4)
 5. Existence facts: `hub_checkin`, `package_arrival`, `carrier_handoff`, `parcel_return`, open `delivery_attempt_failure`, open `package_hold`
 6. `courier_consignment.state`
-7. `packageStatus` nine words (staff/shop) — derived from 1+2+3+5+6
-8. `stageFor` customer stage (4 words) — derived from **1 only**
+7. `packageStatus` nine words (staff/shop) - derived from 1+2+3+5+6
+8. `stageFor` customer stage (4 words) - derived from **1 only**
 9. `runStage` (093) per round, `dropStatusOf` (driver wire), `hubSortOf`, the dispatch day's "late" rule (`dueRun`)
 
 Each has its own reader. They disagree in practice:
@@ -385,6 +385,6 @@ Each has its own reader. They disagree in practice:
 ### 4.6 Built but not deployed / migrated (per FEATURE-HISTORY, unverified live)
 - 093 driver-work-sequence: **not migrated, deployed or walked** (`20261017100000_driver_work_sequence.sql`); vehicle check is off by default.
 - 091 handover visibility: not deployed. 090 scanning foundation: not migrated, deployed or walked. 089 labels: not migrated, deployed or walked.
-  088 failed-parcel return: "not migrated" yet also "deployed by operator 2026-10-16" — contradictory.
+  088 failed-parcel return: "not migrated" yet also "deployed by operator 2026-10-16" - contradictory.
 - 092 driver redesign: `driver` deployed to dev; app not walked. 072/073: recorded as "not deployed" in their own entries, but later features build on them as live.
 - No feature on this path has been walked end-to-end by a person per the records (memory: "walks not recorded").

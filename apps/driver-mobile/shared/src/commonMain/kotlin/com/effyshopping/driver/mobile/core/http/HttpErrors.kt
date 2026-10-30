@@ -19,7 +19,7 @@ suspend fun HttpResponse.toAppException(): AppException {
 }
 
 /**
- * The status-and-problem → [AppError] rule, with no transport in it — so the one mapping that
+ * The status-and-problem → [AppError] rule, with no transport in it - so the one mapping that
  * depends on the body (072's "not open yet") can be tested without a server.
  */
 internal fun appErrorFor(status: Int, problem: ProblemJSON?): AppError = when (status) {
@@ -36,7 +36,7 @@ internal fun appErrorFor(status: Int, problem: ProblemJSON?): AppError = when (s
     429 -> AppError.RateLimited()
     in 500..599 -> AppError.Unavailable
     // The proof, presign and fail routes answer 422 with a sentence written for the driver.
-    400, 422 -> AppError.Validation(problem?.detail ?: problem?.title ?: "That didn't work — please try again.")
+    400, 422 -> AppError.Validation(problem?.detail ?: problem?.title ?: "That didn't work - please try again.")
     else -> AppError.Unexpected
 }
 

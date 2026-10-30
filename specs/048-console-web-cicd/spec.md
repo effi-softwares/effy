@@ -16,8 +16,8 @@ facts:
 
 - **Managed hosting is AWS Amplify Hosting** (constitution: "Infra … Amplify Hosting"). 042 proved
   the pattern for the **public storefront**; this slice applies it to the two **internal operator
-  consoles**: `apps/shop-web` (007 — shop operator console) and `apps/back-office` (005 — internal
-  admin). Both are **local-only today** — their `package.json` descriptions still say "LOCAL-ONLY".
+  consoles**: `apps/shop-web` (007 - shop operator console) and `apps/back-office` (005 - internal
+  admin). Both are **local-only today** - their `package.json` descriptions still say "LOCAL-ONLY".
 - **These two surfaces are fundamentally different from the storefront**, and the differences drive
   this spec:
   - **They are Vite + React SPAs, not a Next.js SSR app.** There is no server runtime, no
@@ -30,14 +30,14 @@ facts:
     exist).
   - **They live on subdomains, not the zone apex.** The apex (`dev.effyshopping.com`) is the
     storefront's (042). These take dedicated subdomains, so there is **no apex takeover and no
-    email-record cutover** — the delicate part of 042 does not recur here.
+    email-record cutover** - the delicate part of 042 does not recur here.
 - **The repository is a monorepo** (Turborepo + pnpm). `apps/shop-web` and `apps/back-office` are
   workspace members alongside `apps/customer-web`, the three KMP apps, and shared packages
   (`@effy/design-system`, `@effy/shared-types`, `@effy/api-client`, `@effy/web-kit`).
 - **The repo-root `amplify.yml` already exists** (042) and declares exactly one application
   (`apps/customer-web`). Amplify monorepo mode selects, per Amplify app, the single `applications[]`
   entry whose `appRoot` matches that app's `AMPLIFY_MONOREPO_APP_ROOT`. Adding a surface is therefore
-  **its own Amplify app plus its own `applications[]` entry** — never a second surface bolted onto an
+  **its own Amplify app plus its own `applications[]` entry** - never a second surface bolted onto an
   existing app's build.
 - **The shared HTTP API gateway is Terraform-owned** (004/A3) and its CORS `allow_origins` currently
   lists only localhost dev origins (`:5173` back-office, `:5174` shop-web, `:3000` storefront). The
@@ -45,11 +45,11 @@ facts:
   origins must be added to the allowlist** or every authenticated call fails CORS.
 - **The four Cognito pools exist** (001); shop-web authenticates against the **shop** pool and
   back-office against the **back-office (admin)** pool, via the Amplify SDK using passwordless
-  EMAIL_OTP — **not** the Cognito Hosted UI / OAuth redirect flow.
+  EMAIL_OTP - **not** the Cognito Hosted UI / OAuth redirect flow.
 - **Configuration is build-time for a Vite SPA.** Each console reads `VITE_*` values
   (`VITE_COGNITO_USER_POOL_ID`, `VITE_COGNITO_CLIENT_ID`, `VITE_API_BASE_URL`, optional PostHog) that
   Vite inlines into the bundle at build. All are **public-safe** (a pool id, a client id, a gateway
-  address) — there is **no secret** in either console's client bundle by design.
+  address) - there is **no secret** in either console's client bundle by design.
 - **Mode of work**: the platform is built spec-first with all infrastructure expressed as code; the
   operator runs every outward-facing / cloud-mutating step. This slice authors the deployment
   definitions; it does not itself provision cloud resources or connect third-party accounts.
@@ -65,7 +65,7 @@ anyone running a manual deploy command, whichever console(s) the change affects 
 exact commit and served at their internal addresses. The person who merged can watch each build to
 completion and see the result live shortly after.
 
-**Why this priority**: This is the point of the feature — the two consoles move from laptop-only
+**Why this priority**: This is the point of the feature - the two consoles move from laptop-only
 applications to continuously delivered internal sites, exactly as 042 did for the storefront. "Merge
 to dev → the console updates itself" is the complete, demonstrable MVP; every later refinement is
 secondary.
@@ -92,7 +92,7 @@ visible at the shop console address with no manual deploy step. Repeat for `back
 
 An operator navigates to a console's internal address (`shop.dev.effyshopping.com` /
 `back-office.dev.effyshopping.com`) and reaches the correct Effy console over a valid, trusted HTTPS
-connection — not an un-branded provider hostname. Refreshing on a deep route (e.g. an order detail
+connection - not an un-branded provider hostname. Refreshing on a deep route (e.g. an order detail
 URL) or opening such a URL directly loads that view, not a 404.
 
 **Why this priority**: A pipeline that publishes to anonymous throwaway URLs, or that 404s on every
@@ -120,12 +120,12 @@ the same view reloads rather than a host 404. Repeat for `https://back-office.de
 
 A change is pushed to the dev branch. The shop-web Amplify app builds and publishes **only**
 `apps/shop-web`; the back-office Amplify app builds and publishes **only** `apps/back-office`. Neither
-app builds the other console, the storefront, or any mobile app — including when a push touches files
+app builds the other console, the storefront, or any mobile app - including when a push touches files
 that belong only to another surface or to shared packages.
 
 **Why this priority**: In a monorepo the default behaviour of a naïve connection is to build whatever
 it finds at the repo root. The mechanical guarantee that each app is confined to its own `appRoot` is
-what prevents one console's pipeline from shipping another surface — a correctness and (given these are
+what prevents one console's pipeline from shipping another surface - a correctness and (given these are
 privileged internal consoles) a security requirement. It also protects the storefront: this slice must
 not alter what the customer-web app builds.
 
@@ -149,7 +149,7 @@ confirm each console rebuilds correctly (the shared dependency resolves in each 
 ### User Story 4 - The internal consoles are not publicly discoverable (Priority: P2)
 
 The consoles are reachable at their addresses (they must be, for employees), but they are not indexed
-by search engines and expose nothing usable to an unauthenticated visitor — the Cognito login gate
+by search engines and expose nothing usable to an unauthenticated visitor - the Cognito login gate
 stands in front of all console function.
 
 **Why this priority**: These surfaces are internal admin tooling deployed on the public internet. A
@@ -173,7 +173,7 @@ privileged data or action.
 
 Each hosted console reaches the shared edge gateway on its own path namespace (`/shop/v1/*` for
 shop-web, `/admin/v1/*` for back-office), authenticates against the correct Cognito pool (shop pool
-for shop-web, admin pool for back-office), and does so from configuration — with browser calls
+for shop-web, admin pool for back-office), and does so from configuration - with browser calls
 succeeding across origins (CORS) and no secret embedded in either bundle.
 
 **Why this priority**: A console that loads but cannot call its backend (CORS-blocked, wrong pool, or
@@ -203,7 +203,7 @@ from a mismatched pool). Inspect the delivered bundle and confirm it contains on
 
 When the production environment is created later, the same deployment definitions are reused with
 production values so the consoles are served at `shop.effyshopping.com` and
-`back-office.effyshopping.com`, driven by the production release branch — with no redesign of the
+`back-office.effyshopping.com`, driven by the production release branch - with no redesign of the
 pipeline and no per-environment literal in build logic.
 
 **Why this priority**: The platform is explicitly built so every environment stands up from the same
@@ -228,14 +228,14 @@ parameter, not a hard-coded literal.
 ### Edge Cases
 
 - **A build fails** (type error, failed test gate, dependency resolution failure): that console's last
-  good deployment stays live; the failure is reported with logs; no partial/broken version is served —
+  good deployment stays live; the failure is reported with logs; no partial/broken version is served -
   and the *other* console's live version is unaffected.
 - **A push touches only one console**: the other console and the storefront are not rebuilt/redeployed
   (US3), so an unrelated change never risks an unrelated surface.
 - **A push touches only a shared package**: each console that depends on it rebuilds correctly and
   resolves the shared package during its own build (US3).
 - **A client-side deep link is loaded or refreshed** (e.g. `/orders/123`): the host serves the SPA
-  shell, not a 404 (US2) — the classic SPA-on-static-hosting failure this slice must configure away.
+  shell, not a 404 (US2) - the classic SPA-on-static-hosting failure this slice must configure away.
 - **The dev branch is the same one 042 already auto-deploys**: adding two more apps on the same branch
   must not disturb the customer-web app; each app independently builds only its own `appRoot`.
 - **A CORS origin is missing**: an authenticated console call from the deployed origin is rejected at
@@ -285,11 +285,11 @@ parameter, not a hard-coded literal.
 **Address, TLS, DNS & SPA routing**
 
 - **FR-010**: Each console MUST be served at its environment subdomain over HTTPS with a trusted
-  certificate valid for that name — dev: `shop.dev.effyshopping.com` (shop-web) and
+  certificate valid for that name - dev: `shop.dev.effyshopping.com` (shop-web) and
   `back-office.dev.effyshopping.com` (back-office).
 - **FR-011**: Each console MUST serve the application shell for unknown deep-link paths under its
   domain (a SPA rewrite to `index.html` with a success status), so client-side routes load and survive
-  a direct visit or refresh — while genuine static assets continue to serve normally.
+  a direct visit or refresh - while genuine static assets continue to serve normally.
 - **FR-012**: Each subdomain MUST resolve only to its own console; no console subdomain MUST resolve to
   another console or to the storefront, and this slice MUST NOT alter the storefront's apex or the
   API's `api.`/`core-api.` records.
@@ -304,8 +304,8 @@ parameter, not a hard-coded literal.
 
 **Configuration, backend wiring & secrets**
 
-- **FR-015**: Every environment-specific value each console needs — its Cognito user-pool id and client
-  id (correct pool per console), the edge gateway base address, and any optional analytics key — MUST
+- **FR-015**: Every environment-specific value each console needs - its Cognito user-pool id and client
+  id (correct pool per console), the edge gateway base address, and any optional analytics key - MUST
   be supplied to the build as configuration, not hard-coded, consistent with the consoles' existing
   `VITE_*` configuration rule.
 - **FR-016**: Each deployed console MUST point at the **deployed** edge gateway address for this
@@ -341,19 +341,19 @@ parameter, not a hard-coded literal.
 - **FR-024**: This slice MUST NOT deploy, expose, or alter any surface other than the two internal
   consoles, and MUST NOT create any public exposure beyond the two internal console subdomains.
 - **FR-025**: Any real-world identifier or third-party connection required (e.g. the source-control
-  connection authorising Amplify to read the repository) MUST be an explicit, operator-supplied input —
-  never inferred from session/environment metadata — consistent with the constitution's Real-World
+  connection authorising Amplify to read the repository) MUST be an explicit, operator-supplied input -
+  never inferred from session/environment metadata - consistent with the constitution's Real-World
   Identifiers rule. The existing Amplify→GitHub connection (042) MAY be reused.
 
 ### Key Entities *(include if feature involves data)*
 
 - **Hosted console application (×2)**: the managed Amplify representation of `apps/shop-web` and of
-  `apps/back-office` — each its own source-control connection binding, monorepo app root, static-web
+  `apps/back-office` - each its own source-control connection binding, monorepo app root, static-web
   platform, build settings, and SPA rewrite rule.
 - **Deployment branch binding**: the mapping from a repository branch to an environment and each
   console's internal address (dev branch → dev → `shop.dev…`/`back-office.dev…`; production release
   branch → prod → `shop.effyshopping.com`/`back-office.effyshopping.com`).
-- **Deployment / build record**: one build attempt per console — its commit, status, logs, and the
+- **Deployment / build record**: one build attempt per console - its commit, status, logs, and the
   resulting live version.
 - **Domain association (×2)**: the binding of each console subdomain to its hosted app, including its
   TLS certificate.
@@ -376,27 +376,27 @@ parameter, not a hard-coded literal.
   certificate for its own name, and neither resolves to the other or to the storefront.
 - **SC-004**: Loading or refreshing a client-side deep-link route on either console returns that view
   (via the SPA shell), **not** a host 404.
-- **SC-005**: A push touching only one console rebuilds **only** that console — the other console and
-  the storefront produce **0** new deployments — and a push touching only a shared package rebuilds
+- **SC-005**: A push touching only one console rebuilds **only** that console - the other console and
+  the storefront produce **0** new deployments - and a push touching only a shared package rebuilds
   each dependent console successfully.
 - **SC-006**: A build that fails a quality gate leaves that console's previously deployed version live
-  — **0 broken versions** served — the failure is visible in that app's deployment history with logs,
+  - **0 broken versions** served - the failure is visible in that app's deployment history with logs,
   and it is delivered to the operator alert path.
 - **SC-007**: Each deployed console signs a staff user in against the correct pool and successfully
   loads a data-backed view via the deployed gateway (**0** CORS/pre-flight failures, **0** wrong-pool
   401s from a correctly credentialed user).
 - **SC-008**: No server-only secret is present in either console's delivered bundle (verified by
   inspection/sweep), and each console disallows search-engine indexing.
-- **SC-009**: Standing up production requires **only** supplying production values — reviewers confirm
+- **SC-009**: Standing up production requires **only** supplying production values - reviewers confirm
   **0** pipeline-logic edits are needed to target `shop.effyshopping.com` / `back-office.effyshopping.com`
   from the production branch.
-- **SC-010**: The existing customer-web pipeline (042) is unchanged — the storefront still builds only
+- **SC-010**: The existing customer-web pipeline (042) is unchanged - the storefront still builds only
   `apps/customer-web` and still serves `dev.effyshopping.com` after this slice is applied.
 
 ## Assumptions
 
 - **Managed platform**: AWS Amplify Hosting is the deployment target (constitution-locked), reusing the
-  042 pattern — Amplify monorepo mode scoped per app root — rather than a general-purpose CI runner.
+  042 pattern - Amplify monorepo mode scoped per app root - rather than a general-purpose CI runner.
 - **Static-web platform, not SSR**: both consoles are Vite SPAs, so each Amplify app uses the static
   web platform (no `WEB_COMPUTE`, no SSR service role, no SSR-role-at-create-time hazard). Each app
   needs an SPA rewrite rule (unknown path → `index.html`, 200) for client-side routing.
@@ -409,25 +409,25 @@ parameter, not a hard-coded literal.
   production maps to the production release branch later. Branch names are configuration (FR-020).
 - **Single-branch auto-deploy for now**: only the designated deployment branch auto-deploys; per-PR
   preview environments are out of scope (addable later without changing pipeline shape).
-- **Access posture — Cognito only (default; can be revisited)**: the consoles rely on their existing
+- **Access posture - Cognito only (default; can be revisited)**: the consoles rely on their existing
   per-pool Cognito EMAIL_OTP login as the access gate, paired with `noindex` (FR-013/FR-014). An extra
   Amplify HTTP basic-auth gate in front of the login was considered as defense-in-depth and is **not**
   included by default; it can be added later purely as configuration if the operator wants it.
 - **The repo-root `amplify.yml` gains two more `applications[]` entries** (`apps/shop-web`,
   `apps/back-office`) alongside the existing `apps/customer-web` entry. This does not change what any
-  app builds — each Amplify app builds only the entry matching its own `AMPLIFY_MONOREPO_APP_ROOT`;
+  app builds - each Amplify app builds only the entry matching its own `AMPLIFY_MONOREPO_APP_ROOT`;
   the 042 file's "exactly one application" comment reflected there being one surface then, and is
   superseded by the per-app-root selection rule (to be recorded in the build contract).
 - **Backends are already deployed**: the shared edge gateway (004/A3) with the shop and admin
   authorizers, and the underlying services, are live in dev; this slice consumes the gateway address
-  and adds the deployed origins to its CORS allowlist — it does not deploy or redesign the backend.
+  and adds the deployed origins to its CORS allowlist - it does not deploy or redesign the backend.
 - **Cognito EMAIL_OTP needs no callback/allowed-origin registration**: the consoles use the Amplify
   SDK's custom-auth EMAIL_OTP against cognito-idp directly (not the Hosted UI), so no OAuth
-  callback/logout URL is expected to need the new subdomains — to be confirmed during planning, not
+  callback/logout URL is expected to need the new subdomains - to be confirmed during planning, not
   assumed (FR-019).
 - **Configuration source**: environment values flow from the platform's existing configuration
   contract (`/effy/<env>/…` parameters and Terraform references), matching every other surface. All
-  console config is browser-public `VITE_*` — no secret ships to the browser.
+  console config is browser-public `VITE_*` - no secret ships to the browser.
 - **The Amplify→GitHub connection from 042 is reused**: the operator-authorised source-control token
   already exists (`/effy/dev/amplify/github_access_token`); no new third-party connection is required
   unless the operator prefers separate apps to use separate tokens.
@@ -438,9 +438,9 @@ parameter, not a hard-coded literal.
 ## Dependencies
 
 - **AWS Amplify Hosting** in the platform account/region, and the existing **operator-authorised
-  source-control connection** granting Amplify read access to the monorepo (FR-025) — reused from 042.
+  source-control connection** granting Amplify read access to the monorepo (FR-025) - reused from 042.
 - **The dev DNS namespace** `dev.effyshopping.com` and its in-account hosted zone (010); Amplify custom
-  domains front CloudFront and require the certificate in `us-east-1` — handled by Amplify's own domain
+  domains front CloudFront and require the certificate in `us-east-1` - handled by Amplify's own domain
   management, as in 042.
 - **The deployed shared edge gateway** (004/A3) with the shop and admin JWT authorizers, and its
   Terraform-owned CORS configuration, which this slice extends.
@@ -453,7 +453,7 @@ parameter, not a hard-coded literal.
 ## Notes
 
 - This slice is the natural sequel to **042-customer-web-cicd**: same host, same monorepo mechanism,
-  same operator-runs-apply mode, same alert path — but adapted to **two internal Vite SPAs** instead of
+  same operator-runs-apply mode, same alert path - but adapted to **two internal Vite SPAs** instead of
   one public Next SSR storefront. The material deltas the plan must handle: the **static-web platform**
   (no SSR role), the **SPA rewrite rule**, **subdomains instead of apex** (no email-record cutover),
   **two Amplify apps sharing one `amplify.yml`**, **gateway CORS** extension, and **`noindex`** for

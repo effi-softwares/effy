@@ -1,10 +1,10 @@
 # Sign-off: 028-mobile-home-merchandising
 
-**Date**: 2026-07-31 · **Branch**: `028-mobile-home-merchandising` · **Status**: ✅ **SIGNED OFF —
+**Date**: 2026-07-31 · **Branch**: `028-mobile-home-merchandising` · **Status**: ✅ **SIGNED OFF -
 PARTIAL BY DESIGN**
 
 Partial in the same sense as 007 and 020: the shopper-facing feature is built, machine-verified and
-confirmed on device, and one half — the operator's promotional banner loop — is code-complete but has
+confirmed on device, and one half - the operator's promotional banner loop - is code-complete but has
 **never been seen running**. That is recorded below rather than implied by a green tick.
 
 ---
@@ -17,12 +17,12 @@ shortcut row with authored iconography, and promotional banners driven by real b
 promotions.
 
 **⚠ It reverses 026's FR-025a for the Home tab**, on operator direction (FR-003). Every other screen
-026 composed is untouched. The virtue 026 was protecting — merchandise reachable without scrolling
-past chrome — was retained as SC-002 and SC-006 rather than abandoned.
+026 composed is untouched. The virtue 026 was protecting - merchandise reachable without scrolling
+past chrome - was retained as SC-002 and SC-006 rather than abandoned.
 
 ---
 
-## Verified — machine
+## Verified - machine
 
 | Gate | Result |
 |---|---|
@@ -33,40 +33,40 @@ past chrome — was retained as SC-002 and SC-006 rather than abandoned.
 | Mobile `:shared:allTests` (Android + iOS) | green |
 | `:androidApp:assembleDebug` · iOS Kotlin/Native compile | green |
 | `cm-contract-check` | no drift |
-| `cm-tokens-check` | **unchanged** — this slice added no design token |
+| `cm-tokens-check` | **unchanged** - this slice added no design token |
 | `mobile-assets:check` | 76 copies, zero stale/missing/orphaned |
 | `cm-guard` · `check-no-emerald` · `check-no-jade` | green |
 
-## Verified — live (dev)
+## Verified - live (dev)
 
 - **Migration applied.** `20260731072813_promo_advertising.sql` present in `db-status`.
 - **Admin service deployed.** `POST /admin/v1/promotions/{id}/banner-image/presign` returns **401,
-  not 404** — the route exists and the JWT authorizer rejects an unauthenticated call.
+  not 404** - the route exists and the JWT authorizer rejects an unauthenticated call.
 - **`core-api` running the new binary.** `GET /v1/storefront/home` returns `banners: []` against six
   live rails. The old code *always* returned the `"welcome"` stub when rails existed, so the empty
-  list is itself the proof — and it also proves the new `AdvertisedPromotions` SQL runs against the
+  list is itself the proof - and it also proves the new `AdvertisedPromotions` SQL runs against the
   real schema.
-- **Category data verified against the live catalogue** — see the defect below.
+- **Category data verified against the live catalogue** - see the defect below.
 
-## Verified — device (iOS simulator, operator)
+## Verified - device (iOS simulator, operator)
 
 Sectioned layout, rail geometry and peek, the shimmer loading state, product-card sizing, and the
 vertical rhythm were all confirmed visually by the operator across several iterations.
 
 ---
 
-## ⚠ NOT verified — and what that costs
+## ⚠ NOT verified - and what that costs
 
 | Unproven | Consequence |
 |---|---|
-| **T068 — the advertised-promotion loop** | **No promotion was ever marked advertisable.** The banner has never rendered. `EffyPromoBanner`, the pager, the target navigation, the terms sentence, the artwork upload and the automatic take-downs are **machine-verified only**. SC-014 and SC-015 are unproven. |
-| **T003 / T069 — measurements** | No baseline was recorded. **SC-005** (≤50% viewport), **SC-006** (≤4 swipes), **SC-008** (<2 s) are unmeasured. |
-| **SC-009** — 5/5 first-time testers | Not run. |
-| **SC-010** — screen-reader traversal | Not walked. The `isTraversalGroup` bounding is unproven with a real screen reader. |
-| **SC-011** — dark mode · largest text size · tablet landscape | Not walked. |
-| **SC-012** — empty store | Not walked (unit-proven only). |
-| **SC-013** — Android/iOS side-by-side | **Only iOS was ever seen.** Android compiles and its tests pass; nobody has looked at it. |
-| **Research R9** — does a hueless banner draw the eye? | **Unanswerable**, because the banner was never displayed. This was the feature's headline design risk and it remains open. |
+| **T068 - the advertised-promotion loop** | **No promotion was ever marked advertisable.** The banner has never rendered. `EffyPromoBanner`, the pager, the target navigation, the terms sentence, the artwork upload and the automatic take-downs are **machine-verified only**. SC-014 and SC-015 are unproven. |
+| **T003 / T069 - measurements** | No baseline was recorded. **SC-005** (≤50% viewport), **SC-006** (≤4 swipes), **SC-008** (<2 s) are unmeasured. |
+| **SC-009** - 5/5 first-time testers | Not run. |
+| **SC-010** - screen-reader traversal | Not walked. The `isTraversalGroup` bounding is unproven with a real screen reader. |
+| **SC-011** - dark mode · largest text size · tablet landscape | Not walked. |
+| **SC-012** - empty store | Not walked (unit-proven only). |
+| **SC-013** - Android/iOS side-by-side | **Only iOS was ever seen.** Android compiles and its tests pass; nobody has looked at it. |
+| **Research R9** - does a hueless banner draw the eye? | **Unanswerable**, because the banner was never displayed. This was the feature's headline design risk and it remains open. |
 
 ---
 
@@ -78,8 +78,8 @@ code rather than with the world.** That is 027's lesson, and it recurred repeate
 1. **The category row rendered nothing at all.** Every product's primary category is a *leaf*;
    `productCount` does not roll up, so all three top-level categories reported `0` and the filter
    `parentKey == null && productCount > 0` matched none. Thirteen authored icons displayed nothing.
-   Worse, category filtering is an exact primary-category match everywhere, so a top-level shortcut —
-   even if shown — would have opened a results screen with **zero products**. Found only by querying
+   Worse, category filtering is an exact primary-category match everywhere, so a top-level shortcut -
+   even if shown - would have opened a results screen with **zero products**. Found only by querying
    the live categories endpoint. FR-024 and SC-004 were **amended in the spec**, not patched in code
    alone (Principle I).
 2. **Rail tiles ignored their width.** `BoxWithConstraints` inside a `LazyRow` item: a LazyRow measures
@@ -113,7 +113,7 @@ rather than on checking. Re-opened, audited, and three real defects fell out of 
   what would make *top-level* shortcuts possible, and it is a server capability this slice did not add.
 - **`customer-web` banner adoption.** Web ignores `code`, `terms`, `target` and `position`, so a
   promotion with a minimum spend shows its headline there **without its terms**. A recorded parity gap.
-- **Mobile telemetry.** Seven Home events are specified (research R13) and none is emitted — the
+- **Mobile telemetry.** Seven Home events are specified (research R13) and none is emitted - the
   platform-wide deferral now spanning 013/014/015/020/021/022/027/028.
 
 ## Constitution

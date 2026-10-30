@@ -7,7 +7,7 @@ import { guard, mapShopError, toListItemDTO } from "../shops/handler-support";
 import { SHOP_LIST_SPEC } from "../shops/list";
 import { listShops, shopViewCounts } from "../shops/service";
 
-/** The shop register: a console list (103) — `?views=only` answers its status counts instead of a page. */
+/** The shop register: a console list (103) - `?views=only` answers its status counts instead of a page. */
 export const handler = async (
   event: AuthedEvent,
   context: Context,

@@ -34,7 +34,7 @@ export const handler = async (
       400,
       VALIDATION_FAILED,
       "Missing reason",
-      "say why this refund is not owed — a dismissal with no reason cannot be reviewed later",
+      "say why this refund is not owed - a dismissal with no reason cannot be reviewed later",
       guard.scope,
     );
   }

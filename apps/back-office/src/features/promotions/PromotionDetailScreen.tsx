@@ -58,7 +58,7 @@ const timeFmt = new Intl.DateTimeFormat("en-AU", {
   minute: "2-digit",
   timeZone: "Australia/Melbourne",
 })
-const formatTime = (iso: string | null) => (iso ? timeFmt.format(new Date(iso)) : "—")
+const formatTime = (iso: string | null) => (iso ? timeFmt.format(new Date(iso)) : "-")
 
 const CONFIRM: Record<PromotionAction, { title: string; body: string; verb: string } | null> = {
   publish: null,
@@ -185,7 +185,7 @@ export function PromotionDetailScreen({ promoId }: { promoId: string }) {
         app="back-office"
         log="bo-promotion"
         title="Promotion activity"
-        description={`${p.name} — every change to it: its details, status, pictures, customers and codes.`}
+        description={`${p.name} - every change to it: its details, status, pictures, customers and codes.`}
         api={api}
         path={`/admin/v1/promotions/${p.id}/audit`}
         queryKey={[...PROMO_ROOT, "detail", p.id]}
@@ -289,7 +289,7 @@ export function PromotionDetailScreen({ promoId }: { promoId: string }) {
                 </div>
               ) : null}
               <div className="text-base font-semibold">
-                {p.headline ?? <span className="text-muted-foreground">No headline — not shown in groups</span>}
+                {p.headline ?? <span className="text-muted-foreground">No headline - not shown in groups</span>}
               </div>
               {p.supportingLine ? (
                 <p className="mt-0.5 block text-sm text-muted-foreground">{p.supportingLine}</p>
@@ -332,9 +332,9 @@ export function PromotionDetailScreen({ promoId }: { promoId: string }) {
               onClick={() =>
                 confirming === "delete"
                   ? del.mutate(promoId, {
-                      onSuccess: () => void navigate({ to: "/promotions" }),
-                      onError: (e) => setActionError(promotionMutationError(e)),
-                    })
+                    onSuccess: () => void navigate({ to: "/promotions" }),
+                    onError: (e) => setActionError(promotionMutationError(e)),
+                  })
                   : confirming && run(confirming)
               }
             >
@@ -355,7 +355,7 @@ const WHO: Record<Promotion["audience"], string> = {
 }
 
 function Overview({ p }: { p: Promotion }) {
-  const none = <span className="text-muted-foreground">—</span>
+  const none = <span className="text-muted-foreground">-</span>
   return (
     <>
       <Panel title="What it gives">

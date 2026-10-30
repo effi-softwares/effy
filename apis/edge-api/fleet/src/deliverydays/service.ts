@@ -79,7 +79,7 @@ export async function putDeliveryDays(body: DeliveryDaysInput, actorSub: string,
   );
   if (!saved) {
     // Named, not a 500: the row is created by Delivery › Settings, where the hub is set.
-    throw conflict("set the delivery hub in Delivery settings first — these settings are saved with it");
+    throw conflict("set the delivery hub in Delivery settings first - these settings are saved with it");
   }
   scope.log.info("delivery days updated");
   return (await repo.read()).dto;

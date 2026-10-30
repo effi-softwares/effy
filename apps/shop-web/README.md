@@ -1,13 +1,13 @@
-# `@effy/shop-web` — the shop operator console
+# `@effy/shop-web` - the shop operator console
 
 The web half of the **shop** audience. A Vite + React 19 SPA on the **shop** Cognito pool,
-talking to the cold-path **shop** service. **Local-only** this slice — there is no hosted deploy.
+talking to the cold-path **shop** service. **Local-only** this slice - there is no hosted deploy.
 
 Spec: [specs/007-shop-web](../../specs/007-shop-web/). Its sibling surface is
 [`apps/shop-mobile`](../shop-mobile/), and the two are held at parity by
 [docs/audiences/shop-capabilities.md](../../docs/audiences/shop-capabilities.md).
 
-> **Naming, once**: it is `shop` everywhere — the surfaces, the pool, the gateway authorizer, the
+> **Naming, once**: it is `shop` everywhere - the surfaces, the pool, the gateway authorizer, the
 > backend service, its route paths, its tables, its roles, and the audience in prose. The earlier
 > `shop`/`store` split was retired.
 
@@ -34,7 +34,7 @@ SSM slug is the un-hyphenated `shop`, unlike back-office's `back-office`.
 (`infra/envs/dev/edge-gateway.tf`). `strictPort` is on, because a silent bump to `5175` would make
 every API call fail CORS with an error that looks nothing like its cause.
 
-You need a provisioned shop-pool account — there is **no self sign-up**. See
+You need a provisioned shop-pool account - there is **no self sign-up**. See
 [quickstart.md](../../specs/007-shop-web/quickstart.md) §3.
 
 ```bash
@@ -43,7 +43,7 @@ make shop-test    # vitest
 make shop-build   # production build
 ```
 
-## Structure — where every concern lives, and why
+## Structure - where every concern lives, and why
 
 ```
 src/
@@ -68,22 +68,22 @@ Almost nothing here is novel. The runtime (config, Amplify, the EMAIL_OTP flow, 
 the query client, telemetry, the client store) and the console chrome (shell, sidebar, header, user
 menu, sign-in card, error state) live in **[`@effy/web-kit`](../../packages/web-kit/)**; the shadcn
 primitives live in **`@effy/design-system/ui`**. This app supplies its brand, its nav, its role
-union, its feature slices, and its analytics taxonomy — nothing else.
+union, its feature slices, and its analytics taxonomy - nothing else.
 
 **Rule of thumb**: if you are about to copy a file from `apps/back-office`, it belongs in a package
 instead, parameterized. Copy-paste of cross-cutting logic across surfaces is prohibited
-(constitution Principle II), and `make shop-test` is not what catches it — review is.
+(constitution Principle II), and `make shop-test` is not what catches it - review is.
 
 ## Client error-handling contract
 
 Every backend failure arrives as a `DomainError` from `@effy/api-client` (RFC 9457 problem+json →
-`kind`). Screens render a human state keyed on `kind` — **never** the raw `detail`, a status code, a
+`kind`). Screens render a human state keyed on `kind` - **never** the raw `detail`, a status code, a
 stack trace, or a token.
 
 | `kind` | Rendered as | Recovery |
 |---|---|---|
 | `unauthenticated` | "Your session has expired." | recover session, else sign-in |
-| `forbidden` | access-denied state; **no privileged data** | none — a denial is a correct answer |
+| `forbidden` | access-denied state; **no privileged data** | none - a denial is a correct answer |
 | `unavailable` | degraded state (the backend may be waking) | **Retry** |
 | `not-found` | not-found state | back to dashboard |
 | `unknown` | generic failure | Retry |
@@ -92,13 +92,13 @@ stack trace, or a token.
 expected state, not a bug.
 
 Two states are **not** errors and must never read as one: a **role-less** operator (recorded, granted
-nothing) and an operator with **no assigned shop** (expected — the record is created on first
+nothing) and an operator with **no assigned shop** (expected - the record is created on first
 sign-in, before their shop is known).
 
 ## Role-aware interface, and what actually guards it
 
 `nav.ts` hides the Management item from anyone without `shop_manager`. That is least-privilege UX
-and defense in depth — **it is not the guard**. The backend decides independently, from the
+and defense in depth - **it is not the guard**. The backend decides independently, from the
 platform's own record, using three terms:
 
 ```
@@ -109,7 +109,7 @@ A `shop_staff` operator who types `/manager` into the address bar reaches the sc
 by `GET /shop/v1/manager-ping` with a uniform `403` that does not say *which* term failed. Hiding a
 link is a courtesy; the refusal is the security boundary.
 
-## Add a screen — walkthrough
+## Add a screen - walkthrough
 
 1. Create `src/features/<domain>/` with `repo.ts` (call `api`, map DTO → domain), `queries.ts`
    (`queryOptions` + a key under a stable prefix), and `<Screen>.tsx` (render states via
@@ -119,7 +119,7 @@ link is a courtesy; the refusal is the security boundary.
    **and add the matching backend gate**. A hidden nav item is not a gate.
 4. **Update the parity register**
    ([docs/audiences/shop-capabilities.md](../../docs/audiences/shop-capabilities.md)): a
-   capability added here must record its state on `shop-mobile`. This step is not optional — an
+   capability added here must record its state on `shop-mobile`. This step is not optional - an
    unstated cell is a defect.
 5. `make shop-lint shop-test`.
 

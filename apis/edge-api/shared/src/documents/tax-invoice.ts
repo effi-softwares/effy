@@ -8,11 +8,11 @@ import { A4, MARGIN, ensureRoom, finish, newDocument, rule, text, wordmark, wrap
 
 type Tx = { query: (text: string, values?: unknown[]) => Promise<any> };
 
-export class InvoicesUnavailable extends Error {}
+export class InvoicesUnavailable extends Error { }
 /** Its lines carry no GST status, so no true invoice can be made. */
-export class InvoiceNotAvailableForOrder extends Error {}
+export class InvoiceNotAvailableForOrder extends Error { }
 /** $1,000 or more and no buyer name to print. */
-export class BuyerIdentityRequired extends Error {}
+export class BuyerIdentityRequired extends Error { }
 
 export const BUYER_IDENTITY_FROM_CENTS = 100_000;
 
@@ -62,7 +62,7 @@ export async function issueInvoice(tx: Tx, orderId: string): Promise<TaxDocument
   if (!head) throw new InvoiceNotAvailableForOrder();
   const lines = (await tx.query(
     // The line as sold, with its variant.
-    `SELECT CASE WHEN variant_label IS NULL THEN product_name ELSE product_name || ' — ' || variant_label END AS product_name, quantity, unit_price_amount, discount_amount, gst_status
+    `SELECT CASE WHEN variant_label IS NULL THEN product_name ELSE product_name || ' - ' || variant_label END AS product_name, quantity, unit_price_amount, discount_amount, gst_status
        FROM public.order_item WHERE order_id = $1 ORDER BY product_name, id`,
     [orderId],
   )).rows as Array<{ product_name: string; quantity: number; unit_price_amount: string; discount_amount: string; gst_status: GstStatus | null }>;
@@ -125,7 +125,7 @@ export async function issueAdjustment(tx: Tx, refundId: string): Promise<TaxDocu
   const settings = await readTaxSettings(tx);
   const feeTreatment = settings.feeTreatment ?? "taxable";
   const refundLines = (await tx.query(
-    `SELECT CASE WHEN oi.variant_label IS NULL THEN oi.product_name ELSE oi.product_name || ' — ' || oi.variant_label END AS product_name, rl.quantity, rl.amount, oi.gst_status
+    `SELECT CASE WHEN oi.variant_label IS NULL THEN oi.product_name ELSE oi.product_name || ' - ' || oi.variant_label END AS product_name, rl.quantity, rl.amount, oi.gst_status
        FROM public.refund_line rl JOIN public.order_item oi ON oi.id = rl.order_item_id
       WHERE rl.refund_id = $1 ORDER BY oi.product_name, rl.id`,
     [refundId],

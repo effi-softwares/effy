@@ -11,7 +11,7 @@ import UIKit
 /// `SwiftAuthBridge`/`IosAuthDriver` (013).
 ///
 /// ⚠ WHY AN EMBEDDED ELEMENT RATHER THAN `PaymentSheet`. The sheet is a modal that owns its own chrome,
-/// amount and button — nothing about it can be made to look like Effy beyond colours, so FR-028 ("every
+/// amount and button - nothing about it can be made to look like Effy beyond colours, so FR-028 ("every
 /// part Effy is permitted to draw MUST be drawn by Effy") is unmeetable with it. The embedded element
 /// renders only the method list; the screen around it is ours.
 final class SwiftPaymentElementBridge: NSObject, IosPaymentElementBridge {
@@ -22,7 +22,7 @@ final class SwiftPaymentElementBridge: NSObject, IosPaymentElementBridge {
     private var onChange: ((BridgeElementSelection) -> Void)?
 
     /// ⚠ Exactly one confirmation callback, cleared as it fires. The Kotlin side resumes a
-    /// `CancellableContinuation` with it, and resuming twice traps — so a second invocation must be
+    /// `CancellableContinuation` with it, and resuming twice traps - so a second invocation must be
     /// impossible rather than merely unlikely.
     private var pendingConfirm: ((BridgePaymentResult) -> Void)?
 
@@ -46,7 +46,7 @@ final class SwiftPaymentElementBridge: NSObject, IosPaymentElementBridge {
 
             var configuration = EmbeddedPaymentElement.Configuration()
             configuration.merchantDisplayName = merchantName
-            // 087 — the storefront appearance, generated from tokens.css (light only, Geist).
+            // 087 - the storefront appearance, generated from tokens.css (light only, Geist).
             configuration.appearance = EffyPaymentAppearance.make()
 
             // ⚠ COLLECT NOTHING WE ALREADY HOLD (FR-014/FR-015). `attachDefaultsToPaymentMethod = true`
@@ -99,7 +99,7 @@ final class SwiftPaymentElementBridge: NSObject, IosPaymentElementBridge {
                     configuration: configuration
                 )
                 created.delegate = self
-                // ⚠ ON THE ELEMENT, not the Configuration — verified against the 24.25.0 source, where
+                // ⚠ ON THE ELEMENT, not the Configuration - verified against the 24.25.0 source, where
                 // `presentingViewController` is a property of `EmbeddedPaymentElement` itself. Without
                 // it the form sheet has nothing to present from: the shopper taps a method and nothing
                 // happens at all (research R17).
@@ -116,7 +116,7 @@ final class SwiftPaymentElementBridge: NSObject, IosPaymentElementBridge {
                     )
                 )
             } catch {
-                // ⚠ A shopper who cannot pay must be TOLD, in words they can act on — never a raw SDK
+                // ⚠ A shopper who cannot pay must be TOLD, in words they can act on - never a raw SDK
                 // error string, which is written for a developer reading a dashboard (FR-036).
                 onReady(
                     BridgeElementReady(
@@ -132,7 +132,7 @@ final class SwiftPaymentElementBridge: NSObject, IosPaymentElementBridge {
     func confirm(onResult: @escaping (BridgePaymentResult) -> Void) {
         Task { @MainActor [weak self] in
             guard let self, let element = self.element else {
-                onResult(BridgePaymentResult(outcome: "failed", message: "Payment isn't ready — please try again."))
+                onResult(BridgePaymentResult(outcome: "failed", message: "Payment isn't ready - please try again."))
                 return
             }
             self.pendingConfirm = onResult
@@ -182,7 +182,7 @@ extension SwiftPaymentElementBridge: EmbeddedPaymentElementDelegate {
     /// ⚠ THE HEIGHT CALLBACK IS LOAD-BEARING, not cosmetic. The element grows when a method is selected
     /// (a form expands beneath the row). A Compose interop view keeps the height it was measured at, so
     /// without forwarding this the card fields render below the visible box and the shopper cannot
-    /// reach them — with nothing on screen suggesting anything is wrong.
+    /// reach them - with nothing on screen suggesting anything is wrong.
     func embeddedPaymentElementDidUpdateHeight(embeddedPaymentElement: EmbeddedPaymentElement) {
         publishSelection(from: embeddedPaymentElement)
     }

@@ -11,7 +11,7 @@ import com.effyshopping.customer.mobile.features.checkout.domain.OrderDeliveryMo
 import com.effyshopping.customer.mobile.features.checkout.domain.OrderTracking
 
 /**
- * Who delivers an order — Effy, or a courier — and how this app says it.
+ * Who delivers an order - Effy, or a courier - and how this app says it.
  *
  * A mirror, not a source. These are `DELIVERY_TYPE_WORDS` in
  * `packages/shared-types/src/delivery-type.ts`, the one place they are written; the website renders
@@ -28,7 +28,7 @@ object DeliveryTypeWords {
     const val COURIER_ESTIMATE_PREFIX = "Usually arrives in"
 
     /** Never drop this: without it the estimate reads as a promised date. */
-    const val COURIER_ESTIMATE_SUFFIX = "— an estimate, not a guaranteed date."
+    const val COURIER_ESTIMATE_SUFFIX = "- an estimate, not a guaranteed date."
     const val NO_WINDOWS_LEFT = "There are no Effy delivery windows available in the next few days."
     const val COURIER_INSTEAD_OF_WINDOWS = "We can send this order by courier instead."
     const val SAME_DAY = "Same-day delivery"
@@ -49,12 +49,12 @@ object DeliveryTypeWords {
      * App-side wording (the website has its own sentence for the same refusal); it says what to do
      * and that nothing was taken.
      */
-    const val TYPE_CHANGED = "How this order is delivered has changed. Please check the delivery option — you haven’t been charged."
+    const val TYPE_CHANGED = "How this order is delivered has changed. Please check the delivery option - you haven’t been charged."
 
-    /** "Usually arrives in 2–4 business days — an estimate, not a guaranteed date." */
+    /** "Usually arrives in 2–4 business days - an estimate, not a guaranteed date." */
     fun courierEstimateSentence(estimate: String): String = "$COURIER_ESTIMATE_PREFIX $estimate $COURIER_ESTIMATE_SUFFIX"
 
-    /** The two lines a customer reads under "Courier delivery" — at checkout and on the order alike. */
+    /** The two lines a customer reads under "Courier delivery" - at checkout and on the order alike. */
     fun courierLines(estimate: String): List<String> = listOf(COURIER_PARTNER, courierEstimateSentence(estimate))
 
     /** What a customer received for a move to courier; null when nothing was given. */
@@ -80,7 +80,7 @@ object DeliveryTypeWords {
     }
 }
 
-/** "As soon as possible — usually within 2–3 days". The estimate is the business's own words. */
+/** "As soon as possible - usually within 2–3 days". The estimate is the business's own words. */
 fun asapSentence(estimate: String): String = "${DeliveryWindowWords.ASAP_ESTIMATE_PREFIX} $estimate".trim()
 
 /** What a customer surface prints for an order's delivery. */

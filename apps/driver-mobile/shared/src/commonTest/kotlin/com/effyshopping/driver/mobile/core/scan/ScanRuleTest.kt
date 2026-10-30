@@ -24,7 +24,7 @@ class ScanRuleTest {
     private fun label(code: String) = "EFY1:$code"
     private fun bags(vararg codes: String) = codes.map { Bag(it, 1, 1, BagZone.AMBIENT) }
 
-    // S1 — at a shop
+    // S1 - at a shop
     private val run = CollectionRun(
         runId = "r1", status = "active",
         stops = listOf(
@@ -64,14 +64,14 @@ class ScanRuleTest {
         assertEquals(ScanOutcome.Accepted("BBBBBB"), s.judge(" BBBBBB "))
     }
 
-    // S2 — at the hub
+    // S2 - at the hub
     @Test fun at_the_hub_every_package_on_the_run_is_expected() {
         val s = ScanSession(ScanContexts.hub(run))
         listOf("AAAAAA", "BBBBBB", "CCCCCC").forEach { assertIs<ScanOutcome.Accepted>(s.judge(label(it))) }
         assertTrue(s.isComplete)
     }
 
-    // S3 / S4 — the van and the door
+    // S3 / S4 - the van and the door
     private val deliveryRun = DeliveryRun(
         runId = "d1", status = "active",
         drops = listOf(
@@ -99,7 +99,7 @@ class ScanRuleTest {
         assertTrue(s.isComplete)
     }
 
-    // S5 — return
+    // S5 - return
     @Test fun returning_expects_the_parcels_to_return() {
         val s = ScanSession(ScanContexts.returnToHub(ParcelsToReturn("d1", 1, listOf("EFY-2"), listOf(ReturnParcel("EFY-2", "FFFFFF", null, null, bags("FFFFFF"))))))
         assertEquals(ScanOutcome.Accepted("FFFFFF"), s.judge(label("FFFFFF")))
@@ -113,7 +113,7 @@ class ScanRuleTest {
         assertFalse(s.isComplete)
     }
 
-    /** Nothing expected (an older server sent no codes) is never "complete" — nothing auto-sends. */
+    /** Nothing expected (an older server sent no codes) is never "complete" - nothing auto-sends. */
     @Test fun a_step_with_no_codes_never_completes_by_itself() {
         assertFalse(ScanSession(ScanContext(emptySet())).isComplete)
     }

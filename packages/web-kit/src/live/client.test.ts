@@ -19,7 +19,7 @@ class FakeSocket implements LiveSocket {
   constructor(
     readonly url: string,
     readonly protocols: string[],
-  ) {}
+  ) { }
   send(data: string) {
     this.sent.push(JSON.parse(data) as Record<string, unknown>);
   }
@@ -175,7 +175,7 @@ describe("updates", () => {
 });
 
 describe("no channel, and refusal", () => {
-  it("is off when signed out — and opens nothing", async () => {
+  it("is off when signed out - and opens nothing", async () => {
     const h = harness({ getToken: vi.fn(async () => null) });
     const client = createLiveClient(h.options);
     client.start();
@@ -241,7 +241,7 @@ describe("losing the connection", () => {
     expect(h.sockets).toHaveLength(2);
     expect(client.state()).toBe("live");
     expect(h.caughtUp).toHaveBeenCalledTimes(2);
-    // The descriptor is read again on reconnect — the person's channel may have changed.
+    // The descriptor is read again on reconnect - the person's channel may have changed.
     expect(h.options.loadDescriptor).toHaveBeenCalledTimes(2);
   });
 
@@ -365,7 +365,7 @@ describe("moving to the next epoch", () => {
   });
 
   // How a person whose access has ended stops hearing.
-  it("goes off when the next epoch's subscription is refused — access has ended", async () => {
+  it("goes off when the next epoch's subscription is refused - access has ended", async () => {
     const h = harness();
     const client = createLiveClient(h.options);
     client.start();

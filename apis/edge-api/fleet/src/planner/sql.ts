@@ -36,7 +36,7 @@ export const GATHER_COLLECTION = `
    WHERE sf.status = 'ready_for_pickup'
      -- A package a driver declared missing waits for a dispatcher's decision.
      AND NOT ${heldSql("sf.id")}
-     -- ⚠ A COURIER COLLECTS IT FROM THE SUPPLIER: no Effy driver goes for it, ever — not in a
+     -- ⚠ A COURIER COLLECTS IT FROM THE SUPPLIER: no Effy driver goes for it, ever - not in a
      -- pass and not when staff ask "who can take this one?". Asked through the ONE fragment, so the
      -- planner and the shop console cannot disagree about which parcels are the supplier's to hand over.
      AND ${COURIER_COLLECTION_SQL("o")} <> 'supplier'
@@ -117,7 +117,7 @@ export const GATHER_DELIVERY = `
      -- ⚠ HELD FOR A PERSON. A parcel returned to the hub after a failed delivery waits until a
      -- staff member chooses its next step (a new window, courier, or cancel and refund); choosing one
      -- resolves the failure and releases it here. Never re-offered by itself: the reason
-     -- it failed — a wrong address, a refusal — usually needs a person to look at it.
+     -- it failed - a wrong address, a refusal - usually needs a person to look at it.
      AND NOT EXISTS (
            SELECT 1
              FROM public.round_package held

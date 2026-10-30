@@ -19,7 +19,7 @@ function event(verifiedSub: string | undefined, accessToken?: string): AuthedEve
   } as unknown as AuthedEvent
 }
 
-describe("requireCaller — the two-token guard (FR-035, research R12)", () => {
+describe("requireCaller - the two-token guard (FR-035, research R12)", () => {
   it("accepts a matched pair", () => {
     const caller = requireCaller(event("sub-alice", tokenFor("sub-alice")))
     expect(caller.sub).toBe("sub-alice")

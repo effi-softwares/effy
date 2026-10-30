@@ -63,7 +63,7 @@ export const handler = async (
       400,
       ProblemType.ValidationFailed,
       "Invalid request",
-      "a verification code is required — a valid session alone is not sufficient",
+      "a verification code is required - a valid session alone is not sufficient",
       scope,
     )
   }
@@ -108,7 +108,7 @@ function mapError(
       400,
       ProblemType.ValidationFailed,
       "That code did not work",
-      "the code is incorrect or has expired — request a new one",
+      "the code is incorrect or has expired - request a new one",
       scope,
     )
   }

@@ -54,7 +54,7 @@ describe("orders service deployment contract", () => {
     expect(missing, `serverless.yml is missing: ${missing.join(", ")}`).toEqual([]);
   });
 
-  it("can reach the payment provider — and holds the secret key ONLY, never the webhook secret (070)", () => {
+  it("can reach the payment provider - and holds the secret key ONLY, never the webhook secret (070)", () => {
     // Refunds are issued here, so the Stripe key ARN must be declared.
     expect(declared.has("STRIPE_SECRET_KEY_ARN")).toBe(true);
     expect(yaml).toMatch(/Resource:\s*\n\s+- \$\{ssm:\/effy\/\$\{sls:stage\}\/db\/master_secret_arn\}\s*\n\s+- \$\{ssm:\/effy\/\$\{sls:stage\}\/stripe\/secret_key_arn\}/);
@@ -76,7 +76,7 @@ describe("orders service deployment contract", () => {
   it("puts EVERY /orders/v1 route behind the back-office authorizer", () => {
     for (const fn of AUTHED) {
       const block = blockFor(fn);
-      expect(block, `${fn} has no authorizer — it would be publicly readable`).toContain(
+      expect(block, `${fn} has no authorizer - it would be publicly readable`).toContain(
         "authorizer:",
       );
       expect(block, `${fn} must use the back-office authorizer`).toContain(

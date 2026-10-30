@@ -25,7 +25,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-// Hand-written fake (no mocking lib) — emulates the 019 backend semantics (auto-default first,
+// Hand-written fake (no mocking lib) - emulates the 019 backend semantics (auto-default first,
 //  exactly-one-default set, delete-default guard). ──────────────────────────────────────────────────
 
 private class FakeAddressRepository(seed: List<SavedAddress> = emptyList()) : AddressRepository {

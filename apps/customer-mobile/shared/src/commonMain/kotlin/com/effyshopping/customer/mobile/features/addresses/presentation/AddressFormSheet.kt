@@ -49,7 +49,7 @@ fun AddressFormSheet(
         verticalArrangement = Arrangement.spacedBy(EffySpacing.md),
     ) {
 
-        // Label chips: Home / Work / Other — Other reveals a free-text field.
+        // Label chips: Home / Work / Other - Other reveals a free-text field.
         Row(horizontalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
             LabelChipToggle("Home", form.labelChip == LabelChip.HOME) { onChange(form.copy(labelChip = LabelChip.HOME)) }
             LabelChipToggle("Work", form.labelChip == LabelChip.WORK) { onChange(form.copy(labelChip = LabelChip.WORK)) }
@@ -95,7 +95,7 @@ private fun Field(
     error: String? = null,
     keyboard: KeyboardType = KeyboardType.Text,
 ) {
-    // The shared [EffyField] — a label above a plain bordered box, and the error rendered as
+    // The shared [EffyField] - a label above a plain bordered box, and the error rendered as
     // helper text beneath rather than only as a red outline (colour is never the only signal, FR-040).
     EffyField(
         label = label,

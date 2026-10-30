@@ -129,7 +129,7 @@ functions:
   # Two probes: a combined one cannot tell "not deployed" from "database down".
   liveV1:
     handler: src/functions/live-v1-get.handler
-    description: Which live-update channel is this person's — read on sign-in and reconnect, never on a timer — 071
+    description: Which live-update channel is this person's - read on sign-in and reconnect, never on a timer - 071
     events:
       - httpApi:
           method: GET
@@ -140,7 +140,7 @@ functions:
 
   healthz:
     handler: src/functions/healthz-get.handler
-    description: Liveness — is the admin service deployed and executing? Touches nothing. Public.
+    description: Liveness - is the admin service deployed and executing? Touches nothing. Public.
     events:
       - httpApi:
           method: GET
@@ -148,7 +148,7 @@ functions:
 
   readyz:
     handler: src/functions/readyz-get.handler
-    description: Readiness — can the admin service serve? Probes the DB under a 2s budget. Public.
+    description: Readiness - can the admin service serve? Probes the DB under a 2s budget. Public.
     events:
       - httpApi:
           method: GET
@@ -156,7 +156,7 @@ functions:
 
   backOfficeMeV1:
     handler: src/functions/back-office-me-v1-get.handler
-    description: Staff-identity read — records (JIT upsert) + returns the platform record (005)
+    description: Staff-identity read - records (JIT upsert) + returns the platform record (005)
     events:
       - httpApi:
           method: GET
@@ -167,7 +167,7 @@ functions:
 
   backOfficeAdminPingV1:
     handler: src/functions/back-office-admin-ping-v1-get.handler
-    description: Administrator-only proving route — authorizes from the DB record (005)
+    description: Administrator-only proving route - authorizes from the DB record (005)
     events:
       - httpApi:
           method: GET
@@ -179,7 +179,7 @@ functions:
   # Shop management. Read: any active staff; mutate: admin/manager.
   shopsListV1:
     handler: src/functions/shops-list-v1-get.handler
-    description: List shops (paginated/filterable/searchable) — 009
+    description: List shops (paginated/filterable/searchable) - 009
     events:
       - httpApi:
           method: GET
@@ -190,7 +190,7 @@ functions:
 
   shopGetV1:
     handler: src/functions/shop-get-v1-get.handler
-    description: Shop detail + roster — 009
+    description: Shop detail + roster - 009
     events:
       - httpApi:
           method: GET
@@ -201,7 +201,7 @@ functions:
 
   shopAuditV1:
     handler: src/functions/shop-audit-v1-get.handler
-    description: Shop + user audit history — 009
+    description: Shop + user audit history - 009
     events:
       - httpApi:
           method: GET
@@ -212,7 +212,7 @@ functions:
 
   shopCreateV1:
     handler: src/functions/shop-create-v1-post.handler
-    description: Create shop + provision primary manager — 009
+    description: Create shop + provision primary manager - 009
     events:
       - httpApi:
           method: POST
@@ -223,7 +223,7 @@ functions:
 
   shopUpdateV1:
     handler: src/functions/shop-update-v1-patch.handler
-    description: Edit shop details — 009
+    description: Edit shop details - 009
     events:
       - httpApi:
           method: PATCH
@@ -234,7 +234,7 @@ functions:
 
   shopStatusV1:
     handler: src/functions/shop-status-v1-post.handler
-    description: Change shop lifecycle status — 009
+    description: Change shop lifecycle status - 009
     events:
       - httpApi:
           method: POST
@@ -245,7 +245,7 @@ functions:
 
   shopDeleteV1:
     handler: src/functions/shop-delete-v1-delete.handler
-    description: Remove a dependent-free shop — 009
+    description: Remove a dependent-free shop - 009
     events:
       - httpApi:
           method: DELETE
@@ -256,7 +256,7 @@ functions:
 
   shopUserCreateV1:
     handler: src/functions/shop-user-create-v1-post.handler
-    description: Add a user to a shop (provision) — 009
+    description: Add a user to a shop (provision) - 009
     events:
       - httpApi:
           method: POST
@@ -267,7 +267,7 @@ functions:
 
   shopUserUpdateV1:
     handler: src/functions/shop-user-update-v1-patch.handler
-    description: Change a shop user's role and/or status — 009
+    description: Change a shop user's role and/or status - 009
     events:
       - httpApi:
           method: PATCH
@@ -279,7 +279,7 @@ functions:
   # Order rules. The promotion routes are in serverless.promotions.yml.
   orderPolicyReadV1:
     handler: src/functions/order-policy-v1-get.handler
-    description: The minimum spend and the two cart ceilings — 027 FR-053
+    description: The minimum spend and the two cart ceilings - 027 FR-053
     events:
       - httpApi:
           method: GET
@@ -290,7 +290,7 @@ functions:
 
   orderPolicyWriteV1:
     handler: src/functions/order-policy-v1-put.handler
-    description: Set the minimum spend and the cart ceilings — 027 FR-053
+    description: Set the minimum spend and the cart ceilings - 027 FR-053
     events:
       - httpApi:
           method: PUT
@@ -332,7 +332,7 @@ functions:
 
   deliverabilityListV1:
     handler: src/functions/deliverability-list-v1-get.handler
-    description: List addresses the platform cannot reach — 037
+    description: List addresses the platform cannot reach - 037
     events:
       - httpApi:
           method: GET
@@ -343,7 +343,7 @@ functions:
 
   deliverabilityDetailV1:
     handler: src/functions/deliverability-detail-v1-get.handler
-    description: One address's delivery state and live suppression state — 037 (its events are /activity, 104)
+    description: One address's delivery state and live suppression state - 037 (its events are /activity, 104)
     events:
       - httpApi:
           method: GET
@@ -354,7 +354,7 @@ functions:
 
   deliverabilityActivityV1:
     handler: src/functions/deliverability-activity-v1-get.handler
-    description: One address's email events, searched, filtered, paged and exported — the activity drawer (104)
+    description: One address's email events, searched, filtered, paged and exported - the activity drawer (104)
     events:
       - httpApi:
           method: GET
@@ -365,7 +365,7 @@ functions:
 
   deliverabilityRepairV1:
     handler: src/functions/deliverability-repair-v1-post.handler
-    description: Audited repair — clears the suppression entry AND the platform record — 037
+    description: Audited repair - clears the suppression entry AND the platform record - 037
     events:
       - httpApi:
           method: POST
@@ -377,7 +377,7 @@ functions:
   # Feedback console. Read: any active staff; reply: admin/manager.
   feedbackListV1:
     handler: src/functions/feedback-list-v1-get.handler
-    description: List/search/filter feedback — any active staff (046 US2)
+    description: List/search/filter feedback - any active staff (046 US2)
     events:
       - httpApi:
           method: GET
@@ -388,7 +388,7 @@ functions:
 
   feedbackDetailV1:
     handler: src/functions/feedback-detail-v1-get.handler
-    description: One submission with its replies and internal notes — any active staff (046 US2)
+    description: One submission with its replies and internal notes - any active staff (046 US2)
     events:
       - httpApi:
           method: GET
@@ -399,7 +399,7 @@ functions:
 
   feedbackStatusV1:
     handler: src/functions/feedback-status-v1-post.handler
-    description: Change a submission's triage status — any active staff (046 US2)
+    description: Change a submission's triage status - any active staff (046 US2)
     events:
       - httpApi:
           method: POST
@@ -410,7 +410,7 @@ functions:
 
   feedbackNoteV1:
     handler: src/functions/feedback-note-v1-post.handler
-    description: Add a staff-only internal note — any active staff (046 US2)
+    description: Add a staff-only internal note - any active staff (046 US2)
     events:
       - httpApi:
           method: POST
@@ -421,7 +421,7 @@ functions:
 
   feedbackReplyV1:
     handler: src/functions/feedback-reply-v1-post.handler
-    description: Reply to the submitter by email — admin/manager only (046 US3)
+    description: Reply to the submitter by email - admin/manager only (046 US3)
     events:
       - httpApi:
           method: POST
@@ -433,7 +433,7 @@ functions:
   # Delivery coverage: the postcode list, its groups and courier reach.
   deliveryCoverageListV1:
     handler: src/functions/delivery-coverage-list-v1-get.handler
-    description: The list of postcodes effy delivers to, its groups and courier reach — 076
+    description: The list of postcodes effy delivers to, its groups and courier reach - 076
     events:
       - httpApi:
           method: GET
@@ -444,7 +444,7 @@ functions:
 
   deliveryCoveragePlacesV1:
     handler: src/functions/delivery-coverage-places-v1-get.handler
-    description: Place search for the add dialog, one result per postcode — 076
+    description: Place search for the add dialog, one result per postcode - 076
     events:
       - httpApi:
           method: GET
@@ -455,7 +455,7 @@ functions:
 
   deliveryCoverageCheckV1:
     handler: src/functions/delivery-coverage-check-v1-get.handler
-    description: Who delivers to a postcode or place, and why — 076
+    description: Who delivers to a postcode or place, and why - 076
     events:
       - httpApi:
           method: GET
@@ -466,7 +466,7 @@ functions:
 
   deliveryCoveragePostcodesAddV1:
     handler: src/functions/delivery-coverage-postcodes-add-v1-post.handler
-    description: List postcodes — 076
+    description: List postcodes - 076
     events:
       - httpApi:
           method: POST
@@ -477,7 +477,7 @@ functions:
 
   deliveryCoveragePostcodesPatchV1:
     handler: src/functions/delivery-coverage-postcodes-patch-v1-patch.handler
-    description: Move postcodes between groups, or set one distance — 076
+    description: Move postcodes between groups, or set one distance - 076
     events:
       - httpApi:
           method: PATCH
@@ -488,7 +488,7 @@ functions:
 
   deliveryCoveragePostcodeRemoveV1:
     handler: src/functions/delivery-coverage-postcode-remove-v1-delete.handler
-    description: Take a postcode off the list; placed orders are untouched — 076
+    description: Take a postcode off the list; placed orders are untouched - 076
     events:
       - httpApi:
           method: DELETE
@@ -499,7 +499,7 @@ functions:
 
   deliveryCoverageGroupCreateV1:
     handler: src/functions/delivery-coverage-group-create-v1-post.handler
-    description: Create a group — 076
+    description: Create a group - 076
     events:
       - httpApi:
           method: POST
@@ -510,7 +510,7 @@ functions:
 
   deliveryCoverageGroupPatchV1:
     handler: src/functions/delivery-coverage-group-patch-v1-patch.handler
-    description: Rename a group — 076
+    description: Rename a group - 076
     events:
       - httpApi:
           method: PATCH
@@ -521,7 +521,7 @@ functions:
 
   deliveryCoverageGroupRemoveV1:
     handler: src/functions/delivery-coverage-group-remove-v1-delete.handler
-    description: Remove a group; its postcodes stay listed — 076
+    description: Remove a group; its postcodes stay listed - 076
     events:
       - httpApi:
           method: DELETE
@@ -532,7 +532,7 @@ functions:
 
   deliveryCoverageCourierV1:
     handler: src/functions/delivery-coverage-courier-v1-put.handler
-    description: Courier delivery on or off, its estimate and the no-window fallback — 076, 079
+    description: Courier delivery on or off, its estimate and the no-window fallback - 076, 079
     events:
       - httpApi:
           method: PUT
@@ -543,7 +543,7 @@ functions:
 
   deliveryCourierServicesListV1:
     handler: src/functions/delivery-courier-services-v1-get.handler
-    description: The courier services Effy uses — 080
+    description: The courier services Effy uses - 080
     events:
       - httpApi:
           method: GET
@@ -554,7 +554,7 @@ functions:
 
   deliveryCourierServicesCreateV1:
     handler: src/functions/delivery-courier-services-v1-post.handler
-    description: Add a courier service — 080
+    description: Add a courier service - 080
     events:
       - httpApi:
           method: POST
@@ -565,7 +565,7 @@ functions:
 
   deliveryCourierServiceUpdateV1:
     handler: src/functions/delivery-courier-service-v1-put.handler
-    description: Edit, retire or make default a courier service — 080
+    description: Edit, retire or make default a courier service - 080
     events:
       - httpApi:
           method: PUT
@@ -576,7 +576,7 @@ functions:
 
   deliveryCoverageCourierExclusionAddV1:
     handler: src/functions/delivery-coverage-courier-exclusion-add-v1-post.handler
-    description: Exclude a postcode from courier delivery — 076
+    description: Exclude a postcode from courier delivery - 076
     events:
       - httpApi:
           method: POST
@@ -587,7 +587,7 @@ functions:
 
   deliveryCoverageCourierExclusionRemoveV1:
     handler: src/functions/delivery-coverage-courier-exclusion-remove-v1-delete.handler
-    description: Offer courier delivery there again — 076
+    description: Offer courier delivery there again - 076
     events:
       - httpApi:
           method: DELETE
@@ -599,7 +599,7 @@ functions:
   # Delivery pricing: one active fee plan per kind (Effy, courier).
   deliveryPlansListV1:
     handler: src/functions/delivery-plans-list-v1-get.handler
-    description: List fee plans of a kind (effy | courier) with their gaps — 077
+    description: List fee plans of a kind (effy | courier) with their gaps - 077
     events:
       - httpApi:
           method: GET
@@ -610,7 +610,7 @@ functions:
 
   deliveryPlansCreateV1:
     handler: src/functions/delivery-plans-create-v1-post.handler
-    description: Create a draft fee plan — 077
+    description: Create a draft fee plan - 077
     events:
       - httpApi:
           method: POST
@@ -621,7 +621,7 @@ functions:
 
   deliveryPlanUpdateV1:
     handler: src/functions/delivery-plan-update-v1-put.handler
-    description: Replace a draft fee plan whole; refused once it has been active — 077
+    description: Replace a draft fee plan whole; refused once it has been active - 077
     events:
       - httpApi:
           method: PUT
@@ -632,7 +632,7 @@ functions:
 
   deliveryPlanActivateV1:
     handler: src/functions/delivery-plan-activate-v1-post.handler
-    description: Make a plan the one in force; refused with every gap named — 077
+    description: Make a plan the one in force; refused with every gap named - 077
     events:
       - httpApi:
           method: POST
@@ -643,7 +643,7 @@ functions:
 
   deliveryPlansSimulateV1:
     handler: src/functions/delivery-plans-simulate-v1-post.handler
-    description: Price a delivery under any plan and show every step; writes nothing — 077
+    description: Price a delivery under any plan and show every step; writes nothing - 077
     events:
       - httpApi:
           method: POST
@@ -654,7 +654,7 @@ functions:
 
   deliverySettingsGetV1:
     handler: src/functions/delivery-settings-get-v1-get.handler
-    description: Read the operating hub + same-day prep buffer — 047
+    description: Read the operating hub + same-day prep buffer - 047
     events:
       - httpApi:
           method: GET
@@ -665,7 +665,7 @@ functions:
 
   deliverySettingsPutV1:
     handler: src/functions/delivery-settings-put-v1-put.handler
-    description: Set the operating hub + same-day prep buffer — 047
+    description: Set the operating hub + same-day prep buffer - 047
     events:
       - httpApi:
           method: PUT
@@ -676,7 +676,7 @@ functions:
 
   deliveryCollectionRunsListV1:
     handler: src/functions/delivery-collection-runs-list-v1-get.handler
-    description: List daily collection runs — 047 US2
+    description: List daily collection runs - 047 US2
     events:
       - httpApi:
           method: GET
@@ -687,7 +687,7 @@ functions:
 
   deliveryCollectionRunsCreateV1:
     handler: src/functions/delivery-collection-runs-create-v1-post.handler
-    description: Add a daily collection run — 047 US2/FR-040
+    description: Add a daily collection run - 047 US2/FR-040
     events:
       - httpApi:
           method: POST
@@ -698,7 +698,7 @@ functions:
 
   deliveryCollectionRunDeleteV1:
     handler: src/functions/delivery-collection-run-delete-v1-delete.handler
-    description: Remove a collection run — 047 US2
+    description: Remove a collection run - 047 US2
     events:
       - httpApi:
           method: DELETE
@@ -718,7 +718,7 @@ resources:
         AlarmName: ${self:service}-${sls:stage}-ses-event-consumer-errors
         AlarmDescription: >-
           The delivery-outcome consumer is failing. While it is down the platform is BLIND to
-          per-address delivery failures — which is the exact condition 037 exists to remove.
+          per-address delivery failures - which is the exact condition 037 exists to remove.
         Namespace: AWS/Lambda
         MetricName: Errors
         Dimensions: [{ Name: FunctionName, Value: !Ref SesEventConsumerLambdaFunction }]

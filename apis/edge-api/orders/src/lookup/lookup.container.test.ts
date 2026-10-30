@@ -36,7 +36,7 @@ const d = process.env.CONTAINER_TESTS === "1" ? describe : describe.skip;
 let container: StartedPostgreSqlContainer;
 let pool: Pool;
 
-d("096 US5 — scan anything to find it", () => {
+d("096 US5 - scan anything to find it", () => {
   beforeAll(async () => {
     container = await new PostgreSqlContainer("postgres:16-alpine").start();
     pool = new Pool({ connectionString: container.getConnectionUri() });

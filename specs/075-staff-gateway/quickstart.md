@@ -26,7 +26,7 @@ Proofs, each broken once to see it fail:
 | G6 | The scheduled-function alarm contract and the live contract still see every stack, including `serverless.staff.yml` | FR-010 |
 | G7 | `gatewayUsage` emits one reading per gateway per limit, and 0–100 | FR-016/017 |
 
-## The move (operator) — states 0 → 6
+## The move (operator) - states 0 → 6
 
 > **Done in dev on 2026-10-08, and the machinery has been removed (T055):** `staff_gateway_cutover`
 > and `infra/envs/dev/staff-gateway-forwarding.tf` no longer exist. What follows is the record of how
@@ -37,22 +37,22 @@ It is set in the file, not on the command line, so a later unrelated `make apply
 take the forwarding routes away. Run `make gateway-usage ENV=dev` before and after each step.
 
 ```sh
-# 1 — the staff gateway (nothing uses it yet)
-#     dev.tfvars: staff_gateway_cutover = "prepare"   (already set — do NOT remove it before step 6)
+# 1 - the staff gateway (nothing uses it yet)
+#     dev.tfvars: staff_gateway_cutover = "prepare"   (already set - do NOT remove it before step 6)
 make plan ENV=dev      # expect ONLY additions: 1 API, 1 stage, 1 authorizer, 1 domain + mapping,
 make apply ENV=dev     #   2 DNS records, 4 parameters, alarms. Nothing changed or destroyed.
 
-# 2 — catalog (7 routes). ⚠ Product review is unreachable from the end of this until step 3.
+# 2 - catalog (7 routes). ⚠ Product review is unreachable from the end of this until step 3.
 make edge-deploy SERVICE=catalog ENV=dev
 make edge-health ENV=dev CUTOVER=1            # catalog answers on the staff address; the rest still on shared
 make gateway-usage ENV=dev                    # shared 293, staff 7
 
-# 3 — forwarding routes on the shared gateway (+5 routes, +5 integrations → 298)
+# 3 - forwarding routes on the shared gateway (+5 routes, +5 integrations → 298)
 #     dev.tfvars: staff_gateway_cutover = "forward"
 make apply ENV=dev
 #     back-office → Product review loads again, through the forwarding route
 
-# 4 — the rest, one at a time; back-office keeps working throughout
+# 4 - the rest, one at a time; back-office keeps working throughout
 make edge-deploy SERVICE=orders ENV=dev
 make edge-deploy SERVICE=fleet ENV=dev
 make edge-deploy SERVICE=admin ENV=dev
@@ -60,12 +60,12 @@ make edge-deploy SERVICE=inventory-staff ENV=dev      # ⚠ BEFORE inventory
 make edge-deploy SERVICE=inventory ENV=dev            # sheds its six back-office routes
 make edge-health ENV=dev CUTOVER=1
 
-# 5 — the website
+# 5 - the website
 #     dev.tfvars: staff_gateway_cutover = "website"
 make apply ENV=dev                            # back-office VITE_API_BASE_URL → the staff address
 #     push to dev (or re-run the back-office Amplify build); set apps/back-office/.env.local too
 
-# 6 — clean up
+# 6 - clean up
 #     dev.tfvars: remove the staff_gateway_cutover line (default "complete")
 make plan ENV=dev      # expect ONLY: 5 forwarding routes + 5 integrations, the shared gateway's
 make apply ENV=dev     #   back-office authorizer and its parameter destroyed; shared CORS list shortened
@@ -79,7 +79,7 @@ without them, the forwarding route takes over at once. The other way round, stoc
 unreachable between the two deployments.
 
 ⚠ **Step 6 needs every back-office stack already moved.** A stack still on the shared gateway holds a
-reference to the back-office authorizer, and AWS refuses to delete an authorizer in use — the apply
+reference to the back-office authorizer, and AWS refuses to delete an authorizer in use - the apply
 fails rather than breaking anything, and `make gateway-usage` shows which stack is left.
 
 Stop and send me the plan output if step 1 shows anything changed or destroyed.
@@ -108,11 +108,11 @@ make gateway-usage ENV=dev
 #   Once later features have used the freed room, undo is NOT possible. Fix forward instead.
 ```
 
-### The simple way — back-office is down for the length of the deployments (acceptable in dev)
+### The simple way - back-office is down for the length of the deployments (acceptable in dev)
 
 ```sh
 # 1  restore the shared gateway's back-office authorizer, parameter and CORS origin, and point the
-#    back-office website at the shared address — in edge-gateway.tf: shared_pools = local.edge_pools,
+#    back-office website at the shared address - in edge-gateway.tf: shared_pools = local.edge_pools,
 #    shared_gateway_origins = browser_origins + storefront_origins; in amplify-consoles.tf:
 #    back_office_api_base_url = local.api_url
 make apply ENV=dev
@@ -129,9 +129,9 @@ make edge-deploy SERVICE=inventory ENV=dev
 # 3  rebuild back-office (it now carries the shared address again); make edge-health ENV=dev
 ```
 The staff gateway stays, empty and costing nothing. The contract tests G2–G5 will be red on the
-reverted tree — that is correct: they describe 075, and reverting 075 reverts them with it.
+reverted tree - that is correct: they describe 075, and reverting 075 reverts them with it.
 
-### Without a gap — the forwarding technique, the other way round
+### Without a gap - the forwarding technique, the other way round
 
 The same five routes the move used (`staff-gateway-forwarding.tf`, in git history before T055; the
 shape is in research R5 and contracts/gateway.contract.md), but created on the **staff**

@@ -2,9 +2,9 @@
 # Cross-pool isolation, every direction, against the real gateways with real tokens: the rule is enforced by
 # the gateways' JWT authorizers, so a unit test could only check its own fixture. Per gateway as well as per
 # route:
-# · the staff gateway carries only the back-office authorizer — a customer, shop or driver token
+# · the staff gateway carries only the back-office authorizer - a customer, shop or driver token
 # has nothing there that could accept it;
-# · the shared gateway carries no back-office authorizer — a staff token has nothing there.
+# · the shared gateway carries no back-office authorizer - a staff token has nothing there.
 #
 # usage: make shop-verify-isolation SHOP_TOKEN=eyJ... BO_TOKEN=eyJ... [CUSTOMER_TOKEN=..] [DRIVER_TOKEN=..] ENV=dev
 #
@@ -47,7 +47,7 @@ echo "same-pool (must be served):"
 check "shop token     → shared /shop/v1/me"  "${SHARED}/shop/v1/me"  "$SHOP_TOKEN" 200
 check "staff token    → staff  /admin/v1/me" "${STAFF}/admin/v1/me"  "$BO_TOKEN"   200
 echo
-echo "at the STAFF gateway (must be refused — it has no authorizer for them):"
+echo "at the STAFF gateway (must be refused - it has no authorizer for them):"
 check "shop token     → staff  /admin/v1/me" "${STAFF}/admin/v1/me"  "$SHOP_TOKEN" 401
 if [ -n "$CUSTOMER_TOKEN" ]; then check "customer token → staff  /admin/v1/me" "${STAFF}/admin/v1/me" "$CUSTOMER_TOKEN" 401; else skip "customer token → staff  /admin/v1/me"; fi
 if [ -n "$DRIVER_TOKEN" ];   then check "driver token   → staff  /admin/v1/me" "${STAFF}/admin/v1/me" "$DRIVER_TOKEN"   401; else skip "driver token   → staff  /admin/v1/me"; fi
@@ -60,7 +60,7 @@ echo
 
 if [ "$fail" -ne 0 ]; then
   cat <<'DIAG'
-FAILED — read the codes carefully, they name the bug:
+FAILED - read the codes carefully, they name the bug:
 
   403 instead of 401   a route lost its authorizer and fell through to a handler-level check.
                        The gate is no longer structural.
@@ -79,7 +79,7 @@ DIAG
 fi
 
 if [ "$skipped" -gt 0 ]; then
-  echo "PASS for the directions checked — ⚠ ${skipped} direction(s) were NOT checked. Pass CUSTOMER_TOKEN and DRIVER_TOKEN for the full result."
+  echo "PASS for the directions checked - ⚠ ${skipped} direction(s) were NOT checked. Pass CUSTOMER_TOKEN and DRIVER_TOKEN for the full result."
 else
-  echo "PASS — a credential is usable only against its own audience, at both gateways, in every direction."
+  echo "PASS - a credential is usable only against its own audience, at both gateways, in every direction."
 fi

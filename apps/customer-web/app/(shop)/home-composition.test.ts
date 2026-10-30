@@ -48,7 +48,7 @@ function home(over: Partial<StorefrontHomeDTO> = {}): StorefrontHomeDTO {
 const kinds = (s: ReturnType<typeof composeSections>) =>
   s.map((x) => (x.kind === "rail" ? `rail:${x.key}` : x.kind))
 
-describe("railHref — where a rail's 'view all' leads (research R6)", () => {
+describe("railHref - where a rail's 'view all' leads (research R6)", () => {
   it("sends a category rail to that category's listing", () => {
     expect(railHref("category:pantry")).toBe("/search?category=pantry")
   })
@@ -67,7 +67,7 @@ describe("railHref — where a rail's 'view all' leads (research R6)", () => {
   })
 })
 
-describe("composeSections — the order is fixed and named (FR-001)", () => {
+describe("composeSections - the order is fixed and named (FR-001)", () => {
   it("emits the full contract sequence when every slot has data", () => {
     const sections = composeSections(
       home({ rails: [rail("featured"), rail("on_sale"), rail("category:pantry"), rail("category:meals")] }),
@@ -99,7 +99,7 @@ describe("composeSections — the order is fixed and named (FR-001)", () => {
     expect(kinds(sections)).toEqual(["rail:on_sale", "rail:featured"])
   })
 
-  /** A rail must not be shown twice — the named slots consume, they do not copy. */
+  /** A rail must not be shown twice - the named slots consume, they do not copy. */
   it("never emits the same rail twice", () => {
     const sections = composeSections(
       home({ rails: [rail("on_sale"), rail("featured"), rail("category:pantry")] }),
@@ -111,7 +111,7 @@ describe("composeSections — the order is fixed and named (FR-001)", () => {
 
   /**
    * A rail the backend adds tomorrow must still reach the page. Without the trailing sweep, a
-   * frontend that only knows `on_sale`/`featured`/`category:*` would silently drop it — and nothing
+   * frontend that only knows `on_sale`/`featured`/`category:*` would silently drop it - and nothing
    * would look broken, which is why it would go unnoticed.
    */
   it("still shows a rail whose key it does not recognise", () => {
@@ -121,7 +121,7 @@ describe("composeSections — the order is fixed and named (FR-001)", () => {
   })
 })
 
-describe("composeSections — every empty section hides itself (FR-004)", () => {
+describe("composeSections - every empty section hides itself (FR-004)", () => {
   it("omits a rail that has no products", () => {
     const sections = composeSections(
       home({ rails: [rail("on_sale", 0), rail("featured", 2)] }),
@@ -147,7 +147,7 @@ describe("composeSections — every empty section hides itself (FR-004)", () => 
     expect(composeSections(home(), [])).toEqual([])
   })
 
-  /** The page must stay coherent with any subset present — not just the full one. */
+  /** The page must stay coherent with any subset present - not just the full one. */
   it("emits a coherent sequence with only one slot filled", () => {
     expect(kinds(composeSections(home({ rails: [rail("category:pantry")] }), []))).toEqual([
       "rail:category:pantry",
@@ -162,7 +162,7 @@ describe("composeSections — every empty section hides itself (FR-004)", () => 
  * it, so a duplicate is not something the code has to remember to avoid. These tests pin that property
  * so a later refactor cannot quietly turn `slice` into two independent filters.
  */
-describe("composeSections — the two offer blocks never repeat a promotion (FR-020)", () => {
+describe("composeSections - the two offer blocks never repeat a promotion (FR-020)", () => {
   const offersIn = (s: ReturnType<typeof composeSections>) =>
     s.flatMap((x) => (x.kind === "offers" ? x.banners.map((b) => b.key) : []))
 
@@ -226,7 +226,7 @@ describe("composeSections — the two offer blocks never repeat a promotion (FR-
   })
 })
 
-describe("isEmptyStore — 'shelves being stocked' vs 'we broke'", () => {
+describe("isEmptyStore - 'shelves being stocked' vs 'we broke'", () => {
   it("is true when every rail is empty", () => {
     expect(isEmptyStore(home({ rails: [rail("on_sale", 0)] }))).toBe(true)
   })

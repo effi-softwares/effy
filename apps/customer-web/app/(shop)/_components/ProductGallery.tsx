@@ -64,7 +64,7 @@ export function ProductGallery({
             <CatalogImage
               src={m.imageUrl}
               widths={m.imageWidths}
-              alt={m.alt ?? `${name} — image ${i + 1} of ${gallery.length}`}
+              alt={m.alt ?? `${name} - image ${i + 1} of ${gallery.length}`}
               fill
               sizes="(min-width: 768px) 36rem, 100vw"
               className="object-cover"

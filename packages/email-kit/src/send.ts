@@ -78,7 +78,7 @@ export async function sendEmail<T extends TemplateId>(
     const rethrow = entry.onSendFailure === "throw";
     logger?.error(
       { ...fields, duration_ms: durationMs, err: err instanceof Error ? err.name : "unknown" },
-      rethrow ? "email send failed — the caller must refuse" : "email send failed — continuing",
+      rethrow ? "email send failed - the caller must refuse" : "email send failed - continuing",
     );
     if (rethrow) throw err;
     return { templateId: id, messageId: undefined, outcome: "failed", durationMs };

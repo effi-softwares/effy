@@ -1,4 +1,4 @@
-// GENERATED FROM packages/design-system/src/tokens.css — DO NOT EDIT.
+// GENERATED FROM packages/design-system/src/tokens.css - DO NOT EDIT.
 // Regenerate: pnpm --filter @effy/design-system tokens:gen
 package com.effyshopping.driver.mobile.design
 

@@ -3,8 +3,8 @@
 # reconnects, is told something changed, or is asked; a polling loop would bill reads nobody looks at.
 #
 # What it looks for:
-# web — a TanStack Query `refetchInterval` set to anything but `false`
-# mobile — a `while (…) { … delay(…) … }` loop whose body calls something named like a re-read
+# web - a TanStack Query `refetchInterval` set to anything but `false`
+# mobile - a `while (…) { … delay(…) … }` loop whose body calls something named like a re-read
 #
 # Allowed (a clock that re-words loaded data is not a refresh):
 # apps/shop-web/src/features/today/useNow.ts re-words "3 minutes ago"; reads nothing
@@ -61,6 +61,6 @@ if [ -n "$mobile_hits" ]; then
 fi
 
 if [ "$fail" -eq 0 ]; then
-  echo "check-no-refresh-timers: OK — no data refresh timer in the six apps"
+  echo "check-no-refresh-timers: OK - no data refresh timer in the six apps"
 fi
 exit "$fail"

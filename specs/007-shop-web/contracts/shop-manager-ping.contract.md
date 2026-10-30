@@ -1,4 +1,4 @@
-# Contract — `GET /shop/v1/manager-ping` (edge-api, NEW)
+# Contract - `GET /shop/v1/manager-ping` (edge-api, NEW)
 
 **Feature**: 007 (FR-008, FR-021) · **Service**: `apis/edge-api/shop` (cold path) · **Status**: to
 build this slice.
@@ -19,7 +19,7 @@ Authorization: Bearer <shop-pool ACCESS token>
 
 Behind the **shop** JWT authorizer (SSM `/effy/<env>/edge/authorizer/shop_id`).
 
-## Authorization — decided from the platform record, not the claim
+## Authorization - decided from the platform record, not the claim
 
 The gate is a single SQL predicate with **three terms** (see
 [shop-schema.contract.md](./shop-schema.contract.md)):
@@ -45,12 +45,12 @@ point (FR-021, SC-012, SC-005a).
 
 | Status | When | Console renders |
 |---|---|---|
-| `401` | missing / expired / **other-pool** token — rejected at the authorizer | session recovery, then sign-in |
+| `401` | missing / expired / **other-pool** token - rejected at the authorizer | session recovery, then sign-in |
 | `403` `forbidden` | authenticated, but the platform record denies: not a manager, disabled, unassigned, or inactive shop | access-denied state; telemetry `shop_manager_area_access_denied` |
 | `503` `unavailable` | DB unreachable while deciding | degraded state + Retry |
 
 The `403` body is the **uniform** access-denied problem. It **MUST NOT** disclose *which* of the
-four terms failed — that would leak the platform's record state to an unauthorized caller. The
+four terms failed - that would leak the platform's record state to an unauthorized caller. The
 operator-facing distinction (e.g. "no shop assigned") comes from `/shop/v1/me`, which the caller
 owns.
 

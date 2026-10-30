@@ -10,7 +10,7 @@ const ENTRY_WORDS: Record<string, string> = {
   staff_debit: "Points taken off",
   spent: "Points spent on an order",
   expired: "Points expired",
-  forfeited: "Points forfeited — account closed",
+  forfeited: "Points forfeited - account closed",
 };
 
 const FLOW_WORDS: Record<string, string> = {
@@ -34,7 +34,7 @@ function pointsEntry(r: ActivityRow) {
   const fixed = reason === r.action;
   return {
     title: `${ENTRY_WORDS[r.action] ?? r.action}: ${points > 0 ? "+" : ""}${points.toLocaleString("en-AU")}`,
-    detail: [!fixed && reason ? (POINTS_REASON_LABELS[reason] ?? reason) : null, activityFact(r, "note")].filter(Boolean).join(" — ") || null,
+    detail: [!fixed && reason ? (POINTS_REASON_LABELS[reason] ?? reason) : null, activityFact(r, "note")].filter(Boolean).join(" - ") || null,
     subject: activityFact(r, "orderNumber"),
     tone: points > 0 ? ("done" as const) : r.action === "staff_debit" ? ("problem" as const) : ("default" as const),
   };

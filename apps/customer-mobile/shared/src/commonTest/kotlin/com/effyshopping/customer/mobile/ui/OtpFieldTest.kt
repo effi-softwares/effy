@@ -17,7 +17,7 @@ class OtpFieldTest {
     @Test
     fun `the platform code length is six`() {
         // Mirrors `OTP_LENGTH` in `apis/edge-api/auth/src/otp/policy.ts`. Copy is stated from this
-        // constant everywhere — before 036, three mobile files hardcoded "6-digit code" as a
+        // constant everywhere - before 036, three mobile files hardcoded "6-digit code" as a
         // literal string, which is four places to change and no way to know if you missed one.
         assertEquals(6, OTP_LENGTH)
     }

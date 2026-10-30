@@ -40,7 +40,7 @@ const UNRESOLVED_SHORTFALL = `
 export async function proposedRefunds(orderId: string): Promise<ProposedRefundRow[]> {
   const res = await query<ProposedRefundRow>(
     `SELECT oi.id::text AS order_item_id,
-            CASE WHEN oi.variant_label IS NULL THEN oi.product_name ELSE oi.product_name || ' — ' || oi.variant_label END AS product_name,
+            CASE WHEN oi.variant_label IS NULL THEN oi.product_name ELSE oi.product_name || ' - ' || oi.variant_label END AS product_name,
             SUM(fi.unavailable_quantity)::int AS quantity,
             (SUM(fi.unavailable_quantity) * oi.unit_price_amount)::text AS amount
        FROM public.fulfillment_item fi
@@ -65,7 +65,7 @@ export async function proposedRefundsForShop(
             o.id::text   AS order_id,
             o.order_number,
             oi.id::text  AS order_item_id,
-            CASE WHEN oi.variant_label IS NULL THEN oi.product_name ELSE oi.product_name || ' — ' || oi.variant_label END AS product_name,
+            CASE WHEN oi.variant_label IS NULL THEN oi.product_name ELSE oi.product_name || ' - ' || oi.variant_label END AS product_name,
             SUM(fi.unavailable_quantity)::int AS quantity,
             (SUM(fi.unavailable_quantity) * oi.unit_price_amount)::text AS amount,
             MAX(sf.state_changed_at) AS since

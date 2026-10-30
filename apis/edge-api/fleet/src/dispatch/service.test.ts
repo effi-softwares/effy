@@ -8,7 +8,7 @@ vi.mock("../planner/repository", () => ({
 
 import { DispatchError } from "./service";
 
-describe("DispatchError — refusals carry their reason (FR-034)", () => {
+describe("DispatchError - refusals carry their reason (FR-034)", () => {
   it("names the condition rather than collapsing to a generic message", () => {
     const e = new DispatchError("ineligible", "That driver cannot take this round.", [
       "licence_expired",

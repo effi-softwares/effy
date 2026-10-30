@@ -10,7 +10,7 @@ import {
   sameInstructions,
 } from "./delivery-instructions"
 
-describe("066 — the storefront's delivery-instructions draft", () => {
+describe("066 - the storefront's delivery-instructions draft", () => {
   it("an untouched draft sends nothing", () => {
     expect(draftToRequest(EMPTY_DRAFT)).toBeNull()
   })

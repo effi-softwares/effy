@@ -19,7 +19,7 @@ vi.stubGlobal("fetch", vi.fn(async (url: string) => ({
 })))
 
 // The three PCI-scoped inputs are provider iframes; stand them in with labelled boxes so the shell
-// which is the part Effy owns and this feature is about — can be asserted.
+// which is the part Effy owns and this feature is about - can be asserted.
 function cardField(testId: string) {
   return function CardField({ onChange }: { onChange?: (e: { complete: boolean }) => void }) {
     useEffect(() => {
@@ -37,7 +37,7 @@ vi.mock("@stripe/react-stripe-js", () => ({
   CardExpiryElement: cardField("card-expiry"),
   CardCvcElement: cardField("card-cvc"),
   // The wallet row shares this module. A mock missing it makes every PaymentStep test throw
-  // — the same stale-mock failure `CheckoutFlow.address.test.tsx` hit when PaymentForm was replaced.
+  // - the same stale-mock failure `CheckoutFlow.address.test.tsx` hit when PaymentForm was replaced.
   // Reports no wallet, which is the branch this suite wants: US1's assertions are about the card path.
   ExpressCheckoutElement: ({ onReady }: { onReady: (e: unknown) => void }) => {
     onReady({})

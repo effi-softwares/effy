@@ -16,7 +16,7 @@ const HREF: Record<AccountTab, string> = {
   legal: "/account/legal",
 }
 
-/** A known section name, or null — an unknown `?tab=` is simply the Overview. */
+/** A known section name, or null - an unknown `?tab=` is simply the Overview. */
 export function parseTab(raw: string | undefined): AccountTab | null {
   return (TABS as readonly string[]).includes(raw ?? "") ? (raw as AccountTab) : null
 }

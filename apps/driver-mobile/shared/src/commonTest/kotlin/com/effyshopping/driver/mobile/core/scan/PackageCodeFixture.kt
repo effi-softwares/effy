@@ -6,7 +6,7 @@ package com.effyshopping.driver.mobile.core.scan
  */
 internal const val PACKAGE_CODE_FIXTURE = """
 {
-  "_comment": "090 — how a scanner read becomes a package code. Read by package-code.test.ts and the driver app's PackageTokenTest; both must agree with every row.",
+  "_comment": "090 - how a scanner read becomes a package code. Read by package-code.test.ts and the driver app's PackageTokenTest; both must agree with every row.",
   "reads": [
     { "read": "EFY1:7K3Q9M", "code": "7K3Q9M" },
     { "read": "EFY1:23456X", "code": "23456X" },

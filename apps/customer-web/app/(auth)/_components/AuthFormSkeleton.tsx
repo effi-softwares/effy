@@ -2,7 +2,7 @@ import { Bone, Loading } from "@/components/ui/skeletons"
 
 /**
  * An auth step while its form loads (it reads the address bar, so it is behind Suspense): the step's own
- * title and line — they are fixed — the email field, the button, and Google where the step offers it.
+ * title and line - they are fixed - the email field, the button, and Google where the step offers it.
  * Drawn on `StepShell`'s spacing without importing it, so the fallback stays out of the client bundle.
  */
 export function AuthFormSkeleton({

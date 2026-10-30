@@ -1,4 +1,4 @@
-# Effy — root Makefile
+# Effy - root Makefile
 #
 # Single operator entry point for the Terraform infrastructure under infra/
 # (contract: specs/001-infra-foundation/contracts/makefile-targets.contract.md).
@@ -7,7 +7,7 @@
 #
 # Every target wraps the underlying command in AWS_PROFILE=ef so both the AWS
 # provider and the S3 state backend resolve the `ef` credentials.
-# `apply` / `destroy` keep Terraform's interactive approval — NO -auto-approve
+# `apply` / `destroy` keep Terraform's interactive approval - NO -auto-approve
 # anywhere; a human always confirms mutating actions.
 
 AWS_PROFILE ?= ef
@@ -40,7 +40,7 @@ TF_ROOTS := $(BOOTSTRAP_DIR) $(GLOBAL_DIR) $(INFRA_DIR)/envs/dev $(INFRA_DIR)/en
 help: ## List targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
 
-# # --- One-time state backend (run first, once — see infra/bootstrap/README.md) ---
+# # --- One-time state backend (run first, once - see infra/bootstrap/README.md) ---
 
 bootstrap-init: ## Init the bootstrap root (local state)
 	cd $(BOOTSTRAP_DIR) && $(TF) init
@@ -48,7 +48,7 @@ bootstrap-init: ## Init the bootstrap root (local state)
 bootstrap-apply: ## OPERATOR: create the S3 state bucket (one-time, interactive approval)
 	cd $(BOOTSTRAP_DIR) && $(TF) apply
 
-# # --- Platform-wide root: the parent DNS zone. Not an environment — no ENV= here. ---
+# # --- Platform-wide root: the parent DNS zone. Not an environment - no ENV= here. ---
 
 global-init: ## Init the global root (parent hosted zone)
 	cd $(GLOBAL_DIR) && $(TF) init
@@ -56,7 +56,7 @@ global-init: ## Init the global root (parent hosted zone)
 global-plan: ## Preview the global root (never mutates)
 	cd $(GLOBAL_DIR) && $(TF) plan -var-file=global.tfvars
 
-global-apply: ## OPERATOR: apply the global root — creates the parent zone (interactive approval)
+global-apply: ## OPERATOR: apply the global root - creates the parent zone (interactive approval)
 	@echo "⚠  This root owns effyshopping.com. Destroying it mints NEW name-servers and needs a manual GoDaddy repoint."
 	cd $(GLOBAL_DIR) && $(TF) apply -var-file=global.tfvars
 
@@ -71,7 +71,7 @@ init: ## Init an env root (configures the S3 backend)
 plan: ## Preview changes for an env (never mutates)
 	cd $(ENV_DIR) && $(TF) plan -var-file=$(ENV).tfvars
 
-apply: preflight ## OPERATOR: apply an env (interactive approval — never auto-approved)
+apply: preflight ## OPERATOR: apply an env (interactive approval - never auto-approved)
 	cd $(ENV_DIR) && $(TF) apply -var-file=$(ENV).tfvars
 
 destroy: preflight ## OPERATOR: destroy an env (interactive approval)
@@ -88,7 +88,7 @@ fmt: ## Format all Terraform under infra/
 validate: ## Validate one env root (ENV=...); backend not required
 	cd $(ENV_DIR) && $(TF) init -backend=false -input=false > /dev/null && $(TF) validate
 
-check-no-phantm: ## ⚠ FAIL if the banned external domain (any subdomain or address) appears anywhere — constitution v1.12.0
+check-no-phantm: ## ⚠ FAIL if the banned external domain (any subdomain or address) appears anywhere - constitution v1.12.0
 	@bash scripts/check-no-phantm.sh
 
 verify-pool-credentials: ## OPERATOR (011 FR-017): assert driver/shop/admin stay passwordless, unfederated, admin-provisioned
@@ -104,7 +104,7 @@ lint: ## fmt-check + validate every root + tflint + trivy/checkov config scan
 		echo "==> tflint"; \
 		(cd $(INFRA_DIR) && tflint --init > /dev/null && tflint --recursive --minimum-failure-severity=error --config "$$PWD/.tflint.hcl"); \
 	else \
-		echo "WARN: tflint not installed — skipping (brew install terraform-linters/tflint/tflint)"; \
+		echo "WARN: tflint not installed - skipping (brew install terraform-linters/tflint/tflint)"; \
 	fi
 	@if command -v trivy > /dev/null 2>&1; then \
 		echo "==> trivy config"; \
@@ -113,7 +113,7 @@ lint: ## fmt-check + validate every root + tflint + trivy/checkov config scan
 		echo "==> checkov"; \
 		checkov --directory $(INFRA_DIR) --quiet --compact; \
 	else \
-		echo "WARN: trivy/checkov not installed — skipping security scan (brew install trivy)"; \
+		echo "WARN: trivy/checkov not installed - skipping security scan (brew install trivy)"; \
 	fi
 
 # # --- Guardrail (research.md D8 belt-and-braces; skip with SKIP_PREFLIGHT=1) ---
@@ -136,7 +136,7 @@ GOOSE_ENV      := GOOSE_DRIVER=postgres GOOSE_MIGRATION_DIR=$(MIGRATIONS_DIR)
 DB_DSN_CMD      = AWS_PROFILE=$(AWS_PROFILE) bash $(INFRA_DIR)/scripts/db-dsn.sh $(ENV)
 
 check-goose:
-	@command -v goose > /dev/null 2>&1 || { echo "goose not installed — brew install goose"; exit 1; }
+	@command -v goose > /dev/null 2>&1 || { echo "goose not installed - brew install goose"; exit 1; }
 
 db-new: check-goose ## Scaffold a SQL migration: make db-new NAME=snake_case_title
 	@test -n "$(name)" || { echo "usage: make db-new name=snake_case_title"; exit 1; }
@@ -150,12 +150,12 @@ purge-orders: ## OPERATOR: delete every order + all order-derived data (ENV=dev;
 	@ENV=$(ENV) AWS_PROFILE=$(AWS_PROFILE) AWS_REGION=$(AWS_REGION) \
 		bash scripts/purge-orders.sh $(if $(DRY_RUN),--dry-run,)
 
-wipe-dev: check-goose ## OPERATOR: reset dev to empty — DB rebuilt from all migrations, all Cognito users and media deleted
+wipe-dev: check-goose ## OPERATOR: reset dev to empty - DB rebuilt from all migrations, all Cognito users and media deleted
 	@ENV=$(ENV) AWS_PROFILE=$(AWS_PROFILE) AWS_REGION=$(AWS_REGION) bash scripts/wipe-dev.sh
 
 db-up: check-goose ## OPERATOR: apply pending migrations (confirm; FORCE=1 skips the commit guard for private dev iteration)
 	@if [ -z "$(FORCE)" ] && [ -n "$$(git status --porcelain $(MIGRATIONS_DIR))" ]; then \
-		echo "db-up BLOCKED: uncommitted changes under $(MIGRATIONS_DIR) — migrations must be committed before applying"; \
+		echo "db-up BLOCKED: uncommitted changes under $(MIGRATIONS_DIR) - migrations must be committed before applying"; \
 		echo "(FORCE=1 to override while privately iterating on your own latest migration)"; \
 		git status --porcelain $(MIGRATIONS_DIR); \
 		exit 1; \
@@ -163,16 +163,16 @@ db-up: check-goose ## OPERATOR: apply pending migrations (confirm; FORCE=1 skips
 	@DSN="$$($(DB_DSN_CMD))" || exit 1; \
 	HOST=$$(printf '%s\n' "$$DSN" | tr ' ' '\n' | sed -n 's/^host=//p'); \
 	printf 'goose UP  →  env=%s  host=%s\nContinue? [y/N] ' "$(ENV)" "$$HOST"; \
-	read ans; [ "$$ans" = "y" ] || { echo "aborted — nothing applied"; exit 1; }; \
+	read ans; [ "$$ans" = "y" ] || { echo "aborted - nothing applied"; exit 1; }; \
 	$(GOOSE_ENV) GOOSE_DBSTRING="$$DSN" goose up
 
 # one migration, not all of them. A feature whose first migration is additive and whose second
 # drops what the old code still reads needs a deploy between the two; `db-up` would apply both.
-# The process environment reaches goose unchanged — a migration that asks for an operator value
+# The process environment reaches goose unchanged - a migration that asks for an operator value
 # (`-- +goose ENVSUB ON`) reads it from here and raises when it is missing.
 db-up-one: check-goose ## OPERATOR: apply ONE pending migration (confirm; FORCE=1 skips the commit guard)
 	@if [ -z "$(FORCE)" ] && [ -n "$$(git status --porcelain $(MIGRATIONS_DIR))" ]; then \
-		echo "db-up-one BLOCKED: uncommitted changes under $(MIGRATIONS_DIR) — migrations must be committed before applying"; \
+		echo "db-up-one BLOCKED: uncommitted changes under $(MIGRATIONS_DIR) - migrations must be committed before applying"; \
 		echo "(FORCE=1 to override while privately iterating on your own latest migration)"; \
 		git status --porcelain $(MIGRATIONS_DIR); \
 		exit 1; \
@@ -180,7 +180,7 @@ db-up-one: check-goose ## OPERATOR: apply ONE pending migration (confirm; FORCE=
 	@DSN="$$($(DB_DSN_CMD))" || exit 1; \
 	HOST=$$(printf '%s\n' "$$DSN" | tr ' ' '\n' | sed -n 's/^host=//p'); \
 	printf 'goose UP-BY-ONE  →  env=%s  host=%s\nContinue? [y/N] ' "$(ENV)" "$$HOST"; \
-	read ans; [ "$$ans" = "y" ] || { echo "aborted — nothing applied"; exit 1; }; \
+	read ans; [ "$$ans" = "y" ] || { echo "aborted - nothing applied"; exit 1; }; \
 	$(GOOSE_ENV) GOOSE_DBSTRING="$$DSN" goose up-by-one
 
 # The shopper-facing services (edge storefront + commerce) connect as a connection-limited role
@@ -189,32 +189,32 @@ db-up-one: check-goose ## OPERATOR: apply ONE pending migration (confirm; FORCE=
 # rotates the password. Run after `make db-up` and before `make apply` (which publishes the ARN).
 db-shopper-role: ## OPERATOR: set/rotate the shopper DB role's password and store it in Secrets Manager (ENV=dev)
 	@printf 'SET PASSWORD for role effy_shopper + write secret /effy/%s/db/shopper  →  env=%s\nContinue? [y/N] ' "$(ENV)" "$(ENV)"; \
-	read ans; [ "$$ans" = "y" ] || { echo "aborted — nothing changed"; exit 1; }; \
+	read ans; [ "$$ans" = "y" ] || { echo "aborted - nothing changed"; exit 1; }; \
 	AWS_PROFILE=$(AWS_PROFILE) bash $(INFRA_DIR)/scripts/db-shopper-role.sh $(ENV)
 
-db-down: check-goose ## OPERATOR: step back ONE migration — dev-only iteration convenience
+db-down: check-goose ## OPERATOR: step back ONE migration - dev-only iteration convenience
 	@if [ "$(ENV)" != "dev" ]; then \
-		echo "db-down REFUSED for ENV=$(ENV): the platform is forward-only — step-back exists only as a dev iteration convenience."; \
+		echo "db-down REFUSED for ENV=$(ENV): the platform is forward-only - step-back exists only as a dev iteration convenience."; \
 		echo "Shipped mistakes are fixed by a NEW forward migration (constitution / specs/003-db-migrations)."; \
 		exit 1; \
 	fi
 	@DSN="$$($(DB_DSN_CMD))" || exit 1; \
 	HOST=$$(printf '%s\n' "$$DSN" | tr ' ' '\n' | sed -n 's/^host=//p'); \
 	printf 'goose DOWN (one step)  →  env=%s  host=%s\nContinue? [y/N] ' "$(ENV)" "$$HOST"; \
-	read ans; [ "$$ans" = "y" ] || { echo "aborted — nothing changed"; exit 1; }; \
+	read ans; [ "$$ans" = "y" ] || { echo "aborted - nothing changed"; exit 1; }; \
 	$(GOOSE_ENV) GOOSE_DBSTRING="$$DSN" goose down
 
 # # --- Backend services ---
 # one backend: a family of serverless services under apis/edge-api/<service>; service selects
 # one. edge-deploy mutates AWS → operator-run. Configuration reaches a function from the platform
-# contract (SSM /effy/<env>/… + Secrets Manager) at deploy and at run time — never a file.
+# contract (SSM /effy/<env>/… + Secrets Manager) at deploy and at run time - never a file.
 #
 # The operator tools below (create-first-admin, delete-admin, load-localities) are TypeScript in
 # apis/edge-api/ops, run from a workstation; the DSN and pool id are composed at invocation and passed
-# as process env — never a file, never echoed.
+# as process env - never a file, never echoed.
 # A stack is not always a directory. `inventory` deploys as two stacks from one source
 # `inventory` (shop routes, the shared gateway) and `inventory-staff` (back-office routes, the staff
-# gateway) — because a stack attaches to exactly one gateway. Service names the stack; the lookup
+# gateway) - because a stack attaches to exactly one gateway. Service names the stack; the lookup
 # below maps it to its directory and config file. Every other service is its own directory.
 EDGE_STACK_DIR_inventory-staff    := inventory
 EDGE_STACK_CONFIG_inventory-staff := serverless.staff.yml
@@ -223,12 +223,12 @@ EDGE_STACK_DIR_admin-promotions    := admin
 EDGE_STACK_CONFIG_admin-promotions := serverless.promotions.yml
 EDGE_DIR    := apis/edge-api/$(or $(EDGE_STACK_DIR_$(SERVICE)),$(SERVICE))
 EDGE_CONFIG := $(or $(EDGE_STACK_CONFIG_$(SERVICE)),serverless.yml)
-# Which gateway the stack attaches to, read from the stack file itself — shown in the deploy prompt.
+# Which gateway the stack attaches to, read from the stack file itself - shown in the deploy prompt.
 EDGE_GATEWAY = $(shell grep -q '/staff/http_api_id' "$(EDGE_DIR)/$(EDGE_CONFIG)" 2>/dev/null && echo "the STAFF gateway" || { grep -q '/edge/http_api_id' "$(EDGE_DIR)/$(EDGE_CONFIG)" 2>/dev/null && echo "the SHARED gateway" || echo "no gateway"; })
 
 AUTH_PARAM_CMD = AWS_PROFILE=$(AWS_PROFILE) aws ssm get-parameter --region $(AWS_REGION) --query Parameter.Value --output text --name
 
-create-first-admin: ## OPERATOR: bootstrap the FIRST back-office super-admin (EMAIL=.. NAME=".." ENV=dev) — specs/006
+create-first-admin: ## OPERATOR: bootstrap the FIRST back-office super-admin (EMAIL=.. NAME=".." ENV=dev) - specs/006
 	@test -n "$(EMAIL)" && test -n "$(NAME)" || { echo 'usage: make create-first-admin EMAIL=jane@effy.test NAME="Jane Doe" ENV=dev'; exit 1; }
 	@DSN="$$($(DB_DSN_CMD))" || exit 1; \
 	POOL_ID="$$($(AUTH_PARAM_CMD) /effy/$(ENV)/auth/back-office/user_pool_id)" || { echo "create-first-admin: cannot read back-office pool id from SSM (001 contract)"; exit 1; }; \
@@ -238,15 +238,15 @@ create-first-admin: ## OPERATOR: bootstrap the FIRST back-office super-admin (EM
 
 
 
-load-localities: ## OPERATOR: load the AU locality reference dataset into public.locality (ENV=dev [CSVREL=path]) — specs/047
+load-localities: ## OPERATOR: load the AU locality reference dataset into public.locality (ENV=dev [CSVREL=path]) - specs/047
 	@DSN="$$($(DB_DSN_CMD))" || exit 1; \
 	EFFY_ENV=$(ENV) DB_DSN="$$DSN" AWS_PROFILE=$(AWS_PROFILE) \
 		pnpm --filter @effy/edge-ops exec tsx src/load-localities.ts --csv "$(CURDIR)/$(or $(CSVREL),db/reference/au-localities.csv)"
 
-delete-admin: ## OPERATOR: COMPLETELY delete a back-office admin (EMAIL=.. ENV=dev [FORCE=1]) — irreversible — specs/006
+delete-admin: ## OPERATOR: COMPLETELY delete a back-office admin (EMAIL=.. ENV=dev [FORCE=1]) - irreversible - specs/006
 	@test -n "$(EMAIL)" || { echo 'usage: make delete-admin EMAIL=jane@effy.test ENV=dev [FORCE=1]'; exit 1; }
-	@printf 'DELETE admin %s from %s (Cognito + platform record) — IRREVERSIBLE\nContinue? [y/N] ' "$(EMAIL)" "$(ENV)"; \
-	read ans; [ "$$ans" = "y" ] || { echo "aborted — nothing deleted"; exit 1; }
+	@printf 'DELETE admin %s from %s (Cognito + platform record) - IRREVERSIBLE\nContinue? [y/N] ' "$(EMAIL)" "$(ENV)"; \
+	read ans; [ "$$ans" = "y" ] || { echo "aborted - nothing deleted"; exit 1; }
 	@DSN="$$($(DB_DSN_CMD))" || exit 1; \
 	POOL_ID="$$($(AUTH_PARAM_CMD) /effy/$(ENV)/auth/back-office/user_pool_id)" || { echo "delete-admin: cannot read back-office pool id from SSM (001 contract)"; exit 1; }; \
 	EFFY_ENV=$(ENV) DB_DSN="$$DSN" BACK_OFFICE_POOL_ID="$$POOL_ID" AWS_REGION=$(AWS_REGION) AWS_PROFILE=$(AWS_PROFILE) \
@@ -267,7 +267,7 @@ edge-deploy: ## OPERATOR: deploy ONE cold-path service to AWS (SERVICE=admin|adm
 	@test -d "$(EDGE_DIR)" || { echo "edge-deploy: no such service directory: $(EDGE_DIR)"; exit 1; }
 	@test -f "$(EDGE_DIR)/$(EDGE_CONFIG)" || { echo "edge-deploy: no stack file: $(EDGE_DIR)/$(EDGE_CONFIG)"; exit 1; }
 	@printf 'serverless DEPLOY  →  service=%s stage=%s (%s, attaches to %s, live AWS)\nContinue? [y/N] ' "$(SERVICE)" "$(ENV)" "$(EDGE_DIR)/$(EDGE_CONFIG)" "$(EDGE_GATEWAY)"; \
-	read ans; [ "$$ans" = "y" ] || { echo "aborted — nothing deployed"; exit 1; }; \
+	read ans; [ "$$ans" = "y" ] || { echo "aborted - nothing deployed"; exit 1; }; \
 	cd $(EDGE_DIR) && AWS_PROFILE=$(AWS_PROFILE) pnpm exec serverless deploy --config $(EDGE_CONFIG) --stage $(ENV) --verbose
 
 # Every stack, in the order a deploy must go: admin first (it frees the route keys other stacks may claim,
@@ -283,7 +283,7 @@ edge-deploy-all: ## OPERATOR: deploy EVERY edge stack in order, one confirmation
 		services="$${rest# }"; \
 	fi; \
 	printf 'serverless DEPLOY ALL  →  stage=%s, profile=%s (live AWS), in this order:\n  %s\n' "$(ENV)" "$(AWS_PROFILE)" "$$services"; \
-	if [ "$(YES)" != "1" ]; then printf 'Continue? [y/N] '; read ans; [ "$$ans" = "y" ] || { echo "aborted — nothing deployed"; exit 1; }; fi; \
+	if [ "$(YES)" != "1" ]; then printf 'Continue? [y/N] '; read ans; [ "$$ans" = "y" ] || { echo "aborted - nothing deployed"; exit 1; }; fi; \
 	done=""; \
 	for svc in $$services; do \
 		echo ""; echo "━━━ $$svc ━━━"; \
@@ -304,7 +304,7 @@ edge-remove: ## OPERATOR: tear down ONE cold-path service's CloudFormation stack
 	@test -n "$(SERVICE)" || { echo "usage: make edge-remove SERVICE=admin|shop|...|fleet ENV=dev"; exit 1; }
 	@test -d "$(EDGE_DIR)" || { echo "edge-remove: no such service directory: $(EDGE_DIR)"; exit 1; }
 	@printf 'serverless REMOVE  →  service=%s stage=%s (DESTROYS the stack: lambdas, routes, alarms, deployment bucket)\nContinue? [y/N] ' "$(SERVICE)" "$(ENV)"; \
-	read ans; [ "$$ans" = "y" ] || { echo "aborted — nothing removed"; exit 1; }; \
+	read ans; [ "$$ans" = "y" ] || { echo "aborted - nothing removed"; exit 1; }; \
 	cd $(EDGE_DIR) && AWS_PROFILE=$(AWS_PROFILE) pnpm exec serverless remove --config $(EDGE_CONFIG) --stage $(ENV) --verbose
 
 # --- back-office web: Vite SPA, local-only this slice (no hosted deploy). Runs on
@@ -325,7 +325,7 @@ bo-test: ## back-office unit/component tests (vitest)
 	@pnpm --filter @effy/back-office test
 
 # --- shop web: Vite SPA, local-only this slice (no hosted deploy). Runs on:5174
-# (an approved dev CORS origin — infra/envs/dev/edge-gateway.tf) against the live dev
+# (an approved dev CORS origin - infra/envs/dev/edge-gateway.tf) against the live dev
 # shop service + shop Cognito pool. VITE_* config comes from apps/shop-web/.env.local
 # (git-ignored) per specs/007-shop-web/contracts/config.contract.md.
 SHOP_DIR := apps/shop-web
@@ -342,7 +342,7 @@ shop-lint: ## shop-web typecheck (tsc --noEmit)
 shop-test: ## shop-web unit/component tests (vitest)
 	@pnpm --filter @effy/shop-web test
 
-# --- customer storefront — the platform's first public surface. SSR-first, guest-first.
+# --- customer storefront - the platform's first public surface. SSR-first, guest-first.
 # It runs against the live dev backend gateway (or `make edge-offline SERVICE=…` for one service).
 cw-dev: ## Run the customer storefront locally (next dev on http://localhost:3043)
 	@pnpm --filter @effy/customer-web dev
@@ -353,10 +353,10 @@ cw-build: ## Production build of the customer storefront
 cw-lint: ## customer-web typecheck (tsc --noEmit)
 	@pnpm --filter @effy/customer-web typecheck
 
-cw-test: ## customer-web unit tests (vitest — async Server Components are E2E-tested, not unit-tested)
+cw-test: ## customer-web unit tests (vitest - async Server Components are E2E-tested, not unit-tested)
 	@pnpm --filter @effy/customer-web test
 
-cw-e2e: ## customer-web E2E (playwright) — SSR/SEO/auth/isolation. Proves what units cannot.
+cw-e2e: ## customer-web E2E (playwright) - SSR/SEO/auth/isolation. Proves what units cannot.
 	@pnpm --filter @effy/customer-web e2e
 
 # --- the three gates. These fail the build; they do not warn.
@@ -364,7 +364,7 @@ cw-gates: ## customer-web: the two build-failing gates (Amplify quarantine + gue
 	@pnpm --filter @effy/customer-web depcruise
 	@pnpm --filter @effy/customer-web size
 
-cw-size: ## customer-web bundle budget — every guest route MUST stay <= 174 KB gzipped first-load JS
+cw-size: ## customer-web bundle budget - every guest route MUST stay <= 174 KB gzipped first-load JS
 	@pnpm --filter @effy/customer-web size
 
 cw-depcruise: ## customer-web: FAIL if any guest route imports aws-amplify (the quarantine, FR-006)
@@ -381,30 +381,30 @@ cm-tokens-gen: ## customer-mobile: regenerate the Compose theme from tokens.css 
 	@pnpm --filter @effy/design-system tokens:gen
 cm-tokens-check: ## customer-mobile: FAIL if the committed Compose theme drifts from tokens.css (Principle II)
 	@pnpm --filter @effy/design-system tokens:check
-cm-guard: ## customer-mobile: the build-failing guard — escape-hatch ban (FR-024) + no secret-shaped keys (FR-042)
+cm-guard: ## customer-mobile: the build-failing guard - escape-hatch ban (FR-024) + no secret-shaped keys (FR-042)
 	@bash scripts/mobile-guard.sh
 cm-codegen: cm-contract-check cm-tokens-check ## customer-mobile: both Principle-II drift checks together
 
 # --- customer-mobile: shareable dev apk. A DEV keystore + a signed release APK you can sideload on a
 # real Android phone. The keystore and its passwords are git-ignored (keystore.properties / keystore/),
-# exactly like secrets.properties. This is a DEV signing key for internal test builds — not a store key.
+# exactly like secrets.properties. This is a DEV signing key for internal test builds - not a store key.
 CM_KEYSTORE       ?= keystore/customer-dev.jks
 CM_KEY_ALIAS      ?= effy-customer-dev
 CM_KEYSTORE_PASS  ?= effydevkeystore
-cm-keystore: ## customer-mobile: generate the git-ignored DEV signing keystore (idempotent — skips if present)
+cm-keystore: ## customer-mobile: generate the git-ignored DEV signing keystore (idempotent - skips if present)
 	@cd apps/customer-mobile && if [ -f "$(CM_KEYSTORE)" ]; then \
-	  echo "cm-keystore: $(CM_KEYSTORE) already exists — leaving it in place"; \
+	  echo "cm-keystore: $(CM_KEYSTORE) already exists - leaving it in place"; \
 	else \
 	  mkdir -p "$$(dirname $(CM_KEYSTORE))"; \
 	  keytool -genkeypair -v -keystore "$(CM_KEYSTORE)" -alias "$(CM_KEY_ALIAS)" \
 	    -keyalg RSA -keysize 2048 -validity 10000 \
 	    -storepass "$(CM_KEYSTORE_PASS)" -keypass "$(CM_KEYSTORE_PASS)" \
 	    -dname "CN=Effy Customer Dev, OU=Development, O=Effy, L=Sydney, ST=NSW, C=AU"; \
-	  echo "cm-keystore: created $(CM_KEYSTORE) — ensure keystore.properties points at it"; \
+	  echo "cm-keystore: created $(CM_KEYSTORE) - ensure keystore.properties points at it"; \
 	fi
 cm-apk: ## customer-mobile: build a signed DEV release APK for sideloading (needs secrets.properties + a keystore)
-	@test -f apps/customer-mobile/secrets.properties || { echo "cm-apk: apps/customer-mobile/secrets.properties missing — copy secrets.properties.example and fill from 'make output ENV=dev'"; exit 1; }
-	@test -f apps/customer-mobile/keystore.properties || { echo "cm-apk: apps/customer-mobile/keystore.properties missing — run 'make cm-keystore' then create it (see keystore.properties)"; exit 1; }
+	@test -f apps/customer-mobile/secrets.properties || { echo "cm-apk: apps/customer-mobile/secrets.properties missing - copy secrets.properties.example and fill from 'make output ENV=dev'"; exit 1; }
+	@test -f apps/customer-mobile/keystore.properties || { echo "cm-apk: apps/customer-mobile/keystore.properties missing - run 'make cm-keystore' then create it (see keystore.properties)"; exit 1; }
 	@cd apps/customer-mobile && ./gradlew :androidApp:assembleRelease
 	@echo ""
 	@echo "cm-apk: APK ready → apps/customer-mobile/androidApp/build/outputs/apk/release/androidApp-release.apk"
@@ -425,14 +425,14 @@ driver-android: ## driver app on an Android emulator/phone you pick, its output 
 # --- brand marks. One authored vector -> every icon/splash/favicon on all six surfaces.
 # Same shape as the tokens generator above: an authored source, committed derived artifacts, and a
 # drift check that fails when they diverge. brand-check also rides `pnpm test` (turbo run test) via
-# @effy/brand's own test script — `make lint` is Terraform-only and never runs it.
+# @effy/brand's own test script - `make lint` is Terraform-only and never runs it.
 brand-gen: ## brand: regenerate every icon/splash/favicon from packages/brand/src/logo.svg (024)
 	@pnpm --filter @effy/brand brand:gen
 brand-check: ## brand: FAIL if any committed brand asset drifts from the authored mark (024 SC-008)
 	@pnpm --filter @effy/brand brand:check
 
 # --- Email templates -----------------------------------------------------------------
-# Same shape as tokens:gen/tokens:check and brand:gen/brand:check — authored source, committed
+# Same shape as tokens:gen/tokens:check and brand:gen/brand:check - authored source, committed
 # derived artifacts, a drift check that fails and names the stale template.
 email-gen: ## email: regenerate every template artifact from src/*.mjml + the design-system tokens (038)
 	@pnpm --filter @effy/email-kit email:gen
@@ -449,15 +449,15 @@ brand-guards: ## brand: FAIL if any RETIRED brand palette (Jade, Effy Emerald) s
 live-guards: ## live updates: FAIL if any screen in the six apps refreshes its data on a timer (071 FR-009)
 	@bash scripts/check-no-refresh-timers.sh
 
-shop-words-guard: ## shop surfaces: FAIL if a shop screen says "same-day" or "standard" — the customer's words (079 FR-028)
+shop-words-guard: ## shop surfaces: FAIL if a shop screen says "same-day" or "standard" - the customer's words (079 FR-028)
 	@bash scripts/check-shop-delivery-words.sh
 
-driver-words-guard: ## driver + dispatch surfaces: FAIL if a screen says "same-day" or "standard" — the customer's words (082 FR-012)
+driver-words-guard: ## driver + dispatch surfaces: FAIL if a screen says "same-day" or "standard" - the customer's words (082 FR-012)
 	@bash scripts/check-driver-delivery-words.sh
 
 # --- expose a local backend to a physical phone via an ngrok static domain (013 quickstart § 0 Path A).
 # A phone cannot reach localhost; ngrok gives a stable public https URL to put in secrets.properties.
-# The static domain is reserved on your ngrok account — pass it in (or export it); nothing is hardcoded.
+# The static domain is reserved on your ngrok account - pass it in (or export it); nothing is hardcoded.
 # Port: serverless-offline = 3000 (make edge-offline SERVICE=…). A free ngrok account has one static
 # domain, so one service at a time.
 NGROK_EDGE_PORT   ?= 3000
@@ -465,11 +465,11 @@ NGROK_STATIC_DOMAIN ?=
 
 cm-ngrok-edge: ## Expose local edge-api on your ngrok static domain (NGROK_STATIC_DOMAIN=<name>.ngrok-free.app) → EDGE_API_BASE_URL
 	@test -n "$(NGROK_STATIC_DOMAIN)" || { echo "usage: make cm-ngrok-edge NGROK_STATIC_DOMAIN=<your-static>.ngrok-free.app  (run 'make edge-offline SERVICE=customer' first)"; exit 1; }
-	@command -v ngrok >/dev/null || { echo "cm-ngrok-edge: ngrok not found — install it and reserve a static domain first"; exit 1; }
+	@command -v ngrok >/dev/null || { echo "cm-ngrok-edge: ngrok not found - install it and reserve a static domain first"; exit 1; }
 	ngrok http $(NGROK_EDGE_PORT) --domain=$(NGROK_STATIC_DOMAIN)
 
 # --- shop slice verification. SC-004 and SC-005a are enforced structurally (gateway JWT
-# authorizers) and relationally (a SQL join) — they cannot be unit-tested, so they are scripted
+# authorizers) and relationally (a SQL join) - they cannot be unit-tested, so they are scripted
 # here and run against the real gateway. See specs/007-shop-web/research.md R9.
 shop-verify-isolation: ## OPERATOR: cross-pool isolation at BOTH gateways (SHOP_TOKEN=.. BO_TOKEN=.. [CUSTOMER_TOKEN=..] [DRIVER_TOKEN=..])
 	@test -n "$(SHOP_TOKEN)" && test -n "$(BO_TOKEN)" || { echo 'usage: make shop-verify-isolation SHOP_TOKEN=eyJ... BO_TOKEN=eyJ... [CUSTOMER_TOKEN=eyJ...] [DRIVER_TOKEN=eyJ...] ENV=dev'; exit 1; }
@@ -479,7 +479,7 @@ shop-verify-isolation: ## OPERATOR: cross-pool isolation at BOTH gateways (SHOP_
 	CUSTOMER_TOKEN="$(CUSTOMER_TOKEN)" DRIVER_TOKEN="$(DRIVER_TOKEN)" bash scripts/verify-cross-pool.sh
 
 # --- domain slice verification. A DNS delegation, a TLS chain, and a DKIM signature cannot
-# honestly be unit-tested — they are properties of the live internet. Scripted here instead.
+# honestly be unit-tested - they are properties of the live internet. Scripted here instead.
 dns-verify: ## SC-001/002/004: delegation live, branded API trusted, raw URL still works
 	@ROOT_DOMAIN="$${ROOT_DOMAIN:-effyshopping.com}" ENV="$(ENV)" \
 	API_URL="$$($(AUTH_PARAM_CMD) /effy/$(ENV)/edge/api_endpoint)" \
@@ -496,7 +496,7 @@ edge-health: ## Probe every service on its own gateway: healthz + readyz. Public
 	STAFF="$$($(AUTH_PARAM_CMD) /effy/$(ENV)/staff/api_endpoint)" || exit 1; \
 	TARGETS="$$SHARED=$(EDGE_HEALTH_SHARED);$$STAFF=$(EDGE_HEALTH_STAFF)" bash scripts/edge-health.sh
 
-gateway-usage: ## How full is each API gateway — routes and integrations of 300 (BY=1 lists routes per service). Read-only.
+gateway-usage: ## How full is each API gateway - routes and integrations of 300 (BY=1 lists routes per service). Read-only.
 	@ENV="$(ENV)" AWS_REGION="$(AWS_REGION)" AWS_PROFILE="$(AWS_PROFILE)" BY_SERVICE="$(BY)" bash scripts/gateway-usage.sh
 
 # 010 SC-001/002/004 + 037 FR-001/FR-017: is the platform authorized to send as its namespace?
@@ -513,9 +513,9 @@ mail-events-verify: ## Delivery outcomes flow: consumer subscribed + erroring?, 
 # # --- Dev cost control: stop the DB while you're not developing ---
 # the DB instance is the one big always-on dev cost (the bulk of the ≈US$22/mo; its
 # ~US$2.5/mo storage still bills while stopped). Everything else is pay-per-use ≈ $0
-# idle, except edge-api's Secrets Manager interface endpoint (~US$9/mo) — deliberately
+# idle, except edge-api's Secrets Manager interface endpoint (~US$9/mo) - deliberately
 # left always-on for now. Caveat: AWS auto-restarts a stopped RDS instance after
-# 7 days — check dev-status and re-run dev-stop if you stay away longer.
+# 7 days - check dev-status and re-run dev-stop if you stay away longer.
 
 DB_INSTANCE_ID = effy-$(ENV)-db
 RDS_CMD        = AWS_PROFILE=$(AWS_PROFILE) aws rds --region $(AWS_REGION)
@@ -530,18 +530,18 @@ check-dev-park:
 dev-status: check-dev-park ## Is the dev DB billing right now? (instance state)
 	@printf 'db (%s): ' "$(DB_INSTANCE_ID)"; \
 	$(DB_STATUS_CMD) 2>/dev/null || echo "not found"
-	@echo "(a stopped DB auto-restarts after 7 days — AWS behaviour, not ours)"
+	@echo "(a stopped DB auto-restarts after 7 days - AWS behaviour, not ours)"
 
 dev-stop: check-dev-park ## OPERATOR: stop the dev DB instance (compute stops billing)
 	@printf 'STOP RDS %s\nContinue? [y/N] ' "$(DB_INSTANCE_ID)"; \
-	read ans; [ "$$ans" = "y" ] || { echo "aborted — nothing changed"; exit 1; }
+	read ans; [ "$$ans" = "y" ] || { echo "aborted - nothing changed"; exit 1; }
 	@status=$$($(DB_STATUS_CMD)) || exit 1; \
 	if [ "$$status" = "available" ]; then \
 		AWS_PROFILE=$(AWS_PROFILE) bash $(INFRA_DIR)/scripts/db-schedules.sh pause $(ENV); \
 		$(RDS_CMD) stop-db-instance --db-instance-identifier $(DB_INSTANCE_ID) --query 'DBInstance.DBInstanceStatus' --output text; \
 		echo "db: stopping (takes a few minutes; AWS auto-restarts it after 7 days)"; \
 	else \
-		echo "db: status '$$status' — not running, nothing to stop"; \
+		echo "db: status '$$status' - not running, nothing to stop"; \
 	fi
 
 dev-start: check-dev-park ## OPERATOR: start the dev DB instance and wait until it's usable
@@ -549,7 +549,7 @@ dev-start: check-dev-park ## OPERATOR: start the dev DB instance and wait until 
 	if [ "$$status" = "stopped" ]; then \
 		$(RDS_CMD) start-db-instance --db-instance-identifier $(DB_INSTANCE_ID) --query 'DBInstance.DBInstanceStatus' --output text; \
 	else \
-		echo "db: status '$$status' — not stopped, nothing to start"; \
+		echo "db: status '$$status' - not stopped, nothing to start"; \
 	fi; \
 	echo "waiting for the DB to become available (usually 3-8 min)…"; \
 	$(RDS_CMD) wait db-instance-available --db-instance-identifier $(DB_INSTANCE_ID); \

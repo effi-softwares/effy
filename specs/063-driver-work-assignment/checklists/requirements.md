@@ -37,16 +37,16 @@ Two questions were put to the operator rather than defaulted, because each chang
 does rather than how it is built. Both are now settled and written into the requirements:
 
 1. **Choosing between eligible drivers (FR-014).** The research settled the hard gates, but its
-   tie-break was *proximity* — and proximity was cut along with all location data, leaving no default.
+   tie-break was *proximity* - and proximity was cut along with all location data, leaving no default.
    **Settled: the eligible driver carrying the fewest packages that day.** FR-014a additionally
    requires the rule be explainable to a driver who asks, and FR-014b forbids any distance proxy
    creeping back in as a ranking.
 2. **Packages made ready after their wave was planned.** **Settled: join the round if that shop's stop
    is still outstanding, otherwise wait for the next wave** (FR-004a). Two consequences were written
-   down with it — a round that changes under a working driver must say so (FR-004b), and a late
+   down with it - a round that changes under a working driver must say so (FR-004b), and a late
    addition may not push a round past its vehicle capacity or its deadline (FR-004c).
 
-Everything else was defaulted against existing platform behaviour and recorded in Assumptions — most
+Everything else was defaulted against existing platform behaviour and recorded in Assumptions - most
 consequentially that carrying capacity is judged by **weight only**, because the catalogue describes
 no product volume, so the volume and crate figures the fleet records cannot be checked against real
 packages. That is a stated limitation of this slice, not an oversight.

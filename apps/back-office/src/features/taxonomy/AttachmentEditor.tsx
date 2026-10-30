@@ -34,7 +34,7 @@ import { taxonomyErrorText } from "./errorText"
 import { attributesQuery, formQuery, useDeleteAttachment, usePutAttachment } from "./queries"
 
 /**
- * A category's attributes: what it inherits (from which category, at which level — tighten or hide it
+ * A category's attributes: what it inherits (from which category, at which level - tighten or hide it
  * here) and what it attaches itself. Only stricter levels are offered for an inherited attribute.
  */
 export function AttachmentEditor({
@@ -116,7 +116,7 @@ export function AttachmentEditor({
                       <span className="font-medium">{r.name}</span>
                       <span className="block text-xs text-muted-foreground">{INPUT_TYPE_WORDS[r.inputType]}</span>
                     </TableCell>
-                    <TableCell className="text-muted-foreground">{r.sourceCategoryName ?? "—"}</TableCell>
+                    <TableCell className="text-muted-foreground">{r.sourceCategoryName ?? "-"}</TableCell>
                     <TableCell>{LEVEL_WORDS[r.level]}</TableCell>
                     {editable ? (
                       <TableCell>

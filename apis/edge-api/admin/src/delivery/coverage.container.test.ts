@@ -69,7 +69,7 @@ async function driver(name: string, zoneId: string | null): Promise<void> {
   await q(`INSERT INTO public.driver_zone_capability (driver_id, function, zone_id) VALUES ($1, 'delivery', $2)`, [id, zoneId]);
 }
 
-describe.skipIf(!RUN)("076 — the coverage console, against real PostgreSQL", () => {
+describe.skipIf(!RUN)("076 - the coverage console, against real PostgreSQL", () => {
   beforeAll(async () => {
     container = await new PostgreSqlContainer("postgres:16-alpine").start();
     pool = new Pool({ connectionString: container.getConnectionUri() });
@@ -132,7 +132,7 @@ describe.skipIf(!RUN)("076 — the coverage console, against real PostgreSQL", (
     expect(holder.announced).toEqual([]);
   });
 
-  it("add: a place with no location needs a distance from a person — and takes it", async () => {
+  it("add: a place with no location needs a distance from a person - and takes it", async () => {
     expect(await refusal(svc.addPostcodes({ postcodes: [{ postcode: "3900" }] }, SUB))).toEqual({ status: 422, code: "distance_required", extra: { postcodes: ["3900"] } });
     expect(await refusal(svc.addPostcodes({ postcodes: [{ postcode: "3900", manualDistanceKm: "9000" }] }, SUB))).toMatchObject({ code: "distance_out_of_range" });
     expect(await svc.addPostcodes({ postcodes: [{ postcode: "3900", manualDistanceKm: "18.5" }] }, SUB)).toEqual({ added: ["3900"], alreadyListed: [] });
@@ -172,7 +172,7 @@ describe.skipIf(!RUN)("076 — the coverage console, against real PostgreSQL", (
     expect(await refusal(svc.check("3"))).toMatchObject({ status: 400, code: "invalid_query" });
   });
 
-  it("groups: create, no duplicate name, assign, rename — a postcode is in one group at most", async () => {
+  it("groups: create, no duplicate name, assign, rename - a postcode is in one group at most", async () => {
     const a = (await svc.createGroup({ name: "  Inner   Melbourne " }, SUB)).id;
     const b = (await svc.createGroup({ name: "Bayside" }, SUB)).id;
     expect(await refusal(svc.createGroup({ name: "inner melbourne" }, SUB))).toMatchObject({ status: 409, code: "group_name_taken" });
@@ -193,7 +193,7 @@ describe.skipIf(!RUN)("076 — the coverage console, against real PostgreSQL", (
     expect(await refusal(svc.patchPostcodes({ postcodes: ["3121"], groupId: "00000000-0000-0000-0000-000000000000" }, SUB))).toMatchObject({ status: 404, code: "group_not_found" });
   });
 
-  it("P4 — removing a group leaves its postcodes listed and Delivered by Effy, and retires the group", async () => {
+  it("P4 - removing a group leaves its postcodes listed and Delivered by Effy, and retires the group", async () => {
     const bayside = (await svc.list({})).groups.find((g) => g.name === "Bayside")!.id;
     expect(await svc.removeGroup(bayside, false, SUB)).toEqual({ ungrouped: 1 });
     expect((await svc.check("3900")).matches[0]).toMatchObject({ coverage: "effy", reason: "listed", groupName: null });
@@ -215,7 +215,7 @@ describe.skipIf(!RUN)("076 — the coverage console, against real PostgreSQL", (
     expect(d[0]).toMatchObject({ postcode: "3121", before: { distanceSource: "computed" }, after: { distanceKm: "4.00", distanceSource: "manual" } });
   });
 
-  it("P6 — a hub move recalculates worked-out distances, leaves hand-entered ones, flags them, and says how many", async () => {
+  it("P6 - a hub move recalculates worked-out distances, leaves hand-entered ones, flags them, and says how many", async () => {
     // A hand-entered distance on a place the platform could compute: a recalculation must not overwrite it.
     await svc.addPostcodes({ postcodes: [{ postcode: "3141" }] }, SUB);
     await svc.patchPostcodes({ postcodes: ["3141"], distance: { source: "manual", km: "9.99" } }, SUB);
@@ -250,7 +250,7 @@ describe.skipIf(!RUN)("076 — the coverage console, against real PostgreSQL", (
     await putSettings({ hubLatitude: HUB.lat, hubLongitude: HUB.lon, samedayPrepBufferMin: 60 }, SUB);
   });
 
-  it("P9 / 079 P20 — courier needs a fee table and an estimate; its settings; exclusions", async () => {
+  it("P9 / 079 P20 - courier needs a fee table and an estimate; its settings; exclusions", async () => {
     // No courier fee table exists in this database: on is refused for that, first.
     expect(await refusal(svc.setCourier({ offered: true }, SUB))).toEqual({ status: 409, code: "courier_plan_missing", extra: undefined });
     expect((await q(`SELECT courier_offered FROM public.delivery_settings WHERE id = 1`))[0]).toEqual({ courier_offered: false });
@@ -318,11 +318,11 @@ describe.skipIf(!RUN)("076 — the coverage console, against real PostgreSQL", (
     expect(await svc.addPostcodes({ postcodes: [{ postcode: "3220" }], groupId: inner }, SUB)).toEqual({ added: ["3220"], alreadyListed: [] });
   });
 
-  it("097 — delivery today, per postcode: added with it, switched in bulk, filtered, counted, checked, audited once", async () => {
+  it("097 - delivery today, per postcode: added with it, switched in bulk, filtered, counted, checked, audited once", async () => {
     const todayAudits = async () => (await audits("coverage.postcode.today")).length;
     const listed = async (f: Record<string, string> = {}) => (await svc.list(f)).items.map((p) => p.postcode);
 
-    // Added with it switched off — and the add's audit says so.
+    // Added with it switched off - and the add's audit says so.
     expect(await svc.addPostcodes({ postcodes: [{ postcode: "3900", manualDistanceKm: "18.5" }], todayOffered: false, confirmNoDrivers: true }, SUB))
       .toEqual({ added: ["3900"], alreadyListed: [] });
     expect((await audits("coverage.postcode.add")).at(-1)?.detail).toMatchObject({ postcode: "3900", after: { todayOffered: false } });
@@ -374,7 +374,7 @@ describe.skipIf(!RUN)("076 — the coverage console, against real PostgreSQL", (
 });
 
 /** Each coverage handler's guard level matches its verb: write routes must ask for "mutate". */
-describe("076 — P13: every coverage route asks for the right level", () => {
+describe("076 - P13: every coverage route asks for the right level", () => {
   const dir = resolve(dirname(fileURLToPath(import.meta.url)), "../functions");
   const handlers = readdirSync(dir).filter((f) => f.startsWith("delivery-coverage-") && f.endsWith(".ts"));
 

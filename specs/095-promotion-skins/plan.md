@@ -1,4 +1,4 @@
-# Implementation Plan: Promotion Skins — Designed by Staff, Chosen per Placement
+# Implementation Plan: Promotion Skins - Designed by Staff, Chosen per Placement
 
 **Branch**: `095-promotion-skins` | **Date**: 2026-10-21 | **Spec**: [spec.md](spec.md)
 **Input**: Feature specification from `specs/095-promotion-skins/spec.md`
@@ -19,11 +19,11 @@ and a new `mega-nav` group fills a slot in the website's aisles menu.
 **Language/Version**: TypeScript (edge-api `admin`, `storefront`, `commerce`, `shared`; `shared-types`; `web-kit`;
 back-office Vite/React 19; customer-web Next.js 16); Kotlin 2.4 / CMP 1.11 (customer app).
 **Primary Dependencies**: none new (colour picker is the native `<input type="color">` plus a hex field).
-**Storage**: PostgreSQL 16 — one goose migration (two tables, four columns, seeds). S3 media bucket, existing
+**Storage**: PostgreSQL 16 - one goose migration (two tables, four columns, seeds). S3 media bucket, existing
 `promotions/` prefix and rendition worker.
 **Testing**: vitest (shared-types fixtures, admin service, storefront read, web-kit renderer, back-office, customer-web),
 container tests (migration seeds, FKs), Kotlin host tests (fixtures).
-**Target Platform**: Lambda behind the staff gateway (admin) and shared gateway (storefront, commerce — no new route);
+**Target Platform**: Lambda behind the staff gateway (admin) and shared gateway (storefront, commerce - no new route);
 web consoles; Android/iOS.
 **Performance Goals**: group reads stay one query (two extra joins); pictures served from the CDN as sized WebP;
 no layout shift (the renderer reserves the layout's ratio).
@@ -41,7 +41,7 @@ promo drawing.
 
 | Principle | Verdict | Notes |
 |---|---|---|
-| I. Spec-driven | ✅ | Spec 095, clarified 2026-10-21; FR-015 refined at planning (separate default for promotions with a code — R3). |
+| I. Spec-driven | ✅ | Spec 095, clarified 2026-10-21; FR-015 refined at planning (separate default for promotions with a code - R3). |
 | II. Shared contracts | ✅ | `SkinSettings`, `validateSkin`, `skinContrast`, layout facts and geometry declared once in shared-types; one web renderer used by two apps; Kotlin pinned to shared fixtures. |
 | III. One backend | ✅ | Routes added to `admin`; reads extended in `storefront`/`commerce`; the existing `media` worker. No new compute. |
 | IV. Auth isolation | ✅ | Admin routes on the back-office authorizer; shopper reads unchanged. |
@@ -95,13 +95,13 @@ apps draw it.
 
 ## Delivery in stages (each deployable on its own)
 
-1. **Foundation** — constitution amendment; shared-types (settings, validator, contrast, geometry, fixtures);
+1. **Foundation** - constitution amendment; shared-types (settings, validator, contrast, geometry, fixtures);
    migration with seeds; group reads return `skin` (clients ignore it). *Deploy: migrate → admin → storefront, commerce.*
-2. **Renderers at parity** — web-kit `PromoSkin`; customer-web and the app draw from `skin` with today's seeded skins
+2. **Renderers at parity** - web-kit `PromoSkin`; customer-web and the app draw from `skin` with today's seeded skins
    (SC-002 screenshots must match). *Deploy: customer-web, app build.*
-3. **Pictures** — admin routes + back-office Pictures section; renderers show pictures.
-4. **Skin builder** — admin skin routes + back-office Skins list/editor with live preview and contrast.
-5. **Placement** — group size/defaults/member skin & picture in back-office; `mega-nav` slot on the website.
+3. **Pictures** - admin routes + back-office Pictures section; renderers show pictures.
+4. **Skin builder** - admin skin routes + back-office Skins list/editor with live preview and contrast.
+5. **Placement** - group size/defaults/member skin & picture in back-office; `mega-nav` slot on the website.
 
 ## Implementation notes
 
@@ -117,7 +117,7 @@ apps draw it.
 - **Image count** and **member picture ownership** checked under `SELECT … FOR UPDATE` on the promotion row.
 - **Group read** joins `promotion_skin` and a lateral picture pick; the storefront read stays cached 60 s; a skin
   edit is therefore seen within a minute (FR-020).
-- **Guards**: extend `promotions.guard.test.ts` — `promotion_skin`/`promotion_image` written only by the admin
+- **Guards**: extend `promotions.guard.test.ts` - `promotion_skin`/`promotion_image` written only by the admin
   service; shop reads none. A web-kit guard: `PromoSkin` uses no Tailwind colour utilities (it must not depend on
   either identity's tokens).
 

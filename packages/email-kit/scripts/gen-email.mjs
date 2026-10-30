@@ -23,7 +23,7 @@ function promoteHeading(html, file) {
   const cell = /<td([^>]*\bclass="[^"]*\be-h1\b[^"]*"[^>]*)>([\s\S]*?)<\/td>/g;
   const cells = [...html.matchAll(cell)];
   if (cells.length === 0) return html;
-  if (cells.length > 1) throw new Error(`${file}: ${cells.length} e-h1 headings — a message has exactly one <h1>`);
+  if (cells.length > 1) throw new Error(`${file}: ${cells.length} e-h1 headings - a message has exactly one <h1>`);
 
   const [whole, attrs, inner] = cells[0];
   const div = inner.match(/<div(\s[^>]*)?>([\s\S]*?)<\/div>/);
@@ -106,7 +106,7 @@ function main() {
   writeFileSync(resolve(DIST, "templates.generated.ts"), bundleSource(templates));
   writeFileSync(resolve(DIST, "manifest.json"), JSON.stringify(manifest, null, 2) + "\n");
 
-  console.log(`✓ email-gen — ${ids.length} template(s)`);
+  console.log(`✓ email-gen - ${ids.length} template(s)`);
   for (const [id, m] of Object.entries(manifest)) {
     console.log(`    ${id.padEnd(32)} ${String(m.htmlBytes).padStart(6)} B html · ${String(m.textBytes).padStart(5)} B text`);
   }
@@ -115,6 +115,6 @@ function main() {
 try {
   main();
 } catch (err) {
-  console.error(`✗ email-gen — ${err.message}`);
+  console.error(`✗ email-gen - ${err.message}`);
   process.exit(1);
 }

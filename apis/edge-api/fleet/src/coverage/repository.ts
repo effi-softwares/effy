@@ -36,7 +36,7 @@ export async function coverageGaps(): Promise<CoverageGap[]> {
          LEFT JOIN public.driver_zone_capability cap
                 ON cap.function = needed.function
                -- ⚠ THE "EVERY ZONE" CLAUSE. Omitting it compiles, passes every zone-specific test,
-               -- and reports gaps that do not exist — sending operators to grant clearances people
+               -- and reports gaps that do not exist - sending operators to grant clearances people
                -- already hold.
                AND (cap.zone_id = needed.zone_id OR cap.zone_id IS NULL)
          LEFT JOIN public.driver d ON d.id = cap.driver_id

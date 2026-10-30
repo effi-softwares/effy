@@ -8,7 +8,16 @@ import { refundActionError } from "../refundErrorText"
 import { useDeclineRefundRequest, useDismissProposal } from "../refundQueries"
 import { RefundPanel } from "./RefundPanel"
 
-export function RefundsSection({ order, canIssue }: { order: AdminOrderDetailDTO; canIssue: boolean }) {
+export function RefundsSection({
+  order,
+  canIssue,
+  seed,
+}: {
+  order: AdminOrderDetailDTO
+  canIssue: boolean
+  /** Lines to start the refund with, and a version that starts it afresh each time they are sent. */
+  seed?: { lines: Record<string, number>; version: number }
+}) {
   return (
     <div className="space-y-4">
       {order.refundRequest && order.refundRequest.status === "open" ? (
@@ -20,7 +29,15 @@ export function RefundsSection({ order, canIssue }: { order: AdminOrderDetailDTO
       ) : null}
 
       {canIssue ? (
-        <RefundPanel orderId={order.id} lines={order.refundableLines} refundableAmount={order.refundableAmount} />
+        <div id="refund" className="scroll-mt-20">
+          <RefundPanel
+            key={seed?.version ?? 0}
+            orderId={order.id}
+            lines={order.refundableLines}
+            refundableAmount={order.refundableAmount}
+            initial={seed?.lines}
+          />
+        </div>
       ) : null}
 
       <RefundHistory refunds={order.refunds} refundedAmount={order.refundedAmount} />
@@ -42,7 +59,7 @@ function OpenRequest({
   const [note, setNote] = useState("")
 
   return (
-    <section className="space-y-3 rounded-lg border border-border p-4">
+    <section id="refund-request" className="scroll-mt-20 space-y-3 rounded-lg border border-border p-4">
       <h3 className="font-medium">The customer has asked for a refund</h3>
       <p className="text-sm">{request.message}</p>
       {request.items.length > 0 ? (
@@ -216,8 +233,8 @@ const REFUND_COLUMNS: EffyColumnDef<RefundDTO>[] = [
       return (
         <span className="whitespace-normal">
           {r.kind !== "item"
-            ? `${KIND_WORD[r.kind] ?? r.kind}${r.note ? ` — ${r.note}` : ""}`
-            : r.lines.map((l) => `${l.quantity} × ${l.productName}`).join(", ") || "—"}
+            ? `${KIND_WORD[r.kind] ?? r.kind}${r.note ? ` - ${r.note}` : ""}`
+            : r.lines.map((l) => `${l.quantity} × ${l.productName}`).join(", ") || "-"}
         </span>
       )
     },
@@ -273,11 +290,11 @@ const KIND_WORD: Record<string, string> = {
 }
 
 const STATE_WORD: Record<string, string> = {
-  submitting: "No answer from the bank — needs checking",
+  submitting: "No answer from the bank - needs checking",
   submitted: "On its way to the customer",
   succeeded: "Refunded",
-  failed: "Failed — needs attention",
-  refused: "Refused — cannot be retried",
+  failed: "Failed - needs attention",
+  refused: "Refused - cannot be retried",
 }
 
 function actorText(r: RefundDTO): string {

@@ -10,7 +10,7 @@ app's domain and presentation models). Wire shapes already exist on the commerce
 | `text` | String | trimmed, 1–100 chars; compared case-insensitively for de-duplication |
 | `at` | Instant (epoch ms) | when it was last submitted |
 
-- Collection: `RecentSearches` — ordered newest first, **max 10**; adding an existing text moves it to the
+- Collection: `RecentSearches` - ordered newest first, **max 10**; adding an existing text moves it to the
   top; adding an 11th drops the oldest.
 - Stored in `DevicePreferences` under one key (`recent_searches`, JSON array). Never sent to a server or
   to analytics.
@@ -23,7 +23,7 @@ app's domain and presentation models). Wire shapes already exist on the commerce
 
 Existing: `id, orderNumber, status, itemCount, grandTotalAmount, currency, delivery?`.
 
-Added (mapped from fields the commerce orders list already returns — `packages/shared-types/src/order.ts`):
+Added (mapped from fields the commerce orders list already returns - `packages/shared-types/src/order.ts`):
 
 | Field | Source | Use |
 |---|---|---|
@@ -34,18 +34,18 @@ Added (mapped from fields the commerce orders list already returns — `packages
 | `thumbnails` | `thumbnails` + `thumbnailWidths` (086) | up to 4 pictures, `+N` for `itemCount − 4`; null entries show the grey well |
 | `fullyRefunded` / `refundedTotal` | same | "Refunded" pill instead of the stage |
 
-Validation: absent fields are tolerated (an order from before 084 may lack `stage` or thumbnails) — the
+Validation: absent fields are tolerated (an order from before 084 may lack `stage` or thumbnails) - the
 row degrades to today's information, never to an empty or invented value.
 
 ## Category (existing, now used)
 
-`key, name, parentKey?, productCount, imageUrl?` — `parentKey` builds the sub-aisle row:
+`key, name, parentKey?, productCount, imageUrl?` - `parentKey` builds the sub-aisle row:
 `children(of: key) = categories.filter { it.parentKey == key && it.productCount > 0 }`, ordered as served.
 
 ## CartBadge (derived, presentation)
 
 `count = sum(lines.quantity where available)`; shown as `"99+"` above 99; hidden at 0. Derived from
-`CartSnapshot` — never stored.
+`CartSnapshot` - never stored.
 
 ## Tab (navigation, changed)
 

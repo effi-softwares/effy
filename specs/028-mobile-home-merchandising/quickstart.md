@@ -1,9 +1,9 @@
-# Quickstart: Customer Mobile Home — Sectioned Merchandising & Search Entry
+# Quickstart: Customer Mobile Home - Sectioned Merchandising & Search Entry
 
 **Feature**: 028-mobile-home-merchandising | **Phase**: 1
 
 The runnable validation walk. §1–§2 are what a machine can prove. §3–§5 are the **live** walk on a
-device, which is where this feature is actually judged — a home screen is a thing you look at.
+device, which is where this feature is actually judged - a home screen is a thing you look at.
 
 **⚠ Operator-run steps are marked.** Claude authors the migration and the code but does not run
 `db-up`, `edge-deploy`, or anything touching live AWS.
@@ -13,7 +13,7 @@ device, which is where this feature is actually judged — a home screen is a th
 ## Prerequisites
 
 - Local `core-api` running (`make core-run`) against the dev database
-- A seeded catalogue with **at least two top-level categories that have products** — without it,
+- A seeded catalogue with **at least two top-level categories that have products** - without it,
   neither SC-004 nor a multi-section Home can be judged
 - Android emulator or device (API 24+) and/or an iOS simulator
 - Back-office console access as an `admin` or `manager` (for §4)
@@ -25,12 +25,12 @@ device, which is where this feature is actually judged — a home screen is a th
 Run from the repo root. All must pass before the live walk means anything.
 
 ```bash
-# Contracts and drift — Principle II
+# Contracts and drift - Principle II
 make cm-contract-check          # generated Kotlin matches shared-types
-make cm-tokens-check            # Compose theme matches tokens.css (must be UNCHANGED — this slice adds no token)
+make cm-tokens-check            # Compose theme matches tokens.css (must be UNCHANGED - this slice adds no token)
 pnpm --filter @effy/design-system mobile-assets:check   # new icons synced; no STALE/MISSING/ORPHANED
 
-# Design law — no retired brand values may enter with new assets
+# Design law - no retired brand values may enter with new assets
 bash scripts/check-no-emerald.sh
 bash scripts/check-no-jade.sh
 make cm-guard                   # escape-hatch ban + no secret-shaped keys
@@ -54,7 +54,7 @@ cd apps/customer-mobile
 ```
 
 **⚠ `cm-tokens-check` must pass UNCHANGED.** This feature adds no design token. If it reports a diff,
-a colour has been introduced somewhere — which is a Principle V violation, not a token update.
+a colour has been introduced somewhere - which is a Principle V violation, not a token update.
 
 ---
 
@@ -74,9 +74,9 @@ These are the pieces that carry logic rather than layout, and each is testable w
 
 ---
 
-## 3. Live walk — the shopper (device)
+## 3. Live walk - the shopper (device)
 
-Run `make core-run`, point the app at it, and open the app **signed out** (Home is public — FR-047).
+Run `make core-run`, point the app at it, and open the app **signed out** (Home is public - FR-047).
 
 ### §3.1 Search entry (US1 · SC-001)
 
@@ -126,9 +126,9 @@ Run `make core-run`, point the app at it, and open the app **signed out** (Home 
 ### §3.4 Resilience and accessibility (SC-010, SC-011)
 
 16. Pull to refresh.
-    - **Expect**: content refreshes **in place** — no blanking, no lost scroll position.
+    - **Expect**: content refreshes **in place** - no blanking, no lost scroll position.
 17. Kill the network, then cold-launch.
-    - **Expect**: a retry the shopper can act on — **not** a permanently empty store.
+    - **Expect**: a retry the shopper can act on - **not** a permanently empty store.
 18. Restore the network, load Home, then kill the network and pull to refresh.
     - **Expect**: **what is on screen stays**. "We couldn't check" must never read as "there is nothing here".
 19. Turn on the platform screen reader. Traverse Home end to end.
@@ -146,40 +146,40 @@ Run `make core-run`, point the app at it, and open the app **signed out** (Home 
 
 ---
 
-## 4. Live walk — the operator (back-office → device)
+## 4. Live walk - the operator (back-office → device)
 
 **⚠ Operator-run.** Requires the migration applied and the admin service deployed:
 
 ```bash
-# OPERATOR — commit the migration first (003 commit-guard), then:
+# OPERATOR - commit the migration first (003 commit-guard), then:
 make db-up ENV=dev
 make edge-deploy SERVICE=admin ENV=dev
 ```
 
 23. In the console, open a promotion. Turn on **Advertise on storefront**, give it a banner title, save.
 24. Reload Home on the device.
-    - **Expect**: the banner appears, showing the title, the code, and — if the promotion has a minimum —
+    - **Expect**: the banner appears, showing the title, the code, and - if the promotion has a minimum -
       its **terms sentence** (FR-037d). SC-014.
 24a. Upload banner artwork to that promotion, save, and reload Home.
-    - **Expect**: the artwork renders **behind readable text** — the headline and terms must stay legible over
+    - **Expect**: the artwork renders **behind readable text** - the headline and terms must stay legible over
       it (FR-033: real text, never baked into the image). Then **clear** the artwork and save.
     - **Expect**: the promotion is still valid and still advertised, now text-only. Artwork is optional, so
       removing it must never invalidate a live promotion.
 25. Create a **second** advertised promotion with a different position.
     - **Expect**: both appear, swipeable, with a position indicator, at the declared positions **between
-      sections** — not stacked at the top (FR-030).
+      sections** - not stacked at the top (FR-030).
 26. Watch the banner for a minute without touching it.
     - **Expect**: **it does not advance on its own** (FR-032).
 27. Tap a banner.
     - **Expect**: it lands where it advertises, and that destination is reachable elsewhere in the app
       without the banner (FR-034).
 28. Leave a promotion **active but NOT advertised**.
-    - **Expect**: it appears **nowhere** on Home (SC-015). ⚠ This is the private-credit case — the one
+    - **Expect**: it appears **nowhere** on Home (SC-015). ⚠ This is the private-credit case - the one
       that turns a single customer's goodwill into a storewide discount if it leaks.
 29. Set an advertised promotion's `ends_at` to the past (or disable it). Reload Home.
     - **Expect**: **gone**, with no app release (SC-014, FR-037c).
 30. Exhaust an advertised promotion's `max_redemptions`. Reload Home.
-    - **Expect**: **gone** — because the redemption count says so, not because anyone flipped a flag.
+    - **Expect**: **gone** - because the redemption count says so, not because anyone flipped a flag.
 31. Try to save an advertised promotion with an empty banner title.
     - **Expect**: a field-level refusal, not a 500.
 
@@ -194,10 +194,10 @@ measurements until they name something. **Pin these once, in T003, and reuse the
 
 | Condition | Value | Why it matters |
 |---|---|---|
-| Reference device (Android) | _record in T003_ — e.g. Pixel 7, portrait | "Four swipes" depends on screen height |
-| Reference device (iOS) | _record in T003_ — e.g. iPhone 14, portrait | SC-013's side-by-side needs comparable screens |
+| Reference device (Android) | _record in T003_ - e.g. Pixel 7, portrait | "Four swipes" depends on screen height |
+| Reference device (iOS) | _record in T003_ - e.g. iPhone 14, portrait | SC-013's side-by-side needs comparable screens |
 | Swipe length | a full-height drag, thumb to top of screen | SC-006 counts swipes; an undefined swipe makes the count meaningless |
-| Network profile | _record in T003_ — e.g. 4G Regular throttling | SC-008's 2 s is otherwise a measure of your office wifi |
+| Network profile | _record in T003_ - e.g. 4G Regular throttling | SC-008's 2 s is otherwise a measure of your office wifi |
 
 ### Results
 
@@ -209,19 +209,19 @@ measurements until they name something. **Pin these once, in T003, and reuse the
 | Section images after visible | **< 1 s** | n/a | _record_ | Scroll to an unseen section |
 | Home read server time | **well within 3 s** | _record_ | _record_ | `core-api` log for `GET /v1/storefront/home`, with and without an advertised promotion |
 | Rail scroll | 60 fps, no jank | n/a | _record_ | Drag a full rail |
-| Task completion | **5 / 5** testers open a specific product with no help | n/a | _record_ | SC-009 — see below |
+| Task completion | **5 / 5** testers open a specific product with no help | n/a | _record_ | SC-009 - see below |
 
 ### ⚠ SC-009 needs a script, not just a number
 
 "Five out of five first-time testers" is the **only** in-slice check on research R9's open risk: does a
 monochrome banner, stripped of every hue by constitution v1.11.0, actually draw the eye? Before running it,
-write down the task each tester is given ("find and open a specific product you have in mind" — they pick it,
+write down the task each tester is given ("find and open a specific product you have in mind" - they pick it,
 not you), whether they are told anything about promotions (they must not be), and what counts as a failure
 (opening a menu, or asking for help). An unscripted five-person walk measures the facilitator, not the design.
 
 **⚠ Record the Home read time both with and without an advertised promotion.** The banner query is one
 added query on a read that already issues up to seven; 027's cart write timed out at ~14 round trips to
-Sydney RDS. One is fine — the number is recorded so the next person adding a query starts from a
+Sydney RDS. One is fine - the number is recorded so the next person adding a query starts from a
 measurement rather than an assumption.
 
 ---
@@ -235,6 +235,6 @@ measurement rather than an assumption.
 - [ ] §4 walked by the operator, including the **not-advertised** case (SC-015) and both automatic
       take-downs (expiry, exhaustion)
 - [ ] §5 measurements recorded
-- [ ] Parity register updated — [docs/audiences/customer-capabilities.md](../../docs/audiences/customer-capabilities.md) §028
+- [ ] Parity register updated - [docs/audiences/customer-capabilities.md](../../docs/audiences/customer-capabilities.md) §028
 - [ ] **The open design risk answered**: did the monochrome banner actually get tapped? (R9). If it
-      reads too quietly, the fix is contrast **within the neutral ramp** — never a new colour.
+      reads too quietly, the fix is contrast **within the neutral ramp** - never a new colour.

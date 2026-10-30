@@ -21,7 +21,7 @@ zero-config / US3 forward-only discipline).
 
 **⚠️ Mode of work (CLAUDE.md)**: Claude authors everything and runs read-only checks
 (`db-status`, guard-refusal probes, greps). The **operator runs every `db-up`/`db-down`**
-— DB migrations are explicitly operator-run; tasks marked **🧑‍💻 OPERATOR** hand off exact
+- DB migrations are explicitly operator-run; tasks marked **🧑‍💻 OPERATOR** hand off exact
 commands.
 
 ## Format: `[ID] [P?] [Story] Description`
@@ -54,9 +54,9 @@ commands.
 
 ---
 
-## Phase 3: User Story 1 — Author and apply a versioned migration (Priority: P1) 🎯 MVP
+## Phase 3: User Story 1 - Author and apply a versioned migration (Priority: P1) 🎯 MVP
 
-**Goal**: the full loop — a committed, ordered SQL migration applied exactly once to dev,
+**Goal**: the full loop - a committed, ordered SQL migration applied exactly once to dev,
 tracked in the ledger, idempotent on re-run.
 
 **Independent Test**: baseline migration applies via one confirmed `make db-up ENV=dev`;
@@ -65,15 +65,15 @@ ledger + `admin` schema verify; second `db-up` reports zero work (quickstart Ste
 ### Implementation for User Story 1
 
 - [X] T005 [P] [US1] Author `db/README.md`: authoring guide (naming via `make db-new`, Up/Down annotations, Down policy incl. loud no-op for lossy changes, one logical change per file, `NO TRANSACTION` caveat, immutability law) + operator runbook (prereqs, status → up → verify loop, failure handling, forward-only recovery) per [contracts/migration-format.contract.md](./contracts/migration-format.contract.md) (FR-010, SC-007)
-- [X] T006 [P] [US1] Author the proving migration `db/migrations/<timestamp>_baseline_admin_schema.sql` (timestamp = authoring time, goose format): Up = `CREATE SCHEMA IF NOT EXISTS admin;` + `COMMENT ON SCHEMA admin IS '...back-office accounts + audit (slice 003 baseline)...'`; Down = `DROP SCHEMA IF EXISTS admin;` per research.md D8 — NO tables (FR-011)
+- [X] T006 [P] [US1] Author the proving migration `db/migrations/<timestamp>_baseline_admin_schema.sql` (timestamp = authoring time, goose format): Up = `CREATE SCHEMA IF NOT EXISTS admin;` + `COMMENT ON SCHEMA admin IS '...back-office accounts + audit (slice 003 baseline)...'`; Down = `DROP SCHEMA IF EXISTS admin;` per research.md D8 - NO tables (FR-011)
 - [ ] T007 [US1] Claude checks (read-only): `make db-new name=scratch_check` scaffolds a correctly named+annotated file in `db/migrations/` (inspect, then delete it); `make db-status ENV=dev` connects via the contract and lists the baseline as Pending (proves T003/T004 wiring live end-to-end without mutating)
-- [ ] T008 [US1] 🧑‍💻 OPERATOR: quickstart Steps 1–3 — `make db-up ENV=dev` (confirm → baseline applies), verify `make db-status ENV=dev` shows Applied + (optional) psql `\dn` shows `admin` and `goose_db_version` has one row; run `make db-up ENV=dev` again → "no migrations to run". Acceptance: SC-002, SC-006 (+ SC-003 first half)
+- [ ] T008 [US1] 🧑‍💻 OPERATOR: quickstart Steps 1–3 - `make db-up ENV=dev` (confirm → baseline applies), verify `make db-status ENV=dev` shows Applied + (optional) psql `\dn` shows `admin` and `goose_db_version` has one row; run `make db-up ENV=dev` again → "no migrations to run". Acceptance: SC-002, SC-006 (+ SC-003 first half)
 
-**Checkpoint**: the migration loop is real — MVP.
+**Checkpoint**: the migration loop is real - MVP.
 
 ---
 
-## Phase 4: User Story 2 — One-command workflow wired to the platform contract (Priority: P2)
+## Phase 4: User Story 2 - One-command workflow wired to the platform contract (Priority: P2)
 
 **Goal**: zero manual configuration, zero credential residue, status = ledger truth.
 
@@ -82,16 +82,16 @@ back empty; status matches a direct ledger read; unprovisioned env fails fast an
 
 ### Implementation for User Story 2
 
-- [X] T009 [P] [US2] Claude audit (read-only): (a) `infra/scripts/db-dsn.sh` reads ONLY the SSM/Secrets contract — no dotfiles, no env fallbacks, nothing written to disk; (b) Makefile recipes `@`-silenced and DSN never in argv/echo; (c) `git grep -iE 'password|dbstring' -- ':!specs' ':!*.md'` finds no credential material; (d) `make db-status ENV=qa` fails fast naming `/effy/qa/db/...` as missing (the D9 env guard demonstrated). Any failure goes back to T003/T004 (SC-004 static half)
-- [ ] T010 [US2] 🧑‍💻 OPERATOR (after T008): quickstart Step 6 — fresh shell with no DB-related env vars: `make db-status ENV=dev` works (zero-config, SC-001 spirit); crosscheck status against `select * from goose_db_version;` via psql — 100% agreement (SC-003); confirm no DSN/password appeared in any output and `~/.pgpass` doesn't exist (SC-004 live half)
+- [X] T009 [P] [US2] Claude audit (read-only): (a) `infra/scripts/db-dsn.sh` reads ONLY the SSM/Secrets contract - no dotfiles, no env fallbacks, nothing written to disk; (b) Makefile recipes `@`-silenced and DSN never in argv/echo; (c) `git grep -iE 'password|dbstring' -- ':!specs' ':!*.md'` finds no credential material; (d) `make db-status ENV=qa` fails fast naming `/effy/qa/db/...` as missing (the D9 env guard demonstrated). Any failure goes back to T003/T004 (SC-004 static half)
+- [ ] T010 [US2] 🧑‍💻 OPERATOR (after T008): quickstart Step 6 - fresh shell with no DB-related env vars: `make db-status ENV=dev` works (zero-config, SC-001 spirit); crosscheck status against `select * from goose_db_version;` via psql - 100% agreement (SC-003); confirm no DSN/password appeared in any output and `~/.pgpass` doesn't exist (SC-004 live half)
 
 **Checkpoint**: the workflow is contract-driven and hygienic, provably.
 
 ---
 
-## Phase 5: User Story 3 — Forward-only discipline with a safe dev loop (Priority: P3)
+## Phase 5: User Story 3 - Forward-only discipline with a safe dev loop (Priority: P3)
 
-**Goal**: the guards hold — down is single-step dev-only, uncommitted edits are surfaced,
+**Goal**: the guards hold - down is single-step dev-only, uncommitted edits are surfaced,
 failures are atomic, recovery is always forward.
 
 **Independent Test**: `db-down ENV=qa` refused at the Makefile layer; uncommitted-file
@@ -101,7 +101,7 @@ down/up single-step loop works in dev (quickstart Steps 4–5).
 ### Implementation for User Story 3
 
 - [X] T011 [P] [US3] Claude guard verification (no DB mutation): (a) `make db-down ENV=qa` → refused by the Makefile BEFORE any AWS call, with the forward-only message; (b) create an uncommitted scratch file in `db/migrations/`, run `make db-up ENV=dev` → aborts at the commit guard before any prompt (then delete the scratch file); (c) confirm no reset/mass-rollback target exists in the Makefile (`grep -c 'goose.*reset' Makefile` → 0)
-- [ ] T012 [US3] 🧑‍💻 OPERATOR (after T008): quickstart Steps 4–5 — atomic failure demo (`make db-new name=failure_demo`, add invalid SQL, `make db-up ENV=dev FORCE=1` → error; verify schema unchanged + ledger unmarked; `rm` the demo file) validating SC-005; then the dev iteration loop: `make db-down ENV=dev` (one step) → status shows baseline pending → `make db-up ENV=dev` re-applies
+- [ ] T012 [US3] 🧑‍💻 OPERATOR (after T008): quickstart Steps 4–5 - atomic failure demo (`make db-new name=failure_demo`, add invalid SQL, `make db-up ENV=dev FORCE=1` → error; verify schema unchanged + ledger unmarked; `rm` the demo file) validating SC-005; then the dev iteration loop: `make db-down ENV=dev` (one step) → status shows baseline pending → `make db-up ENV=dev` re-applies
 
 **Checkpoint**: discipline is enforced by machinery where possible, documented where not.
 
@@ -111,7 +111,7 @@ down/up single-step loop works in dev (quickstart Steps 4–5).
 
 - [X] T013 [P] Cross-link the workflow: add a "Database migrations" pointer section to `infra/README.md` (the Makefile hosts both surfaces; link `db/README.md` + the 002 allowlist prerequisite), and verify `db/README.md` links back to the 002 contract docs
 - [X] T014 Final gate: `make help` lists the four `db-*` targets with descriptions; `make lint` still exits 0 (terraform surface untouched); `terraform fmt -check -recursive infra` clean
-- [ ] T015 🧑‍💻 OPERATOR: full [quickstart.md](./quickstart.md) end-to-end sign-off against SC-001…SC-007 (SC-001 stopwatch on a fresh shell; SC-007 is certified the first time a real feature migration is authored using only `db/README.md` — note the deferral if not exercised now)
+- [ ] T015 🧑‍💻 OPERATOR: full [quickstart.md](./quickstart.md) end-to-end sign-off against SC-001…SC-007 (SC-001 stopwatch on a fresh shell; SC-007 is certified the first time a real feature migration is authored using only `db/README.md` - note the deferral if not exercised now)
 
 ---
 
@@ -156,7 +156,7 @@ Task: "T013 cross-link db/README.md ↔ infra/README.md"
 1. Phase 1–2: goose + `db/` + DSN script + Makefile targets.
 2. Phase 3: guide + baseline migration; Claude proves wiring read-only; 🧑‍💻 operator
    applies and verifies idempotency.
-3. **STOP & VALIDATE**: the platform has a working, ledger-tracked migration loop — MVP.
+3. **STOP & VALIDATE**: the platform has a working, ledger-tracked migration loop - MVP.
 
 ### Incremental Delivery
 
@@ -169,10 +169,10 @@ Task: "T013 cross-link db/README.md ↔ infra/README.md"
 
 ## Notes
 
-- 🧑‍💻 **OPERATOR** tasks: T008, T010, T012, T015 — one sitting, in that order.
+- 🧑‍💻 **OPERATOR** tasks: T008, T010, T012, T015 - one sitting, in that order.
 - Claude MAY run `db-status` (read-only) and guard-refusal probes; Claude NEVER runs
   `db-up`/`db-down` (CLAUDE.md lists DB migrations as operator-run).
-- The baseline migration's timestamp is fixed at authoring time (T006) — committed before
+- The baseline migration's timestamp is fixed at authoring time (T006) - committed before
   the operator ever applies (the T004 guard enforces exactly this discipline from day one).
 - Every acceptance maps to a spec Success Criterion (SC references inline).
 - Commit after each task or logical group.

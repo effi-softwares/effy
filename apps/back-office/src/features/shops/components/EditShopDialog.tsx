@@ -42,7 +42,7 @@ export function EditShopDialog({ shop, open, onOpenChange }: EditShopDialogProps
       name: shop.name,
       contactPhone: shop.contactPhone ?? "",
       notes: shop.notes ?? "",
-      // Where a driver is told to collect from. Address only — no coordinates.
+      // Where a driver is told to collect from. Address only - no coordinates.
       addressLine1: shop.address?.addressLine1 ?? "",
       addressLine2: shop.address?.addressLine2 ?? "",
       suburb: shop.address?.suburb ?? "",

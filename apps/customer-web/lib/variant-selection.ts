@@ -1,7 +1,7 @@
 import type { OptionDTO, OptionValueIds, StorefrontVariantDTO } from "@effy/shared-types"
 
 /**
- * Choosing a size on the product page — pure, so the rules are tested without a browser. The
+ * Choosing a size on the product page - pure, so the rules are tested without a browser. The
  * customer app's `VariantSelection.kt` follows the same rules.
  *
  * The shopper picks one value per option ("1 kg", then "Brown"); the selection is always one variant,
@@ -11,7 +11,7 @@ import type { OptionDTO, OptionValueIds, StorefrontVariantDTO } from "@effy/shar
  *  first variant carrying the picked value (an available one first);
  *  - a value is `available` when, with the other option as currently chosen, a variant with it can be
  *  bought; `sold_out` when it exists but cannot be bought; `unsold` when no such combination exists
- *  at all. Sold-out values stay visible — hiding them would hide that the size exists.
+ *  at all. Sold-out values stay visible - hiding them would hide that the size exists.
  */
 
 export type ValueState = "available" | "sold_out" | "unsold"

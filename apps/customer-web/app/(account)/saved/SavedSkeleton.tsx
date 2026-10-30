@@ -2,7 +2,7 @@ import { Bone, boneWidth, Loading } from "@/components/ui/skeletons"
 
 /**
  * The saved page while its list reads: the list's head and its buttons, the list tabs, the sort row, then
- * the bordered list of items (picture, name, price, add) — the same shapes `ListTabs` and `SavedList` draw.
+ * the bordered list of items (picture, name, price, add) - the same shapes `ListTabs` and `SavedList` draw.
  * The title is a bone: the page may be one of the shopper's own lists, whose name is not known yet.
  */
 export function SavedSkeleton() {

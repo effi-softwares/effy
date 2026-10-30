@@ -3,8 +3,8 @@ package com.effyshopping.driver.mobile.core.platform
 import androidx.compose.runtime.Composable
 
 /**
- * iOS core-permission request. The rationale (the priming screen) still shows on iOS — its
- * value is preparing the driver — but the actual OS prompts are requested **contextually** by each
+ * iOS core-permission request. The rationale (the priming screen) still shows on iOS - its
+ * value is preparing the driver - but the actual OS prompts are requested **contextually** by each
  * framework at first use (camera at capture, location via CoreLocation, notifications via
  * UNUserNotificationCenter), which is the iOS-idiomatic pattern and avoids requesting access to features
  * not yet wired (push is a later platform slice; the location snapshot is optional). So this simply

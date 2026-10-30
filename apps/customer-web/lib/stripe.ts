@@ -6,7 +6,7 @@ import { stripeConfig } from "@/lib/config"
 
 /**
  * The Stripe.js singleton. `loadStripe` is called once per page load with the publishable key
- * (browser-safe — R3). Client-only: this lives outside the `(auth)` Amplify quarantine, under the
+ * (browser-safe - R3). Client-only: this lives outside the `(auth)` Amplify quarantine, under the
  * commerce tree, and only the checkout island imports it. The secret key never touches the client.
  */
 let stripePromise: Promise<Stripe | null> | null = null

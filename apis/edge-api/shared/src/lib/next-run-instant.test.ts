@@ -30,12 +30,12 @@ function melbStamp(at: Date): string {
     .replace(", ", " ");
 }
 
-describe("nextRunInstant — which run a package made ready now belongs to (072)", () => {
+describe("nextRunInstant - which run a package made ready now belongs to (072)", () => {
   it("is the day's first run when nothing has run yet", () => {
     expect(melbStamp(nextRunInstant(RUNS, melb("2026-09-22T01:35:00"))!)).toBe("2026-09-22 12:00");
   });
 
-  it("is the NEXT run between two runs — however far away it is", () => {
+  it("is the NEXT run between two runs - however far away it is", () => {
     // 16:05: the 16:00 run has gone; the next is 21:00.
     expect(melbStamp(nextRunInstant(RUNS, melb("2026-09-22T16:05:00"))!)).toBe("2026-09-22 21:00");
   });
@@ -49,11 +49,11 @@ describe("nextRunInstant — which run a package made ready now belongs to (072)
     expect(melbStamp(nextRunInstant(RUNS, melb("2026-09-22T14:00:00"))!)).toBe("2026-09-22 16:00");
   });
 
-  it("still targets a run one minute away — the deadline gate, not this, decides it cannot be met", () => {
+  it("still targets a run one minute away - the deadline gate, not this, decides it cannot be met", () => {
     expect(melbStamp(nextRunInstant(RUNS, melb("2026-09-22T13:59:00"))!)).toBe("2026-09-22 14:00");
   });
 
-  it("is null when no run is configured — a platform with no runs has no rounds", () => {
+  it("is null when no run is configured - a platform with no runs has no rounds", () => {
     expect(nextRunInstant([], melb("2026-09-22T01:35:00"))).toBeNull();
   });
 

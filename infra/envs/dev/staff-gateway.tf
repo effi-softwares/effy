@@ -20,7 +20,7 @@ resource "aws_apigatewayv2_api" "staff" {
   # disable_execute_api_endpoint stays false, as on the shared gateway: the raw URL
   # is the break-glass fallback, published at /effy/<env>/staff/api_default_endpoint.
 
-  # only the back-office origins — tighter than the shared gateway's list, which serves every
+  # only the back-office origins - tighter than the shared gateway's list, which serves every
   # browser surface. A page on the storefront or the shop console has no reason to call a staff
   # route, so it is not given the CORS grant to try. Methods and headers match the shared gateway:
   # the same client library makes the calls.
@@ -48,7 +48,7 @@ resource "aws_apigatewayv2_authorizer" "staff_back_office" {
   name             = "${module.shared.name_prefix}-staff-back-office"
 
   jwt_configuration {
-    # The same pool and clients the shared gateway's back-office authorizer named — read from the
+    # The same pool and clients the shared gateway's back-office authorizer named - read from the
     # one map, so the two cannot disagree while both exist.
     issuer   = "https://cognito-idp.${var.aws_region}.amazonaws.com/${local.edge_pools["back-office"].pool_id}"
     audience = concat([local.edge_pools["back-office"].client_id], local.edge_pools["back-office"].extra_client_ids)
@@ -59,7 +59,7 @@ resource "aws_apigatewayv2_authorizer" "staff_back_office" {
 #
 # Its own hostname, not a path on the shared one. Several APIs can be mapped to one domain by path,
 # but the provider's documentation does not say whether the mapping key is removed before the API
-# matches its routes — and every route here begins with its service's name. A design should not rest
+# matches its routes - and every route here begins with its service's name. A design should not rest
 # on that. One more label under the zone is covered by the wildcard certificate.
 resource "aws_apigatewayv2_domain_name" "staff" {
   domain_name = local.staff_api_domain

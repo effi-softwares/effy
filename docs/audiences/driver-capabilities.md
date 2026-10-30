@@ -1,11 +1,11 @@
 # Driver capabilities (parity register)
 
 The single register of what the **driver** audience can do, binding `apps/driver-mobile` (the only driver
-surface — there is no driver web). Each capability lists the surface and the slice that delivered it.
+surface - there is no driver web). Each capability lists the surface and the slice that delivered it.
 
-Legend: ✅ built & verified · 🚧 partial (noted) · ⛔ deferred (blocked/own-slice) · — n/a
+Legend: ✅ built & verified · 🚧 partial (noted) · ⛔ deferred (blocked/own-slice) · - n/a
 
-## §062 — Driver Zone Capability & Coverage (built 2026-09-20, NOT DEPLOYED)
+## §062 - Driver Zone Capability & Coverage (built 2026-09-20, NOT DEPLOYED)
 
 Slice B of the logistics rebuild. Makes Effy able to say **who is eligible for what work, where**; it
 assigns nothing. Spec: [specs/062-driver-zone-capability/](../../specs/062-driver-zone-capability/).
@@ -13,14 +13,14 @@ assigns nothing. Spec: [specs/062-driver-zone-capability/](../../specs/062-drive
 | Capability | Where | Status | Notes |
 |---|---|---|---|
 | Clearance = function × method × zone, any combination | back-office | ✅ | `driver_zone_capability`; collect/deliver × standard/same-day × one, many or every zone |
-| ⚠ **"Every zone", including zones created afterwards** | back-office | ✅ | `zone_id IS NULL` is the fact, not a list of today's zones — proven by creating a zone mid-test |
-| Grant / revoke, idempotent both ways | back-office | ✅ | repeating either is a success, never a conflict — two operators can act at once |
+| ⚠ **"Every zone", including zones created afterwards** | back-office | ✅ | `zone_id IS NULL` is the fact, not a list of today's zones - proven by creating a zone mid-test |
+| Grant / revoke, idempotent both ways | back-office | ✅ | repeating either is a success, never a conflict - two operators can act at once |
 | Breadth of clearance on the register | back-office | ✅ | a summary, never the full set; "Nothing yet" is a stated fact |
 | Coverage gaps, per kind of work | back-office | ✅ | inside the readiness screen, never a second screen that could disagree |
 | ⚠ Two gap reasons, two remedies | back-office | ✅ | `no_driver_cleared` (grant somebody) vs `all_cleared_unavailable` (fix readiness) |
 | ⚠ Same-day gaps only where same-day is sold | back-office | ✅ | `sameday_eligible`; otherwise the view fills with permanently unfixable rows |
-| Driver's own zone line | driver app | ✅ | **derived from clearances**, shape unchanged — no Kotlin changed |
-| Single `driver.delivery_zone_id` | — | ⛔ **REMOVED** | one zone when a driver covers several, and read by nothing. `no_zone` → `no_capabilities` |
+| Driver's own zone line | driver app | ✅ | **derived from clearances**, shape unchanged - no Kotlin changed |
+| Single `driver.delivery_zone_id` | - | ⛔ **REMOVED** | one zone when a driver covers several, and read by nothing. `no_zone` → `no_capabilities` |
 
 ⚠ **The driver app gained a truer answer for free, twice now.** 061 repointed `DriverVehicle` at the
 open holding; 062 repoints `DriverMeDTO.zone` at the driver's clearances. Both kept their shape, so
@@ -28,27 +28,27 @@ the generated Kotlin and all 45 screens are untouched.
 
 ---
 
-## §061 — Fleet Foundations (built 2026-09-20, NOT DEPLOYED)
+## §061 - Fleet Foundations (built 2026-09-20, NOT DEPLOYED)
 
 Slice A of the logistics rebuild. Makes Effy able to **describe its fleet accurately**; it assigns
 nothing. Spec/artifacts: [specs/061-fleet-foundations/](../../specs/061-fleet-foundations/).
 
 | Capability | Where | Status | Notes |
 |---|---|---|---|
-| Vehicle register — add, edit, retire, browse | back-office | ✅ | `public.vehicle`; one table serves Effy-owned **and** driver-owned, distinguished by a fact not a feature |
+| Vehicle register - add, edit, retire, browse | back-office | ✅ | `public.vehicle`; one table serves Effy-owned **and** driver-owned, distinguished by a fact not a feature |
 | Refrigeration capability (chilled / frozen) | back-office | ✅ | Effy sells groceries, so this is what the fleet is selected on |
-| Compliance — registration, insurance, roadworthy | back-office | ✅ | **derived on read**, never stored; names the lapsed item, not "non-compliant" |
+| Compliance - registration, insurance, roadworthy | back-office | ✅ | **derived on read**, never stored; names the lapsed item, not "non-compliant" |
 | Issue a vehicle to a driver / take it back | back-office | ✅ | odometer both ways; **at most one open holding per vehicle and per driver, enforced by two partial unique indexes** |
-| Handover history | back-office | ✅ | who had it, when, both readings. ⚠ **A handover log, not a journey log** — no position, ever |
+| Handover history | back-office | ✅ | who had it, when, both readings. ⚠ **A handover log, not a journey log** - no position, ever |
 | Driver licence **class** | back-office | ✅ | recorded so "may they legally drive this" is checkable rather than assumed |
 | Work-readiness reasons | back-office | ✅ | + `no_vehicle`, `vehicle_non_compliant`; **every** applicable reason, never the first |
 | Shop street address | back-office | ✅ | so a driver can be told where to collect from. ⚠ **No coordinates** |
 | Expected finish time on duty | driver app + back-office | ✅ | optional; **absence renders as "unknown", never a default shift length** |
 | ⚠ Standing a driver down while they hold a vehicle | back-office | ✅ **REFUSED** | names the vehicle. 056's stranded-goods shape: a van is not a database row |
-| Driver location capture | — | ⛔ **REMOVED** | Effy does not track driver position (D20/D22). Route, handler, service and three columns deleted; a negative guard pins the absence |
+| Driver location capture | - | ⛔ **REMOVED** | Effy does not track driver position (D20/D22). Route, handler, service and three columns deleted; a negative guard pins the absence |
 
-⚠ **The driver app gained a true answer for free.** `DriverVehicle {type, plate}` kept its shape — it
-is in the generated Kotlin contract and the Account screen renders it — while its SOURCE moved from
+⚠ **The driver app gained a true answer for free.** `DriverVehicle {type, plate}` kept its shape - it
+is in the generated Kotlin contract and the Account screen renders it - while its SOURCE moved from
 two unmaintained free-text columns on the driver row to the vehicle behind the driver's open holding.
 No Kotlin changed.
 
@@ -57,19 +57,19 @@ package. See the teardown notice below for why the §049 and §056 tables read t
 
 ---
 
-## ⚠ §2026-09-20 — THE WORK MODEL WAS TORN DOWN; READ THIS BEFORE THE TABLES BELOW
+## ⚠ §2026-09-20 - THE WORK MODEL WAS TORN DOWN; READ THIS BEFORE THE TABLES BELOW
 
 `db/migrations/20260920101500_remove_driver_work_model.sql` dropped `driver_run`, `collection_task`,
 `collection_task_issue`, `delivery_task`, `delivery_task_package`, `proof_of_delivery`,
 `delivery_failure`, `driver_task_event` and `driver_activity`, and the backend that read and wrote
-them went with it — the assignment sweep, every `/driver/v1` work route, and the fleet console's
+them went with it - the assignment sweep, every `/driver/v1` work route, and the fleet console's
 stranded-work, exceptions, run-history and proof screens.
 
 **The driver app's UI was deliberately left standing** (060's 45 screens are untouched, and so is the
 generated Kotlin contract, so the app still compiles). What it no longer has is a backend to call.
 
-**So every ✅ in §049 and §056 below that describes WORK — being assigned it, collecting it,
-delivering it, proving it, or reporting a problem with it — is now ⛔ unbuilt.** The rows are kept
+**So every ✅ in §049 and §056 below that describes WORK - being assigned it, collecting it,
+delivering it, proving it, or reporting a problem with it - is now ⛔ unbuilt.** The rows are kept
 verbatim rather than rewritten to ⛔, because they are the specification of what the intelligent
 dispatch slice has to deliver, and a register of dashes would lose that.
 
@@ -81,11 +81,11 @@ see who is on duty and see the backlog waiting for somebody.
 | Capability | Mobile | Status | Notes |
 |---|---|---|---|
 | Passwordless sign-in, duty, location snapshot, push registration, account | ✅ | ✅ | `public.driver` + `public.driver_duty_session` survive the teardown |
-| Anything that assigns, carries, delivers or proves a package | ✅ UI only | ⛔ | no data model, no routes — owned by the dispatch slice |
+| Anything that assigns, carries, delivers or proves a package | ✅ UI only | ⛔ | no data model, no routes - owned by the dispatch slice |
 
 ---
 
-## §049 — Driver Delivery App (hub-and-spoke)
+## §049 - Driver Delivery App (hub-and-spoke)
 
 The platform's 6th and final client surface. Model: **collection run** (shops → hub) → **hub check-in**
 (same-day/standard split; standard → external carrier) → **same-day delivery run** (hub → customers) with
@@ -98,37 +98,37 @@ retires the 020 dev-only `collected`/`delivered` stubs.
 | Passwordless sign-in (work email + 6-digit code), no sign-up | ✅ | ✅ | driver pool + dedicated `driver_mobile` client; single access-token bearer |
 | Permission priming (location / notifications / camera) | ✅ | ✅ | one-time rationale + OS request; Android real, iOS contextual (T009/FR-004) |
 | Go on/off duty; phase-aware "Today" home | ✅ | ✅ | duty gates assignment; counts-only, no currency (FR-005/006/021) |
-| Auto-assignment (no dispatcher, no accept/decline) | — | ✅ | scheduled sweep worker; zone-scoped; `FOR UPDATE SKIP LOCKED` (FR-007–010) |
-| Return-to-pool on ineligibility; off-duty-mid-run guard | — | ✅ | FR-011 / T060 |
+| Auto-assignment (no dispatcher, no accept/decline) | - | ✅ | scheduled sweep worker; zone-scoped; `FOR UPDATE SKIP LOCKED` (FR-007–010) |
+| Return-to-pool on ineligibility; off-duty-mid-run guard | - | ✅ | FR-011 / T060 |
 | Collection run: ordered shop stops, package manifest, collect | ✅ | ✅ | advances `shop_fulfillment`→`collected` (FR-013/014) |
 | Report missing/short package | ✅ | ✅ | non-blocking (FR-015) |
 | Hub check-in: same-day/standard split; ends run | ✅ | ✅ | standard staged for external carrier (FR-016/017) |
 | Same-day delivery run: ordered drops, one-per-order | ✅ | ✅ | multi-shop → one drop (FR-018, SC-006) |
 | Drop lifecycle (out-for-delivery → en route → arrived → delivered) | ✅ | ✅ | one primary action per step (FR-019) |
-| Proof of delivery — delivery code | ✅ | ✅ | server-verified (FR-024/026) |
-| Proof of delivery — contactless + note | ✅ | ✅ | FR-024 |
-| Proof of delivery — signature | ✅ | ✅ | Compose canvas → PNG → private S3 (both platforms) |
-| Proof of delivery — photo | 🚧 | 🚧 | **Android** camera (ActivityResult); **iOS deferred** (needs Swift picker bridge) |
+| Proof of delivery - delivery code | ✅ | ✅ | server-verified (FR-024/026) |
+| Proof of delivery - contactless + note | ✅ | ✅ | FR-024 |
+| Proof of delivery - signature | ✅ | ✅ | Compose canvas → PNG → private S3 (both platforms) |
+| Proof of delivery - photo | 🚧 | 🚧 | **Android** camera (ActivityResult); **iOS deferred** (needs Swift picker bridge) |
 | Mark undeliverable with reason | ✅ | ✅ | recorded for back-office (FR-028) |
 | External navigate hand-off (customer address) | ✅ | ✅ | device maps; `expect/actual` (FR-022) |
 | Masked customer contact | 🚧 | 🚧 | affordance disabled; **relay is a platform dependency** (FR-023/R6) |
-| In-app route map (pins/canvas) | ⛔ | ⛔ | **blocked on geodata** — shops/orders have no coords (research R13) |
+| In-app route map (pins/canvas) | ⛔ | ⛔ | **blocked on geodata** - shops/orders have no coords (research R13) |
 | History (runs + drops by day; timeline + proof, read-only) | ✅ | ✅ | FR-033/034 |
 | In-app activity feed | ✅ | ✅ | populated by the worker (FR-032) |
 | Push notifications (FCM/APNs) | ⛔ | ⛔ | **own platform-wide slice**; events already recorded (FR-031/R14) |
-| Missed-collection-cutoff flag | — | ✅ | worker flags same-day packages past cutoff (T061) |
+| Missed-collection-cutoff flag | - | ✅ | worker flags same-day packages past cutoff (T061) |
 | Account (identity/zone/hub/vehicle rows); appearance; sign out | ✅ | ✅ | detail rows, no cards; Light/Dark/Follow-System (FR-035–037) |
 | Offline write queue (exactly-once on reconnect) | ✅ | ✅ | persisted, idempotent by `changeId` (FR-039/040, SC-007) |
 | Monochrome design, dark mode, 48dp targets, no currency | ✅ | ✅ | shared `compose-driver` theme (FR-041–045) |
 
-**Provisioning** — ⚠ **SUPERSEDED BY §056.** 049 shipped five routes in `apis/edge-api/admin/src/drivers`
+**Provisioning** - ⚠ **SUPERSEDED BY §056.** 049 shipped five routes in `apis/edge-api/admin/src/drivers`
 as a minimal adjunct so the driver app had accounts to sign in as, and recorded in its own spec that
 "a full driver-management console is out of scope for this slice unless folded in during planning."
 That console is 056; those five routes have MOVED to `apis/edge-api/fleet` and the admin copy is deleted.
 
-## §056 — Back-Office Driver Management (the console 049 deferred)
+## §056 - Back-Office Driver Management (the console 049 deferred)
 
-The driver audience gains **no new capability** here — `apps/driver-mobile` is untouched, and drivers do
+The driver audience gains **no new capability** here - `apps/driver-mobile` is untouched, and drivers do
 not edit their own profile. What changes is that everything the driver app RECORDS finally has a reader,
 and everything back-office decides about a driver finally has a screen. New cold-path service
 `apis/edge-api/fleet` (18 routes, back-office authorizer); one migration altering three tables and
@@ -137,29 +137,29 @@ creating none.
 | Capability | Driver app | Back-office | Notes |
 |---|---|---|---|
 | Driver record exists, is provisioned, has a zone | ✅ (reads it) | ✅ | 049 created the record; 056 gives it a register, search, filters and paging |
-| Full profile of record | — | ✅ | phone, start date, emergency contact, licence + expiry, registration expiry, notes (FR-006/007/008) |
-| A profile field can be **cleared** | — | ✅ | ⚠ Was impossible: `COALESCE($n, col)` could not tell "leave alone" from "clear", so a zone once set could never be un-set (FR-010) |
-| Duplicate work email is **refused** | — | ✅ | ⚠ Was the opposite: create silently ADOPTED the existing driver's record and RE-ENABLED a stood-down sign-in, reporting success (FR-014) |
-| Employment lifecycle | ✅ (refused when not active) | ✅ | `active \| suspended \| offboarded` — 049's two-value `active \| disabled` could not express "back next week" |
-| ⚠ Access gate tests the **positive** state | ✅ | — | `requireDriver` read `=== "disabled"`; widening the enum would have let a **suspended** driver keep working. Now `!== "active"` |
-| Held-work warning before standing a driver down | — | ✅ | itemised, names the affected orders, requires explicit confirmation (FR-020) |
-| **Stranded work** visible and releasable | — | ✅ | ⚠ Derived, never stored. The sweep deliberately never yanks picked-up work; nothing told a human, and a UNIQUE constraint kept those packages claimed forever (FR-021) |
+| Full profile of record | - | ✅ | phone, start date, emergency contact, licence + expiry, registration expiry, notes (FR-006/007/008) |
+| A profile field can be **cleared** | - | ✅ | ⚠ Was impossible: `COALESCE($n, col)` could not tell "leave alone" from "clear", so a zone once set could never be un-set (FR-010) |
+| Duplicate work email is **refused** | - | ✅ | ⚠ Was the opposite: create silently ADOPTED the existing driver's record and RE-ENABLED a stood-down sign-in, reporting success (FR-014) |
+| Employment lifecycle | ✅ (refused when not active) | ✅ | `active \| suspended \| offboarded` - 049's two-value `active \| disabled` could not express "back next week" |
+| ⚠ Access gate tests the **positive** state | ✅ | - | `requireDriver` read `=== "disabled"`; widening the enum would have let a **suspended** driver keep working. Now `!== "active"` |
+| Held-work warning before standing a driver down | - | ✅ | itemised, names the affected orders, requires explicit confirmation (FR-020) |
+| **Stranded work** visible and releasable | - | ✅ | ⚠ Derived, never stored. The sweep deliberately never yanks picked-up work; nothing told a human, and a UNIQUE constraint kept those packages claimed forever (FR-021) |
 | **Failed deliveries** readable | ✅ (writes them) | ✅ | ⚠ `public.delivery_failure` had **no reader anywhere** since 049 despite "recorded for back-office follow-up" (FR-027) |
-| **Missing/short at a shop** readable | ✅ (writes them) | ✅ | ⚠ Same — `public.collection_task_issue` had no reader (FR-028) |
-| Exception → order in one step, resolvable with a note | — | ✅ | one-way, never deleted, who + when recorded (FR-030/031) |
+| **Missing/short at a shop** readable | ✅ (writes them) | ✅ | ⚠ Same - `public.collection_task_issue` had no reader (FR-028) |
+| Exception → order in one step, resolvable with a note | - | ✅ | one-way, never deleted, who + when recorded (FR-030/031) |
 | Duty visibility · overdue session · end a shift | ✅ (goes on duty) | ✅ | back-office can END a session, never START one (FR-034/037) |
-| "Nobody is on duty and N packages are waiting" | — | ✅ | uses the assignment sweep's **own** candidate predicate, pinned by a parity test (FR-036) |
-| Manual dispatch to a named driver | — | ⛔ **Deliberately absent** | 049's no-dispatcher model stands; release-to-pool is the sanctioned intervention, asserted over the whole route table (FR-038) |
+| "Nobody is on duty and N packages are waiting" | - | ✅ | uses the assignment sweep's **own** candidate predicate, pinned by a parity test (FR-036) |
+| Manual dispatch to a named driver | - | ⛔ **Deliberately absent** | 049's no-dispatcher model stands; release-to-pool is the sanctioned intervention, asserted over the whole route table (FR-038) |
 | Work history · run timeline · proof of delivery | ✅ (own history) | ✅ | proof media is time-limited presigned and issuing it is audited (FR-039–042) |
-| Period activity counts | — | ✅ | ⚠ Counts only. Not a timesheet, and carries no currency (FR-043/049) |
-| Readiness: no-zone / expired licence / uncovered zone | — | ✅ | ⚠ A zone-less driver is inert for assignment TODAY and nothing said so (FR-044–046, SC-009) |
-| Every privileged action audited | — | ✅ | ⚠ Driver management was the **only** privileged back-office domain writing no `admin.audit_log` row (FR-024) |
-| Driver contact details in logs/telemetry | — | ⛔ never | audit detail records a PII field as *changed*, never its value (FR-050) |
+| Period activity counts | - | ✅ | ⚠ Counts only. Not a timesheet, and carries no currency (FR-043/049) |
+| Readiness: no-zone / expired licence / uncovered zone | - | ✅ | ⚠ A zone-less driver is inert for assignment TODAY and nothing said so (FR-044–046, SC-009) |
+| Every privileged action audited | - | ✅ | ⚠ Driver management was the **only** privileged back-office domain writing no `admin.audit_log` row (FR-024) |
+| Driver contact details in logs/telemetry | - | ⛔ never | audit detail records a PII field as *changed*, never its value (FR-050) |
 
 **RBAC**: read = any active back-office staff **including csa** (FR-022); mutate = admin/manager (FR-023),
 decided from the `admin.staff` record, never the token claim.
 
-## §050 — Observability & Push Notification Foundation
+## §050 - Observability & Push Notification Foundation
 
 Adds the platform's crash reporting (Crashlytics), product analytics (PostHog), and push (FCM) to the
 driver app. Status:
@@ -171,56 +171,56 @@ driver app. Status:
 - **⚠ Native SDK wiring is Firebase-account-gated**: the Android Firebase/PostHog actuals, the iOS
   Swift bridges, and the Gradle plugins land once the operator creates the Firebase project and drops
   in `google-services.json`/`GoogleService-Info.plist` (quickstart §A1). Until then the drivers are
-  NoOp — analytics/crash/push are silent, the app fully functional (FR-005/FR-027).
+  NoOp - analytics/crash/push are silent, the app fully functional (FR-005/FR-027).
 - **No PII** beyond the auth subject id; analytics consent-gated (driver); push OS-permission only.
 
-## §060 — Driver Mobile UI Completion (2026-09-20)
+## §060 - Driver Mobile UI Completion (2026-09-20)
 
 🚧 **Code-complete and machine-verified. Not committed, not built for iOS, not looked at by a
 person.** Sign-off: [specs/060-driver-mobile-ui/SIGNOFF.md](../../specs/060-driver-mobile-ui/SIGNOFF.md).
 
 All **45 in-app design screens** now exist. Before 060: 14 did not exist at all, 23 rendered the
 right information with none of the design's layout or interaction, and the Map tab was a "coming
-soon" — the app's only dead end, now deleted.
+soon" - the app's only dead end, now deleted.
 
 | Capability | driver-mobile |
 |---|---|
 | Off-duty / phase-aware home with current-stop hero + queue | ✅ 060 |
 | Collection run with progress, per-stop actions, hub row | ✅ 060 |
 | Shop stop: **per-package ticking** + **swipe to confirm** | ✅ 060 |
-| Report a missing/short package (package · reason · note) | ✅ 060 — was one instant-fire button |
+| Report a missing/short package (package · reason · note) | ✅ 060 - was one instant-fire button |
 | Hub check-in: split bar, state chips, swipe to end phase one | ✅ 060 |
 | Same-day run, drop detail | ✅ 060 |
-| **En route** / **Arrived** screens | ✅ 060 — states existed since 049 with no screen |
+| **En route** / **Arrived** screens | ✅ 060 - states existed since 049 with no screen |
 | Proof: picker **with note**, photo, code (in-app keypad), signature, contactless chips | ✅ 060 |
-| Photo proof on **iOS** | ✅ 060 — ⚠ was hidden entirely; live viewfinder still Android-only |
+| Photo proof on **iOS** | ✅ 060 - ⚠ was hidden entirely; live viewfinder still Android-only |
 | Success / undeliverable **with note** | ✅ 060 |
-| **Map tab** — real OpenStreetMap (MapLibre + OpenFreeMap) | ✅ 060 — ⚠ pins are placeholder (049 R13) |
-| Account list, **Appearance** screen, **Help** screen | ✅ 060 — help did not exist |
+| **Map tab** - real OpenStreetMap (MapLibre + OpenFreeMap) | ✅ 060 - ⚠ pins are placeholder (049 R13) |
+| Account list, **Appearance** screen, **Help** screen | ✅ 060 - help did not exist |
 | Splash, driver-correct sign-in copy, 5 OTP states incl. **locked** | ✅ 060 |
 | Permission priming + **permission-denied recovery** | ✅ 060 |
-| Skeletons, failed-load, **offline banner** | ✅ 060 — the offline queue had no UI since 049 |
+| Skeletons, failed-load, **offline banner** | ✅ 060 - the offline queue had no UI since 049 |
 | History: run record, drop record with **rendered proof photo** | ✅ 060 |
 | Activity: headline + body, read-state fixed | ✅ 060 |
-| Dispatch phone number | ⛔ **refused** — operator-supplied, never inferred |
-| ETAs · distances · delivery windows · map pins | ⛔ **omitted** — no routing, no geodata, date-granular promise |
+| Dispatch phone number | ⛔ **refused** - operator-supplied, never inferred |
+| ETAs · distances · delivery windows · map pins | ⛔ **omitted** - no routing, no geodata, date-granular promise |
 
 **Data provenance**: every screen and field is classified in
 [provenance-register.md](../../specs/060-driver-mobile-ui/provenance-register.md), machine-checked
 both directions by `PlaceholderRegisterGuardTest`. ⚠ Placeholder data is **not marked in the running
-app** (operator decision) — the register is the only record.
+app** (operator decision) - the register is the only record.
 
 
 ---
 
-## §063 — Driver Work Assignment & Wave Planning
+## §063 - Driver Work Assignment & Wave Planning
 
 **The engine between 061's fleet and 062's clearances.** Before it, a shop could mark every package
 ready and no driver was ever told: the work model was torn down deliberately and nothing replaced it.
 The driver app's Today screen called a route that no longer existed.
 
 ⚠ **The teardown removed sixteen routes and nobody noticed.** The app's client code and the `driver.ts`
-contract stayed fully intact — five HTTP repositories, all wired into ViewModels — while the backend
+contract stayed fully intact - five HTTP repositories, all wired into ViewModels - while the backend
 served six routes out of the twenty-one the app calls. Found by reading the app, not by any failure.
 `route-inventory.guard.test.ts` now reads the routes the Kotlin actually calls and fails naming any
 the service does not declare, with Slice D's three proof routes listed as deliberate deferrals.
@@ -228,50 +228,50 @@ the service does not declare, with Slice D's three proof routes listed as delibe
 | Capability | driver-mobile | back-office |
 |---|---|---|
 | Ready packages become a collection round, assigned to a cleared on-duty driver | ✅ 063 | ✅ 063 |
-| Work ordered so what to do next is first — status → time → zone → shop | ✅ 063 | ✅ 063 |
-| Hub check-in, with the same-day/standard split **shown, never decided** | ✅ 063 | — |
+| Work ordered so what to do next is first - status → time → zone → shop | ✅ 063 | ✅ 063 |
+| Hub check-in, with the same-day/standard split **shown, never decided** | ✅ 063 | - |
 | Same-day packages become a delivery round | ✅ 063 | ✅ 063 |
-| Collection stop carries the **shop's address** | ✅ 063 — retires 060's `stopAddress` placeholder | — |
-| Per-package outcome in one atomic request | ✅ 063 | — |
-| See the day: every round, its holder, what is late | — | ✅ 063 |
-| **Unassigned work with the reason nobody could take it** | — | ✅ 063 |
-| Reassign · unassign · reorder · lock | — | ✅ 063 (admin/manager) |
-| Read the day, including a **csa** | — | ✅ 063 |
-| **Complete a drop with proof** (photo · signature · contactless) | ✅ 064 | — |
-| **Record a drop that could not be completed**, with a reason | ✅ 064 | — |
-| **`code` proof** | ⛔ **064 deferred** — no delivery code exists to check against (FR-003) | — |
-| **Hub check-in as outstanding work**, reachable after the last shop | ✅ 064 | — |
-| **Read proof back afterwards** (method · note · time · image) | ✅ 064 | — |
-| **Delivery exceptions**: reason, note, driver, order, where the package is | — | ✅ 064 |
-| Read exceptions, including a **csa** | — | ✅ 064 |
-| Close an exception | — | ✅ 064 (admin/manager, audited) |
+| Collection stop carries the **shop's address** | ✅ 063 - retires 060's `stopAddress` placeholder | - |
+| Per-package outcome in one atomic request | ✅ 063 | - |
+| See the day: every round, its holder, what is late | - | ✅ 063 |
+| **Unassigned work with the reason nobody could take it** | - | ✅ 063 |
+| Reassign · unassign · reorder · lock | - | ✅ 063 (admin/manager) |
+| Read the day, including a **csa** | - | ✅ 063 |
+| **Complete a drop with proof** (photo · signature · contactless) | ✅ 064 | - |
+| **Record a drop that could not be completed**, with a reason | ✅ 064 | - |
+| **`code` proof** | ⛔ **064 deferred** - no delivery code exists to check against (FR-003) | - |
+| **Hub check-in as outstanding work**, reachable after the last shop | ✅ 064 | - |
+| **Read proof back afterwards** (method · note · time · image) | ✅ 064 | - |
+| **Delivery exceptions**: reason, note, driver, order, where the package is | - | ✅ 064 |
+| Read exceptions, including a **csa** | - | ✅ 064 |
+| Close an exception | - | ✅ 064 (admin/manager, audited) |
 | **Custody**: who holds which package, and since when | ⚠ shown before a shift can end (FR-018) | ✅ 064 |
-| Offer / accept / decline | ⛔ **never** — drivers are employees; push-assign (D13) | — |
+| Offer / accept / decline | ⛔ **never** - drivers are employees; push-assign (D13) | - |
 | Distance, ETA, route optimisation, driver location | ⛔ **cut deliberately** (D20/D22), guarded by `no-location.guard.test.ts` | ⛔ |
 
 ### What this slice refuses to fabricate
 
-- **Delivery instructions** — the contract carries the field; *nothing on the platform stores it*.
+- **Delivery instructions** - the contract carries the field; *nothing on the platform stores it*.
   There is no column anywhere and checkout never asks. Returns `null` rather than putting words on a
   driver's screen that no customer wrote.
-- ~~**`proofCaptured` / proof detail**~~ — **BUILT BY 064.** ⚠ It had never carried a value for a
+- ~~**`proofCaptured` / proof detail**~~ - **BUILT BY 064.** ⚠ It had never carried a value for a
   second reason too: `history()`'s `drops` array was hardcoded `[]`, so the field has existed on the
   contract since 049 and surfaced nowhere. Both halves are real now.
-- **Activity read receipts** — the feed is derived from rounds, so there is nothing to mark read. The
+- **Activity read receipts** - the feed is derived from rounds, so there is nothing to mark read. The
   route exists (a 404 on a live screen is worse) and is an honest no-op.
-- **A delivery code** (064) — the `code` proof method is deferred rather than half-built. Verifying a
+- **A delivery code** (064) - the `code` proof method is deferred rather than half-built. Verifying a
   code means issuing one and showing it to the customer, which is a change on both customer surfaces;
   until then a `code` submission is refused **by name**, at the service and by the database CHECK.
-- **Customer-facing proof** (064, FR-027) — a shopper cannot see the proof of their own delivery yet.
+- **Customer-facing proof** (064, FR-027) - a shopper cannot see the proof of their own delivery yet.
   Expected in a later slice, and nothing here forecloses it: exposing method and capture time needs no
   change to how proof is captured or stored.
-- **Volume and crate capacity** — vehicles record both; the catalogue describes no product volume, so
+- **Volume and crate capacity** - vehicles record both; the catalogue describes no product volume, so
   the gate is **weight only**. A van full by volume and light by weight will be over-assigned, and the
   dispatcher sees it. Inventing a per-product volume would be a gate that looks enforced and is
   arithmetic over a guess.
 
 
-## §064 — Proof of delivery & custody
+## §064 - Proof of delivery & custody
 
 **The defect it closed:** a same-day order could not reach `delivered` by any driver action at all.
 The only writer of that status was back-office's manual arrival path for carrier packages, so the
@@ -280,14 +280,14 @@ driver who handed the package over had no way to record it.
 ⚠ **Contactless now requires a photograph** (FR-002), reversing the app's one-tap flow. An unattended
 drop is the case most likely to become a dispute; the method still records that nobody took it in hand.
 
-⚠ **Proof media is archived, never deleted** — Glacier Instant Retrieval at 90 days, which reads
+⚠ **Proof media is archived, never deleted** - Glacier Instant Retrieval at 90 days, which reads
 through the ordinary API in milliseconds, so no read path behaves differently with an object's age.
 
 ⚠ **The exception list is readable by a `csa`, deliberately.** 056 found the app had been recording
 undeliverable drops for a reader that did not exist, and a CSA is exactly who fields "where is my
 order". Gating the list behind a manager would rebuild that gap in a smaller form.
 
-## §065 — Item manifest & temperature classes (2026-10-04)
+## §065 - Item manifest & temperature classes (2026-10-04)
 
 Spec: [specs/065-driver-item-manifest/](../../specs/065-driver-item-manifest/). Client feedback R5.
 
@@ -300,7 +300,7 @@ Spec: [specs/065-driver-item-manifest/](../../specs/065-driver-item-manifest/). 
 | Loaded stop or drop readable with no connection | ✅ built | ✅ built (compile-verified) | In memory; lost if the app is killed |
 
 ⚠ **The class is a word and a drawn shape, never a colour.** A star, a droplet, a box and a dotted
-ring, all in the text colour — so it reads in greyscale and in sunlight.
+ring, all in the text colour - so it reads in greyscale and in sunlight.
 
 ⚠ **"Class not recorded" is not Normal.** An order line sold before 065 has no class, and the app
 says so rather than implying a frozen item can ride in the ambient compartment.
@@ -313,7 +313,7 @@ whole item list, and a drop always reported one package however many it held.
 
 ⚠ **Not walked on either platform.** No one has seen these screens.
 
-## §066 — Customer delivery instructions (2026-10-04)
+## §066 - Customer delivery instructions (2026-10-04)
 
 Spec: [specs/066-delivery-instructions/](../../specs/066-delivery-instructions/). Client feedback R4a.
 
@@ -328,7 +328,7 @@ handed the package and signs; the driver can always record what actually happene
 
 ⚠ **Not walked on either platform.**
 
-## §069 — Delivery windows (2026-10-04)
+## §069 - Delivery windows (2026-10-04)
 
 Spec: [specs/069-delivery-slots-dates/](../../specs/069-delivery-slots-dates/). Client feedback R4b + R4c.
 
@@ -352,7 +352,7 @@ such promise. It is shown now because checkout sells one.
 
 ⚠ **Not walked on either platform.**
 
-## §072 — Work assigned early, opened on time (2026-10-07)
+## §072 - Work assigned early, opened on time (2026-10-07)
 
 Spec: [specs/072-immediate-driver-assignment/](../../specs/072-immediate-driver-assignment/).
 
@@ -362,13 +362,13 @@ Spec: [specs/072-immediate-driver-assignment/](../../specs/072-immediate-driver-
 | "Not open yet · Opens 1:15 pm" on the home card, run, stop and drop screens | ✅ built | ✅ built (compile-verified) | Words with a mark, no colour. The time is worded by the server |
 | Collect, report, check-in, start/arrive, proof and fail are disabled until the round opens | ✅ built | ✅ built (compile-verified) | And refused by the platform (409 `round_not_open`) whatever the app shows |
 | Controls come alive by themselves when the round opens | ✅ built | ✅ built (compile-verified) | A clock re-judging a held instant; reads nothing (071 allows it) |
-| "Also yours" — the other rounds the driver holds, each opening its run | ✅ built | ✅ built (compile-verified) | Rows, not cards |
+| "Also yours" - the other rounds the driver holds, each opening its run | ✅ built | ✅ built (compile-verified) | Rows, not cards |
 | An early action queued offline is kept, not dropped | ✅ built | ✅ built (compile-verified) | `NotOpenYet` replays later; before 072 a 409 was discarded as "already applied" |
 
 ⚠ **The server decides whether a round is open** and sends no opening time once it is, so a phone
 with a wrong clock cannot lock an open round.
 
-## §073 — Shared package status; manual assignment (2026-10-07)
+## §073 - Shared package status; manual assignment (2026-10-07)
 
 No driver-app change. Its work changes when back-office uses **Assign to…** or **Unassign**, and the
 app hears it through the existing live channel (`work`). The same nine status words are used by the

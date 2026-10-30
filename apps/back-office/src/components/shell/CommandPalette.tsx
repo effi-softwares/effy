@@ -82,31 +82,31 @@ const ACTIONS: readonly {
   tab?: string
   roles: readonly BackOfficeRole[]
 }[] = [
-  {
-    id: "credit",
-    label: "Credit points to a customer…",
-    icon: Coins,
-    to: "/customers",
-    roles: ["admin", "manager", "csa"],
-  },
-  { id: "add-driver", label: "Add a driver", icon: UserPlus, to: "/drivers", roles: ["admin", "manager"] },
-  { id: "add-vehicle", label: "Add a vehicle", icon: Car, to: "/vehicles", roles: ["admin", "manager"] },
-  {
-    id: "add-code",
-    label: "Create a promotion code",
-    icon: BadgePercent,
-    to: "/promotions/new",
-    roles: ["admin", "manager"],
-  },
-  {
-    id: "add-places",
-    label: "Add places Effy delivers to",
-    icon: MapPinned,
-    to: "/delivery",
-    tab: "coverage",
-    roles: ["admin", "manager"],
-  },
-]
+    {
+      id: "credit",
+      label: "Credit points to a customer…",
+      icon: Coins,
+      to: "/customers",
+      roles: ["admin", "manager", "csa"],
+    },
+    { id: "add-driver", label: "Add a driver", icon: UserPlus, to: "/drivers", roles: ["admin", "manager"] },
+    { id: "add-vehicle", label: "Add a vehicle", icon: Car, to: "/vehicles", roles: ["admin", "manager"] },
+    {
+      id: "add-code",
+      label: "Create a promotion code",
+      icon: BadgePercent,
+      to: "/promotions/new",
+      roles: ["admin", "manager"],
+    },
+    {
+      id: "add-places",
+      label: "Add places Effy delivers to",
+      icon: MapPinned,
+      to: "/delivery",
+      tab: "coverage",
+      roles: ["admin", "manager"],
+    },
+  ]
 
 const money = (amount: string, currency: string) =>
   new Intl.NumberFormat("en-AU", { style: "currency", currency: currency || "AUD" }).format(Number(amount))
@@ -127,7 +127,7 @@ function rememberRecent(entry: RecentEntry): void {
   try {
     const next = [entry, ...readRecent().filter((r) => r.id !== entry.id)].slice(0, 5)
     window.localStorage.setItem(RECENT_KEY, JSON.stringify(next))
-  } catch {}
+  } catch { }
 }
 
 function recentLink(r: RecentEntry): LinkProps {
@@ -315,7 +315,7 @@ export function CommandPalette({ open, onOpenChange, groups, roles }: CommandPal
           aria-controls="bo-palette-list"
           aria-activedescendant={flat[focus] ? `bo-palette-${focus}` : undefined}
           aria-label="Search"
-          placeholder="Search orders, customers, packages, codes — or type a command"
+          placeholder="Search orders, customers, packages, codes - or type a command"
           className="flex h-10 min-w-0 flex-1 bg-transparent py-3 text-sm outline-hidden placeholder:text-muted-foreground"
         />
         <Kbd className="max-md:hidden">esc</Kbd>

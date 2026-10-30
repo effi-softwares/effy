@@ -45,25 +45,25 @@ afterEach(() => {
   mockIsMobile.value = false
 })
 
-describe("AddressFormModal — the container", () => {
+describe("AddressFormModal - the container", () => {
   it("opens as one dialog, named for what it does", () => {
-    render(<AddressFormModal open onOpenChange={() => {}} onSaved={() => {}} />)
+    render(<AddressFormModal open onOpenChange={() => { }} onSaved={() => { }} />)
     expect(screen.getByRole("dialog", { name: "Add address" })).toBeInTheDocument()
   })
 
   it("holds no form while it is closed", () => {
-    render(<AddressFormModal open={false} onOpenChange={() => {}} onSaved={() => {}} />)
+    render(<AddressFormModal open={false} onOpenChange={() => { }} onSaved={() => { }} />)
     expect(document.querySelectorAll("input")).toHaveLength(0)
   })
 })
 
-describe("AddressFormModal — add (T020)", () => {
+describe("AddressFormModal - add (T020)", () => {
   it("saves a valid address and reports it (server auto-default reflected)", async () => {
     const user = userEvent.setup()
     const fetchSpy = vi.fn(async () => jsonRes(created()))
     vi.stubGlobal("fetch", fetchSpy)
     const onSaved = vi.fn()
-    render(<AddressFormModal open onOpenChange={() => {}} onSaved={onSaved} />)
+    render(<AddressFormModal open onOpenChange={() => { }} onSaved={onSaved} />)
 
     await fillRequired(user)
     await user.click(screen.getByRole("button", { name: /save address/i }))
@@ -77,7 +77,7 @@ describe("AddressFormModal — add (T020)", () => {
     const user = userEvent.setup()
     const fetchSpy = vi.fn()
     vi.stubGlobal("fetch", fetchSpy)
-    render(<AddressFormModal open onOpenChange={() => {}} onSaved={() => {}} />)
+    render(<AddressFormModal open onOpenChange={() => { }} onSaved={() => { }} />)
 
     // Only recipient filled; the rest are missing.
     await user.type(screen.getByLabelText("Recipient name"), "Pat")
@@ -95,7 +95,7 @@ describe("AddressFormModal — add (T020)", () => {
     const user = userEvent.setup()
     const fetchSpy = vi.fn(async (_url: string, _init?: RequestInit) => jsonRes(created({ label: "Work" })))
     vi.stubGlobal("fetch", fetchSpy)
-    render(<AddressFormModal open onOpenChange={() => {}} onSaved={() => {}} />)
+    render(<AddressFormModal open onOpenChange={() => { }} onSaved={() => { }} />)
 
     await user.click(screen.getByRole("button", { name: "Work" }))
     await fillRequired(user)
@@ -110,7 +110,7 @@ describe("AddressFormModal — add (T020)", () => {
     const user = userEvent.setup()
     const fetchSpy = vi.fn(async (_url: string, _init?: RequestInit) => jsonRes(created({ label: "Beach house" })))
     vi.stubGlobal("fetch", fetchSpy)
-    render(<AddressFormModal open onOpenChange={() => {}} onSaved={() => {}} />)
+    render(<AddressFormModal open onOpenChange={() => { }} onSaved={() => { }} />)
 
     await user.click(screen.getByRole("button", { name: "Other" }))
     await user.type(screen.getByLabelText("Custom label"), "Beach house")
@@ -127,7 +127,7 @@ describe("AddressFormModal — add (T020)", () => {
     const fetchSpy = vi.fn()
     vi.stubGlobal("fetch", fetchSpy)
     const onOpenChange = vi.fn()
-    render(<AddressFormModal open onOpenChange={onOpenChange} onSaved={() => {}} />)
+    render(<AddressFormModal open onOpenChange={onOpenChange} onSaved={() => { }} />)
 
     await user.type(screen.getByLabelText("Recipient name"), "Pat")
     await user.click(screen.getByRole("button", { name: /cancel/i }))
@@ -137,13 +137,13 @@ describe("AddressFormModal — add (T020)", () => {
   })
 })
 
-describe("AddressFormModal — edit (T033)", () => {
+describe("AddressFormModal - edit (T033)", () => {
   it("pre-fills from the address and re-selects the stored chip", () => {
     render(
       <AddressFormModal
         open
-        onOpenChange={() => {}}
-        onSaved={() => {}}
+        onOpenChange={() => { }}
+        onSaved={() => { }}
         address={created({ id: "a1", label: "Work", recipientName: "Sam", isDefault: false })}
       />,
     )
@@ -156,8 +156,8 @@ describe("AddressFormModal — edit (T033)", () => {
     render(
       <AddressFormModal
         open
-        onOpenChange={() => {}}
-        onSaved={() => {}}
+        onOpenChange={() => { }}
+        onSaved={() => { }}
         address={created({ id: "a1", label: "Beach house" })}
       />,
     )

@@ -5,8 +5,8 @@ package com.effyshopping.driver.mobile.core.observability
  * docs/telemetry/{driver,platform}-events.md is the single source. A `commonTest` drift check asserts
  * every name here is documented.
  *
- * Add an event here first — never a free string at a call site. No PII: run ids + bounded
- * enums only — never a customer name, address, order total, or proof-image field (Principle VII).
+ * Add an event here first - never a free string at a call site. No PII: run ids + bounded
+ * enums only - never a customer name, address, order total, or proof-image field (Principle VII).
  *
  * Every event here has a call site now, except the three push-permission events (the prompt is
  * the OS's, raised by the Android activity). For years only `ScreenViewed` was declared with a
@@ -29,7 +29,7 @@ sealed class AnalyticsEvent(val name: String, val props: Map<String, String> = e
      * A driver opened a package's item list. `surface` is `pickup` | `drop`.
      *
      * No item names and no order reference: what a customer bought is theirs, and three bounded
-     * values answer the only questions this event exists for — do drivers open the list, and how
+     * values answer the only questions this event exists for - do drivers open the list, and how
      * often are cold goods involved.
      */
     class ManifestOpened(surface: String, hasCold: Boolean, lineCount: Int) : AnalyticsEvent(

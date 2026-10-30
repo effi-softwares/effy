@@ -19,8 +19,8 @@ hits=$(grep -rnE "([\"'\`>][^\"'\`<]*\b([Ss]ame-[Dd]ay|Same [Dd]ay|[Ss]tandard d
 
 if [ -n "$hits" ]; then
   echo "✗ a shop screen says \"same-day\" or \"standard\" (079 FR-028). Those are the customer's words."
-  echo "  A shop is shown who takes the package away: DELIVERED_BY_WORDS[deliveredBy] — \"Effy driver\" / \"Courier\"."
+  echo "  A shop is shown who takes the package away: DELIVERED_BY_WORDS[deliveredBy] - \"Effy driver\" / \"Courier\"."
   echo "$hits"
   exit 1
 fi
-echo "✓ shop delivery words — no shop screen says same-day or standard"
+echo "✓ shop delivery words - no shop screen says same-day or standard"

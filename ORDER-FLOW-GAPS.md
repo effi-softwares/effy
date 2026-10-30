@@ -1,13 +1,13 @@
-# Customer Order Flow — Gap Register
+# Customer Order Flow - Gap Register
 
 **Audited 2026-08-26** against the code (not the specs) at branch `052-order-confirmation-invoice`.
 Scope: everything between a customer discovering a product and their order being complete.
 
-> **⚠ UPDATE 2026-09-20 — THE 049 DRIVER WORK MODEL HAS BEEN TORN DOWN, and most of what this
+> **⚠ UPDATE 2026-09-20 - THE 049 DRIVER WORK MODEL HAS BEEN TORN DOWN, and most of what this
 > register describes below is now describing code that no longer exists.** The greedy assignment
 > sweep, both task types, runs, proof, failures, collection issues, the status timeline and the
 > activity feed were removed by `db/migrations/20260920101500_remove_driver_work_model.sql`, ahead of
-> an intelligent dispatch slice. `public.driver` and `public.driver_duty_session` stay — a driver can
+> an intelligent dispatch slice. `public.driver` and `public.driver_duty_session` stay - a driver can
 > still be provisioned, sign in, and go on duty; there is simply nothing to give them.
 >
 > **THIS MAKES THE FLOW WORSE, NOT BETTER, AND THAT IS DELIBERATE.** An order now stops at
@@ -17,13 +17,13 @@ Scope: everything between a customer discovering a product and their order being
 > dispatch slice along with the model.** The line items below are kept as the written record of what
 > the replacement has to account for.
 
-> **UPDATE 2026-08-26 — [053-order-lifecycle-completion](specs/053-order-lifecycle-completion/) closes
+> **UPDATE 2026-08-26 - [053-order-lifecycle-completion](specs/053-order-lifecycle-completion/) closes
 > G1, G6 and G7, and part of G5.** Code-complete and machine-verified; **not deployed**. Marked inline
 > below. ⚠ After 053, the **failed same-day delivery** (Tier 2) is the ONLY remaining way an order gets
-> permanently stuck — it inherits G1's place as the top structural gap.
+> permanently stuck - it inherits G1's place as the top structural gap.
 
 Every claim below cites the file that proves it. Where a gap is a *deferral already recorded in a
-comment*, that comment is quoted — the point is that the deferral was never picked up.
+comment*, that comment is quoted - the point is that the deferral was never picked up.
 
 ---
 
@@ -43,8 +43,8 @@ The half that is struck through was, until 2026-09-20:
   … → ready_for_pickup → driver collect → hub check-in → same-day drop → delivered
 ```
 
-The **paid transition** — `finalizeSucceeded` in `apis/edge-api/shared/src/payments/finalize.ts` (it was
-`FinalizeSucceeded` in the Go backend until 070) —
+The **paid transition** - `finalizeSucceeded` in `apis/edge-api/shared/src/payments/finalize.ts` (it was
+`FinalizeSucceeded` in the Go backend until 070) -
 is the strongest part of the platform. One transaction performs: the status-guarded
 `pending_payment → paid`, the per-shop `shop_fulfillment` fan-out, the 047 package-delivery copy, the
 `shop_new_order` push intents, the `order.placed` outbox append, the customer `order_paid` push intent,
@@ -55,16 +55,16 @@ Idempotent, with an independent database-level guarantee behind each step.
 
 ---
 
-## Tier 1 — the flow cannot complete
+## Tier 1 - the flow cannot complete
 
-### ~~G1. Standard delivery has no terminal state~~ — ✅ CLOSED by 053 (not deployed)
+### ~~G1. Standard delivery has no terminal state~~ - ✅ CLOSED by 053 (not deployed)
 
 `apis/edge-api/driver/src/hubcheckin/repository.ts:4` splits collected packages and records that standard
 ones "stay `collected` and are handed to the external carrier at the dock." There is no carrier record,
 no consignment/tracking reference, no carrier webhook, and no manual close-out anywhere in the codebase.
 
 The **only** writer of `shop_fulfillment.status = 'delivered'` is
-`apis/edge-api/driver/src/delivery/repository.ts:223`, reachable only from a `delivery_task` — and
+`apis/edge-api/driver/src/delivery/repository.ts:223`, reachable only from a `delivery_task` - and
 `apis/edge-api/driver/src/delivery/assignment.ts:35` creates delivery tasks **only** where
 `opd.method = 'same_day'`.
 
@@ -80,12 +80,12 @@ the system can ever be complete.
 
 > ✅ **Built by 053**, with one deviation: **the customer-visible reference was deliberately dropped.**
 > References are per-package and packages are per-shop, so showing them would disclose how many shops
-> served the order — an invariant the platform has held since 007. The reference is recorded for staff
+> served the order - an invariant the platform has held since 007. The reference is recorded for staff
 > so support can chase a carrier on the customer's behalf. Revisit when a real carrier contract lands.
-> 053 also found that G5's premise was half-wrong in the platform's favour and half-wrong against it —
+> 053 also found that G5's premise was half-wrong in the platform's favour and half-wrong against it -
 > see below.
 
-### ~~G2. There is no inventory model — anywhere~~ — ✅ CLOSED by 054 (DEPLOYED 2026-08-29)
+### ~~G2. There is no inventory model - anywhere~~ - ✅ CLOSED by 054 (DEPLOYED 2026-08-29)
 
 `public.product` (`db/migrations/20260716092105_product_catalog.sql:86`) carries `status`
 (`draft | active | unavailable | archived`) and nothing else. No stock count, no reservation, no
@@ -93,7 +93,7 @@ decrement at finalize. A repo-wide search for stock/inventory/on_hand/reserved r
 
 `db/migrations/20260710050004_shop_staff_rbac.sql:22` states it outright:
 
-> `public.shop` … Deliberately minimal: no address, hours, capacity, **or inventory** — those arrive
+> `public.shop` … Deliberately minimal: no address, hours, capacity, **or inventory** - those arrive
 > with the slice that needs them.
 
 That slice was never written. The only quantity constraint on the platform is
@@ -101,14 +101,14 @@ the cart policy's per-line maximum (`apis/edge-api/shared/src/cart-policy/policy
 per-line **policy cap**, not availability.
 
 **Consequence.** Overselling is unbounded. A shopper can buy 20 of something the shop has 2 of, and the
-sole discovery mechanism is a picker finding an empty shelf hours later — which routes straight into G3.
+sole discovery mechanism is a picker finding an empty shelf hours later - which routes straight into G3.
 
 > 🚧 **Built by 054** ([specs/054-product-inventory/](specs/054-product-inventory/)), with three things
 > worth knowing:
 >
 > * **Tracking is OPT-IN per product.** An untracked product behaves exactly as before, so nothing in
 >   the existing catalogue changes until a shop chooses to count it. That is what makes this shippable
->   without a data migration — and it means **G2 is only closed for products a shop actually tracks**.
+>   without a data migration - and it means **G2 is only closed for products a shop actually tracks**.
 > * **⚠ A residual oversell window is ACCEPTED, not closed** (spec A6). Stock is reduced when an order
 >   is PAID, not held during checkout, so between creating a payment and that payment succeeding another
 >   shopper can take the last unit. Reservations with expiry would close it and need an
@@ -116,24 +116,24 @@ sole discovery mechanism is a picker finding an empty shelf hours later — whic
 >   payment and the pick line is **pre-flagged before picking begins**, moving discovery from "a picker
 >   at a shelf, hours later" to "the moment the order arrives".
 > * **G3 IS STILL OPEN, and 054 does not touch it.** Fewer shortfalls, found earlier, is progress
->   toward the money half — not a substitute for it. A shopper who is oversold is still charged in
+>   toward the money half - not a substitute for it. A shopper who is oversold is still charged in
 >   full, and there is still no refund capability on the platform.
 >
-> ✅ **SC-003 is proven** — two concurrent payments for the last unit, against real PostgreSQL: the
+> ✅ **SC-003 is proven** - two concurrent payments for the last unit, against real PostgreSQL: the
 > count never reads below zero, and removing the floor makes the second payment violate the CHECK
 > constraint. ✅ **DEPLOYED to dev 2026-08-29.** ⚠ No screen has been looked at by a person.
 
-### ~~G3. Shortfall has no money path~~ — ✅ **CLOSED by 055-refunds-cancellation** (code-complete, not yet deployed)
+### ~~G3. Shortfall has no money path~~ - ✅ **CLOSED by 055-refunds-cancellation** (code-complete, not yet deployed)
 
 Money can now leave the platform: `public.refund`, a provider call, a back-office control, customer
 cancellation, customer-raised requests, refund visibility on both customer surfaces, a refund email,
-and a shop exit. The "Unavailable" panel no longer says *"contact support"* — the platform proposes a
+and a shop exit. The "Unavailable" panel no longer says *"contact support"* - the platform proposes a
 refund for every recorded shortfall automatically, and the panel says the customer will not be charged.
 
 ⚠ **What 055 does NOT close, recorded so its absence is not read as coverage:**
 
 - **Replacements.** The platform can only refund. There is no replacement mechanism and no back-office
-  order creation — verified during 055's policy audit, not assumed. The published policy previously
+  order creation - verified during 055's policy audit, not assumed. The published policy previously
   promised "refund **or replacement**" and was corrected.
 - **Disputes and chargebacks.** A different lifecycle, initiated by the bank rather than by anyone
   here. No `charge.dispute.*` handling exists.
@@ -152,7 +152,7 @@ The original entry follows, for the record.
 
 The customer is charged in full. `apps/customer-web/app/(account)/orders/[id]/page.tsx:132` shows an
 "Unavailable" panel ending in *"Contact support about this order and we'll sort it out."* The order
-total is never adjusted, and **no refund capability exists on the platform** — no Stripe refund call,
+total is never adjusted, and **no refund capability exists on the platform** - no Stripe refund call,
 no `refund` table, no back-office action.
 
 G2 makes this the *expected* outcome rather than an edge case: with no stock model, shortfall is the
@@ -160,29 +160,29 @@ normal way the platform learns it oversold.
 
 ---
 
-## Tier 2 — post-purchase capabilities that do not exist
+## Tier 2 - post-purchase capabilities that do not exist
 
 | Missing | Evidence |
 |---|---|
-| ~~**Customer order cancellation**~~ ✅ **055** | ⚠ 055 is its **first writer** — the CHECK had permitted `'canceled'` since 019 and nothing ever wrote it. Customer route + staff route, guarded transition under a row lock. |
+| ~~**Customer order cancellation**~~ ✅ **055** | ⚠ 055 is its **first writer** - the CHECK had permitted `'canceled'` since 019 and nothing ever wrote it. Customer route + staff route, guarded transition under a row lock. |
 | ~~**Refunds**~~ ✅ **055** / **returns** ⚠ still open | Refunds built end to end. **Returns are not**: nothing models goods coming back, and a refund does not require one. |
-| ~~**Order-scoped support**~~ ✅ **055** | A shopper raises a refund request from their own order, in their own words, with the items they name. ⚠ Still **not a thread** — one statement, one outcome, by design. |
-| **Failed-delivery visibility** 🚧 **HALF-CLOSED by 056** (code-complete, not deployed) | ⚠ **Read the boundary carefully — this is closed for Effy, NOT for the shopper.** `apis/edge-api/driver/src/delivery/repository.ts` sets `delivery_task = 'failed'` and writes a `public.delivery_failure` row annotated "recorded for back-office follow-up". **Nothing had ever read that table** — the driver service was its only toucher and it only INSERTed. 056 builds the reader: every failure and every missing/short package report is now listed, linked to its order, and resolvable with a note by any active staff member incl. csa. ⚠ **STILL OPEN**: `shop_fulfillment` stays `collected`, there is **no customer notification**, **no re-attempt scheduling** and **no customer-facing state** — the shopper still sees "on the way" until a person acts. 056 makes a person able to act; deciding what the shopper is told is its own slice, which 056 unblocks. |
-| **Stranded work after a driver is stood down** 🚧 **found and closed by 056** | ⚠ **NOT PREVIOUSLY IN THIS REGISTER, because nobody knew it existed.** `releaseIneligibleWork` returns an ineligible driver's work to the pool — but only work not yet physically started (`assigned`/`en_route` collection tasks, `staged` drops). Anything already **picked up** is deliberately never yanked (correctly — the packages are in a van). But `collection_task_package_uq UNIQUE(shop_fulfillment_id)` then keeps those packages claimed and the sweep's `NOT EXISTS` skips them **forever**, with an order attached to each and nobody told. 056 derives the state on read, warns before standing a driver down, and gives a person a release action. |
-| ~~**Shop rejection**~~ ✅ **055** | `shop_fulfillment.status` gains `unfulfillable` (the shop cannot supply) and `withdrawn` (the order was cancelled) — ⚠ deliberately two states, because conflating them would count cancellations as shop failures. |
+| ~~**Order-scoped support**~~ ✅ **055** | A shopper raises a refund request from their own order, in their own words, with the items they name. ⚠ Still **not a thread** - one statement, one outcome, by design. |
+| **Failed-delivery visibility** 🚧 **HALF-CLOSED by 056** (code-complete, not deployed) | ⚠ **Read the boundary carefully - this is closed for Effy, NOT for the shopper.** `apis/edge-api/driver/src/delivery/repository.ts` sets `delivery_task = 'failed'` and writes a `public.delivery_failure` row annotated "recorded for back-office follow-up". **Nothing had ever read that table** - the driver service was its only toucher and it only INSERTed. 056 builds the reader: every failure and every missing/short package report is now listed, linked to its order, and resolvable with a note by any active staff member incl. csa. ⚠ **STILL OPEN**: `shop_fulfillment` stays `collected`, there is **no customer notification**, **no re-attempt scheduling** and **no customer-facing state** - the shopper still sees "on the way" until a person acts. 056 makes a person able to act; deciding what the shopper is told is its own slice, which 056 unblocks. |
+| **Stranded work after a driver is stood down** 🚧 **found and closed by 056** | ⚠ **NOT PREVIOUSLY IN THIS REGISTER, because nobody knew it existed.** `releaseIneligibleWork` returns an ineligible driver's work to the pool - but only work not yet physically started (`assigned`/`en_route` collection tasks, `staged` drops). Anything already **picked up** is deliberately never yanked (correctly - the packages are in a van). But `collection_task_package_uq UNIQUE(shop_fulfillment_id)` then keeps those packages claimed and the sweep's `NOT EXISTS` skips them **forever**, with an order attached to each and nobody told. 056 derives the state on read, warns before standing a driver down, and gives a person a release action. |
+| ~~**Shop rejection**~~ ✅ **055** | `shop_fulfillment.status` gains `unfulfillable` (the shop cannot supply) and `withdrawn` (the order was cancelled) - ⚠ deliberately two states, because conflating them would count cancellations as shop failures. |
 
 ---
 
-## Tier 3 — built but not wired, or correct when written and wrong now
+## Tier 3 - built but not wired, or correct when written and wrong now
 
 ### G4. `TrackOrderScreen` is dead code, and carries a competing stage vocabulary
 
-`apps/customer-mobile/shared/src/commonMain/.../features/tracking/presentation/TrackOrderScreen.kt` —
+`apps/customer-mobile/shared/src/commonMain/.../features/tracking/presentation/TrackOrderScreen.kt` -
 168 lines, written against real 020 state, and **absent from `CustomerNavKey`**
 (`core/nav/CustomerNavKey.kt`). The only reference outside the file itself is its own
 `TrackOrderDisclosureTest`. No route, no call site.
 
-It also defines its own `TrackStage` enum — a **second implementation of the progress rule**, competing
+It also defines its own `TrackStage` enum - a **second implementation of the progress rule**, competing
 with 052's server-derived `Stage`. That is exactly what customer-web's `summarizeFulfillment` was
 deleted for in 052.
 
@@ -193,24 +193,24 @@ the screen. Leaving it is how the two vocabularies silently diverge.
 
 `features/notifications/presentation/NotificationsScreen.kt:40`:
 
-> ⚠ FIXTURE-BACKED. The platform has no notifications capability — see `NotificationFixtures`, which
+> ⚠ FIXTURE-BACKED. The platform has no notifications capability - see `NotificationFixtures`, which
 > returns an EMPTY list.
 
 Since 050 the platform **does** write `notification_request` rows, but no customer-facing read API was
 ever added (`apis/edge-api/customer/src` has no notifications domain). Push lands on the OS; the in-app
 centre shows nothing, forever.
 
-### ~~G6. `on_the_way` is claimed too early~~ — ✅ CLOSED by 053 (`ready_for_pickup` rank 2 → 1)
+### ~~G6. `on_the_way` is claimed too early~~ - ✅ CLOSED by 053 (`ready_for_pickup` rank 2 → 1)
 
 `stageFor` (then in the Go backend's `orders/stage.go`) gave `ready_for_pickup` rank 2 → `on_the_way`. Under
 049's hub-and-spoke model that means *packed and sitting on a shop shelf, waiting for the next scheduled
-collection run* — potentially the following day. `collected` also scores 2, and means *at the hub*,
+collection run* - potentially the following day. `collected` also scores 2, and means *at the hub*,
 which is likewise not en route to the customer.
 
 The map was written in the 020 era, when `collected` meant "handed to a courier". The customer is now
 told their shopping is on its way while it has not left the shop.
 
-### ~~G7. A delivered order still blocks account closure~~ — ✅ CLOSED by 053
+### ~~G7. A delivered order still blocks account closure~~ - ✅ CLOSED by 053
 
 `apis/edge-api/customer/src/closure/repo.ts:83` uses `f.status <> 'collected'` as the in-transit term,
 with the comment that it was included ahead of time so the block would
@@ -228,13 +228,13 @@ one and the docblock now says so.)*
 
 ### G8. Internal vocabulary in customer-facing push
 
-`apis/edge-api/notifications/src/worker/copy.ts:28` — `order_ready` body is *"Your order is ready for
+`apis/edge-api/notifications/src/worker/copy.ts:28` - `order_ready` body is *"Your order is ready for
 handoff."* "Handoff" is fulfilment-internal language, and the event fires at a moment when nothing
 customer-visible has happened (see G6).
 
 ---
 
-## Tier 4 — checkout-side gaps
+## Tier 4 - checkout-side gaps
 
 - **No guest checkout.** Guest browsing, guest cart (027) and guest saved items (033) are all supported,
   then `apps/customer-web/app/checkout/page.tsx:38` redirects a guest to sign-in. The wall sits at the
@@ -243,27 +243,27 @@ customer-visible has happened (see G6).
   the checkout intent input (`apis/edge-api/commerce/src/checkout/service.ts`) accepted none. The
   driver app has a contactless proof method with no customer preference driving it.
 - **No abandoned-order sweep.** `pending_payment` orders linger indefinitely.
-  `checkout/service.go:669` calls an extra abandoned pending order "harmless and sweepable" — nothing
+  `checkout/service.go:669` calls an extra abandoned pending order "harmless and sweepable" - nothing
   sweeps. They also block account closure (G7's first term) until `clears_at`.
 - **Not a tax invoice.** Two independent gaps, both recorded in 052 R13: the **ABN is unsupplied**
   (operator input; the constitution forbids inferring it) and **per-item GST treatment is unmodelled**
-  — basic food is GST-free in Australia, so a grocery basket is a mixed supply.
+  - basic food is GST-free in Australia, so a grocery basket is a mixed supply.
 
 ---
 
-## Tier 5 — notification coverage
+## Tier 5 - notification coverage
 
 The email catalogue (`packages/email-kit/src/catalog.ts`) held exactly **one** order message:
-`order-confirmation`. The other three lifecycle events — `order_ready`, `order_out_for_delivery`,
-`order_delivered` — were **push-only** (`apis/edge-api/notifications/src/worker/copy.ts`).
+`order-confirmation`. The other three lifecycle events - `order_ready`, `order_out_for_delivery`,
+`order_delivered` - were **push-only** (`apis/edge-api/notifications/src/worker/copy.ts`).
 
 > ✅ **Partly closed by 053**: `notification_request` gained a `channel` dimension and a new
 > `order-delivered` template, so the **arrival** now reaches a shopper with no app. ⚠ `order_ready` and
-> `order_out_for_delivery` are **still push-only** — a values change on the mechanism 053 built, left
+> `order_out_for_delivery` are **still push-only** - a values change on the mechanism 053 built, left
 > deliberately out of its scope.
 
-**Consequence.** A web-only shopper — the whole `customer-web` audience, and the only surface with a
-public URL — receives a receipt (once deployed) and then complete silence for the rest of the order's
+**Consequence.** A web-only shopper - the whole `customer-web` audience, and the only surface with a
+public URL - receives a receipt (once deployed) and then complete silence for the rest of the order's
 life. iOS push is deferred entirely on the Apple Developer account blocker
 (`docs/observability-apple-blockers.md`), so iOS app users are in the same position.
 
@@ -275,9 +275,9 @@ life. iOS push is deferred entirely on the Apple Developer account blocker
   listed in `specs/052-order-confirmation-invoice/SIGNOFF.md`.
 - **Push delivery has never been confirmed end-to-end** (050 carried it forward explicitly to be
   debugged against the order flow). Note that G1 means the `order_delivered` link of that chain
-  *cannot* fire for a standard order at all — so debugging it needs a same-day order.
-- Docker was down for the whole 052 session, so every container-backed test — including the
-  exactly-once and resend-concurrency proofs — skipped.
+  *cannot* fire for a standard order at all - so debugging it needs a same-day order.
+- Docker was down for the whole 052 session, so every container-backed test - including the
+  exactly-once and resend-concurrency proofs - skipped.
 
 ---
 
@@ -286,14 +286,14 @@ life. iOS push is deferred entirely on the Apple Developer account blocker
 > **Updated after 053.** Items 2 and 4 are done (code-complete, not deployed). **Inventory (G2) is now
 > the top item**, and the failed same-day delivery has taken G1's old place as the structural blocker.
 
-1. ~~**Inventory (G2)**~~ — ✅ built by 054 and DEPLOYED. ⚠ **Its completion makes G3 more urgent, not
+1. ~~**Inventory (G2)**~~ - ✅ built by 054 and DEPLOYED. ⚠ **Its completion makes G3 more urgent, not
    less**: shortfalls become rarer and visible earlier, which means the ones that remain are the real
    ones, and there is still no way to give anybody their money back.
-2. **Standard-delivery completion + carrier handoff (G1)** — without it no standard order can ever
+2. **Standard-delivery completion + carrier handoff (G1)** - without it no standard order can ever
    reach a terminal state, and the delivered notification is unreachable for the majority path.
-3. ~~**Refunds and cancellation (G3, Tier 2)**~~ — ✅ built by **055**, code-complete and
+3. ~~**Refunds and cancellation (G3, Tier 2)**~~ - ✅ built by **055**, code-complete and
    machine-verified; **not yet deployed**. ⚠ The money half of the post-purchase story now exists, but
-   **no refund has ever actually been issued** — the walk that proves the platform does not lie about
+   **no refund has ever actually been issued** - the walk that proves the platform does not lie about
    money (a real `refund.failed`) has not been run.
-4. **G6 and G7 now, regardless** — both are one-line corrections to rules that were right when written
+4. **G6 and G7 now, regardless** - both are one-line corrections to rules that were right when written
    and became wrong when a later slice changed the lifecycle underneath them.

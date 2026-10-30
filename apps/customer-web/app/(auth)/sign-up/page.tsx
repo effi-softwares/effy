@@ -6,7 +6,7 @@ import { SignUpForm } from "./SignUpForm"
 
 export const metadata: Metadata = {
   title: "Create your account",
-  // Not a page we want in a search index — robots.txt disallows it too.
+  // Not a page we want in a search index - robots.txt disallows it too.
   robots: { index: false, follow: false },
 }
 
@@ -24,5 +24,5 @@ export default function SignUpPage() {
 }
 
 function FormSkeleton() {
-  return <AuthFormSkeleton title="Create your account" subtitle="Start with your email — we'll do the rest in a moment." google />
+  return <AuthFormSkeleton title="Create your account" subtitle="Start with your email - we'll do the rest in a moment." google />
 }

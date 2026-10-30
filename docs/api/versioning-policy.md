@@ -12,35 +12,35 @@ once**, forever treating "the fleet is mixed" as the normal state, not an except
 
 ## The rules
 
-1. **Scheme** — URI-path major version. Every externally consumed route lives under
+1. **Scheme** - URI-path major version. Every externally consumed route lives under
    `/v1/...` (then `/v2/...`, …) from its first release. There is never an unversioned
    product route. Exceptions (deliberately unversioned, process-scoped): `/healthz`,
    `/readyz`, `/metrics`.
-2. **Granularity** — the major version names the whole surface's contract. Endpoints
+2. **Granularity** - the major version names the whole surface's contract. Endpoints
    evolve **additively inside** a version; a breaking change to a route publishes that
    route under the next version **while the old route keeps serving**. Untouched routes
    are not force-migrated to the new version.
 3. **Breaking vs additive** (adopted from GitHub's + Google AIP-180's lists):
-   - *Breaking — requires a new version*: removing/renaming an operation, parameter, or
+   - *Breaking - requires a new version*: removing/renaming an operation, parameter, or
      response field; adding a **required** parameter; changing a field's type or
      nullability; removing enum values; tightening validation or auth; changing error
      `type` semantics, pagination, or relied-upon ordering; semantic changes with
      unchanged wire shape. **Rename = remove + add = breaking.**
-   - *Additive — allowed in place*: new operations; new **optional** parameters; new
+   - *Additive - allowed in place*: new operations; new **optional** parameters; new
      response fields; new enum values; new optional headers.
 4. **Tolerant readers** (client-side half of the contract): every first-party client
    ignores unknown response fields, maps unknown enum values to a safe fallback, and
    never depends on field order.
-5. **Coexistence mechanics** — version-neutral services/repositories; version-specific
+5. **Coexistence mechanics** - version-neutral services/repositories; version-specific
    handlers/DTOs only where shapes differ (one handler file per route per version, sharing
    the service module). **Never** API Gateway stages or Lambda
    aliases as version mechanisms.
-6. **Lifecycle** — `active → deprecated → retired`, one-way:
+6. **Lifecycle** - `active → deprecated → retired`, one-way:
    - *Deprecated*: every response from the version carries `Deprecation` (RFC 9745) +
      `Sunset` (RFC 8594) + `Link: <migration-note>; rel="deprecation"` headers.
    - *Window*: **minimum 6 months** from deprecation announcement to sunset, extended
      until the old version's share of active devices falls below the agreed threshold
-     (fleet-measured; the platform owns all clients, so measure — don't guess).
+     (fleet-measured; the platform owns all clients, so measure - don't guess).
    - *Retired*: the version answers **`410 Gone`** with problem type `version-retired`
      naming the successor. A version that never existed answers plain `404` (`no-route`).
 7. **Min-app-version enforcement** (reserved pattern; the lever that lets a version
@@ -58,7 +58,7 @@ once**, forever treating "the fleet is mixed" as the normal state, not an except
 `/v1/platform/status` and `/v2/platform/status` are published side by side with
 deliberately different payload shapes (the v2 reshape is a canonical breaking-shape
 example) to prove rule 5 end-to-end; `/v3/...` proves the 404 arm of rule 6. No version
-is deprecated or retired yet — rules 6.7 activate as the platform evolves.
+is deprecated or retired yet - rules 6.7 activate as the platform evolves.
 
 ## Path scheme under the shared gateway (A3, 2026-07-08)
 

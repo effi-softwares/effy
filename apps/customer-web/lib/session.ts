@@ -16,7 +16,7 @@ import { SESSION_COOKIES, sessionCookieOptions } from "@/lib/session-cookies"
  * How a session exists at all:
  *  1. the browser signs in with Cognito directly (`app/(auth)`);
  *  2. it hands the tokens to `startSessionAction` once, which verifies them and stores them in
- *  `HttpOnly` cookies — from then on no page script can read them;
+ *  `HttpOnly` cookies - from then on no page script can read them;
  *  3. `proxy.ts` swaps expired tokens for fresh ones before a request is rendered;
  *  4. `getSession` below verifies the id token and says who the customer is.
  *
@@ -24,7 +24,7 @@ import { SESSION_COOKIES, sessionCookieOptions } from "@/lib/session-cookies"
  * never above one (see app/layout.tsx).
  *
  * A token says who you are. Whether you may do something is the backend's decision, made again
- * on every call with this same token — and `requireCustomer` (lib/dal.ts) for pages.
+ * on every call with this same token - and `requireCustomer` (lib/dal.ts) for pages.
  */
 export interface Session {
   sub: string
@@ -59,7 +59,7 @@ let accessVerifier: ReturnType<typeof verifier> | undefined
  * Is this failure "we could not check" rather than "this token is bad"?
  *
  * The distinction is the point. A bad token means nobody is signed in. Not being able to fetch
- * the pool's keys means we do not know — and that must surface as an error, never as a quiet
+ * the pool's keys means we do not know - and that must surface as an error, never as a quiet
  * sign-out.
  */
 function couldNotCheck(err: unknown): boolean {
@@ -103,7 +103,7 @@ export const getSession = cache(async (): Promise<Session | null> => {
   }
 })
 
-/* Writing (Route Handlers and Server Actions only — a Server Component cannot set cookies) */
+/* Writing (Route Handlers and Server Actions only - a Server Component cannot set cookies) */
 
 /**
  * Start a session from tokens the browser was just issued.
@@ -130,7 +130,7 @@ export async function startSession(tokens: {
 }
 
 /**
- * Fetch new tokens now, ahead of their expiry — after a profile change, so the header's greeting
+ * Fetch new tokens now, ahead of their expiry - after a profile change, so the header's greeting
  * (a claim in the id token) is right on the very next render.
  */
 export async function renewSession(): Promise<void> {

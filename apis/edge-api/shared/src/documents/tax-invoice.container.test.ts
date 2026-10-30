@@ -48,7 +48,7 @@ const enable = () => pool.query(
   `INSERT INTO public.business_tax (legal_name, abn, fee_treatment, invoices_enabled) VALUES ('Effy Test Pty Ltd', '51824753556', 'taxable', true)
    ON CONFLICT (id) DO UPDATE SET invoices_enabled = true`);
 
-d("096 US8 — tax invoices and adjustment notes", () => {
+d("096 US8 - tax invoices and adjustment notes", () => {
   beforeAll(async () => {
     container = await new PostgreSqlContainer("postgres:16-alpine").start();
     pool = new Pool({ connectionString: container.getConnectionUri() });
@@ -67,7 +67,7 @@ d("096 US8 — tax invoices and adjustment notes", () => {
     await pool.query(`DELETE FROM public.business_tax`);
   });
 
-  it("refuses while the operator's details are unset — nothing is issued", async () => {
+  it("refuses while the operator's details are unset - nothing is issued", async () => {
     const o = await paidOrder();
     await expect(issueInvoice(pool, o.order)).rejects.toBeInstanceOf(InvoicesUnavailable);
     expect((await pool.query(`SELECT 1 FROM public.tax_document`)).rowCount).toBe(0);

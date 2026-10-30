@@ -12,7 +12,7 @@
  * connection, and one that moves without ever reverting lies about what was recorded.
  *
  * The client never learns whether the shopper is signed in. A `401` simply means "you are a guest"
- * — a normal state, not a failure — and the mirror is the whole truth for them until guest saving is
+ * - a normal state, not a failure - and the mirror is the whole truth for them until guest saving is
  * wired to the platform in US3. `cart-actions.ts` carries the same rule for the same reason.
  */
 import { adoptSaved, applySaved, isInNamedList, isSaved, readSavedIds } from "./saved-store"
@@ -25,7 +25,7 @@ async function send(path: string, method: "PUT" | "DELETE", body?: unknown): Pro
     const res = await fetch(path, body === undefined ? { method } : { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
     return res.status
   } catch {
-    return 0 // transient — the mirror keeps the shopper's intent
+    return 0 // transient - the mirror keeps the shopper's intent
   }
 }
 
@@ -67,7 +67,7 @@ export async function toggleSaved(productId: string, saved: boolean, variantId?:
  * Seed the mirror from the platform.
  *
  * On failure the mirror is left alone rather than emptied. Emptying it would render every heart
- * unsaved, which invites exactly the destructive second tap this feature exists to remove — so a
+ * unsaved, which invites exactly the destructive second tap this feature exists to remove - so a
  * failed refresh degrades to stale-but-plausible instead of confidently wrong.
  */
 export async function refreshSaved(): Promise<void> {
@@ -77,6 +77,6 @@ export async function refreshSaved(): Promise<void> {
     const body = (await res.json()) as { productIds: string[]; namedProductIds: string[] }
     adoptSaved(body.productIds, body.namedProductIds)
   } catch {
-    /* transient — the next page load repairs it */
+    /* transient - the next page load repairs it */
   }
 }

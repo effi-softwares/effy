@@ -89,7 +89,7 @@ function stubFetch(status: number, body?: unknown) {
 
 const flush = () => new Promise((r) => setTimeout(r, 0))
 
-describe("cart actions — the mutation reaches the platform", () => {
+describe("cart actions - the mutation reaches the platform", () => {
   beforeEach(() => {
     window.localStorage.clear()
     resetCart()
@@ -152,7 +152,7 @@ describe("cart actions — the mutation reaches the platform", () => {
     ])
   })
 
-  // Is the platform saying "you are a guest" — a normal state, and the mirror is already right.
+  // Is the platform saying "you are a guest" - a normal state, and the mirror is already right.
   it("keeps a guest's change locally when the platform answers 401", async () => {
     stubFetch(401, { error: "authentication required" })
 
@@ -247,7 +247,7 @@ describe("the quantity stepper is debounced (SC-005)", () => {
     seedGuestLine(line("p1", 1))
 
     for (let q = 1; q <= 10; q++) setItemQuantity("p1", q)
-    expect(calls).toHaveLength(0) // nothing has gone out yet — the mirror moved, the network did not
+    expect(calls).toHaveLength(0) // nothing has gone out yet - the mirror moved, the network did not
 
     await vi.advanceTimersByTimeAsync(500)
 
@@ -354,7 +354,7 @@ describe("set aside and clear (US6)", () => {
     expect(readCart().savedLines.map((l) => l.productId)).toEqual(["kept"])
   })
 
-  // A guest has no saved list at all — the call 401s and nothing pretends otherwise.
+  // A guest has no saved list at all - the call 401s and nothing pretends otherwise.
   it("is a no-op for a guest", async () => {
     stubFetch(401, { error: "authentication required" })
     seedGuestLine(line("mine", 1))

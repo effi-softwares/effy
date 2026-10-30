@@ -136,6 +136,13 @@ export interface AdminParcelDTO {
   custody: ParcelCustody;
 }
 
+/** A step a package has reached, and when - in the nine words' order. Derived on read from the payment, the shop's
+ * "ready", the hand-over scans, the hub check-in, loading the van, the courier hand-over and the arrival. */
+export interface PackageMilestoneDTO {
+  status: "preparing" | "ready" | "with_driver" | "at_hub" | "out_for_delivery" | "with_carrier" | "delivered";
+  at: string;
+}
+
 export interface AdminOrderPackageDTO {
   /** Where this package really is, derived from the dispatch and carrier records, not from `status` (which stops at `collected`). */
   statusView: PackageStatusView | null;
@@ -178,6 +185,8 @@ export interface AdminOrderPackageDTO {
   atRisk: boolean;
   /** Whether it arrived inside its window (or on its day); null until it arrives, or with no promise. */
   onTime: boolean | null;
+  /** The steps it has reached, oldest first, each once (the latest "ready" when picking was reopened). */
+  milestones: PackageMilestoneDTO[];
 }
 
 /** One package on the carrier handover list. */
@@ -258,6 +267,8 @@ export interface AdminOrderDetailDTO {
   customerId: string;
   customerEmail: string;
   customerName: string | null;
+  /** The customer's paid orders, this one included. */
+  customerOrderCount: number;
   /** How the order was paid when points were part of it, and what has come back of each. Absent with no points. */
   paymentSplit?: OrderPaymentSplitDTO;
 
@@ -371,6 +382,8 @@ export interface AdminOrderItemDTO {
   lineSubtotalAmount: string;
   /** Operator only, like `AdminOrderPackageDTO.shopId`. */
   shopId: string;
+  /** The variant's picture as sold (else the product's main one); null with none. */
+  imageUrl: string | null;
 }
 
 /** How an order was paid. No card data beyond `last4`, ever. */
@@ -446,7 +459,7 @@ export interface OrderAssignment {
  *  points_difference points worth what they paid for Effy delivery less the courier fee (the default)
  *  free_delivery_points points worth the whole delivery charge they paid
  *  free_delivery_refund the whole delivery charge back to the card
- *  refund_difference the difference back to the card — the last resort
+ *  refund_difference the difference back to the card - the last resort
  *  none nothing, with a note saying why (always, on a move back to Effy)
  */
 export const DELIVERY_COMPENSATION_KINDS = [
@@ -529,14 +542,14 @@ export interface DeliveryMovePreviewDTO {
 /** `POST /orders/v1/orders/{orderId}/delivery-move`. */
 export type DeliveryMoveRequest =
   | {
-      to: "courier";
-      reason: string;
-      compensation: DeliveryCompensationKind;
-      compensationNote?: string | null;
-      expectedUpdatedAt: string;
-      /** The chosen compensation's amount as previewed; a different recomputation is refused. */
-      expectedAmount: string;
-    }
+    to: "courier";
+    reason: string;
+    compensation: DeliveryCompensationKind;
+    compensationNote?: string | null;
+    expectedUpdatedAt: string;
+    /** The chosen compensation's amount as previewed; a different recomputation is refused. */
+    expectedAmount: string;
+  }
   | { to: "effy"; reason: string; window: { slotId: string; date: string }; expectedUpdatedAt: string };
 
 export interface DeliveryMoveResponse {

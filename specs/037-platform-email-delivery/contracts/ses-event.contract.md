@@ -1,4 +1,4 @@
-# Contract — the delivery-outcome event this platform consumes
+# Contract - the delivery-outcome event this platform consumes
 
 **Producer**: SESv2 configuration-set event destination → SNS topic `effy-<env>-ses-events`.
 **Consumer**: `apis/edge-api/admin` → `src/functions/ses-event-consumer.ts` (SNS trigger).
@@ -12,7 +12,7 @@ addition cannot break the consumer.
 ## Envelope
 
 An SNS record whose `Sns.Message` is a **JSON string** that must be parsed. One SNS record per event;
-a single Lambda invocation may carry several records, and each is processed independently — ⚠ one
+a single Lambda invocation may carry several records, and each is processed independently - ⚠ one
 malformed record must not discard the rest of the batch.
 
 ```jsonc
@@ -36,10 +36,10 @@ malformed record must not discard the rest of the batch.
 | `eventType` | Address source | Sub-type | Reason / diagnostic | Mapped state |
 | --- | --- | --- | --- | --- |
 | `Bounce` | `bounce.bouncedRecipients[].emailAddress` | `bounce.bounceType` (`Permanent` \| `Transient` \| `Undetermined`) + `bounce.bounceSubType` | `bouncedRecipients[].diagnosticCode` | `Permanent` → **`undeliverable`**; anything else → **`soft_failing`** |
-| `Complaint` | `complaint.complainedRecipients[].emailAddress` | `complaint.complaintFeedbackType` | — | **`complained`** |
-| `Delivery` | `delivery.recipients[]` | — | — | **`reachable`** |
+| `Complaint` | `complaint.complainedRecipients[].emailAddress` | `complaint.complaintFeedbackType` | - | **`complained`** |
+| `Delivery` | `delivery.recipients[]` | - | - | **`reachable`** |
 | `DeliveryDelay` | `deliveryDelay.delayedRecipients[].emailAddress` | `deliveryDelay.delayType` | `status` | **`soft_failing`** |
-| `Reject` | `mail.destination[]` | — | `reject.reason` | logged and recorded; **no state change** |
+| `Reject` | `mail.destination[]` | - | `reject.reason` | logged and recorded; **no state change** |
 
 ⚠ **`Undetermined` is treated as transient, not permanent.** Marking an account undeliverable on an
 outcome SES itself could not classify would lock someone out on a guess. The bias is deliberately
@@ -55,7 +55,7 @@ one code to one address, but the contract does not guarantee that and the consum
 
 1. **Idempotent.** Insert into `public.email_delivery_event` with `ON CONFLICT DO NOTHING` on
    `(message_id, event_type, address)`; update `email_delivery_status` **only when a row was actually
-   inserted**. SES event publishing is at-least-once, unordered and may duplicate — a redelivered
+   inserted**. SES event publishing is at-least-once, unordered and may duplicate - a redelivered
    bounce must not increment `bounce_count` twice.
 2. **Out-of-order tolerant.** A `Delivery` that arrives after a `Bounce` for an *older* message must
    not resurrect the address. The status row is only advanced when the incoming `occurred_at` is **not
@@ -79,7 +79,7 @@ one code to one address, but the contract does not guarantee that and the consum
 `bounce.reportingMTA`, `bounce.feedbackId`, `complaint.userAgent`, `complaint.arrivalDate`, and
 every `Open`/`Click`/`Send`/`Subscription`/`RenderingFailure` event type (not subscribed).
 
-⚠ **`Open` and `Click` are not merely unsubscribed — they are refused.** They require a tracking pixel
+⚠ **`Open` and `Click` are not merely unsubscribed - they are refused.** They require a tracking pixel
 and link rewriting, which on a one-time sign-in code is useless to the product and a privacy cost paid
 by the recipient for nothing.
 
@@ -88,7 +88,7 @@ by the recipient for nothing.
 ## Verifying this contract without a real bounce
 
 SES's mailbox simulator produces genuine events, works regardless of account status, needs no
-recipient verification, does **not** touch reputation metrics, and — critically — the simulator
+recipient verification, does **not** touch reputation metrics, and - critically - the simulator
 address is **not** added to the suppression list, so the path can be exercised repeatedly.
 
 | Address | Produces |
@@ -97,7 +97,7 @@ address is **not** added to the suppression list, so the path can be exercised r
 | `complaint@simulator.amazonses.com` | a complaint |
 | `suppressionlist@simulator.amazonses.com` | a bounce as if already suppressed |
 | `ooto@simulator.amazonses.com` | an out-of-office (transient) |
-| `success@simulator.amazonses.com` | a delivery — ⚠ already used by 035 as the phantom-send target |
+| `success@simulator.amazonses.com` | a delivery - ⚠ already used by 035 as the phantom-send target |
 
 ⚠ **Labelling works and is how correlation gets tested**: `bounce+case1@simulator.amazonses.com`
 proves the consumer attributes an event to the right address rather than to the first one it finds.

@@ -140,7 +140,7 @@ export function ShopsListScreen() {
 }
 
 function ScanRate({ scanning }: { scanning?: { scanned: number; notScanned: number; sinceDays: number } }) {
-  if (!scanning) return <span className="text-muted-foreground">—</span>
+  if (!scanning) return <span className="text-muted-foreground">-</span>
   const total = scanning.scanned + scanning.notScanned
   if (total === 0) {
     return <span className="text-sm text-muted-foreground">No scanning yet · {scanning.sinceDays} days</span>

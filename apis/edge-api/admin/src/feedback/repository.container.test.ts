@@ -51,7 +51,7 @@ async function seed(pool: Pool, overrides: Record<string, unknown> = {}): Promis
   return ref
 }
 
-describe.skipIf(!RUN)("feedback console repo — against real PostgreSQL", () => {
+describe.skipIf(!RUN)("feedback console repo - against real PostgreSQL", () => {
   let container: StartedPostgreSqlContainer
   let pool: Pool
 

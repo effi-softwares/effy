@@ -79,7 +79,7 @@ const columns: EffyColumnDef<CustomerListItemDTO>[] = [
     id: "lastOrder",
     header: "Last order",
     cell: ({ row }) => (
-      <span className="text-muted-foreground">{row.original.lastOrderAt ? moment(row.original.lastOrderAt) : "—"}</span>
+      <span className="text-muted-foreground">{row.original.lastOrderAt ? moment(row.original.lastOrderAt) : "-"}</span>
     ),
     meta: { label: "Last order", priority: 2, sortKey: "lastOrder" },
   },

@@ -15,7 +15,7 @@ export const STATE_TONE: Record<BackOfficeProductState, StatusTone> = {
 
 /** The API's conflict codes, as staff read them. */
 const CONFLICT_WORDS: Record<string, string> = {
-  stale: "Someone changed this product while you were looking. It has been reloaded — check it and try again.",
+  stale: "Someone changed this product while you were looking. It has been reloaded - check it and try again.",
   already_held: "This product is already held.",
   not_held: "This product is not held.",
   archived: "An archived product cannot be held.",

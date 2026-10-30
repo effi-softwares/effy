@@ -19,7 +19,7 @@ const columns: EffyColumnDef<LowStockRowDTO>[] = [
     cell: ({ row }) => (
       <>
         {row.original.name}
-        {row.original.variantLabel ? <span className="text-muted-foreground"> — {row.original.variantLabel}</span> : null}
+        {row.original.variantLabel ? <span className="text-muted-foreground"> - {row.original.variantLabel}</span> : null}
       </>
     ),
     meta: { label: "Product", identifying: true, phone: "primary", sortKey: "name" },
@@ -27,14 +27,14 @@ const columns: EffyColumnDef<LowStockRowDTO>[] = [
   {
     id: "sku",
     header: "SKU",
-    cell: ({ row }) => <span className="text-muted-foreground">{row.original.sku ?? "—"}</span>,
+    cell: ({ row }) => <span className="text-muted-foreground">{row.original.sku ?? "-"}</span>,
     meta: { label: "SKU", align: "mono", priority: 2 },
   },
   { id: "onHand", header: "In stock", cell: ({ row }) => row.original.onHand, meta: { label: "In stock", align: "numeric", sortKey: "onHand", phone: "trail" } },
   {
     id: "threshold",
     header: "Threshold",
-    cell: ({ row }) => <span className="text-muted-foreground">{row.original.effectiveThreshold ?? "—"}</span>,
+    cell: ({ row }) => <span className="text-muted-foreground">{row.original.effectiveThreshold ?? "-"}</span>,
     meta: { label: "Threshold", align: "numeric", priority: 2 },
   },
   {
@@ -107,7 +107,7 @@ function ShopDefaultThreshold({ shopId }: { shopId: string }) {
     <section className="space-y-2">
       <h3 className="text-sm font-semibold">Shop default low-stock threshold</h3>
       <p className="text-sm text-muted-foreground">
-        Applies to every tracked product that does not carry its own threshold. Leave blank to clear it — nothing is
+        Applies to every tracked product that does not carry its own threshold. Leave blank to clear it - nothing is
         then reported as running low, though a product that reaches zero is still reported as out of stock.
       </p>
       <div className="flex items-end gap-3">

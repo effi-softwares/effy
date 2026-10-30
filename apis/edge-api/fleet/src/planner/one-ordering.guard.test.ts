@@ -32,7 +32,7 @@ describe("one ordering rule (research R5)", () => {
   });
 
   // Files that produce an ordered stop list may not contain `.sort(` at all, whatever the variable.
-  it("no service sorts round stops for itself — it imports the shared rule", () => {
+  it("no service sorts round stops for itself - it imports the shared rule", () => {
     const ORDERING_FILES = files.filter(
       (f) => /\/(work|dispatch)\/(service|delivery)\.ts$/.test(f) || /\/planner\/assign\.ts$/.test(f),
     );
@@ -43,7 +43,7 @@ describe("one ordering rule (research R5)", () => {
     expect(
       offenders,
       `Round ordering must come from @effy/edge-shared's orderRoundStops, or the dispatcher and the ` +
-        `driver will show different orders and NOTHING WILL FAIL. Files:\n  ${offenders.join("\n  ")}\n`,
+      `driver will show different orders and NOTHING WILL FAIL. Files:\n  ${offenders.join("\n  ")}\n`,
     ).toEqual([]);
   });
 

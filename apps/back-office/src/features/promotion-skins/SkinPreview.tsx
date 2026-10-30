@@ -92,7 +92,7 @@ function ClassicStandIn({ className }: { className?: string }) {
       <Palette aria-hidden="true" className="size-5 text-muted-foreground" />
       <div className="text-sm font-medium">Classic</div>
       <div className="mt-0.5 block text-sm text-muted-foreground max-w-60">
-        Drawn as this place always looked — colours and icons chosen by the website.
+        Drawn as this place always looked - colours and icons chosen by the website.
       </div>
     </div>
   )

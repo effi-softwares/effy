@@ -6,7 +6,7 @@ export async function POST(req: Request) {
   return proxyToEdge((c) => c.post("/commerce/v1/cart/promo", body))
 }
 
-/** Remove the applied code. Idempotent — removing nothing is not an error. */
+/** Remove the applied code. Idempotent - removing nothing is not an error. */
 export async function DELETE() {
   return proxyToEdge((c) => c.delete("/commerce/v1/cart/promo"))
 }

@@ -27,8 +27,8 @@ import kotlin.test.assertTrue
  *
  * The fixture is the one `packages/shared-types` tests `effyWindowsView` against, and the website's
  * picker is drawn from (see [EFFY_WINDOWS_FIXTURE] for why it is a copy and what keeps it honest).
- * Each case's `input` is decoded as the server's bytes — through the generated contract and the app's
- * own mapper — so a field renamed on the wire fails here, not in a shopper's hand.
+ * Each case's `input` is decoded as the server's bytes - through the generated contract and the app's
+ * own mapper - so a field renamed on the wire fails here, not in a shopper's hand.
  */
 class EffyWindowsViewTest {
 

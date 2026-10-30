@@ -40,9 +40,9 @@ function ctx(): Context {
     logGroupName: "lg",
     logStreamName: "ls",
     getRemainingTimeInMillis: () => 60_000,
-    done: () => {},
-    fail: () => {},
-    succeed: () => {},
+    done: () => { },
+    fail: () => { },
+    succeed: () => { },
   } as Context;
 }
 
@@ -69,14 +69,14 @@ const pass = (p: Record<string, unknown> = {}) => ({
   ...p,
 });
 
-describe("planWavesScheduled — invoked the way AWS invokes it", () => {
+describe("planWavesScheduled - invoked the way AWS invokes it", () => {
   it("runs without touching anything an HTTP event would have carried", async () => {
     runPass.mockReset().mockResolvedValue(pass());
     await expect(invoke()).resolves.toBeUndefined();
     expect(runPass).toHaveBeenCalledOnce();
   });
 
-  it("does not wait for the event loop to drain — the pg pool keeps a socket warm", async () => {
+  it("does not wait for the event loop to drain - the pg pool keeps a socket warm", async () => {
     runPass.mockResolvedValue(pass());
     const c = ctx();
     await invoke(c);
@@ -115,7 +115,7 @@ describe("planWavesScheduled — invoked the way AWS invokes it", () => {
   it("does nothing further when another pass held the lock", async () => {
     announceDispatch.mockReset();
     runPass.mockResolvedValue(pass({ skipped: "pass_in_progress" }));
-    const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const spy = vi.spyOn(console, "log").mockImplementation(() => { });
     await expect(invoke()).resolves.toBeUndefined();
     expect(spy.mock.calls.map((c) => String(c[0])).join("\n")).not.toContain("DispatchPackagesAssigned");
     expect(announceDispatch).not.toHaveBeenCalled();
@@ -127,7 +127,7 @@ describe("planWavesScheduled — invoked the way AWS invokes it", () => {
     runPass.mockResolvedValue(
       pass({ collection: kind("collection", { considered: 9, unassigned: 9, unassignedPastOpening: 9 }) }),
     );
-    const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const spy = vi.spyOn(console, "log").mockImplementation(() => { });
     await expect(invoke()).resolves.toBeUndefined();
     const emitted = spy.mock.calls.map((c) => String(c[0])).join("\n");
     expect(emitted).toContain('"DispatchUnassignedPastOpening":9');
@@ -137,7 +137,7 @@ describe("planWavesScheduled — invoked the way AWS invokes it", () => {
   // Ready at 20:00 for tomorrow with nobody on duty is unassigned, not a failure.
   it("does not count packages waiting for a round that has not opened", async () => {
     runPass.mockResolvedValue(pass({ collection: kind("collection", { considered: 9, unassigned: 9 }) }));
-    const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const spy = vi.spyOn(console, "log").mockImplementation(() => { });
     await invoke();
     const emitted = spy.mock.calls.map((c) => String(c[0])).join("\n");
     expect(emitted).toContain('"DispatchUnassignedPastOpening":0');
@@ -147,7 +147,7 @@ describe("planWavesScheduled — invoked the way AWS invokes it", () => {
 
   it("emits each metric record with NO dimension (059)", async () => {
     runPass.mockResolvedValue(pass({ collection: kind("collection", { considered: 2, assigned: 2 }) }));
-    const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const spy = vi.spyOn(console, "log").mockImplementation(() => { });
     await invoke();
     const emf = spy.mock.calls.map((c) => String(c[0])).filter((s) => s.includes("_aws"));
     expect(emf.length).toBeGreaterThan(0);

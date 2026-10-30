@@ -160,7 +160,7 @@ export function createCartRepository(db: Queryable = pooled, transact: Transacto
     guarded(transact, cartId, changeId, fn);
 
   const linesFrom = async (table: "public.cart_item" | "public.cart_saved_item", cartId: string) =>
-    // `table` is one of two literals in this file — never caller input.
+    // `table` is one of two literals in this file - never caller input.
     (
       await db.query<CartLineRow>(
         `

@@ -44,7 +44,7 @@ describe("render (086 contracts/rendition-worker.md)", () => {
     expect(h.rows).toEqual([{ key: "products/o/a.jpg", status: "ready", widths: [160, 320, 640, 1280], w: 2000, h: 1500 }]);
   });
 
-  it("a 1000 px photo's largest copy is the photo's own width — never an enlarged 640", async () => {
+  it("a 1000 px photo's largest copy is the photo's own width - never an enlarged 640", async () => {
     const h = harness({ "products/o/b.jpg": await image(1000, 1000).jpeg().toBuffer() });
     expect(await render("products/o/b.jpg", h.deps)).toEqual({ kind: "ready", widths: [160, 320, 640, 1000] });
   });
@@ -60,7 +60,7 @@ describe("render (086 contracts/rendition-worker.md)", () => {
     expect(await render("products/o/d.jpg", h.deps)).toEqual({ kind: "ready", widths: [100] });
   });
 
-  it("an animated picture gets no copies — the original is served, uncut", async () => {
+  it("an animated picture gets no copies - the original is served, uncut", async () => {
     const frames = await Promise.all([image(400, 400).png().toBuffer(), image(400, 400, 4).png().toBuffer()]);
     const animated = await sharp(frames, { join: { animated: true } }).webp().toBuffer();
     expect((await sharp(animated).metadata()).pages).toBe(2);
@@ -81,7 +81,7 @@ describe("render (086 contracts/rendition-worker.md)", () => {
   });
 
   it.each(["courier-label/p/x.pdf", "proof/d/x.jpg", "renditions/products/o/a/w160.webp"])(
-    "refuses %s — no read, no write, no row",
+    "refuses %s - no read, no write, no row",
     async (key) => {
       const h = harness({ [key]: await image(400, 400).jpeg().toBuffer() });
       expect(await render(key, h.deps)).toEqual({ kind: "refused" });

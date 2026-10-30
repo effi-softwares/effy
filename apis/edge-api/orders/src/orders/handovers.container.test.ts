@@ -23,7 +23,7 @@ const d = RUN ? describe : describe.skip;
 let container: StartedPostgreSqlContainer;
 let pool: Pool;
 
-d("091 — hand-overs on the order", () => {
+d("091 - hand-overs on the order", () => {
   beforeAll(async () => {
     container = await new PostgreSqlContainer("postgres:16-alpine").start();
     pool = new Pool({ connectionString: container.getConnectionUri() });
@@ -63,7 +63,7 @@ d("091 — hand-overs on the order", () => {
       `INSERT INTO public.package_handover (shop_fulfillment_id, parcel_id, actor_kind, shop_staff_id, step, handover_method, change_id, recorded_at)
        VALUES ($1, $2, 'shop_staff', $3, 'pack', 'scan', gen_random_uuid(), '2026-10-16T00:30:00Z')`, [a.id, bag.id, staff.id]);
 
-    // In the order's activity (104), oldest first: each bag's step, how, and who — a shop's pack named by its staff.
+    // In the order's activity (104), oldest first: each bag's step, how, and who - a shop's pack named by its staff.
     const rows = (await activityEntries(pool, orderActivitySource(order.id))).filter((e) => e.kind === "handover").reverse();
     expect(rows.map((r) => [r.title, r.detail, r.actor, r.subject])).toEqual([
       ["Packed at the shop", "scanned", "Sam", `Shop · bag ${bag.parcel_code}`],

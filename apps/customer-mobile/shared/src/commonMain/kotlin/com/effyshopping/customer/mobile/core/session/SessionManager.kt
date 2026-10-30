@@ -24,7 +24,7 @@ class SessionManager(
     scope: CoroutineScope,
     /**
      * Fired once per Guest/Restoring → Authenticated transition. The cart uses it to merge the
-     * device's lines into the account cart — which is what makes a cart built on one phone appear on
+     * device's lines into the account cart - which is what makes a cart built on one phone appear on
      * another. Deliberately a lambda rather than a cart dependency: the session manager has no business
      * knowing what a cart is, and a later feature can hang its own sign-in work here the same way.
      *
@@ -68,11 +68,11 @@ class SessionManager(
         _state.value = if (customer.isBarred) SessionState.Barred else SessionState.Authenticated(customer)
     }
 
-    /** A control refused with 403 mid-session — the record now bars this customer. */
+    /** A control refused with 403 mid-session - the record now bars this customer. */
     /**
      * The record says this account is being deleted.
      *
-     * Set from the same 403 that raises [setBarred] — the backend deliberately does not disclose
+     * Set from the same 403 that raises [setBarred] - the backend deliberately does not disclose
      * which condition applied, so the client cannot tell them apart from the refusal alone. It is set
      * when the closure preview confirms a live request, which is the one place the truth is available.
      */
@@ -98,7 +98,7 @@ class SessionManager(
             try {
                 val wasAuthenticated = _state.value is SessionState.Authenticated
                 setAuthenticated(getCustomer(seedPassword))
-                // A genuine sign-in (not a record refresh) — hand off to whoever needs to react. The
+                // A genuine sign-in (not a record refresh) - hand off to whoever needs to react. The
                 // cart merges the device's lines into the account cart here. A failure must not undo the
                 // sign-in: the shopper is authenticated either way, and the merge retries on the next
                 // cart open.
@@ -126,7 +126,7 @@ class SessionManager(
                             delay(RETRY_BASE_MILLIS * attempt)
                             continue
                         }
-                        // Exhausted retries — fall back to Guest; the Amplify session survives for a relaunch.
+                        // Exhausted retries - fall back to Guest; the Amplify session survives for a relaunch.
                         _state.value = SessionState.Guest
                         return
                     }

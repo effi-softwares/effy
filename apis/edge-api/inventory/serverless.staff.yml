@@ -73,7 +73,7 @@ functions:
   # Its own health routes: `/inventory/healthz` belongs to the shop stack.
   healthz:
     handler: src/functions/healthz-get.handler
-    description: Liveness — is the inventory-staff stack deployed and executing? Touches nothing. Public.
+    description: Liveness - is the inventory-staff stack deployed and executing? Touches nothing. Public.
     events:
       - httpApi:
           method: GET
@@ -81,7 +81,7 @@ functions:
 
   readyz:
     handler: src/functions/readyz-get.handler
-    description: Readiness — can the inventory-staff stack serve? Probes the DB under a 2s budget. Public.
+    description: Readiness - can the inventory-staff stack serve? Probes the DB under a 2s budget. Public.
     events:
       - httpApi:
           method: GET

@@ -41,7 +41,7 @@ const ADDRESS: AddressDTO = {
 const far = (h: number) => new Date(Date.now() + h * 3_600_000).toISOString()
 const day = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10)
 
-/** A serviced address Effy delivers to — the windows are added by `windowsQuote`. */
+/** A serviced address Effy delivers to - the windows are added by `windowsQuote`. */
 const BASE: DeliveryQuoteDTO = { postcode: "3000", serviced: true, coverage: "effy", expiresAt: far(1), freeDeliveryRemainingAmount: null }
 
 function jsonRes(body: unknown, ok = true, status = 200) {
@@ -173,12 +173,12 @@ function windowsQuote(over: Partial<NonNullable<DeliveryQuoteDTO["effyWindows"]>
   })
   return { ...BASE, effyWindows: { days, unavailable: null, ...over } }
 }
-/** Every window radio on the page (its value is `date|slotId`) — not the days, not "as soon as possible". */
+/** Every window radio on the page (its value is `date|slotId`) - not the days, not "as soon as possible". */
 const windowRadios = () => screen.getAllByRole("radio").filter((r) => (r as HTMLInputElement).value.includes("|"))
 /** The later days, as radios (their value is the date). */
 const tabs = () => screen.getAllByRole("radio").filter((r) => /^\d{4}-\d{2}-\d{2}$/.test((r as HTMLInputElement).value))
 
-describe("078 — choosing one window for the order", () => {
+describe("078 - choosing one window for the order", () => {
   beforeEach(() => {
     quotes = [windowsQuote()]
   })
@@ -307,7 +307,7 @@ function flexQuote(): DeliveryQuoteDTO {
   }
 }
 
-describe("085 — Standard delivery without a time", () => {
+describe("085 - Standard delivery without a time", () => {
   beforeEach(() => {
     quotes = [flexQuote()]
   })
@@ -341,7 +341,7 @@ describe("085 — Standard delivery without a time", () => {
     expect(capture).toHaveBeenCalledWith({ name: "checkout_window_selected", props: { section: "standard", day_offset: 1, promise: "day" } })
   })
 
-  it("as soon as possible, chosen again after something else, is sent ALONE — no window, no day — at the plain fee", async () => {
+  it("as soon as possible, chosen again after something else, is sent ALONE - no window, no day - at the plain fee", async () => {
     const user = userEvent.setup()
     render(<CheckoutFlow initialAddresses={[ADDRESS]} />)
     await screen.findByRole("group", { name: "Standard delivery" })
@@ -356,7 +356,7 @@ describe("085 — Standard delivery without a time", () => {
     expect(capture).toHaveBeenCalledWith({ name: "checkout_window_selected", props: { section: "standard", day_offset: -1, promise: "asap" } })
   })
 
-  it("⚠ a day that has gone by payment is not replaced — not even by the default: told, re-offered, nothing chosen", async () => {
+  it("⚠ a day that has gone by payment is not replaced - not even by the default: told, re-offered, nothing chosen", async () => {
     const user = userEvent.setup()
     quotes = [flexQuote(), flexQuote()]
     intentReplies = [REFUSED("slot_unavailable")]
@@ -371,7 +371,7 @@ describe("085 — Standard delivery without a time", () => {
     expect(payButton()).toBeDisabled()
   })
 
-  it("changing the address starts again from the default — a day chosen for one address is not carried to another", async () => {
+  it("changing the address starts again from the default - a day chosen for one address is not carried to another", async () => {
     const user = userEvent.setup()
     render(<CheckoutFlow initialAddresses={[ADDRESS, { ...ADDRESS, id: "a2", recipientName: "Sam", isDefault: false }]} />)
     await screen.findByRole("group", { name: "Standard delivery" })

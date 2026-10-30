@@ -212,24 +212,24 @@ function ReviewItem({ item, onChanged }: { item: ReviewItemDetailDTO; onChanged:
   const notices: BannerStackItem[] = [
     ...(incomplete
       ? [
-          {
-            key: "incomplete",
-            tone: "problem" as const,
-            icon: CircleAlert,
-            title: "It can't be approved yet",
-            children: (
-              <p>
-                Required details are empty: {item.missingRequired.join(", ")}. Send it back to ask the shop for{" "}
-                {item.missingRequired.length === 1 ? "it" : "them"}.
-              </p>
-            ),
-          },
-        ]
+        {
+          key: "incomplete",
+          tone: "problem" as const,
+          icon: CircleAlert,
+          title: "It can't be approved yet",
+          children: (
+            <p>
+              Required details are empty: {item.missingRequired.join(", ")}. Send it back to ask the shop for{" "}
+              {item.missingRequired.length === 1 ? "it" : "them"}.
+            </p>
+          ),
+        },
+      ]
       : []),
     ...rises.map((r) => ({
       key: `rise:${r.label}`,
       icon: TriangleAlert,
-      title: `${r.label} — shop price rises ${signedPercent(r.move)}`,
+      title: `${r.label} - shop price rises ${signedPercent(r.move)}`,
       children: <p>Ask the shop for the supplier's cost if the change doesn't explain it.</p>,
     })),
     ...attention.notes.map((n) => ({ key: n, icon: TriangleAlert, title: "Worth a look", children: <p>{n}</p> })),
@@ -262,7 +262,7 @@ function ReviewItem({ item, onChanged }: { item: ReviewItemDetailDTO; onChanged:
                 </div>
                 <p className="text-[13px] text-muted-foreground">
                   {incomplete
-                    ? "It can't be approved until the shop fills in the required details — send it back from the bar below."
+                    ? "It can't be approved until the shop fills in the required details - send it back from the bar below."
                     : `Approve or send back from the bar below (A / B). Approving publishes ${isChange ? "the change" : "the product"} to customers at once, then opens the next one.`}
                 </p>
               </div>
@@ -396,7 +396,7 @@ function ReviewItem({ item, onChanged }: { item: ReviewItemDetailDTO; onChanged:
           {
             key: "pays",
             label: "Customers pay",
-            value: needsMargin ? "—" : range(priced.map((p) => p.pays)),
+            value: needsMargin ? "-" : range(priced.map((p) => p.pays)),
             note: margin ? "At the margin you set" : needsMargin ? "Set a margin to see it" : "As on sale now",
           },
           {
@@ -407,16 +407,16 @@ function ReviewItem({ item, onChanged }: { item: ReviewItemDetailDTO; onChanged:
           },
           isChange
             ? {
-                key: "what",
-                label: "What changes",
-                value: `${item.changes.length + (item.images.proposed ? 1 : 0)} ${item.changes.length + (item.images.proposed ? 1 : 0) === 1 ? "detail" : "details"}`,
-                note: [
-                  ...new Set([
-                    ...item.changes.map((c) => c.label.replace(/ — .*$/, "")),
-                    ...(item.images.proposed ? ["Pictures"] : []),
-                  ]),
-                ].join(", "),
-              }
+              key: "what",
+              label: "What changes",
+              value: `${item.changes.length + (item.images.proposed ? 1 : 0)} ${item.changes.length + (item.images.proposed ? 1 : 0) === 1 ? "detail" : "details"}`,
+              note: [
+                ...new Set([
+                  ...item.changes.map((c) => c.label.replace(/ - .*$/, "")),
+                  ...(item.images.proposed ? ["Pictures"] : []),
+                ]),
+              ].join(", "),
+            }
             : { key: "sizes", label: "Sizes", value: String(live.length), note: "All new" },
           {
             key: "checks",
@@ -480,7 +480,7 @@ function ReviewItem({ item, onChanged }: { item: ReviewItemDetailDTO; onChanged:
         description={
           item.images.proposed
             ? "The pictures now, and the set the shop proposes. The first is the main picture in the aisle."
-            : "As the shop added them. The first is the main picture in the aisle — it must be the product itself."
+            : "As the shop added them. The first is the main picture in the aisle - it must be the product itself."
         }
       >
         {item.images.proposed ? (
@@ -497,7 +497,7 @@ function ReviewItem({ item, onChanged }: { item: ReviewItemDetailDTO; onChanged:
         id="sizes"
         icon={Layers}
         title="Sizes and prices"
-        description="What the shop is paid, and what customers will pay at the margin you set — it updates as you type it."
+        description="What the shop is paid, and what customers will pay at the margin you set - it updates as you type it."
       >
         <ReviewVariants variants={item.variants} entry={entry} changes={item.changes} />
       </RecordSection>
@@ -538,28 +538,28 @@ function ReviewItem({ item, onChanged }: { item: ReviewItemDetailDTO; onChanged:
           groups={[
             ...(item.details.some((d) => !SHOWN_ELSEWHERE.has(d.label)) || incomplete
               ? [
-                  {
-                    title: "Category details",
-                    rows: [
-                      ...item.details
-                        .filter((d) => !SHOWN_ELSEWHERE.has(d.label))
-                        .map((d) => ({
-                          key: d.label,
-                          label: d.label,
-                          value: d.value ? <span className="whitespace-pre-line">{d.value}</span> : null,
-                          required: item.missingRequired.includes(d.label),
-                          missing: item.missingRequired.includes(d.label) && !d.value,
-                          changed: item.changes.some(
-                            (c) => sectionOfChange(c.field) === "details" && c.label === d.label,
-                          ),
-                        })),
-                      // A required detail with no row at all is still said where it would be.
-                      ...item.missingRequired
-                        .filter((m) => !item.details.some((d) => d.label === m))
-                        .map((m) => ({ key: m, label: m, value: null, required: true, missing: true })),
-                    ],
-                  },
-                ]
+                {
+                  title: "Category details",
+                  rows: [
+                    ...item.details
+                      .filter((d) => !SHOWN_ELSEWHERE.has(d.label))
+                      .map((d) => ({
+                        key: d.label,
+                        label: d.label,
+                        value: d.value ? <span className="whitespace-pre-line">{d.value}</span> : null,
+                        required: item.missingRequired.includes(d.label),
+                        missing: item.missingRequired.includes(d.label) && !d.value,
+                        changed: item.changes.some(
+                          (c) => sectionOfChange(c.field) === "details" && c.label === d.label,
+                        ),
+                      })),
+                    // A required detail with no row at all is still said where it would be.
+                    ...item.missingRequired
+                      .filter((m) => !item.details.some((d) => d.label === m))
+                      .map((m) => ({ key: m, label: m, value: null, required: true, missing: true })),
+                  ],
+                },
+              ]
               : []),
             {
               title: "Facts",
@@ -642,7 +642,7 @@ function ReviewItem({ item, onChanged }: { item: ReviewItemDetailDTO; onChanged:
         app="back-office"
         log="bo-product"
         title="Product activity"
-        description={`${item.productName} — Effy's decisions on it: review, margin, holds and its sizes on and off sale.`}
+        description={`${item.productName} - Effy's decisions on it: review, margin, holds and its sizes on and off sale.`}
         api={api}
         path={`/catalog/v1/products/${item.productId}/activity`}
         queryKey={productKeys.detail(item.productId)}
@@ -723,7 +723,7 @@ const SOLID_INVERSE =
 
 /**
  * What the review puts on the action bar: where the reviewer is in the queue, the margin, Send back and Approve. As
- * the bar packs tighter it drops what it can spare — customers' price and the key hints, then the words "Queue" and
+ * the bar packs tighter it drops what it can spare - customers' price and the key hints, then the words "Queue" and
  * "change".
  */
 function DecisionControls({
@@ -794,7 +794,7 @@ function DecisionControls({
           {blocked ? (
             <span className="flex min-w-0 items-center gap-1.5 truncate text-destructive-fill" role="status">
               <CircleAlert aria-hidden="true" className="size-4 shrink-0" />
-              {missing.join(", ")} {missing.length === 1 ? "is" : "are"} empty — send it back
+              {missing.join(", ")} {missing.length === 1 ? "is" : "are"} empty - send it back
             </span>
           ) : (
             <ActionBarButton
@@ -900,10 +900,10 @@ function PictureRow({ title, note, images }: { title: string; note: string; imag
 const sortPictures = (images: readonly ReviewImageDTO[]) =>
   [...images].sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary))
 
-/** "AUD 9.50 – 38.00" over a set of amounts, or "—". */
+/** "AUD 9.50 – 38.00" over a set of amounts, or "-". */
 function range(amounts: readonly (string | null | undefined)[]): string {
   const n = amounts.filter((a): a is string => !!a).map(Number)
-  if (n.length === 0) return "—"
+  if (n.length === 0) return "-"
   const lo = Math.min(...n)
   const hi = Math.max(...n)
   return lo === hi ? aud(lo.toFixed(2)) : `${aud(lo.toFixed(2))} – ${hi.toFixed(2)}`

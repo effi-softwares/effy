@@ -12,7 +12,7 @@ function declaredIn(file) {
 
 const declared = declaredIn("../src/tokens.css");
 if (declared.size < 40) {
-  console.error("check-token-usage: FAILED — only " + declared.size + " --color-* vars parsed; the guard is not reading tokens.css");
+  console.error("check-token-usage: FAILED - only " + declared.size + " --color-* vars parsed; the guard is not reading tokens.css");
   process.exit(1);
 }
 
@@ -76,7 +76,7 @@ function scan(label, file, declared, known, roots) {
     return false;
   }
   console.log(
-    `check-token-usage: OK (${label}) — ${files.length} files, every colour utility resolves to one of ${declared.size} declared tokens`,
+    `check-token-usage: OK (${label}) - ${files.length} files, every colour utility resolves to one of ${declared.size} declared tokens`,
   );
   return true;
 }

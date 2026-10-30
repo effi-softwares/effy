@@ -155,7 +155,7 @@ function colorScheme(fnName, valName, objName) {
   return `val ${valName}: ColorScheme = ${fnName}(\n${args.join("\n")}\n)`;
 }
 
-const banner = (sourceName) => `// GENERATED FROM packages/design-system/${sourceName} — DO NOT EDIT.
+const banner = (sourceName) => `// GENERATED FROM packages/design-system/${sourceName} - DO NOT EDIT.
 // Regenerate: pnpm --filter @effy/design-system tokens:gen`;
 
 function generate(target) {
@@ -205,7 +205,7 @@ package ${SHARED_PKG}
 
 import androidx.compose.ui.unit.dp
 
-/** Corner radii (dp) — sm/md pinned to equal the web --radius-sm/md; default = md. Pill via RoundedCornerShape(50%). */
+/** Corner radii (dp) - sm/md pinned to equal the web --radius-sm/md; default = md. Pill via RoundedCornerShape(50%). */
 object EffyRadius {
     val sm = ${radiusSmDp}.dp
     val md = ${radiusMdDp}.dp
@@ -278,7 +278,7 @@ fun effyFontFamily(): FontFamily = FontFamily(
     Font(Res.font.geist_bold, FontWeight.Bold),
 )
 
-/** Geist Mono — one-time codes and order numbers, read out digit by digit. */
+/** Geist Mono - one-time codes and order numbers, read out digit by digit. */
 @Composable
 fun effyMonoFontFamily(): FontFamily = FontFamily(Font(Res.font.geist_mono_medium, FontWeight.Medium))
 

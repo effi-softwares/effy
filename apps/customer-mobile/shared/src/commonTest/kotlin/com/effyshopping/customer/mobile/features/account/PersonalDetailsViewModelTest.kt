@@ -29,7 +29,7 @@ import kotlin.test.assertTrue
 class PersonalDetailsViewModelTest {
 
     // `save` runs on `viewModelScope`, which dispatches to Main. Without a test Main the coroutine
-    // never runs and every assertion below reads state the ViewModel has not reached yet — the tests
+    // never runs and every assertion below reads state the ViewModel has not reached yet - the tests
     // would pass or fail for reasons unrelated to what they claim to check.
     @BeforeTest fun setUp() = Dispatchers.setMain(UnconfinedTestDispatcher())
 
@@ -48,7 +48,7 @@ class PersonalDetailsViewModelTest {
 
     /** Three lines, because the ViewModel depends on the seam rather than on SessionManager. */
     private class FakeSession : SessionWriter {
-        // Not named `authenticated` — a `var authenticated` generates a JVM `setAuthenticated`
+        // Not named `authenticated` - a `var authenticated` generates a JVM `setAuthenticated`
         // setter that clashes with the interface method of the same signature.
         var lastAuthenticated: Customer? = null
         var wasBarred = false
@@ -92,7 +92,7 @@ class PersonalDetailsViewModelTest {
 
     /**
      * Every field travels on every save. The backend's PATCH writes the columns it names, so
-     * omitting the untouched ones would clear them — editing a first name would silently wipe the
+     * omitting the untouched ones would clear them - editing a first name would silently wipe the
      * phone.
      */
     @Test

@@ -55,7 +55,7 @@ export const STATUS_LABEL: Record<VehicleStatus, string> = {
 
 export const STATUS_MEANING: Record<VehicleStatus, string> = {
   active: "In service and able to be issued to a driver.",
-  off_road: "Temporarily unavailable — in the workshop, or awaiting repair. Comes back.",
+  off_road: "Temporarily unavailable - in the workshop, or awaiting repair. Comes back.",
   retired: "No longer in the fleet. Its record and history are kept; it can never be issued again.",
 }
 
@@ -67,13 +67,13 @@ export const COMPLIANCE_LABEL: Record<VehicleComplianceIssue, string> = {
 
 export function refrigerationLabel(chilled: boolean, frozen: boolean): string {
   const parts = [chilled ? "Chilled" : null, frozen ? "Frozen" : null].filter(Boolean)
-  return parts.length > 0 ? parts.join(" · ") : "—"
+  return parts.length > 0 ? parts.join(" · ") : "-"
 }
 
 export function formatDate(iso: string | null): string {
-  if (!iso) return "—"
+  if (!iso) return "-"
   const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return "—"
+  if (Number.isNaN(d.getTime())) return "-"
   return d.toLocaleDateString("en-AU", {
     day: "numeric",
     month: "short",
@@ -83,9 +83,9 @@ export function formatDate(iso: string | null): string {
 }
 
 export function formatDateTime(iso: string | null): string {
-  if (!iso) return "—"
+  if (!iso) return "-"
   const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return "—"
+  if (Number.isNaN(d.getTime())) return "-"
   return d.toLocaleString("en-AU", {
     day: "numeric",
     month: "short",
@@ -96,5 +96,5 @@ export function formatDateTime(iso: string | null): string {
 }
 
 export function formatOdometer(km: number | null): string {
-  return km == null ? "—" : `${km.toLocaleString("en-AU")} km`
+  return km == null ? "-" : `${km.toLocaleString("en-AU")} km`
 }

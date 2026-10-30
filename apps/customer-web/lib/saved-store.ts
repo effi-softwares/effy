@@ -12,8 +12,8 @@ const KEY = "effy:saved:v1"
 const SCHEMA_VERSION = 1
 
 /**
- * No legacy key to migrate. The predecessor stored nothing client-side — a guest was bounced to
- * sign-in the moment they tapped — so `effy:saved:v1` starts clean. (Contrast `cart-store.ts`, where
+ * No legacy key to migrate. The predecessor stored nothing client-side - a guest was bounced to
+ * sign-in the moment they tapped - so `effy:saved:v1` starts clean. (Contrast `cart-store.ts`, where
  * dropping the legacy read would have made the deploy itself the cart-loss bug it was fixing.)
  */
 
@@ -26,7 +26,7 @@ interface Envelope {
    *
    * Optional, inside the v1 envelope, and `SCHEMA_VERSION` must not be bumped for it. A version
    * mismatch discards the envelope, and for a guest this envelope is the only copy of what they
-   * saved — bumping it would empty every guest's list on deploy. Absent reads as empty, which is the
+   * saved - bumping it would empty every guest's list on deploy. Absent reads as empty, which is the
    * safe direction: the heart sends an un-save and the platform refuses it (`409`).
    */
   namedIds?: readonly string[]
@@ -46,7 +46,7 @@ let cacheRaw = ""
 
 /**
  * Every failure mode yields the empty set rather than throwing. Losing the mirror is recoverable
- * the next membership read repairs it — but a render crash is not, and a half-parsed set is worst of
+ * the next membership read repairs it - but a render crash is not, and a half-parsed set is worst of
  * all because the shopper would trust it.
  *
  * Empty also means "unknown", and that asymmetry is deliberate. A control that wrongly
@@ -88,7 +88,7 @@ function write(next: readonly string[], nextNamed: readonly string[] = named) {
   try {
     window.localStorage.setItem(KEY, cacheRaw)
   } catch {
-    /* storage disabled — the mirror is best-effort, never load-bearing */
+    /* storage disabled - the mirror is best-effort, never load-bearing */
   }
   listeners.forEach((l) => l())
 }
@@ -115,7 +115,7 @@ export function useSavedIds(): readonly string[] {
   return useSyncExternalStore(subscribe, read, () => EMPTY)
 }
 
-/** The non-hook read, for effects and event handlers — the same source, reached without React. */
+/** The non-hook read, for effects and event handlers - the same source, reached without React. */
 export function readSavedIds(): readonly string[] {
   return read()
 }

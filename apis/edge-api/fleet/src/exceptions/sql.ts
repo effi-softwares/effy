@@ -1,7 +1,7 @@
 import { TO_RETURN_SQL } from "@effy/edge-shared/delivery";
 
 /**
- * Failed deliveries, open and resolved — filtered, ordered and paged by the caller (103; it stopped at 200). `package_location` (with the driver until a hub check-in or arrival,
+ * Failed deliveries, open and resolved - filtered, ordered and paged by the caller (103; it stopped at 200). `package_location` (with the driver until a hub check-in or arrival,
  * as `CUSTODY_BY_DRIVER`) makes the list triageable. The destination is a suburb, never a street.
  */
 export const LIST_EXCEPTIONS = `

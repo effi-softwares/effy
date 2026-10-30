@@ -4,7 +4,7 @@
 mirrored into the Kotlin contract where a mobile app reads them. Errors are RFC 9457 problems with the
 `code` named.
 
-## Shared words — `packages/shared-types/src/delivery.ts`
+## Shared words - `packages/shared-types/src/delivery.ts`
 
 ```ts
 export type CoverageKind = "effy" | "courier" | "none";
@@ -17,9 +17,9 @@ export const COVERAGE_REFUSAL_SENTENCE = "Sorry, we can't deliver to this addres
 
 ---
 
-## Customer-facing (shared gateway) — existing routes, one new field each
+## Customer-facing (shared gateway) - existing routes, one new field each
 
-### `GET /storefront/v1/serviceability?postcode=3121` — public
+### `GET /storefront/v1/serviceability?postcode=3121` - public
 
 ```json
 { "postcode": "3121", "serviced": true, "coverage": "effy" }
@@ -38,7 +38,7 @@ A checkout step refused for coverage: `422`, `code: "address_not_covered"`,
 
 ---
 
-## Back-office — service `admin`, **staff gateway**, back-office authorizer
+## Back-office - service `admin`, **staff gateway**, back-office authorizer
 
 Read = any active staff. Write = `admin`, `manager`.
 
@@ -77,7 +77,7 @@ Place search for the add dialog (≥ 2 characters; digits search postcodes).
 ```
 `computedDistanceKm: null` → a manual distance is required to add it.
 
-### `GET /admin/v1/delivery/coverage/check?q=3121` — replaces `postcode-check`
+### `GET /admin/v1/delivery/coverage/check?q=3121` - replaces `postcode-check`
 
 ```json
 { "postcode": "3121", "places": ["Richmond", "…"], "coverage": "effy", "reason": "listed",
@@ -115,7 +115,7 @@ Bulk change of group and/or one postcode's distance.
 `409 distance_not_computable` when returning to `computed` is impossible. A distance change takes
 exactly one postcode.
 
-> **As built:** twelve routes, not thirteen — the distance change rides on the one `PATCH …/postcodes`.
+> **As built:** twelve routes, not thirteen - the distance change rides on the one `PATCH …/postcodes`.
 > `PUT /delivery/settings` is the existing route.
 
 ### `DELETE /admin/v1/delivery/coverage/postcodes/{postcode}`
@@ -137,7 +137,7 @@ exactly one postcode.
 `{ "postcode": "7255", "reason": "No chilled courier service" }` → `201`.
 `422 unknown_postcode` · `422 reason_required` · `409 already_excluded`.
 
-### `PUT /admin/v1/delivery/settings` (existing) — response gains
+### `PUT /admin/v1/delivery/settings` (existing) - response gains
 
 ```json
 { "distances": { "recomputed": 41, "unchanged": 0, "manualFlagged": 2 } }
@@ -153,7 +153,7 @@ present when the hub point changed.
 
 ---
 
-## Shared library — `@effy/edge-shared/delivery`
+## Shared library - `@effy/edge-shared/delivery`
 
 ```ts
 coverageForPostcode(q, postcode): Promise<Coverage>
@@ -165,4 +165,4 @@ COURIER_ORDERING_AVAILABLE: false                         // E5 flips it
 
 ## Live
 
-`LIVE_KINDS` gains `"coverage"` — ops channel only.
+`LIVE_KINDS` gains `"coverage"` - ops channel only.

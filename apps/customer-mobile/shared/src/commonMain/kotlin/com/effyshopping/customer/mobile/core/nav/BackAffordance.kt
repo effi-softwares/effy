@@ -12,8 +12,8 @@ import androidx.navigation3.runtime.NavKey
 /**
  * How the screen currently rendering goes back, or `null` when it is the bottom of its stack.
  *
- * `EffyAppBar` reads this as the default for its `onBack`, so a screen gets a back arrow — or
- * correctly doesn't — **without being told**. Nothing to pass down, nothing to remember.
+ * `EffyAppBar` reads this as the default for its `onBack`, so a screen gets a back arrow - or
+ * correctly doesn't - **without being told**. Nothing to pass down, nothing to remember.
  */
 val LocalNavBack = staticCompositionLocalOf<(() -> Unit)?> { null }
 

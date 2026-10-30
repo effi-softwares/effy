@@ -30,8 +30,8 @@ describe("upsert SQL guard (FR-025)", () => {
     expect(
       /\bstatus\b\s*=/.test(doUpdate!),
       "SECURITY: the upsert assigns `status` on the conflict path. A BARRED customer would " +
-        "un-ban themselves simply by signing in — the INSERT supplies the 'active' default and " +
-        "DO UPDATE writes it over the ban, silently. `status` is platform-owned. Remove it.",
+      "un-ban themselves simply by signing in - the INSERT supplies the 'active' default and " +
+      "DO UPDATE writes it over the ban, silently. `status` is platform-owned. Remove it.",
     ).toBe(false)
   })
 
@@ -41,7 +41,7 @@ describe("upsert SQL guard (FR-025)", () => {
 
     expect(
       /\bgiven_name\b\s*=/.test(doUpdate) || /\bfamily_name\b\s*=/.test(doUpdate),
-      "the upsert assigns the customer's name on conflict — a profile edit would be silently reverted on their next page load",
+      "the upsert assigns the customer's name on conflict - a profile edit would be silently reverted on their next page load",
     ).toBe(false)
   })
 

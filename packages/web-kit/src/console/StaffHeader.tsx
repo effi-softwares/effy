@@ -129,7 +129,7 @@ const clock = new Intl.DateTimeFormat("en-AU", { hour: "numeric", minute: "2-dig
  * Says so when the screen cannot receive live updates, and how old what is on it is.
  *
  * Nothing while the channel is live: an always-on "Live" badge is one more thing that can be green
- * while the screen is wrong. It waits a few seconds before appearing — every load and every brief
+ * while the screen is wrong. It waits a few seconds before appearing - every load and every brief
  * blip passes through "reconnecting", and flashing a warning for each teaches people to ignore it.
  */
 function LivePill() {

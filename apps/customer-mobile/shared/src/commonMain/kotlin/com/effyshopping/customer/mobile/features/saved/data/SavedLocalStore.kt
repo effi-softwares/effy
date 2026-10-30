@@ -16,7 +16,7 @@ class SavedLocalStore(private val prefs: DevicePreferences) {
     /**
      * Load the guest list.
      *
-     * Any unparseable, truncated or older blob yields an empty list — never a crash, and never a
+     * Any unparseable, truncated or older blob yields an empty list - never a crash, and never a
      * half-parse. Losing a guest list is recoverable; a render crash is not, and a half-read list is
      * worst of all because the shopper would trust it.
      */
@@ -31,7 +31,7 @@ class SavedLocalStore(private val prefs: DevicePreferences) {
         }.getOrDefault(emptyList())
     }
 
-    /** Persist the guest list. A failed write never crashes — this store is best-effort. */
+    /** Persist the guest list. A failed write never crashes - this store is best-effort. */
     fun save(items: List<SavedGuestEntry>) {
         runCatching {
             prefs.putString(

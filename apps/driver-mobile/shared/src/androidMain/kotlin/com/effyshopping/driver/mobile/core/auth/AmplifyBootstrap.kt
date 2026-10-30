@@ -8,7 +8,7 @@ import com.effyshopping.driver.mobile.core.config.buildAmplifyOutputsJson
 
 /**
  * Configures Amplify Android from the in-code config string (no `amplifyconfiguration.json`, D12).
- * Lives in `:shared` so Amplify stays an implementation detail — `:androidApp` never imports the SDK.
+ * Lives in `:shared` so Amplify stays an implementation detail - `:androidApp` never imports the SDK.
  */
 object AmplifyBootstrap {
     fun configure(context: Context) {

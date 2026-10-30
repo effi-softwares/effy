@@ -21,7 +21,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 /**
- * The saved list's UI state — one immutable observable object, per Principle VI's MVVM rule.
+ * The saved list's UI state - one immutable observable object, per Principle VI's MVVM rule.
  */
 sealed interface SavedUiState {
     data object Loading : SavedUiState
@@ -127,7 +127,7 @@ class SavedViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Throwable) {
-                _state.value = current // put it back — the platform refused
+                _state.value = current // put it back - the platform refused
             }
         }
     }

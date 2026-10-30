@@ -220,7 +220,7 @@ export const money = (amount: string) => `$${Number(amount).toFixed(2)}`;
 
 /**
  * The lowest price ("From $4.60" when variants differ), or "" before one is set. `shown` turns a shop price into
- * the price to show — back-office adds its margin.
+ * the price to show - back-office adds its margin.
  */
 export function previewPrice(
   draft: ProductDraft,

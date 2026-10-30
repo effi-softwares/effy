@@ -7,7 +7,7 @@ import { StaffSidebar } from "./StaffSidebar";
 import type { DefaultTabs, StaffNavGroup } from "./staff-nav";
 
 /**
- * The authenticated frame BOTH consoles render inside — back-office and shop-web are one shell, one
+ * The authenticated frame BOTH consoles render inside - back-office and shop-web are one shell, one
  * scale, one theme. shadcn sidebar-07 dressed as the redesign's "Foundations and shell" boards; styles
  * in @effy/design-system/console.css. Everything that differs is a prop. Wired by hand; no DI.
  *
@@ -28,9 +28,9 @@ export interface StaffShellProps {
   headerActions?: ReactNode;
   /** The record on screen, when the surface derives it itself; otherwise pages call `useHeaderDetail`. */
   headerDetail?: string | null;
-  /** The account menu (StaffUserMenu) — the header's right corner. */
+  /** The account menu (StaffUserMenu) - the header's right corner. */
   userMenu: ReactNode;
-  /** Controlled fold — held in the surface's client store. */
+  /** Controlled fold - held in the surface's client store. */
   sidebarOpen: boolean;
   onSidebarOpenChange: (open: boolean) => void;
   /** Dialogs and palettes that sit outside the scroll region. */

@@ -33,7 +33,7 @@ import { createCheckoutStore, SlotUnavailableError, type CheckoutStore } from ".
  * These cannot be unit tests. "Exactly once" is a row lock on the order; slot capacity is a row
  * lock on the slot; the stock floor is one statement; and "an event is recorded only if it was
  * handled" is a property of a transaction. A fake store proves none of them. The payment provider
- * is the one thing faked — it is behind a port for exactly this.
+ * is the one thing faked - it is behind a port for exactly this.
  *
  * Why the real clock. The slot load compares `held_until` with the database's now, so a frozen
  * clock in the test would hold places the database already considers lapsed. The fixture is built
@@ -163,7 +163,7 @@ const stockOf = async (name: string) => (await one<{ n: number }>(`SELECT stock_
 const pay = (orderId: string) => transact((tx) => finalizeSucceeded(tx, orderId));
 const bookedToday = async () => (await slotLoad(pool, melbourneDate(new Date()))).get(slotId) ?? 0;
 
-d("070 — checkout, finalisation and the webhook against the real schema", () => {
+d("070 - checkout, finalisation and the webhook against the real schema", () => {
   beforeAll(async () => {
     container = await new PostgreSqlContainer("postgres:16-alpine").start();
     pool = new Pool({ connectionString: container.getConnectionUri(), max: 12 });
@@ -283,7 +283,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     expect((await orderRow(r.orderId)).items).toBe("8.50"); // 2 × 2.00 + 4.50, not 5 × 2.00
     const milk = await one<{ unit: string; shop: string; cls: string; sold: boolean; label: string | null }>(
       `SELECT oi.unit_price_amount::text AS unit, oi.shop_unit_price_amount::text AS shop, oi.storage_class AS cls,
-              -- 098 — the line names the variant it sold, with its label and codes as they were.
+              -- 098 - the line names the variant it sold, with its label and codes as they were.
               oi.variant_id = v.id AND oi.sku IS NOT DISTINCT FROM v.sku AND oi.variant_code = v.code AS sold,
               oi.variant_label AS label
          FROM public.order_item oi JOIN public.product_variant v ON v.product_id = oi.product_id
@@ -311,7 +311,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     expect((await orderRow(second.orderId)).status).toBe("pending_payment");
   });
 
-  it("delivery instructions are written on every intent — including with nothing — and never on a paid order", async () => {
+  it("delivery instructions are written on every intent - including with nothing - and never on a paid order", async () => {
     const s = await shopper({ Milk: 1 });
     const a = await svc.createIntent(s.customerId, input(s.addressId, { deliveryInstructions: { handover: "leave_at_door", note: "Gate 4" } }), new Date());
     expect(await orderRow(a.orderId)).toMatchObject({ handover: "leave_at_door", note: "Gate 4" });
@@ -326,7 +326,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
 
   // Recording a payment
 
-  it("a payment is recorded once: fan-out, stock, receipt, notifications, cart — and a second delivery does nothing", async () => {
+  it("a payment is recorded once: fan-out, stock, receipt, notifications, cart - and a second delivery does nothing", async () => {
     const s = await shopper({ Scarce: 1, Milk: 2 });
     const { orderId } = await svc.createIntent(s.customerId, input(s.addressId), new Date());
 
@@ -356,7 +356,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
               delivery_method AS method FROM public.shop_fulfillment WHERE order_id = $1`,
       [orderId],
     );
-    // No fee on a shop's portion — the column is gone: delivery is priced once, on the order.
+    // No fee on a shop's portion - the column is gone: delivery is priced once, on the order.
     expect(sf).toEqual({ items: 3, cust: "11.00", shop: "10.00", method: "standard" });
     expect((await orderRow(orderId)).fee).toBe("6.00");
   });
@@ -562,7 +562,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     const p = await pendingWithIntent();
     const sig = gateway.sign({ id: "evt_flaky", type: "payment_intent.succeeded", paymentIntentId: p.intentId, intentStatus: "succeeded" });
 
-    // The first delivery fails after the work is done and before it commits — a dropped connection.
+    // The first delivery fails after the work is done and before it commits - a dropped connection.
     let fail = true;
     const flaky: Transactor = (fn) =>
       transact(async (tx) => {
@@ -630,7 +630,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
 
   // Points
 
-  it("074 — part-paid with points: the total is unchanged, the card intent is total − points, and paying spends them once (P6)", async () => {
+  it("074 - part-paid with points: the total is unchanged, the card intent is total − points, and paying spends them once (P6)", async () => {
     const s = await shopper({ Milk: 2 }); // 9.00 + 6.00 delivery = 15.00
     await givePoints(s.customerId, 1000);
     const r = await svc.createIntent(s.customerId, input(s.addressId, { pointsToUse: 1000 }), new Date());
@@ -647,7 +647,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     expect((await one<{ a: string }>(`SELECT amount::text AS a FROM public.payment WHERE order_id = $1`, [r.orderId])).a).toBe("5.00");
   });
 
-  it("074 — points-only: no provider call, a `points` payment, a paid order, an empty cart and a queued receipt (P8)", async () => {
+  it("074 - points-only: no provider call, a `points` payment, a paid order, an empty cart and a queued receipt (P8)", async () => {
     const s = await shopper({ Milk: 2 });
     await givePoints(s.customerId, 2000);
     const r = await svc.createIntent(s.customerId, input(s.addressId, { pointsToUse: 1500 }), new Date());
@@ -662,7 +662,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     expect(await pointsNow(s.customerId)).toBe(500);
   });
 
-  it("074 — switching an attempt to points-only cancels the card intent it had made", async () => {
+  it("074 - switching an attempt to points-only cancels the card intent it had made", async () => {
     const s = await shopper({ Milk: 2 });
     await givePoints(s.customerId, 2000);
     const first = await svc.createIntent(s.customerId, input(s.addressId), new Date());
@@ -673,7 +673,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     expect((await gateway.gw.retrievePaymentIntent(intent)).status).toBe("canceled");
   });
 
-  it("074 — refuses rather than clamps: too many points, more than the total, a card remainder under 50¢ (P9)", async () => {
+  it("074 - refuses rather than clamps: too many points, more than the total, a card remainder under 50¢ (P9)", async () => {
     const s = await shopper({ Milk: 2 }); // 15.00
     await givePoints(s.customerId, 1400);
     await expect(svc.createIntent(s.customerId, input(s.addressId, { pointsToUse: 1500 }), new Date())).rejects.toMatchObject({ usable: 1400 });
@@ -683,7 +683,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     expect(await count(`SELECT 1 FROM public.points_hold WHERE customer_id = $1 AND state = 'held'`, [s.customerId])).toBe(0);
   });
 
-  it("074 — refreshing the same checkout is not refused by its own hold; a second checkout cannot take the same points (P4)", async () => {
+  it("074 - refreshing the same checkout is not refused by its own hold; a second checkout cannot take the same points (P4)", async () => {
     const s = await shopper({ Milk: 2 });
     await givePoints(s.customerId, 1000);
     const a = await svc.createIntent(s.customerId, input(s.addressId, { pointsToUse: 1000 }), new Date());
@@ -700,7 +700,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     await expect(store.holdPoints(other, s.customerId, 1, new Date())).rejects.toMatchObject({ usable: 0 });
   });
 
-  it("074 — the late payer: the hold lapsed and the points went elsewhere; the order is paid, the gap recorded, the balance never negative (P7)", async () => {
+  it("074 - the late payer: the hold lapsed and the points went elsewhere; the order is paid, the gap recorded, the balance never negative (P7)", async () => {
     const s = await shopper({ Milk: 2 });
     await givePoints(s.customerId, 1000);
     const r = await svc.createIntent(s.customerId, input(s.addressId, { pointsToUse: 1000 }), new Date());
@@ -714,7 +714,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     expect(await pointsNow(s.customerId)).toBe(0);
   });
 
-  it("074 — a failed payment gives the held points back at once", async () => {
+  it("074 - a failed payment gives the held points back at once", async () => {
     const s = await shopper({ Milk: 2 });
     await givePoints(s.customerId, 1000);
     const r = await svc.createIntent(s.customerId, input(s.addressId, { pointsToUse: 500 }), new Date());
@@ -724,7 +724,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
   });
   // One delivery fee per order
 
-  /** A product at any price, in any shop — the basket rules are tested to the cent. */
+  /** A product at any price, in any shop - the basket rules are tested to the cent. */
   async function priced(name: string, price: string, inShop = shopId): Promise<string> {
     product[name] = (await insertTestProduct(pool, { ...(await catalogIds()), shopId: inShop, name, price })).productId;
     return product[name]!;
@@ -755,7 +755,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     }
   }
 
-  it("077 — the order keeps how its fee was built, and the intent hands back the lines", async () => {
+  it("077 - the order keeps how its fee was built, and the intent hands back the lines", async () => {
     const s = await shopper({ Milk: 2 });
     const r = await svc.createIntent(s.customerId, sameDay(s.addressId), new Date());
     expect(r.deliveryFee).toEqual({
@@ -776,7 +776,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     expect(await count(`SELECT 1 FROM information_schema.columns WHERE table_name IN ('order_package_delivery', 'shop_fulfillment') AND column_name = 'delivery_fee_amount'`)).toBe(0);
   });
 
-  it("077 — a basket from three shops pays ONE fee, the same as from one (P3)", async () => {
+  it("077 - a basket from three shops pays ONE fee, the same as from one (P3)", async () => {
     const [b, c] = [await otherShop("CHK-B"), await otherShop("CHK-C")];
     await priced("FromA", "5.00");
     await priced("FromB", "5.00", b);
@@ -791,7 +791,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     expect(await count(`SELECT 1 FROM public.order_package_delivery WHERE order_id = $1`, [r3.orderId])).toBe(3);
   });
 
-  it("077 — basket value: free delivery at the amount, a small-order fee under the other, to the cent", async () => {
+  it("077 - basket value: free delivery at the amount, a small-order fee under the other, to the cent", async () => {
     await priced("P1999", "19.99");
     await priced("P2000", "20.00");
     await priced("P7999", "79.99");
@@ -819,7 +819,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
       const near = await place("P7999");
       expect(near.o.fee).toBe("6.00");
       expect((await quoteFor(await shopper({ P7999: 1 }))).freeDeliveryRemainingAmount).toBe("0.01");
-      // Exactly at it: free — window surcharge and all — and the customer is told what was waived.
+      // Exactly at it: free - window surcharge and all - and the customer is told what was waived.
       const free = await place("P8000", { deliveryWindow: { slotId, date: melbourneDate(new Date()) } });
       expect(free.o.fee).toBe("0.00");
       expect(free.o.lines).toEqual([
@@ -828,7 +828,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
       expect(free.r.grandTotalAmount).toBe("80.00");
       expect((await quoteFor(await shopper({ P8000: 1 }))).freeDeliveryRemainingAmount).toBeNull();
 
-      // A promotion counts: $85 less $10 is a $75 basket, which is not free — in the quote and the charge alike.
+      // A promotion counts: $85 less $10 is a $75 basket, which is not free - in the quote and the charge alike.
       const tenOff: PromoSource = async () => flatPricing(1000);
       const discounted = await shopper({ P8500: 1 });
       const q = await quoteFor(discounted, tenOff);
@@ -844,7 +844,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     });
   });
 
-  it("077 — a delivery total the client is not showing is refused, and nothing at all is written (P13)", async () => {
+  it("077 - a delivery total the client is not showing is refused, and nothing at all is written (P13)", async () => {
     // A shopper with nothing yet: a stale amount creates no order.
     const fresh = await shopper({ Milk: 2 });
     await expect(svc.createIntent(fresh.customerId, input(fresh.addressId, { shownDeliveryAmount: "7.00" }), new Date()))
@@ -888,7 +888,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     await expect(svc.createIntent(old.customerId, input(old.addressId), new Date())).resolves.toMatchObject({ grandTotalAmount: "10.50" });
   });
 
-  it("077 — a placed order's fee never moves: a new plan, a corrected distance, a postcode removed (P14)", async () => {
+  it("077 - a placed order's fee never moves: a new plan, a corrected distance, a postcode removed (P14)", async () => {
     const orders = createOrdersService({ repo: createOrdersRepository(pool), imageAddress: async () => null });
     const s = await shopper({ Milk: 2 });
     const r = await svc.createIntent(s.customerId, sameDay(s.addressId), new Date());
@@ -919,7 +919,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
         INSERT INTO public.delivery_weight_band (plan_id, upper_grams, add_amount) VALUES ('${DEAR}', 100000, 0.00);
         SELECT public.delivery_plan_activate('${DEAR}', 'test', false);`);
       expect(await view()).toEqual(was);
-      // The next shopper pays the new price — the plan really did change.
+      // The next shopper pays the new price - the plan really did change.
       const next = await shopper({ Milk: 2 });
       expect((await svc.createIntent(next.customerId, input(next.addressId), new Date())).deliveryFee!.totalAmount).toBe("30.00");
 
@@ -940,11 +940,11 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
   // Effy delivery windows: today and the next delivery days
   //
   // `modelOn` only puts the calendar settings back after a test that changed them: since 083 there
-  // is no switch to turn on — this is the one checkout.
+  // is no switch to turn on - this is the one checkout.
 
   const quoteOf = (s: { customerId: string; addressId: string }) =>
     quoteForCheckout({ store, quoter: defaultQuoter(pool), promos: noPromo }, s.customerId, s.addressId, new Date());
-  /** Today, then the next three days — the fixture has no non-delivery days. */
+  /** Today, then the next three days - the fixture has no non-delivery days. */
   const offered = () => effyDays(new Date(), 3, [], new Set(), true).map((d) => d.date);
   const windowOn = (addressId: string, date: string, over: Partial<IntentInput> = {}) =>
     input(addressId, { deliveryWindow: { slotId, date }, ...over });
@@ -970,7 +970,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     return (err as DeliveryChoiceError).code;
   };
 
-  it("078 — with the switch on the customer is offered today and the next three delivery days (P10)", async () => {
+  it("078 - with the switch on the customer is offered today and the next three delivery days (P10)", async () => {
     await modelOn(async () => {
       const s = await shopper({ Milk: 2 });
       const q = await quoteOf(s);
@@ -989,7 +989,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     });
   });
 
-  it("078 — a later-day window: every package is 'standard' WITH the window, and the place is held on that day (P10)", async () => {
+  it("078 - a later-day window: every package is 'standard' WITH the window, and the place is held on that day (P10)", async () => {
     await modelOn(async () => {
       const days = offered();
       const s = await shopper({ Milk: 2 });
@@ -1014,7 +1014,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     });
   });
 
-  it("078 — ONE window for the order: a basket from three shops never splits, and holds one place (P10)", async () => {
+  it("078 - ONE window for the order: a basket from three shops never splits, and holds one place (P10)", async () => {
     const [b, c] = [await otherShop("CHK-W1"), await otherShop("CHK-W2")];
     await priced("WinA", "5.00");
     await priced("WinB", "5.00", b);
@@ -1032,11 +1032,11 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     });
   });
 
-  it("078 — no window, a day not on offer, a window that is gone: each refused, nothing substituted (P11)", async () => {
+  it("078 - no window, a day not on offer, a window that is gone: each refused, nothing substituted (P11)", async () => {
     await modelOn(async () => {
       const days = offered();
       const s = await shopper({ Milk: 1 });
-      // No window sent — which is all a client built for the old checkout can do: its slot and day
+      // No window sent - which is all a client built for the old checkout can do: its slot and day
       // fields are no longer read, so it is refused here and never sold the old way.
       expect(await refusal(svc.createIntent(s.customerId, input(s.addressId, { deliveryWindow: null }), new Date()))).toBe("slot_required");
       const oldClient = { ...input(s.addressId, { deliveryWindow: null }), deliveryMethod: "same_day", sameDaySlotId: slotId, standardDate: days[1] } as IntentInput;
@@ -1054,7 +1054,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     });
   });
 
-  it("078 — a full window on one day says nothing about the next, and the last place has one winner (P6, P7)", async () => {
+  it("078 - a full window on one day says nothing about the next, and the last place has one winner (P6, P7)", async () => {
     await modelOn(async () => {
       const days = offered();
       const shoppers = await Promise.all(Array.from({ length: 12 }, () => shopper({ Milk: 1 })));
@@ -1075,7 +1075,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     });
   });
 
-  it("078 — a window that fills between the quote and the pay button is refused before anything is charged", async () => {
+  it("078 - a window that fills between the quote and the pay button is refused before anything is charged", async () => {
     await modelOn(async () => {
       const days = offered();
       await pool.query(`UPDATE public.delivery_slot SET capacity = 1 WHERE id = $1`, [slotId]);
@@ -1090,7 +1090,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     });
   });
 
-  it("078 — a late payer into a later-day window that has since filled keeps it and is flagged (P8)", async () => {
+  it("078 - a late payer into a later-day window that has since filled keeps it and is flagged (P8)", async () => {
     await modelOn(async () => {
       const days = offered();
       await pool.query(`UPDATE public.delivery_slot SET capacity = 1 WHERE id = $1`, [slotId]);
@@ -1108,7 +1108,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     });
   });
 
-  it("078 — non-delivery days are skipped and do not count; a today Effy does not deliver says so", async () => {
+  it("078 - non-delivery days are skipped and do not count; a today Effy does not deliver says so", async () => {
     await modelOn(async () => {
       const plain = offered();
       // Tomorrow is a public holiday: it vanishes and a fourth day takes its place.
@@ -1135,7 +1135,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     });
   });
 
-  it("078 — each window shows what it adds: the today premium only today, free delivery nothing, and the charge is the one shown (P12)", async () => {
+  it("078 - each window shows what it adds: the today premium only today, free delivery nothing, and the charge is the one shown (P12)", async () => {
     await modelOn(async () => {
       const days = offered();
       await pool.query(`INSERT INTO public.delivery_slot_premium (plan_id, slot_id, add_amount) VALUES ($1, $2, 2.00)`, [PLAN, slotId]);
@@ -1144,21 +1144,21 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
       const shown = q.effyWindows!.days.map((d) => [d.windows[0]!.surchargeAmount, d.windows[0]!.fee.totalAmount]);
       expect(shown).toEqual([["7.00", "13.00"], ["2.00", "8.00"], ["2.00", "8.00"], ["2.00", "8.00"]]);
 
-      // The charge is the window's on its day — and a client showing another amount is stopped first.
+      // The charge is the window's on its day - and a client showing another amount is stopped first.
       await expect(svc.createIntent(s.customerId, windowOn(s.addressId, days[1]!, { shownDeliveryAmount: "13.00" }), new Date()))
         .rejects.toBeInstanceOf(DeliveryFeeChangedError);
       const r = await svc.createIntent(s.customerId, windowOn(s.addressId, days[1]!, { shownDeliveryAmount: "8.00" }), new Date());
       expect((await feeOf(r.orderId)).fee).toBe("8.00");
       expect(r.deliveryFee!.lines).toEqual([{ kind: "delivery", amount: "6.00" }, { kind: "window_surcharge", amount: "2.00" }]);
 
-      // Over the free-delivery amount, no window costs anything — today's included.
+      // Over the free-delivery amount, no window costs anything - today's included.
       await pool.query(`UPDATE public.delivery_fee_plan SET free_over_amount = 5.00 WHERE id = $1`, [PLAN]);
       q = await quoteOf(s);
       expect(q.effyWindows!.days.map((d) => [d.windows[0]!.surchargeAmount, d.windows[0]!.fee.totalAmount])).toEqual(Array(4).fill(["0.00", "0.00"]));
     });
   });
 
-  it("078 — nothing to choose: 'no_windows' when every day is taken, 'none_defined' when none is switched on (P11)", async () => {
+  it("078 - nothing to choose: 'no_windows' when every day is taken, 'none_defined' when none is switched on (P11)", async () => {
     await modelOn(async () => {
       const days = offered();
       const s = await shopper({ Milk: 1 });
@@ -1183,7 +1183,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     });
   });
 
-  it("078 — the window a customer bought is the window they keep, whatever is changed afterwards (P13)", async () => {
+  it("078 - the window a customer bought is the window they keep, whatever is changed afterwards (P13)", async () => {
     const orders = createOrdersService({ repo: createOrdersRepository(pool), imageAddress: async () => null });
     await modelOn(async () => {
       const days = offered();
@@ -1224,7 +1224,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
         VALUES ('${COURIER_PLAN}', 'courier', 'Courier table', true, 9.00, 0.50, 0.00, 90.00, 'test');
       INSERT INTO public.delivery_weight_band (plan_id, upper_grams, add_amount) VALUES ('${COURIER_PLAN}', 5000, 0.00), ('${COURIER_PLAN}', 100000, 4.50);
       UPDATE public.delivery_settings SET courier_offered = true WHERE id = 1;
-      -- 080 — the timeframe a courier customer is told is the DEFAULT courier service's.
+      -- 080 - the timeframe a courier customer is told is the DEFAULT courier service's.
       INSERT INTO public.courier_service (id, courier_name, service_name, estimate_text, max_business_days, pickup_weekdays, pickup_cutoff, is_default, updated_by)
         VALUES ('${COURIER_SERVICE}', 'Test Courier', 'Parcel', '${ESTIMATE}', 4, '{1,2,3,4,5}', '14:00', true, 'test');`)
     try {
@@ -1240,7 +1240,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
         DELETE FROM public.delivery_fee_plan WHERE id = '${COURIER_PLAN}';`);
     }
   }
-  /** Another of the shopper's addresses — by default one Effy does not deliver to. */
+  /** Another of the shopper's addresses - by default one Effy does not deliver to. */
   const addressAt = async (customerId: string, postcode = "7000") =>
     (
       await one<{ id: string }>(
@@ -1276,7 +1276,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
   }
   const movedTo3141 = (addressId: string) => pool.query(`UPDATE public.customer_address SET postal_code = '3141' WHERE id = $1`, [addressId]);
 
-  it("097 — today not offered: no Same-day day at all, the later days and their fees unchanged; a postcode left on keeps today", async () => {
+  it("097 - today not offered: no Same-day day at all, the later days and their fees unchanged; a postcode left on keeps today", async () => {
     const s = await shopper({ Milk: 2 });
     const before = await modelOn(() => quoteOf(s));
     await todayOffAt3121(async () => {
@@ -1296,7 +1296,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     });
   });
 
-  it("097 — a choice of today made before the switch-off is refused at the intent, nothing written; a later day is sold", async () => {
+  it("097 - a choice of today made before the switch-off is refused at the intent, nothing written; a later day is sold", async () => {
     await todayOffAt3121(async () => {
       const days = offered();
       const s = await shopper({ Milk: 1 });
@@ -1312,7 +1312,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     });
   });
 
-  it("097 — 'as soon as possible' lands on the first later day, never today", async () => {
+  it("097 - 'as soon as possible' lands on the first later day, never today", async () => {
     const anyTime = (
       await one<{ id: string }>(
         `INSERT INTO public.delivery_slot (start_time, end_time, cutoff_time, capacity, status, any_time, updated_by)
@@ -1341,7 +1341,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     }
   });
 
-  it("097 — a place already held today, and an order already paid for today, keep today after the switch-off", async () => {
+  it("097 - a place already held today, and an order already paid for today, keep today after the switch-off", async () => {
     await modelOn(async () => {
       const days = offered();
       const held = await shopper({ Milk: 1 });
@@ -1363,7 +1363,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     });
   });
 
-  it("079 P4 — outside Effy's area, a courier reaches it: the estimate, the courier fee, and nothing to choose", async () => {
+  it("079 P4 - outside Effy's area, a courier reaches it: the estimate, the courier fee, and nothing to choose", async () => {
     await modelOn(() => courierArmed(async () => {
       const s = await shopper({ Milk: 2 });
       const far = { customerId: s.customerId, addressId: await addressAt(s.customerId) };
@@ -1395,7 +1395,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     }));
   });
 
-  it("079 P5 — a courier order: one type, the estimate as sold, every package a carrier's, and no place in any window", async () => {
+  it("079 P5 - a courier order: one type, the estimate as sold, every package a carrier's, and no place in any window", async () => {
     const b = await otherShop("CHK-C1");
     await priced("CouA", "5.00");
     await priced("CouB", "5.00", b);
@@ -1407,7 +1407,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
       expect(r).toMatchObject({ deliveryType: "courier", grandTotalAmount: "19.00", deliveryFee: { totalAmount: "9.00" } });
       expect(r.slotHeldUntil ?? null).toBeNull();
       expect(await soldAs(r.orderId)).toEqual({ type: "courier", reason: "out_of_coverage", estimate: ESTIMATE });
-      // 080 P9 — the service whose timeframe they were told, and the platform's default way to the courier.
+      // 080 P9 - the service whose timeframe they were told, and the platform's default way to the courier.
       expect(await one(`SELECT courier_service_id::text AS service, courier_collection AS mode FROM public."order" WHERE id = $1`, [r.orderId]))
         .toEqual({ service: COURIER_SERVICE, mode: "hub" });
       await pool.query(`UPDATE public.delivery_settings SET courier_collection_default = 'supplier' WHERE id = 1`);
@@ -1435,7 +1435,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     }));
   });
 
-  it("079 — an Effy order is recorded as one too: in coverage, no estimate, and its history starts at payment", async () => {
+  it("079 - an Effy order is recorded as one too: in coverage, no estimate, and its history starts at payment", async () => {
     await modelOn(async () => {
       const days = offered();
       for (const said of [undefined, "effy"] as const) {
@@ -1449,7 +1449,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     });
   });
 
-  it("079 P6 — the type the client showed must be the type that applies: refused both ways, and nothing is written", async () => {
+  it("079 P6 - the type the client showed must be the type that applies: refused both ways, and nothing is written", async () => {
     await modelOn(() => courierArmed(async () => {
       const s = await shopper({ Milk: 2 });
       const far = await addressAt(s.customerId);
@@ -1470,19 +1470,19 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     }));
   });
 
-  it("079 P7 — changing address re-decides everything: the window, the place held for it, the fee and the type", async () => {
+  it("079 P7 - changing address re-decides everything: the window, the place held for it, the fee and the type", async () => {
     await modelOn(() => courierArmed(async () => {
       const days = offered();
       const s = await shopper({ Milk: 2 });
       const far = await addressAt(s.customerId);
 
-      // Address A — Effy, a window on a later day: a place is held.
+      // Address A - Effy, a window on a later day: a place is held.
       const a = await svc.createIntent(s.customerId, windowOn(s.addressId, days[2]!), new Date());
       expect(await soldAs(a.orderId)).toMatchObject({ type: "effy" });
       expect(await count(`SELECT 1 FROM public.delivery_slot_booking WHERE order_id = $1`, [a.orderId])).toBe(1);
       expect(await bookedOn(days[2]!)).toBe(1);
 
-      // Address B — a courier. The same pending order: the place is given up, the rows replaced.
+      // Address B - a courier. The same pending order: the place is given up, the rows replaced.
       const bq = await svc.createIntent(s.customerId, courier(far), new Date());
       expect(bq.orderId).toBe(a.orderId);
       expect(await soldAs(bq.orderId)).toEqual({ type: "courier", reason: "out_of_coverage", estimate: ESTIMATE });
@@ -1492,7 +1492,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
       expect((await feeOf(bq.orderId)).fee).toBe("9.00");
       expect((await orderRow(bq.orderId)).grand).toBe("18.00");
 
-      // Back to A: nothing of the courier order is left — and the window must be chosen again.
+      // Back to A: nothing of the courier order is left - and the window must be chosen again.
       expect(await refusal(svc.createIntent(s.customerId, input(s.addressId, { deliveryWindow: null }), new Date()))).toBe("slot_required");
       const again = await svc.createIntent(s.customerId, windowOn(s.addressId, days[1]!), new Date());
       expect(await soldAs(again.orderId)).toEqual({ type: "effy", reason: "in_coverage", estimate: null });
@@ -1503,7 +1503,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     }));
   });
 
-  it("079 — an address nobody reaches is refused the one way, whatever the reason behind it", async () => {
+  it("079 - an address nobody reaches is refused the one way, whatever the reason behind it", async () => {
     await modelOn(() => courierArmed(async () => {
       const s = await shopper({ Milk: 2 });
       const far = await addressAt(s.customerId);
@@ -1533,7 +1533,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     }));
   });
 
-  it("079 P9 — the customer's order says who delivers it, and a courier order keeps the estimate it was sold", async () => {
+  it("079 P9 - the customer's order says who delivers it, and a courier order keeps the estimate it was sold", async () => {
     const orders = createOrdersService({ repo: createOrdersRepository(pool), imageAddress: async () => null });
     await modelOn(() => courierArmed(async () => {
       const s = await shopper({ Milk: 2 });
@@ -1545,7 +1545,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
 
       const o = await orders.get(scope, s.customerId, r.orderId);
       expect(o.delivery).toEqual({ type: "courier", courierEstimate: ESTIMATE });
-      // No arrival at all — not "standard", which is only how the package is routed.
+      // No arrival at all - not "standard", which is only how the package is routed.
       expect(o.arrivalEstimates).toEqual([]);
       // A customer is told who delivers, never why.
       expect(JSON.stringify(o)).not.toMatch(/out_of_coverage|in_coverage|no_window|reason/);
@@ -1561,7 +1561,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     }));
   });
 
-  it("⚠ 080 P11 — a customer follows a courier order by ONE link, or is told tracking comes by email; never a count", async () => {
+  it("⚠ 080 P11 - a customer follows a courier order by ONE link, or is told tracking comes by email; never a count", async () => {
     const orders = createOrdersService({ repo: createOrdersRepository(pool), imageAddress: async () => null });
     await modelOn(() => courierArmed(async () => {
       const staff = { kind: "staff" as const, sub: "sub-staff" };
@@ -1589,7 +1589,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
         type: "courier", courierEstimate: ESTIMATE, tracking: { kind: "link", url: "https://track.example.test/A1", courierName: "Test Courier" },
       });
 
-      // Two parcels (a second supplier): "by email" as soon as one has gone — and never a number.
+      // Two parcels (a second supplier): "by email" as soon as one has gone - and never a number.
       const t = await shopper({ Milk: 1 });
       const rt = await svc.createIntent(t.customerId, courier(await addressAt(t.customerId)), new Date());
       await pay(rt.orderId);
@@ -1618,11 +1618,11 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     }));
   });
 
-  it("079 P10 — no window left: courier instead ONLY if the business allows it, a courier reaches it, and no window is open", async () => {
+  it("079 P10 - no window left: courier instead ONLY if the business allows it, a courier reaches it, and no window is open", async () => {
     await modelOn(() => courierArmed(async () => {
       const days = offered();
       const s = await shopper({ Milk: 1 });
-      // A window is open: never a courier, whatever the setting — the customer does not choose between them.
+      // A window is open: never a courier, whatever the setting - the customer does not choose between them.
       await pool.query(`UPDATE public.delivery_settings SET courier_when_no_windows = true WHERE id = 1`);
       expect(await quoteOf(s)).toMatchObject({ coverage: "effy" });
       expect(await quoteOf(s)).not.toHaveProperty("courier");
@@ -1665,7 +1665,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     }));
   });
 
-  it("094 — the cart's promotions are the charge's: lines, records, a held use confirmed by payment, a paid-share refund, and a changed promotion refused", async () => {
+  it("094 - the cart's promotions are the charge's: lines, records, a held use confirmed by payment, a paid-share refund, and a changed promotion refused", async () => {
     const cartSvc = createCartService({ repo: createCartRepository(pool, transact), policy: () => loadCartPolicy(pool), imageAddress: async () => null, promotions: promotionPort(pool) });
     const promos: PromoSource = async (i) =>
       pricePromotionsFor(pool, {
@@ -1697,7 +1697,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     );
     expect(o).toEqual({ discount: cart.discountAmount, lines: cart.discountAmount, recorded: cart.discountAmount, use: "held" });
 
-    // A client built before 094 sends no total and is priced without the check — same order, re-held.
+    // A client built before 094 sends no total and is priced without the check - same order, re-held.
     await expect(real.createIntent(s.customerId, input(s.addressId), new Date())).resolves.toMatchObject({ orderId: r.orderId });
 
     // Payment confirms the use; a refund of one unit returns what was paid for it, not its shelf price.

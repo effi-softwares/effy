@@ -12,7 +12,7 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: { params: Promise<{ type: string; version: string }> }): Promise<Metadata> {
   const { type, version } = await params
   if (!hasDocument(type)) return {}
-  return { title: `${getDocument(type).title} — version ${version}`, robots: { index: false, follow: true } }
+  return { title: `${getDocument(type).title} - version ${version}`, robots: { index: false, follow: true } }
 }
 
 export default async function LegalVersionPage({ params }: { params: Promise<{ type: string; version: string }> }) {

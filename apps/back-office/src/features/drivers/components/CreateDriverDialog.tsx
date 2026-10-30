@@ -45,7 +45,7 @@ export function CreateDriverDialog() {
           <DialogTitle>Add a driver</DialogTitle>
           <DialogDescription>
             Creates their record and a sign-in for the driver app. They sign in with this work email and a six-digit
-            code — there is no password. Everything else can be filled in afterwards.
+            code - there is no password. Everything else can be filled in afterwards.
           </DialogDescription>
         </DialogHeader>
 

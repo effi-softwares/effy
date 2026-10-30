@@ -134,7 +134,7 @@ function WindowPicker({
             </RadioGroup>
           </fieldset>
           <div className="space-y-2">
-            <Label htmlFor={`${idPrefix}-reason`}>Why (staff only — the customer never sees this)</Label>
+            <Label htmlFor={`${idPrefix}-reason`}>Why (staff only - the customer never sees this)</Label>
             <Textarea
               id={`${idPrefix}-reason`}
               value={reason}

@@ -14,8 +14,8 @@ hits="$(grep -rniE '0fb57e' packages apps \
   --exclude-dir='build' --exclude-dir='.turbo' --exclude-dir='coverage' 2>/dev/null || true)"
 
 if [ -n "$hits" ]; then
-  echo "check-no-jade: FAILED — retired Jade brand value found in live source:" >&2
+  echo "check-no-jade: FAILED - retired Jade brand value found in live source:" >&2
   echo "$hits" >&2
   exit 1
 fi
-echo "check-no-jade: OK — no retired Jade brand values in live source (SC-008)."
+echo "check-no-jade: OK - no retired Jade brand values in live source (SC-008)."

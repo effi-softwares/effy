@@ -68,7 +68,7 @@ export function DetailGroups({ groups, onAdd }: { groups: readonly DetailGroup[]
                       {onAdd ? <span className="ml-1">{onAdd(r)}</span> : null}
                     </>
                   ) : r.value === null || r.value === undefined || r.value === "" ? (
-                    <span className="text-muted-foreground">—</span>
+                    <span className="text-muted-foreground">-</span>
                   ) : (
                     r.value
                   )}

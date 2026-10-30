@@ -12,7 +12,7 @@ import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 
 /**
- * The driver kit's sizes (092 — the canvas's "Sizes for the road"). Drivers work one-handed, outdoors,
+ * The driver kit's sizes (092 - the canvas's "Sizes for the road"). Drivers work one-handed, outdoors,
  * sometimes in gloves: targets are bigger than the customer app's, and the one next action sits at
  * the bottom of every screen.
  */

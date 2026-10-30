@@ -4,7 +4,7 @@
   "private": true,
   "sideEffects": false,
   "type": "module",
-  "description": "Effy legal & informational documents — the single source of truth (Principle II) for Privacy Policy, Terms, Refunds, Cookies, Acceptable Use, EULA, Acknowledgements and About. Canonical Markdown authored here; committed TS (web) + Kotlin (mobile) generated from it and drift-guarded.",
+  "description": "Effy legal & informational documents - the single source of truth (Principle II) for Privacy Policy, Terms, Refunds, Cookies, Acceptable Use, EULA, Acknowledgements and About. Canonical Markdown authored here; committed TS (web) + Kotlin (mobile) generated from it and drift-guarded.",
   "exports": {
     ".": "./src/index.ts"
   },

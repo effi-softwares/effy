@@ -43,12 +43,12 @@ export function AppShell({ email, roles, onSignOut, signingOut, children }: AppS
   const me = useQuery({ ...meQuery, enabled: email !== "" })
   const status = me.data?.status
 
-  // ⌘K / Ctrl+K anywhere, even from inside a field — it is how people leave one.
+  // ⌘K / Ctrl+K anywhere, even from inside a field - it is how people leave one.
   useHotkey("Mod+K", () => setCommandPaletteOpen(!uiStore.state.commandPaletteOpen), {
     ignoreInputs: false,
     preventDefault: true,
   })
-  // "?" — matched by the character typed (Shift is how most layouts type it).
+  // "?" - matched by the character typed (Shift is how most layouts type it).
   useHotkey({ key: "?", shift: true }, () => setShortcutsOpen(true), { ignoreInputs: true })
   for (const chord of CHORDS) {
     // eslint-disable-next-line react-hooks/rules-of-hooks -- chords is a module constant; the call order never changes

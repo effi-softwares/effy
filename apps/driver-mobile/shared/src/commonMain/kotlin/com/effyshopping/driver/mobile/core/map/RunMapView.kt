@@ -175,7 +175,7 @@ fun RunMapView(
 
 // layout
 
-/** The made-up ground: grid spacings, the main roads, a park and a water edge — fixed per seed. */
+/** The made-up ground: grid spacings, the main roads, a park and a water edge - fixed per seed. */
 private class GroundLayout(
     val vertical: List<Float>,
     val horizontal: List<Float>,

@@ -13,7 +13,7 @@ export interface TelemetryEvent {
 export interface TelemetryConfig {
   key: string | undefined;
   host: string | undefined;
-  /** e.g. "back-office", "shop-web" — stamped on every event. */
+  /** e.g. "back-office", "shop-web" - stamped on every event. */
   surface: string;
   /** The analytics kill switch: `false` makes init a no-op (no SDK, no collection). */
   enabled?: boolean;

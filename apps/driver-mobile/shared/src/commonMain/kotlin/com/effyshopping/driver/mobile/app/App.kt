@@ -37,7 +37,7 @@ import androidx.compose.runtime.setValue
 import kotlinx.coroutines.launch
 
 /**
- * The driver app root. Login-first: a top-level session gate picks the graph — `Restoring` splash,
+ * The driver app root. Login-first: a top-level session gate picks the graph - `Restoring` splash,
  * the sign-in flow when signed out (the only public screen), a refusal message when barred/unprovisioned,
  * or the adaptive [DriverShell] when signed in. No guest; no driver content without a session.
  */
@@ -64,7 +64,7 @@ fun App(
             // Flush any writes queued while offline on a previous run.
             runCatching { container.syncCoordinator.flush() }
         }
-        // Backlog C6 — the moment the connection returns, send what is waiting and, if the app opened
+        // Backlog C6 - the moment the connection returns, send what is waiting and, if the app opened
         // offline, check the session for real. Before, queued writes waited for a refresh.
         LaunchedEffect(Unit) {
             container.connectivity.online.collect { online ->

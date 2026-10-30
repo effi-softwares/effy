@@ -88,7 +88,7 @@ class SavedWireContractTest {
         val lists = json.decodeFromString<List<SavedListDTO>>(SAVED_LISTS_WIRE_JSON)
         assertEquals(2, lists.size)
 
-        // The default list: addressed as "default", and it has NO name — "Saved" is this app's string.
+        // The default list: addressed as "default", and it has NO name - "Saved" is this app's string.
         assertEquals("default", lists[0].id)
         assertTrue(lists[0].isDefault)
         assertEquals(null, lists[0].name)
@@ -131,7 +131,7 @@ class SavedWireContractTest {
     /**
      * The saved item deliberately carries NO `available` field.
      *
-     * That boolean — derived from catalogue status alone — is the one that lied: it reported a
+     * That boolean - derived from catalogue status alone - is the one that lied: it reported a
      * product buyable while checkout refused it at the shopper's address. `verdict` replaces it. If
      * `available` ever reappears, two fields answer one question and a client will render the wrong
      * one, so its absence is a requirement rather than an omission.
@@ -196,7 +196,7 @@ class SavedWireContractTest {
         // The two IDS are different things and both are on the wire. `productId` is what a
         // save needs; `orderItemId` is what a refund request needs, because an order can carry
         // the same product on two lines and a product id cannot tell them apart. Naming one where the
-        // other is expected does not error — the server's join matches nothing and the item is
+        // other is expected does not error - the server's join matches nothing and the item is
         // silently dropped.
         assertEquals("1a2b3c4d-0000-0000-0000-000000000009", dto.orderItemID)
         assertNotEquals(dto.productID, dto.orderItemID, "a line id is not a product id")

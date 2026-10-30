@@ -9,7 +9,7 @@ import kotlin.test.assertFalse
  *
  * Google federation is parked platform-wide (`customer_google_enabled = false`). While it is, the app
  * must not show the button. Flipping this flag is a deliberate act that belongs with the feature that
- * wires native Google sign-in — this test then changes with it.
+ * wires native Google sign-in - this test then changes with it.
  */
 class GoogleSignInGateTest {
     @Test

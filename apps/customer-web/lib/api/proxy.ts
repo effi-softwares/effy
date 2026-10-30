@@ -18,7 +18,7 @@ function relayError(err: unknown): Response {
     // 403 → 401 turns a refused session into deferred sign-in; every other 4xx (404 not-found, 409
     // the delete-default guard) forwards its status untouched so the client can map it.
     return NextResponse.json(
-      // `code` is the refusal the route named — the checkout's slot/date refusals. `undefined`
+      // `code` is the refusal the route named - the checkout's slot/date refusals. `undefined`
       // drops out of the JSON, so every other caller sees the body it always saw.
       { error: e.detail ?? e.title ?? "request failed", reason: refusalReason(e.type), code: e.code },
       { status: status === 403 ? 401 : status },

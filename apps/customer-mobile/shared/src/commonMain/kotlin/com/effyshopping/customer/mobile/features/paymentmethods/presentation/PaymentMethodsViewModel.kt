@@ -13,12 +13,12 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 /**
- * Payment methods — `ViewModel → UseCase → Repository` (Principle VI).
+ * Payment methods - `ViewModel → UseCase → Repository` (Principle VI).
  *
  * Three states, not two. Loading, "you have no cards", and "we could not ask" are all different, and
  * the last two are the pair that matters: a list rendered empty after a failed read tells a shopper
  * with saved cards something false about their own account. `loadFailed` is what keeps them
- * apart, and `catch { cards = emptyList }` is the mistake it exists to prevent — which looks like
+ * apart, and `catch { cards = emptyList }` is the mistake it exists to prevent - which looks like
  * sensible defensive code, and is why it is easy to ship.
  */
 data class PaymentMethodsUiState(
@@ -28,7 +28,7 @@ data class PaymentMethodsUiState(
     val loadFailed: Boolean = false,
     /** A card currently being removed, so its row can show progress and refuse a second press. */
     val removing: String? = null,
-    /** A message about a failed action — never about a failed read, which `loadFailed` carries. */
+    /** A message about a failed action - never about a failed read, which `loadFailed` carries. */
     val error: String? = null,
 )
 
@@ -80,8 +80,8 @@ class PaymentMethodsViewModel(
 
     /** Every message names what did not happen: the shopper's cards are unchanged. */
     private fun message(e: AppError): String = when (e) {
-        AppError.Network -> "No connection. Your cards are unchanged — try again in a moment."
-        AppError.Unavailable -> "We're having trouble right now. Your cards are unchanged — try again shortly."
-        else -> "We couldn't remove that card. Your cards are unchanged — try again in a moment."
+        AppError.Network -> "No connection. Your cards are unchanged - try again in a moment."
+        AppError.Unavailable -> "We're having trouble right now. Your cards are unchanged - try again shortly."
+        else -> "We couldn't remove that card. Your cards are unchanged - try again in a moment."
     }
 }

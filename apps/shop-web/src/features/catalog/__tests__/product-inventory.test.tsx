@@ -147,7 +147,7 @@ describe("each size's stock, one size at a time", () => {
 
 describe("receiving stock", () => {
   it("adds units with reason 'received' and shows the arithmetic before the write", async () => {
-    wrap(<ReceiveStockDialog variantId="v1" stock={stockDetail({ onHand: 12 }).stock} open onOpenChange={() => {}} />)
+    wrap(<ReceiveStockDialog variantId="v1" stock={stockDetail({ onHand: 12 }).stock} open onOpenChange={() => { }} />)
 
     await userEvent.type(screen.getByLabelText(/units received/i), "24")
     expect(screen.getByText("12 → 36")).toBeInTheDocument()
@@ -158,7 +158,7 @@ describe("receiving stock", () => {
   })
 
   it("refuses a blank, a fraction and a negative rather than sending them", async () => {
-    wrap(<ReceiveStockDialog variantId="v1" stock={stockDetail().stock} open onOpenChange={() => {}} />)
+    wrap(<ReceiveStockDialog variantId="v1" stock={stockDetail().stock} open onOpenChange={() => { }} />)
     const button = screen.getByRole("button", { name: /add to stock/i })
     const input = screen.getByLabelText(/units received/i)
 
@@ -172,7 +172,7 @@ describe("receiving stock", () => {
   })
 
   it("does not imitate purchasing with free-text supplier and reference boxes", async () => {
-    wrap(<ReceiveStockDialog variantId="v1" stock={stockDetail().stock} open onOpenChange={() => {}} />)
+    wrap(<ReceiveStockDialog variantId="v1" stock={stockDetail().stock} open onOpenChange={() => { }} />)
     expect(screen.queryByLabelText(/^supplier$/i)).not.toBeInTheDocument()
     expect(screen.queryByLabelText(/^reference$/i)).not.toBeInTheDocument()
   })
@@ -184,7 +184,7 @@ describe("receiving stock", () => {
       title: "Conflict",
       detail: "internal wording that must never be rendered",
     })
-    wrap(<ReceiveStockDialog variantId="v1" stock={stockDetail().stock} open onOpenChange={() => {}} />)
+    wrap(<ReceiveStockDialog variantId="v1" stock={stockDetail().stock} open onOpenChange={() => { }} />)
     await userEvent.type(screen.getByLabelText(/units received/i), "5")
     await userEvent.click(screen.getByRole("button", { name: /add to stock/i }))
 
@@ -198,7 +198,7 @@ describe("receiving stock", () => {
 
 describe("adjusting stock", () => {
   it("writes an absolute count when the operator counted the shelf", async () => {
-    wrap(<AdjustStockDialog variantId="v1" stock={stockDetail({ onHand: 12 }).stock} open onOpenChange={() => {}} />)
+    wrap(<AdjustStockDialog variantId="v1" stock={stockDetail({ onHand: 12 }).stock} open onOpenChange={() => { }} />)
     await userEvent.type(screen.getByLabelText(/new count/i), "9")
     await userEvent.click(screen.getByRole("button", { name: /save adjustment/i }))
 
@@ -209,7 +209,7 @@ describe("adjusting stock", () => {
 
   it("writes a signed delta when the operator knows the movement but not the count", async () => {
     const user = userEvent.setup()
-    wrap(<AdjustStockDialog variantId="v1" stock={stockDetail({ onHand: 12 }).stock} open onOpenChange={() => {}} />)
+    wrap(<AdjustStockDialog variantId="v1" stock={stockDetail({ onHand: 12 }).stock} open onOpenChange={() => { }} />)
     await user.click(screen.getByLabelText(/^change$/i))
     await user.click(await screen.findByRole("option", { name: /add or remove/i }))
     await user.type(screen.getByLabelText(/change by/i), "-3")
@@ -221,9 +221,9 @@ describe("adjusting stock", () => {
     expect(setStockCount).not.toHaveBeenCalled()
   })
 
-  it("refuses a zero delta — a movement that moves nothing has no fact behind it", async () => {
+  it("refuses a zero delta - a movement that moves nothing has no fact behind it", async () => {
     const user = userEvent.setup()
-    wrap(<AdjustStockDialog variantId="v1" stock={stockDetail().stock} open onOpenChange={() => {}} />)
+    wrap(<AdjustStockDialog variantId="v1" stock={stockDetail().stock} open onOpenChange={() => { }} />)
     await user.click(screen.getByLabelText(/^change$/i))
     await user.click(await screen.findByRole("option", { name: /add or remove/i }))
     await user.type(screen.getByLabelText(/change by/i), "0")
@@ -233,7 +233,7 @@ describe("adjusting stock", () => {
 
   it("previews the server's floor at zero rather than promising a negative shelf", async () => {
     const user = userEvent.setup()
-    wrap(<AdjustStockDialog variantId="v1" stock={stockDetail({ onHand: 5 }).stock} open onOpenChange={() => {}} />)
+    wrap(<AdjustStockDialog variantId="v1" stock={stockDetail({ onHand: 5 }).stock} open onOpenChange={() => { }} />)
     await user.click(screen.getByLabelText(/^change$/i))
     await user.click(await screen.findByRole("option", { name: /add or remove/i }))
     await user.type(screen.getByLabelText(/change by/i), "-8")
@@ -246,7 +246,7 @@ describe("adjusting stock", () => {
 describe("the header stock action on an untracked product", () => {
   it("offers Add stock instead of a disabled Receive stock", async () => {
     getVariantStock.mockResolvedValue(stockDetail({ tracked: false, onHand: null }))
-    wrap(<ReceiveStockButton variantId="v1" onReceive={() => {}} />)
+    wrap(<ReceiveStockButton variantId="v1" onReceive={() => { }} />)
 
     const button = await screen.findByRole("button", { name: "Add stock" })
     expect(button).toBeEnabled()
@@ -254,19 +254,19 @@ describe("the header stock action on an untracked product", () => {
 
   it("keeps Receive stock where a count already exists", async () => {
     getVariantStock.mockResolvedValue(stockDetail({ tracked: true, onHand: 12 }))
-    wrap(<ReceiveStockButton variantId="v1" onReceive={() => {}} />)
+    wrap(<ReceiveStockButton variantId="v1" onReceive={() => { }} />)
     await waitFor(() => expect(screen.getByRole("button", { name: "Receive stock" })).toBeEnabled())
   })
 
   it("stays disabled and keeps the tracked label while the stock read is in flight", () => {
-    getVariantStock.mockReturnValue(new Promise(() => {}))
-    wrap(<ReceiveStockButton variantId="v1" onReceive={() => {}} />)
+    getVariantStock.mockReturnValue(new Promise(() => { }))
+    wrap(<ReceiveStockButton variantId="v1" onReceive={() => { }} />)
     expect(screen.getByRole("button", { name: "Receive stock" })).toBeDisabled()
   })
 
   it("turns tracking on and records the opening count in ONE request", async () => {
     const user = userEvent.setup()
-    wrap(<StartTrackingDialog variantId="v1" open onOpenChange={() => {}} />)
+    wrap(<StartTrackingDialog variantId="v1" open onOpenChange={() => { }} />)
 
     expect(screen.getByRole("button", { name: /^add stock$/i })).toBeDisabled()
     await user.type(screen.getByLabelText(/units in stock now/i), "24")
@@ -279,13 +279,13 @@ describe("the header stock action on an untracked product", () => {
   })
 
   it("says that selling behaviour changes, before the write", async () => {
-    wrap(<StartTrackingDialog variantId="v1" open onOpenChange={() => {}} />)
+    wrap(<StartTrackingDialog variantId="v1" open onOpenChange={() => { }} />)
     expect(screen.getByText(/deducts a unit, and the product stops selling at zero/i)).toBeInTheDocument()
   })
 
   it("refuses a count that is not a whole number, without asking the server", async () => {
     const user = userEvent.setup()
-    wrap(<StartTrackingDialog variantId="v1" open onOpenChange={() => {}} />)
+    wrap(<StartTrackingDialog variantId="v1" open onOpenChange={() => { }} />)
 
     await user.type(screen.getByLabelText(/units in stock now/i), "-3")
     expect(screen.getByRole("button", { name: /^add stock$/i })).toBeDisabled()
@@ -300,7 +300,7 @@ describe("the header stock action on an untracked product", () => {
       title: "Forbidden",
       detail: "internal wording that must never be rendered",
     })
-    wrap(<StartTrackingDialog variantId="v1" open onOpenChange={() => {}} />)
+    wrap(<StartTrackingDialog variantId="v1" open onOpenChange={() => { }} />)
 
     await user.type(screen.getByLabelText(/units in stock now/i), "5")
     await user.click(screen.getByRole("button", { name: /^add stock$/i }))
@@ -321,7 +321,7 @@ describe("inventory rules", () => {
         variantId="v1"
         stock={stockDetail(over).stock}
         open
-        onOpenChange={() => {}}
+        onOpenChange={() => { }}
       />,
     )
   }

@@ -25,7 +25,7 @@ function jpeg(width: number, height: number, padBytes = 0): Buffer {
   if (padBytes > 0) {
     const segment = Buffer.alloc(padBytes + 4);
     segment.writeUInt8(0xff, 0);
-    segment.writeUInt8(0xe1, 1); // APP1 — where exif actually lives
+    segment.writeUInt8(0xe1, 1); // APP1 - where exif actually lives
     segment.writeUInt16BE(padBytes + 2, 2);
     parts.push(segment);
   }
@@ -94,7 +94,7 @@ describe("readImageDimensions", () => {
     expect(readImageDimensions(webpLossy(1200, 600))).toEqual({ width: 1200, height: 600, format: "webp" });
   });
 
-  it("reads a lossless WebP (VP8L) — bit-packed and 1-based", () => {
+  it("reads a lossless WebP (VP8L) - bit-packed and 1-based", () => {
     // Off-by-one would give 1199×599.
     expect(readImageDimensions(webpLossless(1200, 600))).toEqual({
       width: 1200,
@@ -103,7 +103,7 @@ describe("readImageDimensions", () => {
     });
   });
 
-  it("reads an extended WebP (VP8X) — 24-bit and 1-based", () => {
+  it("reads an extended WebP (VP8X) - 24-bit and 1-based", () => {
     expect(readImageDimensions(webpExtended(1200, 600))).toEqual({
       width: 1200,
       height: 600,
@@ -129,7 +129,7 @@ describe("readImageDimensions", () => {
     );
   });
 
-  it("reads a MINIMAL jpeg — the smallest valid one, with no padding at all", () => {
+  it("reads a MINIMAL jpeg - the smallest valid one, with no padding at all", () => {
     // A 13-byte valid file must be read: formats identify at very different lengths (JPEG 2, WebP 12).
     const minimal = jpeg(1200, 600);
     expect(minimal.length).toBeLessThan(16);

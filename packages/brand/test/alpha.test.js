@@ -13,7 +13,7 @@ const REPO = resolve(dirname(fileURLToPath(import.meta.url)), "../../..")
 const RGB = 2
 const RGBA = 6
 
-describe("rule T3 — the alpha policy holds on the WRITTEN BYTES", () => {
+describe("rule T3 - the alpha policy holds on the WRITTEN BYTES", () => {
   // Requesting `removeAlpha` and getting it differ: assert the written bytes.
   const pngTargets = TARGETS.filter((t) => t.kind === KIND.PNG)
 
@@ -21,14 +21,14 @@ describe("rule T3 — the alpha policy holds on the WRITTEN BYTES", () => {
     const expected = COMPOSITIONS[t.composition].alpha === "strip" ? RGB : RGBA
     test(`${t.path} is ${expected === RGB ? "RGB (no alpha)" : "RGBA"}`, () => {
       const abs = resolve(REPO, t.path)
-      assert.ok(existsSync(abs), `${t.path} has not been generated — run \`make brand-gen\``)
+      assert.ok(existsSync(abs), `${t.path} has not been generated - run \`make brand-gen\``)
       const ct = pngColourType(readFileSync(abs))
       assert.equal(
         ct,
         expected,
         expected === RGB
           ? `${t.path} carries an alpha channel and WILL be rejected at App Store submission`
-          : `${t.path} lost its alpha channel — it will show an opaque box instead of a transparent layer`,
+          : `${t.path} lost its alpha channel - it will show an opaque box instead of a transparent layer`,
       )
     })
   }

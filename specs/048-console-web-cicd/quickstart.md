@@ -5,7 +5,7 @@ Feature: 048-console-web-cicd. How to bring `shop.dev.effyshopping.com` and
 Terraform/build/source; **the operator runs every `apply` and cloud step** (constitution mode of work).
 
 This mirrors 042's runbook; the deltas are: **no apex takeover / no email-record cutover**, **two apps**,
-**a CORS edit**, and **static (no SSR service role)** — so the 042 "let Amplify auto-create the role"
+**a CORS edit**, and **static (no SSR service role)** - so the 042 "let Amplify auto-create the role"
 dance does **not** apply.
 
 Prereqs: `AWS_PROFILE=ef` (account 724289623101), `ENV=dev`, and the 042 GitHub connection token already
@@ -14,7 +14,7 @@ shop/back-office pools (005/007) are already live.
 
 ---
 
-## §0 — One-time: confirm the reused GitHub connection
+## §0 - One-time: confirm the reused GitHub connection
 
 No new connection is needed. Confirm the token exists (a missing key fails the plan loudly):
 
@@ -28,13 +28,13 @@ If it is absent, (re)create it via the Amplify GitHub App / a fine-grained PAT w
 
 ---
 
-## §1 — Stage A: create the two console apps on the Amplify default hostname
+## §1 - Stage A: create the two console apps on the Amplify default hostname
 
 With `amplify_consoles_domain_enabled = false` (the default), apply the env root. This creates both
-Amplify apps + branches, wires each console's `VITE_*`, adds the CORS origins, and the FAILED alert —
+Amplify apps + branches, wires each console's `VITE_*`, adds the CORS origins, and the FAILED alert -
 but does **not** attach the subdomains yet.
 
-⚠ Always drive Terraform through the Makefile — it passes `-var-file=$(ENV).tfvars` (so `aws_account_id`
+⚠ Always drive Terraform through the Makefile - it passes `-var-file=$(ENV).tfvars` (so `aws_account_id`
 and every other value load) and `apply` runs a `preflight` account-match guard first. A bare
 `terraform plan` in the dir will prompt for `var.aws_account_id` and every no-default variable.
 
@@ -54,12 +54,12 @@ builds green from the monorepo root and serves on its `…​.amplifyapp.com` de
   build **fails**, its last good version stays live, and the FAILED event reaches the alerts topic; then
   revert.
 
-⚠ Because `platform = WEB`, there is **no** "Unable to assume IAM role" step-0 failure to work around —
+⚠ Because `platform = WEB`, there is **no** "Unable to assume IAM role" step-0 failure to work around -
 that was a `WEB_COMPUTE` (SSR) hazard. If a build fails at install, it is pnpm/workspace, not IAM.
 
 ---
 
-## §2 — Stage B: attach the subdomains
+## §2 - Stage B: attach the subdomains
 
 Set `amplify_consoles_domain_enabled = true` in `infra/envs/dev/dev.tfvars` and apply. Amplify creates +
 verifies the Route 53 records (apex zone is in-account) and issues each `us-east-1` ACM cert;
@@ -71,7 +71,7 @@ make apply ENV=dev   # attaches shop. and back-office. subdomains
 
 ⚠ If the apply hangs on "Creating records…", check the dev zone for a leftover/stale `_acm-validation`
 CNAME or a conflicting record for the same prefix and reconcile (same failure mode as 042 §3, but here it
-can only involve the `shop`/`back-office` labels — never the apex or `api.`).
+can only involve the `shop`/`back-office` labels - never the apex or `api.`).
 
 - ✅ **SC-003 (address + TLS)**: in a browser, `https://shop.dev.effyshopping.com` serves the **shop**
   console and `https://back-office.dev.effyshopping.com` serves the **back-office** console, each over a
@@ -79,16 +79,16 @@ can only involve the `shop`/`back-office` labels — never the apex or `api.`).
 
 ---
 
-## §3 — Prove SPA deep links, sign-in, CORS, and privacy
+## §3 - Prove SPA deep links, sign-in, CORS, and privacy
 
 On each live console:
 
 - ✅ **SC-004 (SPA routing)**: navigate to a deep route (e.g. an order/detail URL), then **refresh** and
-  also open the URL in a fresh tab — the same view loads (the rewrite serves `index.html` 200), not a
+  also open the URL in a fresh tab - the same view loads (the rewrite serves `index.html` 200), not a
   host 404.
 - ✅ **SC-007 (backend + pool + CORS)**: sign in with a valid staff account for that pool (shop staff on
   shop-web; admin/manager/csa on back-office) via EMAIL_OTP, then load a data-backed view. The browser
-  call to the gateway succeeds — **0 CORS pre-flight failures**, **0 wrong-pool 401s** for a correctly
+  call to the gateway succeeds - **0 CORS pre-flight failures**, **0 wrong-pool 401s** for a correctly
   credentialed user. This is also the live confirmation of **D11** (SDK EMAIL_OTP needs no callback-URL
   registration for the new subdomains).
 - ✅ **SC-008 (privacy + no secret)**:
@@ -99,17 +99,17 @@ On each live console:
     # against the built dist, or the deployed assets
     grep -RInE "AKIA|secret|BEGIN [A-Z ]*PRIVATE KEY|sk_live|sk_test" apps/shop-web/dist apps/back-office/dist || echo "clean"
     ```
-- ✅ **SC-002 (merge-to-live)**: time a trivial change from merge to serving — under 15 min per console.
-- ✅ **SC-001 (no manual deploy)**: the above happened with **zero** manual deploy commands — only a merge.
+- ✅ **SC-002 (merge-to-live)**: time a trivial change from merge to serving - under 15 min per console.
+- ✅ **SC-001 (no manual deploy)**: the above happened with **zero** manual deploy commands - only a merge.
 
 ---
 
-## §4 — Prod readiness (design proof only; not run now)
+## §4 - Prod readiness (design proof only; not run now)
 
-- ✅ **SC-009**: review `infra/modules/amplify-web-app` and `infra/envs/dev/amplify-consoles.tf` — every
+- ✅ **SC-009**: review `infra/modules/amplify-web-app` and `infra/envs/dev/amplify-consoles.tf` - every
   environment value (subdomains, branch, gateway origin, pool ids, account/region) is a parameter/ref.
   Standing up prod is a second instantiation in `infra/envs/prod/` with `shop.effyshopping.com` /
-  `back-office.effyshopping.com`, the production branch, and prod pools — **0 pipeline-logic edits**.
+  `back-office.effyshopping.com`, the production branch, and prod pools - **0 pipeline-logic edits**.
 
 ---
 
@@ -118,9 +118,9 @@ On each live console:
 Each console rolls back natively in Amplify (redeploy a prior successful build). To detach a subdomain,
 set `amplify_consoles_domain_enabled = false` and apply. To remove a console entirely, remove its module
 block + its `applications[]` entry in `amplify.yml` + its CORS origin and apply (⚠ removing the module
-block destroys that Amplify app — the same lesson 042 recorded; do it deliberately).
+block destroys that Amplify app - the same lesson 042 recorded; do it deliberately).
 
 ## Commit
 
 Per the platform's rule, the operator commits. Nothing here is committed by Claude. The migration
-commit-guard (003) is **N/A** — this slice has no migration.
+commit-guard (003) is **N/A** - this slice has no migration.

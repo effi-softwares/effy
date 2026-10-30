@@ -5,7 +5,7 @@ package com.effyshopping.customer.mobile.features.account.domain
  *
  *  "Ada" / "Lovelace" → "AL" two names → first grapheme of each
  *  "Ada" / null → "A" one name → one initial
- *  null / null → "—" an em dash — never the email
+ *  null / null → "-" an em dash - never the email
  *  "李" / "明" → "李明" graphemes, not chars
  *  "👩‍🚀" (given only) → "👩‍🚀" one emoji is one grapheme (several code points)
  *
@@ -20,7 +20,7 @@ fun initialsFor(given: String?, family: String?): String {
         g.isNotEmpty() && f.isNotEmpty() -> listOf(g, f)
         g.isNotEmpty() -> listOf(g)
         f.isNotEmpty() -> listOf(f)
-        else -> return "—" // em dash — a neutral glyph, never derived from the email address
+        else -> return "-" // em dash - a neutral glyph, never derived from the email address
     }
     return parts.joinToString("") { firstGrapheme(it).uppercase() }
 }
@@ -50,7 +50,7 @@ private fun isExtending(cp: Int): Boolean =
     cp == 0xFE0F ||               // variation selector-16 (renders the preceding char as emoji)
     cp in 0x1F3FB..0x1F3FF ||     // emoji skin-tone modifiers
     cp in 0x0300..0x036F ||       // combining diacritical marks
-    cp in 0x1F1E6..0x1F1FF        // regional indicators — a flag is a pair, so the 2nd extends the 1st
+    cp in 0x1F1E6..0x1F1FF        // regional indicators - a flag is a pair, so the 2nd extends the 1st
 
 /** Decode the Unicode code point at char [index], combining a surrogate pair when present. */
 private fun codePointAt(s: String, index: Int): Int {

@@ -1,4 +1,4 @@
-# Specification Quality Checklist: Customer Mobile Home — Sectioned Merchandising & Search Entry
+# Specification Quality Checklist: Customer Mobile Home - Sectioned Merchandising & Search Entry
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2026-07-31
@@ -43,21 +43,21 @@ interacts with, not implementation choices. Success criteria were stated as shop
 The single failing item was three open [NEEDS CLARIFICATION] markers, all scope-level, each with no
 defensible default.
 
-### Validation iteration 2 (2026-07-31) — all clarifications resolved
+### Validation iteration 2 (2026-07-31) - all clarifications resolved
 
 **Q1 → search interaction model (FR-008…FR-012a).** Tapping Home's search entry takes the shopper **straight
 to the Search screen** with the field focused and the keyboard raised. Home's entry does not accept text.
-This keeps exactly one search field in the app — the alternative would have put a second, weaker search (no
+This keeps exactly one search field in the app - the alternative would have put a second, weaker search (no
 filters, no sort, no paging) on the screen the shopper meets first.
 
 **Q2 → banner content source (FR-037…FR-037d, US5).** Banners are **derived from the promotions the
 back-office already manages**, shown only when an operator explicitly marks a promotion publicly
 advertisable. Three consequences were written in rather than left implicit:
 
-- The advertisable flag is **opt-in, never default** (FR-037a) — private promotions exist (a single
+- The advertisable flag is **opt-in, never default** (FR-037a) - private promotions exist (a single
   customer's goodwill credit, a partner code), and defaulting to public would hand every shopper a discount
   meant for one.
-- The banner needs **shopper-facing wording** distinct from the promotion's internal code (FR-037b) — an
+- The banner needs **shopper-facing wording** distinct from the promotion's internal code (FR-037b) - an
   operator's identifier is not a sentence a shopper can read.
 - Withdrawal, expiry and exhaustion take a banner down **without an app release** (FR-037c, SC-014).
 

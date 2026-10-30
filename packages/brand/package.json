@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Effy brand mark — the SSOT for the logo and every app icon, splash screen and favicon. Two authored vectors (the \"effy.\" wordmark and its \"e.\" mark), one generator, one drift check. Derived assets are GENERATED and COMMITTED — never hand-edited.",
+  "description": "Effy brand mark - the SSOT for the logo and every app icon, splash screen and favicon. Two authored vectors (the \"effy.\" wordmark and its \"e.\" mark), one generator, one drift check. Derived assets are GENERATED and COMMITTED - never hand-edited.",
   "scripts": {
     "brand:gen": "node scripts/gen-brand-assets.mjs",
     "brand:check": "node scripts/check-brand-assets.mjs",

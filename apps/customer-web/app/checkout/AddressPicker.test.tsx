@@ -39,14 +39,14 @@ afterEach(() => {
   mockIsMobile.value = false
 })
 
-describe("AddressPicker — selection (T009)", () => {
+describe("AddressPicker - selection (T009)", () => {
   it("shows the pre-selected address as a summary, not a radio list", () => {
     render(
       <AddressPicker
         addresses={[addr()]}
         selectedId="a1"
-        onSelect={() => {}}
-        onAddressAdded={() => {}}
+        onSelect={() => { }}
+        onAddressAdded={() => { }}
         idPrefix="shipping"
       />,
     )
@@ -61,8 +61,8 @@ describe("AddressPicker — selection (T009)", () => {
       <AddressPicker
         addresses={[]}
         selectedId={null}
-        onSelect={() => {}}
-        onAddressAdded={() => {}}
+        onSelect={() => { }}
+        onAddressAdded={() => { }}
         idPrefix="shipping"
       />,
     )
@@ -78,7 +78,7 @@ describe("AddressPicker — selection (T009)", () => {
         addresses={[addr(), addr({ id: "a2", recipientName: "Sam", isDefault: false })]}
         selectedId="a1"
         onSelect={onSelect}
-        onAddressAdded={() => {}}
+        onAddressAdded={() => { }}
         idPrefix="shipping"
       />,
     )
@@ -92,7 +92,7 @@ describe("AddressPicker — selection (T009)", () => {
   })
 })
 
-describe("AddressPicker — add new (T018)", () => {
+describe("AddressPicker - add new (T018)", () => {
   it("opens the responsive form and hands the created address to onAddressAdded (not onSelect)", async () => {
     const user = userEvent.setup()
     const onSelect = vi.fn()
@@ -120,7 +120,7 @@ describe("AddressPicker — add new (T018)", () => {
     await user.click(screen.getByRole("button", { name: /save address/i }))
 
     await waitFor(() => expect(onAddressAdded).toHaveBeenCalledWith(created))
-    // The parent owns selection — the picker does not also fire onSelect for an add.
+    // The parent owns selection - the picker does not also fire onSelect for an add.
     expect(onSelect).not.toHaveBeenCalled()
   })
 
@@ -134,7 +134,7 @@ describe("AddressPicker — add new (T018)", () => {
       <AddressPicker
         addresses={[addr()]}
         selectedId="a1"
-        onSelect={() => {}}
+        onSelect={() => { }}
         onAddressAdded={onAddressAdded}
         idPrefix="shipping"
       />,
@@ -161,7 +161,7 @@ describe("AddressPicker — add new (T018)", () => {
       <AddressPicker
         addresses={[addr()]}
         selectedId="a1"
-        onSelect={() => {}}
+        onSelect={() => { }}
         onAddressAdded={onAddressAdded}
         idPrefix="shipping"
       />,

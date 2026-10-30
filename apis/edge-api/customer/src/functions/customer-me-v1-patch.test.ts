@@ -22,7 +22,7 @@ const HANDLER = CODE.slice(
   CODE.indexOf("async function syncNameToCognito"),
 )
 
-describe("PATCH /customer/v1/me — the Cognito name mirror (036 R5)", () => {
+describe("PATCH /customer/v1/me - the Cognito name mirror (036 R5)", () => {
   it("⚠ the HANDLER actually calls the mirror", () => {
     expect(HANDLER).toMatch(/syncNameToCognito\s*\(/)
   })

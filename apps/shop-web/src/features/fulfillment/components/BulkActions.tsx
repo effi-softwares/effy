@@ -84,7 +84,7 @@ export function BulkActions({
       toast.success(
         `${out.printed} label${out.printed === 1 ? "" : "s"} for ${jobs.length} order${jobs.length === 1 ? "" : "s"} sent to the printer`,
       )
-      if (failed.length > 0) toast.error(`Couldn't read ${failed.join(", ")} — print those from the order.`)
+      if (failed.length > 0) toast.error(`Couldn't read ${failed.join(", ")} - print those from the order.`)
     } finally {
       setRunning(false)
     }

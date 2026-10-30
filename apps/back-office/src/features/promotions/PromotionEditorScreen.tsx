@@ -128,7 +128,7 @@ function Editor({ current }: { current: Promotion | null }) {
               <Field
                 id="promo-name"
                 label="Name"
-                hint="For staff only — shoppers read the words below."
+                hint="For staff only - shoppers read the words below."
                 invalid={bad.has("name")}
               >
                 <Input

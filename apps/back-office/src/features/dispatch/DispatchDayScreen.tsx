@@ -72,7 +72,7 @@ export function DispatchDayScreen() {
       ) : (
         <>
           {data.failedParcels &&
-          (Number(data.failedParcels.withDrivers) > 0 || Number(data.failedParcels.returnedAwaitingDecision) > 0) ? (
+            (Number(data.failedParcels.withDrivers) > 0 || Number(data.failedParcels.returnedAwaitingDecision) > 0) ? (
             <Link to="/exceptions" className="block no-underline">
               <Alert variant="destructive" className="hover:bg-row-hover">
                 <PackageX aria-hidden="true" />
@@ -80,7 +80,7 @@ export function DispatchDayScreen() {
                   Failed deliveries: {data.failedParcels.withDrivers} still with drivers ·{" "}
                   {data.failedParcels.returnedAwaitingDecision} back at the hub, waiting for a decision.
                 </AlertTitle>
-                <AlertDescription>See exceptions — each one has a customer still waiting.</AlertDescription>
+                <AlertDescription>See exceptions - each one has a customer still waiting.</AlertDescription>
               </Alert>
             </Link>
           ) : null}
@@ -106,7 +106,7 @@ export function DispatchDayScreen() {
                 </TabsList>
               </div>
               <span className="text-xs text-muted-foreground max-md:hidden">
-                Live — re-reads when a driver or auto-assign moves work
+                Live - re-reads when a driver or auto-assign moves work
               </span>
             </div>
 
@@ -116,22 +116,22 @@ export function DispatchDayScreen() {
                 renderAssign={
                   mayAssign
                     ? (item) => (
-                        <AssignmentActions
-                          packageId={item.packageId}
-                          stage={item.stage}
-                          assignment={{
-                            assignmentId: null,
-                            driver: null,
-                            opensAt: null,
-                            dueAt: null,
-                            roundId: null,
-                            how: null,
-                            unassignedReason: null,
-                            movable: true,
-                          }}
-                          title={`${item.orderNumber} · ${item.shopName}`}
-                        />
-                      )
+                      <AssignmentActions
+                        packageId={item.packageId}
+                        stage={item.stage}
+                        assignment={{
+                          assignmentId: null,
+                          driver: null,
+                          opensAt: null,
+                          dueAt: null,
+                          roundId: null,
+                          how: null,
+                          unassignedReason: null,
+                          movable: true,
+                        }}
+                        title={`${item.orderNumber} · ${item.shopName}`}
+                      />
+                    )
                     : undefined
                 }
               />

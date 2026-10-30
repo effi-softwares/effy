@@ -35,7 +35,7 @@ import com.effyshopping.mobile.design.EffySpacing
 import org.jetbrains.compose.resources.painterResource
 
 /**
- * The snackbar host — one per screen, at the bottom, above the tab bar or pinned bar (Patterns board:
+ * The snackbar host - one per screen, at the bottom, above the tab bar or pinned bar (Patterns board:
  * "one action at most, above the tab bar"). Place it last in a `Box` with `Alignment.BottomCenter`.
  *
  * The snackbar is the storefront toast: white, hairline border, soft shadow, a check icon, the message,

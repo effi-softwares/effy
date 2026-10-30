@@ -27,7 +27,7 @@ function event(sub: string | null) {
 beforeEach(() => vi.resetAllMocks());
 
 /** No role without permission can mutate. Decided from `admin.staff`, never the token's groups claim. */
-describe("guard — the read/mutate split (FR-022, FR-023)", () => {
+describe("guard - the read/mutate split (FR-022, FR-023)", () => {
   it("401s a request with no subject, before touching the database", async () => {
     const r = await guard(event(null), scope, "read");
     expect(denied(r)).toBe(true);
@@ -35,7 +35,7 @@ describe("guard — the read/mutate split (FR-022, FR-023)", () => {
     expect(isActiveStaff).not.toHaveBeenCalled();
   });
 
-  it("⚠ READ asks only whether they are active staff — a csa passes", async () => {
+  it("⚠ READ asks only whether they are active staff - a csa passes", async () => {
     isActiveStaff.mockResolvedValue(true);
     const r = await guard(event("csa-sub"), scope, "read");
     expect(denied(r)).toBe(false);
@@ -44,7 +44,7 @@ describe("guard — the read/mutate split (FR-022, FR-023)", () => {
     expect(hasStaffRole).not.toHaveBeenCalled();
   });
 
-  it("⚠ MUTATE asks for admin/manager — a csa is refused with 403", async () => {
+  it("⚠ MUTATE asks for admin/manager - a csa is refused with 403", async () => {
     hasStaffRole.mockResolvedValue(false);
     const r = await guard(event("csa-sub"), scope, "mutate");
     expect(denied(r)).toBe(true);
@@ -59,7 +59,7 @@ describe("guard — the read/mutate split (FR-022, FR-023)", () => {
     if (denied(r)) expect(r.deny.statusCode).toBe(403);
   });
 
-  it("⚠ FAILS CLOSED — an authz query that throws returns 503, never an implicit allow", async () => {
+  it("⚠ FAILS CLOSED - an authz query that throws returns 503, never an implicit allow", async () => {
     isActiveStaff.mockRejectedValue(new Error("db down"));
     const r = await guard(event("someone"), scope, "read");
     expect(denied(r)).toBe(true);
@@ -75,7 +75,7 @@ describe("guard — the read/mutate split (FR-022, FR-023)", () => {
   });
 });
 
-describe("SC-011 — every mutating handler carries the mutate gate", () => {
+describe("SC-011 - every mutating handler carries the mutate gate", () => {
   it("refuses a csa on each mutating route", async () => {
     hasStaffRole.mockResolvedValue(false);
     for (const _action of ["create", "update", "status", "resolve", "release", "end-duty"]) {

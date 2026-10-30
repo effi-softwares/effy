@@ -13,12 +13,12 @@ import kotlin.coroutines.resume
  * class adapts it to the common [AuthDriver] contract. Swift builds [IosAuthDriver] and hands it to
  * `MainViewController`.
  *
- * The interface's deliberate absences carry over unchanged — the bridge has only the email-OTP flow,
+ * The interface's deliberate absences carry over unchanged - the bridge has only the email-OTP flow,
  * no sign-up / password / recovery / global-sign-out method.
  */
 class IosAuthDriver(private val bridge: IosAuthBridge) : AuthDriver {
 
-    // iOS has no Android-Keystore failure mode, so nothing emits here — the Flow just stays idle.
+    // iOS has no Android-Keystore failure mode, so nothing emits here - the Flow just stays idle.
     private val _sessionChanges = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     override val sessionChanges: Flow<Unit> = _sessionChanges.asSharedFlow()
 
@@ -68,7 +68,7 @@ class IosAuthDriver(private val bridge: IosAuthBridge) : AuthDriver {
     }
 }
 
-/** A signed-in session, flattened for the Swift bridge (no expiry — Amplify owns refresh). */
+/** A signed-in session, flattened for the Swift bridge (no expiry - Amplify owns refresh). */
 data class BridgeSession(val sub: String, val accessToken: String, val idToken: String)
 
 /**
@@ -76,7 +76,7 @@ data class BridgeSession(val sub: String, val accessToken: String, val idToken: 
  *
  * Deliberately did not add a fourth outcome for the custom challenge. `otp` now covers both
  * Cognito's managed factor and the platform's own 6-digit challenge, because to this app they mean
- * the same thing — "a code was emailed, ask for it". A separate constant would have to be added in
+ * the same thing - "a code was emailed, ask for it". A separate constant would have to be added in
  * two files per app with no compiler assistance (this string wire is untyped by design), and would
  * buy a distinction the UI does not have.
  *
@@ -91,13 +91,13 @@ data class BridgeAuthResult(
 )
 
 /**
- * The Swift-implemented bridge. Plain callbacks — no `suspend`, no `Flow`, no Kotlin sealed
- * types on the wire — so a Swift `NSObject` can conform to it and call Amplify Swift. It has only the
+ * The Swift-implemented bridge. Plain callbacks - no `suspend`, no `Flow`, no Kotlin sealed
+ * types on the wire - so a Swift `NSObject` can conform to it and call Amplify Swift. It has only the
  * email-OTP flow and a local sign-out, mirroring [AuthDriver]'s absences.
  */
 interface IosAuthBridge {
     fun fetchSession(forceRefresh: Boolean, onResult: (BridgeSession?) -> Unit)
-    /** Whether this device holds a sign-in — `isSignedIn` from stored credentials, no network needed. */
+    /** Whether this device holds a sign-in - `isSignedIn` from stored credentials, no network needed. */
     fun holdsSignIn(onResult: (Boolean) -> Unit)
     fun signInWithEmailOtp(email: String, onResult: (BridgeAuthResult) -> Unit)
     fun confirmOtp(code: String, onResult: (BridgeAuthResult) -> Unit)

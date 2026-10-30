@@ -16,7 +16,7 @@ export interface DeliveryNoteLineDTO {
   status: DeliveryNoteLineStatus
 }
 
-/** `GET /commerce/v1/orders/{id}/delivery-note` — what was supplied, line by line. */
+/** `GET /commerce/v1/orders/{id}/delivery-note` - what was supplied, line by line. */
 export interface DeliveryNoteDTO {
   orderNumber: string
   placedAt: string

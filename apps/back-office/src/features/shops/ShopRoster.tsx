@@ -77,8 +77,8 @@ function rosterColumns(shopId: string, canManage: boolean, activeManagerCount: n
               <AvatarFallback className="rounded-lg">{initialsOf(user.name ?? user.email ?? "?")}</AvatarFallback>
             </Avatar>
             <div className="flex min-w-0 flex-col">
-              <span className="font-medium">{user.name ?? "—"}</span>
-              <span className="text-xs text-muted-foreground">{user.email ?? "—"}</span>
+              <span className="font-medium">{user.name ?? "-"}</span>
+              <span className="text-xs text-muted-foreground">{user.email ?? "-"}</span>
             </div>
           </div>
         )
@@ -89,7 +89,7 @@ function rosterColumns(shopId: string, canManage: boolean, activeManagerCount: n
       id: "role",
       accessorFn: (u) => (u.roles.includes("shop_manager") ? 0 : 1),
       header: "Role",
-      cell: ({ row }) => row.original.roles.map((r) => ROLE_LABELS[r]).join(", ") || "—",
+      cell: ({ row }) => row.original.roles.map((r) => ROLE_LABELS[r]).join(", ") || "-",
       meta: { label: "Role" },
     },
     {
@@ -111,27 +111,27 @@ function rosterColumns(shopId: string, canManage: boolean, activeManagerCount: n
     },
     ...(canManage
       ? [
-          {
-            id: "manage",
-            header: () => <span className="sr-only">Manage</span>,
-            enableSorting: false,
-            cell: ({ row }) => {
-              const user = row.original
-              return (
-                <RosterControls
-                  shopId={shopId}
-                  userId={user.id}
-                  role={user.roles.includes("shop_manager") ? "shop_manager" : "shop_staff"}
-                  status={user.status}
-                  isLastActiveManager={
-                    activeManagerCount === 1 && user.status === "active" && user.roles.includes("shop_manager")
-                  }
-                />
-              )
-            },
-            meta: { label: "Manage", phone: "full" },
-          } satisfies EffyColumnDef<ShopUser>,
-        ]
+        {
+          id: "manage",
+          header: () => <span className="sr-only">Manage</span>,
+          enableSorting: false,
+          cell: ({ row }) => {
+            const user = row.original
+            return (
+              <RosterControls
+                shopId={shopId}
+                userId={user.id}
+                role={user.roles.includes("shop_manager") ? "shop_manager" : "shop_staff"}
+                status={user.status}
+                isLastActiveManager={
+                  activeManagerCount === 1 && user.status === "active" && user.roles.includes("shop_manager")
+                }
+              />
+            )
+          },
+          meta: { label: "Manage", phone: "full" },
+        } satisfies EffyColumnDef<ShopUser>,
+      ]
       : []),
   ]
 }
@@ -186,7 +186,7 @@ function RosterControls({
       {isLastActiveManager ? (
         <p className="flex items-center gap-1 text-xs font-medium text-foreground">
           <AlertTriangle className="size-3" />
-          Only active manager — changing this leaves the shop without one.
+          Only active manager - changing this leaves the shop without one.
         </p>
       ) : null}
     </div>

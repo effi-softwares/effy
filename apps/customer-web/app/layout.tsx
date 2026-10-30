@@ -11,31 +11,31 @@ import { TelemetryBootClient } from "@/app/_components/TelemetryBootClient"
 
 /*  two rules govern this file. Breaking either is silent and expensive.
 
-    1. Never call cookies or headers here — nor anywhere above a <Suspense> boundary.
+    1. Never call cookies or headers here - nor anywhere above a <Suspense> boundary.
        Reading a request API at this level defers the entire app to request time: every page
        loses its static shell, and the speed and search visibility this surface exists for go
-       with it. The personalized header (cart badge / "Hi <name>") is not read here — it is a
+       with it. The personalized header (cart badge / "Hi <name>") is not read here - it is a
        streamed server island inside <Suspense>. See components/header/UserIsland.tsx.
 
-    2. Never import `aws-amplify` — nor anything that transitively imports it — from this file.
+    2. Never import `aws-amplify` - nor anything that transitively imports it - from this file.
        The root layout is on every route, so a client module imported here lands in the shared
        client chunk that every page loads, including guest pages. Amplify's own docs tell you to
        call Amplify.configure in the root layout; for a storefront with anonymous browsing that
        is exactly wrong. The SDK is configured in app/(auth)/layout.tsx and nowhere else.
 
-    Both rules are machine-enforced — (1) by `cacheComponents` (a build error) and (2) by
+    Both rules are machine-enforced - (1) by `cacheComponents` (a build error) and (2) by
     scripts/dependency-cruiser.cjs (a build failure). They are written out here because a guard tells
     you that you broke a rule, never why the rule exists.                                       */
 
 // The typeface: Geist, through `next/font/local` (./fonts.ts) from the files committed in
-// @effy/design-system — preloaded, with a metric-matched fallback so the swap shifts nothing.
+// @effy/design-system - preloaded, with a metric-matched fallback so the swap shifts nothing.
 // The class on <html> below sets the variables the design system's font tokens read.
 
 export const metadata: Metadata = {
   // Every relative canonical/OG url in the app resolves against this.
   metadataBase: new URL(siteUrl()),
   title: {
-    default: "Effy — groceries, delivered",
+    default: "Effy - groceries, delivered",
     template: "%s · Effy",
   },
   description:
@@ -58,7 +58,7 @@ export default function RootLayout({
     // public surface ships no appearance switcher and never applies the design system's `.dark`
     // class, so every page renders on the light `:root` tokens. `color-scheme: light` is pinned in
     // globals.css so form controls, scrollbars and the address bar stay light even on an OS set to
-    // dark — otherwise the browser would render native chrome dark over a light page.
+    // dark - otherwise the browser would render native chrome dark over a light page.
     <html lang="en" className={cn("antialiased", "font-sans", geist.variable, geistMono.variable)}>
       <body>
         {children}

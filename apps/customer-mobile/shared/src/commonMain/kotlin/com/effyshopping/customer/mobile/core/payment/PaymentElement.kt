@@ -17,7 +17,7 @@ import kotlinx.coroutines.flow.StateFlow
 data class PaymentElementConfig(
     /** Authorizes confirming exactly this PaymentIntent. Never a secret key. */
     val clientSecret: String,
-    /** The client's own publishable key — a name, not a secret. */
+    /** The client's own publishable key - a name, not a secret. */
     val publishableKey: String,
     /** Shown by wallet sheets as the payee. */
     val merchantName: String,
@@ -27,18 +27,18 @@ data class PaymentElementConfig(
     /**
      * Supplied by Effy, not collected from the shopper. The element is configured to
      * collect NO billing address and NO name; these are attached at confirmation instead. Passing null
-     * here while collection is off means the payment is refused — the two halves ship together.
+     * here while collection is off means the payment is refused - the two halves ship together.
      */
     val billingDetails: PaymentBillingDetails?,
     /**
      * Authorizes the provider-owned saved-card list for this shopper. Null means no saved cards are
-     * shown — which is correct for a shopper who has never paid, and wrong for one who has.
+     * shown - which is correct for a shopper who has never paid, and wrong for one who has.
      */
     val customerSessionSecret: String?,
     /**
      * The provider customer the session belongs to.
      *
-     * Required alongside the secret — the provider's `createWithCustomerSession(id, clientSecret)`
+     * Required alongside the secret - the provider's `createWithCustomerSession(id, clientSecret)`
      * takes both, and a session without its id cannot be attached. Null whenever
      * [customerSessionSecret] is null: a shopper who has never paid has no provider record, which is
      * not an error.
@@ -74,7 +74,7 @@ data class PaymentElementState(
     val ready: Boolean = false,
     val selectedLabel: String? = null,
     val mandateText: String? = null,
-    /** A failure from configuring the element — a shopper cannot pay, and must be told why. */
+    /** A failure from configuring the element - a shopper cannot pay, and must be told why. */
     val error: String? = null,
 ) {
     /** A method is chosen and the element is ready to confirm. */

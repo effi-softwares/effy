@@ -6,7 +6,7 @@ import { expect, test } from "@playwright/test"
  * These assertions cannot be made by a unit test, and they cannot be made by a browser test
  * either. They require fetching the raw HTTP response and looking at the bytes the server
  * actually sent, before any JavaScript has run. That is the only way to know what a crawler
- * or a link preview bot, or a customer on a flaky connection — actually receives.
+ * or a link preview bot, or a customer on a flaky connection - actually receives.
  *
  * If these fail, the surface has failed the thing it exists for, no matter how good it looks in
  * a browser.
@@ -24,7 +24,7 @@ test.describe("public pages are server-rendered (SC-004)", () => {
 
       const html = await res.text()
 
-      // The real content — not an empty shell to be filled in later.
+      // The real content - not an empty shell to be filled in later.
       expect(html).toMatch(/<h1[^>]*>/)
       expect(html).toContain("Effy")
 

@@ -47,7 +47,7 @@ function withoutComments(src: string): string {
   return src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|\s)\/\/[^\n]*/g, "$1");
 }
 
-describe("hidden fulfilment — a shop's address never reaches a customer", () => {
+describe("hidden fulfilment - a shop's address never reaches a customer", () => {
   it("⚠ no customer-facing service names a shop address field", () => {
     const offenders: string[] = [];
 
@@ -71,6 +71,6 @@ describe("hidden fulfilment — a shop's address never reaches a customer", () =
     const scanned = CUSTOMER_FACING.flatMap(sourceFiles);
     expect(scanned.length, "the customer-facing source list resolved to nothing").toBeGreaterThan(100);
     // Every root, so one moved service cannot hide behind the others.
-    for (const dir of CUSTOMER_FACING) expect(sourceFiles(dir).length, `${dir} has no source — was it moved?`).toBeGreaterThan(0);
+    for (const dir of CUSTOMER_FACING) expect(sourceFiles(dir).length, `${dir} has no source - was it moved?`).toBeGreaterThan(0);
   });
 });

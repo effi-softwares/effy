@@ -60,7 +60,7 @@ import org.jetbrains.compose.resources.painterResource
 import androidx.compose.foundation.layout.size
 
 /**
- * The address book. A LazyColumn of addresses (never cards — Principle V), the default clearly
+ * The address book. A LazyColumn of addresses (never cards - Principle V), the default clearly
  * marked, an empty state, and a FAB that raises the add form in a ModalBottomSheet. The row body opens
  * edit (a large forgiving target); "Set default" and "Delete" are distinct per-row controls.
  */
@@ -91,7 +91,7 @@ fun AddressBookScreen(container: AppContainer, onBack: () -> Unit) {
         },
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
-            // The source's app bar — a real back affordance instead of a "Back" text button
+            // The source's app bar - a real back affordance instead of a "Back" text button
             // floating opposite the title (025 FR-030 banned improvised text-link navigation, and
             // this screen was the last place one survived).
             EffyAppBar(title = "Address book", onBack = onBack)
@@ -107,7 +107,7 @@ fun AddressBookScreen(container: AppContainer, onBack: () -> Unit) {
 
                 else ->
                     LazyColumn(Modifier.fillMaxSize()) {
-                        // 087 (Address book board) — what this list is for, once, above it.
+                        // 087 (Address book board) - what this list is for, once, above it.
                         item(key = "intro") {
                             Text(
                                 "Where we deliver. Each address shows who can deliver there.",
@@ -159,7 +159,7 @@ fun AddressBookScreen(container: AppContainer, onBack: () -> Unit) {
         }
     }
 
-    // Confirm delete — a sheet with its actions pinned (087: no dialogs).
+    // Confirm delete - a sheet with its actions pinned (087: no dialogs).
     state.pendingDeleteId?.let {
         EffyConfirmSheet(
             title = "Delete this address?",
@@ -226,12 +226,12 @@ private fun AddressRow(
     onDelete: () -> Unit,
 ) {
     Column(Modifier.fillMaxWidth()) {
-        // The row body is the edit affordance — a big touch target.
+        // The row body is the edit affordance - a big touch target.
         //
         // Pass: it now carries a chevron. The body has always been tappable and nothing said
         // so, which is the same gap the account centre's detail rows were built to close: an
         // affordance a shopper cannot see is one they do not use, and Baymard's finding is that when
-        // Edit is hard to notice people press Add instead and accumulate stale addresses — which on a
+        // Edit is hard to notice people press Add instead and accumulate stale addresses - which on a
         // delivery platform ends as a mis-delivered order, not an untidy list.
         Row(
             modifier = Modifier
@@ -300,7 +300,7 @@ private fun AddressRow(
 @Composable
 private fun DefaultBadge() {
     // The word "Default", not a coloured dot. Under a monochrome palette a
-    // colour-only marker is a lightness difference and nothing more — invisible to a shopper who
+    // colour-only marker is a lightness difference and nothing more - invisible to a shopper who
     // cannot distinguish it, and nearly invisible to everyone else. The word carries the meaning; the
     // fill is only emphasis.
     Surface(color = MaterialTheme.colorScheme.primary, shape = MaterialTheme.shapes.small) {

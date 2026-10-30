@@ -1,4 +1,4 @@
-# KMP App Blueprint — Stack, Architecture & Folder Structure
+# KMP App Blueprint - Stack, Architecture & Folder Structure
 
 A reusable reference for building a **Kotlin Multiplatform + Compose Multiplatform** app (Android + iOS,
 one shared UI) with **Clean Architecture + MVVM**, no DI framework, and native auth/telemetry SDKs
@@ -14,7 +14,7 @@ Replace `<org>` / `<app>` with your own names (package root: `com.<org>.<app>.mo
 |---|---|---|
 | Kotlin | 2.4.0 | Also drives the Compose compiler + serialization plugins |
 | Compose Multiplatform | 1.11.1 | |
-| Compose Material 3 | 1.11.0-alpha07 | **Separate version ref** — see warning below |
+| Compose Material 3 | 1.11.0-alpha07 | **Separate version ref** - see warning below |
 | Android Gradle Plugin | 9.x | Uses the new `com.android.kotlin.multiplatform.library` plugin for `:shared` |
 | minSdk / targetSdk / compileSdk | 24 / 36 / 36+ | |
 | JVM target | 11 | |
@@ -22,7 +22,7 @@ Replace `<org>` / `<app>` with your own names (package root: `com.<org>.<app>.mo
 
 > ⚠ **Kotlin, Compose Multiplatform and Material 3 move together.** Material 3 ships on its own
 > cadence, so it can silently fall out of step with the Compose foundation it was compiled against.
-> On iOS this doesn't fail the build — Kotlin/Native defers unresolved symbols to **runtime**
+> On iOS this doesn't fail the build - Kotlin/Native defers unresolved symbols to **runtime**
 > (`kotlin.internal.IrLinkageError`), so the app crashes on the first screen that uses the broken API.
 > Bump all three at once, and run the app on an iOS device or simulator, not just the host tests.
 
@@ -35,8 +35,8 @@ Replace `<org>` / `<app>` with your own names (package root: `com.<org>.<app>.mo
 | Library | Coordinates | Source set | Purpose |
 |---|---|---|---|
 | **Ktor client** 3.5.x | `io.ktor:ktor-client-core`, `-content-negotiation`, `-auth`, `-logging`, `ktor-serialization-kotlinx-json` | common | HTTP client. One client per base URL; bearer token comes from the auth interface |
-| Ktor engine — Android | `io.ktor:ktor-client-android` | android | `HttpURLConnection` engine. **Not OkHttp** (Ktor's OkHttp 4.x conflicts with the AWS SDK's OkHttp 5.x) |
-| Ktor engine — iOS | `io.ktor:ktor-client-darwin` | ios | `NSURLSession` engine |
+| Ktor engine - Android | `io.ktor:ktor-client-android` | android | `HttpURLConnection` engine. **Not OkHttp** (Ktor's OkHttp 4.x conflicts with the AWS SDK's OkHttp 5.x) |
+| Ktor engine - iOS | `io.ktor:ktor-client-darwin` | ios | `NSURLSession` engine |
 | Ktor CIO + WebSockets | `io.ktor:ktor-client-cio`, `ktor-client-websockets` | android / common | WebSocket for real-time updates (the Android engine can't hold a socket). CIO is also the safe engine for image loading (it cancels cleanly) |
 | **kotlinx.serialization** 1.9.x | `org.jetbrains.kotlinx:kotlinx-serialization-json` | common | JSON for DTOs and serialisable nav routes |
 | **kotlinx.coroutines** 1.10.x | `kotlinx-coroutines-core`, `-test` | common / test | Async, `Flow`, `StateFlow` |
@@ -48,7 +48,7 @@ Replace `<org>` / `<app>` with your own names (package root: `com.<org>.<app>.mo
 | Firebase Gradle plugins | `com.google.gms.google-services`, `com.google.firebase.crashlytics` | `:androidApp` | Processes `google-services.json`; uploads mapping files |
 | **PostHog Android** 3.11.x | `com.posthog:posthog-android` | android | Product analytics |
 | **ML Kit Barcode** 17.3.x | `com.google.mlkit:barcode-scanning` | android | QR / barcode reading (bundled model, works offline). *Optional* |
-| **Stripe Android** 23.x | `com.stripe:stripe-android` | android | Payments (Payment Element). *Optional — only in apps that take payments* |
+| **Stripe Android** 23.x | `com.stripe:stripe-android` | android | Payments (Payment Element). *Optional - only in apps that take payments* |
 | JUnit 4 | `junit:junit` | test | |
 
 ### 2.2 iOS native packages (Swift Package Manager, in the Xcode project)
@@ -99,9 +99,9 @@ Each app is an **independent Gradle build** with three modules:
 ├── build.gradle.kts             # plugins `apply false`; reads + validates build config
 ├── gradle.properties
 ├── gradle/libs.versions.toml    # the version catalog
-├── secrets.properties           # git-ignored — env config (pool ids, API base URL…)
+├── secrets.properties           # git-ignored - env config (pool ids, API base URL…)
 ├── secrets.properties.example   # committed template
-├── keystore.properties          # git-ignored — release signing
+├── keystore.properties          # git-ignored - release signing
 ├── keystore.properties.example
 ├── androidApp/                  # thin Android host (Application + Activity)
 ├── iosApp/                      # thin Xcode host (SwiftUI App + Swift bridges)
@@ -110,14 +110,14 @@ Each app is an **independent Gradle build** with three modules:
 
 ### Build configuration
 - Root `build.gradle.kts` reads required keys from **environment variables first**, then
-  `secrets.properties`. A missing key **fails the build at configuration time**, naming the key —
+  `secrets.properties`. A missing key **fails the build at configuration time**, naming the key -
   never bake in an empty default.
 - Values are passed to `:shared` and exposed via **BuildKonfig** as `com.<org>.<app>.mobile.config`
   constants. No config JSON files are committed (e.g. the Amplify config is built in code from these).
 - Only non-secret values go here (ids, URLs). Secrets never ship in a mobile app.
 
 ### Shared code from a monorepo (optional)
-`:shared` can pull extra source dirs straight in — no publishing step:
+`:shared` can pull extra source dirs straight in - no publishing step:
 ```kotlin
 commonMain  { kotlin.srcDir(rootProject.file("../../packages/shared-types/contract-<app>")) } // generated DTOs
 commonMain  { kotlin.srcDir(rootProject.file("../../packages/design-system/compose-<app>")) } // generated theme
@@ -135,7 +135,7 @@ iosMain     { kotlin.srcDir(rootProject.file("../../packages/mobile-kit/ios")) }
    Domain depends on nothing; data implements domain interfaces; presentation calls use cases.
 2. **MVVM**: one `ViewModel` per screen/flow exposing an immutable `StateFlow<UiState>`; the
    composable reads state and calls ViewModel functions. Unidirectional data flow.
-3. **No DI framework.** One hand-wired `AppContainer` builds the whole graph — readable top to bottom
+3. **No DI framework.** One hand-wired `AppContainer` builds the whole graph - readable top to bottom
    and greppable. Platform implementations are passed into its constructor.
 4. **Wire types never leave the data layer.** DTOs are mapped to domain models explicitly (`toDomain()`).
 5. **Platform code behind interfaces ("drivers").** Auth, crash reporting, analytics, push, camera,
@@ -192,7 +192,7 @@ class ThingsViewModel(private val getThings: GetThings, liveChanges: Flow<Unit> 
 |---|---|
 | **Auth** | `AuthDriver` interface (`currentSession()`, sign-in steps, `signOut()`, `sessionChanges: Flow`). Android: Amplify Android. iOS: a Swift bridge class implementing a Kotlin protocol, wrapped by `IosAuthDriver`. |
 | **Session** | `SessionManager` owns a `StateFlow<SessionState>` (`Restoring` / `SignedOut` / `SignedIn` / `Refused`). The root composable switches graphs on it. `Restoring` exists so the sign-in screen never flickers. |
-| **HTTP** | `createHttpClient(baseUrl, sessionProvider, onRejected)` — JSON content negotiation, timeouts, bearer header from `AuthDriver`, a 401/403 hook back into the session. `expect fun httpEngine()`. `ensureSuccess()` maps problem responses to `AppError`. |
+| **HTTP** | `createHttpClient(baseUrl, sessionProvider, onRejected)` - JSON content negotiation, timeouts, bearer header from `AuthDriver`, a 401/403 hook back into the session. `expect fun httpEngine()`. `ensureSuccess()` maps problem responses to `AppError`. |
 | **Errors** | `sealed interface AppError` (`Validation`, `Unauthenticated`, `Forbidden`, `NotFound`, `Conflict`, `RateLimited`, `Network`, `Unavailable`, `Unexpected`, …) + `AppException(error)`. `AppErrorMessages.kt` maps each to user-facing copy. |
 | **Config** | `AppConfig` reads BuildKonfig constants (and builds SDK config, e.g. Amplify JSON). |
 | **Navigation** | Navigation 3: every route is a `@Serializable` `NavKey`, so back stacks survive config change and iOS process death. One back stack per tab; adaptive bar/rail shell. |
@@ -202,7 +202,7 @@ class ThingsViewModel(private val getThings: GetThings, liveChanges: Flow<Unit> 
 | **Push** | `PushTokenProvider` (FCM on Android) + a `DeviceRepository` that registers the token with the backend; `OpenedNotification` for deep links. |
 | **Platform** | Small interfaces/expects: permissions, camera/photo capture, image upload, map launcher, connectivity, notification settings, system UI (status bar) controller. |
 | **Theme** | `<App>Theme` (light/dark), `AppearanceMode` (system/light/dark) persisted via Settings. Tokens may be generated from a shared design-tokens file. |
-| **Presentation kit** | The app's own components (`buttons`, `inputs`, `rows`, `sheets`, `app bar`, `tab bar`, `states` (loading/empty/error), `snackbar`, `motion`). Screens use only these + the theme — no colour literals, no raw Material controls the kit replaces. |
+| **Presentation kit** | The app's own components (`buttons`, `inputs`, `rows`, `sheets`, `app bar`, `tab bar`, `states` (loading/empty/error), `snackbar`, `motion`). Screens use only these + the theme - no colour literals, no raw Material controls the kit replaces. |
 
 ### 4.5 Composition root
 
@@ -215,7 +215,7 @@ iOS: MainViewController (Kotlin) ◄──┘       │  (iOS Swift bridges are 
                                        └─ SessionState → SignedOut graph | Shell (tabs + back stacks)
 ```
 
-`AppContainer` sections, in order: **data** (HTTP clients, repositories — `private`, `by lazy`) →
+`AppContainer` sections, in order: **data** (HTTP clients, repositories - `private`, `by lazy`) →
 **domain** (use cases) → **presentation** (ViewModel factories). Platform implementations default to
 `NoOp` so either platform can ship before its bridge exists.
 
@@ -326,26 +326,26 @@ iosApp/
 
 ## 6. Testing
 
-- **`commonTest`** — ViewModels, use cases, mappers, session logic, with fake repositories/drivers,
+- **`commonTest`** - ViewModels, use cases, mappers, session logic, with fake repositories/drivers,
   `kotlinx-coroutines-test` and `multiplatform-settings-test`. Mirrors the `commonMain` tree.
-- **`androidHostTest`** — JVM tests that need Android resources, plus **guard tests**: tests that read
+- **`androidHostTest`** - JVM tests that need Android resources, plus **guard tests**: tests that read
   the source tree and fail on a banned pattern (a removed library, an un-serialisable route,
   wrong copy for the audience). Cheap way to keep architectural rules from regressing.
-- **`iosTest`** — iOS-only actuals.
-- Host tests passing is **not** proof the iOS app runs (see the Material 3 warning) — launch it.
+- **`iosTest`** - iOS-only actuals.
+- Host tests passing is **not** proof the iOS app runs (see the Material 3 warning) - launch it.
 
 ---
 
 ## 7. Known gotchas
 
-1. **Don't use Ktor's OkHttp engine on Android** alongside Amplify — OkHttp 4 vs 5 clash. Use the
+1. **Don't use Ktor's OkHttp engine on Android** alongside Amplify - OkHttp 4 vs 5 clash. Use the
    `Android` engine for data, **CIO** for WebSockets and image loading.
 2. **Amplify Android needs core library desugaring** (`isCoreLibraryDesugaringEnabled = true` +
    `desugar_jdk_libs`).
 3. **Keep tokens in the auth SDK's secure storage**; Multiplatform Settings is for plain preferences.
 4. **Native libraries that crash under Xcode debug** (render threads, GL) take the whole app down on
-   iOS — prototype them on a device before committing.
+   iOS - prototype them on a device before committing.
 5. **All nav routes must be `@Serializable`** and registered in the serializers module, or state
    restoration fails at runtime.
-6. **Fail the build on missing config** rather than defaulting — a wrong endpoint that silently works
+6. **Fail the build on missing config** rather than defaulting - a wrong endpoint that silently works
    is worse than a build that stops.

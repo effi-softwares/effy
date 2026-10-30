@@ -84,7 +84,7 @@ describe("commerce service deployment contract", () => {
     expect(missing, `read in src but not declared in serverless.yml: ${missing.join(", ")}`).toEqual([]);
   });
 
-  it("carries payment secrets as ARNs only — never a value", () => {
+  it("carries payment secrets as ARNs only - never a value", () => {
     expect(yaml).not.toMatch(/sk_(test|live)_/);
     expect(yaml).not.toMatch(/whsec_/);
     expect(yaml).toMatch(/STRIPE_SECRET_KEY_ARN: \$\{ssm:/);
@@ -104,12 +104,12 @@ describe("commerce service deployment contract", () => {
         expect(block, `${name} is declared public but carries an authorizer`).not.toContain("authorizer:");
         continue;
       }
-      expect(block, `${name} has no authorizer — it would be open to the internet`).toContain("authorizer:");
+      expect(block, `${name} has no authorizer - it would be open to the internet`).toContain("authorizer:");
       expect(block, `${name} must use the CUSTOMER authorizer`).toContain("/edge/authorizer/customer_id");
     }
   });
 
-  it("names no public route that does not exist — the allow-list cannot rot into a blanket", () => {
+  it("names no public route that does not exist - the allow-list cannot rot into a blanket", () => {
     const declaredRoutes = new Set(blocks.keys());
     const built = [...PUBLIC_HTTP].filter((n) => declaredRoutes.has(n));
     expect(built).toEqual(expect.arrayContaining(["healthz", "readyz"]));

@@ -23,7 +23,7 @@ afterEach(() => {
   withTransaction.mockReset();
 });
 
-describe("shop scoping — every read is bound to the caller-resolved shop", () => {
+describe("shop scoping - every read is bound to the caller-resolved shop", () => {
   it("binds the list AND the counts to $1 = the shop", async () => {
     query.mockResolvedValue({ rows: [] });
     await listOrders("shop-1", parseOrderListQuery(null));
@@ -89,7 +89,7 @@ describe("money is integer cents, never floats", () => {
 });
 
 describe("who issued a refund, as a shop sees it", () => {
-  it("names shop staff, and says Effy for back-office — never an employee's name", () => {
+  it("names shop staff, and says Effy for back-office - never an employee's name", () => {
     expect(actorLabel("shop", "Maya")).toBe("Maya");
     expect(actorLabel("back_office", null)).toBe("Effy");
     expect(actorLabel("customer", null)).toBe("Customer");
@@ -112,7 +112,7 @@ function fakeTx(rowsByCall: Array<{ rowCount?: number; rows?: unknown[] }>) {
 }
 
 describe("tags are written with their log entry, in one transaction", () => {
-  it("writes nothing — not even a log entry — when the set is unchanged", async () => {
+  it("writes nothing - not even a log entry - when the set is unchanged", async () => {
     const calls = fakeTx([{ rows: [{ id: "f-1" }] }, { rows: [{ tag: "fragile" }, { tag: "vip" }] }]);
     expect(await replaceTags("f-1", "shop-1", ["vip", "fragile"], "staff-1")).toBe(false);
     expect(calls).toHaveLength(2);

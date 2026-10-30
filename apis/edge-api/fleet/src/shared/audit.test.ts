@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { auditDetail, REDACTED_FIELDS } from "./audit";
 
 /** A driver's contact details never reach admin.audit_log, which every back-office role can read. */
-describe("audit detail — records that a field changed, never a PII value", () => {
+describe("audit detail - records that a field changed, never a PII value", () => {
   const FULL_EDIT = {
     name: "Sam Rivers",
     contactPhone: "0400 000 111",

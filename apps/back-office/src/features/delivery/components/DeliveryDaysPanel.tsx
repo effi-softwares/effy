@@ -31,7 +31,7 @@ export function DeliveryDaysPanel({ canManage }: { canManage: boolean }) {
           <section className="space-y-4">
             <h2 className="text-base font-semibold">Delivery days</h2>
             <FormSkeleton
-              labels={["Days offered after today", "“Standard” delivery tile — the timeframe customers are shown"]}
+              labels={["Days offered after today", "“Standard” delivery tile - the timeframe customers are shown"]}
               submit={false}
             />
             <fieldset disabled>
@@ -148,7 +148,7 @@ function SettingsForm({ value, canManage }: { value: DeliveryDaysDTO; canManage:
         )}
 
         <div className="space-y-2">
-          <Label htmlFor="days-asapEstimate">“Standard” delivery tile — the timeframe customers are shown</Label>
+          <Label htmlFor="days-asapEstimate">“Standard” delivery tile - the timeframe customers are shown</Label>
           <Input
             id="days-asapEstimate"
             className="max-w-sm"
@@ -168,7 +168,7 @@ function SettingsForm({ value, canManage }: { value: DeliveryDaysDTO; canManage:
             className={errors.asapEstimate ? "text-sm text-destructive" : "text-sm text-muted-foreground"}
           >
             {errors.asapEstimate ??
-              "Shown under “Standard” at checkout, and as “As soon as possible — …” on the order and receipt. Always an estimate, never a promised day."}
+              "Shown under “Standard” at checkout, and as “As soon as possible - …” on the order and receipt. Always an estimate, never a promised day."}
           </p>
         </div>
 
@@ -202,7 +202,7 @@ function SettingsForm({ value, canManage }: { value: DeliveryDaysDTO; canManage:
         {number(
           "hubTurnaroundMin",
           "Hub turnaround (minutes)",
-          "Estimate — not yet timed. Collection run to ready to leave the hub. A window today is offered only while a run can still make it.",
+          "Estimate - not yet timed. Collection run to ready to leave the hub. A window today is offered only while a run can still make it.",
           turnaround,
           setTurnaround,
         )}
@@ -288,7 +288,7 @@ function ClosedDates({ value, canManage }: { value: DeliveryDaysDTO; canManage: 
       if (added.affectedOrders > 0) {
         setNotice(
           `${added.affectedOrders} placed ${added.affectedOrders === 1 ? "order is" : "orders are"} already promised ${added.day}. ` +
-            "They have not been changed.",
+          "They have not been changed.",
         )
       }
     } catch (err) {

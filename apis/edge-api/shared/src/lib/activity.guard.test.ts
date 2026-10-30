@@ -6,8 +6,8 @@ import { describe, expect, it } from "vitest";
 import { EDGE_API_DIR, functionsOf, listStacks } from "./serverless-stacks";
 
 /**
- * 104: every activity log in back-office and shop-web is answered by `activityResponse` — one way to page,
- * search, filter and export a log — and no route keeps a log of its own beside it.
+ * 104: every activity log in back-office and shop-web is answered by `activityResponse` - one way to page,
+ * search, filter and export a log - and no route keeps a log of its own beside it.
  */
 const ACTIVITY_ROUTES = [
   "/orders/v1/orders/{orderId}/activity",

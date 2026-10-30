@@ -41,10 +41,10 @@ const PLACEMENT: Record<string, Gateway | null> = {
 const stacks = listStacks();
 const BACK_OFFICE = "/staff/authorizer/back-office_id";
 
-describe("gateway placement — every stack is on the gateway its audience uses", () => {
+describe("gateway placement - every stack is on the gateway its audience uses", () => {
   it("every stack is placed, and every placement is a stack that exists", () => {
     const unplaced = stacks.map((s) => s.name).filter((n) => !(n in PLACEMENT));
-    expect(unplaced, `not in the placement table — decide its gateway (docs/api/path-assignment.md), then add it here:\n  ${unplaced.join("\n  ")}`).toEqual([]);
+    expect(unplaced, `not in the placement table - decide its gateway (docs/api/path-assignment.md), then add it here:\n  ${unplaced.join("\n  ")}`).toEqual([]);
     const gone = Object.keys(PLACEMENT).filter((n) => !stacks.some((s) => s.name === n));
     expect(gone, `placed but no such stack exists any more: ${gone.join(", ")}`).toEqual([]);
   });
@@ -54,7 +54,7 @@ describe("gateway placement — every stack is on the gateway its audience uses"
   });
 });
 
-describe("⚠ the audiences stay apart — per gateway, not only per route", () => {
+describe("⚠ the audiences stay apart - per gateway, not only per route", () => {
   it("no route on the SHARED gateway names a back-office authorizer", () => {
     const bad = stacks
       .filter((s) => s.gateway === "shared")
@@ -103,7 +103,7 @@ describe("⚠ the audiences stay apart — per gateway, not only per route", () 
   });
 });
 
-describe("inventory — one service, two stacks, nothing declared twice and nothing left out", () => {
+describe("inventory - one service, two stacks, nothing declared twice and nothing left out", () => {
   const shop = stacks.find((s) => s.name === "inventory")!;
   const staff = stacks.find((s) => s.name === "inventory-staff")!;
   const HEALTH = new Set(["src/functions/healthz-get.handler", "src/functions/readyz-get.handler"]);
@@ -133,12 +133,12 @@ describe("inventory — one service, two stacks, nothing declared twice and noth
     for (const p of staffPaths) expect(p.startsWith("/inventory/v1/admin/"), `${p} is in the staff stack but is not a back-office path`).toBe(true);
   });
 
-  it("no scheduled or queue-driven function was lost in the split — they belong to the shop stack", () => {
+  it("no scheduled or queue-driven function was lost in the split - they belong to the shop stack", () => {
     expect(functionsOf(staff).filter((f) => f.routes.length === 0).map((f) => f.key)).toEqual([]);
   });
 });
 
-describe("the move is over — no environment carries the machinery for it (FR-025)", () => {
+describe("the move is over - no environment carries the machinery for it (FR-025)", () => {
   const infraEnvs = resolve(INFRA_DEV_DIR, "..");
 
   it("no Terraform or tfvars file mentions the cutover variable or declares a forwarding route", () => {

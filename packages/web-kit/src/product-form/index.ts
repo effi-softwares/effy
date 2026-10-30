@@ -1,5 +1,5 @@
 // The product form (102): its steps and fields, shared by shop-web (a shop's own products) and back-office
-// (a product Effy creates for a shop). Each console keeps its own flow — session, saving, drafts, review.
+// (a product Effy creates for a shop). Each console keeps its own flow - session, saving, drafts, review.
 export * from "./CategoryPicker";
 export * from "./DetailField";
 export * from "./DetailsStep";

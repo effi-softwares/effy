@@ -48,11 +48,11 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 /**
- * The manifest's shared views — used by the shop pickup and the customer drop.
+ * The manifest's shared views - used by the shop pickup and the customer drop.
  *
  * The class is carried by a word and a shape, never by colour. Every icon here is
- * drawn in the text colour and differs from the others in outline — a six-armed star, a droplet, a
- * box, a ring — so it reads the same in greyscale, in direct sunlight and to a colour-blind driver.
+ * drawn in the text colour and differs from the others in outline - a six-armed star, a droplet, a
+ * box, a ring - so it reads the same in greyscale, in direct sunlight and to a colour-blind driver.
  * There is deliberately no blue-for-cold: Principle V gives the platform one action colour, and a
  * driver glancing at a van-mounted phone should not have to tell two blues apart.
  */
@@ -201,7 +201,7 @@ val LocalManifestOpened = staticCompositionLocalOf<(hasCold: Boolean, lineCount:
 
 
 /**
- * Rev 2 — a package's items in a grey rounded box (the redesign's shop stop and drop): "2× Greek
+ * Rev 2 - a package's items in a grey rounded box (the redesign's shop stop and drop): "2× Greek
  * yoghurt 1kg", the cold class on the right. A line the shop could not supply is struck through and says so.
  */
 @Composable

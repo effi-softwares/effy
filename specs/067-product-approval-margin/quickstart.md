@@ -29,7 +29,7 @@ pnpm --filter @effy/back-office test && pnpm --filter @effy/shop-web test
 make db-up ENV=dev                               # columns, backfill, then the CHECK
 make edge-deploy SERVICE=notifications ENV=dev   # learns the two new types first
 make edge-deploy SERVICE=shop ENV=dev            # ⚠ straight after db-up
-make edge-deploy SERVICE=catalog ENV=dev         # new service — BEFORE the alarm exists
+make edge-deploy SERVICE=catalog ENV=dev         # new service - BEFORE the alarm exists
 make apply ENV=dev                               # the queue-age alarm (missing data = breaching)
 make core-image-push ENV=dev && make core-deploy ENV=dev
 # push consoles to dev; release shop-mobile
@@ -77,7 +77,7 @@ Measured at HEAD `59de834`, before any 067 change, with Docker up.
 | `pnpm -r typecheck` (reporting packages) | 20 | 21 (+ `edge-catalog`) |
 | edge-shared (with containers) | 137 | 159 |
 | edge-shop (default / with containers) | 358 / 417 + 2 red | 379 / 460 + the same 2 red |
-| edge-catalog (default / with containers) | — | 14 / 43 |
+| edge-catalog (default / with containers) | - | 14 / 43 |
 | edge-notifications | 43 | 45 |
 | edge-inventory (default / with containers) | 59 / 59 | 59 / 62 |
 | shop-web | 440 | 456 |

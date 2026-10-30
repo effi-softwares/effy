@@ -1,4 +1,4 @@
-# Contract: staff reads (091) — all additive
+# Contract: staff reads (091) - all additive
 
 ```ts
 type HandoverStep = "collect" | "checkin" | "load" | "deliver" | "return";

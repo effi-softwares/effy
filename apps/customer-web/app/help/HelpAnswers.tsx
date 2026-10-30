@@ -10,7 +10,7 @@ import { HELP_ANSWERS, HELP_TOPICS } from "./answers"
  * The answers, grouped by topic, with a search that narrows them on the page.
  *
  * No request is made: the answers are content shipped with the page, so searching is filtering.
- * Each answer is a native `<details>` — it opens without script, and every answer is in the HTML for
+ * Each answer is a native `<details>` - it opens without script, and every answer is in the HTML for
  * a crawler and for find-in-page.
  *
  * A search with no match says so and points at the message form, which is always below.

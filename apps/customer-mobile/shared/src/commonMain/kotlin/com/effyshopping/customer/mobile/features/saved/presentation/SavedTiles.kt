@@ -42,7 +42,7 @@ fun rememberSavedTiles(container: AppContainer, onRequireSignIn: (() -> Unit)? =
     // The product whose list chooser is open, or null. Rendered by [SavedTileMessages].
     val chooser = remember { mutableStateOf<String?>(null) }
 
-    // One read on arrival, and one more if the shopper signs in while the screen is open — which is
+    // One read on arrival, and one more if the shopper signs in while the screen is open - which is
     // the moment their hearts would otherwise still be showing a guest's list.
     LaunchedEffect(signedIn) {
         if (signedIn) runCatching { container.loadSavedMembership() }
@@ -67,7 +67,7 @@ fun rememberSavedTiles(container: AppContainer, onRequireSignIn: (() -> Unit)? =
                     // the chooser shows where it is and lets them decide.
                     ToggleOutcome.OPEN_CHOOSER -> chooser.value = product.id
                     // The save has already happened, in one tap. The other lists are an offer
-                    // after it — one action on the snackbar, never a question before the save.
+                    // after it - one action on the snackbar, never a question before the save.
                     ToggleOutcome.DONE -> if (wanted) {
                         val result = messages.showSnackbar(
                             message = "Saved",
@@ -86,7 +86,7 @@ fun rememberSavedTiles(container: AppContainer, onRequireSignIn: (() -> Unit)? =
  * What a tile-bearing screen needs to render save controls: the membership answer, one toggle, and
  * somewhere to say a refusal.
  *
- * Deliberately not a ViewModel. It holds no state of its own — the mirror is
+ * Deliberately not a ViewModel. It holds no state of its own - the mirror is
  * [com.effyshopping.customer.mobile.features.saved.domain.SavedStore], which is app-scoped precisely
  * so that a screen cannot own a second copy of the answer.
  */
@@ -106,7 +106,7 @@ class SavedTiles internal constructor(
 }
 
 /**
- * The tile placement, wired to the shared mirror — the overload every product grid and rail uses.
+ * The tile placement, wired to the shared mirror - the overload every product grid and rail uses.
  *
  * Goes in [com.effyshopping.customer.mobile.core.presentation.EffyProductCard]'s `imageOverlay` slot,
  * which puts it above the "Unavailable" scrim on purpose: a shopper must still be able to un-save

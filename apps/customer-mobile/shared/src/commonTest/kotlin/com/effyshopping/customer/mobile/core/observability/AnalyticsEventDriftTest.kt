@@ -30,7 +30,7 @@ class AnalyticsEventDriftTest {
         "order_placed",
         "search_performed",
         "filter_applied",
-        // commerce-events.md — Points
+        // commerce-events.md - Points
         "points_viewed",
         "checkout_points_toggled",
         "checkout_paid_with_points",
@@ -60,7 +60,7 @@ class AnalyticsEventDriftTest {
         for (e in allEvents) {
             assertTrue(
                 e.name in documented,
-                "AnalyticsEvent '${e.name}' is not in the documented taxonomy — add it to docs/telemetry.",
+                "AnalyticsEvent '${e.name}' is not in the documented taxonomy - add it to docs/telemetry.",
             )
         }
     }
@@ -70,7 +70,7 @@ class AnalyticsEventDriftTest {
         // A guard, not a proof: props must be ids/enums/counts, never an email/@ or a long free string.
         for (e in allEvents) {
             for ((k, v) in e.props) {
-                assertTrue('@' !in v, "prop '$k' on '${e.name}' looks like an email — no PII (Principle VII)")
+                assertTrue('@' !in v, "prop '$k' on '${e.name}' looks like an email - no PII (Principle VII)")
             }
         }
     }

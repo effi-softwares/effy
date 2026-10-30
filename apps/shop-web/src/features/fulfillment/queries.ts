@@ -45,7 +45,7 @@ export function invalidateOrders(queryClient: ReturnType<typeof useQueryClient>)
 const TRANSITION_TOAST: Record<TransitionRequest["to"], string> = {
   picking: "Picking started",
   ready_for_pickup: "Marked ready for pickup",
-  unfulfillable: "Marked can't supply — Effy will refund the customer",
+  unfulfillable: "Marked can't supply - Effy will refund the customer",
 }
 
 export function useTransitionFulfillment(id: string) {

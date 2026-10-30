@@ -218,7 +218,7 @@ describe.skipIf(!RUN)("wave planner against real PostgreSQL", () => {
                       public.delivery_zone, public.shop CASCADE`);
   });
 
-  it("C0 — places ready work on an eligible on-duty driver, end to end", async () => {
+  it("C0 - places ready work on an eligible on-duty driver, end to end", async () => {
     const shop = await makeShop("Shop One", "S1");
     const zone = await makeZone("Inner North", "3065");
     const driver = await makeDriver("ada");
@@ -234,7 +234,7 @@ describe.skipIf(!RUN)("wave planner against real PostgreSQL", () => {
     expect(rounds.rows[0].kind).toBe("collection");
   });
 
-  it("D1 — the driver is sent ONE 'run assigned' push for a new round, however many passes run", async () => {
+  it("D1 - the driver is sent ONE 'run assigned' push for a new round, however many passes run", async () => {
     const shop = await makeShop("Shop One", "S1");
     const zone = await makeZone("Inner North", "3065");
     const driver = await makeDriver("ada");
@@ -257,7 +257,7 @@ describe.skipIf(!RUN)("wave planner against real PostgreSQL", () => {
     });
   });
 
-  it("D2 — a dispatcher re-ordering a round under way tells its driver once; ending it says removed", async () => {
+  it("D2 - a dispatcher re-ordering a round under way tells its driver once; ending it says removed", async () => {
     const shop = await makeShop("Shop One", "S1");
     const zone = await makeZone("Inner North", "3065");
     const driver = await makeDriver("ada");
@@ -282,7 +282,7 @@ describe.skipIf(!RUN)("wave planner against real PostgreSQL", () => {
     expect((await types()).sort()).toEqual(["run_assigned", "run_changed", "run_withdrawn"]);
   });
 
-  it("D2 — 'run opens soon' goes once, within fifteen minutes of the opening and not before", async () => {
+  it("D2 - 'run opens soon' goes once, within fifteen minutes of the opening and not before", async () => {
     const shop = await makeShop("Shop One", "S1");
     const zone = await makeZone("Inner North", "3065");
     const driver = await makeDriver("ada");
@@ -303,7 +303,7 @@ describe.skipIf(!RUN)("wave planner against real PostgreSQL", () => {
   });
 
   // The property the design rests on.
-  it("C1 — a second planning pass assigns nothing twice", async () => {
+  it("C1 - a second planning pass assigns nothing twice", async () => {
     const shop = await makeShop("Shop One", "S1");
     const zone = await makeZone("Inner North", "3065");
     const d = await makeDriver("ada");
@@ -321,7 +321,7 @@ describe.skipIf(!RUN)("wave planner against real PostgreSQL", () => {
   });
 
   // The index, not the service, makes this true.
-  it("C2 — two CONCURRENT passes cannot both assign the same package", async () => {
+  it("C2 - two CONCURRENT passes cannot both assign the same package", async () => {
     const shop = await makeShop("Shop One", "S1");
     const zone = await makeZone("Inner North", "3065");
     const d1 = await makeDriver("ada");
@@ -357,7 +357,7 @@ describe.skipIf(!RUN)("wave planner against real PostgreSQL", () => {
   });
 
   // The index is partial: a package not collected on Monday is ordinary work on Tuesday.
-  it("C3 — a settled package can be assigned again in a later wave", async () => {
+  it("C3 - a settled package can be assigned again in a later wave", async () => {
     const shop = await makeShop("Shop One", "S1");
     const zone = await makeZone("Inner North", "3065");
     const d = await makeDriver("ada");
@@ -376,7 +376,7 @@ describe.skipIf(!RUN)("wave planner against real PostgreSQL", () => {
     expect(rows.rows.map((r) => r.state)).toEqual(["not_available", "assigned"]);
   });
 
-  it("C4 — an every-zone clearance covers a zone created AFTER it was granted", async () => {
+  it("C4 - an every-zone clearance covers a zone created AFTER it was granted", async () => {
     const shop = await makeShop("Shop One", "S1");
     const d = await makeDriver("ada");
     await clear(d, "collection", "standard", null); // everywhere
@@ -390,7 +390,7 @@ describe.skipIf(!RUN)("wave planner against real PostgreSQL", () => {
   });
 
   // The engine may fail to assign; it may never fail quietly.
-  it("C5 — every hard gate excludes independently and writes its own reason", async () => {
+  it("C5 - every hard gate excludes independently and writes its own reason", async () => {
     const shop = await makeShop("Shop One", "S1");
     const zone = await makeZone("Inner North", "3065");
     await makeReadyPackage(shop);
@@ -418,7 +418,7 @@ describe.skipIf(!RUN)("wave planner against real PostgreSQL", () => {
     }
   });
 
-  it("C5b — a cleared-for-nothing driver is excluded as not_cleared, naming them", async () => {
+  it("C5b - a cleared-for-nothing driver is excluded as not_cleared, naming them", async () => {
     const shop = await makeShop("Shop One", "S1");
     await makeZone("Inner North", "3065");
     const d = await makeDriver("ada"); // no clearances at all
@@ -433,7 +433,7 @@ describe.skipIf(!RUN)("wave planner against real PostgreSQL", () => {
    * A clearance is (function, area): an old-method row still takes the parcel, and a postcode in no
    * group goes to a driver cleared for one group.
    */
-  it("⚠ 082 P5/P6 — the method is not read, and a postcode in no group goes to any driver cleared for the function", async () => {
+  it("⚠ 082 P5/P6 - the method is not read, and a postcode in no group goes to any driver cleared for the function", async () => {
     const shop = await makeShop("Shop One", "S1");
     const north = await makeZone("Inner North", "3065");
     const d = await makeDriver("ada");
@@ -456,7 +456,7 @@ describe.skipIf(!RUN)("wave planner against real PostgreSQL", () => {
     expect((await q(`SELECT 1 FROM public.round_package WHERE shop_fulfillment_id = $1`, [another])).rowCount).toBe(0);
   });
 
-  it("C5c — no candidate at all is recorded with driver_id NULL, a different problem", async () => {
+  it("C5c - no candidate at all is recorded with driver_id NULL, a different problem", async () => {
     const shop = await makeShop("Shop One", "S1");
     await makeZone("Inner North", "3065");
     await makeReadyPackage(shop); // nobody exists
@@ -467,7 +467,7 @@ describe.skipIf(!RUN)("wave planner against real PostgreSQL", () => {
     expect(ex.rows[0].driver_id).toBeNull();
   });
 
-  it("C8 — a round is not assigned beyond the vehicle's payload", async () => {
+  it("C8 - a round is not assigned beyond the vehicle's payload", async () => {
     const shop = await makeShop("Shop One", "S1");
     const zone = await makeZone("Inner North", "3065");
     const d = await makeDriver("ada", { payloadKg: 1 }); // 1 kg
@@ -495,7 +495,7 @@ SELECT id FROM p`,
   });
 
   // Two shops: a second package at the same shop joins its stop, which proves nothing about balancing.
-  it("C10 — a new stop goes to the driver carrying fewest today, stably", async () => {
+  it("C10 - a new stop goes to the driver carrying fewest today, stably", async () => {
     const shopA = await makeShop("Shop One", "S1");
     const shopB = await makeShop("Shop Two", "S2");
     const zone = await makeZone("Inner North", "3065");
@@ -508,14 +508,14 @@ SELECT id FROM p`,
     await runWave();
     const firstHolder = (await q(`SELECT driver_id FROM public.driver_round`)).rows[0].driver_id;
 
-    await makeReadyPackage(shopB); // a different shop — a genuinely new stop
+    await makeReadyPackage(shopB); // a different shop - a genuinely new stop
     await runWave();
     const holders = (await q(`SELECT driver_id FROM public.driver_round ORDER BY created_at`)).rows;
     expect(holders).toHaveLength(2);
     expect(holders[1].driver_id, "the lighter driver must take the new stop").not.toBe(firstHolder);
   });
 
-  it("C11 — a late package joins an in-flight round when that shop's stop is outstanding", async () => {
+  it("C11 - a late package joins an in-flight round when that shop's stop is outstanding", async () => {
     const shop = await makeShop("Shop One", "S1");
     const zone = await makeZone("Inner North", "3065");
     const d = await makeDriver("ada");
@@ -547,7 +547,7 @@ SELECT id FROM p`,
     expect(hub.rows[0].n, "a collection round ends at the hub").toBe(1);
   });
 
-  it("C12 — it waits for the next wave when that shop's stop is already done", async () => {
+  it("C12 - it waits for the next wave when that shop's stop is already done", async () => {
     const shop = await makeShop("Shop One", "S1");
     const zone = await makeZone("Inner North", "3065");
     const d = await makeDriver("ada");
@@ -609,7 +609,7 @@ SELECT id FROM p`,
   });
 
   // The gather must count a product's weight once, however many attribute values it has.
-  it("⚠ 080 P2 — a courier parcel the courier collects from the supplier is never driver work", async () => {
+  it("⚠ 080 P2 - a courier parcel the courier collects from the supplier is never driver work", async () => {
     const shop = await makeShop("Shop One", "S1");
     const zone = await makeZone("Inner North", "3065");
     const driver = await makeDriver("ada");
@@ -645,74 +645,74 @@ SELECT id FROM p`,
     expect(pkg!.requiresFrozen).toBe(false);
   });
 
-// Nested, not a sibling: a second top-level describe would run after the pool is closed.
-// Delivery windows: planned per window. Nested to share the container.
-describe("069 + 072 — delivery is planned per window, and assigned at once", () => {
-  beforeEach(async () => {
-    await q(`TRUNCATE public.delivery_collection_run, public.assignment_exclusion, public.hub_checkin, public.round_package,
+  // Nested, not a sibling: a second top-level describe would run after the pool is closed.
+  // Delivery windows: planned per window. Nested to share the container.
+  describe("069 + 072 - delivery is planned per window, and assigned at once", () => {
+    beforeEach(async () => {
+      await q(`TRUNCATE public.delivery_collection_run, public.assignment_exclusion, public.hub_checkin, public.round_package,
                       public.round_stop, public.driver_round, public.dispatch_wave,
                       public.driver_zone_capability, public.vehicle_holding, public.vehicle,
                       public.driver_duty_session, public.driver, public.shop_fulfillment,
                       public."order", public.customer, public.delivery_zone_postcode,
                       public.delivery_zone, public.delivery_slot, public.shop CASCADE`);
-  });
+    });
 
-  // 5–7 pm and 7–9 pm Melbourne on 2026-10-08 (AEDT, UTC+11).
-  const EARLY = { start: "2026-10-08T06:00:00Z", end: "2026-10-08T08:00:00Z" };
-  const LATE = { start: "2026-10-08T08:00:00Z", end: "2026-10-08T10:00:00Z" };
-  let slotSeq = 0;
+    // 5–7 pm and 7–9 pm Melbourne on 2026-10-08 (AEDT, UTC+11).
+    const EARLY = { start: "2026-10-08T06:00:00Z", end: "2026-10-08T08:00:00Z" };
+    const LATE = { start: "2026-10-08T08:00:00Z", end: "2026-10-08T10:00:00Z" };
+    let slotSeq = 0;
 
-  /** Collected and checked in at the hub, sold `window` (or none). */
-  async function atHub(collector: string, shopId: string, window: { start: string; end: string } | null, method: "same_day" | "standard" = "same_day") {
-    const sfId = await makeReadyPackage(shopId, "3065", method);
-    const wave = await q(`INSERT INTO public.dispatch_wave (kind, planned_for, trigger) VALUES ('collection', now(), 'schedule') RETURNING id`);
-    const round = await q(
-      `INSERT INTO public.driver_round (wave_id, driver_id, kind, deadline_at, status)
+    /** Collected and checked in at the hub, sold `window` (or none). */
+    async function atHub(collector: string, shopId: string, window: { start: string; end: string } | null, method: "same_day" | "standard" = "same_day") {
+      const sfId = await makeReadyPackage(shopId, "3065", method);
+      const wave = await q(`INSERT INTO public.dispatch_wave (kind, planned_for, trigger) VALUES ('collection', now(), 'schedule') RETURNING id`);
+      const round = await q(
+        `INSERT INTO public.driver_round (wave_id, driver_id, kind, deadline_at, status)
        VALUES ($1, $2, 'collection', now(), 'completed') RETURNING id`,
-      [wave.rows[0].id, collector],
-    );
-    const stop = await q(
-      `INSERT INTO public.round_stop (round_id, kind, shop_id, status) VALUES ($1, 'shop_pickup', $2, 'done') RETURNING id`,
-      [round.rows[0].id, shopId],
-    );
-    await q(`INSERT INTO public.round_package (stop_id, shop_fulfillment_id, state) VALUES ($1, $2, 'picked_up')`, [stop.rows[0].id, sfId]);
-    await q(
-      `INSERT INTO public.hub_checkin (round_id, driver_id, packages_expected, packages_arrived) VALUES ($1, $2, 1, 1)`,
-      [round.rows[0].id, collector],
-    );
-    await q(`UPDATE public.shop_fulfillment SET status = 'collected' WHERE id = $1`, [sfId]);
+        [wave.rows[0].id, collector],
+      );
+      const stop = await q(
+        `INSERT INTO public.round_stop (round_id, kind, shop_id, status) VALUES ($1, 'shop_pickup', $2, 'done') RETURNING id`,
+        [round.rows[0].id, shopId],
+      );
+      await q(`INSERT INTO public.round_package (stop_id, shop_fulfillment_id, state) VALUES ($1, $2, 'picked_up')`, [stop.rows[0].id, sfId]);
+      await q(
+        `INSERT INTO public.hub_checkin (round_id, driver_id, packages_expected, packages_arrived) VALUES ($1, $2, 1, 1)`,
+        [round.rows[0].id, collector],
+      );
+      await q(`UPDATE public.shop_fulfillment SET status = 'collected' WHERE id = $1`, [sfId]);
 
-    const order = await q(`SELECT order_id FROM public.shop_fulfillment WHERE id = $1`, [sfId]);
-    let slotId: string | null = null;
-    if (window) {
-      slotSeq += 1;
-      const slot = await q(
-        `INSERT INTO public.delivery_slot (start_time, end_time, cutoff_time, capacity, updated_by)
+      const order = await q(`SELECT order_id FROM public.shop_fulfillment WHERE id = $1`, [sfId]);
+      let slotId: string | null = null;
+      if (window) {
+        slotSeq += 1;
+        const slot = await q(
+          `INSERT INTO public.delivery_slot (start_time, end_time, cutoff_time, capacity, updated_by)
          VALUES ('00:00'::time + ($1 || ' minutes')::interval, '00:00'::time + ($1 || ' minutes')::interval + interval '30 seconds', '00:00', 9, 'test')
          RETURNING id`,
-        [slotSeq],
-      );
-      slotId = slot.rows[0].id;
-    }
-    await q(
-      `INSERT INTO public.order_package_delivery (order_id, shop_id, method, slot_id, window_start, window_end)
+          [slotSeq],
+        );
+        slotId = slot.rows[0].id;
+      }
+      await q(
+        `INSERT INTO public.order_package_delivery (order_id, shop_id, method, slot_id, window_start, window_end)
        VALUES ($1, $2, $6, $3, $4, $5)`,
-      [order.rows[0].order_id, shopId, slotId, window?.start ?? null, window?.end ?? null, method],
-    );
-    return sfId;
-  }
+        [order.rows[0].order_id, shopId, slotId, window?.start ?? null, window?.end ?? null, method],
+      );
+      return sfId;
+    }
 
-  async function world() {
-    const zoneId = await makeZone("Inner North", "3065");
-    const shopId = await makeShop("Shop One", "SHOP1");
-    const driverId = await makeDriver("dana");
-    await clear(driverId, "delivery", "same_day", zoneId);
-    return { shopId, driverId };
-  }
+    async function world() {
+      const zoneId = await makeZone("Inner North", "3065");
+      const shopId = await makeShop("Shop One", "SHOP1");
+      const driverId = await makeDriver("dana");
+      await clear(driverId, "delivery", "same_day", zoneId);
+      return { shopId, driverId };
+    }
 
-  async function deliveryRounds() {
-    return (await q(
-      `SELECT dr.deadline_at, dr.window_start_at,
+    async function deliveryRounds() {
+      return (await q(
+        `SELECT dr.deadline_at, dr.window_start_at,
               public.round_opens_at(dr.kind, dr.deadline_at, dr.window_start_at) AS opens_at,
               count(rp.id)::int AS packages
          FROM public.driver_round dr
@@ -720,1042 +720,1042 @@ describe("069 + 072 — delivery is planned per window, and assigned at once", (
          JOIN public.round_package rp ON rp.stop_id = rs.id
         WHERE dr.kind = 'delivery'
         GROUP BY dr.id, dr.deadline_at, dr.window_start_at ORDER BY dr.deadline_at`,
-    )).rows as Array<{ deadline_at: Date; window_start_at: Date | null; opens_at: Date | null; packages: number }>;
-  }
-
-  // Sat 10 Oct 2026, 5–7 pm Melbourne — two days after the passes below.
-  const LATER_DAY = { start: "2026-10-10T06:00:00Z", end: "2026-10-10T08:00:00Z" };
-  const THU_NOON = new Date("2026-10-08T01:00:00Z");
-  const FRI_NOON = new Date("2026-10-09T01:00:00Z");
-  const SAT_NOON = new Date("2026-10-10T01:00:00Z");
-
-  /** A later-day window is stored `standard` with a window: it is Effy's, waits at the hub, and is planned on its day. */
-  it("⚠ 082 P2/P3 — a later-day window, sold as standard: on no round before its day, on its window's round on the day", async () => {
-    const { shopId, driverId } = await world();
-    const pkg = await atHub(driverId, shopId, LATER_DAY, "standard");
-
-    for (const before of [THU_NOON, FRI_NOON]) {
-      const early = await runPass(before);
-      expect(early.delivery).toMatchObject({ considered: 0, assigned: 0 });
+      )).rows as Array<{ deadline_at: Date; window_start_at: Date | null; opens_at: Date | null; packages: number }>;
     }
-    expect(await deliveryRounds()).toEqual([]);
 
-    const onTheDay = await runPass(SAT_NOON);
-    expect(onTheDay.delivery).toMatchObject({ considered: 1, assigned: 1 });
-    const rounds = await deliveryRounds();
-    expect(rounds).toHaveLength(1);
-    expect(rounds[0]).toMatchObject({ deadline_at: new Date(LATER_DAY.end), window_start_at: new Date(LATER_DAY.start), packages: 1 });
-    expect((await q(`SELECT 1 FROM public.round_package rp JOIN public.round_stop rs ON rs.id = rp.stop_id JOIN public.driver_round dr ON dr.id = rs.round_id
+    // Sat 10 Oct 2026, 5–7 pm Melbourne - two days after the passes below.
+    const LATER_DAY = { start: "2026-10-10T06:00:00Z", end: "2026-10-10T08:00:00Z" };
+    const THU_NOON = new Date("2026-10-08T01:00:00Z");
+    const FRI_NOON = new Date("2026-10-09T01:00:00Z");
+    const SAT_NOON = new Date("2026-10-10T01:00:00Z");
+
+    /** A later-day window is stored `standard` with a window: it is Effy's, waits at the hub, and is planned on its day. */
+    it("⚠ 082 P2/P3 - a later-day window, sold as standard: on no round before its day, on its window's round on the day", async () => {
+      const { shopId, driverId } = await world();
+      const pkg = await atHub(driverId, shopId, LATER_DAY, "standard");
+
+      for (const before of [THU_NOON, FRI_NOON]) {
+        const early = await runPass(before);
+        expect(early.delivery).toMatchObject({ considered: 0, assigned: 0 });
+      }
+      expect(await deliveryRounds()).toEqual([]);
+
+      const onTheDay = await runPass(SAT_NOON);
+      expect(onTheDay.delivery).toMatchObject({ considered: 1, assigned: 1 });
+      const rounds = await deliveryRounds();
+      expect(rounds).toHaveLength(1);
+      expect(rounds[0]).toMatchObject({ deadline_at: new Date(LATER_DAY.end), window_start_at: new Date(LATER_DAY.start), packages: 1 });
+      expect((await q(`SELECT 1 FROM public.round_package rp JOIN public.round_stop rs ON rs.id = rp.stop_id JOIN public.driver_round dr ON dr.id = rs.round_id
                       WHERE dr.kind = 'delivery' AND rp.shop_fulfillment_id = $1`, [pkg])).rowCount).toBe(1);
-  });
+    });
 
-  it("082 P3 — a courier's parcel at the hub is never delivery work", async () => {
-    const { shopId, driverId } = await world();
-    // A courier order: standard, no window, and the order says courier.
-    const courier = await atHub(driverId, shopId, null, "standard");
-    await q(`UPDATE public."order" SET delivery_type = 'courier', delivery_type_reason = 'out_of_coverage', courier_estimate = '2–4 business days', courier_collection = 'hub'
+    it("082 P3 - a courier's parcel at the hub is never delivery work", async () => {
+      const { shopId, driverId } = await world();
+      // A courier order: standard, no window, and the order says courier.
+      const courier = await atHub(driverId, shopId, null, "standard");
+      await q(`UPDATE public."order" SET delivery_type = 'courier', delivery_type_reason = 'out_of_coverage', courier_estimate = '2–4 business days', courier_collection = 'hub'
               WHERE id = (SELECT order_id FROM public.shop_fulfillment WHERE id = $1)`, [courier]);
 
-    const outcome = await runPass(SAT_NOON);
-    expect(outcome.delivery).toMatchObject({ considered: 0, assigned: 0 });
-    expect(await deliveryRounds()).toEqual([]);
-  });
+      const outcome = await runPass(SAT_NOON);
+      expect(outcome.delivery).toMatchObject({ considered: 0, assigned: 0 });
+      expect(await deliveryRounds()).toEqual([]);
+    });
 
-  /** An order moved from courier back to Effy for a later day gets a round on that day. */
-  it("082 P11 — an order moved back to Effy for a later day gets its round on that day", async () => {
-    const { shopId, driverId } = await world();
-    const pkg = await atHub(driverId, shopId, LATER_DAY, "standard");
-    await q(`UPDATE public."order" SET delivery_type = 'effy', delivery_type_reason = 'staff_change'
+    /** An order moved from courier back to Effy for a later day gets a round on that day. */
+    it("082 P11 - an order moved back to Effy for a later day gets its round on that day", async () => {
+      const { shopId, driverId } = await world();
+      const pkg = await atHub(driverId, shopId, LATER_DAY, "standard");
+      await q(`UPDATE public."order" SET delivery_type = 'effy', delivery_type_reason = 'staff_change'
               WHERE id = (SELECT order_id FROM public.shop_fulfillment WHERE id = $1)`, [pkg]);
 
-    expect((await runPass(FRI_NOON)).delivery.assigned).toBe(0);
-    expect((await runPass(SAT_NOON)).delivery.assigned).toBe(1);
-  });
+      expect((await runPass(FRI_NOON)).delivery.assigned).toBe(0);
+      expect((await runPass(SAT_NOON)).delivery.assigned).toBe(1);
+    });
 
-  it("082 P10 — a person cannot give out a later day's delivery either: its round is planned on the day", async () => {
-    const { shopId, driverId } = await world();
-    const pkg = await atHub(driverId, shopId, LATER_DAY, "standard");
-    const ask = { packageId: pkg, stage: "delivery" as const, driverId, expectedAssignmentId: null, acceptConcerns: false, actorSub: "staff-ann" };
+    it("082 P10 - a person cannot give out a later day's delivery either: its round is planned on the day", async () => {
+      const { shopId, driverId } = await world();
+      const pkg = await atHub(driverId, shopId, LATER_DAY, "standard");
+      const ask = { packageId: pkg, stage: "delivery" as const, driverId, expectedAssignmentId: null, acceptConcerns: false, actorSub: "staff-ann" };
 
-    await expect(manual.assignTo({ ...ask, now: FRI_NOON })).rejects.toMatchObject({ kind: "not_yet", detail: expect.stringContaining("planned on the day") });
-    expect(await deliveryRounds()).toEqual([]);
-    await expect(manual.assignTo({ ...ask, now: SAT_NOON })).resolves.toMatchObject({ driverIds: [driverId] });
-  });
+      await expect(manual.assignTo({ ...ask, now: FRI_NOON })).rejects.toMatchObject({ kind: "not_yet", detail: expect.stringContaining("planned on the day") });
+      expect(await deliveryRounds()).toEqual([]);
+      await expect(manual.assignTo({ ...ask, now: SAT_NOON })).resolves.toMatchObject({ driverIds: [driverId] });
+    });
 
-  /** A parcel ready at its supplier, sold `window` (Effy) — or none. */
-  async function readySold(shopId: string, window: { start: string; end: string } | null, method: "same_day" | "standard" = "standard") {
-    const sfId = await makeReadyPackage(shopId, "3065", method);
-    const order = await q(`SELECT order_id FROM public.shop_fulfillment WHERE id = $1`, [sfId]);
-    let slotId: string | null = null;
-    if (window) {
-      slotSeq += 1;
-      slotId = (await q(
-        `INSERT INTO public.delivery_slot (start_time, end_time, cutoff_time, capacity, updated_by)
+    /** A parcel ready at its supplier, sold `window` (Effy) - or none. */
+    async function readySold(shopId: string, window: { start: string; end: string } | null, method: "same_day" | "standard" = "standard") {
+      const sfId = await makeReadyPackage(shopId, "3065", method);
+      const order = await q(`SELECT order_id FROM public.shop_fulfillment WHERE id = $1`, [sfId]);
+      let slotId: string | null = null;
+      if (window) {
+        slotSeq += 1;
+        slotId = (await q(
+          `INSERT INTO public.delivery_slot (start_time, end_time, cutoff_time, capacity, updated_by)
          VALUES ('00:00'::time + ($1 || ' minutes')::interval, '00:00'::time + ($1 || ' minutes')::interval + interval '30 seconds', '00:00', 9, 'test')
          RETURNING id`, [slotSeq])).rows[0].id;
-    }
-    await q(
-      `INSERT INTO public.order_package_delivery (order_id, shop_id, method, slot_id, window_start, window_end)
+      }
+      await q(
+        `INSERT INTO public.order_package_delivery (order_id, shop_id, method, slot_id, window_start, window_end)
        VALUES ($1, $2, $3, $4, $5, $6)`,
-      [order.rows[0].order_id, shopId, method, slotId, window?.start ?? null, window?.end ?? null],
-    );
-    return sfId;
-  }
-  const onCollection = async () =>
-    (await q(`SELECT rp.shop_fulfillment_id AS id FROM public.round_package rp JOIN public.round_stop rs ON rs.id = rp.stop_id
+        [order.rows[0].order_id, shopId, method, slotId, window?.start ?? null, window?.end ?? null],
+      );
+      return sfId;
+    }
+    const onCollection = async () =>
+      (await q(`SELECT rp.shop_fulfillment_id AS id FROM public.round_package rp JOIN public.round_stop rs ON rs.id = rp.stop_id
                 JOIN public.driver_round dr ON dr.id = rs.round_id WHERE dr.kind = 'collection' AND rp.state = 'assigned'`)).rows.map((r) => r.id as string);
 
-  /** Runs at 9 am, 2 pm and 6 pm; the hub needs an hour. A parcel travels on the latest run that makes its window. */
-  it("⚠ 082 P4 — a parcel is first offered on the latest run that makes its window, and on later ones if it was missed", async () => {
-    const { shopId, driverId } = await world();
-    await clear(driverId, "collection", "standard", null);
-    await q(`INSERT INTO public.delivery_collection_run (run_time, status, updated_by) VALUES ('09:00', 'active', 'test'), ('14:00', 'active', 'test'), ('18:00', 'active', 'test')`);
+    /** Runs at 9 am, 2 pm and 6 pm; the hub needs an hour. A parcel travels on the latest run that makes its window. */
+    it("⚠ 082 P4 - a parcel is first offered on the latest run that makes its window, and on later ones if it was missed", async () => {
+      const { shopId, driverId } = await world();
+      await clear(driverId, "collection", "standard", null);
+      await q(`INSERT INTO public.delivery_collection_run (run_time, status, updated_by) VALUES ('09:00', 'active', 'test'), ('14:00', 'active', 'test'), ('18:00', 'active', 'test')`);
 
-    // Thu 8 Oct 2026, 11 am Melbourne. The next run is today's 2 pm.
-    const THU_11 = new Date("2026-10-08T00:00:00Z");
-    const satAfternoon = await readySold(shopId, { start: "2026-10-10T05:00:00Z", end: "2026-10-10T07:00:00Z" }); // Sat 4–6 pm → Sat 2 pm run
-    const friMorning = await readySold(shopId, { start: "2026-10-08T21:00:00Z", end: "2026-10-08T23:00:00Z" });   // Fri 8–10 am → Thu 6 pm run
-    const missed = await readySold(shopId, { start: "2026-10-08T02:30:00Z", end: "2026-10-08T04:30:00Z" }, "same_day"); // Thu 1:30 pm → Thu 9 am run, gone
-    const legacy = await readySold(shopId, null);                                                                  // sold no window → the next run
-    const courier = await readySold(shopId, null);
-    await q(`UPDATE public."order" SET delivery_type = 'courier', delivery_type_reason = 'out_of_coverage', courier_estimate = 'x', courier_collection = 'hub'
+      // Thu 8 Oct 2026, 11 am Melbourne. The next run is today's 2 pm.
+      const THU_11 = new Date("2026-10-08T00:00:00Z");
+      const satAfternoon = await readySold(shopId, { start: "2026-10-10T05:00:00Z", end: "2026-10-10T07:00:00Z" }); // Sat 4–6 pm → Sat 2 pm run
+      const friMorning = await readySold(shopId, { start: "2026-10-08T21:00:00Z", end: "2026-10-08T23:00:00Z" });   // Fri 8–10 am → Thu 6 pm run
+      const missed = await readySold(shopId, { start: "2026-10-08T02:30:00Z", end: "2026-10-08T04:30:00Z" }, "same_day"); // Thu 1:30 pm → Thu 9 am run, gone
+      const legacy = await readySold(shopId, null);                                                                  // sold no window → the next run
+      const courier = await readySold(shopId, null);
+      await q(`UPDATE public."order" SET delivery_type = 'courier', delivery_type_reason = 'out_of_coverage', courier_estimate = 'x', courier_collection = 'hub'
               WHERE id = (SELECT order_id FROM public.shop_fulfillment WHERE id = $1)`, [courier]);
-    const fromSupplier = await readySold(shopId, null);
-    await q(`UPDATE public."order" SET delivery_type = 'courier', delivery_type_reason = 'out_of_coverage', courier_estimate = 'x', courier_collection = 'supplier'
+      const fromSupplier = await readySold(shopId, null);
+      await q(`UPDATE public."order" SET delivery_type = 'courier', delivery_type_reason = 'out_of_coverage', courier_estimate = 'x', courier_collection = 'supplier'
               WHERE id = (SELECT order_id FROM public.shop_fulfillment WHERE id = $1)`, [fromSupplier]);
 
-    const first = await runPass(THU_11);
-    // On today's 2 pm run: the one that missed its run (late), the windowless one, the courier's via the hub.
-    expect((await onCollection()).sort()).toEqual([missed, legacy, courier].sort());
-    expect(first.collection).toMatchObject({ considered: 3, assigned: 3, collectLate: 1 });
+      const first = await runPass(THU_11);
+      // On today's 2 pm run: the one that missed its run (late), the windowless one, the courier's via the hub.
+      expect((await onCollection()).sort()).toEqual([missed, legacy, courier].sort());
+      expect(first.collection).toMatchObject({ considered: 3, assigned: 3, collectLate: 1 });
 
-    // Thu 3 pm: the next run is 6 pm — Friday morning's parcel is due on it. Saturday's still is not.
-    await runPass(new Date("2026-10-08T04:00:00Z"));
-    expect(await onCollection()).toContain(friMorning);
-    expect(await onCollection()).not.toContain(satAfternoon);
+      // Thu 3 pm: the next run is 6 pm - Friday morning's parcel is due on it. Saturday's still is not.
+      await runPass(new Date("2026-10-08T04:00:00Z"));
+      expect(await onCollection()).toContain(friMorning);
+      expect(await onCollection()).not.toContain(satAfternoon);
 
-    // Sat noon: the next run is Saturday's 2 pm — its own.
-    await runPass(new Date("2026-10-10T01:00:00Z"));
-    expect(await onCollection()).toContain(satAfternoon);
-    // A courier's own pickup was never anyone's.
-    expect(await onCollection()).not.toContain(fromSupplier);
-  });
+      // Sat noon: the next run is Saturday's 2 pm - its own.
+      await runPass(new Date("2026-10-10T01:00:00Z"));
+      expect(await onCollection()).toContain(satAfternoon);
+      // A courier's own pickup was never anyone's.
+      expect(await onCollection()).not.toContain(fromSupplier);
+    });
 
-  /** The day view: a later day's window has no round, shown as planned on the day. */
-  it("082 P9 — the day view lists a later day's windows, flags cold goods held overnight and late collections, and shows a round only on the day", async () => {
-    const { shopId, driverId } = await world();
-    await q(`INSERT INTO public.delivery_collection_run (run_time, status, updated_by) VALUES ('09:00', 'active', 'test'), ('14:00', 'active', 'test')`);
+    /** The day view: a later day's window has no round, shown as planned on the day. */
+    it("082 P9 - the day view lists a later day's windows, flags cold goods held overnight and late collections, and shows a round only on the day", async () => {
+      const { shopId, driverId } = await world();
+      await q(`INSERT INTO public.delivery_collection_run (run_time, status, updated_by) VALUES ('09:00', 'active', 'test'), ('14:00', 'active', 'test')`);
 
-    const chilled = await atHub(driverId, shopId, LATER_DAY, "standard");
-    await addLine(chilled, shopId, 500, "chilled");
-    await q(`UPDATE public.hub_checkin SET checked_in_at = '2026-10-08T03:00:00Z'`); // Thursday afternoon
-    const stillAtShop = await readySold(shopId, LATER_DAY);
-    // Thu 1:30 pm window: its run (Thu 9 am) has gone by Thu noon.
-    const late = await readySold(shopId, { start: "2026-10-08T02:30:00Z", end: "2026-10-08T04:30:00Z" }, "same_day");
+      const chilled = await atHub(driverId, shopId, LATER_DAY, "standard");
+      await addLine(chilled, shopId, 500, "chilled");
+      await q(`UPDATE public.hub_checkin SET checked_in_at = '2026-10-08T03:00:00Z'`); // Thursday afternoon
+      const stillAtShop = await readySold(shopId, LATER_DAY);
+      // Thu 1:30 pm window: its run (Thu 9 am) has gone by Thu noon.
+      const late = await readySold(shopId, { start: "2026-10-08T02:30:00Z", end: "2026-10-08T04:30:00Z" }, "same_day");
 
-    const saturday = await readWindows("2026-10-10", THU_NOON, holder.pool!);
-    expect(saturday.days.map((d) => [d.date, d.label, d.isToday])).toEqual([
-      ["2026-10-08", "Today", true], ["2026-10-09", "Fri 9 Oct", false], ["2026-10-10", "Sat 10 Oct", false], ["2026-10-11", "Sun 11 Oct", false],
-    ]);
-    expect(saturday.windows).toHaveLength(1);
-    const [w] = saturday.windows;
-    expect(w!.label).toBe("Sat 10 Oct, 5 pm – 7 pm");
-    expect(w!.rounds).toEqual([]); // planned on the day
-    const byId = new Map(w!.parcels.map((p) => [p.packageId, p]));
-    expect(byId.get(chilled)).toMatchObject({ status: { status: "at_hub" }, coldOvernight: true, collectLate: false, group: "Inner North" });
-    expect(byId.get(stillAtShop)).toMatchObject({ status: { status: "ready" }, coldOvernight: false, collectLate: false });
+      const saturday = await readWindows("2026-10-10", THU_NOON, holder.pool!);
+      expect(saturday.days.map((d) => [d.date, d.label, d.isToday])).toEqual([
+        ["2026-10-08", "Today", true], ["2026-10-09", "Fri 9 Oct", false], ["2026-10-10", "Sat 10 Oct", false], ["2026-10-11", "Sun 11 Oct", false],
+      ]);
+      expect(saturday.windows).toHaveLength(1);
+      const [w] = saturday.windows;
+      expect(w!.label).toBe("Sat 10 Oct, 5 pm – 7 pm");
+      expect(w!.rounds).toEqual([]); // planned on the day
+      const byId = new Map(w!.parcels.map((p) => [p.packageId, p]));
+      expect(byId.get(chilled)).toMatchObject({ status: { status: "at_hub" }, coldOvernight: true, collectLate: false, group: "Inner North" });
+      expect(byId.get(stillAtShop)).toMatchObject({ status: { status: "ready" }, coldOvernight: false, collectLate: false });
 
-    // Today's view: the parcel that missed its run is marked.
-    const today = await readWindows(undefined, THU_NOON, holder.pool!);
-    expect(today.date).toBe("2026-10-08");
-    expect(today.windows.flatMap((x) => x.parcels).find((p) => p.packageId === late)).toMatchObject({ collectLate: true });
+      // Today's view: the parcel that missed its run is marked.
+      const today = await readWindows(undefined, THU_NOON, holder.pool!);
+      expect(today.date).toBe("2026-10-08");
+      expect(today.windows.flatMap((x) => x.parcels).find((p) => p.packageId === late)).toMatchObject({ collectLate: true });
 
-    // On Saturday the round exists and names its driver.
-    await runPass(SAT_NOON);
-    const onTheDay = await readWindows("2026-10-10", SAT_NOON, holder.pool!);
-    expect(onTheDay.windows[0]!.rounds).toEqual([expect.objectContaining({ driver: { id: driverId, name: "dana" }, parcels: 1 })]);
+      // On Saturday the round exists and names its driver.
+      await runPass(SAT_NOON);
+      const onTheDay = await readWindows("2026-10-10", SAT_NOON, holder.pool!);
+      expect(onTheDay.windows[0]!.rounds).toEqual([expect.objectContaining({ driver: { id: driverId, name: "dana" }, parcels: 1 })]);
 
-    // A day that is not on sale is refused, not answered empty.
-    await expect(readWindows("2026-11-30", THU_NOON, holder.pool!)).rejects.toMatchObject({ kind: "invalid" });
-  });
+      // A day that is not on sale is refused, not answered empty.
+      await expect(readWindows("2026-11-30", THU_NOON, holder.pool!)).rejects.toMatchObject({ kind: "invalid" });
+    });
 
-  /** A failed drop's parcel, still in the van. */
-  async function failedDrop(driverId: string, sfId: string) {
-    const wave = await q(`INSERT INTO public.dispatch_wave (kind, planned_for, trigger) VALUES ('delivery', now(), 'schedule') RETURNING id`);
-    const round = await q(
-      `INSERT INTO public.driver_round (wave_id, driver_id, kind, deadline_at, status)
+    /** A failed drop's parcel, still in the van. */
+    async function failedDrop(driverId: string, sfId: string) {
+      const wave = await q(`INSERT INTO public.dispatch_wave (kind, planned_for, trigger) VALUES ('delivery', now(), 'schedule') RETURNING id`);
+      const round = await q(
+        `INSERT INTO public.driver_round (wave_id, driver_id, kind, deadline_at, status)
        VALUES ($1, $2, 'delivery', now() + interval '2 hours', 'in_progress') RETURNING id`,
-      [wave.rows[0].id, driverId],
-    );
-    const order = await q(`SELECT order_id FROM public.shop_fulfillment WHERE id = $1`, [sfId]);
-    const stop = await q(
-      `INSERT INTO public.round_stop (round_id, kind, order_id, status) VALUES ($1, 'customer_drop', $2, 'skipped') RETURNING id`,
-      [round.rows[0].id, order.rows[0].order_id],
-    );
-    await q(`INSERT INTO public.round_package (stop_id, shop_fulfillment_id, state) VALUES ($1, $2, 'assigned')`, [stop.rows[0].id, sfId]);
-    await q(
-      `INSERT INTO public.delivery_attempt_failure (stop_id, reason, driver_id, failed_at, change_id)
+        [wave.rows[0].id, driverId],
+      );
+      const order = await q(`SELECT order_id FROM public.shop_fulfillment WHERE id = $1`, [sfId]);
+      const stop = await q(
+        `INSERT INTO public.round_stop (round_id, kind, order_id, status) VALUES ($1, 'customer_drop', $2, 'skipped') RETURNING id`,
+        [round.rows[0].id, order.rows[0].order_id],
+      );
+      await q(`INSERT INTO public.round_package (stop_id, shop_fulfillment_id, state) VALUES ($1, $2, 'assigned')`, [stop.rows[0].id, sfId]);
+      await q(
+        `INSERT INTO public.delivery_attempt_failure (stop_id, reason, driver_id, failed_at, change_id)
        VALUES ($1, 'nobody_home', $2, now(), gen_random_uuid())`,
-      [stop.rows[0].id, driverId],
-    );
-    return { roundId: round.rows[0].id as string, stopId: stop.rows[0].id as string };
-  }
-
-  it("088 P6 — a returned parcel is held for a person; resolving its failure releases it to the planner", async () => {
-    const { shopId, driverId } = await world();
-    const sfId = await atHub(driverId, shopId, null);
-    const { roundId, stopId } = await failedDrop(driverId, sfId);
-    const gathered = async () =>
-      (await repo.gatherDeliveryWork(holder.pool!, null, new Date("2026-10-08T12:59:59Z"))).some((p) => p.packageId === sfId);
-
-    expect(await gathered()).toBe(false); // in the van
-    const c = await holder.pool!.connect();
-    try {
-      await c.query("BEGIN");
-      await recordParcelReturn(c, { roundId, recordedBy: "staff", recordedBySub: "sub-staff", changeId: crypto.randomUUID() });
-      await c.query("COMMIT");
-    } finally {
-      c.release();
+        [stop.rows[0].id, driverId],
+      );
+      return { roundId: round.rows[0].id as string, stopId: stop.rows[0].id as string };
     }
-    expect(await gathered()).toBe(false); // at the hub, held: nobody has chosen its next step
-    await q(`UPDATE public.delivery_attempt_failure SET resolved_at = now() WHERE stop_id = $1`, [stopId]);
-    expect(await gathered()).toBe(true);  // a next step was chosen
-  });
 
-  it("088 P8 — dispatch cannot move or end a round while its failed parcels are still in the van", async () => {
-    const { shopId, driverId } = await world();
-    const other = await makeDriver("eli");
-    const sfId = await atHub(driverId, shopId, null);
-    const { roundId } = await failedDrop(driverId, sfId);
-    const token = async () => (await svc.readRound(roundId)).updatedAt as string;
+    it("088 P6 - a returned parcel is held for a person; resolving its failure releases it to the planner", async () => {
+      const { shopId, driverId } = await world();
+      const sfId = await atHub(driverId, shopId, null);
+      const { roundId, stopId } = await failedDrop(driverId, sfId);
+      const gathered = async () =>
+        (await repo.gatherDeliveryWork(holder.pool!, null, new Date("2026-10-08T12:59:59Z"))).some((p) => p.packageId === sfId);
 
-    await expect(svc.unassign(roundId, await token(), "staff-1")).rejects.toMatchObject({ kind: "parcels_to_return" });
-    await expect(svc.reassign(roundId, other, await token(), "staff-1")).rejects.toMatchObject({ kind: "parcels_to_return" });
-  });
+      expect(await gathered()).toBe(false); // in the van
+      const c = await holder.pool!.connect();
+      try {
+        await c.query("BEGIN");
+        await recordParcelReturn(c, { roundId, recordedBy: "staff", recordedBySub: "sub-staff", changeId: crypto.randomUUID() });
+        await c.query("COMMIT");
+      } finally {
+        c.release();
+      }
+      expect(await gathered()).toBe(false); // at the hub, held: nobody has chosen its next step
+      await q(`UPDATE public.delivery_attempt_failure SET resolved_at = now() WHERE stop_id = $1`, [stopId]);
+      expect(await gathered()).toBe(true);  // a next step was chosen
+    });
 
-  it("091 — a round's stop counts its hand-overs by method, on this round only; none recorded shows none", async () => {
-    const { shopId, driverId } = await world();
-    const sfId = await atHub(driverId, shopId, null);
-    const { roundId, stopId } = await failedDrop(driverId, sfId);
-    expect((await svc.readRound(roundId)).stops.find((s: any) => s.stopId === stopId)).not.toHaveProperty("handovers");
-    // Hand-overs are per bag: bag 1 carries the package's code.
-    await createFirstParcels(holder.pool!, { packageIds: [sfId] });
-    await q(
-      `INSERT INTO public.package_handover (shop_fulfillment_id, parcel_id, round_id, actor_kind, driver_id, step, handover_method, change_id)
+    it("088 P8 - dispatch cannot move or end a round while its failed parcels are still in the van", async () => {
+      const { shopId, driverId } = await world();
+      const other = await makeDriver("eli");
+      const sfId = await atHub(driverId, shopId, null);
+      const { roundId } = await failedDrop(driverId, sfId);
+      const token = async () => (await svc.readRound(roundId)).updatedAt as string;
+
+      await expect(svc.unassign(roundId, await token(), "staff-1")).rejects.toMatchObject({ kind: "parcels_to_return" });
+      await expect(svc.reassign(roundId, other, await token(), "staff-1")).rejects.toMatchObject({ kind: "parcels_to_return" });
+    });
+
+    it("091 - a round's stop counts its hand-overs by method, on this round only; none recorded shows none", async () => {
+      const { shopId, driverId } = await world();
+      const sfId = await atHub(driverId, shopId, null);
+      const { roundId, stopId } = await failedDrop(driverId, sfId);
+      expect((await svc.readRound(roundId)).stops.find((s: any) => s.stopId === stopId)).not.toHaveProperty("handovers");
+      // Hand-overs are per bag: bag 1 carries the package's code.
+      await createFirstParcels(holder.pool!, { packageIds: [sfId] });
+      await q(
+        `INSERT INTO public.package_handover (shop_fulfillment_id, parcel_id, round_id, actor_kind, driver_id, step, handover_method, change_id)
        SELECT $1, p.id, $2, 'driver', $3, s.step, s.m, gen_random_uuid()
          FROM public.package_parcel p, (VALUES ('load', 'scan'), ('deliver', 'typed')) AS s(step, m)
         WHERE p.shop_fulfillment_id = $1`,
-      [sfId, roundId, driverId],
-    );
-    const stop = (await svc.readRound(roundId)).stops.find((s: any) => s.stopId === stopId) as any;
-    expect(stop.handovers).toEqual({ scan: 1, typed: 1, manual: 0 });
-  });
+        [sfId, roundId, driverId],
+      );
+      const stop = (await svc.readRound(roundId)).stops.find((s: any) => s.stopId === stopId) as any;
+      expect(stop.handovers).toEqual({ scan: 1, typed: 1, manual: 0 });
+    });
 
-  it("088 US4 — staff record a return for the driver: attributed, audited, and the driver's step is gone", async () => {
-    const { shopId, driverId } = await world();
-    const sfId = await atHub(driverId, shopId, null);
-    const { roundId } = await failedDrop(driverId, sfId);
+    it("088 US4 - staff record a return for the driver: attributed, audited, and the driver's step is gone", async () => {
+      const { shopId, driverId } = await world();
+      const sfId = await atHub(driverId, shopId, null);
+      const { roundId } = await failedDrop(driverId, sfId);
 
-    const r = await staffReturnParcels(roundId, "sub-staff-1", crypto.randomUUID());
-    expect(r).toMatchObject({ returned: 1, roundComplete: true, driverId });
+      const r = await staffReturnParcels(roundId, "sub-staff-1", crypto.randomUUID());
+      expect(r).toMatchObject({ returned: 1, roundComplete: true, driverId });
 
-    const row = await q(`SELECT recorded_by, recorded_by_sub FROM public.parcel_return WHERE round_id = $1`, [roundId]);
-    expect(row.rows[0]).toMatchObject({ recorded_by: "staff", recorded_by_sub: "sub-staff-1" });
-    const audit = await q(`SELECT count(*)::int AS n FROM admin.audit_log WHERE action = 'dispatch.parcels_returned'`);
-    expect(audit.rows[0].n).toBe(1);
-    expect(await toReturnOnRound(holder.pool!, roundId)).toBeNull();
-  });
+      const row = await q(`SELECT recorded_by, recorded_by_sub FROM public.parcel_return WHERE round_id = $1`, [roundId]);
+      expect(row.rows[0]).toMatchObject({ recorded_by: "staff", recorded_by_sub: "sub-staff-1" });
+      const audit = await q(`SELECT count(*)::int AS n FROM admin.audit_log WHERE action = 'dispatch.parcels_returned'`);
+      expect(audit.rows[0].n).toBe(1);
+      expect(await toReturnOnRound(holder.pool!, roundId)).toBeNull();
+    });
 
-  it("the gather reads each package's window as stored instants", async () => {
-    const { shopId, driverId } = await world();
-    await atHub(driverId, shopId, EARLY);
-    await atHub(driverId, shopId, null);
+    it("the gather reads each package's window as stored instants", async () => {
+      const { shopId, driverId } = await world();
+      await atHub(driverId, shopId, EARLY);
+      await atHub(driverId, shopId, null);
 
-    const work = await repo.gatherDeliveryWork(holder.pool!, null, new Date("2026-10-08T12:59:59Z"));
-    const windows = work.map((p) => (p.windowStart ? p.windowStart.toISOString() : null)).sort();
-    expect(windows).toEqual(["2026-10-08T06:00:00.000Z", null].sort());
-  });
+      const work = await repo.gatherDeliveryWork(holder.pool!, null, new Date("2026-10-08T12:59:59Z"));
+      const windows = work.map((p) => (p.windowStart ? p.windowStart.toISOString() : null)).sort();
+      expect(windows).toEqual(["2026-10-08T06:00:00.000Z", null].sort());
+    });
 
-  // A window's packages are assigned on the next pass; the round waits for its opening time.
-  it("⚠ C2 — a window's package is assigned hours before the window, on a round that has not opened", async () => {
-    const { shopId, driverId } = await world();
-    await atHub(driverId, shopId, EARLY);
+    // A window's packages are assigned on the next pass; the round waits for its opening time.
+    it("⚠ C2 - a window's package is assigned hours before the window, on a round that has not opened", async () => {
+      const { shopId, driverId } = await world();
+      await atHub(driverId, shopId, EARLY);
 
-    // Midday Melbourne: the 5 pm window is five hours off.
-    const outcome = await runPass(new Date("2026-10-08T01:00:00Z"));
+      // Midday Melbourne: the 5 pm window is five hours off.
+      const outcome = await runPass(new Date("2026-10-08T01:00:00Z"));
 
-    expect(outcome.delivery).toMatchObject({ considered: 1, assigned: 1, unassigned: 0, unassignedPastOpening: 0 });
-    const rounds = await deliveryRounds();
-    expect(rounds).toHaveLength(1);
-    expect(rounds[0]!.deadline_at).toEqual(new Date(EARLY.end));
-    expect(rounds[0]!.window_start_at).toEqual(new Date(EARLY.start));
-    // 45 minutes before the window starts — derived by the database, stored nowhere.
-    expect(rounds[0]!.opens_at).toEqual(new Date("2026-10-08T05:15:00Z"));
-  });
+      expect(outcome.delivery).toMatchObject({ considered: 1, assigned: 1, unassigned: 0, unassignedPastOpening: 0 });
+      const rounds = await deliveryRounds();
+      expect(rounds).toHaveLength(1);
+      expect(rounds[0]!.deadline_at).toEqual(new Date(EARLY.end));
+      expect(rounds[0]!.window_start_at).toEqual(new Date(EARLY.start));
+      // 45 minutes before the window starts - derived by the database, stored nowhere.
+      expect(rounds[0]!.opens_at).toEqual(new Date("2026-10-08T05:15:00Z"));
+    });
 
-  it("⚠ each window's round works to the window's END, not the end of the day (NP6)", async () => {
-    const { shopId, driverId } = await world();
-    await atHub(driverId, shopId, EARLY);
-    await atHub(driverId, shopId, LATE);
+    it("⚠ each window's round works to the window's END, not the end of the day (NP6)", async () => {
+      const { shopId, driverId } = await world();
+      await atHub(driverId, shopId, EARLY);
+      await atHub(driverId, shopId, LATE);
 
-    const outcome = await runPass(new Date("2026-10-08T01:00:00Z"));
+      const outcome = await runPass(new Date("2026-10-08T01:00:00Z"));
 
-    expect(outcome.delivery.assigned).toBe(2);
-    const rounds = await deliveryRounds();
-    expect(rounds.map((r) => r.deadline_at), "one round per window").toEqual([new Date(EARLY.end), new Date(LATE.end)]);
-    expect(rounds.map((r) => r.packages)).toEqual([1, 1]);
-  });
+      expect(outcome.delivery.assigned).toBe(2);
+      const rounds = await deliveryRounds();
+      expect(rounds.map((r) => r.deadline_at), "one round per window").toEqual([new Date(EARLY.end), new Date(LATE.end)]);
+      expect(rounds.map((r) => r.packages)).toEqual([1, 1]);
+    });
 
-  // Packages for one window reach the hub across several collection runs.
-  it("a later package for the same window joins the driver's round for it", async () => {
-    const { shopId, driverId } = await world();
-    await atHub(driverId, shopId, EARLY);
-    await runPass(new Date("2026-10-08T01:00:00Z"));
-    await atHub(driverId, shopId, EARLY);
-    await runPass(new Date("2026-10-08T01:05:00Z"));
+    // Packages for one window reach the hub across several collection runs.
+    it("a later package for the same window joins the driver's round for it", async () => {
+      const { shopId, driverId } = await world();
+      await atHub(driverId, shopId, EARLY);
+      await runPass(new Date("2026-10-08T01:00:00Z"));
+      await atHub(driverId, shopId, EARLY);
+      await runPass(new Date("2026-10-08T01:05:00Z"));
 
-    const rounds = await deliveryRounds();
-    expect(rounds, "one round, not two").toHaveLength(1);
-    expect(rounds[0]!.packages).toBe(2);
-    // Not begun, so nobody is told about each addition.
-    expect((await q(`SELECT changed_note FROM public.driver_round WHERE kind = 'delivery'`)).rows[0].changed_note).toBeNull();
-  });
+      const rounds = await deliveryRounds();
+      expect(rounds, "one round, not two").toHaveLength(1);
+      expect(rounds[0]!.packages).toBe(2);
+      // Not begun, so nobody is told about each addition.
+      expect((await q(`SELECT changed_note FROM public.driver_round WHERE kind = 'delivery'`)).rows[0].changed_note).toBeNull();
+    });
 
-  // The van has left the hub; the new package is AT the hub.
-  it("nothing joins a delivery round that is under way — a further round is made", async () => {
-    const { shopId, driverId } = await world();
-    await atHub(driverId, shopId, EARLY);
-    await runPass(new Date("2026-10-08T05:30:00Z"));
-    await q(`UPDATE public.driver_round SET status = 'in_progress' WHERE kind = 'delivery'`);
+    // The van has left the hub; the new package is AT the hub.
+    it("nothing joins a delivery round that is under way - a further round is made", async () => {
+      const { shopId, driverId } = await world();
+      await atHub(driverId, shopId, EARLY);
+      await runPass(new Date("2026-10-08T05:30:00Z"));
+      await q(`UPDATE public.driver_round SET status = 'in_progress' WHERE kind = 'delivery'`);
 
-    await atHub(driverId, shopId, EARLY);
-    await runPass(new Date("2026-10-08T05:35:00Z"));
+      await atHub(driverId, shopId, EARLY);
+      await runPass(new Date("2026-10-08T05:35:00Z"));
 
-    expect((await deliveryRounds()).map((r) => r.packages)).toEqual([1, 1]);
-  });
+      expect((await deliveryRounds()).map((r) => r.packages)).toEqual([1, 1]);
+    });
 
-  it("an order placed before 069 is planned at once, against the end of the day, and is open", async () => {
-    const { shopId, driverId } = await world();
-    await atHub(driverId, shopId, null);
+    it("an order placed before 069 is planned at once, against the end of the day, and is open", async () => {
+      const { shopId, driverId } = await world();
+      await atHub(driverId, shopId, null);
 
-    const outcome = await runPass(new Date("2026-10-08T01:00:00Z")); // midday Melbourne
+      const outcome = await runPass(new Date("2026-10-08T01:00:00Z")); // midday Melbourne
 
-    expect(outcome.delivery.assigned).toBe(1);
-    const rounds = await deliveryRounds();
-    expect(rounds).toHaveLength(1);
-    // The end of 8 October in Melbourne (AEDT) is 12:59:59 UTC.
-    expect(rounds[0]!.deadline_at.toISOString().slice(0, 13)).toBe("2026-10-08T12");
-    expect(rounds[0]!.window_start_at).toBeNull();
-    expect(rounds[0]!.opens_at, "no window means no lock").toBeNull();
-  });
+      expect(outcome.delivery.assigned).toBe(1);
+      const rounds = await deliveryRounds();
+      expect(rounds).toHaveLength(1);
+      // The end of 8 October in Melbourne (AEDT) is 12:59:59 UTC.
+      expect(rounds[0]!.deadline_at.toISOString().slice(0, 13)).toBe("2026-10-08T12");
+      expect(rounds[0]!.window_start_at).toBeNull();
+      expect(rounds[0]!.opens_at, "no window means no lock").toBeNull();
+    });
 
-  it("a window that has already closed is still sent out, late and open, rather than left at the hub", async () => {
-    const { shopId, driverId } = await world();
-    await atHub(driverId, shopId, EARLY);
+    it("a window that has already closed is still sent out, late and open, rather than left at the hub", async () => {
+      const { shopId, driverId } = await world();
+      await atHub(driverId, shopId, EARLY);
 
-    const outcome = await runPass(new Date("2026-10-08T08:30:00Z"));
+      const outcome = await runPass(new Date("2026-10-08T08:30:00Z"));
 
-    expect(outcome.delivery.assigned).toBe(1);
-    const rounds = await deliveryRounds();
-    expect(rounds[0]!.deadline_at.toISOString().slice(0, 13)).toBe("2026-10-08T12");
-    expect(rounds[0]!.opens_at).toBeNull();
-  });
+      expect(outcome.delivery.assigned).toBe(1);
+      const rounds = await deliveryRounds();
+      expect(rounds[0]!.deadline_at.toISOString().slice(0, 13)).toBe("2026-10-08T12");
+      expect(rounds[0]!.opens_at).toBeNull();
+    });
 
-  it("does nothing, and says so, when nothing is at the hub", async () => {
-    await world();
-    const outcome = await runPass(NOW);
-    expect(outcome.skipped).toBeNull();
-    expect(outcome.delivery).toMatchObject({ considered: 0, assigned: 0, unassigned: 0 });
-    expect((await q(`SELECT count(*)::int AS n FROM public.dispatch_wave WHERE kind = 'delivery'`)).rows[0].n).toBe(0);
-  });
+    it("does nothing, and says so, when nothing is at the hub", async () => {
+      await world();
+      const outcome = await runPass(NOW);
+      expect(outcome.skipped).toBeNull();
+      expect(outcome.delivery).toMatchObject({ considered: 0, assigned: 0, unassigned: 0 });
+      expect((await q(`SELECT count(*)::int AS n FROM public.dispatch_wave WHERE kind = 'delivery'`)).rows[0].n).toBe(0);
+    });
 
-  // A delivered package must not match the gather again.
-  it("⚠ a package that HAS been delivered is never planned again", async () => {
-    const { shopId, driverId } = await world();
-    const sf = await atHub(driverId, shopId, null);
-    await runPass(new Date("2026-10-08T01:00:00Z"));
+    // A delivered package must not match the gather again.
+    it("⚠ a package that HAS been delivered is never planned again", async () => {
+      const { shopId, driverId } = await world();
+      const sf = await atHub(driverId, shopId, null);
+      await runPass(new Date("2026-10-08T01:00:00Z"));
 
-    await q(
-      `UPDATE public.round_package rp SET state = 'delivered', settled_at = now()
+      await q(
+        `UPDATE public.round_package rp SET state = 'delivered', settled_at = now()
          FROM public.round_stop rs JOIN public.driver_round dr ON dr.id = rs.round_id
         WHERE rs.id = rp.stop_id AND dr.kind = 'delivery'`,
-    );
-    await q(`UPDATE public.shop_fulfillment SET status = 'delivered' WHERE id = $1`, [sf]);
-    await q(`UPDATE public.driver_round SET status = 'completed' WHERE kind = 'delivery'`);
+      );
+      await q(`UPDATE public.shop_fulfillment SET status = 'delivered' WHERE id = $1`, [sf]);
+      await q(`UPDATE public.driver_round SET status = 'completed' WHERE kind = 'delivery'`);
 
-    const again = await runPass(new Date("2026-10-08T01:05:00Z"));
-    expect(again.delivery.considered, "a delivered package is not work").toBe(0);
-    expect(await deliveryRounds()).toHaveLength(1);
+      const again = await runPass(new Date("2026-10-08T01:05:00Z"));
+      expect(again.delivery.considered, "a delivered package is not work").toBe(0);
+      expect(await deliveryRounds()).toHaveLength(1);
+    });
+
+    it("lists a hub-side package nobody can deliver, once, with its reason and what it is waiting for", async () => {
+      const zoneId = await makeZone("Inner North", "3065");
+      const shopId = await makeShop("Shop One", "SHOP1");
+      const collector = await makeDriver("cole");
+      await clear(collector, "collection", "same_day", zoneId); // may collect; may not deliver
+      await atHub(collector, shopId, EARLY);
+
+      await runPass(new Date("2026-10-08T01:00:00Z"));
+      await runPass(new Date("2026-10-08T01:05:00Z"));
+
+      const day = await svc.readDay();
+      expect(day.unassigned).toHaveLength(1);
+      expect(day.unassigned[0]).toMatchObject({ stage: "delivery" });
+      expect(day.unassigned[0]).not.toHaveProperty("method");
+      expect(day.unassigned[0]!.reasons).toEqual(["not_cleared"]);
+    });
   });
 
-  it("lists a hub-side package nobody can deliver, once, with its reason and what it is waiting for", async () => {
-    const zoneId = await makeZone("Inner North", "3065");
-    const shopId = await makeShop("Shop One", "SHOP1");
-    const collector = await makeDriver("cole");
-    await clear(collector, "collection", "same_day", zoneId); // may collect; may not deliver
-    await atHub(collector, shopId, EARLY);
-
-    await runPass(new Date("2026-10-08T01:00:00Z"));
-    await runPass(new Date("2026-10-08T01:05:00Z"));
-
-    const day = await svc.readDay();
-    expect(day.unassigned).toHaveLength(1);
-    expect(day.unassigned[0]).toMatchObject({ stage: "delivery" });
-    expect(day.unassigned[0]).not.toHaveProperty("method");
-    expect(day.unassigned[0]!.reasons).toEqual(["not_cleared"]);
-  });
-});
-
-// The whole pass, on the real clock and schedule. Nested for the shared container.
-describe("072 — work is assigned the moment a driver can take it", () => {
-  beforeEach(async () => {
-    await q(`TRUNCATE public.delivery_collection_run, public.delivery_settings, public.assignment_exclusion,
+  // The whole pass, on the real clock and schedule. Nested for the shared container.
+  describe("072 - work is assigned the moment a driver can take it", () => {
+    beforeEach(async () => {
+      await q(`TRUNCATE public.delivery_collection_run, public.delivery_settings, public.assignment_exclusion,
                       public.hub_checkin, public.round_package, public.round_stop, public.driver_round,
                       public.dispatch_wave, public.driver_zone_capability, public.vehicle_holding,
                       public.vehicle, public.driver_duty_session, public.driver, public.shop_fulfillment,
                       public."order", public.customer, public.delivery_zone_postcode,
                       public.delivery_zone, public.shop CASCADE`);
-    await q(`DELETE FROM admin.audit_log`);
-  });
+      await q(`DELETE FROM admin.audit_log`);
+    });
 
-  async function world(drivers: string[] = ["ada"]) {
-    const zone = await makeZone("Inner North", "3065");
-    const ids: string[] = [];
-    for (const name of drivers) {
-      const id = await makeDriver(name);
-      await clear(id, "collection", "standard", zone);
-      ids.push(id);
+    async function world(drivers: string[] = ["ada"]) {
+      const zone = await makeZone("Inner North", "3065");
+      const ids: string[] = [];
+      for (const name of drivers) {
+        const id = await makeDriver(name);
+        await clear(id, "collection", "standard", zone);
+        ids.push(id);
+      }
+      return { zone, drivers: ids };
     }
-    return { zone, drivers: ids };
-  }
 
-  async function rounds() {
-    return (await q(
-      `SELECT dr.id, dr.driver_id, dr.status, dr.deadline_at,
+    async function rounds() {
+      return (await q(
+        `SELECT dr.id, dr.driver_id, dr.status, dr.deadline_at,
               public.round_opens_at(dr.kind, dr.deadline_at, dr.window_start_at) AS opens_at,
               (SELECT count(*)::int FROM public.round_stop rs WHERE rs.round_id = dr.id AND rs.kind = 'shop_pickup') AS shop_stops,
               (SELECT count(*)::int FROM public.round_stop rs WHERE rs.round_id = dr.id AND rs.kind = 'hub_checkin') AS hub_stops,
               (SELECT count(*)::int FROM public.round_package rp JOIN public.round_stop rs ON rs.id = rp.stop_id
                 WHERE rs.round_id = dr.id) AS packages
          FROM public.driver_round dr ORDER BY dr.created_at, dr.id`,
-    )).rows as Array<{
-      id: string; driver_id: string; status: string; deadline_at: Date;
-      opens_at: Date | null; shop_stops: number; hub_stops: number; packages: number;
-    }>;
-  }
+      )).rows as Array<{
+        id: string; driver_id: string; status: string; deadline_at: Date;
+        opens_at: Date | null; shop_stops: number; hub_stops: number; packages: number;
+      }>;
+    }
 
-  const offDuty = (driverId: string) =>
-    q(`UPDATE public.driver_duty_session SET ended_at = now() WHERE driver_id = $1 AND ended_at IS NULL`, [driverId]);
+    const offDuty = (driverId: string) =>
+      q(`UPDATE public.driver_duty_session SET ended_at = now() WHERE driver_id = $1 AND ended_at IS NULL`, [driverId]);
 
-  // Assigned at once, though it cannot be worked yet.
-  it("⚠ C1 — a package ready three hours before its run is assigned on the next pass", async () => {
-    const run = await seedRun(180);
-    const { drivers } = await world();
-    await makeReadyPackage(await makeShop("Shop One", "S1"));
+    // Assigned at once, though it cannot be worked yet.
+    it("⚠ C1 - a package ready three hours before its run is assigned on the next pass", async () => {
+      const run = await seedRun(180);
+      const { drivers } = await world();
+      await makeReadyPackage(await makeShop("Shop One", "S1"));
 
-    const outcome = await runPass();
+      const outcome = await runPass();
 
-    expect(outcome.collection).toMatchObject({ considered: 1, assigned: 1, unassigned: 0 });
-    expect(outcome.driverIds).toEqual(drivers);
-    const [round] = await rounds();
-    expect(round!.driver_id).toBe(drivers[0]);
-    expect(round!.deadline_at, "the round belongs to the run").toEqual(run);
-    // It is visible now and cannot be worked for another two and a quarter hours.
-    expect(round!.opens_at).toEqual(new Date(run.getTime() - 45 * 60_000));
-    expect(round!.opens_at!.getTime()).toBeGreaterThan(Date.now());
-  });
+      expect(outcome.collection).toMatchObject({ considered: 1, assigned: 1, unassigned: 0 });
+      expect(outcome.driverIds).toEqual(drivers);
+      const [round] = await rounds();
+      expect(round!.driver_id).toBe(drivers[0]);
+      expect(round!.deadline_at, "the round belongs to the run").toEqual(run);
+      // It is visible now and cannot be worked for another two and a quarter hours.
+      expect(round!.opens_at).toEqual(new Date(run.getTime() - 45 * 60_000));
+      expect(round!.opens_at!.getTime()).toBeGreaterThan(Date.now());
+    });
 
-  // Without this, every pass would create a new round.
-  it("⚠ C3 — three shops readying at three times before one run leave ONE round", async () => {
-    await seedRun(180);
-    await world();
-    for (const code of ["S1", "S2", "S3"]) {
-      await makeReadyPackage(await makeShop(`Shop ${code}`, code));
+    // Without this, every pass would create a new round.
+    it("⚠ C3 - three shops readying at three times before one run leave ONE round", async () => {
+      await seedRun(180);
+      await world();
+      for (const code of ["S1", "S2", "S3"]) {
+        await makeReadyPackage(await makeShop(`Shop ${code}`, code));
+        await runPass();
+      }
+
+      const all = await rounds();
+      expect(all, "one round, not three").toHaveLength(1);
+      expect(all[0]).toMatchObject({ shop_stops: 3, hub_stops: 1, packages: 3, status: "planned" });
+      // A pass that added to a round is recorded like one that created it.
+      expect((await q(`SELECT count(*)::int AS n FROM public.dispatch_wave`)).rows[0].n).toBe(3);
+    });
+
+    // A round opens 45 minutes before its run: three stops at 12 minutes. The fourth is refused: the gate reads the whole round.
+    it("⚠ C4 - the deadline is judged over the whole accumulated round, from when it opens", async () => {
+      await seedRun(180);
+      await world();
+      for (const code of ["S1", "S2", "S3", "S4"]) {
+        await makeReadyPackage(await makeShop(`Shop ${code}`, code));
+        await runPass();
+      }
+
+      const all = await rounds();
+      expect(all).toHaveLength(1);
+      expect(all[0]!.shop_stops).toBe(3);
+      const ex = await q(`SELECT reason, kind FROM public.assignment_exclusion`);
+      expect(ex.rows).toEqual([{ reason: "cannot_meet_deadline", kind: "collection" }]);
+    });
+
+    // Every assignment says how it was made.
+    it("M1 - the planner writes a one-line note on every assignment", async () => {
+      await seedRun(180);
+      await world();
+      await makeReadyPackage(await makeShop("Shop One", "S1"));
       await runPass();
-    }
+      const r = await q(`SELECT assigned_note, assigned_by_sub FROM public.round_package`);
+      expect(r.rows).toEqual([{ assigned_note: "Auto-assigned - the only driver who could take it", assigned_by_sub: null }]);
+    });
 
-    const all = await rounds();
-    expect(all, "one round, not three").toHaveLength(1);
-    expect(all[0]).toMatchObject({ shop_stops: 3, hub_stops: 1, packages: 3, status: "planned" });
-    // A pass that added to a round is recorded like one that created it.
-    expect((await q(`SELECT count(*)::int AS n FROM public.dispatch_wave`)).rows[0].n).toBe(3);
-  });
+    it("C4b - and so is the vehicle's payload", async () => {
+      await seedRun(180);
+      const zone = await makeZone("Inner North", "3065");
+      const d = await makeDriver("ada", { payloadKg: 10 });
+      await clear(d, "collection", "standard", zone);
+      const shopA = await makeShop("Shop One", "S1");
+      const shopB = await makeShop("Shop Two", "S2");
 
-  // A round opens 45 minutes before its run: three stops at 12 minutes. The fourth is refused: the gate reads the whole round.
-  it("⚠ C4 — the deadline is judged over the whole accumulated round, from when it opens", async () => {
-    await seedRun(180);
-    await world();
-    for (const code of ["S1", "S2", "S3", "S4"]) {
-      await makeReadyPackage(await makeShop(`Shop ${code}`, code));
+      await addLine(await makeReadyPackage(shopA), shopA, 6000);
       await runPass();
-    }
+      await addLine(await makeReadyPackage(shopB), shopB, 6000); // 12 kg in a 10 kg van
+      const second = await runPass();
 
-    const all = await rounds();
-    expect(all).toHaveLength(1);
-    expect(all[0]!.shop_stops).toBe(3);
-    const ex = await q(`SELECT reason, kind FROM public.assignment_exclusion`);
-    expect(ex.rows).toEqual([{ reason: "cannot_meet_deadline", kind: "collection" }]);
-  });
+      expect(second.collection.assigned).toBe(0);
+      expect((await rounds())[0]!.packages).toBe(1);
+      expect((await q(`SELECT reason FROM public.assignment_exclusion`)).rows).toEqual([{ reason: "over_capacity" }]);
+    });
 
-  // Every assignment says how it was made.
-  it("M1 — the planner writes a one-line note on every assignment", async () => {
-    await seedRun(180);
-    await world();
-    await makeReadyPackage(await makeShop("Shop One", "S1"));
-    await runPass();
-    const r = await q(`SELECT assigned_note, assigned_by_sub FROM public.round_package`);
-    expect(r.rows).toEqual([{ assigned_note: "Auto-assigned — the only driver who could take it", assigned_by_sub: null }]);
-  });
+    // First come, first served, chosen over rebalancing.
+    it("⚠ C5 - a driver who comes on duty later takes nothing already assigned", async () => {
+      await seedRun(180);
+      const zone = await makeZone("Inner North", "3065");
+      const early = await makeDriver("early");
+      await clear(early, "collection", "standard", zone);
+      await makeReadyPackage(await makeShop("Shop One", "S1"));
+      await makeReadyPackage(await makeShop("Shop Two", "S2"));
+      await runPass();
 
-  it("C4b — and so is the vehicle's payload", async () => {
-    await seedRun(180);
-    const zone = await makeZone("Inner North", "3065");
-    const d = await makeDriver("ada", { payloadKg: 10 });
-    await clear(d, "collection", "standard", zone);
-    const shopA = await makeShop("Shop One", "S1");
-    const shopB = await makeShop("Shop Two", "S2");
+      const late = await makeDriver("late");
+      await clear(late, "collection", "standard", zone);
+      const idle = await runPass();
+      expect(idle.collection.considered, "nothing is unassigned, so nothing is moved").toBe(0);
+      expect((await rounds()).map((r) => [r.driver_id, r.packages])).toEqual([[early, 2]]);
 
-    await addLine(await makeReadyPackage(shopA), shopA, 6000);
-    await runPass();
-    await addLine(await makeReadyPackage(shopB), shopB, 6000); // 12 kg in a 10 kg van
-    const second = await runPass();
+      // What becomes ready after they clock on is theirs: they have been given the least today.
+      await makeReadyPackage(await makeShop("Shop Three", "S3"));
+      await runPass();
+      expect((await rounds()).map((r) => [r.driver_id, r.packages])).toEqual([[early, 2], [late, 1]]);
+    });
 
-    expect(second.collection.assigned).toBe(0);
-    expect((await rounds())[0]!.packages).toBe(1);
-    expect((await q(`SELECT reason FROM public.assignment_exclusion`)).rows).toEqual([{ reason: "over_capacity" }]);
-  });
+    it("C6 - after the day's last run, a package is assigned at once to TOMORROW's run", async () => {
+      await seedRun(-60); // the only run was an hour ago
+      await world();
+      await makeReadyPackage(await makeShop("Shop One", "S1"));
 
-  // First come, first served, chosen over rebalancing.
-  it("⚠ C5 — a driver who comes on duty later takes nothing already assigned", async () => {
-    await seedRun(180);
-    const zone = await makeZone("Inner North", "3065");
-    const early = await makeDriver("early");
-    await clear(early, "collection", "standard", zone);
-    await makeReadyPackage(await makeShop("Shop One", "S1"));
-    await makeReadyPackage(await makeShop("Shop Two", "S2"));
-    await runPass();
+      const outcome = await runPass();
 
-    const late = await makeDriver("late");
-    await clear(late, "collection", "standard", zone);
-    const idle = await runPass();
-    expect(idle.collection.considered, "nothing is unassigned, so nothing is moved").toBe(0);
-    expect((await rounds()).map((r) => [r.driver_id, r.packages])).toEqual([[early, 2]]);
+      expect(outcome.collection.assigned).toBe(1);
+      const [round] = await rounds();
+      const hoursAway = (round!.deadline_at.getTime() - Date.now()) / 3600_000;
+      expect(hoursAway).toBeGreaterThan(21);
+      expect(hoursAway).toBeLessThan(25);
+    });
 
-    // What becomes ready after they clock on is theirs: they have been given the least today.
-    await makeReadyPackage(await makeShop("Shop Three", "S3"));
-    await runPass();
-    expect((await rounds()).map((r) => [r.driver_id, r.packages])).toEqual([[early, 2], [late, 1]]);
-  });
-
-  it("C6 — after the day's last run, a package is assigned at once to TOMORROW's run", async () => {
-    await seedRun(-60); // the only run was an hour ago
-    await world();
-    await makeReadyPackage(await makeShop("Shop One", "S1"));
-
-    const outcome = await runPass();
-
-    expect(outcome.collection.assigned).toBe(1);
-    const [round] = await rounds();
-    const hoursAway = (round!.deadline_at.getTime() - Date.now()) / 3600_000;
-    expect(hoursAway).toBeGreaterThan(21);
-    expect(hoursAway).toBeLessThan(25);
-  });
-
-  it("plans nothing, and cancels nothing it should not, when no collection run is configured", async () => {
-    await world();
-    await makeReadyPackage(await makeShop("Shop One", "S1"));
-    const outcome = await runPass();
-    expect(outcome.collection).toMatchObject({ skippedReason: "no_active_collection_runs", assigned: 0 });
-    expect(await rounds()).toEqual([]);
-  });
-
-  // A driver given tomorrow's run who goes off duty does not keep it.
-  it("⚠ C10 — a driver who goes off duty loses a round they have not begun", async () => {
-    await seedRun(180);
-    const { drivers } = await world();
-    const sf = await makeReadyPackage(await makeShop("Shop One", "S1"));
-    await runPass();
-
-    await offDuty(drivers[0]!);
-    const outcome = await runPass();
-
-    expect(outcome.released).toBe(1);
-    expect(outcome.driverIds, "their app is told").toEqual(drivers);
-    expect((await rounds()).map((r) => [r.status, r.packages])).toEqual([["cancelled", 0]]);
-    // The package is plain unassigned work again, with a reason — never silently parked.
-    const ex = await q(`SELECT reason FROM public.assignment_exclusion WHERE shop_fulfillment_id = $1`, [sf]);
-    expect(ex.rows.map((r) => r.reason)).toContain("not_on_duty");
-    const audit = await q(`SELECT actor_sub, action, detail FROM admin.audit_log WHERE action = 'driver.work_released'`);
-    expect(audit.rows).toHaveLength(1);
-    expect(audit.rows[0].detail).toMatchObject({ packages: 1, why: "driver_unavailable" });
-  });
-
-  it("C10b — it goes straight to another driver who qualifies, in the same pass", async () => {
-    await seedRun(180);
-    const zone = await makeZone("Inner North", "3065");
-    const first = await makeDriver("first");
-    await clear(first, "collection", "standard", zone);
-    await makeReadyPackage(await makeShop("Shop One", "S1"));
-    await runPass();
-
-    const second = await makeDriver("second");
-    await clear(second, "collection", "standard", zone);
-    await offDuty(first);
-    const outcome = await runPass();
-
-    expect(outcome).toMatchObject({ released: 1 });
-    expect(outcome.collection.assigned).toBe(1);
-    expect((await rounds()).map((r) => [r.driver_id, r.status, r.packages])).toEqual([
-      [first, "cancelled", 0],
-      [second, "planned", 1],
-    ]);
-  });
-
-  // Collected goods are physically in a van.
-  it("⚠ C10c — collected packages stay theirs; only what is still at a shop is returned", async () => {
-    await seedRun(180);
-    const { drivers } = await world();
-    const shopA = await makeShop("Shop One", "S1");
-    const shopB = await makeShop("Shop Two", "S2");
-    const collected = await makeReadyPackage(shopA);
-    const waiting = await makeReadyPackage(shopB);
-    await runPass();
-
-    // The driver collected at Shop One, then went off duty before Shop Two.
-    await q(`UPDATE public.driver_round SET status = 'in_progress'`);
-    await q(`UPDATE public.round_stop SET status = 'done', completed_at = now() WHERE shop_id = $1`, [shopA]);
-    await q(`UPDATE public.round_package SET state = 'picked_up', settled_at = now() WHERE shop_fulfillment_id = $1`, [collected]);
-    await q(`UPDATE public.shop_fulfillment SET status = 'collected' WHERE id = $1`, [collected]);
-    await offDuty(drivers[0]!);
-
-    const outcome = await runPass();
-
-    expect(outcome.released).toBe(1);
-    const rows = await q(`SELECT shop_fulfillment_id, state FROM public.round_package`);
-    expect(rows.rows).toEqual([{ shop_fulfillment_id: collected, state: "picked_up" }]);
-    const [round] = await rounds();
-    expect(round!.status, "the round goes on to the hub with what it holds").toBe("in_progress");
-    expect((await q(`SELECT status FROM public.round_stop WHERE shop_id = $1`, [shopB])).rows[0].status).toBe("skipped");
-    expect((await q(`SELECT 1 FROM public.assignment_exclusion WHERE shop_fulfillment_id = $1`, [waiting])).rowCount).toBeGreaterThan(0);
-  });
-
-  // No round lock: the planner never moves assigned work, so a hand-placed package stays put.
-  it("C11 — work already assigned is never moved by later passes", async () => {
-    await seedRun(180);
-    const { drivers } = await world(["ada", "bea"]);
-    await makeReadyPackage(await makeShop("Shop One", "S1"));
-    await runPass();
-    const [before] = await rounds();
-    for (let i = 0; i < 3; i += 1) await runPass();
-    const after = await rounds();
-    expect(after).toHaveLength(1);
-    expect(after[0]).toMatchObject({ id: before!.id, driver_id: before!.driver_id, packages: 1 });
-    expect(drivers).toContain(before!.driver_id);
-  });
-
-  // A round not yet begun follows the schedule as it now stands.
-  it("⚠ C12 — deleting a run ends its unbegun rounds and moves the work to the next run", async () => {
-    const first = await seedRun(120);
-    const second = await seedRun(300);
-    const { drivers } = await world();
-    await makeReadyPackage(await makeShop("Shop One", "S1"));
-    await runPass();
-    expect((await rounds())[0]!.deadline_at).toEqual(first);
-
-    await q(`DELETE FROM public.delivery_collection_run WHERE run_time = ($1::timestamptz AT TIME ZONE 'Australia/Melbourne')::time`, [first]);
-    const outcome = await runPass();
-
-    expect(outcome.released).toBe(1);
-    expect((await rounds()).map((r) => [r.status, r.packages, r.deadline_at.getTime()])).toEqual([
-      ["cancelled", 0, first.getTime()],
-      ["planned", 1, second.getTime()],
-    ]);
-    const audit = await q(`SELECT detail FROM admin.audit_log WHERE action = 'driver.work_released'`);
-    expect(audit.rows[0].detail).toMatchObject({ why: "run_removed" });
-    expect(drivers).toHaveLength(1);
-  });
-
-  // Passes a day must not be 288 copies of one fact.
-  it("⚠ C13 — ten passes over a package nobody can take leave ONE set of reasons and no wave rows", async () => {
-    await seedRun(180);
-    await makeZone("Inner North", "3065");
-    await makeDriver("ada"); // on duty, holding a van, cleared for nothing
-    await makeReadyPackage(await makeShop("Shop One", "S1"));
-
-    const first = await runPass();
-    expect(first.reasonsChanged).toBe(true);
-    const stamped = await q(`SELECT id, reason, created_at FROM public.assignment_exclusion ORDER BY id`);
-
-    for (let i = 0; i < 9; i += 1) {
-      const again = await runPass();
-      expect(again.reasonsChanged, "nothing changed, so nothing is written or announced").toBe(false);
-    }
-
-    const after = await q(`SELECT id, reason, created_at FROM public.assignment_exclusion ORDER BY id`);
-    expect(after.rows, "the very same rows, untouched").toEqual(stamped.rows);
-    expect(after.rows.map((r) => r.reason)).toEqual(["not_cleared"]);
-    expect((await q(`SELECT count(*)::int AS n FROM public.dispatch_wave`)).rows[0].n).toBe(0);
-  });
-
-  it("C13b — the reason follows the world, and goes when the package is assigned", async () => {
-    await seedRun(180);
-    const zone = await makeZone("Inner North", "3065");
-    const d = await makeDriver("ada");
-    await makeReadyPackage(await makeShop("Shop One", "S1"));
-
-    await runPass();
-    await q(`UPDATE public.driver SET licence_expires_on = '2020-01-01' WHERE id = $1`, [d]);
-    const changed = await runPass();
-    expect(changed.reasonsChanged).toBe(true);
-    expect((await q(`SELECT reason FROM public.assignment_exclusion ORDER BY reason`)).rows.map((r) => r.reason)).toEqual([
-      "licence_expired",
-      "not_cleared",
-    ]);
-
-    await q(`UPDATE public.driver SET licence_expires_on = '2030-01-01' WHERE id = $1`, [d]);
-    await clear(d, "collection", "standard", zone);
-    const assigned = await runPass();
-    expect(assigned.collection.assigned).toBe(1);
-    expect((await q(`SELECT count(*)::int AS n FROM public.assignment_exclusion`)).rows[0].n).toBe(0);
-  });
-
-  // Find-then-create is a check-then-write; the lock makes it safe.
-  it("⚠ C16 — a pass that cannot take the lock does nothing at all", async () => {
-    await seedRun(180);
-    await world();
-    await makeReadyPackage(await makeShop("Shop One", "S1"));
-
-    const other = await holder.pool!.connect();
-    try {
-      await other.query("BEGIN");
-      await other.query("SELECT pg_advisory_xact_lock(72063001)");
-
-      const blocked = await runPass();
-      expect(blocked.skipped).toBe("pass_in_progress");
+    it("plans nothing, and cancels nothing it should not, when no collection run is configured", async () => {
+      await world();
+      await makeReadyPackage(await makeShop("Shop One", "S1"));
+      const outcome = await runPass();
+      expect(outcome.collection).toMatchObject({ skippedReason: "no_active_collection_runs", assigned: 0 });
       expect(await rounds()).toEqual([]);
-    } finally {
-      await other.query("ROLLBACK");
-      other.release();
-    }
+    });
 
-    const free = await runPass();
-    expect(free.skipped).toBeNull();
-    expect(free.collection.assigned).toBe(1);
-    expect((await q(`SELECT count(*)::int AS n FROM public.round_package`)).rows[0].n).toBe(1);
+    // A driver given tomorrow's run who goes off duty does not keep it.
+    it("⚠ C10 - a driver who goes off duty loses a round they have not begun", async () => {
+      await seedRun(180);
+      const { drivers } = await world();
+      const sf = await makeReadyPackage(await makeShop("Shop One", "S1"));
+      await runPass();
+
+      await offDuty(drivers[0]!);
+      const outcome = await runPass();
+
+      expect(outcome.released).toBe(1);
+      expect(outcome.driverIds, "their app is told").toEqual(drivers);
+      expect((await rounds()).map((r) => [r.status, r.packages])).toEqual([["cancelled", 0]]);
+      // The package is plain unassigned work again, with a reason - never silently parked.
+      const ex = await q(`SELECT reason FROM public.assignment_exclusion WHERE shop_fulfillment_id = $1`, [sf]);
+      expect(ex.rows.map((r) => r.reason)).toContain("not_on_duty");
+      const audit = await q(`SELECT actor_sub, action, detail FROM admin.audit_log WHERE action = 'driver.work_released'`);
+      expect(audit.rows).toHaveLength(1);
+      expect(audit.rows[0].detail).toMatchObject({ packages: 1, why: "driver_unavailable" });
+    });
+
+    it("C10b - it goes straight to another driver who qualifies, in the same pass", async () => {
+      await seedRun(180);
+      const zone = await makeZone("Inner North", "3065");
+      const first = await makeDriver("first");
+      await clear(first, "collection", "standard", zone);
+      await makeReadyPackage(await makeShop("Shop One", "S1"));
+      await runPass();
+
+      const second = await makeDriver("second");
+      await clear(second, "collection", "standard", zone);
+      await offDuty(first);
+      const outcome = await runPass();
+
+      expect(outcome).toMatchObject({ released: 1 });
+      expect(outcome.collection.assigned).toBe(1);
+      expect((await rounds()).map((r) => [r.driver_id, r.status, r.packages])).toEqual([
+        [first, "cancelled", 0],
+        [second, "planned", 1],
+      ]);
+    });
+
+    // Collected goods are physically in a van.
+    it("⚠ C10c - collected packages stay theirs; only what is still at a shop is returned", async () => {
+      await seedRun(180);
+      const { drivers } = await world();
+      const shopA = await makeShop("Shop One", "S1");
+      const shopB = await makeShop("Shop Two", "S2");
+      const collected = await makeReadyPackage(shopA);
+      const waiting = await makeReadyPackage(shopB);
+      await runPass();
+
+      // The driver collected at Shop One, then went off duty before Shop Two.
+      await q(`UPDATE public.driver_round SET status = 'in_progress'`);
+      await q(`UPDATE public.round_stop SET status = 'done', completed_at = now() WHERE shop_id = $1`, [shopA]);
+      await q(`UPDATE public.round_package SET state = 'picked_up', settled_at = now() WHERE shop_fulfillment_id = $1`, [collected]);
+      await q(`UPDATE public.shop_fulfillment SET status = 'collected' WHERE id = $1`, [collected]);
+      await offDuty(drivers[0]!);
+
+      const outcome = await runPass();
+
+      expect(outcome.released).toBe(1);
+      const rows = await q(`SELECT shop_fulfillment_id, state FROM public.round_package`);
+      expect(rows.rows).toEqual([{ shop_fulfillment_id: collected, state: "picked_up" }]);
+      const [round] = await rounds();
+      expect(round!.status, "the round goes on to the hub with what it holds").toBe("in_progress");
+      expect((await q(`SELECT status FROM public.round_stop WHERE shop_id = $1`, [shopB])).rows[0].status).toBe("skipped");
+      expect((await q(`SELECT 1 FROM public.assignment_exclusion WHERE shop_fulfillment_id = $1`, [waiting])).rowCount).toBeGreaterThan(0);
+    });
+
+    // No round lock: the planner never moves assigned work, so a hand-placed package stays put.
+    it("C11 - work already assigned is never moved by later passes", async () => {
+      await seedRun(180);
+      const { drivers } = await world(["ada", "bea"]);
+      await makeReadyPackage(await makeShop("Shop One", "S1"));
+      await runPass();
+      const [before] = await rounds();
+      for (let i = 0; i < 3; i += 1) await runPass();
+      const after = await rounds();
+      expect(after).toHaveLength(1);
+      expect(after[0]).toMatchObject({ id: before!.id, driver_id: before!.driver_id, packages: 1 });
+      expect(drivers).toContain(before!.driver_id);
+    });
+
+    // A round not yet begun follows the schedule as it now stands.
+    it("⚠ C12 - deleting a run ends its unbegun rounds and moves the work to the next run", async () => {
+      const first = await seedRun(120);
+      const second = await seedRun(300);
+      const { drivers } = await world();
+      await makeReadyPackage(await makeShop("Shop One", "S1"));
+      await runPass();
+      expect((await rounds())[0]!.deadline_at).toEqual(first);
+
+      await q(`DELETE FROM public.delivery_collection_run WHERE run_time = ($1::timestamptz AT TIME ZONE 'Australia/Melbourne')::time`, [first]);
+      const outcome = await runPass();
+
+      expect(outcome.released).toBe(1);
+      expect((await rounds()).map((r) => [r.status, r.packages, r.deadline_at.getTime()])).toEqual([
+        ["cancelled", 0, first.getTime()],
+        ["planned", 1, second.getTime()],
+      ]);
+      const audit = await q(`SELECT detail FROM admin.audit_log WHERE action = 'driver.work_released'`);
+      expect(audit.rows[0].detail).toMatchObject({ why: "run_removed" });
+      expect(drivers).toHaveLength(1);
+    });
+
+    // Passes a day must not be 288 copies of one fact.
+    it("⚠ C13 - ten passes over a package nobody can take leave ONE set of reasons and no wave rows", async () => {
+      await seedRun(180);
+      await makeZone("Inner North", "3065");
+      await makeDriver("ada"); // on duty, holding a van, cleared for nothing
+      await makeReadyPackage(await makeShop("Shop One", "S1"));
+
+      const first = await runPass();
+      expect(first.reasonsChanged).toBe(true);
+      const stamped = await q(`SELECT id, reason, created_at FROM public.assignment_exclusion ORDER BY id`);
+
+      for (let i = 0; i < 9; i += 1) {
+        const again = await runPass();
+        expect(again.reasonsChanged, "nothing changed, so nothing is written or announced").toBe(false);
+      }
+
+      const after = await q(`SELECT id, reason, created_at FROM public.assignment_exclusion ORDER BY id`);
+      expect(after.rows, "the very same rows, untouched").toEqual(stamped.rows);
+      expect(after.rows.map((r) => r.reason)).toEqual(["not_cleared"]);
+      expect((await q(`SELECT count(*)::int AS n FROM public.dispatch_wave`)).rows[0].n).toBe(0);
+    });
+
+    it("C13b - the reason follows the world, and goes when the package is assigned", async () => {
+      await seedRun(180);
+      const zone = await makeZone("Inner North", "3065");
+      const d = await makeDriver("ada");
+      await makeReadyPackage(await makeShop("Shop One", "S1"));
+
+      await runPass();
+      await q(`UPDATE public.driver SET licence_expires_on = '2020-01-01' WHERE id = $1`, [d]);
+      const changed = await runPass();
+      expect(changed.reasonsChanged).toBe(true);
+      expect((await q(`SELECT reason FROM public.assignment_exclusion ORDER BY reason`)).rows.map((r) => r.reason)).toEqual([
+        "licence_expired",
+        "not_cleared",
+      ]);
+
+      await q(`UPDATE public.driver SET licence_expires_on = '2030-01-01' WHERE id = $1`, [d]);
+      await clear(d, "collection", "standard", zone);
+      const assigned = await runPass();
+      expect(assigned.collection.assigned).toBe(1);
+      expect((await q(`SELECT count(*)::int AS n FROM public.assignment_exclusion`)).rows[0].n).toBe(0);
+    });
+
+    // Find-then-create is a check-then-write; the lock makes it safe.
+    it("⚠ C16 - a pass that cannot take the lock does nothing at all", async () => {
+      await seedRun(180);
+      await world();
+      await makeReadyPackage(await makeShop("Shop One", "S1"));
+
+      const other = await holder.pool!.connect();
+      try {
+        await other.query("BEGIN");
+        await other.query("SELECT pg_advisory_xact_lock(72063001)");
+
+        const blocked = await runPass();
+        expect(blocked.skipped).toBe("pass_in_progress");
+        expect(await rounds()).toEqual([]);
+      } finally {
+        await other.query("ROLLBACK");
+        other.release();
+      }
+
+      const free = await runPass();
+      expect(free.skipped).toBeNull();
+      expect(free.collection.assigned).toBe(1);
+      expect((await q(`SELECT count(*)::int AS n FROM public.round_package`)).rows[0].n).toBe(1);
+    });
+
+    // The alarm's input.
+    it("counts an unassigned package against the alarm only once its round would be open", async () => {
+      await seedRun(180);
+      await makeZone("Inner North", "3065");
+      await makeReadyPackage(await makeShop("Shop One", "S1")); // no driver at all
+
+      const early = await runPass();
+      expect(early.collection).toMatchObject({ unassigned: 1, unassignedPastOpening: 0 });
+
+      await q(`DELETE FROM public.delivery_collection_run`);
+      await seedRun(30); // opened fifteen minutes ago
+      const open = await runPass();
+      expect(open.collection).toMatchObject({ unassigned: 1, unassignedPastOpening: 1 });
+    });
   });
 
-  // The alarm's input.
-  it("counts an unassigned package against the alarm only once its round would be open", async () => {
-    await seedRun(180);
-    await makeZone("Inner North", "3065");
-    await makeReadyPackage(await makeShop("Shop One", "S1")); // no driver at all
-
-    const early = await runPass();
-    expect(early.collection).toMatchObject({ unassigned: 1, unassignedPastOpening: 0 });
-
-    await q(`DELETE FROM public.delivery_collection_run`);
-    await seedRun(30); // opened fifteen minutes ago
-    const open = await runPass();
-    expect(open.collection).toMatchObject({ unassigned: 1, unassignedPastOpening: 1 });
-  });
-});
-
-// Assign to… and Unassign. Nested for the shared container.
-describe("073 — Assign to… and Unassign", () => {
-  beforeEach(async () => {
-    await q(`TRUNCATE public.delivery_collection_run, public.delivery_settings, public.assignment_exclusion,
+  // Assign to… and Unassign. Nested for the shared container.
+  describe("073 - Assign to… and Unassign", () => {
+    beforeEach(async () => {
+      await q(`TRUNCATE public.delivery_collection_run, public.delivery_settings, public.assignment_exclusion,
                       public.hub_checkin, public.round_package, public.round_stop, public.driver_round,
                       public.dispatch_wave, public.driver_zone_capability, public.vehicle_holding,
                       public.vehicle, public.driver_duty_session, public.driver, public.shop_fulfillment,
                       public."order", public.customer, public.delivery_zone_postcode,
                       public.delivery_zone, public.shop CASCADE`);
-    await q(`DELETE FROM admin.audit_log`);
-    await q(`INSERT INTO admin.staff (cognito_sub, email, name) VALUES ('staff-ann', 'ann@effyshopping.com', 'Ann')
+      await q(`DELETE FROM admin.audit_log`);
+      await q(`INSERT INTO admin.staff (cognito_sub, email, name) VALUES ('staff-ann', 'ann@effyshopping.com', 'Ann')
              ON CONFLICT (cognito_sub) DO NOTHING`);
-  });
+    });
 
-  const placed = async () =>
-    (await q(`SELECT rp.id, rp.assigned_note, rp.assigned_by_sub, dr.driver_id, dr.status AS round_status
+    const placed = async () =>
+      (await q(`SELECT rp.id, rp.assigned_note, rp.assigned_by_sub, dr.driver_id, dr.status AS round_status
                 FROM public.round_package rp JOIN public.round_stop rs ON rs.id = rp.stop_id
                 JOIN public.driver_round dr ON dr.id = rs.round_id WHERE rp.state = 'assigned'`)).rows;
 
-  async function setup() {
-    await seedRun(180);
-    const zone = await makeZone("Inner North", "3065");
-    const ada = await makeDriver("ada");
-    const ben = await makeDriver("ben");
-    await clear(ada, "collection", "standard", zone);
-    await clear(ben, "collection", "standard", zone);
-    const pkg = await makeReadyPackage(await makeShop("Shop One", "S1"));
-    return { zone, ada, ben, pkg };
-  }
-
-  it("M2 — assigns a package nobody has, records who, and the planner leaves it there", async () => {
-    const { ben, pkg } = await setup();
-    const out = await manual.assignTo({ packageId: pkg, stage: "collection", driverId: ben, expectedAssignmentId: null, acceptConcerns: false, actorSub: "staff-ann" });
-    expect(out).toEqual({ message: "Assigned to ben", driverIds: [ben] });
-    expect(await placed()).toMatchObject([{ driver_id: ben, assigned_note: "Assigned by Ann", assigned_by_sub: "staff-ann" }]);
-
-    await runPass();
-    expect((await placed()).map((r) => r.driver_id)).toEqual([ben]);
-  });
-
-  it("M2 — moves a package from one driver to another; both are told; the empty round is cancelled", async () => {
-    const { ada, ben, pkg } = await setup();
-    await manual.assignTo({ packageId: pkg, stage: "collection", driverId: ada, expectedAssignmentId: null, acceptConcerns: false, actorSub: "staff-ann" });
-    const [first] = await placed();
-
-    const out = await manual.assignTo({ packageId: pkg, stage: "collection", driverId: ben, expectedAssignmentId: first!.id, acceptConcerns: false, actorSub: "staff-ann" });
-    expect(out.driverIds.sort()).toEqual([ada, ben].sort());
-    expect((await placed()).map((r) => r.driver_id)).toEqual([ben]);
-    const adaRound = await q(`SELECT status FROM public.driver_round WHERE driver_id = $1`, [ada]);
-    expect(adaRound.rows.map((r) => r.status)).toEqual(["cancelled"]);
-  });
-
-  it("M2 — unassign hands it back, and the next pass assigns it again", async () => {
-    const { ada, pkg } = await setup();
-    await manual.assignTo({ packageId: pkg, stage: "collection", driverId: ada, expectedAssignmentId: null, acceptConcerns: false, actorSub: "staff-ann" });
-    const [row] = await placed();
-    const out = await manual.unassign({ packageId: pkg, stage: "collection", expectedAssignmentId: row!.id, actorSub: "staff-ann" });
-    expect(out.message).toBe("Unassigned — auto-assign will pick it up within 5 minutes");
-    expect(await placed()).toEqual([]);
-    await runPass();
-    expect(await placed()).toHaveLength(1);
-  });
-
-  it("M3 — a driver who cannot take it is refused in one line, and nothing moves", async () => {
-    const { ben, pkg } = await setup();
-    await q(`UPDATE public.driver_duty_session SET ended_at = now() WHERE driver_id = $1`, [ben]);
-    await expect(
-      manual.assignTo({ packageId: pkg, stage: "collection", driverId: ben, expectedAssignmentId: null, acceptConcerns: true, actorSub: "staff-ann" }),
-    ).rejects.toMatchObject({ kind: "cannot_take", detail: "ben can't take it — off duty." });
-    expect(await placed()).toEqual([]);
-  });
-
-  it("M3 — a concern needs a confirm, then succeeds and says what was accepted", async () => {
-    const { zone, ben, pkg } = await setup();
-    await q(`DELETE FROM public.driver_zone_capability WHERE driver_id = $1 AND zone_id = $2`, [ben, zone]);
-    await expect(
-      manual.assignTo({ packageId: pkg, stage: "collection", driverId: ben, expectedAssignmentId: null, acceptConcerns: false, actorSub: "staff-ann" }),
-    ).rejects.toMatchObject({ kind: "needs_confirm", detail: "Not cleared for this area. Assign anyway?" });
-
-    await manual.assignTo({ packageId: pkg, stage: "collection", driverId: ben, expectedAssignmentId: null, acceptConcerns: true, actorSub: "staff-ann" });
-    expect(await placed()).toMatchObject([{ driver_id: ben, assigned_note: "Assigned by Ann — accepted: not cleared for this area" }]);
-  });
-
-  it("M3 — the driver list puts fine first and says why for the rest", async () => {
-    const { ada, ben, pkg } = await setup();
-    await q(`UPDATE public.driver_duty_session SET ended_at = now() WHERE driver_id = $1`, [ben]);
-    const list = await manual.driversFor(pkg, "collection");
-    expect(list.map((d) => [d.driverId, d.fit])).toEqual([[ada, "fine"], [ben, "cannot"]]);
-    expect(list[1]!.notes).toEqual(["Off duty"]);
-  });
-
-  it("M4 — a collected package cannot be moved or unassigned", async () => {
-    const { ada, ben, pkg } = await setup();
-    await manual.assignTo({ packageId: pkg, stage: "collection", driverId: ada, expectedAssignmentId: null, acceptConcerns: false, actorSub: "staff-ann" });
-    await q(`UPDATE public.round_package SET state = 'picked_up', settled_at = now()`);
-    await q(`UPDATE public.shop_fulfillment SET status = 'collected'`);
-    await expect(
-      manual.assignTo({ packageId: pkg, stage: "collection", driverId: ben, expectedAssignmentId: null, acceptConcerns: false, actorSub: "staff-ann" }),
-    ).rejects.toMatchObject({ kind: "collected", detail: "It's already in ada's van." });
-  });
-
-  it("M4 — a stale token is refused and nothing changes", async () => {
-    const { ada, ben, pkg } = await setup();
-    await manual.assignTo({ packageId: pkg, stage: "collection", driverId: ada, expectedAssignmentId: null, acceptConcerns: false, actorSub: "staff-ann" });
-    await expect(
-      manual.assignTo({ packageId: pkg, stage: "collection", driverId: ben, expectedAssignmentId: null, acceptConcerns: false, actorSub: "staff-ann" }),
-    ).rejects.toMatchObject({ kind: "changed" });
-    expect((await placed()).map((r) => r.driver_id)).toEqual([ada]);
-  });
-});
-
-describe("dispatcher overrides against real PostgreSQL", () => {
-
-  /** A planned round with one driver, ready to be overridden. */
-  async function aPlannedRound() {
-    const shop = await makeShop("Shop One", "S1");
-    const zone = await makeZone("Inner North", "3065");
-    const ada = await makeDriver("ada");
-    const bea = await makeDriver("bea");
-    await clear(ada, "collection", "standard", zone);
-    await clear(bea, "collection", "standard", zone);
-    await makeReadyPackage(shop);
-    await runWave();
-    const r = await q(`SELECT id, driver_id FROM public.driver_round`);
-    return { roundId: r.rows[0].id, holder: r.rows[0].driver_id, ada, bea, zone };
-  }
-
-  async function token(roundId: string): Promise<string> {
-    const r = await q(
-      `SELECT to_char(updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS t
-         FROM public.driver_round WHERE id = $1`,
-      [roundId],
-    );
-    return r.rows[0].t;
-  }
-
-  // A person may override a preference, never a fact.
-  it("C7 — reassigning to an ineligible driver is refused, naming the condition", async () => {
-    const { roundId, holder, ada, bea } = await aPlannedRound();
-    const other = holder === ada ? bea : ada;
-
-    // Take their licence away.
-    await q(`UPDATE public.driver SET licence_expires_on = '2020-01-01' WHERE id = $1`, [other]);
-
-    await expect(svc.reassign(roundId, other, await token(roundId), "staff-1")).rejects.toMatchObject({
-      kind: "ineligible",
-      reasons: expect.arrayContaining(["licence_expired"]),
-    });
-
-    const after = await q(`SELECT driver_id FROM public.driver_round WHERE id = $1`, [roundId]);
-    expect(after.rows[0].driver_id, "the round must not have moved").toBe(holder);
-  });
-
-  it("C7b — reassigning to an eligible driver succeeds and is audited", async () => {
-    const { roundId, holder, ada, bea } = await aPlannedRound();
-    const other = holder === ada ? bea : ada;
-
-    await svc.reassign(roundId, other, await token(roundId), "staff-1");
-
-    const after = await q(`SELECT driver_id FROM public.driver_round WHERE id = $1`, [roundId]);
-    expect(after.rows[0].driver_id).toBe(other);
-
-    // Who and when: a person's choices are not reconstructable otherwise.
-    const audit = await q(`SELECT actor_sub, action, target_type FROM admin.audit_log`);
-    expect(audit.rows).toContainEqual(
-      expect.objectContaining({ actor_sub: "staff-1", action: "dispatch.reassign", target_type: "driver_round" }),
-    );
-  });
-
-  // toISOString truncates to milliseconds; Postgres stores microseconds.
-  it("C16 — the concurrency token survives microsecond precision", async () => {
-    const { roundId, holder, ada, bea } = await aPlannedRound();
-    const other = holder === ada ? bea : ada;
-
-    const good = await token(roundId);
-    await expect(svc.reassign(roundId, other, good, "staff-1")).resolves.toBeUndefined();
-
-    // A millisecond-truncated token must be rejected — that is the bug, made visible.
-    const truncated = new Date(await token(roundId)).toISOString();
-    const fresh = await token(roundId);
-    if (truncated !== fresh) {
-      await expect(svc.reassign(roundId, holder, truncated, "staff-1")).rejects.toMatchObject({ kind: "stale" });
+    async function setup() {
+      await seedRun(180);
+      const zone = await makeZone("Inner North", "3065");
+      const ada = await makeDriver("ada");
+      const ben = await makeDriver("ben");
+      await clear(ada, "collection", "standard", zone);
+      await clear(ben, "collection", "standard", zone);
+      const pkg = await makeReadyPackage(await makeShop("Shop One", "S1"));
+      return { zone, ada, ben, pkg };
     }
+
+    it("M2 - assigns a package nobody has, records who, and the planner leaves it there", async () => {
+      const { ben, pkg } = await setup();
+      const out = await manual.assignTo({ packageId: pkg, stage: "collection", driverId: ben, expectedAssignmentId: null, acceptConcerns: false, actorSub: "staff-ann" });
+      expect(out).toEqual({ message: "Assigned to ben", driverIds: [ben] });
+      expect(await placed()).toMatchObject([{ driver_id: ben, assigned_note: "Assigned by Ann", assigned_by_sub: "staff-ann" }]);
+
+      await runPass();
+      expect((await placed()).map((r) => r.driver_id)).toEqual([ben]);
+    });
+
+    it("M2 - moves a package from one driver to another; both are told; the empty round is cancelled", async () => {
+      const { ada, ben, pkg } = await setup();
+      await manual.assignTo({ packageId: pkg, stage: "collection", driverId: ada, expectedAssignmentId: null, acceptConcerns: false, actorSub: "staff-ann" });
+      const [first] = await placed();
+
+      const out = await manual.assignTo({ packageId: pkg, stage: "collection", driverId: ben, expectedAssignmentId: first!.id, acceptConcerns: false, actorSub: "staff-ann" });
+      expect(out.driverIds.sort()).toEqual([ada, ben].sort());
+      expect((await placed()).map((r) => r.driver_id)).toEqual([ben]);
+      const adaRound = await q(`SELECT status FROM public.driver_round WHERE driver_id = $1`, [ada]);
+      expect(adaRound.rows.map((r) => r.status)).toEqual(["cancelled"]);
+    });
+
+    it("M2 - unassign hands it back, and the next pass assigns it again", async () => {
+      const { ada, pkg } = await setup();
+      await manual.assignTo({ packageId: pkg, stage: "collection", driverId: ada, expectedAssignmentId: null, acceptConcerns: false, actorSub: "staff-ann" });
+      const [row] = await placed();
+      const out = await manual.unassign({ packageId: pkg, stage: "collection", expectedAssignmentId: row!.id, actorSub: "staff-ann" });
+      expect(out.message).toBe("Unassigned - auto-assign will pick it up within 5 minutes");
+      expect(await placed()).toEqual([]);
+      await runPass();
+      expect(await placed()).toHaveLength(1);
+    });
+
+    it("M3 - a driver who cannot take it is refused in one line, and nothing moves", async () => {
+      const { ben, pkg } = await setup();
+      await q(`UPDATE public.driver_duty_session SET ended_at = now() WHERE driver_id = $1`, [ben]);
+      await expect(
+        manual.assignTo({ packageId: pkg, stage: "collection", driverId: ben, expectedAssignmentId: null, acceptConcerns: true, actorSub: "staff-ann" }),
+      ).rejects.toMatchObject({ kind: "cannot_take", detail: "ben can't take it - off duty." });
+      expect(await placed()).toEqual([]);
+    });
+
+    it("M3 - a concern needs a confirm, then succeeds and says what was accepted", async () => {
+      const { zone, ben, pkg } = await setup();
+      await q(`DELETE FROM public.driver_zone_capability WHERE driver_id = $1 AND zone_id = $2`, [ben, zone]);
+      await expect(
+        manual.assignTo({ packageId: pkg, stage: "collection", driverId: ben, expectedAssignmentId: null, acceptConcerns: false, actorSub: "staff-ann" }),
+      ).rejects.toMatchObject({ kind: "needs_confirm", detail: "Not cleared for this area. Assign anyway?" });
+
+      await manual.assignTo({ packageId: pkg, stage: "collection", driverId: ben, expectedAssignmentId: null, acceptConcerns: true, actorSub: "staff-ann" });
+      expect(await placed()).toMatchObject([{ driver_id: ben, assigned_note: "Assigned by Ann - accepted: not cleared for this area" }]);
+    });
+
+    it("M3 - the driver list puts fine first and says why for the rest", async () => {
+      const { ada, ben, pkg } = await setup();
+      await q(`UPDATE public.driver_duty_session SET ended_at = now() WHERE driver_id = $1`, [ben]);
+      const list = await manual.driversFor(pkg, "collection");
+      expect(list.map((d) => [d.driverId, d.fit])).toEqual([[ada, "fine"], [ben, "cannot"]]);
+      expect(list[1]!.notes).toEqual(["Off duty"]);
+    });
+
+    it("M4 - a collected package cannot be moved or unassigned", async () => {
+      const { ada, ben, pkg } = await setup();
+      await manual.assignTo({ packageId: pkg, stage: "collection", driverId: ada, expectedAssignmentId: null, acceptConcerns: false, actorSub: "staff-ann" });
+      await q(`UPDATE public.round_package SET state = 'picked_up', settled_at = now()`);
+      await q(`UPDATE public.shop_fulfillment SET status = 'collected'`);
+      await expect(
+        manual.assignTo({ packageId: pkg, stage: "collection", driverId: ben, expectedAssignmentId: null, acceptConcerns: false, actorSub: "staff-ann" }),
+      ).rejects.toMatchObject({ kind: "collected", detail: "It's already in ada's van." });
+    });
+
+    it("M4 - a stale token is refused and nothing changes", async () => {
+      const { ada, ben, pkg } = await setup();
+      await manual.assignTo({ packageId: pkg, stage: "collection", driverId: ada, expectedAssignmentId: null, acceptConcerns: false, actorSub: "staff-ann" });
+      await expect(
+        manual.assignTo({ packageId: pkg, stage: "collection", driverId: ben, expectedAssignmentId: null, acceptConcerns: false, actorSub: "staff-ann" }),
+      ).rejects.toMatchObject({ kind: "changed" });
+      expect((await placed()).map((r) => r.driver_id)).toEqual([ada]);
+    });
   });
 
-  it("C15 — unassign returns planned work but leaves collected work attributed", async () => {
-    const { roundId, holder } = await aPlannedRound();
-    const shopId = (await q(`SELECT shop_id FROM public.round_stop WHERE round_id = $1`, [roundId])).rows[0].shop_id;
-    await makeReadyPackage(shopId);
-    await runWave(); // a second package joins the round
+  describe("dispatcher overrides against real PostgreSQL", () => {
 
-    // One is collected, one is not.
-    const pkgs = await q(
-      `SELECT rp.id FROM public.round_package rp JOIN public.round_stop rs ON rs.id = rp.stop_id
+    /** A planned round with one driver, ready to be overridden. */
+    async function aPlannedRound() {
+      const shop = await makeShop("Shop One", "S1");
+      const zone = await makeZone("Inner North", "3065");
+      const ada = await makeDriver("ada");
+      const bea = await makeDriver("bea");
+      await clear(ada, "collection", "standard", zone);
+      await clear(bea, "collection", "standard", zone);
+      await makeReadyPackage(shop);
+      await runWave();
+      const r = await q(`SELECT id, driver_id FROM public.driver_round`);
+      return { roundId: r.rows[0].id, holder: r.rows[0].driver_id, ada, bea, zone };
+    }
+
+    async function token(roundId: string): Promise<string> {
+      const r = await q(
+        `SELECT to_char(updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS t
+         FROM public.driver_round WHERE id = $1`,
+        [roundId],
+      );
+      return r.rows[0].t;
+    }
+
+    // A person may override a preference, never a fact.
+    it("C7 - reassigning to an ineligible driver is refused, naming the condition", async () => {
+      const { roundId, holder, ada, bea } = await aPlannedRound();
+      const other = holder === ada ? bea : ada;
+
+      // Take their licence away.
+      await q(`UPDATE public.driver SET licence_expires_on = '2020-01-01' WHERE id = $1`, [other]);
+
+      await expect(svc.reassign(roundId, other, await token(roundId), "staff-1")).rejects.toMatchObject({
+        kind: "ineligible",
+        reasons: expect.arrayContaining(["licence_expired"]),
+      });
+
+      const after = await q(`SELECT driver_id FROM public.driver_round WHERE id = $1`, [roundId]);
+      expect(after.rows[0].driver_id, "the round must not have moved").toBe(holder);
+    });
+
+    it("C7b - reassigning to an eligible driver succeeds and is audited", async () => {
+      const { roundId, holder, ada, bea } = await aPlannedRound();
+      const other = holder === ada ? bea : ada;
+
+      await svc.reassign(roundId, other, await token(roundId), "staff-1");
+
+      const after = await q(`SELECT driver_id FROM public.driver_round WHERE id = $1`, [roundId]);
+      expect(after.rows[0].driver_id).toBe(other);
+
+      // Who and when: a person's choices are not reconstructable otherwise.
+      const audit = await q(`SELECT actor_sub, action, target_type FROM admin.audit_log`);
+      expect(audit.rows).toContainEqual(
+        expect.objectContaining({ actor_sub: "staff-1", action: "dispatch.reassign", target_type: "driver_round" }),
+      );
+    });
+
+    // toISOString truncates to milliseconds; Postgres stores microseconds.
+    it("C16 - the concurrency token survives microsecond precision", async () => {
+      const { roundId, holder, ada, bea } = await aPlannedRound();
+      const other = holder === ada ? bea : ada;
+
+      const good = await token(roundId);
+      await expect(svc.reassign(roundId, other, good, "staff-1")).resolves.toBeUndefined();
+
+      // A millisecond-truncated token must be rejected - that is the bug, made visible.
+      const truncated = new Date(await token(roundId)).toISOString();
+      const fresh = await token(roundId);
+      if (truncated !== fresh) {
+        await expect(svc.reassign(roundId, holder, truncated, "staff-1")).rejects.toMatchObject({ kind: "stale" });
+      }
+    });
+
+    it("C15 - unassign returns planned work but leaves collected work attributed", async () => {
+      const { roundId, holder } = await aPlannedRound();
+      const shopId = (await q(`SELECT shop_id FROM public.round_stop WHERE round_id = $1`, [roundId])).rows[0].shop_id;
+      await makeReadyPackage(shopId);
+      await runWave(); // a second package joins the round
+
+      // One is collected, one is not.
+      const pkgs = await q(
+        `SELECT rp.id FROM public.round_package rp JOIN public.round_stop rs ON rs.id = rp.stop_id
         WHERE rs.round_id = $1 ORDER BY rp.created_at`,
-      [roundId],
-    );
-    await q(`UPDATE public.round_package SET state = 'picked_up', settled_at = now() WHERE id = $1`, [
-      pkgs.rows[0].id,
-    ]);
+        [roundId],
+      );
+      await q(`UPDATE public.round_package SET state = 'picked_up', settled_at = now() WHERE id = $1`, [
+        pkgs.rows[0].id,
+      ]);
 
-    await svc.unassign(roundId, await token(roundId), "staff-1");
+      await svc.unassign(roundId, await token(roundId), "staff-1");
 
-    const remaining = await q(
-      `SELECT rp.state FROM public.round_package rp JOIN public.round_stop rs ON rs.id = rp.stop_id
+      const remaining = await q(
+        `SELECT rp.state FROM public.round_package rp JOIN public.round_stop rs ON rs.id = rp.stop_id
         WHERE rs.round_id = $1`,
-      [roundId],
-    );
-    // The collected package is in a van; releasing it would send a second driver.
-    expect(remaining.rows.map((r) => r.state)).toEqual(["picked_up"]);
-    expect(holder).toBeTruthy();
-  });
+        [roundId],
+      );
+      // The collected package is in a van; releasing it would send a second driver.
+      expect(remaining.rows.map((r) => r.state)).toEqual(["picked_up"]);
+      expect(holder).toBeTruthy();
+    });
 
-  // Asked about the round as it really is, refrigeration included.
-  it("⚠ C14 — reassigning a chilled round to a van that cannot carry chilled is refused", async () => {
-    const shop = await makeShop("Shop One", "S1");
-    const zone = await makeZone("Inner North", "3065");
-    const cold = await makeDriver("cold");
-    await clear(cold, "collection", "standard", zone);
-    await addLine(await makeReadyPackage(shop), shop, 2000, "chilled");
-    await runWave();
-    const roundId = (await q(`SELECT id FROM public.driver_round`)).rows[0].id;
+    // Asked about the round as it really is, refrigeration included.
+    it("⚠ C14 - reassigning a chilled round to a van that cannot carry chilled is refused", async () => {
+      const shop = await makeShop("Shop One", "S1");
+      const zone = await makeZone("Inner North", "3065");
+      const cold = await makeDriver("cold");
+      await clear(cold, "collection", "standard", zone);
+      await addLine(await makeReadyPackage(shop), shop, 2000, "chilled");
+      await runWave();
+      const roundId = (await q(`SELECT id FROM public.driver_round`)).rows[0].id;
 
-    const warm = await makeDriver("warm");
-    await clear(warm, "collection", "standard", zone);
-    await q(
-      `UPDATE public.vehicle SET can_carry_chilled = false
+      const warm = await makeDriver("warm");
+      await clear(warm, "collection", "standard", zone);
+      await q(
+        `UPDATE public.vehicle SET can_carry_chilled = false
         WHERE id = (SELECT vehicle_id FROM public.vehicle_holding WHERE driver_id = $1)`,
-      [warm],
-    );
+        [warm],
+      );
 
-    await expect(svc.reassign(roundId, warm, await token(roundId), "staff-1")).rejects.toMatchObject({
-      kind: "ineligible",
-      reasons: ["no_refrigeration"],
+      await expect(svc.reassign(roundId, warm, await token(roundId), "staff-1")).rejects.toMatchObject({
+        kind: "ineligible",
+        reasons: ["no_refrigeration"],
+      });
+      expect((await q(`SELECT driver_id FROM public.driver_round WHERE id = $1`, [roundId])).rows[0].driver_id).toBe(cold);
     });
-    expect((await q(`SELECT driver_id FROM public.driver_round WHERE id = $1`, [roundId])).rows[0].driver_id).toBe(cold);
-  });
 
-  it("C14b — and to a driver not cleared for a zone the round goes to", async () => {
-    const { roundId, holder, ada, bea, zone } = await aPlannedRound();
-    const other = holder === ada ? bea : ada;
-    await q(`DELETE FROM public.driver_zone_capability WHERE driver_id = $1 AND zone_id = $2`, [other, zone]);
-    const elsewhere = await makeZone("Far South", "3199");
-    await clear(other, "collection", "standard", elsewhere);
+    it("C14b - and to a driver not cleared for a zone the round goes to", async () => {
+      const { roundId, holder, ada, bea, zone } = await aPlannedRound();
+      const other = holder === ada ? bea : ada;
+      await q(`DELETE FROM public.driver_zone_capability WHERE driver_id = $1 AND zone_id = $2`, [other, zone]);
+      const elsewhere = await makeZone("Far South", "3199");
+      await clear(other, "collection", "standard", elsewhere);
 
-    await expect(svc.reassign(roundId, other, await token(roundId), "staff-1")).rejects.toMatchObject({
-      kind: "ineligible",
-      reasons: ["not_cleared"],
+      await expect(svc.reassign(roundId, other, await token(roundId), "staff-1")).rejects.toMatchObject({
+        kind: "ineligible",
+        reasons: ["not_cleared"],
+      });
+    });
+
+    // Every override behaves on an unopened round as on an open one.
+    it("every override works on a round that has not opened", async () => {
+      const { roundId, holder, ada, bea } = await aPlannedRound();
+      const other = holder === ada ? bea : ada;
+      const read = await svc.readRound(roundId);
+      expect(new Date(read.opensAt!).getTime(), "the fixture's round opens hours from now").toBeGreaterThan(Date.now());
+
+      const stopIds = (await q(`SELECT id FROM public.round_stop WHERE round_id = $1 ORDER BY id`, [roundId])).rows.map((r) => r.id);
+      await svc.reorder(roundId, stopIds.reverse(), await token(roundId), "staff-1");
+      await svc.reassign(roundId, other, await token(roundId), "staff-1");
+      await svc.unassign(roundId, await token(roundId), "staff-1");
+
+      const after = await q(`SELECT driver_id, status FROM public.driver_round WHERE id = $1`, [roundId]);
+      expect(after.rows[0]).toEqual({ driver_id: other, status: "cancelled" });
+    });
+
+    it("refuses a partial reorder - every stop, exactly once", async () => {
+      const { roundId } = await aPlannedRound();
+      await expect(svc.reorder(roundId, [], await token(roundId), "staff-1")).rejects.toMatchObject({
+        kind: "invalid",
+      });
+    });
+
+    it("shows unassigned work WITH its reason on the day view (FR-028)", async () => {
+      const shop = await makeShop("Shop One", "S1");
+      await makeZone("Inner North", "3065");
+      await makeDriver("ada"); // exists but cleared for nothing
+      await makeReadyPackage(shop);
+      await runWave();
+
+      const day = await svc.readDay();
+      expect(day.unassigned).toHaveLength(1);
+      expect(day.unassigned[0]!.reasons).toContain("not_cleared");
+      expect(day.unassigned[0]!.stage).toBe("collection");
+    });
+
+    it("shows each round's opening time on the day view, and a round assigned on an earlier day", async () => {
+      const { roundId } = await aPlannedRound();
+      // Assigned yesterday evening for today's run - "created today" would have hidden it.
+      await q(`UPDATE public.driver_round SET created_at = now() - interval '20 hours', updated_at = now() - interval '20 hours'`);
+
+      const day = await svc.readDay();
+      const row = day.rounds.find((r) => r.round.id === roundId);
+      expect(row, "an unfinished round is always listed").toBeDefined();
+      expect(row!.round.opensAt).toBe(new Date(DEADLINE.getTime() - 45 * 60_000).toISOString());
     });
   });
-
-  // Every override behaves on an unopened round as on an open one.
-  it("every override works on a round that has not opened", async () => {
-    const { roundId, holder, ada, bea } = await aPlannedRound();
-    const other = holder === ada ? bea : ada;
-    const read = await svc.readRound(roundId);
-    expect(new Date(read.opensAt!).getTime(), "the fixture's round opens hours from now").toBeGreaterThan(Date.now());
-
-    const stopIds = (await q(`SELECT id FROM public.round_stop WHERE round_id = $1 ORDER BY id`, [roundId])).rows.map((r) => r.id);
-    await svc.reorder(roundId, stopIds.reverse(), await token(roundId), "staff-1");
-    await svc.reassign(roundId, other, await token(roundId), "staff-1");
-    await svc.unassign(roundId, await token(roundId), "staff-1");
-
-    const after = await q(`SELECT driver_id, status FROM public.driver_round WHERE id = $1`, [roundId]);
-    expect(after.rows[0]).toEqual({ driver_id: other, status: "cancelled" });
-  });
-
-  it("refuses a partial reorder — every stop, exactly once", async () => {
-    const { roundId } = await aPlannedRound();
-    await expect(svc.reorder(roundId, [], await token(roundId), "staff-1")).rejects.toMatchObject({
-      kind: "invalid",
-    });
-  });
-
-  it("shows unassigned work WITH its reason on the day view (FR-028)", async () => {
-    const shop = await makeShop("Shop One", "S1");
-    await makeZone("Inner North", "3065");
-    await makeDriver("ada"); // exists but cleared for nothing
-    await makeReadyPackage(shop);
-    await runWave();
-
-    const day = await svc.readDay();
-    expect(day.unassigned).toHaveLength(1);
-    expect(day.unassigned[0]!.reasons).toContain("not_cleared");
-    expect(day.unassigned[0]!.stage).toBe("collection");
-  });
-
-  it("shows each round's opening time on the day view, and a round assigned on an earlier day", async () => {
-    const { roundId } = await aPlannedRound();
-    // Assigned yesterday evening for today's run — "created today" would have hidden it.
-    await q(`UPDATE public.driver_round SET created_at = now() - interval '20 hours', updated_at = now() - interval '20 hours'`);
-
-    const day = await svc.readDay();
-    const row = day.rounds.find((r) => r.round.id === roundId);
-    expect(row, "an unfinished round is always listed").toBeDefined();
-    expect(row!.round.opensAt).toBe(new Date(DEADLINE.getTime() - 45 * 60_000).toISOString());
-  });
-});
 });

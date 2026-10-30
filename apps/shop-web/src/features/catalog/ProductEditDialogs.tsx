@@ -129,7 +129,7 @@ function BasicsForm({ detail, onClose }: FormProps) {
       title="Edit basics"
       description={reviewNote(
         detail,
-        "Name, brand and descriptions. Prices, codes and weights are each size's — under Sizes and prices.",
+        "Name, brand and descriptions. Prices, codes and weights are each size's - under Sizes and prices.",
       )}
       canSave={canSave}
       saving={edit.saving}
@@ -460,6 +460,6 @@ const saveWord = (detail: ProductDetail) => (isApproved(detail) ? "Send to Effy"
 
 function reviewNote(detail: ProductDetail, description: string): string {
   return isApproved(detail)
-    ? `${description} This product is approved, so your change goes to Effy for review — customers see it once it is approved.`
+    ? `${description} This product is approved, so your change goes to Effy for review - customers see it once it is approved.`
     : description
 }

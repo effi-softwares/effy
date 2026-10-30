@@ -36,7 +36,7 @@ beforeEach(() => {
   shared.query.mockResolvedValue({ rowCount: 1, rows: [] });
 });
 
-describe("095 — pictures on a promotion", () => {
+describe("095 - pictures on a promotion", () => {
   it("refuses a file that is not a JPEG, PNG or WebP, or too large, with a sentence", async () => {
     shared.presignUpload.mockRejectedValue(new shared.MediaValidationError("bad", [{ field: "contentType", message: "must be an image" }]));
     await expect(uploadUrl(P, { contentType: "application/pdf", fileSize: 10 })).rejects.toMatchObject({ status: 422, code: "invalid_upload", message: expect.stringContaining("10 MB") });

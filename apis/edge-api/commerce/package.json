@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Effy commerce service (070-retire-core-api) — attaches to the shared HTTP API; routes under /commerce/. Everything a signed-in shopper does with money or a basket: saved items and lists, cart and promo, checkout and payment, their orders, cancellation and refund requests — plus the payment-provider webhook.",
+  "description": "Effy commerce service (070-retire-core-api) - attaches to the shared HTTP API; routes under /commerce/. Everything a signed-in shopper does with money or a basket: saved items and lists, cart and promo, checkout and payment, their orders, cancellation and refund requests - plus the payment-provider webhook.",
   "scripts": { "lint": "tsc --noEmit", "typecheck": "tsc --noEmit", "test": "vitest run" },
   "dependencies": {
     "@effy/edge-shared": "workspace:*",

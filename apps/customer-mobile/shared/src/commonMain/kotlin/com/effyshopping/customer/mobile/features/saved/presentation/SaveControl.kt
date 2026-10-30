@@ -74,8 +74,8 @@ fun SaveControl(
             modifier = Modifier
                 // The heart pops when its state changes (Motion board; off under reduced motion).
                 .effyBump(saved)
-                // 087 (Product card board): a white square with a hairline behind the glyph — the
-                // artwork underneath may be a pale photograph — inside the 48dp target.
+                // 087 (Product card board): a white square with a hairline behind the glyph - the
+                // artwork underneath may be a pale photograph - inside the 48dp target.
                 .clip(EffyStorefrontShape.control)
                 .background(MaterialTheme.colorScheme.background)
                 .border(1.dp, MaterialTheme.colorScheme.outline, EffyStorefrontShape.control)
@@ -90,7 +90,7 @@ fun SaveControl(
 /**
  * The tile placement: top-right of the product image.
  *
- * The inset is small because the touch target is already large — [SaveControl] is a 48 dp box with
+ * The inset is small because the touch target is already large - [SaveControl] is a 48 dp box with
  * a 32 dp scrim centred in it, so the visible heart sits about 12 dp in from the corner while the
  * tappable area reaches almost to it. A bigger inset here would push the glyph into the middle of the
  * artwork; a bigger *target* is what the shopper actually needs, and that is handled inside.

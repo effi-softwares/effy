@@ -38,7 +38,7 @@ export function GoogleButton({
  * domain), so this says so instead of "Something went wrong". Un-parking replaces this handler only.
  */
 export const GOOGLE_UNAVAILABLE =
-  "Google sign-in isn't available yet. For now, use your email — we'll send you a code."
+  "Google sign-in isn't available yet. For now, use your email - we'll send you a code."
 
 /** Google's standard four-colour 'G': four flat paths, mirrored by `mobile-assets/drawable/ic_google_g.xml`. */
 function GoogleMark() {

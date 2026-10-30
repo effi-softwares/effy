@@ -11,7 +11,7 @@ export type RunStage =
   | "returning"
   | "closed";
 
-/** What a run's stage is worked out from — counts only. */
+/** What a run's stage is worked out from - counts only. */
 export interface RunStageFacts {
   kind: "collection" | "delivery";
   /** driver_round.status */

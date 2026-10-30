@@ -32,7 +32,7 @@ describe("emitMetric", () => {
     expect(aws.CloudWatchMetrics[0]?.Dimensions).toEqual([[]]);
   });
 
-  it("carries nothing but the metric and its dimensions — no service, function or request fields", () => {
+  it("carries nothing but the metric and its dimensions - no service, function or request fields", () => {
     const rec = capture(() => emitMetric("Effy/Commerce", "RefundsIssued", 1, { kind: "item" }));
     expect(Object.keys(rec).sort()).toEqual(["RefundsIssued", "_aws", "kind"]);
   });

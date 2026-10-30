@@ -17,16 +17,16 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 /**
- * Android photo capture via the system camera — the fallback when the live viewfinder is not
+ * Android photo capture via the system camera - the fallback when the live viewfinder is not
  * running. The camera writes a full-size photo to a file this app owns (FileProvider, authority
  * `<applicationId>.proofphoto`); it is then made upright, shrunk and sent as JPEG ([proofJpeg]).
  *
- * It used `TakePicturePreview`, which returns only a thumbnail — too small to settle a dispute
+ * It used `TakePicturePreview`, which returns only a thumbnail - too small to settle a dispute
  * (backlog B1).
  *
  * The permission is asked for here. This app declares camera in its manifest, and Android refuses
  * the system-camera intent with a SecurityException to an app that declares the permission and does
- * not hold it — so launching without it ended the app at the door. Refused → [onDenied].
+ * not hold it - so launching without it ended the app at the door. Refused → [onDenied].
  */
 @Composable
 actual fun rememberPhotoCapture(onCaptured: (ByteArray) -> Unit, onDenied: () -> Unit): (() -> Unit)? {

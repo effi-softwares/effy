@@ -7,22 +7,22 @@ wrapper, and the app's config loader.
 
 - **Image**: built from `apis/core-api/Dockerfile`, `runtime` stage (distroless static, nonroot).
 - **Architecture**: **linux/arm64** (Fargate ARM64). A non-arm64 image MUST fail the deploy (health
-  never green) — build with `docker buildx build --platform linux/arm64` (FR-015).
+  never green) - build with `docker buildx build --platform linux/arm64` (FR-015).
 - **Listening port**: **8080** (`EXPOSE 8080`; container reads `PORT`, default 8080).
 - **User**: nonroot (image default). No shell in the image (composition of config is in-process).
 
-## Health endpoints (already implemented — `internal/platform/health/handler.go`)
+## Health endpoints (already implemented - `internal/platform/health/handler.go`)
 
 | Path | Meaning | Used by |
 |---|---|---|
-| `GET /healthz` | Liveness — process is up. Returns 200. | **ALB target-group health check** (the traffic gate). |
-| `GET /readyz` | Readiness — dependencies reachable. | Operator diagnostics / quickstart only. **Not** the LB gate (R9). |
+| `GET /healthz` | Liveness - process is up. Returns 200. | **ALB target-group health check** (the traffic gate). |
+| `GET /readyz` | Readiness - dependencies reachable. | Operator diagnostics / quickstart only. **Not** the LB gate (R9). |
 
 Both are excluded from request logging already (`httpx/logging.go`).
 
 ## Environment the container consumes
 
-Non-secret (`environment`) and secret (`secrets`/`valueFrom`) — see data-model.md § 2 for the full
+Non-secret (`environment`) and secret (`secrets`/`valueFrom`) - see data-model.md § 2 for the full
 table and sources. Summary:
 
 - **Non-secret**: `EFFY_ENV`, `PORT`, `AWS_REGION`, `LOG_LEVEL`, `CORS_ALLOWED_ORIGINS`,
@@ -52,7 +52,7 @@ The SDK inside the container resolves the **task role** (no `AWS_PROFILE` in the
 ## Traffic & security posture
 
 - Public clients reach the service **only** via the ALB on **443** (80 redirects to 443). The container
-  port **8080 is reachable only from the ALB security group** — never from the public internet (FR-019).
+  port **8080 is reachable only from the ALB security group** - never from the public internet (FR-019).
 - CORS: the app honours `CORS_ALLOWED_ORIGINS` for browser callers (customer-web). Native mobile and
   SSR need no CORS.
 - `idle_timeout = 120 s` at the ALB accommodates checkout round-trips (FR-010).

@@ -60,7 +60,7 @@ export const handler = async (
           429,
           ProblemType.RateLimited,
           "Too many requests",
-          "we've already sent this receipt a few times recently — check your inbox and spam folder, then try again later",
+          "we've already sent this receipt a few times recently - check your inbox and spam folder, then try again later",
           scope,
         )
 

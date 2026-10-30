@@ -22,7 +22,7 @@ import { dispatchWindowsQuery } from "../queries"
 
 export function roundLine(w: DispatchWindowDTO, isToday: boolean): string {
   if (w.rounds.length === 0)
-    return isToday ? "No round yet — auto-assign plans it as parcels reach the hub" : "Planned on the day"
+    return isToday ? "No round yet - auto-assign plans it as parcels reach the hub" : "Planned on the day"
   return w.rounds.map((r) => `${r.driver.name} (${r.parcels})`).join(", ")
 }
 

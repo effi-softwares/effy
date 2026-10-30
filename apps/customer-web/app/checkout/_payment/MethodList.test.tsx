@@ -35,7 +35,7 @@ describe("MethodList (051 US4)", () => {
 
   /**
    * The correctness assertion, not a layout one. A Payment Element and split card elements mounted
-   * together make `confirmPayment({elements})` ambiguous — it collects from everything mounted, so an
+   * together make `confirmPayment({elements})` ambiguous - it collects from everything mounted, so an
    * untouched card form would fail validation while the shopper pays with Klarna. These two tests are
    * what keep them mutually exclusive.
    */
@@ -81,13 +81,13 @@ describe("MethodList (051 US4)", () => {
     // The row is the storefront card shape (`rounded-lg`).
     const rows = container.querySelectorAll("[class*='rounded-lg'][class*='bg-card']")
     expect(rows.length).toBeGreaterThan(0)
-    // The container must not be filled — that is the half of this test about appearance-independence
+    // The container must not be filled - that is the half of this test about appearance-independence
     // (a monochrome accent inverts; a fill would not).
     expect(rows[0]!.className).not.toMatch(/bg-(primary|foreground)\b/)
     // `border-foreground` now lives on the radio indicator, not the row container. Commit 5a540f4
     // moved it there; the selected container is a bare `border`. Asserting it on the container would
     // be asserting a fact about the old markup.
-    // Selection is the action colour (blue), on the radio and as the row's ring — never a fill.
+    // Selection is the action colour (blue), on the radio and as the row's ring - never a fill.
     const marked = container.querySelector("[class*='border-primary']")
     expect(marked).not.toBeNull()
   })

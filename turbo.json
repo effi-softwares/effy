@@ -1,6 +1,6 @@
 {
   "$schema": "https://turbo.build/schema.json",
-  "//": "Minimal pipeline for the first workspace member (004-backend-bootstrap). Build/deploy for edge-api stays in the Makefile (operator-run serverless deploy) — turbo owns the fast checks.",
+  "//": "Minimal pipeline for the first workspace member (004-backend-bootstrap). Build/deploy for edge-api stays in the Makefile (operator-run serverless deploy) - turbo owns the fast checks.",
   "tasks": {
     "lint": {},
     "typecheck": {},

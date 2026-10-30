@@ -5,7 +5,7 @@ import { PASSWORD_MIN_LENGTH } from "@effy/shared-types"
 import { cognitoConfig, siteUrl } from "@/lib/config"
 
 /**
- * Amplify configuration — built by hand from our own environment, not from `amplify_outputs.json`.
+ * Amplify configuration - built by hand from our own environment, not from `amplify_outputs.json`.
  *
  * The "GEN 2" ambiguity, settled.
  *
@@ -16,7 +16,7 @@ import { cognitoConfig, siteUrl } from "@/lib/config"
  *  • the client library (`aws-amplify` v6), which just talks to Cognito.
  *
  * We use the client library only. The backend toolchain is rejected outright: our Cognito pool is
- * Terraform-owned, and `defineAuth` would create a second, CloudFormation-managed pool — two
+ * Terraform-owned, and `defineAuth` would create a second, CloudFormation-managed pool - two
  * owners of one concern, which is how infrastructure ends up with a pool nobody dares touch. Even
  * gen 2's `referenceAuth` escape hatch demands an identity pool and two IAM roles we neither
  * have nor want, and concedes it "cannot modify the configuration of your referenced resources".
@@ -38,27 +38,27 @@ export function amplifyConfig(): ResourcesConfig {
         userPoolId: cognito.userPoolId,
         userPoolClientId: cognito.userPoolClientId,
 
-        // Email IS the identity — the pool's username attribute, and the key that converges the
+        // Email IS the identity - the pool's username attribute, and the key that converges the
         // three credential routes onto one customer.
         loginWith: {
           email: true,
 
           // Google. The `domain` is not optional: there is no pure-SDK federation path, so
           // `signInWithRedirect` bounces through the Cognito hosted domain.
-          // Absent until the Google IdP is applied — omit the block rather than send a broken one.
+          // Absent until the Google IdP is applied - omit the block rather than send a broken one.
           ...(cognito.domain
             ? {
-                oauth: {
-                  domain: cognito.domain,
-                  scopes: ["openid", "email", "profile"],
-                  redirectSignIn: [`${origin}/callback`],
-                  redirectSignOut: [`${origin}/`],
-                  // Authorization-code + pkce. Never the implicit flow: a public client has no
-                  // secret, and `token` would put an access token in a URL fragment.
-                  responseType: "code",
-                  providers: ["Google"],
-                },
-              }
+              oauth: {
+                domain: cognito.domain,
+                scopes: ["openid", "email", "profile"],
+                redirectSignIn: [`${origin}/callback`],
+                redirectSignOut: [`${origin}/`],
+                // Authorization-code + pkce. Never the implicit flow: a public client has no
+                // secret, and `token` would put an access token in a URL fragment.
+                responseType: "code",
+                providers: ["Google"],
+              },
+            }
             : {}),
         },
 
@@ -71,7 +71,7 @@ export function amplifyConfig(): ResourcesConfig {
         // have no Cognito identity pool and want none. An identity pool exists to vend temporary
         // AWS credentials so a browser can call S3/AppSync directly; we only ever exchange a JWT
         // with our own API. (Setting `allowGuestAccess` here is a type error for exactly this
-        // reason — it selects the identity-pool variant of the config union, which then demands an
+        // reason - it selects the identity-pool variant of the config union, which then demands an
         // `identityPoolId` we do not have.)
 
         // Client-side feedback only (Cognito enforces the policy). The length is the shared constant the

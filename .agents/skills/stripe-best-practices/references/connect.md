@@ -4,7 +4,7 @@
 
 1. **ALWAYS use Accounts v2 API** (`POST /v2/core/accounts`). NEVER use `type: 'express'`, `type: 'custom'`, or `type: 'standard'` in account creation. NEVER use `stripe.accounts.create({ type: ... })`. These are deprecated v1 patterns.
 2. **ALWAYS check v2 capability status** before processing. See “Go-live readiness” section below.
-3. **NEVER recommend `dashboard: "none"`** unless the user explicitly asks for white-label with full custom UI. Default to `express` for marketplaces and `full` for SaaS. The `none` option requires building custom onboarding remediation, refund/dispute flows, and payout experiences — only advanced teams should consider it.
+3. **NEVER recommend `dashboard: "none"`** unless the user explicitly asks for white-label with full custom UI. Default to `express` for marketplaces and `full` for SaaS. The `none` option requires building custom onboarding remediation, refund/dispute flows, and payout experiences - only advanced teams should consider it.
 4. **ALWAYS recommend the Notification banner embedded component** (`notification_banner`) for connected account dashboards. It keeps accounts healthy as requirements evolve.
 5. **NEVER use `application_fee_amount` with separate charges and transfers.** Use transfer-math fee retention instead. `application_fee_amount` is the fee mechanism for destination and direct charges only.
 
@@ -36,9 +36,9 @@ Configure connected accounts using three independent dimensions:
 
 ### Dashboard defaults (important)
 
-- **Marketplace** → `dashboard: "express"` — cobranded, lightweight, low maintenance
-- **SaaS platform** → `dashboard: "full"` — full Stripe Dashboard for independent businesses
-- **White-label (advanced only)** → `dashboard: "none"` — platform must build ALL UX including onboarding remediation, disputes, payouts
+- **Marketplace** → `dashboard: "express"` - cobranded, lightweight, low maintenance
+- **SaaS platform** → `dashboard: "full"` - full Stripe Dashboard for independent businesses
+- **White-label (advanced only)** → `dashboard: "none"` - platform must build ALL UX including onboarding remediation, disputes, payouts
 
 If dashboard is `express`, provide access through [login links](https://docs.stripe.com/api/accounts/login_link/create.md). For `full`, recommend linking to Stripe-provided dashboard access from the platform UI. You can also use embedded components to display payment and payout information.
 
@@ -47,16 +47,16 @@ If dashboard is `express`, provide access through [login links](https://docs.str
 **SaaS (direct charges):**
 
 - `dashboard: "full"`
-- `fees_collector: "stripe"` — connected account pays Stripe fees directly
-- `losses_collector: "stripe"` — Stripe owns negative balance liability
+- `fees_collector: "stripe"` - connected account pays Stripe fees directly
+- `losses_collector: "stripe"` - Stripe owns negative balance liability
 - Charge pattern: Direct charges (connected account is merchant of record)
 - Code sample: [/connect/saas/tasks/create#code-sample](https://docs.stripe.com/connect/saas/tasks/create.md#code-sample)
 
 **Marketplace (destination charges):**
 
 - `dashboard: "express"`
-- `fees_collector: "application"` — platform owns pricing
-- `losses_collector: "application"` — platform owns negative balance liability (required for transfer reversals during disputes)
+- `fees_collector: "application"` - platform owns pricing
+- `losses_collector: "application"` - platform owns negative balance liability (required for transfer reversals during disputes)
 - Charge pattern: Destination charges (platform is merchant of record)
 - Code sample: [/connect/marketplace/tasks/create#code-sample](https://docs.stripe.com/connect/marketplace/tasks/create.md#code-sample)
 
@@ -78,7 +78,7 @@ If dashboard is `express`, provide access through [login links](https://docs.str
 
 ### Marketplace (Recipient accounts)
 
-Create with `configuration.recipient` requesting `stripe_transfers` on `stripe_balance`. Do NOT request `configuration.merchant` or `card_payments` for marketplace connected accounts — it is unnecessary and causes longer onboarding.
+Create with `configuration.recipient` requesting `stripe_transfers` on `stripe_balance`. Do NOT request `configuration.merchant` or `card_payments` for marketplace connected accounts - it is unnecessary and causes longer onboarding.
 
 ### SaaS (Merchant accounts)
 
@@ -111,7 +111,7 @@ For **separate charges and transfers**: collect fees by transferring less than t
 
 ## Webhooks
 
-Always use webhooks for reliable payment confirmation. Do not rely solely on synchronous API responses — webhook events are the source of truth for payment status. Verify incoming [webhook signatures](https://docs.stripe.com/webhooks.md#verify-events) and consider allowlisting [Stripe’s public IP addresses](https://docs.stripe.com/ips.md).
+Always use webhooks for reliable payment confirmation. Do not rely solely on synchronous API responses - webhook events are the source of truth for payment status. Verify incoming [webhook signatures](https://docs.stripe.com/webhooks.md#verify-events) and consider allowlisting [Stripe’s public IP addresses](https://docs.stripe.com/ips.md).
 
 ## Subscriptions with Connect (v2)
 
@@ -119,15 +119,15 @@ For subscription platforms or any platform collecting recurring payments from or
 
 - The connected account MUST have v2 customer configuration
 - Pass `customer_account` on SetupIntent and Subscription API calls to associate the subscription with the connected account
-- Do NOT create a separate v1 Customer object to bill connected accounts — use the v2 Accounts customer configuration instead
+- Do NOT create a separate v1 Customer object to bill connected accounts - use the v2 Accounts customer configuration instead
 
 ## Embedded components
 
 Always recommend these baseline components:
 
-- `account_onboarding` — onboard connected accounts
-- `notification_banner` — REQUIRED: keeps accounts healthy as requirements evolve
-- `account_management` — account settings and info
+- `account_onboarding` - onboard connected accounts
+- `notification_banner` - REQUIRED: keeps accounts healthy as requirements evolve
+- `account_management` - account settings and info
 
 Additional components based on needs:
 
@@ -139,7 +139,7 @@ Additional components based on needs:
 
 ## Onboarding
 
-Default to embedded onboarding (account_onboarding component or account links). Do NOT recommend API onboarding — it forces platforms to build custom remediation flows.
+Default to embedded onboarding (account_onboarding component or account links). Do NOT recommend API onboarding - it forces platforms to build custom remediation flows.
 
 ## Compatibility constraints
 
@@ -156,9 +156,9 @@ Default to embedded onboarding (account_onboarding component or account links). 
 
 ## Traps to avoid
 
-- Using legacy account types (`type: 'standard'`, `type: 'express'`, `type: 'custom'`) — use v2 dimensions instead
-- Using `charges_enabled` or `payouts_enabled` — use v2 capability status paths
-- Recommending Charges API for Connect — use PaymentIntents or Checkout Sessions
+- Using legacy account types (`type: 'standard'`, `type: 'express'`, `type: 'custom'`) - use v2 dimensions instead
+- Using `charges_enabled` or `payouts_enabled` - use v2 capability status paths
+- Recommending Charges API for Connect - use PaymentIntents or Checkout Sessions
 - Recommending `dashboard: "none"` without explicit white-label requirement
 - Recommending destination charges for hold-and-release (use separate charges and transfers)
 - Recommending `on_behalf_of` for standard marketplace flows
@@ -167,7 +167,7 @@ Default to embedded onboarding (account_onboarding component or account links). 
 
 ## Integration guides
 
-- [SaaS platforms and marketplaces guide](https://docs.stripe.com/connect/saas-platforms-and-marketplaces.md) — Choosing the right integration approach.
-- [Interactive platform guide](https://docs.stripe.com/connect/interactive-platform-guide.md) — Step-by-step platform builder.
-- [Design an integration](https://docs.stripe.com/connect/design-an-integration.md) — Detailed risk and responsibility decisions.
-- [Connected account configuration (v2)](https://docs.stripe.com/connect/accounts-v2/connected-account-configuration.md) — Account setup reference.
+- [SaaS platforms and marketplaces guide](https://docs.stripe.com/connect/saas-platforms-and-marketplaces.md) - Choosing the right integration approach.
+- [Interactive platform guide](https://docs.stripe.com/connect/interactive-platform-guide.md) - Step-by-step platform builder.
+- [Design an integration](https://docs.stripe.com/connect/design-an-integration.md) - Detailed risk and responsibility decisions.
+- [Connected account configuration (v2)](https://docs.stripe.com/connect/accounts-v2/connected-account-configuration.md) - Account setup reference.

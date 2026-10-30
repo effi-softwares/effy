@@ -1,4 +1,4 @@
-# Specification Quality Checklist: Courier Fulfilment — Via the Hub or Pickup from the Supplier
+# Specification Quality Checklist: Courier Fulfilment - Via the Hub or Pickup from the Supplier
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2026-10-09

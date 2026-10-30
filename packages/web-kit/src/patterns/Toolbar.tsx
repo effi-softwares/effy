@@ -194,7 +194,7 @@ export function ViewSelect<T extends string>({
   );
 }
 
-/** Clears every facet and the search — shown only while something is set. */
+/** Clears every facet and the search - shown only while something is set. */
 export function ResetFilters({ onReset }: { onReset: () => void }) {
   return (
     <Button type="button" variant="ghost" size="sm" onClick={onReset}>

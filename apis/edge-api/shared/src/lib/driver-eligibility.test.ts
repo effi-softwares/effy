@@ -40,7 +40,7 @@ function work(p: Partial<WorkUnit> = {}): WorkUnit {
 const ask = (p: Partial<EligibilityInput> = {}) =>
   eligibilityReasons({ driver: driver(), work: work(), now: NOW, perStopAllowanceMin: 12, ...p });
 
-describe("eligibilityReasons — hard gates (FR-009, FR-010)", () => {
+describe("eligibilityReasons - hard gates (FR-009, FR-010)", () => {
   it("returns nothing for a driver who may do the work", () => {
     expect(ask()).toEqual([]);
   });
@@ -62,13 +62,13 @@ describe("eligibilityReasons — hard gates (FR-009, FR-010)", () => {
     expect(ask({ driver: driver({ vehicle: null }) })).toContain("no_vehicle");
   });
 
-  it("refuses work the driver is not cleared for — the wrong area, or the wrong function", () => {
+  it("refuses work the driver is not cleared for - the wrong area, or the wrong function", () => {
     expect(ask({ work: work({ zoneId: "zone-9" }) })).toContain("not_cleared");
     expect(ask({ work: work({ function: "delivery" }) })).toContain("not_cleared");
   });
 
   // A postcode in no group is not a place nobody may go.
-  it("082 — work in NO area is cleared by any clearance for that function, and by none for another", () => {
+  it("082 - work in NO area is cleared by any clearance for that function, and by none for another", () => {
     // The fixture driver collects in zone-1 only.
     expect(ask({ work: work({ zoneId: null }) })).not.toContain("not_cleared");
     expect(ask({ work: work({ zoneId: null, function: "delivery" }) })).toContain("not_cleared");
@@ -120,12 +120,12 @@ describe("eligibilityReasons — hard gates (FR-009, FR-010)", () => {
   });
 
   // The reason is data; a throw would make an ordinary outcome an error.
-  it("never throws for an ineligible driver — it returns reasons", () => {
+  it("never throws for an ineligible driver - it returns reasons", () => {
     expect(() => ask({ driver: driver({ status: "offboarded", vehicle: null }) })).not.toThrow();
   });
 });
 
-describe("eligibilityReasons — work that cannot be started yet (072)", () => {
+describe("eligibilityReasons - work that cannot be started yet (072)", () => {
   // A round for a run four hours off, which opens 45 minutes before it.
   const deadlineAt = new Date(NOW.getTime() + 4 * 3600_000);
   const opensAt = new Date(deadlineAt.getTime() - 45 * 60_000);
@@ -147,7 +147,7 @@ describe("eligibilityReasons — work that cannot be started yet (072)", () => {
     );
   });
 
-  it("never starts earlier than now — a round that opened an hour ago starts from the present", () => {
+  it("never starts earlier than now - a round that opened an hour ago starts from the present", () => {
     const opened = new Date(NOW.getTime() - 3600_000);
     const tight = work({ stopCount: 3, deadlineAt: new Date(NOW.getTime() + 30 * 60_000) });
     expect(ask({ work: tight, startAt: opened })).toContain("cannot_meet_deadline");
@@ -159,7 +159,7 @@ describe("eligibilityReasons — work that cannot be started yet (072)", () => {
   });
 });
 
-describe("pickByLoad — choosing between eligible drivers (FR-014)", () => {
+describe("pickByLoad - choosing between eligible drivers (FR-014)", () => {
   const cand = (driverId: string, packagesAssignedToday: number) => ({ driverId, packagesAssignedToday });
 
   it("gives the work to the driver carrying the fewest packages today", () => {
@@ -185,7 +185,7 @@ describe("pickByLoad — choosing between eligible drivers (FR-014)", () => {
   });
 });
 
-describe("093 — the daily vehicle check", () => {
+describe("093 - the daily vehicle check", () => {
   const base = {
     driverId: "d", status: "active" as const, onDuty: true, licenceExpiresOn: null, expectedEndAt: null,
     vehicle: { vehicleId: "v", payloadKg: null, canCarryChilled: true, canCarryFrozen: true },

@@ -7,7 +7,7 @@ package com.effyshopping.customer.mobile.features.auth.domain
  * `AuthViewModel` takes twelve collaborators including concrete `SessionManager` and
  * `CustomerNavigator` classes, so pinning "what happens on the 21st send" meant standing up the
  * entire auth stack in a fake. The result was that the two rules most likely to strand a real shopper
- * — the hourly send ceiling and the attempt cap — had **no coverage at all** on either mobile app.
+ * - the hourly send ceiling and the attempt cap - had **no coverage at all** on either mobile app.
  *
  * They are decisions, not effects: inputs in, verdict out, no suspend, no navigation, no I/O. That is
  * the domain layer's job (Principle VI), and it is what makes them assertable.
@@ -17,7 +17,7 @@ package com.effyshopping.customer.mobile.features.auth.domain
  * Mirrors `OTP_SENDS_PER_HOUR` in `apis/edge-api/auth/src/otp/policy.ts`.
  *
  * The platform allows twenty codes per address per **fixed clock hour**, keyed on `HMAC(email)`. The
- * 21st is refused by the trigger — which then returns a normal challenge carrying a masked
+ * 21st is refused by the trigger - which then returns a normal challenge carrying a masked
  * destination, so the app would cheerfully announce "we sent a code to a•••@…" for an email that does
  * not exist, and the shopper would find out only after burning three guesses.
  */
@@ -34,7 +34,7 @@ enum class ResendVerdict {
     /** Send it. */
     Allowed,
 
-    /** Still cooling down — the countdown is showing. */
+    /** Still cooling down - the countdown is showing. */
     Cooldown,
 
     /**
@@ -70,7 +70,7 @@ data class AttemptTally(val used: Int, val exhausted: Boolean)
  *
  * Only a refused code costs an attempt. A network drop, an unavailable backend or a WAF block are
  * not the shopper being wrong, and counting them would end a session that Cognito still considers
- * live — spending the allowance on our own outage.
+ * live - spending the allowance on our own outage.
  */
 fun tallyAttempt(previous: Int, codeWasRefused: Boolean): AttemptTally {
     val used = if (codeWasRefused) previous + 1 else previous
@@ -78,7 +78,7 @@ fun tallyAttempt(previous: Int, codeWasRefused: Boolean): AttemptTally {
 }
 
 /**
- * A resend starts a new Cognito session, whose attempt list is empty — so the cap resets with it.
+ * A resend starts a new Cognito session, whose attempt list is empty - so the cap resets with it.
  *
  * This is a real consequence of there being no resend API for a custom challenge: "resend" is a fresh
  * `signIn`, and the server genuinely has no memory of the previous session's guesses. Modelling it

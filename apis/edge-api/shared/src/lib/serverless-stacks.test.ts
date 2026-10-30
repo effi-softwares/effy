@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { functionsOf, httpRoutes, listStacks } from "./serverless-stacks.js";
 
-describe("serverless-stacks — the reader every stack guard depends on", () => {
+describe("serverless-stacks - the reader every stack guard depends on", () => {
   const stacks = listStacks();
 
   it("finds every service directory that deploys", () => {

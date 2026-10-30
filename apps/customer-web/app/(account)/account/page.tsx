@@ -218,7 +218,7 @@ async function Overview({ searchParams }: { searchParams: Promise<{ tab?: string
                         {` · ${DELIVERY_TYPE_WORDS[o.delivery.type]}`}
                       </span>
                     </td>
-                    <td className="py-3 pr-4 max-sm:hidden">{day(o.placedAt, SHORT) ?? "—"}</td>
+                    <td className="py-3 pr-4 max-sm:hidden">{day(o.placedAt, SHORT) ?? "-"}</td>
                     <td className="py-3 pr-4 text-right tabular-nums">{formatMoney(o.grandTotalAmount, o.currency)}</td>
                     <td className="py-3 text-right">
                       <Link href={`/orders/${o.id}`} className="font-medium hover:underline">

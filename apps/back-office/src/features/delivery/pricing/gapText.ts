@@ -36,7 +36,7 @@ export function planFieldErrors(err: unknown): Record<string, string> {
 }
 
 const PLAN_COPY: Record<string, string> = {
-  plan_incomplete: "This plan can't price every delivery yet — see what is missing.",
+  plan_incomplete: "This plan can't price every delivery yet - see what is missing.",
   zero_floor_unconfirmed: "Confirm that delivery may be free without the free-delivery amount.",
   plan_not_draft: "This plan has been active, so it can't be changed. Copy it to a new draft.",
   plan_retired: "A replaced plan isn't brought back. Copy it to a new draft and activate that.",

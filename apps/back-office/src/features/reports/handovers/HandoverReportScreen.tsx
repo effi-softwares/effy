@@ -24,7 +24,7 @@ const SURFACE_WORDS = { driver_app: "Driver app", shop_web: "Shop console", back
 const ACTOR_WORDS = { driver: "Drivers", shop_staff: "Shop staff", admin_staff: "Hub staff" } as const
 
 const total = (m: HandoverMixDTO) => m.scan + m.typed + m.manual
-const pct = (n: number, of: number) => (of === 0 ? "—" : `${Math.round((n / of) * 100)}%`)
+const pct = (n: number, of: number) => (of === 0 ? "-" : `${Math.round((n / of) * 100)}%`)
 
 export function HandoverReportScreen() {
   const today = melbourneDay(new Date())
@@ -92,11 +92,11 @@ export function HandoverReportScreen() {
                 },
                 {
                   label: "Exceptions per 1,000 hand-overs",
-                  value: data.exceptionsPer1000 === null ? "—" : data.exceptionsPer1000,
+                  value: data.exceptionsPer1000 === null ? "-" : data.exceptionsPer1000,
                 },
                 {
                   label: "Exceptions",
-                  value: `${data.exceptions} — refused reads (not repeats) and bags declared missing`,
+                  value: `${data.exceptions} - refused reads (not repeats) and bags declared missing`,
                 },
                 { label: "Phone and server disagreed", value: data.disagreements },
               ]}
@@ -113,7 +113,7 @@ export function HandoverReportScreen() {
 
           <Panel
             title="By shop"
-            description="Least scanned first — a shop low here is usually printing labels badly."
+            description="Least scanned first - a shop low here is usually printing labels badly."
             flush
           >
             <MixTable

@@ -34,7 +34,7 @@ const fixture = JSON.parse(
   readFileSync(resolve(process.cwd(), "../../packages/shared-types/src/delivery-window.fixtures.json"), "utf8"),
 ) as { arrival: ArrivalCase[] }
 
-describe("arrivalLabel — one wording with the email and the apps", () => {
+describe("arrivalLabel - one wording with the email and the apps", () => {
   it("has cases to run", () => {
     expect(fixture.arrival.length).toBeGreaterThan(10)
   })
@@ -47,7 +47,7 @@ describe("arrivalLabel — one wording with the email and the apps", () => {
 })
 
 /** A time appears only when the order carries a window; without one, never. */
-describe("arrivalLabel — a time only when a window was sold", () => {
+describe("arrivalLabel - a time only when a window was sold", () => {
   it("never renders a time of day for an order with no window", () => {
     for (const a of [
       est(),
@@ -70,7 +70,7 @@ describe("arrivalLabel — a time only when a window was sold", () => {
     expect(arrivalLabel(a, new Date("2026-10-08T09:00:00+11:00"))).toBe("Today, 5 pm – 7 pm")
   })
 
-  it("078 — a Standard delivery sold a window says its day AND its window, as one delivery", () => {
+  it("078 - a Standard delivery sold a window says its day AND its window, as one delivery", () => {
     const a = est({
       method: "standard",
       promisedFrom: "2026-10-13",
@@ -109,7 +109,7 @@ describe("ArrivalPanel", () => {
   })
 
   /**
-   * More than one estimate means the order arrives in more than one delivery — a fact about the
+   * More than one estimate means the order arrives in more than one delivery - a fact about the
    * customer's experience. It must not name a shop or imply which node handles which package.
    */
   it("numbers multiple deliveries without disclosing fulfilment structure", () => {
@@ -144,21 +144,21 @@ describe("ArrivalPanel", () => {
   })
 })
 
-describe("079 — who delivers the order", () => {
-  // What a courier order's packages actually carry: "standard", no day, no window. Routing — and
+describe("079 - who delivers the order", () => {
+  // What a courier order's packages actually carry: "standard", no day, no window. Routing - and
   // the server sends none of it to a customer. Passed here anyway, to prove the panel would not read it.
   const routed = { method: "standard" as const, promisedFrom: null, promisedTo: null, windowStart: null, windowEnd: null }
 
-  it("a courier order: who delivers and the estimate it was sold, said as an estimate — never an arrival", () => {
+  it("a courier order: who delivers and the estimate it was sold, said as an estimate - never an arrival", () => {
     render(<ArrivalPanel stage="confirmed" arrivals={[routed]} delivery={{ type: "courier", courierEstimate: "2–4 business days" }} />)
     const panel = screen.getByTestId("arrival-courier")
     expect(panel).toHaveTextContent("Courier delivery")
     expect(panel).toHaveTextContent("Delivered by a courier partner.")
-    expect(panel).toHaveTextContent("Usually arrives in 2–4 business days — an estimate, not a guaranteed date.")
+    expect(panel).toHaveTextContent("Usually arrives in 2–4 business days - an estimate, not a guaranteed date.")
     expect(panel.textContent).not.toMatch(/standard|same-day|arriving|confirm your delivery date/i)
   })
 
-  it("080 — one consignment: the courier's tracking link; several: tracking by email; before handover: neither, never a count", () => {
+  it("080 - one consignment: the courier's tracking link; several: tracking by email; before handover: neither, never a count", () => {
     const base = { type: "courier" as const, courierEstimate: "2–4 business days" }
     const { unmount } = render(
       <ArrivalPanel stage="confirmed" arrivals={[routed]}
@@ -204,8 +204,8 @@ describe("079 — who delivers the order", () => {
   })
 })
 
-describe("081 — an order Effy moved to courier delivery (or back)", () => {
-  it("says what changed and what the customer received, under the courier lines — never why", () => {
+describe("081 - an order Effy moved to courier delivery (or back)", () => {
+  it("says what changed and what the customer received, under the courier lines - never why", () => {
     render(
       <ArrivalPanel
         stage="packing"
@@ -239,7 +239,7 @@ describe("081 — an order Effy moved to courier delivery (or back)", () => {
   })
 })
 
-describe("085 — what was sold, as the receipt panel says it", () => {
+describe("085 - what was sold, as the receipt panel says it", () => {
   it("a day with no time: the day, and 'any time during the day'", () => {
     render(<ArrivalPanel stage="confirmed" arrivals={[est()]} delivery={{ type: "effy", courierEstimate: null, promise: "day" }} />)
     expect(screen.getByText("Any time during the day")).toBeInTheDocument()
@@ -255,7 +255,7 @@ describe("085 — what was sold, as the receipt panel says it", () => {
       />,
     )
     expect(screen.getByTestId("arrival-asap")).toHaveTextContent("Standard")
-    expect(screen.getByTestId("arrival-asap")).toHaveTextContent("As soon as possible — usually within 2–3 days")
+    expect(screen.getByTestId("arrival-asap")).toHaveTextContent("As soon as possible - usually within 2–3 days")
     expect(document.body.textContent).not.toMatch(/Mon|Tue|Wed|Thu|Fri|Sat|Sun|today|tomorrow/i)
   })
 })

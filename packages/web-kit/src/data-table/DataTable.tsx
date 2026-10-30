@@ -86,7 +86,7 @@ const SKELETON_ROWS = 10;
 
 /**
  * A console list (103): the whole data set searched, filtered, sorted and paged by the server, in a frame
- * that fills the window — sticky column names, rows scrolling inside, the pager on the frame's bottom edge.
+ * that fills the window - sticky column names, rows scrolling inside, the pager on the frame's bottom edge.
  * contracts/data-table-ui.md is its behaviour; each line there is a test.
  */
 const idField = (row: unknown) => (row as { id: string }).id;
@@ -305,43 +305,43 @@ export function DataTable<T extends RowData, S extends string, F extends Record<
             <TableBody>
               {query.isPending
                 ? <SkeletonRows
-                    rows={Math.min(view.size, SKELETON_ROWS)}
-                    columns={colSpan}
-                    cellClassName={[
-                      ...(selection ? ["w-12 pr-0"] : []),
-                      ...visibleColumns.map((c) => cn(priorityClass(c.columnDef.meta?.priority), c.columnDef.meta?.className)),
-                    ]}
-                  />
+                  rows={Math.min(view.size, SKELETON_ROWS)}
+                  columns={colSpan}
+                  cellClassName={[
+                    ...(selection ? ["w-12 pr-0"] : []),
+                    ...visibleColumns.map((c) => cn(priorityClass(c.columnDef.meta?.priority), c.columnDef.meta?.className)),
+                  ]}
+                />
                 : table.getRowModel().rows.map((row, i) => {
-                    const r = row.original;
-                    const sel = selection?.selected.has(rowId(r)) ?? false;
-                    return (
-                      <TableRow
-                        key={row.id}
-                        data-row-index={i}
-                        data-state={sel ? "selected" : undefined}
-                        data-focused={i === focus ? "" : undefined}
-                        onClick={rowHref ? () => void navigate(rowHref(r) as never) : undefined}
-                        className={cn(rowHref && "cursor-pointer", rowClassName?.(r))}
-                      >
-                        {selection ? (
-                          <TableCell className="w-12 pr-0" data-m="check" onClick={(e) => e.stopPropagation()}>
-                            <Checkbox
-                              aria-label={`Select ${selection.label(r)}`}
-                              checked={sel}
-                              onCheckedChange={(v) => {
-                                const next = new Set(selection.selected);
-                                if (v === true) next.add(rowId(r));
-                                else next.delete(rowId(r));
-                                selection.onChange(next);
-                              }}
-                            />
-                          </TableCell>
-                        ) : null}
-                        {row.getVisibleCells().map((cell) => bodyCell(cell, r))}
-                      </TableRow>
-                    );
-                  })}
+                  const r = row.original;
+                  const sel = selection?.selected.has(rowId(r)) ?? false;
+                  return (
+                    <TableRow
+                      key={row.id}
+                      data-row-index={i}
+                      data-state={sel ? "selected" : undefined}
+                      data-focused={i === focus ? "" : undefined}
+                      onClick={rowHref ? () => void navigate(rowHref(r) as never) : undefined}
+                      className={cn(rowHref && "cursor-pointer", rowClassName?.(r))}
+                    >
+                      {selection ? (
+                        <TableCell className="w-12 pr-0" data-m="check" onClick={(e) => e.stopPropagation()}>
+                          <Checkbox
+                            aria-label={`Select ${selection.label(r)}`}
+                            checked={sel}
+                            onCheckedChange={(v) => {
+                              const next = new Set(selection.selected);
+                              if (v === true) next.add(rowId(r));
+                              else next.delete(rowId(r));
+                              selection.onChange(next);
+                            }}
+                          />
+                        </TableCell>
+                      ) : null}
+                      {row.getVisibleCells().map((cell) => bodyCell(cell, r))}
+                    </TableRow>
+                  );
+                })}
             </TableBody>
           </table>
           {body ? <div className="ef-dt-state">{body}</div> : null}
@@ -370,7 +370,7 @@ export function DataTable<T extends RowData, S extends string, F extends Record<
 
 /**
  * The identifying cell's link: a real anchor, so a modifier-click opens a new tab (FR-016). Typed loosely on
- * purpose — the console's router knows its routes; this module does not.
+ * purpose - the console's router knows its routes; this module does not.
  */
 function RowLink({ href, children }: { href: RowHref; children: ReactNode }) {
   const L = Link as unknown as (p: RowHref & { onClick: (e: { stopPropagation(): void }) => void; className: string; children: ReactNode }) => ReactNode;

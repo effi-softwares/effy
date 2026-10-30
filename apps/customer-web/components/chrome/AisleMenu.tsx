@@ -8,11 +8,11 @@ import { clsx } from "clsx"
 
 /**
  * The All aisles menu's behaviour (reference: Home · All aisles mega menu). Everything it shows is
- * rendered on the server and handed in — this file is only when it is open and which aisle is showing,
+ * rendered on the server and handed in - this file is only when it is open and which aisle is showing,
  * so it adds a few hundred bytes to the guest bundle and no icon set.
  *
  * It opens on hover, and never only on hover. A mouse resting on the button opens it; so does a
- * press, a tap, or Enter — touch screens and keyboards have no hover.
+ * press, a tap, or Enter - touch screens and keyboards have no hover.
  *
  * The delays are the feature. Without the short wait before opening, the menu flashes every time
  * the pointer crosses the header; without the wait before closing, it vanishes when the pointer
@@ -50,7 +50,7 @@ export function AisleMenu({
   const panelId = useId()
   const panel = useRef<HTMLDivElement>(null)
 
-  // The menu drops into place when it opens (Motion, fetched once the page is interactive — see
+  // The menu drops into place when it opens (Motion, fetched once the page is interactive - see
   // `lib/slide-motion`). Closing is immediate: the shopper is already on their way somewhere else.
   useEffect(() => warmSlideMotion(), [])
   useEffect(() => {
@@ -138,7 +138,7 @@ export function AisleMenu({
       <div id={panelId} hidden={!open}>
         <div
           ref={panel}
-          // Following any link in the menu closes it — the page under it is about to change.
+          // Following any link in the menu closes it - the page under it is about to change.
           onClick={(event) => {
             if ((event.target as Element).closest("a")) close()
           }}

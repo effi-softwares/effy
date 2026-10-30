@@ -41,14 +41,14 @@ const columns: EffyColumnDef<DeliveryListItem>[] = [
           <span className="text-sm text-muted-foreground">({row.original.subject.kind.replace("_", " ")})</span>
         </>
       ) : (
-        <span className="text-muted-foreground">—</span>
+        <span className="text-muted-foreground">-</span>
       ),
     meta: { label: "Account", priority: 2 },
   },
   {
     id: "reason",
     header: "Reason",
-    cell: ({ row }) => <span className="font-mono text-xs text-muted-foreground">{row.original.reason ?? "—"}</span>,
+    cell: ({ row }) => <span className="font-mono text-xs text-muted-foreground">{row.original.reason ?? "-"}</span>,
     meta: { label: "Reason", priority: 2 },
   },
   {

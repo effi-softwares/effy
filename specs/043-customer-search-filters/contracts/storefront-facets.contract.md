@@ -14,14 +14,14 @@ Query params (all optional; the same shape as `/v1/storefront/products`, minus p
 | `categoryKey` | no | category filter |
 | `minPrice` / `maxPrice` | no | price band |
 | `saleOnly` | no | `true` ⇒ on-sale only |
-| `brand` | **yes** | selected brand(s) — OR within, e.g. `brand=Acme&brand=Beta` |
-| `attr.<key>` | **yes** | selected attribute value(s) — OR within, e.g. `attr.diet=vegan&attr.diet=gluten_free` |
+| `brand` | **yes** | selected brand(s) - OR within, e.g. `brand=Acme&brand=Beta` |
+| `attr.<key>` | **yes** | selected attribute value(s) - OR within, e.g. `attr.diet=vegan&attr.diet=gluten_free` |
 
 Semantics: OR within a repeated facet, AND across facets (matches `/products`). A facet's **own**
 selection is excluded when computing that facet's option counts (so ticking one brand still shows the
 other brands' counts).
 
-## Response `200` — `FacetSetDTO`
+## Response `200` - `FacetSetDTO`
 
 ```jsonc
 {
@@ -71,7 +71,7 @@ Rules:
   unknown `type` renders nothing for it (forward-compatible, mirrors the banner-target rule).
 - **Own-selection exclusion**: a `multi_select` facet's option counts are computed with that facet's
   own selection EXCLUDED (so ticking one brand still shows the others' counts). A `single_select` facet
-  (category) reflects the fully-applied set — there is no "OR within" to preserve.
+  (category) reflects the fully-applied set - there is no "OR within" to preserve.
 - The `offers` toggle is not returned as a facet option list; it is a fixed control on the client. (The
   count of on-sale products MAY be included as a facet `{ "key":"offers","type":"toggle" }` in a later
   slice; first slice keeps it a plain toggle.)

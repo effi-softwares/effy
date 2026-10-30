@@ -1,8 +1,8 @@
-# `@effy/back-office` — internal admin console (Vite + React 19 SPA)
+# `@effy/back-office` - internal admin console (Vite + React 19 SPA)
 
 The platform's first web surface (spec `005-back-office-web`). Client-only, feature-sliced per
-[ARCHITECTURE.md](../../ARCHITECTURE.md) "Operator / admin web (SPA)". **Local-only this slice** —
-runs against the live dev backend through the **staff gateway** (075 — `VITE_API_BASE_URL` is
+[ARCHITECTURE.md](../../ARCHITECTURE.md) "Operator / admin web (SPA)". **Local-only this slice** -
+runs against the live dev backend through the **staff gateway** (075 - `VITE_API_BASE_URL` is
 SSM `/effy/dev/staff/api_endpoint`, not the shared gateway's address) + the admin Cognito pool.
 
 ## Run
@@ -18,7 +18,7 @@ make bo-build                  # typecheck + production build
 Config comes from `.env.local` (git-ignored, non-secret): `VITE_COGNITO_USER_POOL_ID`,
 `VITE_COGNITO_CLIENT_ID`, `VITE_API_BASE_URL`. A missing required value fails boot fast, naming it.
 
-## Structure — where every concern lives (and why)
+## Structure - where every concern lives (and why)
 
 ```
 src/
@@ -30,12 +30,12 @@ src/
 │   └── app.tsx         #   PROTECTED layout: beforeLoad → requireSession; renders the dashboard shell
 ├── components/layout/  # dashboard shell CONFIG (the shell itself is @effy/web-kit/console):
 │   └── nav.ts          #   THIS surface's nav items + which role each requires
-├── features/<domain>/  # the core unit — one folder per domain:
+├── features/<domain>/  # the core unit - one folder per domain:
 │   ├── repo.ts         #   API calls via @effy/api-client + DTO↔domain mapping (wire never leaks up)
 │   ├── queries.ts      #   server-state hooks (queryOptions/mutations) + query keys
 │   ├── model.ts        #   domain types / state machine (optional; may live in shared-types)
 │   └── <Screen>.tsx    #   the screen(s)
-├── lib/                # THIN wiring over @effy/web-kit (no DI framework — composed by hand):
+├── lib/                # THIN wiring over @effy/web-kit (no DI framework - composed by hand):
 │   ├── env.ts          #   which VITE_* keys this surface needs, and which pool it points at
 │   ├── amplify.ts      #   the back-office pool id → kit's configureAmplify
 │   ├── auth-session.ts #   kit's token accessors + narrowing cognito:groups to BackOfficeRole
@@ -51,15 +51,15 @@ session guard, the query client, telemetry, the client store) and the console ch
 sidebar, header, user menu, sign-in card, `ErrorState`) live in
 [`@effy/web-kit`](../../packages/web-kit/); the shadcn primitives live in `@effy/design-system/ui`.
 This app supplies its brand, its nav, its role union, its feature slices, and its analytics
-taxonomy — nothing else. Its sibling, [`apps/shop-web`](../shop-web/), supplies the same set and
+taxonomy - nothing else. Its sibling, [`apps/shop-web`](../shop-web/), supplies the same set and
 nothing else either. That symmetry is the point (constitution Principle II).
 
 **Rules that keep this predictable** (constitution Principle VI):
 - **Server-state cache is the source of truth.** Never hand-cache server data in component state.
   Genuine client-only state (theme, command palette, sidebar collapse) goes in `lib/ui-store.ts`,
-  nothing else — the dashboard shell drives `SidebarProvider` from `ui-store.sidebarOpen` (controlled),
+  nothing else - the dashboard shell drives `SidebarProvider` from `ui-store.sidebarOpen` (controlled),
   never the shadcn block's cookie.
-- **Dashboard chrome is `<StaffShell>` from `@effy/web-kit/console`** — the consoles' ONE shell,
+- **Dashboard chrome is `<StaffShell>` from `@effy/web-kit/console`** - the consoles' ONE shell,
   shared with shop-web (same frame, scale and theme; styles in `@effy/design-system/console.css`
   and `touch.css`). `components/shell/AppShell.tsx` only supplies this surface's nav, counts, account
   menu entries and dialogs. To add a nav destination: add an entry to `components/shell/nav.ts` (set
@@ -68,19 +68,19 @@ nothing else either. That symmetry is the point (constitution Principle II).
   parameterized. Copy-paste of cross-cutting logic across surfaces is prohibited (Principle II).
 - **DTOs are mapped to domain models in `repo.ts`** and never leak past it into screens.
 - **The access token** goes to the backend, never the ID token.
-- Brand tokens live once in `@effy/design-system` — **never hardcode `#0FB57E`** here.
+- Brand tokens live once in `@effy/design-system` - **never hardcode `#0FB57E`** here.
 
-## Add a screen — walkthrough
+## Add a screen - walkthrough
 
 1. **Create the feature slice** `src/features/<domain>/`:
-   - `repo.ts` — call the backend via `import { api } from "@/lib/api"`; map the DTO (from
+   - `repo.ts` - call the backend via `import { api } from "@/lib/api"`; map the DTO (from
      `@effy/shared-types`) to a domain shape.
-   - `queries.ts` — wrap the repo call in `queryOptions({ queryKey, queryFn })`; mutations
+   - `queries.ts` - wrap the repo call in `queryOptions({ queryKey, queryFn })`; mutations
      invalidate their keys.
-   - `<Screen>.tsx` — `useQuery(theQuery)`; render `isPending` / error / success. Surface backend
-     failures through the error contract (see below) — never raw detail.
-2. **Add the route** in `src/routes/app.tsx` as a child of `appRoute` (protected) — e.g.
-   `createRoute({ getParentRoute: () => appRoute, path: "reports", component: ReportsScreen })` —
+   - `<Screen>.tsx` - `useQuery(theQuery)`; render `isPending` / error / success. Surface backend
+     failures through the error contract (see below) - never raw detail.
+2. **Add the route** in `src/routes/app.tsx` as a child of `appRoute` (protected) - e.g.
+   `createRoute({ getParentRoute: () => appRoute, path: "reports", component: ReportsScreen })` -
    and register it in `src/router.tsx`'s `appRoute.addChildren([...])`.
 3. **Nav** (if user-facing): add a `<Link to="/reports">` in `AppShell`; gate by role with
    `isAdmin(roles)` (or a role check) for least-privilege UX. The backend remains the
@@ -91,7 +91,7 @@ nothing else either. That symmetry is the point (constitution Principle II).
 
 Every backend failure is parsed to a `DomainError` (`@effy/api-client`) with a `kind`
 (`unauthenticated | forbidden | not-found | unsupported-version | unavailable | unknown`). Screens
-render human-readable states keyed on `kind` — **never** the raw `detail`/stack/token:
+render human-readable states keyed on `kind` - **never** the raw `detail`/stack/token:
 - `forbidden` → access-denied · `unavailable` → degraded + retry · `unauthenticated` → session
   recovery / sign-in.
 

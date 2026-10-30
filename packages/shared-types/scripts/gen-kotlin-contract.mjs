@@ -52,10 +52,10 @@ kt = kt.replace(
 );
 // Drop quicktype's "To parse the JSON…" comment block (it references the deleted wrapper).
 kt = kt.replace(/^\/\/ To parse the JSON[\s\S]*?\n(?=package )/m, "");
-const banner = `// GENERATED FROM packages/shared-types/src/customer.ts (+ problem.ts) — DO NOT EDIT.
+const banner = `// GENERATED FROM packages/shared-types/src/customer.ts (+ problem.ts) - DO NOT EDIT.
 // Regenerate: pnpm --filter @effy/shared-types contract:gen
 // The wire contract lives in TypeScript ONCE (Principle II); this file is derived and diff-guarded.
-// NOTE: PasswordWriteDTO is flattened by design (research D15) — the sealed domain type lives in the app.
+// NOTE: PasswordWriteDTO is flattened by design (research D15) - the sealed domain type lives in the app.
 `;
 writeFileSync(DTO, banner + "\n" + kt.replace(/^\n+/, ""));
 

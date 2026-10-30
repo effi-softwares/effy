@@ -66,8 +66,8 @@ fun EffySkeletonBlock(modifier: Modifier = Modifier, radius: Dp = EffyStorefront
 }
 
 /**
- * A line of placeholder text as tall as [style] sets that text — its line box, the bar the height of its
- * letters — so a skeleton built from these has its screen's vertical rhythm by construction. Pass the
+ * A line of placeholder text as tall as [style] sets that text - its line box, the bar the height of its
+ * letters - so a skeleton built from these has its screen's vertical rhythm by construction. Pass the
  * same style the loaded `Text` uses; vary [widthFraction], or a stack of lines reads as stripes.
  */
 @Composable
@@ -98,7 +98,7 @@ fun EffySkeletonShape(shape: Shape, modifier: Modifier = Modifier) {
 
 /**
  * The shimmer: a lighter band travelling across the placeholder, 1100ms. Under reduced motion the
- * sweep goes and a static plate stays — the space is still reserved and still reads as "not content".
+ * sweep goes and a static plate stays - the space is still reserved and still reads as "not content".
  */
 @Composable
 fun Modifier.effyShimmer(): Modifier {
@@ -162,7 +162,7 @@ fun EffyEmptyState(
 }
 
 /**
- * The error state (Patterns board): black, with an icon — never red — and always a way to try again.
+ * The error state (Patterns board): black, with an icon - never red - and always a way to try again.
  * A failure with no retry leaves the shopper to guess whether waiting or leaving is the fix.
  */
 @Composable
@@ -197,7 +197,7 @@ fun <S> EffyLoadingSwap(
     ) { s -> content(s) }
 }
 
-/** Home's loading state — the aisle row and three rails, at the real tile width. */
+/** Home's loading state - the aisle row and three rails, at the real tile width. */
 @Composable
 fun EffyHomeSkeleton(modifier: Modifier = Modifier) {
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {

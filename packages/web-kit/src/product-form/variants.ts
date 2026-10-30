@@ -108,7 +108,7 @@ export function labelledOptions(
     });
 }
 
-/** The category's attributes a shop may build variants from — the only options there are (105). */
+/** The category's attributes a shop may build variants from - the only options there are (105). */
 export function optionAttributes(
   rows: readonly CategoryFormRow[],
 ): CategoryFormRow[] {

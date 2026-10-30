@@ -6,7 +6,7 @@ package com.effyshopping.customer.mobile.features.catalog
  */
 internal const val UNIT_PRICE_FIXTURE = """
 {
-  "_": "098, 105 — unit pricing. Read by packages/shared-types/src/unit-price.test.ts AND embedded in the customer app's UnitPriceFixture.kt. Change both or neither.",
+  "_": "098, 105 - unit pricing. Read by packages/shared-types/src/unit-price.test.ts AND embedded in the customer app's UnitPriceFixture.kt. Change both or neither.",
   "cases": [
     { "price": "3.20", "quantity": "500", "unit": "g", "basis": "per_100g", "amount": "0.64", "text": "$0.64 / 100 g" },
     { "price": "5.50", "quantity": "1", "unit": "kg", "basis": "per_100g", "amount": "0.55", "text": "$0.55 / 100 g" },

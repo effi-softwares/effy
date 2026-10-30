@@ -41,7 +41,7 @@ describe("SQL template literals contain no stray backticks", () => {
       // Over the whole file, not parsed bodies: a pair of backticks keeps the count even. A line starting `--` is a SQL comment.
       for (const line of src.split("\n")) {
         if (line.trimStart().startsWith("--") && line.includes(BACKTICK)) {
-          offenders.push(`${rel}: backtick inside a SQL comment — ${line.trim().slice(0, 60)}`);
+          offenders.push(`${rel}: backtick inside a SQL comment - ${line.trim().slice(0, 60)}`);
         }
       }
     }
@@ -54,6 +54,6 @@ describe("SQL template literals contain no stray backticks", () => {
     const withSql = sourceFiles(srcRoot).filter((f) =>
       templateBodies(readFileSync(f, "utf8")).some((b) => /\bSELECT\b/i.test(b)),
     );
-    expect(withSql.length, "no SQL literals found — the guard is scanning nothing").toBeGreaterThan(5);
+    expect(withSql.length, "no SQL literals found - the guard is scanning nothing").toBeGreaterThan(5);
   });
 });

@@ -123,7 +123,7 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
     /**
      * Reconcile the cart whenever the session changes.
      *
-     * Keyed on `signedIn`, so it fires on launch and on every sign-in / sign-out — which is exactly when
+     * Keyed on `signedIn`, so it fires on launch and on every sign-in / sign-out - which is exactly when
      * the mirror is most likely to disagree with the platform. On sign-in the merge has already run in
      * `SessionManager`; this picks up anything that merge could not, and sends any change still queued.
      *
@@ -144,13 +144,13 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
     }
 
     /**
-     * Tapping a tab a guest cannot use asks them to sign in — it does not show them a page whose only
+     * Tapping a tab a guest cannot use asks them to sign in - it does not show them a page whose only
      * content is a button that asks them to sign in.
      *
      * The interstitial was a dead screen. "Orders / Sign in to see your orders. / [Sign in]" costs a
      * tap and tells the shopper nothing they did not already know from the tab they just pressed. Web
-     * has never done this — `requireCustomer` redirects `/account` straight to `/sign-in?next=/account`
-     * — so this is a parity fix as much as a UX one.
+     * has never done this - `requireCustomer` redirects `/account` straight to `/sign-in?next=/account`
+     * - so this is a parity fix as much as a UX one.
      *
      * It does not switch tabs first, and that is deliberate. Sign-in is pushed onto the tab the
      * shopper is already in, so backing out returns them exactly where they were and they never see
@@ -264,15 +264,15 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                         onProductClick = { navState.push(CustomerNavKey.Product(it)) },
                         // One tap reaches a live keyboard. The focus request is set
                         // before the tab switch, so Search consumes it as it composes. Home itself
-                        // deliberately accepts no text — a second search field here would be the one
+                        // deliberately accepts no text - a second search field here would be the one
                         // without filters, sort or paging, and the one a shopper meets first.
                         onSearch = {
                             navState.requestSearchFocus()
                             navState.selectTab(CustomerNavKey.Search)
                         },
                         // Pushed onto the current tab, not routed via Account. The bell is on this
-                        // screen, so Back belongs here. It used to `selectTab(Account)` first — because
-                        // Notifications is also an Account list row — which meant opening it from
+                        // screen, so Back belongs here. It used to `selectTab(Account)` first - because
+                        // Notifications is also an Account list row - which meant opening it from
                         // Discover and pressing Back landed on the account page.
                         onNotifications = { navState.push(CustomerNavKey.Notifications) },
                         // The cart is a tab; every way into it selects the tab.
@@ -331,7 +331,7 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                     )
                 }
 
-                // A scoped result set — the ordinary Search screen with an entry refinement. One
+                // A scoped result set - the ordinary Search screen with an entry refinement. One
                 // results implementation in the app, not two.
                 entry<CustomerNavKey.CategoryBrowse> { key ->
                     CategoryBrowseScreen(
@@ -369,7 +369,7 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
 
                 entry<CustomerNavKey.Search> {
                     // Consumed here, once per composition of the tab root, rather than inside
-                    // SearchScreen — the screen must not decide for itself whether the shopper asked
+                    // SearchScreen - the screen must not decide for itself whether the shopper asked
                     // for a keyboard.
                     val autoFocus = remember { navState.consumeSearchFocus() }
                     SearchScreen(
@@ -399,7 +399,7 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                             onViewCart = { navState.selectTab(CustomerNavKey.Cart) },
                             onBrowse = {
                                 // Browse was this escape's target; Discover is now the shop window.
-                                // resetToRoot first — the cart/favorites screen sits inside some
+                                // resetToRoot first - the cart/favorites screen sits inside some
                                 // tab's stack, and selecting Home while already on Home would
                                 // otherwise leave the empty state on screen.
                                 navState.resetToRoot()
@@ -417,11 +417,11 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                     } else {
                         // There is no guest account page. A guest tapping Account is asked to sign in
                         // (`selectTabOrAskToSignIn`) and signing out lands on Home, so nothing routes
-                        // here without a session — this branch is the last resort for a session that
+                        // here without a session - this branch is the last resort for a session that
                         // ends while the tab is on screen, and it leaves rather than renders.
                         //
                         // It replaced a landing page whose whole content was "Sign in" / "Create an
-                        // account" — a page that told the shopper only what the tab they just pressed
+                        // account" - a page that told the shopper only what the tab they just pressed
                         // already told them. Its one unique affordance, "Clear data on this device",
                         // is not lost: Signing out clears the device unconditionally
                         // (`onSignedOut` in AppContainer resets both stores and removes the persisted
@@ -430,7 +430,7 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                     }
                 }
 
-                // Commerce (bar hidden — each owns a bottom-anchored action)
+                // Commerce (bar hidden - each owns a bottom-anchored action)
                 entry<CustomerNavKey.Product> { key ->
                     ProductDetailScreen(
                         container = container,
@@ -458,7 +458,7 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                         },
                         onBrowse = {
                                 // Browse was this escape's target; Discover is now the shop window.
-                                // resetToRoot first — the cart/favorites screen sits inside some
+                                // resetToRoot first - the cart/favorites screen sits inside some
                                 // tab's stack, and selecting Home while already on Home would
                                 // otherwise leave the empty state on screen.
                                 navState.resetToRoot()
@@ -481,7 +481,7 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
 
                 // Effy's own payment screen, around the provider's in-app element.
                 //
-                // The intent is read from the in-memory handoff, not from the route — the route is a
+                // The intent is read from the in-memory handoff, not from the route - the route is a
                 // bare marker precisely so a payment client secret is never persisted (see
                 // `CustomerNavKey.Payment`). A null handoff means the process was killed mid-payment;
                 // the order still exists unpaid, so the honest answer is to say so and send them back
@@ -489,7 +489,7 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                 entry<CustomerNavKey.Payment> {
                     PaymentRoute(
                         container = container,
-                        // resetTo, like the checkout receipt below — the order is paid and there is
+                        // resetTo, like the checkout receipt below - the order is paid and there is
                         // nothing behind it to go back to.
                         onPaid = { orderId -> navState.resetTo(CustomerNavKey.Receipt(orderId)) },
                         onBackToCheckout = { navState.pop() },
@@ -497,7 +497,7 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                 }
 
                 // The end of checkout. `resetTo` means this IS the bottom of the stack, so there is
-                // deliberately no back arrow — the order is placed and there is nothing to return to.
+                // deliberately no back arrow - the order is placed and there is nothing to return to.
                 entry<CustomerNavKey.Receipt> { key ->
                     ReceiptScreen(
                         container,
@@ -521,7 +521,7 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                     )
                 }
 
-                // The same screen opened from order history — pushed, so the back arrow is the way
+                // The same screen opened from order history - pushed, so the back arrow is the way
                 // out and no bottom action is needed.
                 entry<CustomerNavKey.OrderDetail> { key ->
                     ReceiptScreen(
@@ -532,7 +532,7 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                     )
                 }
 
-                // Auth (bar hidden — a focused flow)
+                // Auth (bar hidden - a focused flow)
                 entry<CustomerNavKey.SignIn> { key -> AuthRoutes(container, key) }
                 entry<CustomerNavKey.SignInPassword> { key -> AuthRoutes(container, key) }
                 entry<CustomerNavKey.SignUp> { AuthRoutes(container, CustomerNavKey.SignUp) }
@@ -548,7 +548,7 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                         onOpen = { navState.push(CustomerNavKey.Product(it)) },
                         onBack = { navState.pop() },
                         onBrowse = {
-                            // resetToRoot first — the saved screen sits inside some tab's stack, and
+                            // resetToRoot first - the saved screen sits inside some tab's stack, and
                             // selecting Home while already on Home would otherwise leave the empty
                             // state on screen.
                             navState.resetToRoot()
@@ -592,7 +592,7 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                 // taps it.
                 //
                 // Nothing caught that. It compiles, the serialization test passes (the route IS in
-                // all three lists), and `mobile-guard` passes too — its reachability check proves
+                // all three lists), and `mobile-guard` passes too - its reachability check proves
                 // something navigates to the route, not that the shell can render it. Shipping the
                 // account centre without these three lines crashed the app on the first tap of
                 // "Security", on a device, after every gate was green.
@@ -609,7 +609,7 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                     AccountRoutes(container, CustomerNavKey.PasswordReset, session)
                 }
 
-                // Legal & informational documents (no session required — viewable by anyone)
+                // Legal & informational documents (no session required - viewable by anyone)
                 entry<CustomerNavKey.LegalIndex> { LegalIndexScreen(container) }
                 entry<CustomerNavKey.LegalDocument> { key -> LegalDocumentScreen(container, key.slug) }
             },
@@ -624,7 +624,7 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
  * The primary-navigation icon for a tab, filled when selected.
  *
  * This replaced the shared kit's letter-placeholder icon, which rendered the first letter of each
- * label — "H", "S", "O", "A". Nothing else in the app signalled "unfinished" as loudly. That component
+ * label - "H", "S", "O", "A". Nothing else in the app signalled "unfinished" as loudly. That component
  * is now deleted outright so no future app can inherit it. Icons come from the shared Material Symbols
  * set (packages/design-system/mobile-assets), synced and drift-checked, so both mobile surfaces draw
  * from one authored source.
@@ -634,11 +634,11 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
  */
 @Composable
 private fun CustomerDestinationIcon(tab: CustomerNavKey, selected: Boolean) {
-    // The side rail (≥600dp) — same Lucide glyphs as the tab bar; selection is the rail's indicator.
+    // The side rail (≥600dp) - same Lucide glyphs as the tab bar; selection is the rail's indicator.
     Icon(painterResource(tabIcon(tab)), contentDescription = null)
 }
 
-/** A gated tab a guest can see but not use — the tap raises deferred sign-in. */
+/** A gated tab a guest can see but not use - the tap raises deferred sign-in. */
 @Composable
 private fun GatedTab(title: String, message: String, onSignIn: () -> Unit) {
     AdaptiveContent(

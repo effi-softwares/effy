@@ -21,7 +21,7 @@ afterEach(() => {
   vi.resetAllMocks();
 });
 
-describe("parseOrderListQuery — the wire is optional, the query never is", () => {
+describe("parseOrderListQuery - the wire is optional, the query never is", () => {
   it("defaults every field", () => {
     expect(parseOrderListQuery(null)).toEqual({
       tab: "all",
@@ -44,7 +44,7 @@ describe("parseOrderListQuery — the wire is optional, the query never is", () 
     expect(q.dir).toBe("desc");
   });
 
-  it("still takes an explicit ascending direction — the FIFO read", () => {
+  it("still takes an explicit ascending direction - the FIFO read", () => {
     expect(parseOrderListQuery({ dir: "asc" }).dir).toBe("asc");
   });
 
@@ -180,10 +180,10 @@ function record(over: Partial<ActivityRecord>): ActivityRecord {
 describe("the log's wording", () => {
   it("says what happened and who did it", () => {
     const e = toEntry(record({ event_type: "item_unavailable", quantity: 2, item_name: "Oat milk" }));
-    expect(e).toMatchObject({ title: "Oat milk — marked unavailable", actorLabel: "Maya", tone: "negative" });
+    expect(e).toMatchObject({ title: "Oat milk - marked unavailable", actorLabel: "Maya", tone: "negative" });
   });
 
-  it("names the one reversal distinctly — it is the signal an order was completed too early", () => {
+  it("names the one reversal distinctly - it is the signal an order was completed too early", () => {
     const e = toEntry(record({ event_type: "state_changed", from_status: "ready_for_pickup", to_status: "picking" }));
     expect(e).toMatchObject({ title: "Picking reopened", tone: "strong" });
   });
@@ -203,7 +203,7 @@ describe("the log's wording", () => {
   /** "Submitted" is not "returned". */
   it("does not call a submitted refund returned", () => {
     const e = toEntry(record({ source: "refund", amount: "12.50", refund_status: "submitted", refund_kind: "item", actor_kind: "shop" }));
-    expect(e.title).toBe("Refund of $12.50 sent — waiting for the bank");
+    expect(e.title).toBe("Refund of $12.50 sent - waiting for the bank");
     expect(e.title).not.toMatch(/returned/);
   });
 
@@ -270,7 +270,7 @@ describe("item-level picking (A3 revision 2)", () => {
     expect(repo.applyPicks).not.toHaveBeenCalled();
   });
 
-  it("refuses a part pick of 0 — use Unavailable instead", async () => {
+  it("refuses a part pick of 0 - use Unavailable instead", async () => {
     await expect(
       setPicks(ACTOR, "f-1", { lines: [{ orderItemId: "a", mode: "part", units: 0 }] }),
     ).rejects.toMatchObject({ kind: "validation", message: "use Unavailable instead of 0" });
@@ -288,15 +288,15 @@ describe("item-level picking (A3 revision 2)", () => {
 describe("the picking log's words", () => {
   const ev = (over: Partial<ActivityRecord>) => toEntry(record({ event_type: "item_gathered", item_name: "Eggs", item_ordered: 3, ...over }));
 
-  it("says picked in full, n of m picked, or picking cleared — with the note", () => {
-    expect(ev({ quantity: 3 }).title).toBe("Eggs — picked in full");
-    expect(ev({ quantity: 2, detail: "two cracked" }).title).toBe("Eggs — 2 of 3 picked · two cracked");
-    expect(ev({ quantity: 0 }).title).toBe("Eggs — picking cleared");
+  it("says picked in full, n of m picked, or picking cleared - with the note", () => {
+    expect(ev({ quantity: 3 }).title).toBe("Eggs - picked in full");
+    expect(ev({ quantity: 2, detail: "two cracked" }).title).toBe("Eggs - 2 of 3 picked · two cracked");
+    expect(ev({ quantity: 0 }).title).toBe("Eggs - picking cleared");
   });
 
   it("gives an unavailable line the destructive dot, and routine picks the muted one", () => {
     expect(toEntry(record({ event_type: "item_unavailable", item_name: "Eggs", quantity: 3, detail: "supplier short" }))).toMatchObject({
-      title: "Eggs — marked unavailable · supplier short",
+      title: "Eggs - marked unavailable · supplier short",
       tone: "negative",
     });
     expect(ev({ quantity: 3 }).tone).toBe("quiet");

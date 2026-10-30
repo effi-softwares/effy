@@ -4,7 +4,7 @@ import { join, relative, resolve } from "node:path"
 import { describe, expect, it } from "vitest"
 
 /**
- * 104: every activity log is `@effy/web-kit/activity-log`'s drawer — one way to page, search, filter and export a
+ * 104: every activity log is `@effy/web-kit/activity-log`'s drawer - one way to page, search, filter and export a
  * log. A screen may draw a `Timeline` only for a conversation people write into, named here with why.
  */
 const TIMELINE_ALLOWED: Record<string, string> = {

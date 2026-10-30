@@ -12,7 +12,7 @@ export function ProvingScreen() {
   return (
     <Panel
       title="Your back-office record"
-      description="The platform's own record of you — proves this console reaches the backend as you."
+      description="The platform's own record of you - proves this console reaches the backend as you."
     >
       {isPending ? (
         <Loading>

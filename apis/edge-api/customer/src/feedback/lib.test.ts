@@ -20,7 +20,7 @@ describe("generateReferenceCode", () => {
 })
 
 describe("sourceKey", () => {
-  it("hashes the source — never returns the raw value (PII avoidance)", () => {
+  it("hashes the source - never returns the raw value (PII avoidance)", () => {
     const key = sourceKey(ipSource("203.0.113.7"), "salt")
     expect(key).not.toContain("203.0.113.7")
     expect(key).toMatch(/^[0-9a-f]{64}$/)

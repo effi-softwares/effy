@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# stripe-listen.sh — dev-only Stripe webhook helper.
+# stripe-listen.sh - dev-only Stripe webhook helper.
 #
 # `stripe listen` signs forwarded webhooks with the CLI account's secret, and the commerce service verifies
 # against /effy/<env>/stripe/webhook_secret; if they differ, every webhook fails with a 400 and paid orders
@@ -15,7 +15,7 @@
 # entry, so while this runs its events fail verification until that secret is put back. Local work only.
 #
 # Usage: ./scripts/stripe-listen.sh [forward-url]
-# forward-url defaults to localhost:3000/commerce/v1/stripe/webhook — the commerce service under
+# forward-url defaults to localhost:3000/commerce/v1/stripe/webhook - the commerce service under
 # `make edge-offline SERVICE=commerce`. Pass a tunnel URL to forward somewhere else.
 #
 # Env overrides: ENV (default dev), AWS_PROFILE (default ef), AWS_REGION (default ap-southeast-2).
@@ -26,8 +26,8 @@ PROFILE="${AWS_PROFILE:-ef}"
 REGION="${AWS_REGION:-ap-southeast-2}"
 FORWARD_URL="${1:-localhost:3000/commerce/v1/stripe/webhook}"
 
-SECRET_ID="/effy/${ENV}/stripe/webhook_secret"   # Secrets Manager — read by the commerce service
-URL_PARAM="/effy/${ENV}/stripe/webhook_url"       # SSM Parameter Store — the forward URL, discoverable
+SECRET_ID="/effy/${ENV}/stripe/webhook_secret"   # Secrets Manager - read by the commerce service
+URL_PARAM="/effy/${ENV}/stripe/webhook_url"       # SSM Parameter Store - the forward URL, discoverable
 
 aws_ssm() { aws ssm "$@" --profile "$PROFILE" --region "$REGION"; }
 aws_sm()  { aws secretsmanager "$@" --profile "$PROFILE" --region "$REGION"; }
@@ -36,10 +36,10 @@ command -v stripe >/dev/null || { echo "stripe-listen: stripe CLI not installed 
 command -v aws    >/dev/null || { echo "stripe-listen: aws CLI not installed"; exit 1; }
 
 # 1. The account's webhook signing secret. --print-secret reveals the same secret `listen` will sign
-# with, then exits — so what we store below is exactly what the service will need to verify.
+# with, then exits - so what we store below is exactly what the service will need to verify.
 echo "stripe-listen: reading the account webhook signing secret…"
 WHSEC="$(stripe listen --print-secret)"
-[[ "$WHSEC" == whsec_* ]] || { echo "stripe-listen: unexpected value from 'stripe listen --print-secret' — are you logged in? run: stripe login"; exit 1; }
+[[ "$WHSEC" == whsec_* ]] || { echo "stripe-listen: unexpected value from 'stripe listen --print-secret' - are you logged in? run: stripe login"; exit 1; }
 
 # 2. Sync into Secrets Manager, but only write when it actually changed.
 CURRENT="$(aws_sm get-secret-value --secret-id "$SECRET_ID" --query SecretString --output text 2>/dev/null || true)"

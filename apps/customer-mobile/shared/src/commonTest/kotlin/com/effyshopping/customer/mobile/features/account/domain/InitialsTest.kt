@@ -12,16 +12,16 @@ class InitialsTest {
 
     @Test fun familyOnly() = assertEquals("L", initialsFor(null, "Lovelace"))
 
-    @Test fun noName_isNeutralGlyph_neverEmail() = assertEquals("—", initialsFor(null, null))
+    @Test fun noName_isNeutralGlyph_neverEmail() = assertEquals("-", initialsFor(null, null))
 
-    @Test fun blankIsTreatedAsAbsent() = assertEquals("—", initialsFor("  ", ""))
+    @Test fun blankIsTreatedAsAbsent() = assertEquals("-", initialsFor("  ", ""))
 
     @Test fun nonLatinGraphemes() = assertEquals("李明", initialsFor("李", "明"))
 
     @Test fun lowercaseIsUppercased() = assertEquals("AL", initialsFor("ada", "lovelace"))
 
     @Test fun emojiIsOneGrapheme_notHalfASurrogatePair() {
-        // 👩‍🚀 = U+1F469 ZWJ U+1F680 — one user-perceived character.
+        // 👩‍🚀 = U+1F469 ZWJ U+1F680 - one user-perceived character.
         val astronaut = "👩‍🚀"
         assertEquals(astronaut, initialsFor(astronaut, null))
     }

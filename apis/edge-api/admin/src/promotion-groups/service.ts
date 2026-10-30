@@ -36,7 +36,7 @@ export async function createGroup(body: Record<string, unknown>, actor: string):
 
 export async function updateGroup(id: string, body: Record<string, unknown>, actor: string): Promise<AdminUpdatePromotionGroupResponse> {
   if (!UUID.test(id)) throw notFound();
-  if ("key" in body) throw new PromoError(409, "group_key_fixed", "A group's key can't change — the website and app ask for it by key.");
+  if ("key" in body) throw new PromoError(409, "group_key_fixed", "A group's key can't change - the website and app ask for it by key.");
   const input: repo.GroupChange = {};
   if ("name" in body) {
     const name = typeof body.name === "string" ? body.name.trim() : "";

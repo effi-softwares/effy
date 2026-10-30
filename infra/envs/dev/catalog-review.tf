@@ -3,13 +3,13 @@
 # 15 minutes).
 
 variable "product_review_max_waiting_hours" {
-  description = "067 — alarm when the oldest product or change waiting for Effy's review has waited longer than this many hours."
+  description = "067 - alarm when the oldest product or change waiting for Effy's review has waited longer than this many hours."
   type        = number
   default     = 24
 
   validation {
     condition     = var.product_review_max_waiting_hours > 0
-    error_message = "product_review_max_waiting_hours must be greater than zero — a zero threshold alarms on every submission."
+    error_message = "product_review_max_waiting_hours must be greater than zero - a zero threshold alarms on every submission."
   }
 }
 
@@ -17,7 +17,7 @@ variable "product_review_max_waiting_hours" {
 # healthy day; one item that has sat for two is a shop that cannot sell.
 resource "aws_cloudwatch_metric_alarm" "product_review_stale" {
   alarm_name          = "${module.shared.name_prefix}-product-review-stale"
-  alarm_description   = "067 — a product or product change has waited more than ${var.product_review_max_waiting_hours}h for Effy's review. The shop cannot sell it (or its change is not live) until someone decides it: back-office → Product review."
+  alarm_description   = "067 - a product or product change has waited more than ${var.product_review_max_waiting_hours}h for Effy's review. The shop cannot sell it (or its change is not live) until someone decides it: back-office → Product review."
   namespace           = "Effy/Catalog"
   metric_name         = "ProductReviewOldestWaitingHours"
   statistic           = "Maximum"

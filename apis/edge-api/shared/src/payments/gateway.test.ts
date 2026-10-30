@@ -78,7 +78,7 @@ describe("summarisePaymentMethod", () => {
   it.each([["klarna", "klarna"], ["afterpay_clearpay", "afterpay"], ["zip", "zip"]])("%s is pay-over-time", (key, brand) => {
     expect(summarisePaymentMethod(d({ type: key, [key]: {} }))).toEqual({ type: "pay_over_time", brand, last4: "" });
   });
-  it("an unrecognised method is `other` — never a guessed brand", () => {
+  it("an unrecognised method is `other` - never a guessed brand", () => {
     expect(summarisePaymentMethod(d({ type: "au_becs_debit" }))).toEqual({ type: "other", brand: "au_becs_debit", last4: "" });
   });
   it("no details at all is an empty summary, not an error", () => {

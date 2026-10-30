@@ -1,12 +1,12 @@
 import Link from "next/link"
 
 /**
- * A compact checkout footer — the same dark treatment as the storefront's {@link StorefrontFooter}
+ * A compact checkout footer - the same dark treatment as the storefront's {@link StorefrontFooter}
  * (`bg-foreground text-background`, the brand mark, "© Effy"), but with the nav/link columns and CTA
  * band dropped and a much shorter height, so it closes the page without inviting the shopper out of
  * the payment funnel.
  *
- * No `new Date` for the year — a non-deterministic call would cost the static shell for a number
+ * No `new Date` for the year - a non-deterministic call would cost the static shell for a number
  * nobody reads (same reason the storefront footer prints a bare "© Effy").
  */
 export function CheckoutFooter() {

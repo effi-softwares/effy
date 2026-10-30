@@ -14,16 +14,16 @@ import { AcceptedNetworks } from "./BrandMarks"
 import { Field } from "./Field"
 
 /**
- * The card form — three provider-owned inputs inside Effy's own shells.
+ * The card form - three provider-owned inputs inside Effy's own shells.
  *
  * Three fields, not six. No country, no postcode, no name on card. The provider only ever asked for
  * those because `fields.billingDetails` defaults to `auto`, under which it decides what to collect and
- * guesses a country from the shopper's IP — which is where "Country: Sri Lanka" on an Australia-only
+ * guesses a country from the shopper's IP - which is where "Country: Sri Lanka" on an Australia-only
  * storefront came from. The split card elements have no billing fields at all, so there is
  * nothing to switch off here; the details Effy already holds ride in the confirm call instead
  * (see `confirm.ts`).
  *
- * Removing those fields does not weaken authorization. The same address still reaches the bank — it is
+ * Removing those fields does not weaken authorization. The same address still reaches the bank - it is
  * sourced from Effy's record rather than from the shopper's keyboard.
  */
 export type CardFieldState = {
@@ -44,7 +44,7 @@ export function useCardFieldState() {
     setNumber,
     setExpiry,
     setCvc,
-    /** Every field filled and none complaining — the gate the pay control reads. */
+    /** Every field filled and none complaining - the gate the pay control reads. */
     complete: number.complete && expiry.complete && cvc.complete,
   }
 }
@@ -61,7 +61,7 @@ export function CardFields({ state }: { state: CardFieldsController }) {
       base: {
         color: v.colorText,
         fontFamily: v.fontFamily,
-        // 16px on mobile is not a preference — anything smaller makes iOS Safari zoom the page when the
+        // 16px on mobile is not a preference - anything smaller makes iOS Safari zoom the page when the
         // field is focused, which throws the shopper out of the layout mid-payment.
         fontSize: "16px",
         fontSmoothing: "antialiased",
@@ -86,7 +86,7 @@ export function CardFields({ state }: { state: CardFieldsController }) {
             }
           />
         </div>
-        {/* Our marks, not the element's built-in icon — hence `showIcon: false`. */}
+        {/* Our marks, not the element's built-in icon - hence `showIcon: false`. */}
         <AcceptedNetworks className="ml-auto" />
       </Field>
 

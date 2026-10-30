@@ -49,7 +49,7 @@ const refusal = (fn: () => unknown): string => {
   return "accepted";
 };
 
-describe("a window — unchanged by 085", () => {
+describe("a window - unchanged by 085", () => {
   const q = quote([day(TODAY), day(FRI), day(SAT)]);
 
   it("a timed window on a later day is promised the window", () => {
@@ -70,14 +70,14 @@ describe("a window — unchanged by 085", () => {
     expect(r.fee.totalCents).toBe(1100);
   });
 
-  it("no window, a window that has gone and a day that has gone are each refused — never replaced", () => {
+  it("no window, a window that has gone and a day that has gone are each refused - never replaced", () => {
     expect(refusal(() => resolveEffyWindow(q, null, NOW))).toBe("slot_required");
     expect(refusal(() => resolveEffyWindow(q, { slotId: "morning", date: FRI }, NOW))).toBe("slot_unavailable");
     expect(refusal(() => resolveEffyWindow(q, { slotId: "evening", date: "2026-10-20" }, NOW))).toBe("date_unavailable");
   });
 });
 
-describe("085 — a day with no time", () => {
+describe("085 - a day with no time", () => {
   const q = quote([day(TODAY), day(FRI), day(SAT, { anyTime: null })]);
 
   it("is the day's Any-time window: bound, held and stored like any window, and promised the DAY", () => {
@@ -90,7 +90,7 @@ describe("085 — a day with no time", () => {
     })));
   });
 
-  it("pays the plain fee — nothing for a window", () => {
+  it("pays the plain fee - nothing for a window", () => {
     expect(resolveEffyWindow(q, { slotId: "anytime", date: FRI }, NOW).fee).toBe(BASE);
   });
 
@@ -105,8 +105,8 @@ describe("085 — a day with no time", () => {
   });
 });
 
-describe("085 — as soon as possible", () => {
-  it("lands on the FIRST day that can take an order with no time — today, when today can", () => {
+describe("085 - as soon as possible", () => {
+  it("lands on the FIRST day that can take an order with no time - today, when today can", () => {
     const r = resolveAsap(quote([day(TODAY), day(FRI), day(SAT)]), NOW);
     expect(r.promise).toBe("asap");
     expect(r.asapEstimate).toBe("usually within 2–3 days");
@@ -114,7 +114,7 @@ describe("085 — as soon as possible", () => {
     expect(r.packages.every((p) => p.method === "same_day" && p.promisedDay === TODAY && p.slotId === "anytime")).toBe(true);
   });
 
-  it("⚠ pays the plain fee even when it lands today — never the delivery-today premium", () => {
+  it("⚠ pays the plain fee even when it lands today - never the delivery-today premium", () => {
     const q = quote([day(TODAY), day(FRI)]);
     expect(resolveAsap(q, NOW).fee).toBe(BASE);
     expect(q.effyWindows.fees.get(windowKey("evening", TODAY))!.totalCents).toBeGreaterThan(BASE.totalCents);
@@ -126,13 +126,13 @@ describe("085 — as soon as possible", () => {
     expect(r.packages.every((p) => p.method === "standard")).toBe(true);
   });
 
-  it("is refused when no day can take one, or the business offers none — never turned into a window", () => {
+  it("is refused when no day can take one, or the business offers none - never turned into a window", () => {
     expect(refusal(() => resolveAsap(quote([day(TODAY, { anyTime: null }), day(FRI, { anyTime: null })]), NOW))).toBe("slot_unavailable");
     expect(refusal(() => resolveAsap(quote([day(TODAY), day(FRI)], null), NOW))).toBe("slot_unavailable");
   });
 });
 
-describe("085 — what an intent may send", () => {
+describe("085 - what an intent may send", () => {
   const q = quote([day(TODAY), day(FRI)]);
   const window = { slotId: "evening", date: FRI };
 

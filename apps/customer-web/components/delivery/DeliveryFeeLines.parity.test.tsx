@@ -39,7 +39,7 @@ const windowOf = (dayIndex: number) => {
   return { slotId: w.slotId, date: w.date }
 }
 
-describe("P25 — the same lines on the web as in the app", () => {
+describe("P25 - the same lines on the web as in the app", () => {
   it("the window today, with what it adds", () => {
     expect(shown(chosenFee(quote, windowOf(0))!)).toEqual(EXPECTED.window)
   })

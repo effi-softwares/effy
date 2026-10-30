@@ -14,6 +14,7 @@ export {
 export { useListState, SEARCH_DEBOUNCE_MS, type ListState } from "./use-list-state";
 export { listQueryOptions, viewsQueryOptions, usePrefetchNextPage, type ListFetcher, type ListQueryInput } from "./list-query";
 export { useHiddenColumns } from "./hidden-columns";
+export { useListNeighbours, type ListNeighbours } from "./list-neighbours";
 export { DataTable, columnsFor, type DataTableProps, type RowHref } from "./DataTable";
 export { StaticTable } from "./StaticTable";
 export { setFullText } from "./set-full";

@@ -25,7 +25,7 @@ const classic: AdminSkinListItemDTO = {
 }
 const tile: AdminSkinListItemDTO = {
   id: "t",
-  name: "Tile — Effy blue",
+  name: "Tile - Effy blue",
   layout: "tile",
   version: 1,
   builtIn: false,
@@ -35,7 +35,7 @@ const tile: AdminSkinListItemDTO = {
 }
 const panel: AdminSkinListItemDTO = {
   id: "p",
-  name: "Panel — Effy blue",
+  name: "Panel - Effy blue",
   layout: "panel",
   version: 1,
   builtIn: false,
@@ -84,14 +84,14 @@ function wrap(children: ReactNode) {
 
 afterEach(() => vi.clearAllMocks())
 
-describe("095 — how a group's place looks", () => {
+describe("095 - how a group's place looks", () => {
   it("offers only skins whose layout fits the place's size", async () => {
     const user = userEvent.setup()
     wrap(<LookPanel group={group} skins={[classic, tile, panel]} canManage onError={() => undefined} />)
     await user.click(screen.getByLabelText("Default skin"))
     const defaults = within(screen.getByRole("listbox"))
-    expect(defaults.getByRole("option", { name: "Tile — Effy blue" })).toBeInTheDocument()
-    expect(defaults.queryByRole("option", { name: "Panel — Effy blue" })).not.toBeInTheDocument()
+    expect(defaults.getByRole("option", { name: "Tile - Effy blue" })).toBeInTheDocument()
+    expect(defaults.queryByRole("option", { name: "Panel - Effy blue" })).not.toBeInTheDocument()
   })
 
   it("a member's skin and picture are previewed live and saved for this place only", async () => {
@@ -110,7 +110,7 @@ describe("095 — how a group's place looks", () => {
     )
     expect(within(screen.getByTestId("member-look-preview")).getByText("Classic")).toBeInTheDocument()
     await user.click(screen.getByLabelText("Skin"))
-    await user.click(screen.getByRole("option", { name: "Tile — Effy blue" }))
+    await user.click(screen.getByRole("option", { name: "Tile - Effy blue" }))
     expect(within(screen.getByTestId("member-look-preview")).getByTestId("promo-skin")).toHaveAttribute(
       "data-layout",
       "tile",

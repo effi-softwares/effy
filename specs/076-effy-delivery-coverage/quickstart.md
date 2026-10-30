@@ -17,7 +17,7 @@ make validate ENV=dev
 docker ps -aq --filter label=org.testcontainers=true | xargs -r docker rm -f
 ```
 
-Proofs — each broken once to see it fail:
+Proofs - each broken once to see it fail:
 
 | # | Proves | Spec |
 |---|---|---|
@@ -43,7 +43,7 @@ Proofs — each broken once to see it fail:
 ```sh
 make db-up ENV=dev                               # read the NOTICE lines: postcodes removed with
                                                  #   disabled zones, and manual distances to review
-make edge-deploy SERVICE=storefront ENV=dev      # ┐ readers first — they understand both the old and
+make edge-deploy SERVICE=storefront ENV=dev      # ┐ readers first - they understand both the old and
 make edge-deploy SERVICE=commerce ENV=dev        # │ the new shape
 make edge-deploy SERVICE=customer ENV=dev        # ┘
 make edge-deploy SERVICE=admin ENV=dev           # staff gateway: the 11 old routes go, 12 arrive
@@ -63,7 +63,7 @@ no longer has.
 | V2 | Add → search "Richmond" | Several results told apart by state and postcode; pick one; see the places it brings; add. Under a minute, no postcode or distance typed. |
 | V3 | Add a postcode with no known location | A distance is demanded; after adding, the row says "entered by hand". |
 | V4 | Check a listed postcode, an unlisted one, a made-up one | Effy + group + distance · "courier delivery is switched off" · "not a known postcode". |
-| V5 | As a customer (web, then mobile): add an address in a listed postcode, then one that is not | "Delivered by Effy" · the refusal sentence — the same words at the address and at checkout. |
+| V5 | As a customer (web, then mobile): add an address in a listed postcode, then one that is not | "Delivered by Effy" · the refusal sentence - the same words at the address and at checkout. |
 | V6 | Remove a postcode that has a delivered order | The order is unchanged; a new address there is refused. |
 | V7 | Create a group, move postcodes in, rename it, remove it | The postcodes stay listed throughout; the customer answer never changes. |
 | V8 | Try to switch courier delivery on | Refused, with a sentence saying courier ordering is not available yet. Add and remove an exclusion. |

@@ -9,10 +9,10 @@ vi.mock("@aws-sdk/client-sesv2", () => ({
     send = sesSend
   },
   GetSuppressedDestinationCommand: class {
-    constructor(readonly input: unknown) {}
+    constructor(readonly input: unknown) { }
   },
   DeleteSuppressedDestinationCommand: class {
-    constructor(readonly input: unknown) {}
+    constructor(readonly input: unknown) { }
   },
 }))
 
@@ -59,23 +59,23 @@ describe("stateFor", () => {
     )
   })
 
-  it("a Transient bounce is soft — a full mailbox is not a lockout", () => {
+  it("a Transient bounce is soft - a full mailbox is not a lockout", () => {
     expect(stateFor({ eventType: "bounce", subType: "Transient/MailboxFull" } as any)).toBe(
       "soft_failing",
     )
   })
 
-  it("⚠ Undetermined is treated as TRANSIENT — never lock someone out on a guess", () => {
+  it("⚠ Undetermined is treated as TRANSIENT - never lock someone out on a guess", () => {
     // Biased toward under-reporting: a false lockout is found by nobody.
     expect(stateFor({ eventType: "bounce", subType: "Undetermined" } as any)).toBe("soft_failing")
     expect(stateFor({ eventType: "bounce", subType: null } as any)).toBe("soft_failing")
   })
 
-  it("a delivery is what lets an address recover — the state must be able to improve", () => {
+  it("a delivery is what lets an address recover - the state must be able to improve", () => {
     expect(stateFor({ eventType: "delivery" } as any)).toBe("reachable")
   })
 
-  it("⚠ a reject does not move the conclusion — it says nothing about the address", () => {
+  it("⚠ a reject does not move the conclusion - it says nothing about the address", () => {
     expect(stateFor({ eventType: "reject" } as any)).toBe("reachable")
   })
 
@@ -237,7 +237,7 @@ describe("repair", () => {
     expect(repo.markRepaired).not.toHaveBeenCalled()
   })
 
-  it("⚠ treats NotFoundException as SUCCESS — the platform's half still needs clearing", async () => {
+  it("⚠ treats NotFoundException as SUCCESS - the platform's half still needs clearing", async () => {
     // "Not found" is success: most soft-failing addresses have no suppression entry.
     sesSend.mockRejectedValueOnce(Object.assign(new Error("nope"), { name: "NotFoundException" }))
 
@@ -245,7 +245,7 @@ describe("repair", () => {
     expect(repo.markRepaired).toHaveBeenCalledTimes(1)
   })
 
-  it("requires a note — an unexplained repair is indistinguishable from a mistake later", async () => {
+  it("requires a note - an unexplained repair is indistinguishable from a mistake later", async () => {
     await expect(repair("person@example.com", "staff-sub", "   ")).rejects.toThrow(/note/)
     expect(sesSend).not.toHaveBeenCalled()
     expect(repo.markRepaired).not.toHaveBeenCalled()

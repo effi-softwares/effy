@@ -2,26 +2,26 @@
 SYNC IMPACT REPORT
 ==================
 Version change: 3.6.0 → 4.0.0
-Bump rationale: MAJOR — Principle V's "one palette, one file — per identity" (two identities) is redefined
+Bump rationale: MAJOR - Principle V's "one palette, one file - per identity" (two identities) is redefined
 as ONE identity for every surface; the console identity's values are replaced.
 
 Trigger: on 2026-10-25 the operator asked for one theme for all web and mobile apps, using the customer
 website and app's colours, with every colour a Tailwind / shadcn palette value.
 
 What changed in the text:
-  - Principle V: "One palette, one file — per identity" and "The storefront identity" become "One palette,
+  - Principle V: "One palette, one file - per identity" and "The storefront identity" become "One palette,
     one file (v4.0.0)": one tokens.css for every surface; Tailwind palette values only; blue-700 is the
     action colour, green-700 the brand; no red in the UI, the promo palette the one exception.
   - Principle V: the shop-app mobile bullet is replaced by "Mobile reads the same file" (default radius 8).
   - Principle V: the General Sans fallback note is removed (the font is gone).
 
 Templates and documents:
-  ✅ .specify/templates/* — unchanged.
-  ✅ CLAUDE.md (Design system section) and packages/design-system/README.md — updated.
+  ✅ .specify/templates/* - unchanged.
+  ✅ CLAUDE.md (Design system section) and packages/design-system/README.md - updated.
 
 --- previous report ---
 Version change: 3.5.0 → 3.6.0
-Bump rationale: MINOR — a bounded exception added to Principle V; no principle removed, no plan invalidated.
+Bump rationale: MINOR - a bounded exception added to Principle V; no principle removed, no plan invalidated.
 
 Trigger: feature 095-promotion-skins. On 2026-10-21 the operator asked for full customisation of promotion
 skins with any colour, readability checked (clarified in the spec).
@@ -32,18 +32,18 @@ What changed in the text:
     apply only inside the skin's own frame.
 
 Templates and documents:
-  ✅ .specify/templates/* — unchanged.
-  ⚠ CLAUDE.md (Design system section) — updated by 095.
+  ✅ .specify/templates/* - unchanged.
+  ⚠ CLAUDE.md (Design system section) - updated by 095.
 
 --- previous report ---
 Version change: 3.4.0 → 3.5.0
-Bump rationale: MINOR — a surface moves between the platform's two existing identities; no principle
+Bump rationale: MINOR - a surface moves between the platform's two existing identities; no principle
 added or removed, no plan invalidated.
 
 Trigger: feature 092-driver-mobile-redesign. On 2026-10-16 the operator chose the redesign canvas
 ("Effy Driver Mobile Redesign", committed in docs/reference-screens/Effy Driver Mobile v2/) over the
 redesign brief's colours: the DRIVER mobile app now wears the storefront identity, as the customer
-mobile app did in 087 — Effy blue for actions, Effy green for done, a problem is black with an icon
+mobile app did in 087 - Effy blue for actions, Effy green for done, a problem is black with an icon
 (no red, no orange), Geist, Lucide, light and dark.
 
 What changed in the text:
@@ -56,19 +56,19 @@ What changed in the text:
     follows its canvas: lists, sections and detail rows, one hero card on Today.
 
 Templates and documents:
-  ✅ .specify/templates/* — unchanged.
-  ⚠ CLAUDE.md (Design system section) — updated by 092 when the driver theme moves.
+  ✅ .specify/templates/* - unchanged.
+  ⚠ CLAUDE.md (Design system section) - updated by 092 when the driver theme moves.
 
 --- previous report ---
 Version change: 3.3.0 → 3.4.0
-Bump rationale: MINOR — guidance materially expanded; nothing removed, no plan invalidated.
+Bump rationale: MINOR - guidance materially expanded; nothing removed, no plan invalidated.
 
 Trigger: feature 087-customer-mobile-redesign. On 2026-10-15 the operator directed that the customer
 MOBILE app support both light and dark appearances (it had become light-only by adopting the storefront
 identity in 087). The customer website stays light only.
 
 What changed in the text:
-  - Principle V, "The storefront identity": the storefront file now also carries a `.dark` block — the
+  - Principle V, "The storefront identity": the storefront file now also carries a `.dark` block - the
     MOBILE app's dark appearance (same five values: zinc on near-black, blue and green lifted, AA on
     every pair, held by check-storefront-tokens.mjs). The website ignores it (no dark class, no `dark:`
     variant, no colour-scheme query in the file).
@@ -77,19 +77,19 @@ What changed in the text:
     website is light only.
 
 Templates and documents:
-  ✅ .specify/templates/* — unchanged.
-  ✅ CLAUDE.md (Design system section) — corrected by 087.
+  ✅ .specify/templates/* - unchanged.
+  ✅ CLAUDE.md (Design system section) - corrected by 087.
 
 --- previous report ---
 Version change: 3.2.0 → 3.3.0
-Bump rationale: MINOR — guidance materially expanded. No principle is removed, and no existing plan
+Bump rationale: MINOR - guidance materially expanded. No principle is removed, and no existing plan
                 is invalidated: the consoles and the mobile apps keep the identity and every rule
                 they had.
 
 Trigger: feature 084-customer-storefront-redesign. On 2026-10-12 the operator adopted a new design
 (docs/reference-screens/Effy Design System, Effy Storefront Redesign) for the customer website and
 directed that its colours, typeface, wordmark and component shapes replace the storefront's old
-look completely — for the customer website now, the customer mobile app later, and NOT for the
+look completely - for the customer website now, the customer mobile app later, and NOT for the
 shop console, back-office, or the driver and shop apps. Principle V said one palette in one file
 drives every surface, dark mode is required everywhere, cards are never shadowed and card layouts
 are avoided. The adopted design differs on each point (084 plan, Complexity Tracking).
@@ -107,17 +107,17 @@ What changed in the text:
   - Quality Gates: the colour gate names both token sets and their guards.
 
 Templates and documents:
-  ✅ .specify/templates/* — unchanged; none names a palette.
-  ⚠ CLAUDE.md (Design system section), packages/design-system/README.md — corrected by 084 (T075).
-  ✅ specs 004–083 — history, not edited.
+  ✅ .specify/templates/* - unchanged; none names a palette.
+  ⚠ CLAUDE.md (Design system section), packages/design-system/README.md - corrected by 084 (T075).
+  ✅ specs 004–083 - history, not edited.
 
 Follow-up TODOs: customer-mobile adopts the storefront identity in a later feature (084 research D14).
   ✅ CLOSED by 087-customer-mobile-redesign (2026-10-14): the customer mobile app's theme is generated
-  from storefront/tokens.css (light only). A history note only — no principle text changed, no bump.
+  from storefront/tokens.css (light only). A history note only - no principle text changed, no bump.
 
 --- previous report ---
 Version change: 3.1.0 → 3.2.0
-Bump rationale: MINOR — guidance materially expanded. No principle is removed or redefined, and no
+Bump rationale: MINOR - guidance materially expanded. No principle is removed or redefined, and no
                 existing plan is invalidated: every service stays where its plan put it.
 
 Trigger: feature 075-staff-gateway. On 2026-10-08 a deployment was refused: the shared HTTP gateway
@@ -127,7 +127,7 @@ HTTP gateway". The operator decided (2026-10-08) to give back-office its own gat
 amendment that sentence required (075 research R7, plan Complexity Tracking).
 
 What changed in the text:
-  - Principle III: the backend is still ONE — one runtime, under `apis/edge-api/` — but it is
+  - Principle III: the backend is still ONE - one runtime, under `apis/edge-api/` - but it is
     reached through TWO HTTP gateways: the shared gateway (customer, shop, driver, public) and the
     staff gateway (back-office only). A gateway is a managed, pay-per-request entry point, not
     compute; the always-on prohibition is untouched.
@@ -138,16 +138,16 @@ What changed in the text:
   - Technology Standards gains "API entry points".
 
 Templates and documents:
-  ✅ .specify/templates/* — unchanged; none names a gateway.
+  ✅ .specify/templates/* - unchanged; none names a gateway.
   ⚠ CLAUDE.md, ARCHITECTURE.md, docs/api/shared-gateway.md, docs/api/path-assignment.md,
-     infra/envs/README.md — corrected by 075 (its T039–T041).
-  ✅ specs 004–074 — history, not edited.
+     infra/envs/README.md - corrected by 075 (its T039–T041).
+  ✅ specs 004–074 - history, not edited.
 
 Follow-up TODOs: none.
 
 --- previous report ---
 Version change: 3.0.1 → 3.1.0
-Bump rationale: MINOR — guidance materially expanded and one locked standard ADDED. No principle is
+Bump rationale: MINOR - guidance materially expanded and one locked standard ADDED. No principle is
                 removed or redefined, and no existing plan is invalidated.
 
 Trigger: feature 071-live-updates. The operator decided (2026-10-05) that every surface learns of a
@@ -164,16 +164,16 @@ What changed in the text:
     clients never publish.
 
 Templates and documents:
-  ✅ .specify/templates/* — unchanged; none names a channel or a connection model.
-  ✅ CLAUDE.md, AGENTS.md — the single-backend paragraphs name the permitted managed channel.
-  ⚠ ARCHITECTURE.md, docs/api/path-assignment.md, README.md — corrected when 071 ships (its T052),
+  ✅ .specify/templates/* - unchanged; none names a channel or a connection model.
+  ✅ CLAUDE.md, AGENTS.md - the single-backend paragraphs name the permitted managed channel.
+  ⚠ ARCHITECTURE.md, docs/api/path-assignment.md, README.md - corrected when 071 ships (its T052),
      not before: until then they describe what is deployed.
 
 Follow-up TODOs: none.
 
 --- previous report ---
 Version change: 3.0.0 → 3.0.1
-Bump rationale: PATCH — clarification only. No principle is added, removed or redefined.
+Bump rationale: PATCH - clarification only. No principle is added, removed or redefined.
 
 Trigger: feature 070's cut-over completed on 2026-10-05. The always-on backend that v3.0.0 named as
 "being retired" is retired: its routes are served by the serverless backend, its infrastructure is
@@ -184,32 +184,32 @@ What changed in the text:
     the rule names its location as well as its shape. v3.0.0 already required every plan to state
     its service and already forbade always-on compute; this makes the first of those impossible to
     read as optional.
-  - The v3.0.0 report's caveat — "apis/core-api and its infrastructure still exist and still serve
-    until 070's cut-over" — no longer describes the repository. It is left in that report as the
+  - The v3.0.0 report's caveat - "apis/core-api and its infrastructure still exist and still serve
+    until 070's cut-over" - no longer describes the repository. It is left in that report as the
     record of the interval it described.
 
 Templates and documents:
-  ✅ .specify/templates/* — unchanged; none names a backend path.
-  ✅ CLAUDE.md, AGENTS.md, README.md, ARCHITECTURE.md, docs/api/path-assignment.md — describe one
+  ✅ .specify/templates/* - unchanged; none names a backend path.
+  ✅ CLAUDE.md, AGENTS.md, README.md, ARCHITECTURE.md, docs/api/path-assignment.md - describe one
      backend and say where new endpoints go.
-  ✅ docs/archive/core-api.md — NEW. The retired service's technology, structure and architecture,
+  ✅ docs/archive/core-api.md - NEW. The retired service's technology, structure and architecture,
      and the commits its code can be recovered from. Reference only; not a pattern for new work.
 
 Follow-up TODOs: none.
 
 --- previous report ---
 Version change: 2.0.0 → 3.0.0
-Bump rationale: MAJOR — Principle III is REDEFINED and a locked technology is REMOVED. v2.0.0
+Bump rationale: MAJOR - Principle III is REDEFINED and a locked technology is REMOVED. v2.0.0
                 required every plan to justify its feature against TWO backend paths and forbade
                 latency-sensitive customer traffic on the serverless one. v3.0.0 has ONE backend, so
                 every plan justified as "hot path" is justified against a rule that no longer
                 exists. Under the versioning policy that is a principle "redefined in a way that
-                invalidates existing plans" — MAJOR.
+                invalidates existing plans" - MAJOR.
 
 Trigger: feature 070-retire-core-api. The operator decided (spec Clarifications, 2026-10-04) to
 move every capability of the always-on Go backend onto the serverless TypeScript backend and
 destroy the container service and load balancer, for cost. The plan's Constitution Check failed
-v2.0.0 on three counts — Principle III, the locked "Hot path: Go" standard, and Principle VII —
+v2.0.0 on three counts - Principle III, the locked "Hot path: Go" standard, and Principle VII -
 and the repository's method is to change the law before the code. No 070 code task may start
 before this amendment (specs/070-retire-core-api/tasks.md T002).
 
@@ -242,12 +242,12 @@ Unchanged and restated so they are not read as dropped:
   - No PII in telemetry; low-cardinality dimensions; push through the notifications path.
 
 Dependent updates in THIS change:
-  ✅ .specify/memory/constitution.md — Principles III, VI, VII; Technology Standards; Quality Gates;
+  ✅ .specify/memory/constitution.md - Principles III, VI, VII; Technology Standards; Quality Gates;
      version line; history.
-  ✅ .specify/templates/{plan,spec,tasks}-template.md — verified: none names a backend path, a
+  ✅ .specify/templates/{plan,spec,tasks}-template.md - verified: none names a backend path, a
      language or a metrics stack. The Constitution Check cites principles by number, so no edit.
   ⚠ ARCHITECTURE.md, platform-brief.md, docs/api/path-assignment.md, docs/api/error-envelope.md,
-     docs/api/versioning-policy.md, CLAUDE.md — still describe two backends. Corrected by
+     docs/api/versioning-policy.md, CLAUDE.md - still describe two backends. Corrected by
      070 tasks T003 and T004, in the same feature.
   ⚠ apis/edge-api/customer/serverless.yml and package.json carry a "routing law" comment citing
      the old Principle III. Removed by 070 task T087.
@@ -261,20 +261,20 @@ Follow-up TODOs: none.
 
 --- previous report ---
 Version change: 1.13.0 → 2.0.0
-Bump rationale: MAJOR — Principle V's colour doctrine is REDEFINED, not extended. Three rules that
+Bump rationale: MAJOR - Principle V's colour doctrine is REDEFINED, not extended. Three rules that
                 existing plans were justified against are REMOVED outright:
-                  (1) "The brand is MONOCHROME … there is NO brand hue" — now one brand hue, cobalt.
-                  (2) "The accent INVERTS between appearances" — the hue LIFTS instead; inverting
+                  (1) "The brand is MONOCHROME … there is NO brand hue" - now one brand hue, cobalt.
+                  (2) "The accent INVERTS between appearances" - the hue LIFTS instead; inverting
                       existed only because a NEUTRAL accent cannot read against both grounds, and
                       that premise is gone with the ramp that created it.
                   (3) "Exactly TWO semantic colours … No third hue may be introduced as a UI colour"
-                      — now four state semantics plus three bounded non-brand hues.
+                      - now four state semantics plus three bounded non-brand hues.
                 Features 026 and 041 built to rules that no longer hold, and 057's shop-scoped token
                 layer is now prohibited outright. Under the versioning policy that is a principle
-                "redefined in a way that invalidates existing plans" — MAJOR. (v1.11.0 changed accent
+                "redefined in a way that invalidates existing plans" - MAJOR. (v1.11.0 changed accent
                 VALUES inside a stable frame and was correctly MINOR; this changes the frame.)
 
-Trigger: feature 060-driver-mobile-ui builds the driver app on the LIVE cobalt token set — which the
+Trigger: feature 060-driver-mobile-ui builds the driver app on the LIVE cobalt token set - which the
 constitution as written FORBADE. The platform adopted the "Effy Shop Console" appearance identity
 platform-wide on operator direction (design project 951bb710, theme-adoption-prompt.md) and the
 working record in CLAUDE.md has reflected it since 2026-09-17, but the constitution was never
@@ -313,14 +313,14 @@ Unchanged and restated so they are not read as dropped:
     rule with its recorded-justification escape clause.
 
 Dependent updates in THIS change:
-  ✅ .specify/memory/constitution.md — Principle V, Quality Gates, version line, history.
-  ✅ .specify/templates/{plan,spec,tasks}-template.md — verified: carry NO colour references, so no
+  ✅ .specify/memory/constitution.md - Principle V, Quality Gates, version line, history.
+  ✅ .specify/templates/{plan,spec,tasks}-template.md - verified: carry NO colour references, so no
      edit is required. The Constitution Check gate cites Principle V by name, not by value.
-  ✅ ARCHITECTURE.md — verified: carries no colour references.
-  ✅ CLAUDE.md § Design system — ALREADY correct (records the platform-wide adoption, the two forced
+  ✅ ARCHITECTURE.md - verified: carries no colour references.
+  ✅ CLAUDE.md § Design system - ALREADY correct (records the platform-wide adoption, the two forced
      deviations, the two new guards); it was ahead of the constitution, which is the defect this
      amendment closes.
-  ⚠ packages/design-system/src/tokens.css — already the live SSOT this amendment describes; the
+  ⚠ packages/design-system/src/tokens.css - already the live SSOT this amendment describes; the
      values were read FROM it, not written TO it. No change.
   ⚠ Features 026, 041 and 057 record monochrome justifications that are now void. They are HISTORY,
      not live law; they are deliberately NOT rewritten. This report is the pointer that supersedes
@@ -328,7 +328,7 @@ Dependent updates in THIS change:
 
 --- previous report ---
 Version change: 1.12.0 → 1.13.0
-Bump rationale: MINOR — Principle V (Native-Feel, Consistent Design) gains ONE bounded exception to
+Bump rationale: MINOR - Principle V (Native-Feel, Consistent Design) gains ONE bounded exception to
                 the "no third hue" rule: a categorical DATA-VISUALISATION palette (--chart-1..5) is
                 permitted in the design-system tokens, for charts only. No principle is removed or
                 redefined and no committed plan is invalidated (so not MAJOR); it materially expands
@@ -342,7 +342,7 @@ Added in this amendment (operator directive, feature 041-monochrome-console-rede
     (mechanically enforced by scripts/check-tokens.mjs). The monochrome ramp still carries every UI
     accent role, the accent still inverts by appearance, and the WCAG AA (zero-exemption) and
     retired-hue invariants are UNCHANGED.
-  - The internal operator consoles (shop-web, back-office) adopt the shadcn "dashboard" layout — a
+  - The internal operator consoles (shop-web, back-office) adopt the shadcn "dashboard" layout - a
     permitted application of the EXISTING "No card layouts" escape clause (a card/summary layout where
     it is the demonstrably-right pattern and the justification is recorded in the plan). This is not a
     new rule; the justification lives in specs/041-monochrome-console-redesign/plan.md.
@@ -356,19 +356,19 @@ states; this amendment bounds those hues to data-visualisation so the monochrome
 preserved everywhere a person reads the interface, while charts may use categorical colour.
 
 Dependent updates in THIS change:
-  ✅ packages/design-system/src/tokens.css — header comment + --chart-1..5 added (feature 041).
-  ✅ packages/design-system/scripts/check-tokens.mjs — chart-token coverage + ring UI-bar fix.
-  ✅ CLAUDE.md § Design system — updated to note the bounded chart palette (feature 041 T035).
+  ✅ packages/design-system/src/tokens.css - header comment + --chart-1..5 added (feature 041).
+  ✅ packages/design-system/scripts/check-tokens.mjs - chart-token coverage + ring UI-bar fix.
+  ✅ CLAUDE.md § Design system - updated to note the bounded chart palette (feature 041 T035).
 
 --- previous report ---
 Version change: 1.11.1 → 1.12.0
-Bump rationale: MINOR — a new section is added ("Real-World Identifiers"), plus one new Quality
+Bump rationale: MINOR - a new section is added ("Real-World Identifiers"), plus one new Quality
                 Gate bullet. No existing principle is removed or redefined, and no committed plan is
                 invalidated, so it is not MAJOR; it adds a rule rather than clarifying one, so it is
                 not PATCH.
 
 Added in this amendment (operator directive, 2026-08-06):
-  - NEW SECTION "Real-World Identifiers (NON-NEGOTIABLE)" — identifiers that reach a person or
+  - NEW SECTION "Real-World Identifiers (NON-NEGOTIABLE)" - identifiers that reach a person or
     organisation outside the repo MUST be operator-supplied, never inferred from session metadata or
     the environment; where unknown, configuration MUST fail loudly rather than carry a guess;
     `techsupport+claudeone@phantm.com` is prohibited outright; and two mailboxes are APPROVED for
@@ -379,30 +379,30 @@ Added in this amendment (operator directive, 2026-08-06):
 
 Trigger: during 037-platform-email-delivery, that address was read out of session context and
 written into infra/envs/dev/dev.tfvars as the CloudWatch alarm endpoint. The apply created a live
-SNS email subscription and AWS mailed a confirmation request to it. Every automated gate passed —
-typecheck, tests, terraform validate — because the defect was one of AUTHORITY, not correctness.
+SNS email subscription and AWS mailed a confirmation request to it. Every automated gate passed -
+typecheck, tests, terraform validate - because the defect was one of AUTHORITY, not correctness.
 Mechanically enforced by a validation block on `alert_email` in infra/envs/dev/variables.tf, and
 recorded in CLAUDE.md.
 
 --- previous report ---
 Version change: 1.11.0 → 1.11.1
-Bump rationale: PATCH — Principle IV's credential wording is CLARIFIED, not changed in substance.
+Bump rationale: PATCH - Principle IV's credential wording is CLARIFIED, not changed in substance.
                 The phrase "strictly passwordless EMAIL_OTP" named the credential a shopper or
                 operator uses, but `EMAIL_OTP` is also the literal name of one AWS Cognito
                 sign-in factor. Feature 035-six-digit-otp replaces that factor with a
-                platform-owned custom challenge — because the managed factor's code length is
+                platform-owned custom challenge - because the managed factor's code length is
                 EIGHT digits and is not configurable by any setting on any object, while every
                 other code the platform sends is six.
                 Under the literal reading the platform would become non-conforming the moment it
                 shipped; under the substantive reading nothing changes at all. The principle is
                 about CREDENTIALS and ISOLATION, and both are untouched: four pools, per-pool
                 validation, pinned issuers, no auth proxy, cross-pool rejection, and the same
-                credential routes per audience. A Cognito challenge trigger is not an auth proxy —
+                credential routes per audience. A Cognito challenge trigger is not an auth proxy -
                 it is Cognito invoking our code inside its own flow, in the same pool, for the
                 same audience.
                 Not MINOR: no principle is added and no guidance is materially expanded. One
                 sentence of obligation IS added, but it constrains a capability the principle
-                already permitted rather than granting a new one — where the platform issues the
+                already permitted rather than granting a new one - where the platform issues the
                 code itself, it must own expiry, single-use and rate limiting, and must not log
                 the code.
                 Not MAJOR: no principle removed or redefined; no committed plan invalidated.
@@ -415,11 +415,11 @@ Modified in this amendment (feature 035-six-digit-otp):
   - Principle IV → the customer audience's "email OTP" likewise reads "email one-time code".
 
 Dependent updates in THIS change:
-  ⏳ CLAUDE.md § Auth — still says "strictly passwordless EMAIL_OTP" (035 T117).
+  ⏳ CLAUDE.md § Auth - still says "strictly passwordless EMAIL_OTP" (035 T117).
   ⏳ ARCHITECTURE.md, packages/web-kit (package.json, index.ts, auth/otp.ts, runtime/amplify.ts),
-     infra/modules/cognito-user-pool/{main.tf,variables.tf} — same phrase (035 T117).
-  ✅ scripts/verify-pool-credentials.sh — extended to assert the new flow state per pool (035 T047).
-  ⏳ docs/audiences/*.md — credential rows (035 T120).
+     infra/modules/cognito-user-pool/{main.tf,variables.tf} - same phrase (035 T117).
+  ✅ scripts/verify-pool-credentials.sh - extended to assert the new flow state per pool (035 T047).
+  ⏳ docs/audiences/*.md - credential rows (035 T120).
 
 Unchanged: Principles I, II, III, V, VI, VII (bodies + rationale); the SUBSTANCE of Principle IV's
            isolation model and its per-audience credential split; Governance; Technology Standards;
@@ -429,12 +429,12 @@ Follow-up TODOs: none.
 
 --- prior amendment (retained for history) ---
 Version change: 1.10.0 → 1.11.0
-Bump rationale: MINOR — Principle V (Native-Feel, Consistent Design): the brand constant is replaced.
+Bump rationale: MINOR - Principle V (Native-Feel, Consistent Design): the brand constant is replaced.
                 The single accent changes from Effy Emerald #065f46 (+ terracotta #d0735a) to a
                 MONOCHROME ten-step neutral ramp (#1A1A1A … #FFFFFF) in which there is NO brand hue,
                 and the typeface changes from Nunito Sans to General Sans.
                 Two rules are stated that the previous brand never needed:
-                (1) the accent INVERTS between appearances — near-black on light, near-white on dark.
+                (1) the accent INVERTS between appearances - near-black on light, near-white on dark.
                     A hue reads against both grounds; a neutral one does not, so a single accent value
                     would be invisible in one mode.
                 (2) the palette is BOUNDED at exactly two semantic colours (error #e01010, success
@@ -451,30 +451,30 @@ Modified in this amendment (operator-directed, feature 026-monochrome-design-lan
     colours named; Nunito Sans → General Sans; Effy Emerald recorded as RETIRED alongside Jade.
 
 Dependent updates in THIS change:
-  ⏳ packages/design-system/src/tokens.css + package.json — feature 026 tasks T014/T014a/T015/T017.
-  ⏳ packages/brand — colourway axis becomes POLARITY, not hue (026 T033–T035); the 024 marks
+  ⏳ packages/design-system/src/tokens.css + package.json - feature 026 tasks T014/T014a/T015/T017.
+  ⏳ packages/brand - colourway axis becomes POLARITY, not hue (026 T033–T035); the 024 marks
      separated customer from shop by hue, which collapses under a hueless identity.
-  ⏳ CLAUDE.md § Design system — still states Effy Emerald + Nunito Sans.
-  ✅ scripts/check-no-emerald.sh — written and proved (026 T006–T009); sweeps the retired values,
+  ⏳ CLAUDE.md § Design system - still states Effy Emerald + Nunito Sans.
+  ✅ scripts/check-no-emerald.sh - written and proved (026 T006–T009); sweeps the retired values,
      including the .mjs and .xml files check-no-jade.sh cannot see.
   ⏳ Historical notes in CLAUDE.md (features 005 / 017 / 024) are retained as history, not rewritten.
 
 Unchanged: Principles I, II, III, IV, VI, VII (bodies + rationale); Governance; Technology Standards;
            Quality Gates; the rest of Principle V (design-system single-source, dark mode REQUIRED and
            user-selectable, native feel, TOUCH TARGETS, micro-animations, reference-platform + no-card
-           doctrines) — all still binding and unedited.
+           doctrines) - all still binding and unedited.
 
 Follow-up TODOs: none.
 
 --- prior amendment (retained for history) ---
 Version change: 1.9.0 → 1.10.0
-Bump rationale: MINOR — Principle V (Native-Feel, Consistent Design): the brand constant is replaced.
-                The single accent changes from Jade #0FB57E (fill #047857) to Effy Emerald —
-                accent #065f46 (emerald-800), white label both modes — with a terracotta
+Bump rationale: MINOR - Principle V (Native-Feel, Consistent Design): the brand constant is replaced.
+                The single accent changes from Jade #0FB57E (fill #047857) to Effy Emerald -
+                accent #065f46 (emerald-800), white label both modes - with a terracotta
                 accent #d0735a over neutral-scale surfaces, and the design-system SSOT now additionally carries the Nunito Sans typeface,
                 a spacing scale, and a radius scale. Dark mode remains REQUIRED and becomes
                 user-selectable (Light / Dark / Follow-System) on every surface.
-                Not MAJOR: no principle is removed and no committed plan's STRUCTURE is invalidated — every
+                Not MAJOR: no principle is removed and no committed plan's STRUCTURE is invalidated - every
                 surface still consumes the one design-system package; only the brand VALUES change. Prior
                 surfaces are rebranded by feature 017, not left non-compliant.
                 Operator decision (2026-07-17), feature 017-platform-theme-tokens: a richer, more
@@ -488,9 +488,9 @@ Modified in this amendment (operator-directed, feature 017-platform-theme-tokens
     typeface + spacing + radius scales are part of the design-system SSOT; dark mode is now user-selectable.
 
 Dependent updates in THIS change:
-  ✅ CLAUDE.md — § Design system + the /constitution order-of-operations note rebranded (Jade → Forest).
-  ✅ packages/design-system/src/tokens.css + package.json — the brand SSOT rewritten to the new palette.
-  ✅ specs/017-platform-theme-tokens/* — spec/plan/tasks carry the amendment as FR-016 / research R9.
+  ✅ CLAUDE.md - § Design system + the /constitution order-of-operations note rebranded (Jade → Forest).
+  ✅ packages/design-system/src/tokens.css + package.json - the brand SSOT rewritten to the new palette.
+  ✅ specs/017-platform-theme-tokens/* - spec/plan/tasks carry the amendment as FR-016 / research R9.
   ⏳ Historical D2 notes in CLAUDE.md (feature 005) are retained as history, not rewritten.
 
 Unchanged: Principles I, II, III, IV, VI, VII (bodies + rationale); Governance; Technology Standards;
@@ -501,14 +501,14 @@ Follow-up TODOs: none.
 
 --- prior amendment (retained for history) ---
 Version change: 1.8.0 → 1.9.0
-Bump rationale: MINOR — Principle V (Native-Feel, Consistent Design) gains two platform-wide design
+Bump rationale: MINOR - Principle V (Native-Feel, Consistent Design) gains two platform-wide design
                 doctrines that were previously unwritten:
-                (1) a REFERENCE-PLATFORM doctrine — Effy is "Uber Eats + eBay, food-first"; feature
+                (1) a REFERENCE-PLATFORM doctrine - Effy is "Uber Eats + eBay, food-first"; feature
                     business logic, data models, entities, and UI SHOULD be modelled on how those
                     production platforms solve the same problem, adapted to Effy's single-brand,
                     hidden-fulfillment model, favouring the industry-standard pattern over a bespoke one,
                     with food and food-related products prioritised.
-                (2) a NO-CARD-LAYOUT doctrine — card-style containers and metric/summary cards MUST NOT
+                (2) a NO-CARD-LAYOUT doctrine - card-style containers and metric/summary cards MUST NOT
                     be used to lay out content unless a card is demonstrably the right pattern for that
                     content and no better layout exists, in which case the plan MUST record the
                     justification. Prefer tables, lists, sectioned pages, tabs, and detail rows.
@@ -526,11 +526,11 @@ Modified in this amendment (operator-directed, feature 016-shop-product-catalog)
     and the no-card-layout doctrine.
 
 Dependent updates in THIS change:
-  ✅ CLAUDE.md — a "Design reference & layout doctrine" note added under § Design system (elaboration,
+  ✅ CLAUDE.md - a "Design reference & layout doctrine" note added under § Design system (elaboration,
      not override) so day-to-day agent guidance carries both rules.
-  ✅ specs/016-shop-product-catalog/spec.md — already carries both as DOCTRINE-1 / DOCTRINE-2; the
+  ✅ specs/016-shop-product-catalog/spec.md - already carries both as DOCTRINE-1 / DOCTRINE-2; the
      spec's "SHOULD be promoted" note is now satisfied.
-  ✅ .specify/templates/{plan,spec,tasks}-template.md — Constitution Check defers to Principle V
+  ✅ .specify/templates/{plan,spec,tasks}-template.md - Constitution Check defers to Principle V
      dynamically; no structural edit needed.
 
 Unchanged: Principles I, II, III, IV, VI, VII (bodies + rationale); Governance; all Technology
@@ -541,33 +541,33 @@ Follow-up TODOs: none.
 
 --- prior amendment (retained for history) ---
 Version change: 1.7.0 → 1.8.0
-Bump rationale: MINOR — Principle VI's mobile presentation standard is changed from the strict
+Bump rationale: MINOR - Principle VI's mobile presentation standard is changed from the strict
                 State/Intent/Effect (MVI-style) "state machine via a ViewModel base" to plain,
                 method-based MVVM: a ViewModel exposing immutable, observable UI state that the View
                 renders, with user actions invoking ViewModel functions (state flows down, events flow
-                up). This resolves a long-standing internal inconsistency — the constitution already
+                up). This resolves a long-standing internal inconsistency - the constitution already
                 LABELLED the standard "MVVM" (v1.1.0, "was MVI") but continued to DESCRIBE MVI mechanics
                 (typed Intents, one-off Effects, a reducer, a BaseViewModel state machine).
                 Operator decision (2026-07-15), after building 013-customer-mobile-foundation: the
                 platform's first mobile surface shipped classic MVVM, and the platform standardises on
                 that as the simpler, Compose-idiomatic pattern across its three mobile apps.
                 Not MAJOR: no principle is removed, and the unidirectional / immutable-observable-state
-                discipline is retained — only the typed-Intent + one-off-Effect + reducer mechanics are
+                discipline is retained - only the typed-Intent + one-off-Effect + reducer mechanics are
                 dropped.
 Dependent updates in THIS change:
-  ✅ ARCHITECTURE.md § Mobile apps — the State/Intent/Effect sketch + BaseViewModel base rewritten to
+  ✅ ARCHITECTURE.md § Mobile apps - the State/Intent/Effect sketch + BaseViewModel base rewritten to
      method-based MVVM (it is the binding elaboration of Principle VI).
-  ✅ CLAUDE.md — the "immutable State + typed Intents + one-off Effects" phrasing corrected to MVVM.
-  ✅ apps/customer-mobile — the unused `BaseViewModel<State,Intent,Effect>` MVI base class deleted.
-  ✅ specs/013-customer-mobile-foundation — plan/research/tasks/data-model MVI references reconciled.
+  ✅ CLAUDE.md - the "immutable State + typed Intents + one-off Effects" phrasing corrected to MVVM.
+  ✅ apps/customer-mobile - the unused `BaseViewModel<State,Intent,Effect>` MVI base class deleted.
+  ✅ specs/013-customer-mobile-foundation - plan/research/tasks/data-model MVI references reconciled.
 
 --- prior amendment (retained for history) ---
 Version change: 1.6.0 → 1.7.0
-Bump rationale: MINOR — Principle IV's credential rule is materially expanded. Until now the
-                principle said "All four pools use passwordless EMAIL_OTP — there are no passwords
+Bump rationale: MINOR - Principle IV's credential rule is materially expanded. Until now the
+                principle said "All four pools use passwordless EMAIL_OTP - there are no passwords
                 anywhere on the platform." That sentence is now FALSE as a description of the
                 platform we are building: the customer audience (011-customer-storefront-web) is a
-                self-registering member of the PUBLIC, and gets three credential routes —
+                self-registering member of the PUBLIC, and gets three credential routes -
                 email+password, email OTP, and Google federated sign-in.
                 Not PATCH: it changes what conforming code must do. A password policy, an account-
                 recovery flow, a Cognito hosted domain, a Google identity provider, and a pre-sign-up
@@ -583,12 +583,12 @@ Bump rationale: MINOR — Principle IV's credential rule is materially expanded.
 Modified in this amendment (operator-directed, feature 011-customer-storefront-web):
   - Principle IV (Auth Isolation) → the blanket "all four pools use passwordless EMAIL_OTP / there
     are no passwords anywhere" is replaced by a per-audience credential rule:
-      * CUSTOMER  — MAY offer email+password, email OTP, and federated (Google) sign-in; OPEN
+      * CUSTOMER  - MAY offer email+password, email OTP, and federated (Google) sign-in; OPEN
                     self-registration. Federated identities MUST be linked into the native profile
                     so one person is one identity (one `sub`), and linking MUST require a
-                    provider-asserted VERIFIED email — linking on an unverified email is an
+                    provider-asserted VERIFIED email - linking on an unverified email is an
                     account-takeover primitive, not a convenience.
-      * DRIVER / SHOP / ADMIN — remain STRICTLY passwordless EMAIL_OTP and admin-provisioned.
+      * DRIVER / SHOP / ADMIN - remain STRICTLY passwordless EMAIL_OTP and admin-provisioned.
     The "no passwords" guarantee therefore narrows from "the platform" to "the platform's INTERNAL
     audiences", and is stated as such rather than quietly dropped.
 
@@ -604,13 +604,13 @@ Unchanged: Principles I, II, III, V, VI, VII (bodies + rationale); the SUBSTANCE
            isolation model; Governance; all Technology Standards; Quality Gates.
 
 Templates requiring updates:
-  ✅ .specify/templates/plan-template.md   — Constitution Check defers dynamically; no edit needed.
-  ✅ .specify/templates/spec-template.md   — WHAT/WHY-only specs; unaffected.
-  ✅ .specify/templates/tasks-template.md  — unaffected.
-  ⚠ CLAUDE.md                              — the "Auth" section's "All four pools use passwordless
+  ✅ .specify/templates/plan-template.md   - Constitution Check defers dynamically; no edit needed.
+  ✅ .specify/templates/spec-template.md   - WHAT/WHY-only specs; unaffected.
+  ✅ .specify/templates/tasks-template.md  - unaffected.
+  ⚠ CLAUDE.md                              - the "Auth" section's "All four pools use passwordless
                                              EMAIL_OTP (no passwords anywhere)" sentence MUST be
                                              updated in the same change (011 task).
-  ⚠ ARCHITECTURE.md                         — § "Customer web (SSR)" says the auth guard is edge
+  ⚠ ARCHITECTURE.md                         - § "Customer web (SSR)" says the auth guard is edge
                                              middleware; Next 16 renames middleware → proxy and its
                                              own guide forbids relying on it for authorization
                                              (research D20). Amended by 011.
@@ -618,23 +618,23 @@ Templates requiring updates:
 Follow-up TODOs: none.
 
 Prior history:
-  1.6.0 (2026-07-10) — MINOR: the third audience, its pool, and its two RBAC groups unified onto the
+  1.6.0 (2026-07-10) - MINOR: the third audience, its pool, and its two RBAC groups unified onto the
                        single name `shop`; the retired token was removed platform-wide (feature 008).
-  1.5.0 (2026-07-09) — MINOR: Principle IV generalized from "the admin pool defines RBAC groups"
+  1.5.0 (2026-07-09) - MINOR: Principle IV generalized from "the admin pool defines RBAC groups"
                        to "pools MAY define RBAC groups"; the shop pool gained its two role groups
                        (introduced as `store_manager` / `store_staff`; renamed to `shop_*` in
                        1.6.0). Added the claim-as-origin / record-as-authority distinction.
-  1.4.0 (2026-07-08) — MINOR: TanStack suite locked for web; Zustand removed platform-wide in
+  1.4.0 (2026-07-08) - MINOR: TanStack suite locked for web; Zustand removed platform-wide in
                        favour of TanStack Store; Tailwind v4 + shadcn/ui Radix base pinned.
-  1.3.1 (2026-07-08) — PATCH: Cold path runtime "Node 20" → "Node 22 (current Lambda-supported LTS)".
-  1.3.0 (2026-06-28) — Added Principle VII (Observability & Telemetry) + Technology Standards
+  1.3.1 (2026-07-08) - PATCH: Cold path runtime "Node 20" → "Node 22 (current Lambda-supported LTS)".
+  1.3.0 (2026-06-28) - Added Principle VII (Observability & Telemetry) + Technology Standards
                        "Observability & notifications" group; Quality Gates telemetry gate.
-  1.2.0 (2026-06-28) — Added Principle VI (Layered Architecture & Explicit Wiring); new file
+  1.2.0 (2026-06-28) - Added Principle VI (Layered Architecture & Explicit Wiring); new file
                        ARCHITECTURE.md as its binding elaboration.
-  1.1.0 (2026-06-28) — Reframed Effy as a new, original platform (no rewrite/rebuild framing);
+  1.1.0 (2026-06-28) - Reframed Effy as a new, original platform (no rewrite/rebuild framing);
                        Principle IV pinned to passwordless EMAIL_OTP across all four pools;
                        Mobile standard set to Clean Architecture + MVVM (was MVI).
-  1.0.0 (2026-06-25) — Initial ratification: template placeholders replaced with concrete,
+  1.0.0 (2026-06-25) - Initial ratification: template placeholders replaced with concrete,
                        project-specific governance (five principles, Technology Standards,
                        Quality Gates).
 -->
@@ -642,7 +642,7 @@ Prior history:
 # Effy Constitution
 
 Effy is a single-brand, vertically-integrated grocery + e-commerce delivery platform spanning
-four audiences — customers, drivers, shops, and admin/back-office. Customers buy from one brand
+four audiences - customers, drivers, shops, and admin/back-office. Customers buy from one brand
 ("Effy"); shops are hidden internal fulfillment nodes (dark-store-like) that customers never see;
 drivers and back-office staff are Effy employees on internal apps. This document encodes the
 non-negotiable rules every spec, plan, and implementation MUST obey. It governs how the platform
@@ -654,8 +654,8 @@ is built.
 
 Every feature MUST flow through the pipeline: Brief → spec → plan → tasks → implement.
 
-- Specs describe **WHAT and WHY only** — zero technology, no implementation detail.
-- Plans describe **HOW** — they cite this constitution and choose concrete technology
+- Specs describe **WHAT and WHY only** - zero technology, no implementation detail.
+- Plans describe **HOW** - they cite this constitution and choose concrete technology
   within the locked Technology Standards.
 - Tasks are ordered, checkable units derived from the plan.
 - A gap or contradiction discovered downstream MUST be fixed by returning to the earliest
@@ -670,7 +670,7 @@ Discipline at the artifact level is what keeps the six surfaces from drifting ap
 
 All apps, services, and infrastructure live in ONE monorepo.
 
-- Cross-cutting concerns — shared types, design tokens, API client, configuration — MUST be
+- Cross-cutting concerns - shared types, design tokens, API client, configuration - MUST be
   shared packages. Copy-paste of cross-cutting logic across surfaces is prohibited.
 - Shared contracts (DTOs) are the **single source of truth**. Clients MUST be typed from or
   generated from those contracts, never hand-redefined per surface.
@@ -684,8 +684,8 @@ are the mechanism that makes cross-cutting changes happen once.
 The backend is one path: serverless TypeScript. There is no second backend runtime. Every API is
 written under `apis/edge-api/`, and every client surface calls that backend and no other.
 
-- **All server behaviour** — public and customer reads, transactions and payments, operator and
-  back-office workflows, and asynchronous workers — runs on Node + TypeScript Lambdas behind one
+- **All server behaviour** - public and customer reads, transactions and payments, operator and
+  back-office workflows, and asynchronous workers - runs on Node + TypeScript Lambdas behind one
   of **two HTTP gateways**: the **shared gateway** (customer, shop, driver and public routes) and
   the **staff gateway** (back-office routes only). Two entry points, one backend.
 - A gateway is a managed, pay-per-request entry point, not compute: it MUST incur nothing while
@@ -700,8 +700,8 @@ written under `apis/edge-api/`, and every client surface calls that backend and 
   shared backend library, never copied between services.
 - A service whose routes belong on both gateways is deployed as two stacks from **one** source
   directory. Its handlers and rules are not copied.
-- A plan MUST NOT introduce an always-on compute component — a container service, a load
-  balancer, a persistent-connection server — without amending this constitution first.
+- A plan MUST NOT introduce an always-on compute component - a container service, a load
+  balancer, a persistent-connection server - without amending this constitution first.
 - A **managed, pay-per-use connection service** is permitted for telling open apps that something
   changed (the live channel, see Technology Standards). It is not always-on compute: none of the
   platform's own code holds a connection, and it MUST incur nothing while no app is connected and
@@ -721,29 +721,29 @@ Authentication uses four isolated Cognito pools: customer, driver, shop, admin.
 
 - Each pool is validated independently, with per-pool JWT validation and a pinned issuer.
 - Frontends authenticate against Cognito directly; backends validate tokens per pool.
-- There is **no auth proxy** — backends do not forward or broker authentication on behalf of
+- There is **no auth proxy** - backends do not forward or broker authentication on behalf of
   another pool.
 - A token issued for one pool MUST NOT be accepted by a surface or service scoped to another.
 - Pools MAY define **RBAC groups**, surfaced via the `cognito:groups` JWT claim. The **admin** pool
   defines `admin` / `manager` / `csa`; the **shop** pool defines `shop_manager` / `shop_staff`.
   The customer and driver pools define none. In every case the claim is the **origin of role
   assignment**; where the platform keeps its own record of that person, that record is
-  **authoritative for the access decision** (role, status, and any scope it owns) — a valid claim
+  **authoritative for the access decision** (role, status, and any scope it owns) - a valid claim
   never overrides it.
 
-**Credentials — the rule is per-audience, because the audiences differ in kind:**
+**Credentials - the rule is per-audience, because the audiences differ in kind:**
 
-- **Internal audiences (driver, shop, admin)** — **strictly passwordless email one-time code**, and
+- **Internal audiences (driver, shop, admin)** - **strictly passwordless email one-time code**, and
   strictly **admin-provisioned** (no self-signup). **There are no passwords on the platform's
   internal audiences.** They are Effy employees; a password is a credential to steal and a reset
   flow to attack, in exchange for nothing they need.
-  - ⚠ "Email one-time code" names the **credential** — a single-use numeric code delivered to the
-    address on file — **not** a particular vendor mechanism. Whether it is issued by Cognito's
+  - ⚠ "Email one-time code" names the **credential** - a single-use numeric code delivered to the
+    address on file - **not** a particular vendor mechanism. Whether it is issued by Cognito's
     managed `EMAIL_OTP` factor or by a platform-owned custom challenge is an **implementation
     choice recorded in the feature's plan**, not a matter of principle. Where the platform issues
     the code itself it MUST own expiry, single-use, per-identity rate limiting and per-source rate
     limiting, and MUST NOT log or store the code in a readable form.
-- **The customer audience** — the only audience the platform does not employ, and the only one open
+- **The customer audience** - the only audience the platform does not employ, and the only one open
   to the public. The customer pool MAY offer **email + password**, **email one-time code**, and
   **federated (Google) sign-in**, and it is **open to self-registration**.
   - **One person is one identity.** All credential routes MUST converge on a **single** pool profile
@@ -753,7 +753,7 @@ Authentication uses four isolated Cognito pools: customer, driver, shop, admin.
     the native profile. Linking on an unverified email is an **account-takeover primitive**, not a
     convenience, and is forbidden.
   - The platform record remains authoritative for the access decision (status), per the isolation
-    rules above — a valid credential never overrides a barred customer.
+    rules above - a valid credential never overrides a barred customer.
 
 **Rationale**: Four audiences with different trust levels demand hard isolation; direct Cognito +
 per-pool validation keeps blast radius small and the trust model auditable. The credential rule
@@ -765,20 +765,20 @@ cripple the storefront or needlessly widen the attack surface on the internal co
 
 One design-system package drives every surface.
 
-- **ONE brand hue carries every action.** `--brand` and `--primary` are **cobalt** — `#1d4ed8` on
-  light, `#60a5fa` on dark — and they resolve to the **same value** in each appearance on purpose:
+- **ONE brand hue carries every action.** `--brand` and `--primary` are **cobalt** - `#1d4ed8` on
+  light, `#60a5fa` on dark - and they resolve to the **same value** in each appearance on purpose:
   `--primary` is the vocabulary the UI primitives consume, `--brand` the role name screens read. Two
   names, one fact. Plus `--brand-soft` / `--brand-mid` / `--brand-ink` for tint, edge and ink on tint.
 - **The hue LIFTS between appearances; it does not invert.** Cobalt goes *lighter* on dark rather than
   exchanging ends with its label. This **supersedes the inverting-accent rule** (v1.11.0–v1.13.0),
   which existed because a *neutral* accent cannot read against both grounds. A hue can, so the reason
   for inverting is gone with the monochrome ramp that required it.
-- **The neutral ramp is the GROUND, not the accent.** Near-black neutral on dark — ground `#151515`,
-  rail `#111111` (recessed, darker than the content ground), muted `#212121`, border `#2a2a2a` —
+- **The neutral ramp is the GROUND, not the accent.** Near-black neutral on dark - ground `#151515`,
+  rail `#111111` (recessed, darker than the content ground), muted `#212121`, border `#2a2a2a` -
   and **no blue tint in any neutral**. A tinted neutral beside a cobalt accent reads as a second,
   competing hue.
 - **THREE bounded non-brand hues, none of them interactive.** `--accent2` (orange) is **attention and
-  time pressure ONLY** — notification dots, unread badges, cut-off chips — and is deliberately rare.
+  time pressure ONLY** - notification dots, unread badges, cut-off chips - and is deliberately rare.
   `--violet` and `--teal` are the second and third data-visualisation series and the avatar tints.
   **None of the three may be a button, a link, a selected state, or any other interactive affordance**;
   that role belongs to `--brand` alone. A fourth hue MUST NOT be introduced.
@@ -799,21 +799,21 @@ One design-system package drives every surface.
   content designed by staff in back-office. Its colours are data, not tokens, and may be any hue; they are
   held to WCAG AA on every text pair by `skinContrast` (`@effy/shared-types`) **on the server**, text over a
   picture included (judged against its tint over both black and white). They apply **only inside the
-  skin's own frame** — never to navigation, forms, the cart, checkout or any control outside a promotion —
+  skin's own frame** - never to navigation, forms, the cart, checkout or any control outside a promotion -
   and grant no licence to use those colours anywhere else. Flat fills only: no gradients, no shadows.
 - **WCAG AA on every pair is a ZERO-EXEMPTION invariant**, including each solid against its own `-soft`
   tint, and it **outranks the source design**: where an adopted value fails, the value is tuned and the
-  deviation recorded. ⚠ **Borders are the one deliberate exception** — a border is a hairline, and a
+  deviation recorded. ⚠ **Borders are the one deliberate exception** - a border is a hairline, and a
   3:1 border reads as a slab on every surface, so `--border` is not contrast-tested. Focus rings are
   NOT exempt: they meet the 3:1 non-text UI bar (WCAG 1.4.11).
 - **Radius is a FOUR-STEP scale**: `sm 4` (checkboxes) · `md 6` (inputs, nav items, in-row controls) ·
-  `lg 8` (buttons, icon chips) · `xl 10` (containers — cards, dialogs, sheets, table frames). ⚠ Pills
+  `lg 8` (buttons, icon chips) · `xl 10` (containers - cards, dialogs, sheets, table frames). ⚠ Pills
   (badges, status chips, progress tracks) are `rounded-full`, **a shape and not a step on this scale**.
   No surface may be sharper than the rows inside it (`check-component-shape.mjs` asserts all of this).
 - **NO GRADIENTS. Flat fills only.** Cards are **bordered, never shadowed**; shadows belong to floating
   layers alone (dialog, popover, sheet, select, dropdown, chart tooltip).
-- The full token set — both ramps, the brand hue, the three bounded hues, the four state semantics, the
-  **Geist / Geist Mono** typefaces, and the spacing + radius scales — comes from the design-system
+- The full token set - both ramps, the brand hue, the three bounded hues, the four state semantics, the
+  **Geist / Geist Mono** typefaces, and the spacing + radius scales - comes from the design-system
   package (`packages/design-system/src/tokens.css`, the SSOT), **never hardcoded per surface** and
   **never restated in a second file**.
 - **One palette, one file (v4.0.0).** The platform has **ONE identity**, declared exactly once in
@@ -842,7 +842,7 @@ One design-system package drives every surface.
   - Enforced by `check-tokens.mjs` (one theme, Tailwind palette only, no red outside the promo palette,
     AA on every pair), `check-token-usage.mjs` and `scripts/check-no-storefront-red.sh`.
 - **RETIRED, and swept out of live source**: Effy Emerald `#065f46` + terracotta `#d0735a` (v1.11.0),
-  Jade `#0FB57E` / fill `#047857` (v1.10.0), and — as of this amendment — **the monochrome neutral
+  Jade `#0FB57E` / fill `#047857` (v1.10.0), and - as of this amendment - **the monochrome neutral
   ramp with its inverting accent and its two-semantic-colour bound** (v1.11.0–v1.13.0, features 026 and
   041). The first two are swept by `scripts/check-no-emerald.sh` and `scripts/check-no-jade.sh`; ⚠ a
   retired hex named **in a comment** is still a hit, because the sweeps do not strip comments.
@@ -862,14 +862,14 @@ One design-system package drives every surface.
   bespoke one. Food and food-related products get priority.
 - **No card layouts**: Card-style containers (bordered/elevated boxes tiling content; "metric cards";
   dashboard summary cards) MUST NOT be used to lay out content, and pages MUST NOT show metric/summary
-  cards at the top — **unless a card is demonstrably the right pattern for that specific content and no
+  cards at the top - **unless a card is demonstrably the right pattern for that specific content and no
   better layout exists**, in which case the plan MUST record the justification. Prefer tables, lists,
   sectioned pages, tabs, and detail rows.
 
 **Rationale**: A single design system is how all surfaces stay visually and behaviorally
 coherent; native feel and tactile quality are part of the product, not a finishing pass. The two
 doctrines keep that coherence *directional*: a shared reference for how features should look and
-behave, and a standing bias away from the card-tiled dashboard aesthetic the team has rejected —
+behave, and a standing bias away from the card-tiled dashboard aesthetic the team has rejected -
 so consistency is decided once, in the constitution, not re-litigated per surface.
 
 ### VI. Layered Architecture & Explicit Wiring
@@ -878,18 +878,18 @@ Every surface is organized the same way internally, so any feature is predictabl
 review. `ARCHITECTURE.md` is the binding elaboration of this principle; plans MUST conform to it.
 
 - **Three-layer slice per feature**: a thin edge (handler / UI) → service / use-case → repository.
-  Clean-Architecture dependency direction holds — the domain layer depends on nothing, data
+  Clean-Architecture dependency direction holds - the domain layer depends on nothing, data
   implements it, and presentation / handlers consume it.
-- **Repository pattern with raw SQL** — no ORM and no query builder. Wire shapes (DTOs / rows) are
+- **Repository pattern with raw SQL** - no ORM and no query builder. Wire shapes (DTOs / rows) are
   mapped explicitly to domain models and MUST NOT leak past the data layer.
-- **No DI framework** — dependencies are wired explicitly and greppably (by hand at the entry point,
+- **No DI framework** - dependencies are wired explicitly and greppably (by hand at the entry point,
   in a single mobile container, or via cached module singletons).
-- **Unidirectional client state** — mobile uses **MVVM**: a `ViewModel` exposes a single **immutable,
+- **Unidirectional client state** - mobile uses **MVVM**: a `ViewModel` exposes a single **immutable,
   observable UI-state object** that the View renders, and the View invokes `ViewModel` functions for
   user actions (state flows down, events flow up). Web treats the server-state cache as the source of
   truth and keeps a client store only for genuine client state. Server data MUST NOT be hand-cached in
   component state.
-- **One event language** — the backend publishes one event envelope to the shared topic, and
+- **One event language** - the backend publishes one event envelope to the shared topic, and
   event consumers MUST be idempotent.
 
 **Rationale**: One coherent shape across four languages and three runtimes is what lets a small team
@@ -904,7 +904,7 @@ elaboration of this principle.
   customer-facing flows have **CloudWatch alarms** delivered to the operator's approved
   operational mailbox.
 - **Mobile ships crash reporting** (Crashlytics); **web ships error tracking** (PostHog).
-- **Product analytics** (PostHog) is captured on every client through a shared, typed event taxonomy —
+- **Product analytics** (PostHog) is captured on every client through a shared, typed event taxonomy -
   kept conceptually distinct from operational metrics (behavior vs. system health).
 - **No PII in telemetry** beyond the authenticated subject id; product analytics is
   **consent-respecting**, and metric labels MUST stay low-cardinality.
@@ -924,17 +924,17 @@ any entry requires a constitution amendment (see Governance).
 
 - **Mobile**: Kotlin Multiplatform + Compose; Clean Architecture + MVVM.
 - **Web**: React 19 + TypeScript; shadcn/ui (Radix base) + Tailwind v4. Client spine: the
-  **TanStack suite** — Router, Query (server-state cache = source of truth), Table, Form, Store,
-  Virtual, DevTools, Hotkeys. **Client state via TanStack Store** (genuine client state only —
+  **TanStack suite** - Router, Query (server-state cache = source of truth), Table, Form, Store,
+  Virtual, DevTools, Hotkeys. **Client state via TanStack Store** (genuine client state only -
   **no Zustand**). TanStack DB is not adopted yet (revisit on a real product-collection need).
 - **Backend**: Node 22 (current Lambda-supported LTS) + TypeScript; Serverless Framework; Lambda
   on arm64; raw SQL. **No ORM.**
 - **Database**: PostgreSQL 16; Goose migrations; **forward-only** (no down migrations relied on).
 - **Infrastructure**: Terraform; multi-environment; remote state.
-- **API entry points**: two AWS API Gateway HTTP APIs per environment — shared and staff — each on
+- **API entry points**: two AWS API Gateway HTTP APIs per environment - shared and staff - each on
   its own hostname in the environment's namespace. How full each is MUST be measured and alarmed.
-- **Live channel**: AWS AppSync Events. An update MUST carry no business information — only the
-  kind of thing that changed — and the app re-reads through the backend's own routes. Clients
+- **Live channel**: AWS AppSync Events. An update MUST carry no business information - only the
+  kind of thing that changed - and the app re-reads through the backend's own routes. Clients
   subscribe and MUST NOT publish; only the backend publishes, after the change has committed.
 - **Observability & notifications**:
   - **Metrics and alerts**: CloudWatch metrics (embedded metric format) and CloudWatch alarms.
@@ -955,11 +955,11 @@ notification endpoint, a billing reference, a social handle.
 - Real-world identifiers MUST be **supplied by the operator**. They MUST NOT be inferred from
   session metadata, the git user, the environment, or any other value the tooling happens to expose.
   **An identifier being visible is not consent to use it.**
-- Where an identifier is not yet known, the configuration MUST **fail loudly** — a required variable
+- Where an identifier is not yet known, the configuration MUST **fail loudly** - a required variable
   with no default, or a validation that refuses a placeholder. It MUST NOT be filled with a
   plausible guess. A wrong outward-facing value that silently works is worse than a build that
   stops, because it reaches real people before anyone notices.
-- ⚠ **`techsupport+claudeone@phantm.com` is PROHIBITED** anywhere in this project — configuration,
+- ⚠ **`techsupport+claudeone@phantm.com` is PROHIBITED** anywhere in this project - configuration,
   infrastructure, fixtures, seeds, documentation, specs or commit messages. It is the address
   attached to an assistant session, not one the operator chose for this platform.
 - **Two mailboxes are approved** for platform use, and a feature needing one MUST use them rather
@@ -971,7 +971,7 @@ notification endpoint, a billing reference, a social handle.
 
 **Rationale**: on 2026-08-06 that address was read out of session context and written into
 `infra/envs/dev/dev.tfvars` as the alarm endpoint. The apply created a live SNS email subscription
-and AWS mailed a confirmation request to it. Nothing technical failed — every gate passed — because
+and AWS mailed a confirmation request to it. Nothing technical failed - every gate passed - because
 the failure was one of *authority*, not correctness: a value nobody had chosen was made
 outward-facing. Guessing an identifier is guessing on someone's behalf, and this platform sends
 credentials by email; the blast radius of the wrong address is not cosmetic.
@@ -980,7 +980,7 @@ credentials by email; the blast radius of the wrong address is not cosmetic.
 
 Compliance is enforced at merge time, not discovered later.
 
-- Every feature ships **verified against its spec's acceptance criteria** — implementation is
+- Every feature ships **verified against its spec's acceptance criteria** - implementation is
   done when those criteria are demonstrably met, not when code compiles.
 - No feature merges without `spec.md`, `plan.md`, and `tasks.md` committed alongside the code.
 - Every plan MUST pass the Constitution Check gate (service placement per Principle III,
@@ -991,11 +991,11 @@ Compliance is enforced at merge time, not discovered later.
   Complexity Tracking; an undocumented deviation is a defect.
 - No feature merges with an **operator-unsupplied real-world identifier** in its configuration,
   fixtures or documentation (see Real-World Identifiers).
-- No feature merges with a **colour outside the design-system token set** — the cobalt brand family,
-  the neutral ramp, the three bounded non-brand hues and the four state semantics — in the tokens or in
+- No feature merges with a **colour outside the design-system token set** - the cobalt brand family,
+  the neutral ramp, the three bounded non-brand hues and the four state semantics - in the tokens or in
   live UI. Enforced by `check-tokens.mjs` (key-set parity, the four-step radius scale, WCAG AA on every
   pair, the no-`-foreground` rule), `check-component-shape.mjs`, `check-token-usage.mjs` (a colour
-  utility naming a token `@theme` does not declare emits **no CSS rule at all** — the element renders
+  utility naming a token `@theme` does not declare emits **no CSS rule at all** - the element renders
   as nothing, with no error anywhere), and the retired-hue sweeps.
 - A **second file restating a palette** is a defect, not a scoping choice (Principle V). The
   storefront identity is not one: it is a different palette, declared once, in the design-system
@@ -1014,10 +1014,10 @@ habit conflicts with it, this document wins.
   (2) a note in the Sync Impact Report stating what changed and why. Dependent templates
   (`plan`, `spec`, `tasks`) MUST be re-checked for alignment as part of the same change.
 - **Versioning policy** (semantic):
-  - **MAJOR** — backward-incompatible governance change: a principle removed or redefined in a
+  - **MAJOR** - backward-incompatible governance change: a principle removed or redefined in a
     way that invalidates existing plans.
-  - **MINOR** — a new principle or section added, or material expansion of guidance.
-  - **PATCH** — clarifications, wording, and non-semantic refinements.
+  - **MINOR** - a new principle or section added, or material expansion of guidance.
+  - **PATCH** - clarifications, wording, and non-semantic refinements.
 - **Compliance review**: Spec-driven artifacts are the audit trail. A feature whose committed
   spec/plan/tasks do not match its implementation is out of compliance and MUST be reconciled.
 - **Runtime guidance**: `CLAUDE.md` provides day-to-day working guidance for agents and

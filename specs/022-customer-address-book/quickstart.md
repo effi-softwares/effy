@@ -1,7 +1,7 @@
 # Quickstart: Customer Address Book (022)
 
 Validation runbook. **Claude authors; the operator runs anything touching live state.** 🧑‍💻 =
-operator-run. This is a small, mostly-frontend slice over the existing 019 address CRUD — most of it is
+operator-run. This is a small, mostly-frontend slice over the existing 019 address CRUD - most of it is
 locally verifiable.
 
 **Prerequisites**: a signed-in dev customer (customer pool) · `make core-run` (the address CRUD is on
@@ -27,7 +27,7 @@ now lives on the **cold path** (`apis/edge-api/customer/src/addresses/`); it was
 ## 2. Deploy the cold path + run the clients 🧑‍💻
 
 The address book is on **edge-api/customer** (serverless), so unlike a core-api-local slice it needs a
-**deploy** to exercise end-to-end. It rides the existing customer service — no new infra (the customer
+**deploy** to exercise end-to-end. It rides the existing customer service - no new infra (the customer
 authorizer, gateway, and DB contract already exist):
 
 ```bash
@@ -35,7 +35,7 @@ make edge-deploy SERVICE=customer ENV=dev       # ships the 4 new /customer/v1/a
 pnpm --filter @effy/customer-web dev            # EDGE_API_BASE_URL already points at the dev gateway
 # and/or the mobile app on a simulator/device (edgeApiBaseUrl → dev gateway)
 ```
-No migration and no Terraform change — `public.customer_address` (019) and the customer pool/authorizer
+No migration and no Terraform change - `public.customer_address` (019) and the customer pool/authorizer
 are already in place.
 
 ## 3. Walk the success criteria
@@ -46,7 +46,7 @@ are already in place.
 | **SC-006** ⭐ | Open the add form on web at a wide viewport, then a narrow one; on mobile tap the FAB | wide → **dialog**; narrow → **drawer**; mobile → **bottom sheet** |
 | **SC-002** | Set a non-default as default, then start checkout | checkout pre-selects the new default |
 | **SC-003** | After any add/set-default, inspect the list | exactly **one** default, always |
-| **SC-010** ⭐ | Try to delete the default with other addresses present — via UI **and** a direct API call | blocked both ways (UI disables/redirects; API returns **409**); never defaultless-with-addresses |
+| **SC-010** ⭐ | Try to delete the default with other addresses present - via UI **and** a direct API call | blocked both ways (UI disables/redirects; API returns **409**); never defaultless-with-addresses |
 | **SC-004** | Delete an address a past order used; re-open that order | the order's address is **unchanged** |
 | **SC-005** ⭐ | As customer A, attempt to read/delete customer B's address id directly | refused (scoped server-side) |
 | **SC-009** | Open add/edit, enter data, dismiss the dialog/drawer/sheet | **nothing** saved |
@@ -79,10 +79,10 @@ open the editor. Verify on both surfaces.
 
 ## Known limits at sign-off
 
-- **The address book is now on the deployable cold path** — unlike a core-api-local slice, it CAN go
+- **The address book is now on the deployable cold path** - unlike a core-api-local slice, it CAN go
   live in dev with `make edge-deploy SERVICE=customer ENV=dev` (no migration, no Terraform). Checkout's
-  address *read* is still on core-api (local-only) — but that is the existing 019 checkout, unchanged.
-- **The checkout inline `AddressForm` is not reconciled** to the new richer shared form (R8) — deliberate
+  address *read* is still on core-api (local-only) - but that is the existing 019 checkout, unchanged.
+- **The checkout inline `AddressForm` is not reconciled** to the new richer shared form (R8) - deliberate
   scope boundary; checkout keeps working unchanged.
-- **`customer-web` guest bundle** — the address book lives in the `(account)` (signed-in) tree, not the
+- **`customer-web` guest bundle** - the address book lives in the `(account)` (signed-in) tree, not the
   guest pages, so it does not touch the pre-existing 160 KB guest-bundle breach.

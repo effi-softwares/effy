@@ -122,7 +122,7 @@ export function DutyPanel() {
                     <TableCell data-m="meta">
                       {round
                         ? `${round.round.kind === "collection" ? "Collection run" : "Delivery round"}${round.stageLabel ? ` · ${round.stageLabel}` : ""}`
-                        : "Idle — nothing is assigned"}
+                        : "Idle - nothing is assigned"}
                     </TableCell>
                     <TableCell data-m="hide" className="text-muted-foreground">
                       {d.zone ?? "No zone"}

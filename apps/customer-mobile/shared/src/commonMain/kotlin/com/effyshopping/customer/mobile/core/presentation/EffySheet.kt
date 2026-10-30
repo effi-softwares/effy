@@ -168,7 +168,7 @@ fun EffySheetHandle() {
     )
 }
 
-/** Title · scrolling content · pinned footer — the layout every sheet shares. */
+/** Title · scrolling content · pinned footer - the layout every sheet shares. */
 @Composable
 private fun EffySheetBody(
     title: String?,
@@ -222,7 +222,7 @@ private fun EffySheetBody(
 }
 
 /**
- * A confirmation — the sheet that replaces every "Are you sure?" dialog (Security board):
+ * A confirmation - the sheet that replaces every "Are you sure?" dialog (Security board):
  * an icon in a zinc circle, a 20sp title, one sentence, then the pinned confirm (black when it
  * destroys something) and a quiet way out.
  */

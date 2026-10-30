@@ -77,7 +77,7 @@ export async function loadCourierSettings(q: Queryable): Promise<CourierSettings
     await q.query<{ courier_when_no_windows: boolean; courier_collection_default: "hub" | "supplier"; id: string | null; estimate_text: string | null }>(
       `SELECT s.courier_when_no_windows, s.courier_collection_default, d.id::text AS id, d.estimate_text
          FROM public.delivery_settings s
-    -- availability-exempt: public.courier_service — a courier service's lifecycle, not a product's.
+    -- availability-exempt: public.courier_service - a courier service's lifecycle, not a product's.
     LEFT JOIN public.courier_service d ON d.is_default AND d.status = 'active'
         WHERE s.id = 1`,
     )

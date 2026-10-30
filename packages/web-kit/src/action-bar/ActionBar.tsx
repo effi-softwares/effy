@@ -20,11 +20,11 @@ import { Button, SelectTrigger } from "@effy/design-system/ui";
 /**
  * The console's ONE floating action bar: bottom centre of the window, over every screen, in the inverse of the
  * page's colours, one height, sliding in when it opens and out when it closes. `ActionBarProvider` wraps each
- * console once and owns it; a screen puts its CONTENT there with `useActionBar` and nothing else — where the bar
+ * console once and owns it; a screen puts its CONTENT there with `useActionBar` and nothing else - where the bar
  * sits, how tall it is and how it moves are the bar's, the same on every page. Two kinds of content: a selection
- * (`count` — the bar says "3 selected", shows the actions and a clear button; the data table does this) or a page's
- * own controls (no `count`, opened with `open` — the product review's decision). One owner at a time: the latest
- * to open it.
+ * (`count` - the bar says "3 selected", shows the actions and a clear button; the data table does this) or a page's
+ * own controls (no `count`, opened with `open` - the product review's decision, an order's page). A selection takes
+ * the bar over a page's controls and gives it back when cleared; within a kind, the latest to open it shows.
  */
 
 interface BarState {
@@ -51,7 +51,7 @@ interface ActionBarContext {
 const Ctx = createContext<ActionBarContext | null>(null);
 
 /**
- * How tightly the bar is packed. It is ALWAYS one row: when its contents do not fit the window it steps down —
+ * How tightly the bar is packed. It is ALWAYS one row: when its contents do not fit the window it steps down -
  * `compact` (smaller text, tighter gaps), then `tight` (smaller still; the count says just the number), then
  * `scroll` (the actions scroll sideways inside the row). A wider window starts again from `normal`.
  */
@@ -64,33 +64,63 @@ const DENSITIES: readonly BarDensity[] = [
 ];
 const DensityCtx = createContext<BarDensity>("normal");
 
+interface Claim extends BarState {
+  /** When it last opened: the latest-opened of a kind is the one shown. */
+  seq: number;
+}
+
+/**
+ * Which claim the bar shows: the latest-opened selection (ticked rows), else the latest-opened page controls - so a
+ * selection takes the bar over a page's own controls and gives it back when cleared. With nothing open, the one that
+ * was shown stays named while the bar slides away.
+ */
+function pick(claims: ReadonlyMap<string, Claim>, shown: string | null): string | null {
+  const open = [...claims.values()].filter((c) => c.open).sort((x, y) => y.seq - x.seq);
+  const top = open.find((c) => c.count !== null) ?? open[0];
+  if (top) return top.owner;
+  return shown !== null && claims.has(shown) ? shown : null;
+}
+
 export function ActionBarProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<BarState | null>(null);
+  const [bar, setBar] = useState<{ claims: ReadonlyMap<string, Claim>; shown: string | null }>({ claims: new Map(), shown: null });
   const [slot, setSlot] = useState<HTMLElement | null>(null);
-  const onClear = useRef<() => void>(() => {});
+  const clears = useRef(new Map<string, () => void>());
+  const seq = useRef(0);
   const [density, setDensity] = useState<BarDensity>("normal");
   const [api] = useState<ActionBarApi>(() => ({
     claim: (next, clear) => {
-      onClear.current = clear;
-      setState((prev) => {
-        // A closed bar does not take it from an open one.
-        if (!next.open && prev && prev.open && prev.owner !== next.owner)
-          return prev;
+      clears.current.set(next.owner, clear);
+      setBar((prev) => {
+        const old = prev.claims.get(next.owner);
+        // A closed claim that never opened asks for nothing.
+        if (!next.open && !old) return prev;
         if (
-          prev &&
-          prev.owner === next.owner &&
-          prev.open === next.open &&
-          prev.count === next.count &&
-          prev.label === next.label &&
-          prev.busy === next.busy
+          old &&
+          old.open === next.open &&
+          old.count === next.count &&
+          old.label === next.label &&
+          old.busy === next.busy
         )
           return prev;
-        return next;
+        const claims = new Map(prev.claims).set(next.owner, {
+          ...next,
+          seq: next.open && !old?.open ? ++seq.current : (old?.seq ?? 0),
+        });
+        return { claims, shown: pick(claims, prev.shown) };
       });
     },
-    release: (owner) =>
-      setState((prev) => (prev?.owner === owner ? null : prev)),
+    release: (owner) => {
+      clears.current.delete(owner);
+      setBar((prev) => {
+        if (!prev.claims.has(owner)) return prev;
+        const claims = new Map(prev.claims);
+        claims.delete(owner);
+        return { claims, shown: pick(claims, prev.shown) };
+      });
+    },
   }));
+  const state = bar.shown !== null ? (bar.claims.get(bar.shown) ?? null) : null;
+  const shown = bar.shown;
 
   return (
     <Ctx.Provider
@@ -107,7 +137,7 @@ export function ActionBarProvider({ children }: { children: ReactNode }) {
           count={state?.count ?? null}
           label={state?.label ?? "Actions"}
           busy={state?.busy}
-          onClear={() => onClear.current()}
+          onClear={() => (shown !== null ? clears.current.get(shown)?.() : undefined)}
           slotRef={setSlot}
           density={density}
           onDensity={setDensity}
@@ -146,17 +176,15 @@ export function useActionBar({
   const ctx = useContext(Ctx);
   const id = useId();
   const open = openProp ?? (count ?? 0) > 0;
-  const clear = useRef(onClear ?? (() => {}));
-  clear.current = onClear ?? (() => {});
+  const clear = useRef(onClear ?? (() => { }));
+  clear.current = onClear ?? (() => { });
   const [ownDensity, setOwnDensity] = useState<BarDensity>("normal");
 
   const api = ctx?.api;
-  const owns = ctx?.owner === id;
   useLayoutEffect(() => {
-    // An owner keeps its place while closing, so its actions stay on the bar as it slides away.
-    if (api && (open || owns))
-      api.claim({ owner: id, open, count, label, busy }, () => clear.current());
-  }, [api, owns, id, open, count, label, busy]);
+    // Every owner keeps its claim while mounted - a closing one keeps its actions on the bar as it slides away.
+    api?.claim({ owner: id, open, count, label, busy }, () => clear.current());
+  }, [api, id, open, count, label, busy]);
   useEffect(() => () => api?.release(id), [api, id]);
 
   if (!ctx) {

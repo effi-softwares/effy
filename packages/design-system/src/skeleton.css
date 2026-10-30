@@ -2,7 +2,7 @@
    is drawn by `@effy/web-kit/patterns` Skeletons in the consoles and customer-web's own skeleton kit; both
    use this one rule, so a placeholder has one look and one timing everywhere.
 
-   A bone waits 120ms, fades in, then pulses — so a quick read never flashes grey. Reduced motion
+   A bone waits 120ms, fades in, then pulses - so a quick read never flashes grey. Reduced motion
    (tokens.css) leaves it still. Flat fill only, no sweeping gradient (no gradients on the platform). */
 @keyframes effy-pulse {
   0%,

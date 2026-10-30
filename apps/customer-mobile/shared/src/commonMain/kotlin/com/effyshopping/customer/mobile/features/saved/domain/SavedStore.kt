@@ -90,7 +90,7 @@ class SavedStore(
         local.save(guest)
     }
 
-    /** How many the guest currently holds — the cap is checked against this. */
+    /** How many the guest currently holds - the cap is checked against this. */
     fun guestCount(): Int = guest.size
 
     /**

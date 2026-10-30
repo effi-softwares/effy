@@ -1,16 +1,16 @@
-# Phase 1 Data Model — 037 Platform Email Delivery
+# Phase 1 Data Model - 037 Platform Email Delivery
 
 **One forward-only Goose migration.** Two new tables in `public`. **No column is added to
-`public.customer`, `public.shop_staff` or `admin.staff`** — see [research.md](./research.md) R8 for
+`public.customer`, `public.shop_staff` or `admin.staff`** - see [research.md](./research.md) R8 for
 why the store is keyed by address rather than by person.
 
 Scaffold with `make db-new name=email_delivery`; the file lands as
-`db/migrations/<YYYYMMDDHHMMSS>_email_delivery.sql`. ⚠ Commit before `make db-up` — the 003 commit
+`db/migrations/<YYYYMMDDHHMMSS>_email_delivery.sql`. ⚠ Commit before `make db-up` - the 003 commit
 guard refuses otherwise.
 
 ---
 
-## `public.email_delivery_status` — the current conclusion, one row per address
+## `public.email_delivery_status` - the current conclusion, one row per address
 
 The thing screens and operators read. One row per address the platform has ever had an outcome for.
 
@@ -24,19 +24,19 @@ The thing screens and operators read. One row per address the platform has ever 
 | `last_event_at` | `timestamptz` | `NOT NULL` | When the outcome occurred (SES's timestamp, not ours). |
 | `last_message_id` | `text` | nullable | The SES message id, so an operator can correlate with CloudWatch. |
 | `bounce_count` | `integer` | `NOT NULL DEFAULT 0` | Repeat permanent failures. A second one after a repair means the repair did not hold. |
-| `complaint_count` | `integer` | `NOT NULL DEFAULT 0` | Kept separate — a complaint is not a bounce (FR-031). |
+| `complaint_count` | `integer` | `NOT NULL DEFAULT 0` | Kept separate - a complaint is not a bounce (FR-031). |
 | `repaired_at` | `timestamptz` | nullable | Set by the operator repair; cleared to `NULL` by any subsequent failure. |
 | `repaired_by` | `text` | nullable | The operator's `cognito_sub`. The audit row is authoritative; this is for the detail view. |
 | `created_at` | `timestamptz` | `NOT NULL DEFAULT now()` | |
 | `updated_at` | `timestamptz` | `NOT NULL DEFAULT now()` | |
 
 **Indexes**: the primary key covers lookup by address. One partial index for the console's default
-view — `CREATE INDEX email_delivery_status_attention_idx ON public.email_delivery_status
-(last_event_at DESC) WHERE state <> 'reachable';` — because the list that matters is *"who is
+view - `CREATE INDEX email_delivery_status_attention_idx ON public.email_delivery_status
+(last_event_at DESC) WHERE state <> 'reachable';` - because the list that matters is *"who is
 currently broken"*, which is a small subset of a table that is itself small.
 
 ⚠ **No foreign key to any person table**, deliberately. An address may bounce before its account is
-created, after it is deleted, or for an audience that has no platform record at all — the driver pool
+created, after it is deleted, or for an audience that has no platform record at all - the driver pool
 exists and `public.driver` still does not. A foreign key would make those events unrecordable, which is
 precisely the blindness this feature exists to end.
 
@@ -54,7 +54,7 @@ precisely the blindness this feature exists to end.
 
 Rules:
 
-- **`delivery` resets to `reachable`** and zeroes nothing else — the counts are history, the state is
+- **`delivery` resets to `reachable`** and zeroes nothing else - the counts are history, the state is
   now. A successful delivery is the only evidence that an address works.
 - **Only a *permanent* failure reaches `undeliverable`** (FR-029). Transient failures and delivery
   delays go to `soft_failing`, which is informational and gates nothing.
@@ -68,7 +68,7 @@ Rules:
 
 ---
 
-## `public.email_delivery_event` — the append-only log
+## `public.email_delivery_event` - the append-only log
 
 Every outcome SES reports, kept whether or not it changes the conclusion. This is what makes
 "when did this start?" answerable.
@@ -79,13 +79,13 @@ Every outcome SES reports, kept whether or not it changes the conclusion. This i
 | `address` | `citext` | `NOT NULL` |
 | `raw_address` | `text` | `NOT NULL` |
 | `event_type` | `text` | `NOT NULL`, `CHECK (event_type IN ('bounce','complaint','delivery','reject','delivery_delay'))` |
-| `sub_type` | `text` | nullable — `Permanent`/`Transient` + SES's sub-type, or the complaint feedback type |
+| `sub_type` | `text` | nullable - `Permanent`/`Transient` + SES's sub-type, or the complaint feedback type |
 | `reason` | `text` | nullable |
-| `message_id` | `text` | `NOT NULL` — SES's message id |
-| `occurred_at` | `timestamptz` | `NOT NULL` — SES's timestamp |
-| `received_at` | `timestamptz` | `NOT NULL DEFAULT now()` — ours |
+| `message_id` | `text` | `NOT NULL` - SES's message id |
+| `occurred_at` | `timestamptz` | `NOT NULL` - SES's timestamp |
+| `received_at` | `timestamptz` | `NOT NULL DEFAULT now()` - ours |
 
-**Idempotency (FR-028 in the spec's numbering — the "consumer must be idempotent" rule):**
+**Idempotency (FR-028 in the spec's numbering - the "consumer must be idempotent" rule):**
 
 ```sql
 CREATE UNIQUE INDEX email_delivery_event_idem_idx
@@ -94,14 +94,14 @@ CREATE UNIQUE INDEX email_delivery_event_idem_idx
 
 The consumer inserts with `ON CONFLICT DO NOTHING` and **only updates the status row when the insert
 actually inserted a row**. SES event publishing is explicitly at-least-once, unordered, and may
-duplicate — so a redelivered bounce must not increment `bounce_count` twice.
+duplicate - so a redelivered bounce must not increment `bounce_count` twice.
 
 ⚠ **One message can legitimately produce several events** (`delivery_delay` then `bounce`, or
 `delivery` then `complaint`), which is why the key is `(message_id, event_type, address)` and not
 `message_id` alone.
 
 **Index**: `CREATE INDEX email_delivery_event_address_idx ON public.email_delivery_event (address,
-occurred_at DESC);` — the detail view's only query.
+occurred_at DESC);` - the detail view's only query.
 
 **Retention**: none in this slice. The table grows by one row per message and the platform sends
 single-digit volumes per day. ⚠ Recorded as a carry-forward rather than solved prematurely: at real
@@ -110,7 +110,7 @@ measure.
 
 ---
 
-## Ordering conclusion — how a person's state is derived
+## Ordering conclusion - how a person's state is derived
 
 There is no per-person column. The console and the account read join:
 
@@ -126,7 +126,7 @@ SELECT c.*, s.state, s.reason, s.last_event_at
 
 ⚠ **The staff joins are weaker and this is stated rather than hidden**: `public.shop_staff.email` is
 `text`, **nullable**, with **no unique constraint and no index**; `admin.staff.email` is `text NOT
-NULL` with no index. The console therefore matches them with `lower(email) = lower($1)` — a sequential
+NULL` with no index. The console therefore matches them with `lower(email) = lower($1)` - a sequential
 scan over tables holding tens of rows, which is fine now and would not be at scale. **No index is
 added here**: adding a functional index to two tables this feature does not otherwise touch is scope
 creep, and the honest note is more useful than a speculative index. Carry-forward.
@@ -138,7 +138,7 @@ created, by this feature.
 
 ---
 
-## Shared contract delta — `packages/shared-types/src/customer.ts`
+## Shared contract delta - `packages/shared-types/src/customer.ts`
 
 ```ts
 /** How reliably the platform can reach this account's email address. */
@@ -154,7 +154,7 @@ export interface CustomerDTO {
    * Present only on the authenticated account read. ⚠ MUST NOT be exposed on any
    * unauthenticated surface: delivery state is only knowable for an address the
    * platform has emailed, so disclosing it answers "does this address have an
-   * account?" — see plan.md § Spec Amendments (FR-030/FR-030a).
+   * account?" - see plan.md § Spec Amendments (FR-030/FR-030a).
    */
   emailDelivery: EmailDeliveryState;
 }
@@ -173,9 +173,9 @@ noise at best and alarming at worst.
 
 | Not built | Why |
 | --- | --- |
-| A per-person `email_delivery_status` column | R8 — three inconsistent email columns, and nowhere to put a driver |
+| A per-person `email_delivery_status` column | R8 - three inconsistent email columns, and nowhere to put a driver |
 | A foreign key to `customer`/`shop_staff`/`admin.staff` | Would make events unrecordable exactly when they matter most |
-| A mirror of the SES suppression list | It is queryable on demand and would be a second source of truth that can disagree with the first — the same defect 027 avoided by counting redemptions instead of storing a counter |
+| A mirror of the SES suppression list | It is queryable on demand and would be a second source of truth that can disagree with the first - the same defect 027 avoided by counting redemptions instead of storing a counter |
 | An `email_delivery_status` row created at sign-up | Rows appear on first outcome. A table of "reachable" rows for every account is a table that says nothing |
 | Retention / archival | Nothing to measure yet; carry-forward |
-| Suppression state cached in DynamoDB for the send path | R7 — the send path does not branch, so there is nothing to cache |
+| Suppression state cached in DynamoDB for the send path | R7 - the send path does not branch, so there is nothing to cache |

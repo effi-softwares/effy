@@ -35,7 +35,7 @@ import com.effyshopping.customer.mobile.features.checkout.domain.words
 
 /**
  * Documents: the delivery note, what was supplied line by line, once the order has arrived,
- * and its PDF to save or share. Digital only — there is no paper note in the bag.
+ * and its PDF to save or share. Digital only - there is no paper note in the bag.
  *
  * No prices, and nothing about how the order was filled (the server merges the lines).
  */
@@ -52,7 +52,7 @@ internal fun OrderDocumentsSection(container: AppContainer, orderId: String) {
             Text("Documents", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
             val ready = state as? OrderDocumentsViewModel.State.Ready
             if (ready != null) {
-                // 48dp tall — the minimum target.
+                // 48dp tall - the minimum target.
                 EffyTextLink(
                     if (ready.downloading) "Getting PDF…" else "Delivery note PDF",
                     enabled = !ready.downloading,
@@ -172,7 +172,7 @@ private fun BusinessIdentitySheet(vm: OrderDocumentsViewModel, onDone: (String) 
         },
     ) {
         Text(
-            "Add these before you get the invoice — an issued invoice can't be changed.",
+            "Add these before you get the invoice - an issued invoice can't be changed.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

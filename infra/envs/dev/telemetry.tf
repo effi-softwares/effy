@@ -14,7 +14,7 @@ resource "aws_ssm_parameter" "telemetry_posthog_host" {
   tier  = "Standard"
 }
 
-# The PostHog project API key (phc_...). Client-embeddable / public-safe — not a secret.
+# The PostHog project API key (phc_...). Client-embeddable / public-safe - not a secret.
 resource "aws_ssm_parameter" "telemetry_posthog_project_key" {
   count = var.posthog_project_key != "" ? 1 : 0
   name  = "/effy/${var.env}/telemetry/posthog_project_key"
@@ -24,7 +24,7 @@ resource "aws_ssm_parameter" "telemetry_posthog_project_key" {
 }
 
 # Platform-wide analytics kill switch. Gates client analytics init before any SDK loads.
-# Scope is analytics only — crash reporting and push are unaffected (spec clarification Q3).
+# Scope is analytics only - crash reporting and push are unaffected (spec clarification Q3).
 resource "aws_ssm_parameter" "telemetry_enabled" {
   name  = "/effy/${var.env}/telemetry/enabled"
   type  = "String"

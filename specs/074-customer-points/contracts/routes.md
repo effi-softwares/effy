@@ -3,14 +3,14 @@
 **Feature**: 074-customer-points. Every DTO below is added to `@effy/shared-types` (new file
 `packages/shared-types/src/points.ts`, plus fields on `checkout.ts`, `order.ts`, `order-admin.ts`,
 `refund.ts`) and mirrored in the Kotlin contract (`packages/shared-types/contract/CommerceDto.kt`,
-`CustomerDto` equivalent) — Principle II. Money is a decimal string (`"12.50"`) as everywhere else;
+`CustomerDto` equivalent) - Principle II. Money is a decimal string (`"12.50"`) as everywhere else;
 points are integers.
 
 Errors are RFC 9457 problems (`@effy/edge-shared` `problem()`), with the `code` named below.
 
 ---
 
-## Customer — service `customer` (customer pool)
+## Customer - service `customer` (customer pool)
 
 ### `GET /customer/v1/points?cursor=…&limit=20`
 
@@ -40,14 +40,14 @@ The balance **and** a page of history, in one answer (`CustomerPointsDTO`).
 }
 ```
 
-⚠ No `note`, no author identity — internal to back-office.
+⚠ No `note`, no author identity - internal to back-office.
 
 > **As built (2026-10-08):** planned as two routes (`/points` and `/points/history`). They were merged
 > when the first dev deploy failed: the shared gateway was at **299 of 300 routes and 299 of 300
 > integrations**, so a second route could not be created. `cursor` pages the history; the balance is
 > always the current one.
 
-### `GET /customer/v1/closure` (existing) — adds
+### `GET /customer/v1/closure` (existing) - adds
 
 ```json
 { "pointsHeld": 1250, "pointsValueAmount": "12.50" }
@@ -55,9 +55,9 @@ The balance **and** a page of history, in one answer (`CustomerPointsDTO`).
 
 ---
 
-## Checkout — service `commerce` (customer pool)
+## Checkout - service `commerce` (customer pool)
 
-### `POST /commerce/v1/checkout/quote` (existing) — response adds
+### `POST /commerce/v1/checkout/quote` (existing) - response adds
 
 ```json
 {
@@ -74,7 +74,7 @@ Omitted entirely when `usable` is 0 (clients then hide the control).
 > be made, so the client works out the most it can offer (web), or sends the balance and retries once
 > with the `maxPoints` a refusal returns (mobile). The intent call re-decides it either way.
 
-### `POST /commerce/v1/checkout/intent` (existing) — request adds
+### `POST /commerce/v1/checkout/intent` (existing) - request adds
 
 ```json
 { "pointsToUse": 1250 }          // integer >= 0; absent = 0
@@ -101,9 +101,9 @@ New refusals (nothing is written when refused):
 | 409 | `points_balance_changed` | `usable` | more points asked than are usable now |
 | 422 | `points_exceed_total` | `maxPoints` | more points than the order total |
 | 422 | `points_card_remainder_too_small` | `maxPoints` | card remainder between 0 and the provider minimum |
-| 409 | `payment_in_progress` | — | switching to points-only while an earlier card payment for this order is already paid or authenticating |
+| 409 | `payment_in_progress` | - | switching to points-only while an earlier card payment for this order is already paid or authenticating |
 
-### Order reads (existing `GET /commerce/v1/orders/{id}`, list) — add
+### Order reads (existing `GET /commerce/v1/orders/{id}`, list) - add
 
 ```json
 {
@@ -116,7 +116,7 @@ New refusals (nothing is written when refused):
 
 ---
 
-## Back-office — service `orders` (admin pool)
+## Back-office - service `orders` (admin pool)
 
 Gates per `orders/src/lib/guard.ts`: **read** = any active staff (incl. csa); **write** as stated.
 
@@ -144,7 +144,7 @@ Returns at most 20:
 As the customer history, plus staff-only fields per entry: `reason`, `note`, `authorKind`,
 `authorName` (staff display name or flow name), `refundId`.
 
-### `POST /orders/v1/customers/{customerId}/points/credit` — staff (csa within limit)
+### `POST /orders/v1/customers/{customerId}/points/credit` - staff (csa within limit)
 
 ```json
 { "points": 500, "reason": "late_delivery", "note": "", "orderId": "…" }
@@ -158,26 +158,26 @@ As the customer history, plus staff-only fields per entry: `reason`, `note`, `au
 | 403 | `over_agent_limit` (+ `limit`) | csa above `csa_credit_limit_points` |
 | 404 | `order_not_found` | the order is not this customer's (same answer as no such order) |
 
-### `POST /orders/v1/customers/{customerId}/points/debit` — admin, manager
+### `POST /orders/v1/customers/{customerId}/points/debit` - admin, manager
 
 ```json
 { "points": 500, "reason": "credited_in_error", "note": "" }
 ```
 → `201 { "entryId": "…", "usable": 750 }` · `409 insufficient_points` (+ `usable`).
 
-### `GET /orders/v1/points/settings` — any staff · `PUT /orders/v1/points/settings` — admin
+### `GET /orders/v1/points/settings` - any staff · `PUT /orders/v1/points/settings` - admin
 
 ```json
 { "centsPerPoint": 1, "expiryMonths": 12, "csaCreditLimitPoints": 2000, "warningDays": 30, "holdMinutes": 30 }
 ```
 PUT takes any subset; each changed field writes one `points_settings_change` row.
 
-### Order detail (existing `GET /orders/v1/orders/{orderId}`) — adds the same `payment` block as the
+### Order detail (existing `GET /orders/v1/orders/{orderId}`) - adds the same `payment` block as the
 customer read, and each refund row gains `cardAmount`, `pointsReturned`.
 
 ---
 
-## Shared library — `@effy/edge-shared/points`
+## Shared library - `@effy/edge-shared/points`
 
 The only writers of the points tables. Signatures (TypeScript, abridged):
 

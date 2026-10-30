@@ -31,7 +31,7 @@ const services = readdirSync(edgeApi).filter((d) => {
   }
 });
 
-describe("P10 — the refusal is written once", () => {
+describe("P10 - the refusal is written once", () => {
   /** The one file that may hold it, and its app mirror (held by coverage-words.test.ts). */
   const HOLDERS = new Set([
     "packages/shared-types/src/delivery.ts",
@@ -66,7 +66,7 @@ describe("P10 — the refusal is written once", () => {
         return REFUSAL.test(code);
       })
       .map(rel);
-    expect(strays, `these write their own "can't deliver" wording — import COVERAGE_REFUSAL_SENTENCE (or CoverageWords.REFUSAL) instead:\n  ${strays.join("\n  ")}`).toEqual([]);
+    expect(strays, `these write their own "can't deliver" wording - import COVERAGE_REFUSAL_SENTENCE (or CoverageWords.REFUSAL) instead:\n  ${strays.join("\n  ")}`).toEqual([]);
   });
 
   it("the holders do hold it", () => {
@@ -74,7 +74,7 @@ describe("P10 — the refusal is written once", () => {
   });
 });
 
-describe("P11 — a customer is told who delivers, never why", () => {
+describe("P11 - a customer is told who delivers, never why", () => {
   const types = resolve(repo, "packages/shared-types/src");
   const CUSTOMER_CONTRACTS = ["delivery.ts", "address.ts", "checkout.ts", "storefront.ts", "customer.ts", "customer-contract.ts", "customer-commerce-contract.ts", "order.ts", "cart.ts"];
   /** Staff-only words that must never sit beside a coverage answer on a customer contract. */
@@ -85,20 +85,20 @@ describe("P11 — a customer is told who delivers, never why", () => {
     expect(STAFF_ONLY.exec(code)?.[0], `${file} would tell a customer something only staff may know`).toBeUndefined();
   });
 
-  it("and the staff contract is where those fields live — the guard is not vacuous", () => {
+  it("and the staff contract is where those fields live - the guard is not vacuous", () => {
     expect(readFileSync(resolve(types, "delivery-admin.ts"), "utf8")).toMatch(STAFF_ONLY);
   });
 });
 
-describe("P12 — coverage is decided in one place", () => {
+describe("P12 - coverage is decided in one place", () => {
   /** Files that may name the list's table, each for a reason other than deciding coverage: */
   const MAY_READ_THE_LIST: Record<string, string> = {
     "apis/edge-api/admin/src/delivery/coverage.repository.ts": "maintains the list (add, remove, group, distance)",
     "apis/edge-api/admin/src/delivery/repository.ts": "recalculates distances when the hub moves",
-    "apis/edge-api/shared/src/testing/migrations.ts": "TEST SUPPORT only — the fixture statement that lists a postcode for services forbidden to name its distance column",
+    "apis/edge-api/shared/src/testing/migrations.ts": "TEST SUPPORT only - the fixture statement that lists a postcode for services forbidden to name its distance column",
     "apis/edge-api/fleet/src/planner/sql.ts": "which GROUP a delivery belongs to, for driver clearances (082: a clearance is a function and a group, or everywhere)",
     "apis/edge-api/fleet/src/dispatch/sql.ts": "which GROUP a delivery belongs to, for the dispatch board",
-    "apis/edge-api/fleet/src/dispatch/windows.ts": "which GROUP a parcel's address is in, on dispatch's day view (082) — a name to read, never a coverage decision",
+    "apis/edge-api/fleet/src/dispatch/windows.ts": "which GROUP a parcel's address is in, on dispatch's day view (082) - a name to read, never a coverage decision",
   };
 
   const readers = services
@@ -110,10 +110,10 @@ describe("P12 — coverage is decided in one place", () => {
 
   it("only the allowed files read the list's table", () => {
     const extra = readers.filter((f) => !(f in MAY_READ_THE_LIST));
-    expect(extra, `these read public.delivery_zone_postcode directly — ask coverageForPostcode() instead, or add the file to MAY_READ_THE_LIST with the reason it is not deciding coverage:\n  ${extra.join("\n  ")}`).toEqual([]);
+    expect(extra, `these read public.delivery_zone_postcode directly - ask coverageForPostcode() instead, or add the file to MAY_READ_THE_LIST with the reason it is not deciding coverage:\n  ${extra.join("\n  ")}`).toEqual([]);
   });
 
-  it("every allowance is still used — none outlives its reason", () => {
+  it("every allowance is still used - none outlives its reason", () => {
     const unused = Object.keys(MAY_READ_THE_LIST).filter((f) => !readers.includes(f));
     expect(unused).toEqual([]);
   });

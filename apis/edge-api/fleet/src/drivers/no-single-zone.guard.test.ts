@@ -33,7 +33,7 @@ function withoutComments(src: string): string {
     .replace(/--[^\n]*/g, "");
 }
 
-describe("FR-024 — a driver has no single zone", () => {
+describe("FR-024 - a driver has no single zone", () => {
   it("⚠ no fleet or driver-console source reads driver.delivery_zone_id", () => {
     const offenders: string[] = [];
 

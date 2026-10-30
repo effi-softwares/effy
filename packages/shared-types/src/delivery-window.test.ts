@@ -34,7 +34,7 @@ describe("formatArrival", () => {
     });
   }
 
-  it("ignores a window with only one end — half a window is not a promise", () => {
+  it("ignores a window with only one end - half a window is not a promise", () => {
     const now = new Date("2026-10-08T09:00:00+11:00");
     expect(
       formatArrival(

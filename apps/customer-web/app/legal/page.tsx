@@ -7,7 +7,7 @@ import { Breadcrumb } from "@/components/ui/misc"
 
 export const metadata: Metadata = {
   title: "Legal",
-  description: "Effy's legal and informational documents — privacy, terms, refunds and more.",
+  description: "Effy's legal and informational documents - privacy, terms, refunds and more.",
 }
 
 /**
@@ -60,7 +60,7 @@ export default function LegalIndexPage() {
         ))}
       </ul>
       <p className="mt-8 text-sm text-muted-foreground">
-        Every document keeps its earlier versions — open one and choose Version history.{" "}
+        Every document keeps its earlier versions - open one and choose Version history.{" "}
         <Link href="/about" className="underline underline-offset-2">
           About Effy
         </Link>{" "}

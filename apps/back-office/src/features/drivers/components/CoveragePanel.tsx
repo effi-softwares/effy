@@ -53,7 +53,7 @@ export function CoveragePanel() {
             <p className="text-sm font-medium">{zoneName}</p>
             {zoneGaps.map((g) => (
               <p key={g.function} className="text-sm text-muted-foreground">
-                {FUNCTION_SHORT[g.function]} —{" "}
+                {FUNCTION_SHORT[g.function]} -{" "}
                 <span className="text-foreground">{COVERAGE_REASON_LABEL[g.reason]}</span>
                 {g.clearedDriverCount > 0 ? <span> ({g.clearedDriverCount} cleared, none available)</span> : null}
               </p>

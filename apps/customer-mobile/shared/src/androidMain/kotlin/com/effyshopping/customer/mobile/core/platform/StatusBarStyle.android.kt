@@ -14,7 +14,7 @@ actual fun StatusBarIcons(lightIcons: Boolean) {
     DisposableEffect(view, lightIcons) {
         val window = view.context.findActivity()?.window
         val controller = window?.let { WindowCompat.getInsetsController(it, view) }
-        // "Appearance light" means dark icons (for a light background) — hence the inversion.
+        // "Appearance light" means dark icons (for a light background) - hence the inversion.
         controller?.isAppearanceLightStatusBars = !lightIcons
         controller?.isAppearanceLightNavigationBars = !lightIcons
         // No reset on dispose: whoever composes next (the app after the intro) sets its own.

@@ -58,7 +58,7 @@ describe("CustomerDTO wire contract", () => {
     )
 
     const block = /data class CustomerDTO \(([\s\S]*?)\n\)/.exec(dtoKt)
-    expect(block, "CustomerDTO not found in the generated Kotlin — did the aggregator drop it?")
+    expect(block, "CustomerDTO not found in the generated Kotlin - did the aggregator drop it?")
       .not.toBeNull()
 
     const body = block![1]!

@@ -177,7 +177,7 @@ internal fun LegalDocumentBody(
 }
 
 /**
- * A single line of inline markdown with clickable document links — for point-of-decision consent
+ * A single line of inline markdown with clickable document links - for point-of-decision consent
  * text (checkout, sign-up). Internal `/legal/<slug>` links navigate in-app; external open the browser.
  */
 @Composable

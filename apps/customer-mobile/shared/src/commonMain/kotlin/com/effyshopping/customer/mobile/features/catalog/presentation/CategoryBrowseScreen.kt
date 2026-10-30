@@ -46,7 +46,7 @@ import org.jetbrains.compose.resources.painterResource
 /**
  * The category tree, one level per pushed page (101, FR-033): a department's aisles, an aisle's shelves, down to
  * five levels. A category with sub-categories opens the next level; a leaf, or "All in …", opens Search scoped
- * to it. A list of rows — never cards — each with its icon and how many products it holds.
+ * to it. A list of rows - never cards - each with its icon and how many products it holds.
  */
 @Composable
 fun CategoryBrowseScreen(
@@ -94,7 +94,7 @@ fun CategoryBrowseScreen(
     }
 }
 
-/** The aisle list before it reads: rows laid out as [BrowseRow] lays them out — round icon, name, count. */
+/** The aisle list before it reads: rows laid out as [BrowseRow] lays them out - round icon, name, count. */
 @Composable
 private fun BrowseSkeleton() {
     val type = MaterialTheme.typography

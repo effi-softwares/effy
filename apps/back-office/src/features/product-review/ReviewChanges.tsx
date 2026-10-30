@@ -71,7 +71,7 @@ export function useDiffLayout() {
 }
 
 /**
- * What a change touches, field by field: as it is live and as proposed — side by side or in one column (as a code
+ * What a change touches, field by field: as it is live and as proposed - side by side or in one column (as a code
  * review reads a diff). A long text marks the words removed and added; a shop price says how far it moves. Each field
  * links to the section of the page where it is marked.
  */
@@ -87,7 +87,7 @@ export function ReviewChanges({
   const rows = [
     ...changes,
     ...(picturesChanged
-      ? [{ field: "pictures", label: "Pictures", before: "As they are on sale", after: "A new set — see Pictures" }]
+      ? [{ field: "pictures", label: "Pictures", before: "As they are on sale", after: "A new set - see Pictures" }]
       : []),
   ]
   if (rows.length === 0)

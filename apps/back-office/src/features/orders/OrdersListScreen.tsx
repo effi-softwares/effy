@@ -102,7 +102,7 @@ const columns: EffyColumnDef<OrderSummary>[] = [
   {
     id: "status",
     header: "Status",
-    cell: ({ row }) => (row.original.statusView ? <PackageStatusPill view={row.original.statusView} showDetail={false} icons /> : "—"),
+    cell: ({ row }) => (row.original.statusView ? <PackageStatusPill view={row.original.statusView} showDetail={false} icons /> : "-"),
     meta: { label: "Status", phone: "badge" },
   },
   {
@@ -237,7 +237,7 @@ function DriverCell({ order }: { order: OrderSummary }) {
       {names.length > 0 ? (
         <span className="whitespace-nowrap">{names.join(" → ")}</span>
       ) : !order.needsDriver ? (
-        <span className="text-muted-foreground">—</span>
+        <span className="text-muted-foreground">-</span>
       ) : null}
       {order.needsDriver ? (
         <Badge variant="outline">

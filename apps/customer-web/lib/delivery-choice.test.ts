@@ -35,7 +35,7 @@ const COURIER: DeliveryQuoteDTO = {
 const NONE: DeliveryQuoteDTO = { postcode: "9999", serviced: false, coverage: "none", expiresAt: "" }
 
 describe("what a quote offers", () => {
-  it("Effy's windows, a courier, or nothing — and who delivers follows from it", () => {
+  it("Effy's windows, a courier, or nothing - and who delivers follows from it", () => {
     expect(effyWindowsOf(EFFY)?.days).toHaveLength(2)
     expect(courierOf(EFFY)).toBeNull()
     expect(deliveryTypeOf(EFFY)).toBe("effy")
@@ -63,12 +63,12 @@ describe("what a quote offers", () => {
   })
 })
 
-describe("chosenFee — one fee for the order, picked and never added to", () => {
+describe("chosenFee - one fee for the order, picked and never added to", () => {
   it("nothing to show until a window is chosen; then exactly that window's fee", () => {
     expect(chosenFee(EFFY, null)).toBeNull()
     expect(chosenFee(EFFY, { slotId: "evening", date: TODAY })).toEqual(fee("11.00", "5.00"))
     expect(chosenFee(EFFY, { slotId: "evening", date: LATER })).toEqual(fee("6.00"))
-    // A window that is no longer offered has no fee — never the nearest one's.
+    // A window that is no longer offered has no fee - never the nearest one's.
     expect(chosenFee(EFFY, { slotId: "evening", date: "2026-10-12" })).toBeNull()
   })
 
@@ -104,7 +104,7 @@ describe("carrying the window across a new quote", () => {
   })
 })
 
-describe("holdLapsed — must the place be renewed before paying?", () => {
+describe("holdLapsed - must the place be renewed before paying?", () => {
   const until = "2026-10-08T15:10:00+11:00"
   const at = (iso: string) => Date.parse(iso)
 
@@ -125,7 +125,7 @@ describe("holdLapsed — must the place be renewed before paying?", () => {
   })
 })
 
-describe("085 — a day with no time, and as soon as possible", () => {
+describe("085 - a day with no time, and as soon as possible", () => {
   const ANY = { ...win("anytime", LATER, "6.00"), startAt: `${LATER}T12:00:00+11:00`, endAt: `${LATER}T21:00:00+11:00` }
   const ASAP_FEE = fee("6.00")
   const Q: DeliveryQuoteDTO = {
@@ -153,7 +153,7 @@ describe("085 — a day with no time, and as soon as possible", () => {
     expect(promiseOf(Q, { asap: true })).toBe("asap")
   })
 
-  it("each is kept across a new quote only while it is still offered — never replaced", () => {
+  it("each is kept across a new quote only while it is still offered - never replaced", () => {
     expect(carryWindow(Q, day)).toBe(day)
     expect(carryWindow(EFFY, day)).toBeNull()
     expect(carryWindow(Q, { asap: true })).toEqual({ asap: true })

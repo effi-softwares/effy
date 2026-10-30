@@ -35,10 +35,10 @@ import { UnitPrice } from "../_components/UnitPrice"
 import { PromoField } from "./PromoField"
 
 /**
- * The cart. One unified Effy order that pays once — but now shown package-aware: items are
+ * The cart. One unified Effy order that pays once - but now shown package-aware: items are
  * grouped into anonymous packages (one per fulfilling shop), so the customer sees the multi-delivery
- * split early. Never a shop name, code, or location — only a positional "Package N". Prices
- * and windows are absent here (delivery is geographic and needs an address — it is quoted at checkout).
+ * split early. Never a shop name, code, or location - only a positional "Package N". Prices
+ * and windows are absent here (delivery is geographic and needs an address - it is quoted at checkout).
  * A single-package cart shows no artificial "Package 1 of 1" framing.
  */
 export default function CartPage() {
@@ -298,7 +298,7 @@ function CartLineRow({ line }: { line: GuestCartLine }) {
         {line.available === false ? (
           <span className="mt-1 flex items-center gap-2 text-xs font-medium">
             <CircleAlert aria-hidden="true" className="size-4" />
-            Unavailable — not included in your total
+            Unavailable - not included in your total
           </span>
         ) : null}
 
@@ -352,7 +352,7 @@ function SavedLineRow({ line }: { line: GuestCartLine }) {
         <Link href={lineHref(line)} className="text-sm font-medium hover:underline">
           {line.name}
           {line.variantLabel ? <span className="font-normal text-muted-foreground"> · {line.variantLabel}</span> : null}
-            {line.ageRestricted ? <AgeBadge className="ml-2 align-middle" /> : null}
+          {line.ageRestricted ? <AgeBadge className="ml-2 align-middle" /> : null}
         </Link>
         <span className="text-sm text-muted-foreground">{formatMoney(line.unitPriceAmount, line.currency)} each</span>
         <div className="mt-3 flex flex-wrap items-center gap-4">

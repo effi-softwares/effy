@@ -50,14 +50,14 @@ export function RefundBlock({
 const STATE_LABEL: Record<CustomerRefundDTO["state"], string> = {
   on_its_way: "On its way back to you",
   completed: "Refunded",
-  there_was_a_problem: "There was a problem — we’re looking into it",
+  there_was_a_problem: "There was a problem - we’re looking into it",
 }
 
 /** The published refund policy's own sentence. It promises no credit line: an early refund often shows as a reversal. */
 function RefundTiming() {
   return (
     <p className="text-xs text-muted-foreground">
-      Refunds go back to the card or payment method you paid with, usually within a few business days —
+      Refunds go back to the card or payment method you paid with, usually within a few business days -
       though when it appears depends on your bank. It may show as the original charge disappearing
       rather than as a separate credit.
     </p>

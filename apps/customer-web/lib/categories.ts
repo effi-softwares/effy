@@ -19,14 +19,14 @@ async function readCategories(): Promise<StorefrontCategoryDTO[]> {
 }
 
 /**
- * The aisle list, asked for at most once per render however many components want it — React's
+ * The aisle list, asked for at most once per render however many components want it - React's
  * `cache` collapses the header's four readers and the home page into one lookup.
  *
  * Throws when the catalogue is unreachable (a failure is never kept). Chrome callers catch and
- * render without aisles — a header must never take the page down with it.
+ * render without aisles - a header must never take the page down with it.
  */
 export const getCategories = cache(async (): Promise<StorefrontCategoryDTO[]> => {
-  await connection() // request time only — see `atRequestTime` in lib/cache-life.ts
+  await connection() // request time only - see `atRequestTime` in lib/cache-life.ts
   return readCategories()
 })
 

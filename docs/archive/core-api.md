@@ -1,8 +1,8 @@
-# `core-api` — the retired Go backend (reference archive)
+# `core-api` - the retired Go backend (reference archive)
 
 **Retired by feature 070 on 2026-10-05.** This document is what remains of it: how it was built,
-with what, and where each part went. It exists so the design can be consulted — or the code
-recovered — without the source sitting in the tree looking live.
+with what, and where each part went. It exists so the design can be consulted - or the code
+recovered - without the source sitting in the tree looking live.
 
 > ⚠ **This is history, not guidance.** The platform has one backend: the serverless TypeScript
 > services under `apis/edge-api/`. Every new endpoint goes there
@@ -18,13 +18,13 @@ The source was deleted from the working tree, not from history.
 | The Go service, `apis/core-api/` | `4ea9307a` | `git show 4ea9307a:apis/core-api/README.md` · `git checkout 4ea9307a -- apis/core-api` to restore the whole tree |
 | Its Terraform (`infra/envs/dev/core-api.tf`, `infra/modules/ecs-fargate-web-service/`) | `51fee42f` | `git show 51fee42f:infra/envs/dev/core-api.tf` |
 | Its Make targets (`core-run`, `core-test`, `core-image-push`, `core-deploy`, …) | `51fee42f` | `git show 51fee42f:Makefile` |
-| The feature that deployed it | — | [specs/040-core-api-deploy](../../specs/040-core-api-deploy/) |
-| The feature that retired it, and the full route-by-route inventory | — | [specs/070-retire-core-api](../../specs/070-retire-core-api/) — `migration-inventory.md`, `contracts/api-migration.md` |
+| The feature that deployed it | - | [specs/040-core-api-deploy](../../specs/040-core-api-deploy/) |
+| The feature that retired it, and the full route-by-route inventory | - | [specs/070-retire-core-api](../../specs/070-retire-core-api/) - `migration-inventory.md`, `contracts/api-migration.md` |
 
 ## What it was
 
-The "hot path": an always-on HTTP service that carried all **shopper** traffic — catalogue, search,
-cart, saved items, checkout, payment, a shopper's orders, refunds and cancellation — while the
+The "hot path": an always-on HTTP service that carried all **shopper** traffic - catalogue, search,
+cart, saved items, checkout, payment, a shopper's orders, refunds and cancellation - while the
 serverless "cold path" carried staff, shop and driver traffic. 52 routes at retirement.
 
 It was retired for three reasons, in the operator's order of weight: it cost money every hour
@@ -38,10 +38,10 @@ having it rested on a measurement taken from a laptop, never in-region.
 |---|---|---|
 | Language | Go | 1.25 |
 | HTTP | Gin (`gin-gonic/gin`), `gin-contrib/cors` | 1.12 / 1.7 |
-| Database | PostgreSQL 16 through `jackc/pgx/v5` (`pgxpool`) — raw SQL, no ORM | 5.10 |
+| Database | PostgreSQL 16 through `jackc/pgx/v5` (`pgxpool`) - raw SQL, no ORM | 5.10 |
 | Auth | Cognito JWTs verified in-process: `golang-jwt/jwt/v5` + `MicahParks/keyfunc/v3` (JWKS cache) | 5.3 / 3.8 |
 | Payments | `stripe/stripe-go/v82` (API version `2025-08-27.basil`) | 82.5 |
-| AWS | `aws-sdk-go-v2` — S3 (presigned image reads), Cognito identity provider (admin bootstrap) | 1.42 |
+| AWS | `aws-sdk-go-v2` - S3 (presigned image reads), Cognito identity provider (admin bootstrap) | 1.42 |
 | Config | `caarlos0/env/v11` struct tags; `joho/godotenv` for local only | 11.4 |
 | Logging | `go.uber.org/zap`, one JSON line per request | 1.28 |
 | Metrics | `prometheus/client_golang`, custom registry, `/metrics` | 1.23 |
@@ -49,7 +49,7 @@ having it rested on a measurement taken from a laptop, never in-region.
 | IDs | `google/uuid` (incl. UUIDv5 for derived change ids) | 1.6 |
 | Tests | `stretchr/testify`; `testcontainers-go` + its Postgres module for real-database suites | 1.11 / 0.43 |
 | Local dev | Docker Compose + `air` live reload | air 1.65 |
-| Image | multi-stage: `golang:1.25-bookworm` → `gcr.io/distroless/static-debian12:nonroot`, `CGO_ENABLED=0`, `-trimpath -ldflags="-s -w"`, linux/arm64 | — |
+| Image | multi-stage: `golang:1.25-bookworm` → `gcr.io/distroless/static-debian12:nonroot`, `CGO_ENABLED=0`, `-trimpath -ldflags="-s -w"`, linux/arm64 | - |
 
 No DI framework, no ORM, no code generation, no mocking library (fakes were written by hand).
 
@@ -64,7 +64,7 @@ apis/core-api/
 │   ├── delete-admin/             operator tool   → now apis/edge-api/ops
 │   └── load-localities/          operator tool   → now apis/edge-api/ops
 ├── internal/
-│   ├── platform/                 shared infrastructure — never domain logic
+│   ├── platform/                 shared infrastructure - never domain logic
 │   │   ├── config/               env struct, fail-fast; DSN assembly
 │   │   ├── logger/               zap build + request-scoped FromContext / WithContext
 │   │   ├── db/                   the one pgxpool + the DBTX seam repositories depend on
@@ -93,7 +93,7 @@ apis/core-api/
 │   │   ├── refunds/              issue, cancel, refund requests, provider events, stock return
 │   │   ├── shoplive/             server-sent events for the shop console (LISTEN/NOTIFY hub)
 │   │   ├── notifications/        notification-intent producer
-│   │   ├── platformstatus/       the proving read (v1 + v2 shapes) — the feature to copy
+│   │   ├── platformstatus/       the proving read (v1 + v2 shapes) - the feature to copy
 │   │   └── customerping/         identity-enforcement proof
 │   └── adminbootstrap/           first-admin create / delete (Cognito + admin.staff)
 ├── Dockerfile  docker-compose.yml  .air.toml  .env.example
@@ -121,11 +121,11 @@ imports a feature except `main.go`, where every dependency is constructed by han
   CORS (explicit origin allow-list), then per-group auth middleware.
 - **Auth**: one JWT verifier per Cognito pool (customer, back-office, shop), built at startup and
   fail-closed. It verified an **access** token (`token_use == "access"`, `client_id` in the pool's
-  app clients) — unlike the gateway's authorizers, which check an ID token's audience. After the
+  app clients) - unlike the gateway's authorizers, which check an ID token's audience. After the
   token, the platform's own record decided access: `customeridentity` for shoppers, `StaffGate`
   for back-office, `ShopGate` for a shop manager. "Could not check" was 503; "checked, no" was 403.
-- **Database**: one `pgxpool` — max 10 connections, min 2, 45-minute lifetime with jitter, 15-minute
-  idle, health check every minute — sized against a shared instance that accepts about 85.
+- **Database**: one `pgxpool` - max 10 connections, min 2, 45-minute lifetime with jitter, 15-minute
+  idle, health check every minute - sized against a shared instance that accepts about 85.
   Repositories took a `DBTX` interface so a service could own a transaction.
 - **Errors**: RFC 9457 `application/problem+json` everywhere, the same vocabulary as
   [docs/api/error-envelope.md](../api/error-envelope.md).
@@ -140,7 +140,7 @@ imports a feature except `main.go`, where every dependency is constructed by han
   `apis/edge-api/commerce` and `apis/edge-api/shared/src/payments`.
 - **Live updates**: one dedicated `LISTEN shop_ops` connection per task, an in-memory hub per shop,
   server-sent events to each open console, re-authorised every 15 minutes. This is the one
-  capability that was **not** carried over — it needs a standing server.
+  capability that was **not** carried over - it needs a standing server.
 
 ## Configuration (names only)
 
@@ -148,7 +148,7 @@ imports a feature except `main.go`, where every dependency is constructed by han
 `AWS_MEDIA_BUCKET`, `AUTH_CUSTOMER_POOL_ID` / `_CLIENT_ID`, `AUTH_BACK_OFFICE_*`, `AUTH_SHOP_*`,
 `CORS_ALLOWED_ORIGINS`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PUBLISHABLE_KEY`,
 `LOG_LEVEL`. Secrets were composed into the process environment at invocation from SSM and Secrets
-Manager — never written to a file in the repository.
+Manager - never written to a file in the repository.
 
 ## How it ran
 
@@ -164,7 +164,7 @@ Manager — never written to a file in the repository.
 |---|---|
 | `features/storefront` | `apis/edge-api/storefront` |
 | `features/cart`, `saveditems`, `checkout`, `orders` | `apis/edge-api/commerce` |
-| `features/refunds` (rules), payment finalisation, the Stripe gateway | `apis/edge-api/shared/src/payments` — called by `commerce`, `orders`, `shop` |
+| `features/refunds` (rules), payment finalisation, the Stripe gateway | `apis/edge-api/shared/src/payments` - called by `commerce`, `orders`, `shop` |
 | `features/refunds` back-office routes | `apis/edge-api/orders` |
 | `features/refunds` shop route, `auth.ShopGate` | `apis/edge-api/shop` |
 | `platform/delivery`, `cartpolicy` | `apis/edge-api/shared/src/delivery`, `…/cart-policy` |
@@ -173,7 +173,7 @@ Manager — never written to a file in the repository.
 | `platform/metrics` (Prometheus) | CloudWatch embedded-format metrics + alarms in `infra/envs/dev/commerce-alarms.tf` |
 | `cmd/create-first-admin`, `delete-admin`, `load-localities`, `adminbootstrap` | `apis/edge-api/ops` |
 | `features/platformstatus` | already served by `apis/edge-api/shop` (`/shop/v1/status`, `/v2/status`) |
-| `features/shoplive` | retired — the console re-reads every 30 seconds |
+| `features/shoplive` | retired - the console re-reads every 30 seconds |
 | `features/customerping` | retired |
 
 Behaviour that deliberately changed in the move is listed in
@@ -183,5 +183,5 @@ Behaviour that deliberately changed in the move is listed in
 
 That is a constitutional change, not a plan decision. The questions this one never answered well:
 measure latency **in-region** before assuming it is needed; price it against the always-on floor;
-and decide up front how a rule is kept from existing twice — the answer here was hand-mirrored code
+and decide up front how a rule is kept from existing twice - the answer here was hand-mirrored code
 kept honest by tests that read the other language's source, and it cost a defect per mirror.

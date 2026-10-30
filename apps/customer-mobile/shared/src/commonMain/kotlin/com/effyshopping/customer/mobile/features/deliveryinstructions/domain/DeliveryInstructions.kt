@@ -1,10 +1,10 @@
 package com.effyshopping.customer.mobile.features.deliveryinstructions.domain
 
 /**
- * Delivery instructions — what a shopper tells the driver: how to hand the order over, and a
+ * Delivery instructions - what a shopper tells the driver: how to hand the order over, and a
  * short note. Shared by checkout, the receipt and the address book.
  *
- * The rule is the server's. What is valid — how whitespace collapses, what counts as blank — is
+ * The rule is the server's. What is valid - how whitespace collapses, what counts as blank - is
  * `normaliseDeliveryInstructions` in `packages/shared-types`, applied again by the server and pinned
  * to it by a shared fixture. This app does not carry a third copy of that rule: it clamps typing to
  * the limit so the counter can stop at zero, sends what was typed, and shows what the server stored.
@@ -19,7 +19,7 @@ enum class Handover(val label: String) {
     MeetAtDoor("Meet at the door"),
 }
 
-/** Instructions as stored — on a placed order, or as an address's saved default. */
+/** Instructions as stored - on a placed order, or as an address's saved default. */
 data class DeliveryInstructions(val handover: Handover?, val note: String?) {
     /** Nothing to show. Every surface checks this before drawing an instruction area at all. */
     val isEmpty: Boolean get() = handover == null && note.isNullOrBlank()
@@ -45,7 +45,7 @@ data class InstructionsDraft(val handover: Handover? = null, val note: String = 
     }
 }
 
-/** Unicode code points — the unit the limit is stated in. A surrogate pair counts once. */
+/** Unicode code points - the unit the limit is stated in. A surrogate pair counts once. */
 fun String.codePointLength(): Int {
     var n = 0
     var i = 0
@@ -58,7 +58,7 @@ fun String.codePointLength(): Int {
 
 /**
  * Keep typing inside the limit, never splitting a surrogate pair. This limits what can be typed;
- * it is not validation, and nothing a shopper submitted is ever shortened behind their back — the
+ * it is not validation, and nothing a shopper submitted is ever shortened behind their back - the
  * server refuses an over-long note outright.
  */
 fun String.clampToNoteMax(): String {

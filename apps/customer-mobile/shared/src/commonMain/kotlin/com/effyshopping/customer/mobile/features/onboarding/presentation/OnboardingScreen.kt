@@ -60,11 +60,11 @@ private data class OnboardingPage(val headline: String, val body: String)
 private val ONBOARDING_PAGES = listOf(
     OnboardingPage(
         "Everything you need, delivered.",
-        "Fresh groceries and everyday essentials, brought to your door. Browse freely — sign in only when you order.",
+        "Fresh groceries and everyday essentials, brought to your door. Browse freely - sign in only when you order.",
     ),
     OnboardingPage(
         "Fresh picks, every single day.",
-        "Choose a delivery window today or on the next few days — or just a day, and we'll come when we can.",
+        "Choose a delivery window today or on the next few days - or just a day, and we'll come when we can.",
     ),
     OnboardingPage(
         "Browse now. Sign in when you're ready.",
@@ -111,7 +111,7 @@ fun OnboardingScreen(onDone: () -> Unit) {
             )
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.heightIn(min = EffySize.target)) {
                 PageIndicator(count = pages.size, current = pagerState.currentPage, modifier = Modifier.weight(1f))
-                // Hidden on the last page — invisible and silent to a screen reader.
+                // Hidden on the last page - invisible and silent to a screen reader.
                 Box(Modifier.alpha(if (onLastPage) 0f else 1f).then(if (onLastPage) Modifier.clearAndSetSemantics {} else Modifier)) {
                     EffyGhostButton("Skip", onClick = { if (!onLastPage) onDone() })
                 }
@@ -157,7 +157,7 @@ private fun PageIndicator(count: Int, current: Int, modifier: Modifier = Modifie
 
 /**
  * The board's flat art: arcs, dots and a leaf in Effy green and blue on the green tint. Three
- * variants so each page reads as its own, from the same shapes. Decorative — no semantics.
+ * variants so each page reads as its own, from the same shapes. Decorative - no semantics.
  */
 @Composable
 private fun OnboardingArt(variant: Int, modifier: Modifier = Modifier) {

@@ -1,8 +1,8 @@
 import type { ListPage } from "./list"
 /**
  * The catalogue taxonomy (101): one category tree of at most five levels; a product is filed in exactly one
- * leaf, and that leaf's resolved form — attributes attached to it and its ancestors, tightened or hidden on
- * the way down — is what a shop fills in. Staff manage the tree, the attribute library and the attachments
+ * leaf, and that leaf's resolved form - attributes attached to it and its ancestors, tightened or hidden on
+ * the way down - is what a shop fills in. Staff manage the tree, the attribute library and the attachments
  * in back-office (`catalog` service); shops read the tree and a leaf's form (`shop` service).
  *
  * Storage, GST status and age-restricted are fixed product facts, not attributes; a category may default

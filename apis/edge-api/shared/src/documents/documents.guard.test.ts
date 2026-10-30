@@ -25,7 +25,7 @@ const strip = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s
 const sources = files(services).map((f) => ({ file: relative(services, f), src: strip(readFileSync(f, "utf8")) }));
 const WRITER = "shared/src/documents/gst-status.ts";
 
-describe("096 — the documents' one writers", () => {
+describe("096 - the documents' one writers", () => {
   it("scans the services", () => expect(sources.length).toBeGreaterThan(300));
 
   it("only setGstStatus changes a product's GST status", () => {

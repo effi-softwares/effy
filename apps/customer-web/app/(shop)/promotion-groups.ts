@@ -13,7 +13,7 @@ import { readPublicGroups } from "./promotion-groups-public"
  * appears where and in what order.
  *
  * Signed out: the storefront's public answer, shared for up to a minute (the listing tier). Signed in:
- * commerce's personal answer — first-order and chosen-customer offers included — never cached.
+ * commerce's personal answer - first-order and chosen-customer offers included - never cached.
  */
 /** What a promotion component draws. */
 export interface Banner {

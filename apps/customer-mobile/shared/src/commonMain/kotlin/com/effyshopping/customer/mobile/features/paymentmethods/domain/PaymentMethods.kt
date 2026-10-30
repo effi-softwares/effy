@@ -22,7 +22,7 @@ interface PaymentMethodsRepository {
     /**
      * The shopper's kept cards.
      *
-     * An empty list means "no kept cards". A failure must throw rather than return empty — "you have
+     * An empty list means "no kept cards". A failure must throw rather than return empty - "you have
      * no cards" and "we could not ask" are different facts, and answering the second with the first is
      * a false statement about the shopper's own account.
      */
@@ -32,12 +32,12 @@ interface PaymentMethodsRepository {
     suspend fun remove(id: String)
 }
 
-/** ListPaymentMethods — the use case the ViewModel calls on open (Principle VI). */
+/** ListPaymentMethods - the use case the ViewModel calls on open (Principle VI). */
 class ListPaymentMethods(private val repo: PaymentMethodsRepository) {
     suspend operator fun invoke(): List<KeptCard> = repo.list()
 }
 
-/** RemovePaymentMethod — detaching a card the shopper no longer wants Effy to hold. */
+/** RemovePaymentMethod - detaching a card the shopper no longer wants Effy to hold. */
 class RemovePaymentMethod(private val repo: PaymentMethodsRepository) {
     suspend operator fun invoke(id: String) = repo.remove(id)
 }

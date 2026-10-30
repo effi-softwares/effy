@@ -1,4 +1,4 @@
-# Back-office audience — internal admin staff; staff-provisioned, NO self-signup, and the
+# Back-office audience - internal admin staff; staff-provisioned, NO self-signup, and the
 # only pool with rbac groups: admin / manager / csa. Groups surface via the
 # cognito:groups JWT claim; backend enforcement is a later slice.
 

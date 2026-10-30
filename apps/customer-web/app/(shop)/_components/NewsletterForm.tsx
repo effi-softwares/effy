@@ -74,9 +74,9 @@ export function NewsletterForm() {
 }
 
 export const NEWSLETTER_MESSAGES: Record<NewsletterSubscribeResult["status"], string> = {
-  ok: "Thanks — check your inbox and confirm to finish signing up.",
+  ok: "Thanks - check your inbox and confirm to finish signing up.",
   invalid: "That doesn't look like an email address. Mind checking it?",
-  error: "We couldn't sign you up just now. Your address is still here — try again in a moment.",
+  error: "We couldn't sign you up just now. Your address is still here - try again in a moment.",
 }
 
 function NewsletterStatus({ result }: { result: NewsletterSubscribeResult }) {
@@ -90,7 +90,7 @@ function NewsletterStatus({ result }: { result: NewsletterSubscribeResult }) {
       role="status"
       className={`mt-3 text-sm ${result.status === "ok" ? "text-brand" : "font-medium text-foreground"}`}
     >
-      {/* Meaning never rests on colour alone — the words carry the whole message, and the
+      {/* Meaning never rests on colour alone - the words carry the whole message, and the
           error tint is redundant reinforcement rather than the signal. */}
       {message}
     </p>

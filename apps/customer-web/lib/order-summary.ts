@@ -5,7 +5,7 @@ import { asapSentence, DELIVERY_TYPE_WORDS, DELIVERY_WINDOW_WORDS, formatArrival
  * under it, and which filter it belongs to.
  *
  * One place, so the badge, the line and the filter cannot disagree about the same order. Everything
- * is read from what the server derived (`stage`, `fullyRefunded`, `arrivalEstimates`) — nothing here
+ * is read from what the server derived (`stage`, `fullyRefunded`, `arrivalEstimates`) - nothing here
  * works a stage out for itself.
  */
 export type OrderFilter = "all" | "progress" | "delivered" | "refunded" | "cancelled"
@@ -24,7 +24,7 @@ export interface OrderRowWords {
   tone: OrderTone
   /** The line under the header. Absent when there is nothing true to add. */
   line: string | null
-  /** Still on its way to the customer — the row's first action is "Track order". */
+  /** Still on its way to the customer - the row's first action is "Track order". */
   inProgress: boolean
 }
 
@@ -54,7 +54,7 @@ export function orderRowWords(o: OrderSummaryDTO, now: Date = new Date()): Order
         inProgress: false,
       }
     case "on_the_way":
-      return { badge: "On the way", tone: "default", line: promise ? `On the way — ${lowerFirst(promise)}` : "On the way", inProgress: true }
+      return { badge: "On the way", tone: "default", line: promise ? `On the way - ${lowerFirst(promise)}` : "On the way", inProgress: true }
     case "packing":
       return { badge: "Being packed", tone: "outline", line: promise ? `Arriving ${lowerFirst(promise)}` : "Your order is being packed", inProgress: true }
     case "confirmed":
@@ -64,7 +64,7 @@ export function orderRowWords(o: OrderSummaryDTO, now: Date = new Date()): Order
   }
 }
 
-/** The promise the order was sold: a window or a day; for a courier, its estimate — said as one. */
+/** The promise the order was sold: a window or a day; for a courier, its estimate - said as one. */
 function promiseOf(o: OrderSummaryDTO, now: Date): string | null {
   if (o.delivery.type === "courier") {
     return o.delivery.courierEstimate

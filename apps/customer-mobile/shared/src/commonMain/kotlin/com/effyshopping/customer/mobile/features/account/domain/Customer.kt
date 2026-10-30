@@ -1,11 +1,11 @@
 package com.effyshopping.customer.mobile.features.account.domain
 
-/** A customer's standing with Effy. Platform-owned — never derived from a token claim. */
+/** A customer's standing with Effy. Platform-owned - never derived from a token claim. */
 enum class CustomerStanding { ACTIVE, BARRED }
 
 /**
  * The platform's own record of a customer (013 data-model § 2). The authority on their name, email,
- * standing, and whether the account has a password — none of which is read from the credential.
+ * standing, and whether the account has a password - none of which is read from the credential.
  */
 data class Customer(
     val id: String,
@@ -23,7 +23,7 @@ data class Customer(
 ) {
     val isBarred: Boolean get() = standing == CustomerStanding.BARRED
 
-    /** Which password journey the account page offers — derived only from [hasPassword]. */
+    /** Which password journey the account page offers - derived only from [hasPassword]. */
     val passwordJourney: PasswordJourney
         get() = if (hasPassword) PasswordJourney.CHANGE else PasswordJourney.SET
 }
@@ -38,11 +38,11 @@ data class CustomerName(
     val given: String?,
     val family: String?,
 ) {
-    /** "Ada Lovelace" · "Ada" · "" — computed, never stored. */
+    /** "Ada Lovelace" · "Ada" · "" - computed, never stored. */
     val display: String
         get() = listOfNotNull(given?.trim()?.ifBlank { null }, family?.trim()?.ifBlank { null })
             .joinToString(" ")
 
-    /** The initials for the avatar. See [initials] — the one place initials are derived. */
+    /** The initials for the avatar. See [initials] - the one place initials are derived. */
     val initials: String get() = initialsFor(given, family)
 }

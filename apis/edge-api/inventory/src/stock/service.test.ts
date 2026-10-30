@@ -116,7 +116,7 @@ describe("turning tracking on requires a count (FR-003)", () => {
 });
 
 describe("relative adjustments", () => {
-  it("refuses a zero delta — a movement that moves nothing is a record with no fact behind it", async () => {
+  it("refuses a zero delta - a movement that moves nothing is a record with no fact behind it", async () => {
     const err = await refusal(() =>
       service.adjustCount(shopActor, "p1", { delta: 0, reason: "correction" }),
     );
@@ -124,7 +124,7 @@ describe("relative adjustments", () => {
     expect(err.fields).toHaveProperty("delta");
   });
 
-  it("accepts a negative delta — breakage and expiry are reductions", async () => {
+  it("accepts a negative delta - breakage and expiry are reductions", async () => {
     await expect(
       service.adjustCount(shopActor, "p1", { delta: -3, reason: "damage" }),
     ).resolves.toBeDefined();
@@ -160,7 +160,7 @@ describe("the low / out distinction (FR-005, FR-005a, FR-029)", () => {
     expect(dto.low).toBe(true);
   });
 
-  it("with no threshold anywhere nothing is low — but zero is still out (FR-005a)", () => {
+  it("with no threshold anywhere nothing is low - but zero is still out (FR-005a)", () => {
     expect(service.toStockDTO(row({ onHand: 3 })).low).toBe(false);
     expect(service.toStockDTO(row({ onHand: 0 })).outOfStock).toBe(true);
   });
@@ -223,7 +223,7 @@ describe("the assisted path", () => {
     vi.mocked(repo.setTracking).mockClear();
     const err = await refusal(() => service.setTracking(boActor, "p1", { tracked: true }));
     expect(err.kind).toBe("validation");
-    // The refusal happens before the repository is reached — nothing is written, by either audience.
+    // The refusal happens before the repository is reached - nothing is written, by either audience.
     expect(repo.setTracking).not.toHaveBeenCalled();
   });
 

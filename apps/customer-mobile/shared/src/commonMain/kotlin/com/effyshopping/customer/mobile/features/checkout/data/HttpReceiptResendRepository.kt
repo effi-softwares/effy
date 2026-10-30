@@ -18,7 +18,7 @@ class HttpReceiptResendRepository(private val edge: HttpClient) : ResendReceipt 
         when (response.status) {
             HttpStatusCode.Accepted, HttpStatusCode.OK -> ResendReceiptResult.Queued
             HttpStatusCode.TooManyRequests -> ResendReceiptResult.RateLimited
-            // Covers both "not yours" and "no such order" — the server refuses them identically
+            // Covers both "not yours" and "no such order" - the server refuses them identically
             // so this client cannot tell them apart either. Nothing here may try to.
             HttpStatusCode.NotFound, HttpStatusCode.Conflict -> ResendReceiptResult.Unavailable
             else -> ResendReceiptResult.Failed

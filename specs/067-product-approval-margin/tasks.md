@@ -51,7 +51,7 @@ behaves exactly as before for every customer.
 
 ---
 
-## Phase 3: User Story 1 — A new product needs Effy's approval before it sells (P1) 🎯 MVP
+## Phase 3: User Story 1 - A new product needs Effy's approval before it sells (P1) 🎯 MVP
 
 **Goal**: shop submits; product is unreachable by customers; admin approves with a margin; it goes
 on sale at shop price plus margin.
@@ -72,7 +72,7 @@ on sale at shop price plus margin.
 - [x] T019 [US1] On shop create and draft update in `SHOP/products/repository.ts`, write the entered price to BOTH `shop_price_amount` and `price_amount` (and the compare-at pair), so a draft's customer price is never stale before approval
 - [x] T020 [US1] Map `reviewState`, `reviewReason`, `shopPriceAmount`, `customerPriceAmount` onto the shop list and detail DTOs in `SHOP/products/repository.ts` / `handler-support.ts`; keep `priceAmount` equal to the shop price; add the `reviewState` list filter
 - [x] T021 [US1] Handlers + routes for submit and withdraw: `SHOP/functions/shop-products-submit-v1-post.ts`, `shop-products-withdraw-v1-post.ts`, declared in `apis/edge-api/shop/serverless.yml` (or in `catalog` per T002)
-- [x] T022 [US1] `CAT/review/sql.ts` + `repository.ts`: queue query (new products and, later, changes — a UNION ordered by `submitted_at`), item read for a new product, `approveNewProduct` (one transaction; version in the `WHERE`; uses `margin.ts`)
+- [x] T022 [US1] `CAT/review/sql.ts` + `repository.ts`: queue query (new products and, later, changes - a UNION ordered by `submitted_at`), item read for a new product, `approveNewProduct` (one transaction; version in the `WHERE`; uses `margin.ts`)
 - [x] T023 [US1] `CAT/review/service.ts` + `authz.ts` + `handler-support.ts`: read gate, decide gate, margin validation, version echo selected as `::text` (research R10), row → DTO mapping
 - [x] T024 [US1] Handlers + routes in `apis/edge-api/catalog/serverless.yml`: `product-review-list-v1-get.ts`, `product-review-item-v1-get.ts`, `product-review-approve-v1-post.ts`
 - [x] T025 [P] [US1] Back-office feature `BO/`: `repo.ts`, `queries.ts`, `model.ts`, `ReviewQueueScreen.tsx` (table: product, shop, kind, waiting; filters), `ReviewItemScreen.tsx` (detail rows + images + a margin entry showing the resulting customer price before confirming), route file `apps/back-office/src/routes/product-review.tsx`, and a nav entry in `apps/back-office/src/components/layout/nav.ts`; decide controls hidden for `csa`
@@ -83,7 +83,7 @@ on sale at shop price plus margin.
 
 ---
 
-## Phase 4: User Story 2 — Effy sends a product back with a reason (P1)
+## Phase 4: User Story 2 - Effy sends a product back with a reason (P1)
 
 **Goal**: send back with a required reason; the shop sees it and can resubmit.
 
@@ -99,7 +99,7 @@ on sale at shop price plus margin.
 
 ---
 
-## Phase 5: User Story 3 — A change to a live product waits for approval (P1)
+## Phase 5: User Story 3 - A change to a live product waits for approval (P1)
 
 **Goal**: shop edits to an approved product become one pending change; customers keep the approved
 version; approval applies everything atomically; send-back leaves the live product untouched.
@@ -127,7 +127,7 @@ version; approval applies everything atomically; send-back leaves the live produ
 
 ---
 
-## Phase 6: User Story 4 — Stock and taking a product off sale never wait (P1)
+## Phase 6: User Story 4 - Stock and taking a product off sale never wait (P1)
 
 **Goal**: prove the exempt paths stay immediate and never touch a review item.
 
@@ -141,7 +141,7 @@ version; approval applies everything atomically; send-back leaves the live produ
 
 ---
 
-## Phase 7: User Story 5 — Effy sets and changes its margin (P2)
+## Phase 7: User Story 5 - Effy sets and changes its margin (P2)
 
 **Goal**: margin set on approval, reconfirmed when the shop price changes, changeable on any live
 product, and settable on "margin not set" products.
@@ -157,7 +157,7 @@ product, and settable on "margin not set" products.
 
 ---
 
-## Phase 8: User Story 7 — The shop is paid at its price, the customer at theirs (P2)
+## Phase 8: User Story 7 - The shop is paid at its price, the customer at theirs (P2)
 
 **Goal**: order lines keep both prices; shop-facing money reads shop prices.
 
@@ -173,7 +173,7 @@ product, and settable on "margin not set" products.
 
 ---
 
-## Phase 9: User Story 6 — The shop knows where every product stands (P2)
+## Phase 9: User Story 6 - The shop knows where every product stands (P2)
 
 **Goal**: both shop surfaces show state and both prices everywhere a product appears.
 
@@ -187,7 +187,7 @@ product, and settable on "margin not set" products.
 
 ---
 
-## Phase 10: User Story 8 — Every decision is on the record (P3)
+## Phase 10: User Story 8 - Every decision is on the record (P3)
 
 **Goal**: one audit row per decision; the shop is notified; an unwatched queue raises an alarm.
 
@@ -206,11 +206,11 @@ product, and settable on "margin not set" products.
 ## Phase 11: Polish & cross-cutting
 
 - [x] T064 [P] Telemetry: declare `product_submitted_for_review` (shop-web, shop-mobile) and `product_review_decided` (back-office) in each surface's typed taxonomy and `docs/telemetry/`; assert no property carries a price, a margin value or a product name
-- [x] T065 [P] Accessibility: review-state chips carry text, not colour alone; the before/after view is readable by a screen reader as "field, was X, now Y" — `BO/ReviewItemScreen.tsx`, `SW/` product detail
+- [x] T065 [P] Accessibility: review-state chips carry text, not colour alone; the before/after view is readable by a screen reader as "field, was X, now Y" - `BO/ReviewItemScreen.tsx`, `SW/` product detail
 - [x] T066 Run the six negative proofs in `specs/067-product-approval-margin/quickstart.md` §4 by breaking each thing in turn; record which test caught each
 - [x] T067 Full verification sweep: everything in `quickstart.md` §1 with counts compared to T001; `go build ./... && go vet ./...`; `terraform validate` + `fmt`; `sm-guard`; `tokens:check` unchanged; `check-token-usage`
 - [x] T068 [P] Write `specs/067-product-approval-margin/SIGNOFF.md`; add the 067 entry to `FEATURE-HISTORY.md` and its line to the index in `CLAUDE.md`; add §067 to `docs/audiences/shop-capabilities.md` and `docs/audiences/admin-capabilities.md`
-- [ ] T069 OPERATOR: deploy in the order given in `quickstart.md` §2 — `db-up`, `notifications`, `shop` IMMEDIATELY after, `make apply`, `catalog`, `core-deploy`, consoles, shop-mobile
+- [ ] T069 OPERATOR: deploy in the order given in `quickstart.md` §2 - `db-up`, `notifications`, `shop` IMMEDIATELY after, `make apply`, `catalog`, `core-deploy`, consoles, shop-mobile
 - [ ] T070 OPERATOR: walk W1–W18 in `quickstart.md` and record results in `SIGNOFF.md`. ⚠ W1 (the catalogue is identical after `db-up`) is walked FIRST, before anything else is deployed
 
 ---
@@ -258,7 +258,7 @@ Alongside: T025 back-office · T026 shop-web · T027 shop-mobile
 Phases 1–6. US1 alone is an approval any edit bypasses, and without US2 the gate can only say yes.
 The four P1 stories together are the smallest thing that does what the client asked. At that point
 every product has "margin not set" unless set at approval, and shops are paid and shown the same
-figure as customers for unmargined products — which is correct.
+figure as customers for unmargined products - which is correct.
 
 ### Incremental delivery
 

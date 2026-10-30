@@ -7,7 +7,7 @@ import androidx.compose.ui.platform.LocalContext
 import com.effyshopping.mobile.kit.ui.MotionLevel
 
 /**
- * Android reads `ANIMATOR_DURATION_SCALE` — the value behind Settings → Accessibility → "Remove
+ * Android reads `ANIMATOR_DURATION_SCALE` - the value behind Settings → Accessibility → "Remove
  * animations" (and the developer-options animation scales, which is a useful side effect: a device
  * with animations scaled off in developer options gets the same treatment).
  *

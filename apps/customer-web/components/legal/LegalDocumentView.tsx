@@ -8,7 +8,7 @@ import { Alert } from "@/components/ui/alert"
 import { Breadcrumb } from "@/components/ui/misc"
 
 /**
- * Renders a legal document from @effy/legal-content — the single source of truth shared with mobile.
+ * Renders a legal document from @effy/legal-content - the single source of truth shared with mobile.
  * A server component over the constrained Markdown subset (headings/paragraphs/lists/tables/inline
  * links). It ships zero client JS, so every public /legal/* route stays inside the guest-bundle gate.
  */
@@ -22,7 +22,7 @@ const anchorOf = (index: number) => `section-${index + 1}`
  * phone the rail folds into a disclosure above the text.
  *
  * The text is the authored document, rendered as written. Nothing here adds to, shortens or
- * reorders it — the rail is built from the document's own section headings.
+ * reorders it - the rail is built from the document's own section headings.
  *
  * An older version says that it is one, at the top, with the way to the current text. Someone
  * reading superseded terms must never take them for the terms in force.
@@ -34,7 +34,7 @@ export function LegalDocumentView({ slug, version, home = "legal" }: { slug: str
   const superseded = shown !== undefined && shown.status !== "current"
 
   const blocks = parseMarkdown(shown?.body ?? doc.body)
-  // The rail lists the document's own sections — its second-level headings, in order.
+  // The rail lists the document's own sections - its second-level headings, in order.
   const sections = blocks.flatMap((b, i) => (b.kind === "heading" && b.level === 2 ? [{ index: i, title: textOf(b.runs) }] : []))
   const contents = (
     <ul className="flex flex-col gap-1">
@@ -112,7 +112,7 @@ export function LegalDocumentView({ slug, version, home = "legal" }: { slug: str
   )
 }
 
-/** A document's text on its own — for a page that frames it differently (About). */
+/** A document's text on its own - for a page that frames it differently (About). */
 export function LegalBody({ slug }: { slug: string }) {
   return (
     <div className="space-y-4 leading-[1.7] text-muted-foreground">

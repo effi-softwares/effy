@@ -5,7 +5,7 @@
 # 2. the branded API address serves over a trusted TLS connection
 # 3. the raw execute-api URL still works
 #
-# Usage (via the Makefile, which reads both URLs from the SSM contract — never hard-coded):
+# Usage (via the Makefile, which reads both URLs from the SSM contract - never hard-coded):
 # make dns-verify ENV=dev
 set -euo pipefail
 
@@ -19,7 +19,7 @@ RAW_URL="${RAW_URL:?RAW_URL not set (should come from /effy/<env>/edge/api_defau
 STAFF_API_URL="${STAFF_API_URL:-}"
 STAFF_RAW_URL="${STAFF_RAW_URL:-}"
 # The probe is a public health route of a service that lives on that gateway. It was /admin/healthz
-# for both until 075 moved `admin` to the staff gateway — after which the shared gateway answers 404
+# for both until 075 moved `admin` to the staff gateway - after which the shared gateway answers 404
 # there, the two addresses still "agree", and the check passes while proving nothing.
 SHARED_PROBE="${SHARED_PROBE:-/shop/healthz}"
 STAFF_PROBE="${STAFF_PROBE:-/admin/healthz}"
@@ -32,7 +32,7 @@ bad()  { printf '  \033[31m✗\033[0m %s\n' "$1"; fail=$((fail + 1)); }
 head() { printf '\n\033[1m%s\033[0m\n' "$1"; }
 
 # ── SC-001: authority + delegation ────────────────────────────────────────────────────────────
-head "SC-001 — namespace authority & delegation"
+head "SC-001 - namespace authority & delegation"
 
 parent_ns="$(dig +short NS "${ROOT_DOMAIN}" | sort | tr '\n' ' ')"
 if grep -q "awsdns" <<<"${parent_ns}"; then
@@ -50,7 +50,7 @@ else
 fi
 
 # ── SC-002: the branded address, over a trusted connection ────────────────────────────────────
-head "SC-002 — the branded API address is trusted"
+head "SC-002 - the branded API address is trusted"
 
 api_host="${API_URL#https://}"
 if dig +short "${api_host}" | grep -qE '[0-9]'; then
@@ -61,41 +61,41 @@ fi
 
 # --fail-with-body is deliberately not used: a 401/403 from the authorizer is a successful TLS
 # handshake plus a reachable API, which is exactly what this assertion is about. What must not
-# happen is a certificate error — curl exits 60 for that, and we check the exit code.
+# happen is a certificate error - curl exits 60 for that, and we check the exit code.
 set +e
 branded_code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "${API_URL}${SHARED_PROBE}")"
 branded_exit=$?
 set -e
 if [ "${branded_exit}" -eq 60 ]; then
-  bad "${API_URL} — TLS certificate NOT trusted (curl 60). The cert is missing, wrong, or not yet issued."
+  bad "${API_URL} - TLS certificate NOT trusted (curl 60). The cert is missing, wrong, or not yet issued."
 elif [ -n "${branded_code}" ] && [ "${branded_code}" != "000" ]; then
   ok "${API_URL} serves over trusted TLS (HTTP ${branded_code}, no certificate warning)"
 else
   bad "${API_URL} unreachable"
 fi
 
-# ── SC-004: the raw URL still works — the cutover was additive ────────────────────────────────
-head "SC-004 — the cutover is additive (zero callers broken)"
+# ── SC-004: the raw URL still works - the cutover was additive ────────────────────────────────
+head "SC-004 - the cutover is additive (zero callers broken)"
 
 set +e
 raw_code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "${RAW_URL}${SHARED_PROBE}")"
 set -e
 if [ -n "${raw_code}" ] && [ "${raw_code}" != "000" ]; then
-  ok "the raw execute-api URL still answers (HTTP ${raw_code}) — no existing caller was broken"
+  ok "the raw execute-api URL still answers (HTTP ${raw_code}) - no existing caller was broken"
 else
   bad "the raw execute-api URL is DEAD (${RAW_URL})"
   bad "  → check that disable_execute_api_endpoint is still false. Killing it violates FR-011/SC-004."
 fi
 
 if [ "${branded_code}" = "${raw_code}" ]; then
-  ok "both addresses return the same status (${branded_code}) — they are the same API"
+  ok "both addresses return the same status (${branded_code}) - they are the same API"
 else
   bad "the two addresses disagree: branded=${branded_code} raw=${raw_code}"
 fi
 
-# ── 075: the staff gateway — the same two properties, on its own hostname ─────────────────────
+# ── 075: the staff gateway - the same two properties, on its own hostname ─────────────────────
 if [ -n "${STAFF_API_URL}" ]; then
-  head "075 — the staff API address is trusted, and its raw URL still answers"
+  head "075 - the staff API address is trusted, and its raw URL still answers"
 
   staff_host="${STAFF_API_URL#https://}"
   if dig +short "${staff_host}" | grep -qE '[0-9]'; then
@@ -111,7 +111,7 @@ if [ -n "${STAFF_API_URL}" ]; then
   set -e
 
   if [ "${staff_exit}" -eq 60 ]; then
-    bad "${STAFF_API_URL} — TLS certificate NOT trusted (curl 60)."
+    bad "${STAFF_API_URL} - TLS certificate NOT trusted (curl 60)."
   elif [ "${staff_exit}" -eq 0 ]; then
     ok "${STAFF_API_URL} serves over trusted TLS (HTTP ${staff_code})"
   else

@@ -83,7 +83,7 @@ const columns: EffyColumnDef<Item>[] = [
           {row.original.rating}
         </span>
       ) : (
-        <span className="text-muted-foreground">—</span>
+        <span className="text-muted-foreground">-</span>
       ),
     meta: { label: "Rating", sortKey: "rating", align: "numeric" },
   },

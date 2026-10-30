@@ -8,7 +8,7 @@ import { describe, expect, it, vi } from "vitest"
 import { PromoHero } from "./PromoHero"
 
 /**
- * The promotions hero — a carousel of every advertised promotion on a drawn promo banner, with up to
+ * The promotions hero - a carousel of every advertised promotion on a drawn promo banner, with up to
  * two promo cards beside it. The slides are rendered on the server; `PromoCarousel` only decides
  * which one is showing.
  */
@@ -31,7 +31,7 @@ describe("PromoHero", () => {
   })
 
   /**
-   * The band is drawn — a promo colour, a decoration, icon bubbles — so a promotion needs no artwork
+   * The band is drawn - a promo colour, a decoration, icon bubbles - so a promotion needs no artwork
    * to be shown, and its artwork is not put under the words.
    */
   it("shows a promotion with no artwork, and draws no image", () => {
@@ -53,7 +53,7 @@ describe("PromoHero", () => {
     }
   })
 
-  it("shows no controls for a single promotion — one slide is not a carousel", () => {
+  it("shows no controls for a single promotion - one slide is not a carousel", () => {
     const { queryByRole } = render(<PromoHero slides={[banner(1)]} side={[banner(1)]} />)
     expect(queryByRole("button", { name: "Next slide" })).toBeNull()
   })
@@ -109,7 +109,7 @@ describe("PromoHero", () => {
     }
   })
 
-  /** WCAG 2.2.2 — it waits while the pointer is over it. */
+  /** WCAG 2.2.2 - it waits while the pointer is over it. */
   it("waits while the pointer is over it, and carries on when it leaves", () => {
     vi.useFakeTimers()
     try {
@@ -132,7 +132,7 @@ describe("PromoHero", () => {
   it("does not advance for someone who asked for reduced motion", () => {
     vi.useFakeTimers()
     const original = window.matchMedia
-    window.matchMedia = ((q: string) => ({ matches: q.includes("reduce"), media: q, addEventListener() {}, removeEventListener() {} })) as never
+    window.matchMedia = ((q: string) => ({ matches: q.includes("reduce"), media: q, addEventListener() { }, removeEventListener() { } })) as never
     try {
       const { container } = render(<PromoHero slides={[banner(1), banner(2)]} side={[banner(1), banner(2)]} />)
       act(() => void vi.advanceTimersByTime(30_000))
@@ -150,7 +150,7 @@ describe("PromoHero", () => {
   })
 
   /**
-   * The stretched link must be a sibling of the copy, never an ancestor of the buttons — nested
+   * The stretched link must be a sibling of the copy, never an ancestor of the buttons - nested
    * interactive elements are invalid HTML and unusable with a screen reader.
    */
   it("links the band to the promotion without nesting the buttons inside that link", () => {
@@ -161,7 +161,7 @@ describe("PromoHero", () => {
   })
 })
 
-describe("PromoHero — the cards beside the band", () => {
+describe("PromoHero - the cards beside the band", () => {
   const grounds = (c: HTMLElement) =>
     Array.from(c.querySelectorAll<HTMLElement>("ul [style*='--promo-']")).map((el) => el.style.background)
 

@@ -46,7 +46,7 @@ describe("the request proxy", () => {
     expect(refreshTokens).not.toHaveBeenCalled()
   })
 
-  it("⚠ swaps expired tokens for fresh ones — for this render AND for the browser", async () => {
+  it("⚠ swaps expired tokens for fresh ones - for this render AND for the browser", async () => {
     const fresh = { idToken: token(now() + 3600), accessToken: "new-access" }
     refreshTokens.mockResolvedValue(fresh)
     const res = await proxy(request("/account", { effy_id: token(now() - 10), effy_rt: "r" }))
@@ -73,7 +73,7 @@ describe("the request proxy", () => {
   })
 
   it("⚠ signs NOBODY out when Cognito cannot be reached", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => {})
+    vi.spyOn(console, "error").mockImplementation(() => { })
     refreshTokens.mockRejectedValue(new Error("timeout"))
     const res = await proxy(request("/account", { effy_id: token(now() - 10), effy_rt: "r" }))
     expect(res.headers.get("location")).toBeNull()

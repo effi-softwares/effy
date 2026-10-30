@@ -39,7 +39,7 @@ export function RemoveShopDialog({ shopId, shopName, open, onOpenChange, onRemov
       setFormError(
         shopMutationError(
           err,
-          "This shop has had operators, so it can't be removed. Disable it instead — its history is kept.",
+          "This shop has had operators, so it can't be removed. Disable it instead - its history is kept.",
         ),
       )
     }

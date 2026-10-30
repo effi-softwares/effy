@@ -41,7 +41,7 @@ class DeliveryInstructionsTest {
         assertEquals(DeliveryInstructions(Handover.MeetAtDoor, null), InstructionsDraft(Handover.MeetAtDoor).toInstructions())
     }
 
-    /** FR-004 / FR-029 — an emoji is one character to the person typing it. */
+    /** FR-004 / FR-029 - an emoji is one character to the person typing it. */
     @Test
     fun `length is counted in code points`() {
         assertEquals(2, "🚪🚪".codePointLength())
@@ -77,7 +77,7 @@ class DeliveryInstructionsTest {
 
     /**
      * ⚠ THE CLEAR CASE. This app's JSON omits nulls, and the address PATCH reads an omitted field as
-     * "leave it alone" — so a cleared default must go out as an EMPTY OBJECT, or the server keeps the
+     * "leave it alone" - so a cleared default must go out as an EMPTY OBJECT, or the server keeps the
      * instructions the shopper just removed and nothing anywhere reports an error.
      */
     @Test

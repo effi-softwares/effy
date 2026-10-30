@@ -15,7 +15,7 @@ class OfflineQueueTest {
     fun enqueue_is_deduplicated_by_changeId() {
         val q = OfflineQueue(MapSettings())
         q.enqueue(action("a"))
-        q.enqueue(action("a")) // same changeId — must not queue twice
+        q.enqueue(action("a")) // same changeId - must not queue twice
         q.enqueue(action("b"))
         assertEquals(2, q.count)
     }
@@ -63,7 +63,7 @@ class OfflineQueueTest {
         assertTrue(OfflineQueue(settings).pending.value.isEmpty())
     }
 
-    /** A write the platform refused is no longer sent — and is kept until the driver has been told. */
+    /** A write the platform refused is no longer sent - and is kept until the driver has been told. */
     @Test
     fun a_refused_action_leaves_the_queue_and_is_kept_to_show() {
         val settings = MapSettings()

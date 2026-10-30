@@ -20,7 +20,7 @@ for (const app of APPS) {
     }
   }
   for (const orphan of orphansFor(app, files)) {
-    problems.push(`ORPHANED ${app.name}: ${orphan.kind}/${orphan.name} — not declared by mobile-assets/`);
+    problems.push(`ORPHANED ${app.name}: ${orphan.kind}/${orphan.name} - not declared by mobile-assets/`);
   }
 }
 

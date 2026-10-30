@@ -113,7 +113,7 @@ export function RoundTable({ rounds }: { rounds: DispatchRoundSummaryDTO[] }) {
                       {r.packagesRemaining}
                     </TableCell>
                     <TableCell data-m="meta" data-label="Opens">
-                      {open.text || "—"}
+                      {open.text || "-"}
                     </TableCell>
                     <TableCell data-m="hide" className="whitespace-nowrap">
                       {momentText(r.round.deadlineAt, now)}

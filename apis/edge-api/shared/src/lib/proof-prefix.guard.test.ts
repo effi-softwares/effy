@@ -25,7 +25,7 @@ describe("proof prefix ↔ the S3 lifecycle rule", () => {
   /** The lifecycle block only, so prose cannot satisfy an assertion. */
   const lifecycle = (() => {
     const start = mediaTf.indexOf('resource "aws_s3_bucket_lifecycle_configuration"');
-    expect(start, "no lifecycle configuration in media.tf — proof would never be archived").toBeGreaterThan(-1);
+    expect(start, "no lifecycle configuration in media.tf - proof would never be archived").toBeGreaterThan(-1);
     return mediaTf.slice(start);
   })();
 

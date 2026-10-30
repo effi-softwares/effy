@@ -43,7 +43,7 @@ beforeEach(() => {
   fetchBoard.mockResolvedValue(board([failure()]))
 })
 
-describe("ExceptionsScreen — failed deliveries (103)", () => {
+describe("ExceptionsScreen - failed deliveries (103)", () => {
   it("lists a failure with its order, driver and suburb", async () => {
     renderList(ExceptionsScreen, "/exceptions")
     expect(await screen.findByText("EF-1001")).toBeInTheDocument()

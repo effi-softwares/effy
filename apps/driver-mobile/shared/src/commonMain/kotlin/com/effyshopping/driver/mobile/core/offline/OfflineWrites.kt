@@ -37,8 +37,8 @@ fun Throwable.isOffline(): Boolean =
     (this is AppException && error == AppError.Network) || this is IOException || this is UnresolvedAddressException
 
 /**
- * One `changeId` per driver action, not per tap (backlog C1). The same action asked for again — a
- * second tap, a retry after a timeout — reuses its id, so the platform and the queue both see one
+ * One `changeId` per driver action, not per tap (backlog C1). The same action asked for again - a
+ * second tap, a retry after a timeout - reuses its id, so the platform and the queue both see one
  * write. [settled] forgets it once the action has a final answer, so a genuinely new attempt (a
  * second failed delivery, say) gets a new id.
  */

@@ -2,7 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
-    <!-- 050 — runtime notification permission (API 33+); older versions grant it implicitly. -->
+    <!-- 050 - runtime notification permission (API 33+); older versions grant it implicitly. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
@@ -25,7 +25,7 @@
             </intent-filter>
         </activity>
 
-        <!-- 050 — FCM service (class lives in :shared/androidMain, on the classpath). Forwards token
+        <!-- 050 - FCM service (class lives in :shared/androidMain, on the classpath). Forwards token
              rotation to the app; system tray displays backgrounded notifications. -->
         <service
             android:name="com.effyshopping.customer.mobile.core.push.EffyFirebaseMessagingService"
@@ -34,7 +34,7 @@
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
             </intent-filter>
         </service>
-        <!-- 096 — shares an order document (the delivery note PDF) from cache/documents only. -->
+        <!-- 096 - shares an order document (the delivery note PDF) from cache/documents only. -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.documents"

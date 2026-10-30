@@ -25,7 +25,7 @@ async function staff(sub: string, shopId: string | null, role: string | null, st
   if (role) await pool.query(`INSERT INTO public.shop_staff_role (staff_id, role_key) VALUES ($1, $2)`, [id, role]);
 }
 
-d("070 — who may refund part of an order from the shop console", () => {
+d("070 - who may refund part of an order from the shop console", () => {
   beforeAll(async () => {
     const { readFileSync } = await import("node:fs");
     const src = readFileSync(new URL("./repository.ts", import.meta.url), "utf8");
@@ -69,7 +69,7 @@ d("070 — who may refund part of an order from the shop console", () => {
     await container?.stop();
   });
 
-  it("grants an active manager of an active shop that has a portion of the order — as THAT shop", async () => {
+  it("grants an active manager of an active shop that has a portion of the order - as THAT shop", async () => {
     expect(await gate("mgr-a")).toBe(shopA);
   });
 

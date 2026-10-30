@@ -63,7 +63,7 @@ export function DeliverabilityDetailScreen({ address }: { address: string }) {
         }
       />
 
-      {/* Its email events — every send the platform heard back about — are its activity (104). */}
+      {/* Its email events - every send the platform heard back about - are its activity (104). */}
       <div className="max-w-220">
         <Panel title="Address">
           <dl className="ef-dl ef-dl--tight">
@@ -81,16 +81,16 @@ export function DeliverabilityDetailScreen({ address }: { address: string }) {
               )}
             </Row>
             <Row label="Reason">
-              <span className="font-mono text-xs">{data.reason ?? "—"}</span>
+              <span className="font-mono text-xs">{data.reason ?? "-"}</span>
             </Row>
             <Row label="Server said">
-              <span className="font-mono text-xs text-muted-foreground">{data.diagnostic ?? "—"}</span>
+              <span className="font-mono text-xs text-muted-foreground">{data.diagnostic ?? "-"}</span>
             </Row>
             <Row label="Blocked by the mail service">
               {data.suppressedInSes === null ? (
                 <span className="text-muted-foreground">Couldn&apos;t check just now</span>
               ) : data.suppressedInSes ? (
-                <span className="font-medium">Yes — sends to this address are accepted and silently dropped</span>
+                <span className="font-medium">Yes - sends to this address are accepted and silently dropped</span>
               ) : (
                 <span>No</span>
               )}
@@ -118,7 +118,7 @@ export function DeliverabilityDetailScreen({ address }: { address: string }) {
         app="back-office"
         log="bo-email"
         title="Email events"
-        description={`${data.address} — every send the platform heard back about.`}
+        description={`${data.address} - every send the platform heard back about.`}
         api={api}
         path={`/admin/v1/deliverability/${encodeURIComponent(data.address)}/activity`}
         queryKey={[...ROOT, "detail", data.address]}

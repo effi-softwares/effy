@@ -20,15 +20,15 @@ data class SearchUiState(
     val query: String = "",
     val saleOnly: Boolean = false,
     val categoryKey: String? = null,
-    /** Selected brands — OR within. */
+    /** Selected brands - OR within. */
     val brands: List<String> = emptyList(),
-    /** Selected attribute values, keyed by attribute key — OR within a key, and across. */
+    /** Selected attribute values, keyed by attribute key - OR within a key, and across. */
     val attributes: Map<String, List<String>> = emptyMap(),
     /** Number filters by facet key, in each facet's unit (101). */
     val ranges: Map<String, NumberRange> = emptyMap(),
     val minPrice: String? = null,
     val maxPrice: String? = null,
-    /** The ordering the server applied — may differ from the request (see [applySort]). */
+    /** The ordering the server applied - may differ from the request (see [applySort]). */
     val sort: ProductSortOption = ProductSortOption.NEWEST,
     val items: List<ProductCard> = emptyList(),
     /** Total matching the refinements, ignoring pagination. Null until the first page lands. */
@@ -41,7 +41,7 @@ data class SearchUiState(
     val facetSet: FacetSet? = null,
     val facetsLoading: Boolean = false,
 ) {
-    /** How many filters are applied — drives the filter icon's badge. */
+    /** How many filters are applied - drives the filter icon's badge. */
     val activeFilterCount: Int
         get() = (if (categoryKey != null) 1 else 0) +
             (if (saleOnly) 1 else 0) +
@@ -104,7 +104,7 @@ class SearchViewModel(
      * Distinct from [toggleSale] because the caller is entry navigation, not a tap: the Home
      * screen's "See all" on the on-sale rail arrives already knowing what it wants. Toggling from
      * there would clear the filter whenever the shopper came back to a Search tab that already had
-     * it on — the classic bug where a link means the opposite of itself on second use.
+     * it on - the classic bug where a link means the opposite of itself on second use.
      */
     fun applySaleOnly(saleOnly: Boolean) {
         if (_state.value.saleOnly == saleOnly) return
@@ -117,7 +117,7 @@ class SearchViewModel(
         reload()
     }
 
-    /** Toggle one brand (OR within the brand facet — 043 FR-003). */
+    /** Toggle one brand (OR within the brand facet - 043 FR-003). */
     fun toggleBrand(value: String) {
         val current = _state.value.brands
         val next = if (value in current) current - value else current + value
@@ -125,7 +125,7 @@ class SearchViewModel(
         reload()
     }
 
-    /** Toggle one attribute value under [key] (OR within, and across — 043 FR-003). */
+    /** Toggle one attribute value under [key] (OR within, and across - 043 FR-003). */
     fun toggleAttribute(key: String, value: String) {
         val current = _state.value.attributes[key].orEmpty()
         val nextValues = if (value in current) current - value else current + value
@@ -179,7 +179,7 @@ class SearchViewModel(
     private fun reload() {
         reloadJob?.cancel()
         reloadJob = viewModelScope.launch {
-            delay(250) // debounce — a burst of ticks becomes one refresh
+            delay(250) // debounce - a burst of ticks becomes one refresh
             _state.value = _state.value.copy(
                 loading = true,
                 failed = false,
@@ -189,13 +189,13 @@ class SearchViewModel(
                 exhausted = false,
             )
             val s = _state.value
-            // Facets recompute on filter change, in parallel — never on the grid's critical path, and
+            // Facets recompute on filter change, in parallel - never on the grid's critical path, and
             // never on paginate ([loadMore] does not call this).
             refreshFacets(s)
             try {
                 // Named arguments, deliberately. `SearchProducts` takes several nullable-ish
                 // parameters in a row, and passing the cursor positionally once bound it to
-                // `categoryKey` — same type, no compile error, pagination silently broken. The test
+                // `categoryKey` - same type, no compile error, pagination silently broken. The test
                 // caught it; naming them means the next person cannot reintroduce it.
                 val page = search(
                     query = s.query,

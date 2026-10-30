@@ -25,7 +25,7 @@ export const LOW_STOCK_LIST_SPEC: ListSpec<"onHand" | "name", LowStockFilters> =
 
 export type LowStockListRequest = ListRequest<"onHand" | "name", LowStockFilters>;
 
-/** A variant's stock movements (103): newest first, by cursor — an append-only history with no end. */
+/** A variant's stock movements (103): newest first, by cursor - an append-only history with no end. */
 export const MOVEMENT_LIST = {
   mode: "keyset",
   sorts: { at: { sql: "m.created_at", dir: "desc", type: "timestamptz" } },

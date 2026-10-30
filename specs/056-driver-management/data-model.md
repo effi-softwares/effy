@@ -1,4 +1,4 @@
-# Phase 1 — Data Model: Back-Office Driver Management
+# Phase 1 - Data Model: Back-Office Driver Management
 
 **Feature**: 056-driver-management · **Migration**: `<ts>_driver_management.sql` (one, forward-only)
 
@@ -11,7 +11,7 @@ alters **three** and creates **none**. Everything else is read as it stands.
 
 ---
 
-## 1. `public.driver` — the profile of record (ALTERED)
+## 1. `public.driver` - the profile of record (ALTERED)
 
 ### 1a. Status widens from two values to three
 
@@ -20,14 +20,14 @@ status  text NOT NULL DEFAULT 'active'
         CHECK (status IN ('active', 'suspended', 'offboarded'))
 ```
 
-- `active` — employed and eligible for work.
-- `suspended` — temporarily stood down. Retained, no access, no work. Restorable (FR-018).
-- `offboarded` — no longer employed. Retained for audit, permanently no access (FR-019).
+- `active` - employed and eligible for work.
+- `suspended` - temporarily stood down. Retained, no access, no work. Restorable (FR-018).
+- `offboarded` - no longer employed. Retained for audit, permanently no access (FR-019).
 
 **Migration**: `disabled` → `offboarded` before the CHECK is replaced. Both are "no longer working
 here"; a suspension has never been representable, so no existing row can mean it.
 
-⚠ **Every existing reader tests `= 'active'`** — six sites, measured in [research R2](./research.md#r2).
+⚠ **Every existing reader tests `= 'active'`** - six sites, measured in [research R2](./research.md#r2).
 None widens silently. A test pins this rather than a comment.
 
 ### 1b. New columns
@@ -36,7 +36,7 @@ None widens silently. A test pins this rather than a comment.
 |---|---|---|---|---|
 | `status_reason` | `text` | yes | FR-016 | Why the current status was set |
 | `status_changed_at` | `timestamptz` | no, default `now()` | FR-006 | Effective date shown on the profile |
-| `contact_phone` | `text` | yes | FR-007 | ⚠ PII — never in a log, metric or analytics payload (FR-050) |
+| `contact_phone` | `text` | yes | FR-007 | ⚠ PII - never in a log, metric or analytics payload (FR-050) |
 | `started_on` | `date` | yes | FR-007 | Employment start |
 | `emergency_contact_name` | `text` | yes | FR-007 | ⚠ PII |
 | `emergency_contact_phone` | `text` | yes | FR-007 | ⚠ PII |
@@ -56,7 +56,7 @@ CREATE INDEX driver_status_idx    ON public.driver (status);                    
 CREATE INDEX driver_register_idx  ON public.driver (name, id);                      -- FR-004 keyset
 ```
 
-`work_email` is already `citext NOT NULL UNIQUE` — that unique index is what makes **FR-014's refusal**
+`work_email` is already `citext NOT NULL UNIQUE` - that unique index is what makes **FR-014's refusal**
 a database guarantee rather than a service check, and it already exists.
 
 ### 1d. Concurrency
@@ -66,15 +66,15 @@ a database guarantee rather than a service check, and it already exists.
 
 ### 1e. Field rules
 
-- `name` — required, trimmed, non-empty.
-- `work_email` — required at create, lower-cased, **immutable thereafter** (research R7).
+- `name` - required, trimmed, non-empty.
+- `work_email` - required at create, lower-cased, **immutable thereafter** (research R7).
 - Every other field is **optional and clearable**. ⚠ FR-010 exists because the current implementation
   uses `COALESCE($n, col)`, which cannot distinguish "leave alone" from "clear". The write must
   distinguish *absent* from *null* in the request and set only the keys present.
 
 ---
 
-## 2. `public.delivery_failure` — resolution state (ALTERED)
+## 2. `public.delivery_failure` - resolution state (ALTERED)
 
 ```
 resolved_at      timestamptz
@@ -86,12 +86,12 @@ CREATE INDEX delivery_failure_open_idx
 ```
 
 Requirements FR-027, FR-031, FR-032, FR-033. **Nothing else on the table changes**; the driver app keeps
-writing it exactly as it does. ⚠ Until this feature, **nothing anywhere read this table** — the driver
+writing it exactly as it does. ⚠ Until this feature, **nothing anywhere read this table** - the driver
 service is its only toucher, and it only inserts.
 
 ---
 
-## 3. `public.collection_task_issue` — resolution state (ALTERED)
+## 3. `public.collection_task_issue` - resolution state (ALTERED)
 
 ```
 resolved_at      timestamptz
@@ -123,7 +123,7 @@ Requirements FR-028, FR-031, FR-032. Same shape, same reasoning, and the same "n
 
 ---
 
-## 5. Derived entities — computed, never stored
+## 5. Derived entities - computed, never stored
 
 ### 5a. Stranded work (FR-021, SC-006)
 
@@ -151,17 +151,17 @@ eventually be confidently wrong about the one question it exists to answer.
 ### 5c. Assignment readiness (FR-044, SC-009)
 
 A driver **cannot receive work** when any holds: `status <> 'active'`; `delivery_zone_id IS NULL`;
-`licence_expires_on < today`. The reason is returned as an enumerated cause, not a boolean — "cannot
+`licence_expires_on < today`. The reason is returned as an enumerated cause, not a boolean - "cannot
 work" without "why" is not actionable.
 
 ### 5d. Zone coverage (FR-045) · 5e. Expiry warnings (FR-046) · 5f. Period summary (FR-043)
 
-Aggregations over the tables above. Counts only — ⚠ **no currency anywhere** (FR-049); the driver
+Aggregations over the tables above. Counts only - ⚠ **no currency anywhere** (FR-049); the driver
 domain has never carried money and does not start here.
 
 ---
 
-## 6. `admin.audit_log` — governance (EXISTING, new target type)
+## 6. `admin.audit_log` - governance (EXISTING, new target type)
 
 `target_type = 'driver'`, `target_id = driver.id`. Actions:
 
@@ -172,7 +172,7 @@ driver.proof.viewed
 ```
 
 ⚠ **FR-024 closes a defect**: `grep -rn "audit_log" apis/edge-api/admin/src/drivers/` returns nothing.
-Driver management is currently the **only** privileged back-office domain writing no audit row — shops,
+Driver management is currently the **only** privileged back-office domain writing no audit row - shops,
 promotions and catalog schema all do.
 
 ⚠ **`detail` carries no PII** (FR-050, and the column's own comment). Phone, emergency contact and
@@ -201,7 +201,7 @@ never opened still logs. That is the honest limit of presigning (research R4).
   warned, told what is held and which orders it affects, and must confirm.
 - ⚠ **Access ends immediately; work is reclaimed eventually.** The identity account is disabled in the
   same operation, so no session can be obtained. Un-started work returns to the pool on the next sweep,
-  and started work becomes *stranded* and needs a human. The screen must say this — implying a suspended
+  and started work becomes *stranded* and needs a human. The screen must say this - implying a suspended
   driver is cleared of work when they are not is precisely the failure this feature exists to prevent.
 
 ## 8. Exception lifecycle
@@ -210,6 +210,6 @@ never opened still logs. That is the honest limit of presigning (research R4).
    (driver app records it) ──► outstanding ──► resolved (note + who + when)
 ```
 
-Resolution is one-way. A resolved exception stays readable forever (FR-031) — it is never deleted, and
+Resolution is one-way. A resolved exception stays readable forever (FR-031) - it is never deleted, and
 an exception whose order is later cancelled or refunded is not silently removed; the resolution note is
 where that connection is recorded.

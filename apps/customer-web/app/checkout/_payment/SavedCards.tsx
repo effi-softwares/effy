@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils"
 
 import { NetworkMark, brandLabel } from "./BrandMarks"
 
-/** The sentinel for "use a new card" — deliberately not a real id, so it can never collide with one. */
+/** The sentinel for "use a new card" - deliberately not a real id, so it can never collide with one. */
 export const NEW_CARD = "new" as const
 
 /**
@@ -97,7 +97,7 @@ export function SavedCards({
                   }
                 }}
                 disabled={busy || removing === card.id}
-                // 44px minimum touch target — the icon is 16px, the hit area is not.
+                // 44px minimum touch target - the icon is 16px, the hit area is not.
                 className="-mr-2 flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
                 aria-label={`Remove card ending ${card.last4}`}
               >
@@ -138,7 +138,7 @@ export function SavedCards({
  * The save-this-card consent control.
  *
  * This checkbox is the only thing that decides whether a card is kept. The server deliberately does
- * not set `setup_future_usage` on the intent — doing so would keep a card the shopper declined, and it
+ * not set `setup_future_usage` on the intent - doing so would keep a card the shopper declined, and it
  * is a documented integration error besides. Spike S2 moved enforcement from the
  * provider's own checkbox to this one, which is exactly why the "declined card is absent later" test
  * exists rather than being assumed.

@@ -124,7 +124,7 @@ export function useEdgePaging({
     };
   }, [frame, scroller]);
 
-  // The page this turn asked for has arrived: start it at its top, or — going back — at its end.
+  // The page this turn asked for has arrived: start it at its top, or - going back - at its end.
   useEffect(() => {
     const dir = turned.current;
     if (!dir || busy) return;

@@ -4,8 +4,8 @@ import { join, relative, resolve } from "node:path"
 import { describe, expect, it } from "vitest"
 
 /**
- * A screen that is still reading is drawn with `@effy/web-kit/patterns`' loading shapes — `DetailPageSkeleton`,
- * `PanelSkeleton`, `DetailRowsSkeleton`, `TableSkeleton`, a table's own `loading` — which are built from the same
+ * A screen that is still reading is drawn with `@effy/web-kit/patterns`' loading shapes - `DetailPageSkeleton`,
+ * `PanelSkeleton`, `DetailRowsSkeleton`, `TableSkeleton`, a table's own `loading` - which are built from the same
  * components as the loaded page, so the shape cannot drift from it. A raw `Skeleton` slab, a "Loading…" sentence
  * or `aria-busy` written by hand is how the old placeholders stopped matching their pages.
  */

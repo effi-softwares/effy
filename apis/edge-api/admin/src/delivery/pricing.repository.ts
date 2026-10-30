@@ -57,7 +57,7 @@ async function hydrate(q: Queryable, r: PlanRow): Promise<FeePlanDTO> {
     q.query<{ slot_id: string; label: string; active: boolean; add_amount: string }>(
       `SELECT p.slot_id::text AS slot_id,
               to_char(s.start_time, 'HH24:MI') || '–' || to_char(s.end_time, 'HH24:MI') AS label,
-              -- availability-exempt: public.delivery_slot — a delivery window's lifecycle, not a product's.
+              -- availability-exempt: public.delivery_slot - a delivery window's lifecycle, not a product's.
               s.status = 'active' AS active, p.add_amount::text AS add_amount
          FROM public.delivery_slot_premium p JOIN public.delivery_slot s ON s.id = p.slot_id
         WHERE p.plan_id = $1 ORDER BY s.start_time`,
@@ -148,7 +148,7 @@ export async function savePlan(id: string | null, input: FeePlanInput, actorSub:
       } else {
         const row = (await tx.query<PlanRow>(`SELECT ${COLS} FROM public.delivery_fee_plan WHERE id = $1 FOR UPDATE`, [planId])).rows[0];
         if (!row) throw new PricingError(404, "plan_not_found", "that fee plan does not exist");
-        if (row.activated_at) throw new PricingError(409, "plan_not_draft", "a plan that has been active cannot be changed — copy it to a new draft");
+        if (row.activated_at) throw new PricingError(409, "plan_not_draft", "a plan that has been active cannot be changed - copy it to a new draft");
         if (row.kind !== input.kind) throw new PricingError(422, "plan_kind_mismatch", "a plan cannot change kind");
         before = await hydrate(tx, row);
         await tx.query(
@@ -193,9 +193,9 @@ function strip(p: FeePlanDTO): Omit<FeePlanDTO, "gaps" | "state" | "createdBy" |
 const ACTIVATION_REFUSALS: Record<string, [409 | 404, string]> = {
   plan_not_found: [404, "that fee plan does not exist"],
   plan_already_active: [409, "that plan is already the one in force"],
-  plan_retired: [409, "a plan that has been replaced is not brought back — copy it to a new draft"],
+  plan_retired: [409, "a plan that has been replaced is not brought back - copy it to a new draft"],
   plan_incomplete: [409, "this plan cannot price every delivery yet"],
-  zero_floor_unconfirmed: [409, "the minimum fee is $0 — confirm that delivery may be free without the free-delivery amount"],
+  zero_floor_unconfirmed: [409, "the minimum fee is $0 - confirm that delivery may be free without the free-delivery amount"],
 };
 
 /** Through the one function that may. Returns the plan it retired. */

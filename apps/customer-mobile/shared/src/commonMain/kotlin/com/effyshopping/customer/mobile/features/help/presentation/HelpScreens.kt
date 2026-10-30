@@ -60,7 +60,7 @@ import com.effyshopping.customer.mobile.resources.lucide_package
  */
 private data class Faq(val question: String, val answer: String)
 
-// 087 (Help board) — the board's five questions, answered true of Effy as built (083/085 delivery,
+// 087 (Help board) - the board's five questions, answered true of Effy as built (083/085 delivery,
 // Points, 055 refunds and cancellation). Nothing here may say how many suppliers fill an order.
 private val FAQS = listOf(
     Faq(
@@ -70,20 +70,20 @@ private val FAQS = listOf(
     ),
     Faq(
         "How do delivery windows work?",
-        "Choose today or one of the next few delivery days. A day on its own is fine — we'll deliver any " +
-            "time that day — or pick a window if you need a specific time. Each window shows the time to " +
+        "Choose today or one of the next few delivery days. A day on its own is fine - we'll deliver any " +
+            "time that day - or pick a window if you need a specific time. Each window shows the time to " +
             "order by.",
     ),
     Faq(
         "What are Effy points?",
-        "Points are store credit. Use them at checkout as a way of paying — your order total stays the " +
+        "Points are store credit. Use them at checkout as a way of paying - your order total stays the " +
             "same, points pay what they cover and any rest goes on your card. Your balance is in " +
             "Account, under Effy points.",
     ),
     Faq(
         "How do refunds work?",
         "Refunds go back to the card or payment method you paid with, usually within a few business " +
-            "days — when it appears depends on your bank. We never see or store your card details.",
+            "days - when it appears depends on your bank. We never see or store your card details.",
     ),
     Faq(
         "Can I change or cancel an order?",
@@ -93,7 +93,7 @@ private val FAQS = listOf(
 )
 
 /**
- * Help (087, Help board) — one page: "How can we help?", the answers, how to reach a person, and where
+ * Help (087, Help board) - one page: "How can we help?", the answers, how to reach a person, and where
  * to go when something is wrong with an order. It replaces three screens (FAQs, Help centre, Contact
  * us) that each held a fragment of this; their routes all open it.
  */
@@ -150,7 +150,7 @@ private fun HelpScaffold(title: String, content: @Composable ColumnScope.() -> U
 @Composable
 private fun FaqRow(faq: Faq) {
     var open by remember { mutableStateOf(false) }
-    // The chevron rotates (it snapped) — state by orientation and by the answer's presence.
+    // The chevron rotates (it snapped) - state by orientation and by the answer's presence.
     val rotation by animateFloatAsState(if (open) 180f else 0f, tween(effyDuration(EffyStorefrontMotion.StandardMillis)), label = "faqChevron")
     Column(
         modifier = Modifier
@@ -182,5 +182,5 @@ private fun FaqRow(faq: Faq) {
     }
 }
 
-/** The customer-facing Effy address — the only one a shopper may see (claude.md). */
+/** The customer-facing Effy address - the only one a shopper may see (claude.md). */
 internal const val SUPPORT_EMAIL = "hello@effyshopping.com"

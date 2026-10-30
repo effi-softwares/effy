@@ -1,4 +1,4 @@
-// GENERATED FROM packages/shared-types/src/driver.ts (+ problem.ts) — DO NOT EDIT.
+// GENERATED FROM packages/shared-types/src/driver.ts (+ problem.ts) - DO NOT EDIT.
 // Regenerate: pnpm --filter @effy/shared-types driver-contract:gen
 // The wire contract lives in TypeScript ONCE (Principle II); this file is derived and diff-guarded.
 

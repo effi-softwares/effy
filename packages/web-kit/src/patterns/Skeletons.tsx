@@ -19,7 +19,7 @@ import { DetailRows, Panel } from "./Panel";
 
 /**
  * Loading shapes (Patterns board, "States"). A page that is still reading is drawn with the SAME pattern
- * components the loaded page uses — `PageHeader`, `Panel`, `DetailRows`, the tabs bar, a table's own head —
+ * components the loaded page uses - `PageHeader`, `Panel`, `DetailRows`, the tabs bar, a table's own head -
  * with a `Bone` where a value will be, and with every label the page already knows (a panel's title, a
  * tab's name, a column head) written out. A skeleton has the page's structure by construction; there is no
  * free-standing grey slab (`skeletons.guard.test.ts` keeps `Skeleton` out of the screens).
@@ -139,19 +139,19 @@ export function PageHeaderSkeleton({
       meta={
         meta > 0
           ? Array.from({ length: meta }, (_, i) => (
-              <Bone key={i} className={i % 2 ? "w-36" : "w-28"} />
-            ))
+            <Bone key={i} className={i % 2 ? "w-36" : "w-28"} />
+          ))
           : undefined
       }
       actions={
         actions > 0
           ? Array.from({ length: actions }, (_, i) => (
-              <Bone
-                key={i}
-                kind="control"
-                className={i === actions - 1 ? "w-10" : "w-36"}
-              />
-            ))
+            <Bone
+              key={i}
+              kind="control"
+              className={i === actions - 1 ? "w-10" : "w-36"}
+            />
+          ))
           : undefined
       }
     />
@@ -323,7 +323,7 @@ export function PanelSkeleton({
   );
 }
 
-/** The body rows of a table while it reads — one bone per cell. Shared by `TableSkeleton` and the data tables. */
+/** The body rows of a table while it reads - one bone per cell. Shared by `TableSkeleton` and the data tables. */
 export function SkeletonRows({
   rows,
   columns,

@@ -25,12 +25,12 @@ const req = (qs: Record<string, string | undefined>) => parseListQuery({ pageSiz
 import { activityEntries } from "@effy/edge-shared/testing";
 
 import { orderActivitySource } from "../activity/order";
-import { list, packages, viewCounts } from "./repository";
-import { listOrders } from "./service";
+import { list, milestones, packages, paidOrderCount, viewCounts } from "./repository";
+import { listOrders, toMilestones } from "./service";
 
 const RUN = process.env.CONTAINER_TESTS === "1";
 
-describe.skipIf(!RUN)("order reads — against real PostgreSQL", () => {
+describe.skipIf(!RUN)("order reads - against real PostgreSQL", () => {
   let container: StartedPostgreSqlContainer;
   let pool: Pool;
 
@@ -111,6 +111,47 @@ describe.skipIf(!RUN)("order reads — against real PostgreSQL", () => {
     expect(rows[2]!.actor).toBe("Former staff");
   });
 
+  /** The journey's times come from the records that already say so; a reopened package keeps its latest "ready". */
+  it("reads each step a package has reached, with its time", async () => {
+    const { fulfillmentId } = await seed();
+    await pool.query(
+      `INSERT INTO public.fulfillment_event (shop_fulfillment_id, event_type, to_status, occurred_at) VALUES
+         ($1, 'state_changed', 'ready_for_pickup', now() - interval '5 hours'),
+         ($1, 'state_changed', 'picking', now() - interval '4 hours 30 minutes'),
+         ($1, 'state_changed', 'ready_for_pickup', now() - interval '4 hours')`,
+      [fulfillmentId],
+    );
+    await pool.query(
+      `INSERT INTO public.carrier_handoff (shop_fulfillment_id, carrier_name, recorded_by_sub, handed_over_at)
+       VALUES ($1, 'Australia Post', 'staff-1', now() - interval '2 hours')`,
+      [fulfillmentId],
+    );
+    await pool.query(
+      `INSERT INTO public.package_arrival (shop_fulfillment_id, source, recorded_by_sub, arrived_at)
+       VALUES ($1, 'staff_recorded', 'staff-1', now() - interval '1 hour')`,
+      [fulfillmentId],
+    );
+
+    const [row] = await milestones([fulfillmentId]);
+    const steps = toMilestones(row);
+    expect(steps.map((m) => m.status)).toEqual(["preparing", "ready", "with_carrier", "delivered"]);
+    const at = Object.fromEntries(steps.map((m) => [m.status, Date.parse(m.at)]));
+    expect(Date.now() - at.ready!).toBeGreaterThan(3.9 * 3_600_000);
+    expect(Date.now() - at.ready!).toBeLessThan(4.1 * 3_600_000);
+    expect(await milestones([])).toEqual([]);
+  });
+
+  it("counts only the customer's paid orders", async () => {
+    const { orderId } = await seed();
+    const c = await pool.query<{ customer_id: string }>(`SELECT customer_id FROM public."order" WHERE id = $1`, [orderId]);
+    await pool.query(
+      `INSERT INTO public."order" (customer_id, order_number, status, delivery_address, item_subtotal_amount, grand_total_amount)
+       VALUES ($1, 'EFY-UNPAID', 'pending_payment', '{}', 1, 1)`,
+      [c.rows[0]!.customer_id],
+    );
+    expect(await paidOrderCount(c.rows[0]!.customer_id)).toBe(1);
+  });
+
   /** The history entry reads the same with or without a consignment number. */
   it("summarises a handover with no carrier the same way, with no hint of missing data", async () => {
     const { orderId, fulfillmentId } = await seed();
@@ -123,7 +164,7 @@ describe.skipIf(!RUN)("order reads — against real PostgreSQL", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]!.title).toBe("Handed to carrier");
     expect(rows[0]!.detail).toBeNull();
-    for (const hint of ["null", "undefined", "—", "unknown", "missing", "n/a"]) {
+    for (const hint of ["null", "undefined", "-", "unknown", "missing", "n/a"]) {
       expect(rows[0]!.title.toLowerCase()).not.toContain(hint);
     }
   });
@@ -254,13 +295,13 @@ describe.skipIf(!RUN)("order reads — against real PostgreSQL", () => {
       expect(second).toHaveLength(5);
       expect(
         second.filter((n) => first.includes(n)),
-        "page 2 repeated an order from page 1 — the minted cursor and the ORDER BY column disagree",
+        "page 2 repeated an order from page 1 - the minted cursor and the ORDER BY column disagree",
       ).toEqual([]);
       expect(new Set([...first, ...second]).size).toBe(30);
       expect(page2.nextCursor).toBeNull();
     });
 
-    it("⚠ 103 — two orders written in the same instant on either side of a page edge are both listed", async () => {
+    it("⚠ 103 - two orders written in the same instant on either side of a page edge are both listed", async () => {
       const c = await pool.query<{ id: string }>(`INSERT INTO public.customer (cognito_sub, email) VALUES ('tie', 'tie@example.com') RETURNING id`);
       // 30 orders sharing ONE created_at: the old `created_at < cursor` skipped every one after page 1.
       for (let i = 0; i < 30; i++) {
@@ -278,7 +319,7 @@ describe.skipIf(!RUN)("order reads — against real PostgreSQL", () => {
       expect(new Set(all).size).toBe(30);
     });
 
-    it("⚠ 103 — orders arriving while paging push nothing off and repeat nothing", async () => {
+    it("⚠ 103 - orders arriving while paging push nothing off and repeat nothing", async () => {
       await seedAged(30);
       const p1 = await listOrders(req({ pageSize: "25" }));
       // New orders arrive at the top between the two reads.

@@ -168,7 +168,7 @@ export function orderRowTone(row: Pick<OrderRow, "placedAt" | "status">, now: nu
 
 export function formatPlacedShort(iso: string, now: Date = new Date()): string {
   const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return "—"
+  if (Number.isNaN(d.getTime())) return "-"
   const sameDay = d.toDateString() === now.toDateString()
   return sameDay
     ? d.toLocaleTimeString("en-AU", { hour: "2-digit", minute: "2-digit", hour12: false })
@@ -177,14 +177,15 @@ export function formatPlacedShort(iso: string, now: Date = new Date()): string {
 
 export function formatMoney(amount: string, currency = "AUD"): string {
   const n = Number(amount)
-  if (!Number.isFinite(n)) return "—"
-  return new Intl.NumberFormat("en-AU", { style: "currency", currency }).format(n)
+  if (!Number.isFinite(n)) return "-"
+  // Said as the product pages say it: "AUD 16.00".
+  return `${currency} ${n < 0 ? "−" : ""}${Math.abs(n).toFixed(2)}`
 }
 
 export function formatWhen(iso: string | null): string {
-  if (!iso) return "—"
+  if (!iso) return "-"
   const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return "—"
+  if (Number.isNaN(d.getTime())) return "-"
   return d.toLocaleString("en-AU", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })
 }
 
@@ -266,13 +267,13 @@ export function unitsError(raw: string, ordered: number): string | null {
 export function pickToast(name: string, mode: PickMode, units: number, ordered: number): string {
   switch (mode) {
     case "full":
-      return `${name} — picked in full`
+      return `${name} - picked in full`
     case "part":
-      return `${name} — ${units} of ${ordered} picked`
+      return `${name} - ${units} of ${ordered} picked`
     case "unavailable":
-      return `${name} — marked unavailable`
+      return `${name} - marked unavailable`
     case "none":
-      return `${name} — picking cleared`
+      return `${name} - picking cleared`
   }
 }
 

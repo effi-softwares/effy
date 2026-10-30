@@ -18,7 +18,7 @@ const ORDER = {
   group: "orders",
 }
 
-describe("⚠ P5 — a malformed payload still produces something showable (FR-029)", () => {
+describe("⚠ P5 - a malformed payload still produces something showable (FR-029)", () => {
   it.each([null, undefined, 42, "a string", [], { type: 1, webPath: {} }])(
     "never throws and always yields a title for %p",
     (raw) => {
@@ -44,7 +44,7 @@ describe("⚠ P5 — a malformed payload still produces something showable (FR-0
   })
 })
 
-describe("⚠ same-origin only — a notification click is not an open redirect", () => {
+describe("⚠ same-origin only - a notification click is not an open redirect", () => {
   it.each([
     ["https://evil.test/x", "/"],
     ["//evil.test/x", "/"],
@@ -60,7 +60,7 @@ describe("⚠ same-origin only — a notification click is not an open redirect"
   })
 })
 
-describe("⚠ P6/P7 — suppression is by VISIBILITY, not by a client existing (FR-030)", () => {
+describe("⚠ P6/P7 - suppression is by VISIBILITY, not by a client existing (FR-030)", () => {
   it("stays silent when a VISIBLE client is already on the destination", () => {
     expect(
       shouldSuppress(ORDER, [{ url: "https://shop.dev.effyshopping.com/orders/f-1", visibilityState: "visible" }]),
@@ -93,12 +93,12 @@ describe("⚠ P6/P7 — suppression is by VISIBILITY, not by a client existing (
     ).toBe(false)
   })
 
-  it("notifies when there are no clients at all — the case this feature exists for", () => {
+  it("notifies when there are no clients at all - the case this feature exists for", () => {
     expect(shouldSuppress(ORDER, [])).toBe(false)
   })
 })
 
-describe("⚠ P8 — twenty orders in a minute are one banner that says twenty (FR-020, SC-005)", () => {
+describe("⚠ P8 - twenty orders in a minute are one banner that says twenty (FR-020, SC-005)", () => {
   it("counts up rather than repeating 'New order to pick'", () => {
     expect(planNotification(ORDER, 0).title).toBe("New order to pick")
     expect(planNotification(ORDER, 1).title).toBe("2 new orders to pick")
@@ -116,7 +116,7 @@ describe("⚠ P8 — twenty orders in a minute are one banner that says twenty (
     expect(planNotification(attn, 2).tag).not.toBe(planNotification(ORDER, 2).tag)
   })
 
-  it("⚠ sets BOTH tag and renotify — each is useless without the other", () => {
+  it("⚠ sets BOTH tag and renotify - each is useless without the other", () => {
     expect(SW_CODE).toMatch(/tag:\s*plan\.tag/)
     expect(SW_CODE).toMatch(/renotify:\s*true/)
   })
@@ -126,7 +126,7 @@ describe("⚠ P8 — twenty orders in a minute are one banner that says twenty (
   })
 })
 
-describe("⚠ P9/P10 — a click reuses the open console (FR-014)", () => {
+describe("⚠ P9/P10 - a click reuses the open console (FR-014)", () => {
   it("prefers a focused window", () => {
     const clients = [
       { url: "https://shop.dev.effyshopping.com/catalog", focused: false },

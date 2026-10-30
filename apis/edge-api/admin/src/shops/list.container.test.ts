@@ -24,7 +24,7 @@ let container: StartedPostgreSqlContainer;
 let pool: Pool;
 const list = (qs: Record<string, string>) => listShops(parseListQuery(qs, SHOP_LIST_SPEC));
 
-d("103 — shop register as a console list", () => {
+d("103 - shop register as a console list", () => {
   beforeAll(async () => {
     container = await new PostgreSqlContainer("postgres:16-alpine").start();
     pool = new Pool({ connectionString: container.getConnectionUri() });

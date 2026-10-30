@@ -11,7 +11,7 @@ import kotlinx.serialization.Serializable
 
 /**
  * The device-token repository over the edge API. [edge] is the client built for
- * `EDGE_API_BASE_URL`, carrying the two-token protocol — the gateway's customer authorizer derives the
+ * `EDGE_API_BASE_URL`, carrying the two-token protocol - the gateway's customer authorizer derives the
  * owning subject, so the body never carries it.
  *
  * Best-effort by design: registration failures must never block a user flow, so the

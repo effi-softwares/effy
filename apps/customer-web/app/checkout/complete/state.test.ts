@@ -18,7 +18,7 @@ describe("completion state", () => {
     expect(completionState({ status: "pending_payment" }, "canceled")).toBe("abandoned")
   })
 
-  // The hint can be edited, replayed or stale — it must never override what the platform says.
+  // The hint can be edited, replayed or stale - it must never override what the platform says.
   it("never lets the redirect hint contradict the platform", () => {
     expect(completionState({ status: "paid" }, "failed")).toBe("receipt")
     expect(completionState({ status: "pending_payment" }, "succeeded")).toBe("confirming")

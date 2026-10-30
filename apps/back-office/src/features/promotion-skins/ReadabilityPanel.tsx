@@ -10,14 +10,14 @@ interface Props {
 
 export function ReadabilityPanel({ issues, pairs }: Props) {
   return (
-    <Panel title="Readable?" description="Every piece of text against what it sits on — normal text 4.5:1, large 3:1.">
+    <Panel title="Readable?" description="Every piece of text against what it sits on - normal text 4.5:1, large 3:1.">
       {issues.length > 0 ? (
         <ul className="space-y-1 text-sm" data-testid="skin-issues">
           {issues.map((i) => (
             <li key={i.field} className="flex gap-2">
               <TriangleAlert aria-hidden="true" className="mt-1 size-4 shrink-0 text-destructive" />
               <span>
-                <span className="font-mono text-xs">{i.field}</span> — {i.message}
+                <span className="font-mono text-xs">{i.field}</span> - {i.message}
               </span>
             </li>
           ))}
@@ -35,7 +35,7 @@ export function ReadabilityPanel({ issues, pairs }: Props) {
                 {p.label}
               </span>
               <StatusWord tone={p.ok ? "done" : "problem"}>
-                {p.ok ? `${p.ratio}:1` : `${p.ratio}:1 — too faint`}
+                {p.ok ? `${p.ratio}:1` : `${p.ratio}:1 - too faint`}
               </StatusWord>
             </li>
           ))}

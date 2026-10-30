@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest"
 
 /**
  * 103: every console list and bounded table is `@effy/web-kit/data-table` (`DataTable` / `StaticTable`). A screen
- * may draw the raw `Table` only when it is a board, an editor, a review or a timeline — named here, with why.
+ * may draw the raw `Table` only when it is a board, an editor, a review or a timeline - named here, with why.
  */
 const RAW_TABLE_ALLOWED: Record<string, string> = {
   "catalog/ReviewPanel.tsx": "review: a change against what is on sale",

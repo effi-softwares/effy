@@ -65,7 +65,7 @@ export interface StorefrontVariantDTO {
   unitPrice: UnitPriceDTO | null
   /** Purchasable now (the one availability rule). */
   available: boolean
-  /** The variant's own picture, or null — show the product's gallery. */
+  /** The variant's own picture, or null - show the product's gallery. */
   imageUrl: string | null
   /** Widths (px) of this picture's smaller copies, ascending. */
   imageWidths?: number[]
@@ -159,9 +159,9 @@ export function variantLabel(options: readonly LabelOption[], optionValueIds: re
   return parts.length > 0 ? parts.join(" / ") : null
 }
 
-/** An order line's name where one string is all there is (a manifest, a PDF line, an email): "Basmati Rice — 1 kg". The SQL twin is `lineNameSql`. */
+/** An order line's name where one string is all there is (a manifest, a PDF line, an email): "Basmati Rice - 1 kg". The SQL twin is `lineNameSql`. */
 export function lineName(productName: string, label: string | null | undefined): string {
-  return label ? `${productName} — ${label}` : productName
+  return label ? `${productName} - ${label}` : productName
 }
 
 /** A pack size as an option value: "500 g", "1.25 L", "12 pack". Null when the quantity is malformed. */

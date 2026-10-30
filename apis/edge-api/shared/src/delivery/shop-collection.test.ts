@@ -12,7 +12,7 @@ const schedule: CollectionSchedule = {
 };
 const pkg = (over: Partial<PackageRunFacts> = {}): PackageRunFacts => ({ deliveredBy: "effy", windowStart: null, assignedRunAt: null, ...over });
 
-describe("the run expected to collect a shop's package (099 — the planner's rule)", () => {
+describe("the run expected to collect a shop's package (099 - the planner's rule)", () => {
   it("is the next run for a package with no window, and for a courier parcel via the hub", () => {
     expect(runForPackage(pkg(), schedule, at(10))).toEqual(at(12, 30));
     expect(runForPackage(pkg({ deliveredBy: "courier", windowStart: at(18) }), schedule, at(10))).toEqual(at(12, 30));

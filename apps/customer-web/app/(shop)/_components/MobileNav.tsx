@@ -35,7 +35,7 @@ export function MobileNav({
   /** The account control at the drawer's foot, rendered on the server and passed in (this client component cannot read the session). */
   accountTrigger?: React.ReactNode
   /**
-   * The account destinations, as a second level of this drawer — also server-rendered.
+   * The account destinations, as a second level of this drawer - also server-rendered.
    *
    * `null` is the signal that there is nothing to drill into (a guest), and it comes from the
    * server component that read the session. That is why it is a nullable slot rather than something
@@ -44,12 +44,12 @@ export function MobileNav({
    * reach their account.
    */
   accountPanel?: React.ReactNode
-  /** The name to head the account level with — the customer's, when we have one. */
+  /** The name to head the account level with - the customer's, when we have one. */
   accountTitle?: string
   /**
    * The paths of the account area. On a page under one of them the drawer opens on the account level:
    * below `lg` those pages have no sidebar, so this drawer is their section navigation and the menu
-   * button has to land on it — not two taps away behind the avatar.
+   * button has to land on it - not two taps away behind the avatar.
    */
   accountRoots?: readonly string[]
 }) {
@@ -68,7 +68,7 @@ export function MobileNav({
   const level = chosen ?? (inAccount ? "account" : "root")
   const atRoot = level === "root"
 
-  // Reset on close, not on open. Reopening the drawer must start at the route's own level — a menu
+  // Reset on close, not on open. Reopening the drawer must start at the route's own level - a menu
   // that remembers where it was left reopens showing something the shopper did not ask for.
   const onOpenChange = useCallback(
     (next: boolean) => {
@@ -188,7 +188,7 @@ export function MobileNav({
                 <button
                   type="button"
                   onClick={() => setChosen("account")}
-                  // The panel is not in the DOM-order sense "expanded" — it is a sibling level. But
+                  // The panel is not in the DOM-order sense "expanded" - it is a sibling level. But
                   // `aria-expanded` is still the right contract: this control reveals the thing named
                   // by the panel, and a screen reader user needs to know it did.
                   aria-expanded={!atRoot}

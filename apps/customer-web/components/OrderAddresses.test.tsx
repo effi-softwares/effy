@@ -50,7 +50,7 @@ describe("OrderAddresses (US5, FR-016)", () => {
 
 // Delivery instructions
 
-describe("066 — delivery instructions on the receipt", () => {
+describe("066 - delivery instructions on the receipt", () => {
   const shipping = {
     recipientName: "Pat", phone: null, line1: "1 Test St", line2: null,
     city: "Carlton", region: "VIC", postalCode: "3053", country: "AU",
@@ -69,7 +69,7 @@ describe("066 — delivery instructions on the receipt", () => {
   })
 
   /** Every order placed before 066, and every order whose shopper said nothing. */
-  it("⚠ shows NOTHING when there are none — no heading, no placeholder", () => {
+  it("⚠ shows NOTHING when there are none - no heading, no placeholder", () => {
     for (const instructions of [undefined, null, { handover: null, note: null }]) {
       const { unmount } = render(<OrderAddresses shipping={shipping} instructions={instructions} />)
       expect(screen.queryByRole("heading", { name: "Delivery instructions" })).toBeNull()

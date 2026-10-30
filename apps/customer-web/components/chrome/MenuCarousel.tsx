@@ -9,12 +9,12 @@ import { animateSlideIn, warmSlideMotion } from "@/lib/slide-motion"
  * The offers and information panel in the All aisles menu: one slide at a time, with the controls
  * to move between them.
  *
- * It moves on by itself, and stops for anyone reading or reaching for it — pointer over it, focus
+ * It moves on by itself, and stops for anyone reading or reaching for it - pointer over it, focus
  * inside it, or a reduced-motion preference. It is mounted only while the menu is open, so nothing
  * ticks behind a closed menu.
  *
- * Each slide paints its own card — an offer is a full promo-coloured banner, an information slide a
- * tinted panel — so this draws no ground of its own, and its controls sit below the card, on the
+ * Each slide paints its own card - an offer is a full promo-coloured banner, an information slide a
+ * tinted panel - so this draws no ground of its own, and its controls sit below the card, on the
  * menu's white, where one colour reads whatever the slide above is.
  *
  * The slide that arrives is animated with Motion (motion.dev) through `lib/slide-motion`, which is

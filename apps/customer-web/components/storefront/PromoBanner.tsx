@@ -97,7 +97,7 @@ const menuBubbles = (icons: [LucideIcon, LucideIcon]): PromoBubble[] => [
 ]
 
 /**
- * The All aisles menu's offer slides — a short, narrow card that is mostly words, so two small
+ * The All aisles menu's offer slides - a short, narrow card that is mostly words, so two small
  * bubbles sit in the bottom-right corner, clear of the title, the code and the link. One colour per
  * slide, in the order the menu shows them.
  */
@@ -152,7 +152,7 @@ export function PromoBubbles({ bubbles }: { bubbles: PromoBubble[] }) {
  * the content needs no positioning of its own and a white button is never drawn under the ring.
  *
  * `imageUrl` swaps the drawn decoration and bubbles for real artwork at the same size (`object-cover`).
- * The words on top are then on a photograph nobody has measured — the caller decides whether to keep
+ * The words on top are then on a photograph nobody has measured - the caller decides whether to keep
  * them there.
  *
  * `bubbles={false}` draws the decoration only, for a banner that places its bubbles itself (the hero).

@@ -24,7 +24,7 @@ const FILES = sourceFiles(resolve(here)).map((path) => ({
   source: readFileSync(path, "utf8"),
 }))
 
-describe("driver console — Principle V, no exception claimed", () => {
+describe("driver console - Principle V, no exception claimed", () => {
   it("has source files to check (a passing-because-empty test proves nothing)", () => {
     expect(FILES.length).toBeGreaterThan(10)
   })
@@ -46,7 +46,7 @@ describe("driver console — Principle V, no exception claimed", () => {
     }
   })
 
-  it("⚠ shows no currency — the driver domain has never carried money (FR-049)", () => {
+  it("⚠ shows no currency - the driver domain has never carried money (FR-049)", () => {
     for (const { path, source } of FILES) {
       expect(source, `${path} formats currency`).not.toMatch(/style:\s*["']currency["']/)
       expect(source, `${path} references a money field`).not.toMatch(/\b(grandTotal|subtotal|amountCents|currency)\b/)

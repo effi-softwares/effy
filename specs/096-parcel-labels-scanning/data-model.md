@@ -1,11 +1,11 @@
-# Data model — 096
+# Data model - 096
 
 There is one goose migration: `db/migrations/20261024090000_parcels_scanning_documents.sql`. It uses raw SQL
 and no ORM, and it is reversible apart from the backfills.
 
 ## New tables
 
-### `public.package_parcel` — one physical bag or box (R1–R4)
+### `public.package_parcel` - one physical bag or box (R1–R4)
 
 | Column | Type | Notes |
 |---|---|---|
@@ -28,14 +28,14 @@ and no ORM, and it is reversible apart from the backfills.
   - "n of N" is the position among live parcels (`row_number()` over seq), with N = count(live);
   - "printed" means at least one `label_print` row.
 
-### `public.label_print` — every print and reprint (FR-015)
+### `public.label_print` - every print and reprint (FR-015)
 
 `id`, `parcel_id` → `package_parcel`, `shop_staff_id`, `layout` (`a6` | `a4x4` | `roll62`), `path`
 (`browser` | `zpl`), `printed_at`.
 
 This table is append-only.
 
-### `public.label_read` — every read attempt (R7, FR-060)
+### `public.label_read` - every read attempt (R7, FR-060)
 
 | Column | Notes |
 |---|---|
@@ -55,7 +55,7 @@ Indexes: `(received_at)`, `(parcel_id)`, `(server_outcome) WHERE server_outcome 
 
 Append-only: the application roles are granted INSERT and SELECT only.
 
-### `public.tax_document` — invoices and adjustment notes (R15)
+### `public.tax_document` - invoices and adjustment notes (R15)
 
 | Column | Notes |
 |---|---|
@@ -70,7 +70,7 @@ Constraints:
 
 No UPDATE grant: an issued document is never altered.
 
-### `public.business_tax` — singleton (R18)
+### `public.business_tax` - singleton (R18)
 
 The columns are `legal_name`, `abn` (CHECK 11 digits), `fee_treatment` (`taxable` \| `gst_free`),
 `invoices_enabled` (DEFAULT false), `updated_by_sub` and `updated_at`.
@@ -78,12 +78,12 @@ The columns are `legal_name`, `abn` (CHECK 11 digits), `fee_treatment` (`taxable
 - There is **no seeded value** (Real-World Identifiers).
 - `invoices_enabled` is guarded in the service: it needs every field set and zero unclassified live products.
 
-### `public.product_gst_change` — history (FR-090)
+### `public.product_gst_change` - history (FR-090)
 
 The columns are `id`, `product_id`, `from_status`, `to_status`, `actor_kind` (`shop_staff` \| `admin_staff`),
 the actor id, `via` (`review` \| `direct` \| `bulk`) and `changed_at`.
 
-### `public.order_business_identity` — optional per order (FR-085)
+### `public.order_business_identity` - optional per order (FR-085)
 
 The columns are `order_id` PK, `business_name`, `abn` (checksum-validated in the service) and `created_at`.
 Only the tax invoice reads it.

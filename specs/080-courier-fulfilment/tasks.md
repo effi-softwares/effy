@@ -1,15 +1,15 @@
-# Tasks: Courier Fulfilment — Via the Hub or Pickup from the Supplier
+# Tasks: Courier Fulfilment - Via the Hub or Pickup from the Supplier
 
 **Input**: [plan.md](plan.md), [spec.md](spec.md), [research.md](research.md), [data-model.md](data-model.md),
 [contracts/routes.md](contracts/routes.md), [quickstart.md](quickstart.md)
 
-**Tests**: included — proofs P1–P15 are the definition of done; marked ones are broken once.
+**Tests**: included - proofs P1–P15 are the definition of done; marked ones are broken once.
 
 Abbreviations: `EA` = `apis/edge-api`, `ST` = `packages/shared-types/src`, `BO` = `apps/back-office/src/features`,
 `SW` = `apps/shop-web/src/features`, `CW` = `apps/customer-web`, `M1` = `db/migrations/<ts>_courier_fulfilment.sql`.
 
 ⚠ Claude writes code, SQL and Terraform; the operator runs `make db-up`, deploys and `make apply`.
-⚠ **No courier service is seeded** — names are the operator's (CLAUDE.md, prohibited values). Tests
+⚠ **No courier service is seeded** - names are the operator's (CLAUDE.md, prohibited values). Tests
 create their own with obviously fictional names ("Test Courier").
 ⚠ **Deploy order**: `notifications` before `orders` (new notification type).
 ⚠ Known red before this feature: `EA/shop/src/attention/repository.container.test.ts` (079 SIGNOFF).
@@ -33,15 +33,15 @@ create their own with obviously fictional names ("Test Courier").
 
 - [X] T007 Write M1 Up per [data-model.md](data-model.md): `courier_service` (+ partial unique default, default ⇒ active), `delivery_settings.courier_collection_default`, `order.courier_service_id` / `courier_collection` (+ CHECK both set iff `delivery_type = 'courier'` for rows where `delivery_type` is not null), `order_courier_collection_change`, `courier_consignment` (+ partial unique live-per-package), `courier_consignment_event`; REVOKE UPDATE, DELETE on the two history tables from `effy_shopper`; `public.courier_parcel_collection(text, text)`; replace `public.courier_delivery_state` so `courier_not_ready` = no active default service (estimate text no longer consulted); COMMENTs everywhere. Down refuses if any consignment exists.
 - [X] T008 Write `EA/shared/src/delivery/courier-pickup.ts` `nextCourierPickup(from, weekdays, cutoff)` and **P1** in `courier-pickup.test.ts` (before/after cutoff, skips non-pickup weekdays, 2026-10-04 and 2027-04-04 DST days, a Sunday-only service from Monday); break once (ignore cutoff) and restore.
-- [X] T009 Write `EA/shared/src/delivery/consignment.ts` — the one writer: `bookConsignment(tx, …)`, `recordConsignmentEvent(tx, …)` which for `handed_over` inserts `carrier_handoff` (053 shape, idempotent) and for `delivered` calls the arrival write's SQL path (`package_arrival`, `staff_recorded`), maintains `state`, refuses invalid steps; `consignmentFor(q, packageIds)` read. Export from `delivery/index.ts`.
+- [X] T009 Write `EA/shared/src/delivery/consignment.ts` - the one writer: `bookConsignment(tx, …)`, `recordConsignmentEvent(tx, …)` which for `handed_over` inserts `carrier_handoff` (053 shape, idempotent) and for `delivered` calls the arrival write's SQL path (`package_arrival`, `staff_recorded`), maintains `state`, refuses invalid steps; `consignmentFor(q, packageIds)` read. Export from `delivery/index.ts`.
 - [X] T010 **P13** guard `EA/shared/src/delivery/consignment.guard.test.ts`: `courier_consignment_event` and INSERT/UPDATE of `courier_consignment` only in `consignment.ts`; `courier_parcel_collection(` called only via one exported fragment. Break once (a second writer).
-- [X] T011 Status: `EA/shared/src/status/sql.ts` adds `courier_problem`; `status.ts` returns Problem with "With the courier — <reason>" after delivered and before With carrier; rows in `status.test.ts`. Container check in `EA/shared/src/delivery/consignment.container.test.ts` (book → handed over → in transit → lost → resolved → delivered; cancel after handover refused; idempotent handover).
+- [X] T011 Status: `EA/shared/src/status/sql.ts` adds `courier_problem`; `status.ts` returns Problem with "With the courier - <reason>" after delivered and before With carrier; rows in `status.test.ts`. Container check in `EA/shared/src/delivery/consignment.container.test.ts` (book → handed over → in transit → lost → resolved → delivered; cancel after handover refused; idempotent handover).
 - [X] T012 Courier services backend: `EA/admin/src/delivery/courier-services.{repository,service}.ts` (validation per data-model, one default, retire rules, audit, `announce` delivery) and functions `delivery-courier-services-v1-get.ts`, `-v1-post.ts`, `delivery-courier-service-v1-put.ts` in `EA/admin/serverless.yml` (staff gateway). `coverage.service.ts`: `blockedBy` uses `no_service`; `setCourier` accepts `collectionDefault`; refuse `offered:true` without an active default. Container tests in `EA/admin/src/delivery/courier-services.container.test.ts`; update `coverage.container.test.ts` / `pricing.container.test.ts` P19 for the service rule.
 - [X] T013 **P10** in `EA/shared/src/delivery/coverage.container.test.ts`: courier not ready without an active default service; ready with one (estimate text irrelevant). Break once and restore.
 
 ---
 
-## Phase 3: User Story 1 — Via the hub, as consignments (P1) 🎯 MVP
+## Phase 3: User Story 1 - Via the hub, as consignments (P1) 🎯 MVP
 
 **Independent test**: one-supplier courier order: collect, check in ("Courier"), Courier tab due-out, hand over with reference, deliver → completes.
 
@@ -51,12 +51,12 @@ create their own with obviously fictional names ("Test Courier").
 - [X] T017 [US1] Orders consignment routes in `EA/orders/src/consignments/{service,repository}.ts` + functions `fulfillment-consignment-v1-put.ts`, `fulfillment-consignment-events-v1-post.ts`, `fulfillment-consignment-label-v1-post.ts` (presigned PUT under `courier-label/`, ≤ 5 MB, PDF/PNG); register in `EA/orders/serverless.yml` with the media bucket env + IAM on the prefix; announce after commit.
 - [X] T018 [US1] Order detail/package reads include `consignment`, `dueOut`, `late` (`EA/orders/src/orders/service.ts` `toPackage`).
 - [X] T019 [US1] **P3, P5, P8** in `EA/orders/src/consignments/consignments.container.test.ts`; break P3 once (write only the consignment).
-- [X] T020 [US1] Driver: `EA/driver/src/work/complete.ts` returns `courierCount` (packages `package_delivered_by = 'courier'`) and keeps `standardCount`; `apps/driver-mobile/.../collection/presentation/CollectionScreens.kt` second block "Courier — handed to a courier at the hub" from `courierCount` (fallback `standardCount`); **P14** in the driver container test and a driver-mobile `commonTest`.
+- [X] T020 [US1] Driver: `EA/driver/src/work/complete.ts` returns `courierCount` (packages `package_delivered_by = 'courier'`) and keeps `standardCount`; `apps/driver-mobile/.../collection/presentation/CollectionScreens.kt` second block "Courier - handed to a courier at the hub" from `courierCount` (fallback `standardCount`); **P14** in the driver container test and a driver-mobile `commonTest`.
 - [X] T021 [P] [US1] Back-office: `BO/orders/components/ConsignmentBlock.tsx` (book/edit service, reference, tracking link, label upload, record progress, cancel) in `PackageRows.tsx`; `BO/orders/HandoverListScreen.tsx` → Courier tab with the five views, due-out and late; `repo.ts`/`queries.ts`; `errorText.ts` for the new refusals. Tests beside each.
 
 ---
 
-## Phase 4: User Story 2 — Pickup from the supplier (P1)
+## Phase 4: User Story 2 - Pickup from the supplier (P1)
 
 **Independent test**: default = supplier; two-supplier courier order; no driver work; each shop sees and hands over its own; never At hub.
 
@@ -69,7 +69,7 @@ create their own with obviously fictional names ("Test Courier").
 
 ---
 
-## Phase 5: User Story 3 — Change one order's mode (P2)
+## Phase 5: User Story 3 - Change one order's mode (P2)
 
 **Independent test**: switch both ways before handover; refused after.
 
@@ -78,17 +78,17 @@ create their own with obviously fictional names ("Test Courier").
 
 ---
 
-## Phase 6: User Story 4 — Timeframe and tracking for the customer (P2)
+## Phase 6: User Story 4 - Timeframe and tracking for the customer (P2)
 
 **Independent test**: one consignment with a link → link; two → "by email"; email sent per handover.
 
-- [X] T030 [US4] `EA/commerce/src/orders/{repository,service}.ts`: `delivery.tracking` per contracts; **P11** in `checkout.container.test.ts` (P9 block) — break once (a link with two consignments).
+- [X] T030 [US4] `EA/commerce/src/orders/{repository,service}.ts`: `delivery.tracking` per contracts; **P11** in `checkout.container.test.ts` (P9 block) - break once (a link with two consignments).
 - [X] T031 [US4] Notification `order_with_courier`: `EA/shared/src/lib/notification-types.ts`, M1 widens `notification_request_type_check`, enqueue on every `handed_over` event in `consignment.ts` (dedup per consignment), `EA/notifications/src/worker/{copy,email-sender}.ts`, `packages/email-kit` template `order-with-courier` (mjml + text + fixtures + catalog), `pnpm email:gen`.
 - [X] T032 [P] [US4] `deliverySummary` + Kotlin twin carry tracking; customer-web `components/receipt/ArrivalPanel.tsx` (link or sentence); customer-mobile `ReceiptScreen.kt`; fixture tests both sides.
 
 ---
 
-## Phase 7: User Story 5 — Problems reach back-office (P2)
+## Phase 7: User Story 5 - Problems reach back-office (P2)
 
 **Independent test**: record lost → Problem + needs attention; resolve clears.
 
@@ -98,7 +98,7 @@ create their own with obviously fictional names ("Test Courier").
 
 ---
 
-## Phase 8: User Story 6 — Courier services and the default mode (P3)
+## Phase 8: User Story 6 - Courier services and the default mode (P3)
 
 **Independent test**: add two, set default, retire, change default mode.
 
@@ -108,7 +108,7 @@ create their own with obviously fictional names ("Test Courier").
 
 ## Phase 9: Polish
 
-- [X] T037 Run every container suite, web/mobile suites, `pnpm -r typecheck`, guards (`gateway-capacity` — expect staff 153 / shared 159, `change-map`, `windows`, `coverage`, `fee`, `delivery-type`, `consignment`, refresh timers, shop words, design-system), contract checks.
+- [X] T037 Run every container suite, web/mobile suites, `pnpm -r typecheck`, guards (`gateway-capacity` - expect staff 153 / shared 159, `change-map`, `windows`, `coverage`, `fee`, `delivery-type`, `consignment`, refresh timers, shop words, design-system), contract checks.
 - [X] T038 [P] Docs: `docs/delivery-console-guide.md` (courier services, default mode), `docs/order-console-guide.md` (Consignment block, Courier tab), new `docs/runbooks/courier-handover.md`.
 - [X] T039 [P] `FEATURE-HISTORY.md`, `CLAUDE.md` (consignment rules, one writer, supplier exclusion), backlog E6 ticks, memory.
 - [X] T040 `specs/080-courier-fulfilment/SIGNOFF.md` with proofs, results, deviations, operator steps.
@@ -126,5 +126,5 @@ T002–T005; client tasks T021, T026, T027, T029, T032, T035 beside their backen
 
 ## Strategy
 
-MVP = Phases 1–3 (via the hub with consignments — today's path made trackable). Then US2 (the new
+MVP = Phases 1–3 (via the hub with consignments - today's path made trackable). Then US2 (the new
 path), US3 (its fallback), US4, US5, US6.

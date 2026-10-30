@@ -129,13 +129,13 @@ import com.effyshopping.customer.mobile.core.storage.DevicePreferences
 import com.effyshopping.customer.mobile.core.storage.clearGuestData
 
 /**
- * The one hand-wired dependency container (constitution Principle VI — no DI framework). The whole
+ * The one hand-wired dependency container (constitution Principle VI - no DI framework). The whole
  * graph is greppable here, read top-to-bottom. The platform's [AuthDriver] is injected in (Amplify
  * Android on Android, a Swift driver on iOS), because it is the one dependency that cannot live in
  * common code.
  *
  * The graph is layered: data (repository) → domain (use cases) → presentation (ViewModels wire to the
- * use cases). The repository is **private** — nothing above the domain layer reaches it directly.
+ * use cases). The repository is **private** - nothing above the domain layer reaches it directly.
  */
 class AppContainer(
     val authDriver: AuthDriver,
@@ -169,7 +169,7 @@ class AppContainer(
         LiveClient(
             scope = appScope,
             loadDescriptor = { fetchLiveDescriptor(edgeClient, "customer/v1/live") },
-            // The ID token — the one this app's API calls are authorized with at the gateway.
+            // The ID token - the one this app's API calls are authorized with at the gateway.
             token = { authDriver.currentSession()?.idToken },
             transport = KtorLiveTransport(liveEngine()),
         )
@@ -177,7 +177,7 @@ class AppContainer(
     private val customers: CustomerRepository by lazy { HttpCustomerRepository(edgeClient) }
     private val catalog: CatalogRepository by lazy { HttpCatalogRepository(edgeClient) }
     private val checkoutRepo by lazy { HttpCheckoutRepository(edgeClient) }
-    // The address book — customer profile management, on the customer service
+    // The address book - customer profile management, on the customer service
     // (`/customer/v1/addresses`, 011 FR-028). A full-CRUD repo, distinct from checkout's slim
     // pick-an-address `AddressRepository`.
     private val addressBookRepo: AddressRepository by lazy { HttpAddressRepository(edgeClient) }
@@ -207,7 +207,7 @@ class AppContainer(
 
     /**
      * Keeps the mirror and the platform in agreement: sends what the shopper does, and re-prices what they
-     * come back to. `isSignedIn` is a lambda on purpose — it is read at call time, so a sign-in or sign-out
+     * come back to. `isSignedIn` is a lambda on purpose - it is read at call time, so a sign-in or sign-out
      * that happens between two taps is respected without anything having to re-wire itself.
      */
     val cartSync: CartSyncCoordinator by lazy {
@@ -219,7 +219,7 @@ class AppContainer(
         )
     }
 
-    // domain (use cases) — the layer the ViewModels and SessionManager depend on
+    // domain (use cases) - the layer the ViewModels and SessionManager depend on
     val registerWithPassword by lazy { RegisterWithPassword(authDriver) }
     val registerPasswordless by lazy { RegisterPasswordless(authDriver) }
     val confirmSignUp by lazy { ConfirmSignUp(authDriver) }
@@ -231,7 +231,7 @@ class AppContainer(
     val startPasswordReset by lazy { StartPasswordReset(authDriver) }
     val confirmPasswordReset by lazy { ConfirmPasswordReset(customers) }
 
-    // Catalog — the customer storefront reads.
+    // Catalog - the customer storefront reads.
     val getHome by lazy { GetHome(catalog) }
     val getCategories by lazy { GetCategories(catalog) }
 
@@ -244,7 +244,7 @@ class AppContainer(
     val getPromotion by lazy { GetPromotion(catalog) }
     val searchProducts by lazy { SearchProducts(catalog) }
     val getFacets by lazy { GetFacets(catalog) }
-    // Cart. Every mutation is: apply to the mirror, then submit to the coordinator — in that order,
+    // Cart. Every mutation is: apply to the mirror, then submit to the coordinator - in that order,
     // so a tap never waits on the network.
     val addToCart by lazy { AddToCart(cart, cartSync) }
     val setCartQuantity by lazy { SetCartQuantity(cart, cartSync) }
@@ -307,10 +307,10 @@ class AppContainer(
     val paymentHandoff by lazy { PaymentHandoff() }
 
     /**
-     * The payment screen's ViewModel. A factory, not a `by lazy` singleton — each one is bound to one
+     * The payment screen's ViewModel. A factory, not a `by lazy` singleton - each one is bound to one
      * intent, and reusing an instance across orders would confirm the wrong one.
      *
-     * The client carries its own publishable key — not the backend echo on the intent.
+     * The client carries its own publishable key - not the backend echo on the intent.
      */
     fun paymentViewModel(intent: CheckoutIntent): PaymentViewModel = PaymentViewModel(
         intent = intent,
@@ -319,7 +319,7 @@ class AppContainer(
         handoff = paymentHandoff,
         publishableKey = AppConfig.stripePublishableKey,
         // The payee name wallet sheets show. The same literal the retired PaymentSheet configuration
-        // carried on both platforms — one brand, not a per-shop name (hidden fulfilment).
+        // carried on both platforms - one brand, not a per-shop name (hidden fulfilment).
         merchantName = MERCHANT_DISPLAY_NAME,
     )
     val quoteDelivery by lazy { QuoteDelivery(checkoutRepo) } // Delivery quote at checkout
@@ -348,7 +348,7 @@ class AppContainer(
     val requestRefund: RequestRefund by lazy { HttpRefundRequestRepository(edgeClient) }
     val listOrders by lazy { ListOrders(checkoutRepo) }
 
-    // Address book — view / add / edit / set-default / delete over the reused CRUD.
+    // Address book - view / add / edit / set-default / delete over the reused CRUD.
     val listSavedAddresses by lazy { ListSavedAddresses(addressBookRepo) }
 
     // Payment methods, on the commerce service with checkout: listing a card is a
@@ -388,12 +388,12 @@ class AppContainer(
     /**
      * The two cart hooks are what make a cart cross devices.
      *
-     * On sign-in the device's lines are merged into the account cart and the result adopted — union with
+     * On sign-in the device's lines are merged into the account cart and the result adopted - union with
      * maximum quantity, so nothing is lost from either side and a repeated sign-in changes nothing. Without
      * this hook a shopper signing in on a second phone correctly sees an empty cart, because their device
      * cart was never sent anywhere.
      *
-     * On sign-out the mirror resets to an empty guest cart. The account cart is untouched — it is a row in
+     * On sign-out the mirror resets to an empty guest cart. The account cart is untouched - it is a row in
      * the platform, and signing back in restores it.
      */
     val session: SessionManager by lazy {
@@ -420,7 +420,7 @@ class AppContainer(
             // The in-memory stores are reset and the persisted keys are removed. The store resets
             // alone write an empty envelope back to preferences, which is functionally clear but
             // leaves the keys behind; the offline cart queue was not covered by either, so a change
-            // made just before signing out could still have been drained afterwards — on a shared
+            // made just before signing out could still have been drained afterwards - on a shared
             // device, into the next person's session.
             //
             // An account's cart and saved items must not stay readable, or replayable, once its owner
@@ -450,7 +450,7 @@ class AppContainer(
     fun analyticsConsent(): ConsentState = consentStore.state()
 
     /**
-     * Start crash reporting (always on — independent of analytics consent, clarification Q1) and, if
+     * Start crash reporting (always on - independent of analytics consent, clarification Q1) and, if
      * the customer has granted consent, product analytics. Called by each platform entry point after
      * first frame; all init runs off the main thread (performance, R11).
      */
@@ -495,5 +495,5 @@ class AppContainer(
     val navigator: CustomerNavigator = CustomerNavigator()
 }
 
-/** The single brand a shopper pays (hidden fulfilment — never a shop's name). */
+/** The single brand a shopper pays (hidden fulfilment - never a shop's name). */
 private const val MERCHANT_DISPLAY_NAME = "Effy"

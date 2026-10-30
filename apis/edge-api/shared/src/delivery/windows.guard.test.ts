@@ -23,7 +23,7 @@ const stripComments = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, "").repl
 
 const sources = files(services).map((f) => ({ file: rel(f), src: stripComments(readFileSync(f, "utf8")) }));
 
-describe("078 — a window becomes an instant in one place", () => {
+describe("078 - a window becomes an instant in one place", () => {
   it("scans the services", () => {
     expect(sources.length).toBeGreaterThan(300);
   });

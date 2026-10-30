@@ -1,9 +1,9 @@
-# Runbook — Email delivery
+# Runbook - Email delivery
 
 **Owner**: platform · **Introduced by**: [037-platform-email-delivery](../../specs/037-platform-email-delivery/)
 
 ⚠ **Email is not a notification channel on this platform. It is the credential.** Driver, shop and
-back-office have no password and no federated route — an emailed code is the *only* way they sign in.
+back-office have no password and no federated route - an emailed code is the *only* way they sign in.
 For customers it is one of three routes and the one that gates sign-up and password recovery.
 
 So every question below is really the same question: *can this person use the product at all?*
@@ -20,7 +20,7 @@ So every question below is really the same question: *can this person use the pr
 
 **One sender, defined once**, in `/effy/<env>/ses/*` (see
 [the contract](../../specs/037-platform-email-delivery/contracts/ssm-mail.contract.md)). ⚠ Nothing may
-hardcode it — before 037 it existed in three places in two shapes and had already drifted. A
+hardcode it - before 037 it existed in three places in two shapes and had already drifted. A
 config-contract test in each service fails the build if a literal comes back.
 
 Every send attaches the environment's **configuration set**, which is what makes per-message outcomes
@@ -34,7 +34,7 @@ When an address hard-fails once, the mail service records it and thereafter **ac
 delivers nothing**. The caller gets a success response and a message id. The sign-in screen says
 "we've sent you a code." No code will ever arrive again.
 
-There is no error anywhere. Rate alarms cannot catch it — **one person never moves a rate**.
+There is no error anywhere. Rate alarms cannot catch it - **one person never moves a rate**.
 
 That is why the outcome pipeline exists: SES → SNS → the consumer in `edge-api/admin` →
 `public.email_delivery_{status,event}` → the back-office **Deliverability** view.
@@ -44,10 +44,10 @@ That is why the outcome pipeline exists: SES → SNS → the consumer in `edge-a
 ## "A customer says they never get their code"
 
 1. **Back office → Deliverability**, search their address.
-2. **Not listed?** The platform has no failed outcome for them. The problem is elsewhere — spam
+2. **Not listed?** The platform has no failed outcome for them. The problem is elsewhere - spam
    folder, a typo in the address on file, or the per-address hourly ceiling (5 sends/hour).
-3. **Listed as `undeliverable`?** Their mail is being permanently rejected. Read *Server said* — the
-   receiving server's own words — to judge whether it is recoverable (a deleted mailbox is not; a
+3. **Listed as `undeliverable`?** Their mail is being permanently rejected. Read *Server said* - the
+   receiving server's own words - to judge whether it is recoverable (a deleted mailbox is not; a
    temporarily suspended one is).
 4. **Listed as `complained`?** Someone marked a message as spam. ⚠ This does **not** bar them from
    signing in, and must not be treated as one. It usually means a stranger's address was typed into
@@ -57,13 +57,13 @@ That is why the outcome pipeline exists: SES → SNS → the consumer in `edge-a
 
 ## Repairing a locked-out person
 
-**Requires `admin` or `manager`.** A CSA can see everything and repair nothing — the repair
+**Requires `admin` or `manager`.** A CSA can see everything and repair nothing - the repair
 re-enables mail to an address that previously hard-failed, and a fresh bounce spends the platform's
 shared sending reputation, which every audience's sign-in depends on.
 
 1. Confirm out-of-band that the mailbox works again. ⚠ Do not skip this: repairing a still-dead
    address produces another bounce and moves the account-wide rate toward the threshold where AWS
-   pauses sending — which is a **total sign-in outage for four audiences**.
+   pauses sending - which is a **total sign-in outage for four audiences**.
 2. Deliverability → the address → **Mark as repaired…**, with a note saying what you checked. The
    note is required: an unexplained repair is indistinguishable from a mistake six months later.
 3. Confirm the person can sign in.
@@ -71,7 +71,7 @@ shared sending reputation, which every audience's sign-in depends on.
 **⚠ The repair has two halves and half a repair is a failed repair.** It clears the mail service's
 suppression entry *and* the platform's own record. Doing only the first leaves the console still
 reporting them broken; doing only the second leaves the mail service still silently dropping every
-send. The console does both, in that order — do not do half of it by hand at the CLI.
+send. The console does both, in that order - do not do half of it by hand at the CLI.
 
 **⚠ Case matters.** The suppression API is case-sensitive: `User@Example.com` and
 `user@example.com` are one address for *sending* but need an exact match to *delete*. The platform
@@ -85,7 +85,7 @@ stores the exact bytes the mail service reported and uses those. A hand-run
 | Alarm | Means | Do |
 | --- | --- | --- |
 | `mail-hard-bounce` | someone was just permanently locked out | open Deliverability; contact them by another route |
-| `mail-from-unhealthy` | the bounce-return route is broken **or the hourly probe stopped running** | check `aws sesv2 get-email-identity`; ⚠ the `Failed` state is TERMINAL — SES stops retrying after 72h and setup must be restarted by hand |
+| `mail-from-unhealthy` | the bounce-return route is broken **or the hourly probe stopped running** | check `aws sesv2 get-email-identity`; ⚠ the `Failed` state is TERMINAL - SES stops retrying after 72h and setup must be restarted by hand |
 | `mail-consumer-errors` | the outcome consumer is down | ⚠ while it is down the platform is **blind again** |
 | `ses-bounce-rate` / `ses-complaint-rate` | account-wide reputation is at risk | ⚠ past AWS's threshold **sending is PAUSED and nobody can sign in** |
 
@@ -120,7 +120,7 @@ perfectly healthy).
 - **Two `v=spf1` strings on one name breaks every message from the domain**, permanently. Adding a
   future sender means *editing* the existing string, never adding a record.
 - **Order matters when tightening DMARC**: authorisation and signing for the human mailbox must be
-  live *first*, or the policy quarantines Effy's own support replies — silently. You find out from a
+  live *first*, or the policy quarantines Effy's own support replies - silently. You find out from a
   customer who never got an answer.
 - **Dev cannot poison production**, because the non-production configuration set cancels suppression
   (`ses_suppressed_reasons = []`). ⚠ If that ever reverts, a mistyped address in dev makes that real

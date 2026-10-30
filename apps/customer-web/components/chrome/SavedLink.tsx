@@ -6,7 +6,7 @@ import { Heart } from "lucide-react"
 import { chromePrefetch } from "@/lib/account-routes"
 import { useSavedIds } from "@/lib/saved-store"
 
-/** The header's heart, with how many items are saved. Works for a guest too — saves live on the device. */
+/** The header's heart, with how many items are saved. Works for a guest too - saves live on the device. */
 export function SavedLink() {
   const count = useSavedIds().length
   return (

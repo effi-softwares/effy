@@ -58,11 +58,11 @@ interface Shown {
 
 /**
  * The listing last on screen, kept for the life of the tab so Back from a product returns to the
- * pages already loaded — and, because they are there on the first render, to the same scroll position.
+ * pages already loaded - and, because they are there on the first render, to the same scroll position.
  */
 let kept: Shown | null = null
 
-/** Which server answer was taken for a query, and when — what tells a replayed render from a new one. */
+/** Which server answer was taken for a query, and when - what tells a replayed render from a new one. */
 const taken = new Map<string, { stamp: number; at: number }>()
 
 /** The server's first page, when it answers `query` and is not a replay gone stale. */
@@ -117,7 +117,7 @@ export function SearchExperience({
   /** The query whose results are on screen; null while there are none to show. */
   const shown = useRef(start ? query : null)
   const firstPageAt = useRef(start?.at ?? 0)
-  /** The query the address asks for now — a page that comes back for an earlier one is dropped. */
+  /** The query the address asks for now - a page that comes back for an earlier one is dropped. */
   const asked = useRef(query)
   asked.current = query
 
@@ -151,7 +151,7 @@ export function SearchExperience({
         if (Array.isArray(value)) for (const v of value) next.append(key, v)
         else if (value !== null && value !== "") next.set(key, value)
       }
-      // The cursor is never URL state — a shared link opens at the first page.
+      // The cursor is never URL state - a shared link opens at the first page.
       go(next)
     },
     [params, go],
@@ -167,7 +167,7 @@ export function SearchExperience({
     [params, setParam],
   )
 
-  /** All active filters, and how many — drives the mobile trigger badge. */
+  /** All active filters, and how many - drives the mobile trigger badge. */
   const activeCount =
     (category ? 1 : 0) +
     (saleOnly ? 1 : 0) +
@@ -195,7 +195,7 @@ export function SearchExperience({
    *
    * From the category tree, not from the facet counts. The counts only list categories that have a
    * product filed directly in them, and an aisle ("Fruit & veg") holds everything in its sub-aisles
-   * and nothing itself — so naming the page from the counts called every such aisle "All products"
+   * and nothing itself - so naming the page from the counts called every such aisle "All products"
    * and labelled its filter chip with the raw key.
    */
   const categoryTrail = useMemo(() => {
@@ -257,7 +257,7 @@ export function SearchExperience({
 
   // Reload from the first page whenever any refinement changes (FR-016b: a cursor is sort/filter
   // specific, so restarting is required, not merely convenient). Debounced so a burst of ticks
-  // becomes one refresh — but only a refinement waits: arriving at a listing the
+  // becomes one refresh - but only a refinement waits: arriving at a listing the
   // server could not read asks at once.
   const arrived = useRef(false)
   useEffect(() => {
@@ -295,7 +295,7 @@ export function SearchExperience({
     // `attempt` is "Try again": the same query, asked once more.
   }, [query, initial, show, attempt])
 
-  // Facets recompute on filter change (not on paginate — loadMore never touches this). Debounced with
+  // Facets recompute on filter change (not on paginate - loadMore never touches this). Debounced with
   // the same rhythm so rapid ticking makes one facets refresh.
   const facetsArrived = useRef(false)
   useEffect(() => {
@@ -330,7 +330,7 @@ export function SearchExperience({
 
   /**
    * A page that fails is not the end of the list. It says so and offers the page again; until the
-   * shopper asks, scrolling does not — the sentinel is still on screen, and would ask without pause.
+   * shopper asks, scrolling does not - the sentinel is still on screen, and would ask without pause.
    */
   const loadMore = useCallback(
     (again = false) => {
@@ -536,7 +536,7 @@ export function SearchExperience({
             <ResultState
               icon={SearchX}
               title={q.trim() ? `No results for “${q.trim()}”` : "Nothing here yet"}
-              body={activeCount > 0 ? "Your filters may be too narrow — try removing one." : "Check the spelling, try a shorter word, or browse the aisles."}
+              body={activeCount > 0 ? "Your filters may be too narrow - try removing one." : "Check the spelling, try a shorter word, or browse the aisles."}
               action={
                 activeCount > 0
                   ? { label: "Clear all filters", onClick: clearAllFilters }

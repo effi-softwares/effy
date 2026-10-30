@@ -8,7 +8,7 @@ import { MediaFrame, Scrim, SectionShell, onScrim } from "./kit"
  * (fixed, never inverting with the appearance) and `SectionShell` (an empty section hides itself).
  */
 
-describe("MediaFrame — absence is a supported state (FR-011/FR-014)", () => {
+describe("MediaFrame - absence is a supported state (FR-011/FR-014)", () => {
   it("renders the neutral placeholder and NO <img> when src is null", () => {
     const { container } = render(<MediaFrame src={null} alt="" fallbackLabel="P" />)
 
@@ -16,7 +16,7 @@ describe("MediaFrame — absence is a supported state (FR-011/FR-014)", () => {
     expect(screen.getByText("P")).toBeTruthy()
   })
 
-  it("renders the placeholder for undefined too — a missing field is the same as an absent one", () => {
+  it("renders the placeholder for undefined too - a missing field is the same as an absent one", () => {
     const { container } = render(<MediaFrame src={undefined} alt="" fallbackLabel="Q" />)
 
     expect(container.querySelector("img")).toBeNull()
@@ -41,14 +41,14 @@ describe("MediaFrame — absence is a supported state (FR-011/FR-014)", () => {
     expect(without.firstElementChild?.className).toContain("aspect-2/1")
   })
 
-  it("keeps the placeholder out of the accessibility tree — the surrounding text names the thing", () => {
+  it("keeps the placeholder out of the accessibility tree - the surrounding text names the thing", () => {
     const { container } = render(<MediaFrame src={null} alt="" fallbackLabel="P" />)
 
     expect(container.querySelector('[aria-hidden="true"]')).not.toBeNull()
   })
 })
 
-describe("Scrim — the one colour that must NOT invert (FR-007, 029's defect)", () => {
+describe("Scrim - the one colour that must NOT invert (FR-007, 029's defect)", () => {
   it("is a fixed dark veil, never an appearance-dependent token", () => {
     const { container } = render(<Scrim />)
     const cls = container.firstElementChild?.className ?? ""
@@ -67,7 +67,7 @@ describe("Scrim — the one colour that must NOT invert (FR-007, 029's defect)",
     expect(container.firstElementChild?.className).not.toContain("bg-linear-to-tr")
   })
 
-  it("introduces no hue — every colour is an end of the neutral ramp", () => {
+  it("introduces no hue - every colour is an end of the neutral ramp", () => {
     const { container } = render(<Scrim strength="strong" />)
     const cls = container.firstElementChild?.className ?? ""
 
@@ -81,14 +81,14 @@ describe("Scrim — the one colour that must NOT invert (FR-007, 029's defect)",
     expect(onScrim).toBe("text-white")
   })
 
-  it("is hidden from assistive technology — it carries no meaning", () => {
+  it("is hidden from assistive technology - it carries no meaning", () => {
     const { container } = render(<Scrim />)
 
     expect(container.firstElementChild?.getAttribute("aria-hidden")).toBe("true")
   })
 })
 
-describe("SectionShell — self-hiding is structural, not per-section (FR-004)", () => {
+describe("SectionShell - self-hiding is structural, not per-section (FR-004)", () => {
   it("renders nothing when handed no children", () => {
     const { container } = render(<SectionShell title="On sale">{null}</SectionShell>)
 
@@ -97,7 +97,7 @@ describe("SectionShell — self-hiding is structural, not per-section (FR-004)",
 
   /**
    * The case a caller actually hits. `items.map(...)` over an empty list yields `[]`, which is
-   * truthy — so a naive `!children` guard renders the heading above a blank space. That is the empty
+   * truthy - so a naive `!children` guard renders the heading above a blank space. That is the empty
    * frame FR-004 forbids, and it is the single most likely way to produce one.
    */
   it("renders nothing for an EMPTY ARRAY, which is truthy", () => {

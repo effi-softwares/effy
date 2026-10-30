@@ -10,7 +10,7 @@ import { Input, Label } from "@/components/ui/form"
 
 const DAY = new Intl.DateTimeFormat("en-AU", { dateStyle: "long", timeZone: "Australia/Melbourne" })
 
-/** Each refusal in the customer's words — never the server's prose. */
+/** Each refusal in the customer's words - never the server's prose. */
 const REFUSAL: Record<string, string> = {
   invoices_unavailable: "Tax invoices aren't available yet. Please try again later.",
   invoice_not_available_for_order: "A tax invoice isn't available for this order.",
@@ -109,7 +109,7 @@ export function TaxInvoiceBlock({ orderId }: { orderId: string }) {
               Cancel
             </Button>
           </div>
-          <p className="text-muted-foreground">Add these before you get the invoice — an issued invoice can't be changed.</p>
+          <p className="text-muted-foreground">Add these before you get the invoice - an issued invoice can't be changed.</p>
         </div>
       ) : null}
       {businessNote ? <p role="status">{businessNote}</p> : null}

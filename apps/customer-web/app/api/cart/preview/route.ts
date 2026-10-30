@@ -12,7 +12,7 @@ export async function POST(req: Request) {
   try {
     return NextResponse.json(await edgeApiPublic().post("/commerce/v1/cart/preview", body, uncached()))
   } catch {
-    // A preview failure must never empty or alter the shopper's cart — the client keeps what it holds.
+    // A preview failure must never empty or alter the shopper's cart - the client keeps what it holds.
     return NextResponse.json({ error: "unavailable" }, { status: 502 })
   }
 }

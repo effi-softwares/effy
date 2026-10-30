@@ -6,10 +6,10 @@
 
 **Status**: Draft
 
-**Input**: User description: "as the next spec let's set up Goose for database migrations — the migration tooling and workflow for the dev database we just provisioned: repo structure for migration files, how migrations are authored (raw SQL, forward-only per the constitution), how they run against the dev DB using the connection contract from SSM, and the operator workflow for applying them. we need to also have update make file to goose commands to get the db url from ssm and do goose up and down and status commands"
+**Input**: User description: "as the next spec let's set up Goose for database migrations - the migration tooling and workflow for the dev database we just provisioned: repo structure for migration files, how migrations are authored (raw SQL, forward-only per the constitution), how they run against the dev DB using the connection contract from SSM, and the operator workflow for applying them. we need to also have update make file to goose commands to get the db url from ssm and do goose up and down and status commands"
 
 > Technology-specific directives from the description are recorded verbatim in
-> [operator-directives.md](./operator-directives.md) as **plan-phase input** — this spec
+> [operator-directives.md](./operator-directives.md) as **plan-phase input** - this spec
 > stays free of implementation detail per constitution Principle I.
 
 ## User Scenarios & Testing *(mandatory)*
@@ -17,12 +17,12 @@
 ### User Story 1 - Author and apply a schema change as a versioned migration (Priority: P1)
 
 A developer expresses a database schema change as a new, ordered migration file in the
-repository — written directly in the database's own language, no abstraction layer. The
+repository - written directly in the database's own language, no abstraction layer. The
 operator then applies all pending migrations to the development database with a single
 command. The database itself records exactly which migrations have run, so re-running the
 command applies only what is new and is otherwise a clean no-op.
 
-**Why this priority**: This is the entire point of the feature — schema evolution as
+**Why this priority**: This is the entire point of the feature - schema evolution as
 reviewable, ordered, repository-owned changes. Every future data-bearing slice (catalog,
 orders, users) depends on this loop existing and being trustworthy.
 
@@ -50,7 +50,7 @@ stored in the repository, or left on disk. A status command shows, at any time, 
 which migrations have been applied and which are pending.
 
 **Why this priority**: The contract-driven workflow is what makes migrations safe and
-repeatable for a solo operator — but it only matters once US1's loop exists.
+repeatable for a solo operator - but it only matters once US1's loop exists.
 
 **Independent Test**: On a machine with platform access but no hand-configured database
 settings, run status and apply successfully; then search the repository and shell artifacts
@@ -65,7 +65,7 @@ for any credential material and find none.
    are fetched fresh from the platform's secret store at invocation time and never written
    to disk, committed, or echoed into output.
 3. **Given** a machine whose network is not on the database's allowlist, **When** a command
-   runs, **Then** it fails with a clear connectivity message — not a hang or a confusing
+   runs, **Then** it fails with a clear connectivity message - not a hang or a confusing
    stack trace.
 
 ---
@@ -75,7 +75,7 @@ for any credential material and find none.
 The platform's schema history only ever moves forward: recovering from a bad change means
 shipping a new corrective migration, never rewinding history. At the same time, a developer
 iterating on the **latest, not-yet-shared** migration in the development environment can
-step it back as a convenience while perfecting it. Applied migration files are immutable —
+step it back as a convenience while perfecting it. Applied migration files are immutable -
 editing one after it has run anywhere is a defect, and the workflow makes that visible.
 
 **Why this priority**: Discipline is what keeps four environments' schema histories
@@ -121,14 +121,14 @@ modify an applied migration file and observe the workflow detecting/flagging it.
 ### Functional Requirements
 
 - **FR-001**: Every database schema change MUST be expressed as a versioned, ordered
-  migration file committed to the repository — no console or ad-hoc schema changes.
+  migration file committed to the repository - no console or ad-hoc schema changes.
 - **FR-002**: Migrations MUST be written directly in the database's own language with no
   abstraction layer or generated intermediate format (constitution: raw SQL, no ORM).
 - **FR-003**: The database itself MUST track which migrations have been applied; apply MUST
   run only pending migrations, in order, each exactly once; a re-run with nothing pending
   MUST be a clean no-op.
 - **FR-004**: The workflow MUST offer single commands for: applying pending migrations,
-  showing applied-vs-pending status, and — as a development-iteration convenience only —
+  showing applied-vs-pending status, and - as a development-iteration convenience only -
   stepping back the most recent migration. The platform policy remains **forward-only**:
   recovery from shipped mistakes is always a new corrective migration (constitution:
   forward-only, no down migrations relied on).
@@ -141,8 +141,8 @@ modify an applied migration file and observe the workflow detecting/flagging it.
   standard access profile discipline.
 - **FR-007**: The **operator** runs every command that mutates the database (apply /
   step-back), mirroring the platform's human-in-the-loop rule for infrastructure changes.
-- **FR-008**: A migration that fails MUST leave the database consistent — the failed change
-  fully absent, the ledger unmarked — so the situation is always "fix and go forward".
+- **FR-008**: A migration that fails MUST leave the database consistent - the failed change
+  fully absent, the ledger unmarked - so the situation is always "fix and go forward".
 - **FR-009**: Once a migration has been applied beyond the author's private iteration loop,
   its file is immutable; post-apply edits MUST be surfaced by the workflow rather than
   silently accepted. Changes ship as new migrations.
@@ -160,7 +160,7 @@ modify an applied migration file and observe the workflow detecting/flagging it.
   and the source of truth for status.
 - **Workflow Commands**: apply-pending, status, and the guarded dev-only step-back.
 - **Connection Contract Values**: the development database's location/credentials contract
-  established by feature 002 — the only source the commands use.
+  established by feature 002 - the only source the commands use.
 - **Forward-Only Policy**: the binding rule that shipped history is never rewound; encoded
   in documentation and tooling posture.
 
@@ -186,11 +186,11 @@ modify an applied migration file and observe the workflow detecting/flagging it.
 
 - **Development environment only for now**; the same workflow extends to higher
   environments at promotion, where gates get stricter (review, no step-back at all).
-- **The operator's network is on the development database's allowlist** (feature 002) — a
+- **The operator's network is on the development database's allowlist** (feature 002) - a
   documented prerequisite, not something this feature manages.
 - **The 002 connection contract is the sole source of connection information**; this
   feature adds no new ways to locate or authenticate to the database.
-- **No real product schema ships here** — only the minimal proving migration (FR-011);
+- **No real product schema ships here** - only the minimal proving migration (FR-011);
   actual tables arrive with their owning feature slices (catalog, orders, …).
 - **Single-developer cadence today**: the concurrent-authoring edge case is handled by
   ordering/review convention now, not by heavier coordination machinery.

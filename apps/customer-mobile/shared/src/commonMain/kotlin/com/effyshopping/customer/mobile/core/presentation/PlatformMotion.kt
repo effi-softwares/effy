@@ -12,9 +12,9 @@ import com.effyshopping.mobile.kit.ui.MotionLevel
  * The two platforms do not mean the same thing by their setting, and this deliberately does not
  * flatten them into one boolean:
  *
- *  - **Android — "Remove animations"** turns animation off. The scale it writes is literally zero, so
+ *  - **Android - "Remove animations"** turns animation off. The scale it writes is literally zero, so
  *  [MotionLevel.None] is the honest reading.
- *  - **iOS — "Reduce Motion"** asks for animation to be substituted, not removed: the platform
+ *  - **iOS - "Reduce Motion"** asks for animation to be substituted, not removed: the platform
  *  convention is to cross-fade where you would otherwise slide or zoom. That is exactly
  *  [MotionLevel.Reduced], which keeps a short fade for visibility changes and drops translation and
  *  scale everywhere else.
@@ -23,7 +23,7 @@ import com.effyshopping.mobile.kit.ui.MotionLevel
  * opposite of what a shopper who enabled that setting asked for.
  *
  * Read once at composition, not observed. Both settings are changed in Settings/Preferences, which
- * on both platforms means leaving the app — so the value is re-read when the shopper returns. Wiring
+ * on both platforms means leaving the app - so the value is re-read when the shopper returns. Wiring
  * a live observer would add a platform listener per app for a case that cannot occur while the app is
  * in front of the user.
  */

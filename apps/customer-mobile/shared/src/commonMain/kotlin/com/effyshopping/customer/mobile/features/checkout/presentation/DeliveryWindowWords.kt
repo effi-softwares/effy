@@ -26,5 +26,5 @@ object DeliveryWindowWords {
     const val TIME_REQUIRED = "Choose a time for this day."
     const val ASAP_TITLE = "Standard"
     const val ASAP_HINT = "We'll deliver as soon as we can."
-    const val ASAP_ESTIMATE_PREFIX = "As soon as possible —"
+    const val ASAP_ESTIMATE_PREFIX = "As soon as possible -"
 }

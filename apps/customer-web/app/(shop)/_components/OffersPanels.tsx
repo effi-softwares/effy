@@ -26,7 +26,7 @@ export function offerHref(banner: Banner): string | null {
  * The home "Offers" row (reference: Home · Offers): up to three cards, each a 16:9 promo banner
  * carrying the offer's name over a line about it and a way in.
  *
- * The reference's aisle words ("Bakery offer", the "Bakery" badge) are sample content — a promotion
+ * The reference's aisle words ("Bakery offer", the "Bakery" badge) are sample content - a promotion
  * has no aisle scope, so none is invented here. The banner says "Offer", and the
  * badge appears only for the one thing that is true of a promotion today: it carries a code.
  */
@@ -62,7 +62,7 @@ export function OffersPanels({
  *
  * `imageUrl` is not `banner.imageUrl`, and the home page does not pass it yet. It is the slot for a
  * real 16:9 promo image: given one, the drawn banner is replaced by it at the same size and the
- * offer's name moves below it — the name stays real text, and is never laid on artwork nobody has
+ * offer's name moves below it - the name stays real text, and is never laid on artwork nobody has
  * measured for contrast.
  */
 export function OfferBannerCard({

@@ -47,8 +47,8 @@ data class DriverSnack(
 }
 
 /**
- * A short confirmation at the bottom ("Delivered · 2 left", "Collected"). Inverse surface — ink on the
- * light theme, paper on the dark one — so it reads over any screen. It dismisses itself after
+ * A short confirmation at the bottom ("Delivered · 2 left", "Collected"). Inverse surface - ink on the
+ * light theme, paper on the dark one - so it reads over any screen. It dismisses itself after
  * [durationMillis] (3 s when it carries Undo, as the canvas's auto-complete bar).
  */
 @Composable
@@ -73,7 +73,7 @@ fun DriverSnackbar(
         val s = snack ?: return@AnimatedVisibility
         val scheme = MaterialTheme.colorScheme
         // The redesign's snackbar: a light floating card (the ground colour, a hairline and a soft shadow)
-        // with a leading icon — not an inverse bar.
+        // with a leading icon - not an inverse bar.
         Row(
             Modifier
                 .fillMaxWidth()

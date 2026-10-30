@@ -18,13 +18,13 @@ import kotlinx.io.IOException
  *
  * Replays each queued action in FIFO order, one at a time (a [Mutex] stops two drains interleaving).
  * Because the backend is idempotent by `changeId`, a replay of an already-applied action is a safe
- * no-op — so the only failure this must handle carefully is the network being down again, in which case
+ * no-op - so the only failure this must handle carefully is the network being down again, in which case
  * it stops and leaves the rest queued for the next trigger.
  *
  * Outcomes per action:
  *  - **2xx** (applied, or a benign idempotent no-op) → remove from the queue.
  *  - **Network down again** → stop the drain; keep this and the rest for the next trigger.
- *  - **Definitive refusal** (a 4xx that is not network — e.g. the run ended, a validation error) →
+ *  - **Definitive refusal** (a 4xx that is not network - e.g. the run ended, a validation error) →
  *  stop sending it and keep it as **refused** ([OfflineQueue.refused]) so the driver is told:
  *  retrying forever cannot help, and the backend has already decided.
  *
@@ -38,7 +38,7 @@ class SyncCoordinator(
     private val proofs: ProofOutbox? = null,
     private val sendProofs: suspend () -> Unit = {},
     /**
-     * Rev 2 — something saved with no signal has now reached the platform: the screens showing work
+     * Rev 2 - something saved with no signal has now reached the platform: the screens showing work
      * re-read (`WorkChanges.changed`). Called once per flush, however many landed.
      */
     private val onDelivered: () -> Unit = {},
@@ -58,7 +58,7 @@ class SyncCoordinator(
     }
 
     /**
-     * Replays the queue in order; answers how many actions the platform settled — applied, or refused
+     * Replays the queue in order; answers how many actions the platform settled - applied, or refused
      * (a refused one was shown as done on the phone, so the screens must re-read to un-show it).
      */
     private suspend fun drainQueue(): Int {
@@ -72,7 +72,7 @@ class SyncCoordinator(
                     queue.bumpAttempts(action.changeId)
                     if (action.attempts + 1 >= MAX_ATTEMPTS) { queue.refuse(action.changeId); settled++ } else break
                 }
-                Result.Offline -> break // still offline — leave everything for the next trigger
+                Result.Offline -> break // still offline - leave everything for the next trigger
             }
         }
         return settled
@@ -89,7 +89,7 @@ class SyncCoordinator(
         } catch (e: AppException) {
             when (e.error) {
                 AppError.Network, AppError.Unavailable -> Result.Offline
-                // A duplicate that the backend already applied can surface as Conflict — treat as applied.
+                // A duplicate that the backend already applied can surface as Conflict - treat as applied.
                 AppError.Conflict -> Result.Applied
                 // Auth loss: stop trying (the session gate will handle re-auth); keep queued.
                 AppError.Unauthenticated -> Result.Offline
@@ -98,7 +98,7 @@ class SyncCoordinator(
                 // Kept, in order, and tried again on the next flush. Before 072 named this case it
                 // would have arrived as Conflict and been dropped as "already applied".
                 is AppError.NotOpenYet -> Result.Offline
-                else -> Result.Dead // NotFound / Validation / Forbidden — a definitive refusal.
+                else -> Result.Dead // NotFound / Validation / Forbidden - a definitive refusal.
             }
         } catch (e: IOException) {
             Result.Offline

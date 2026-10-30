@@ -1,11 +1,11 @@
-# Runbook — switching to the new delivery model (083)
+# Runbook - switching to the new delivery model (083)
 
 From a moment the business chooses, every new order is **Delivered by Effy** (a window today or on one of
 the next delivery days) or **Courier delivery**. Orders placed before that moment keep exactly what they
 were sold and finish that way. This is done in **two stages, weeks apart**:
 
-1. **Stage 1 — the switch.** Check readiness, set the moment, watch the old orders close. Reversible.
-2. **Stage 2 — the removal.** Once no old order is open and every app in use is updated, the old
+1. **Stage 1 - the switch.** Check readiness, set the moment, watch the old orders close. Reversible.
+2. **Stage 2 - the removal.** Once no old order is open and every app in use is updated, the old
    checkout, settings, screens and words are removed. **Not reversible.** It is a separate release with
    its own steps; do not start it from this page.
 
@@ -18,7 +18,7 @@ Nothing detects these two; a person confirms them.
 - **Every customer app in use can draw the new checkout.** The customer app build that shipped delivery
   windows (078) and the Effy/courier choice (079) must be the released build on both stores, and the
   storefront must be the current build. An older app after the moment cannot place an order: it is
-  refused before anything is charged and told to try again — it does not place a wrong order — but it
+  refused before anything is charged and told to try again - it does not place a wrong order - but it
   cannot buy.
 - **Courier delivery is decided.** Either leave it off (an address outside Effy's area is refused at
   checkout, as today), or set it up fully in Back-office → Delivery → Coverage → Courier delivery: a
@@ -27,7 +27,7 @@ Nothing detects these two; a person confirms them.
 ## Release order (stage 1)
 
 ```sh
-make db-up ENV=dev                          # 20261009122203_delivery_model_cutover — one settings column
+make db-up ENV=dev                          # 20261009122203_delivery_model_cutover - one settings column
 make edge-deploy SERVICE=admin ENV=dev      # +2 staff routes (go-live, the switch) and the 5-minute sweep
 make edge-deploy SERVICE=orders ENV=dev     # the order list's "still open" filter
 make apply ENV=dev                          # 2 alarms + the sweep's failed-invocation alarm
@@ -58,10 +58,10 @@ is a warning the business may accept (with no driver cleared, orders are taken a
 
 Administrators only. On the Go-live tab:
 
-- **Switch now…** — starts at once, after a confirmation.
-- **Schedule** — a date and time. The field is the computer's own clock; the page shows the moment back
+- **Switch now…** - starts at once, after a confirmation.
+- **Schedule** - a date and time. The field is the computer's own clock; the page shows the moment back
   in Melbourne time before and after it is saved. Read it back.
-- **Change** / **Cancel the scheduled switch** — any time before the moment.
+- **Change** / **Cancel the scheduled switch** - any time before the moment.
 
 Pick a quiet moment, after the day's last same-day cutoff: an order captured the old way and paid a few
 minutes later is still an old order, so a handful can appear just after the switch.
@@ -86,7 +86,7 @@ orders (Orders → *Placed before delivery types* → *Still open*). Each finish
 
 - an old **same-day** order is delivered by an Effy driver in its window, as before;
 - an old **standard** order is handed to the carrier from the hub on its day, as before;
-- neither can be moved between Effy and courier (081) — it keeps how it was sold;
+- neither can be moved between Effy and courier (081) - it keeps how it was sold;
 - cancelling and refunding work as before.
 
 If any is still open **7 days** after the switch (`delivery_settings.legacy_orders_alert_days`), the alarm
@@ -105,7 +105,7 @@ On the Go-live tab an administrator chooses **Turn back off…** and gives a rea
 Backing out is possible **only until stage 2**. After the removal there is nothing to go back to and the
 tab says so.
 
-## Stage 2 — removing the old arrangement
+## Stage 2 - removing the old arrangement
 
 **Not reversible.** The migration drops columns and their data; going back means restoring a database
 backup taken before it. Take that backup first.
@@ -117,13 +117,13 @@ All of these, confirmed by a person:
 1. The Go-live tab says **On** and **No old order remains open**.
 2. ⚠ **The customer storefront and the customer app are released WITH this, not after.** The delivery
    quote loses the fields the old checkout drew (the package list, the slot and day pickers). A customer
-   web build or app build from before this release **cannot read the new quote at all** — checkout stops
-   at the delivery step, before anything is charged — until that customer has the new build. Push the
+   web build or app build from before this release **cannot read the new quote at all** - checkout stops
+   at the delivery step, before anything is charged - until that customer has the new build. Push the
    storefront build with the `commerce` deploy, and have the app release approved and ready.
    The shop and driver apps are unaffected: their fields were kept, and older builds keep working.
 3. The business does not intend to turn the new model back off. After this it cannot.
 
-The migration checks the first for itself and **refuses to run** — changing nothing — while an old order
+The migration checks the first for itself and **refuses to run** - changing nothing - while an old order
 is open, or on a database that has taken orders and was never switched over.
 
 ### Release order
@@ -171,5 +171,5 @@ the customer app release with them (see "Before", 2). No `make apply`: stage 2 c
 |---|---|---|
 | "The platform is not ready" on setting the switch | a required item went not-ready since the page loaded | the page has re-read; fix the item marked Not ready |
 | "Someone else changed the switch a moment ago" | two administrators acted at once | the page now shows what they set; decide again |
-| Alarm `…-background-delivery-model-switch-sweep-errors` | the five-minute check is failing | a scheduled switch will happen **whether or not the platform is ready** — cancel it until the check runs; read `/aws/lambda/effy-edge-admin-<env>-deliveryModelSwitchSweep` |
+| Alarm `…-background-delivery-model-switch-sweep-errors` | the five-minute check is failing | a scheduled switch will happen **whether or not the platform is ready** - cancel it until the check runs; read `/aws/lambda/effy-edge-admin-<env>-deliveryModelSwitchSweep` |
 | A customer on an old app cannot check out after the moment | the app predates the new checkout | they must update; nothing was charged |

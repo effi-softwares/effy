@@ -21,10 +21,10 @@ aws ssm get-parameter --name /effy/dev/db/master_secret_arn --profile ef --regio
 aws ssm get-parameter --name /effy/dev/media/bucket        --profile ef --region ap-southeast-2 >/dev/null && echo media-ok
 aws secretsmanager describe-secret --secret-id /effy/dev/stripe/secret_key    --profile ef --region ap-southeast-2 >/dev/null && echo stripe-ok
 # The env's wildcard cert + zone already exist (010). Confirm the zone resolves:
-dig +short core-api.dev.effyshopping.com     # empty until step 3 — that's expected pre-apply
+dig +short core-api.dev.effyshopping.com     # empty until step 3 - that's expected pre-apply
 ```
 
-## 1. App change verification (built by Claude, verify locally — no AWS)
+## 1. App change verification (built by Claude, verify locally - no AWS)
 
 ```bash
 make core-test ENV=dev          # includes the DSN-from-parts unit test (parts→DSN == db-dsn.sh shape;
@@ -32,10 +32,10 @@ make core-test ENV=dev          # includes the DSN-from-parts unit test (parts�
 make core-run ENV=dev           # local path still works on DB_DSN (nothing local changed)
 ```
 
-## 2. Apply the infrastructure (creates ECR, ALB, service, IAM, DNS — service not yet healthy)
+## 2. Apply the infrastructure (creates ECR, ALB, service, IAM, DNS - service not yet healthy)
 
 ⚠ Every Terraform call MUST carry the platform's AWS profile. Use the Makefile (it wraps
-`AWS_PROFILE=ef terraform`) — a bare `terraform init` uses default creds and 403s on the state bucket.
+`AWS_PROFILE=ef terraform`) - a bare `terraform init` uses default creds and 403s on the state bucket.
 
 ```bash
 make init ENV=dev                  # AWS_PROFILE=ef terraform init (backend needs the ef profile)
@@ -46,7 +46,7 @@ make plan ENV=dev                  # ── THE US3 COST AUDIT ──
 make apply ENV=dev
 ```
 
-`wait_for_steady_state = false`, so apply returns even though the service has **no image yet** — the
+`wait_for_steady_state = false`, so apply returns even though the service has **no image yet** - the
 task will fail to start until step 3. That is expected.
 
 ## 3. Build, push the ARM64 image, and roll the first deployment
@@ -85,7 +85,7 @@ curl -sS -o /dev/null -w '%{http_code}\n' --resolve wrong.example.com:443:$(dig 
   returns 503, then restore → traffic resumes. Observe in the target group's health, not by inference.
   **Expected worst-case eviction ≈ 120 s** = health-check `interval 30 s × unhealthy_threshold 3` (90 s
   to mark unhealthy) + `deregistration_delay 30 s`. That is the bounded interval FR-008/SC-006 name.
-- **SC-008 (no secrets)**: sweep the image and logs —
+- **SC-008 (no secrets)**: sweep the image and logs -
   ```bash
   docker run --rm --entrypoint / <repo>:latest true 2>/dev/null || true   # distroless: no shell to leak into
   aws logs tail /ecs/effy-dev-core-api --since 1h --profile ef --region ap-southeast-2 \
@@ -102,7 +102,7 @@ make core-deploy ENV=dev                  # force-new-deployment; circuit breake
 aws ecs wait services-stable --cluster effy-dev-core-api --services effy-dev-core-api --profile ef --region ap-southeast-2
 ```
 
-A version that fails its health check does **not** become the serving state — ECS marks the deployment
+A version that fails its health check does **not** become the serving state - ECS marks the deployment
 failed and rolls back to the previous task definition (verify by pushing a deliberately broken image
 once, observing the rollback, then restoring).
 
@@ -123,7 +123,7 @@ make destroy ENV=dev   # AWS_PROFILE=ef; removes the whole dev root. To drop ONL
                        # AWS_PROFILE=ef terraform -chdir=infra/envs/dev destroy -target=module.core_api
 ```
 
-## Production (NOT this slice — dependency checklist)
+## Production (NOT this slice - dependency checklist)
 
 Before `core-api.effyshopping.com`: an **apex-level** DNS record + a cert covering it (owned by the
 prod/global root, not the child wildcard); the task on **private** subnets (`assign_public_ip=false`)

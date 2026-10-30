@@ -9,7 +9,7 @@ import kotlinx.serialization.Serializable
  * backend applies each `changeId` **exactly once** (a unique index on `driver_task_event.change_id` +
  * `ON CONFLICT DO NOTHING`). So replaying a queued action after reconnect is always safe: a first
  * delivery applies it, a duplicate is a no-op. That idempotency is what makes "apply on reconnect without
- * double-applying" true — the queue only has to guarantee the write is not *lost*.
+ * double-applying" true - the queue only has to guarantee the write is not *lost*.
  */
 @Serializable
 data class PendingAction(

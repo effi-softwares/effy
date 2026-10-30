@@ -17,7 +17,7 @@ describe("legal document catalogue", () => {
     expect(orders).toEqual([...orders].sort((a, b) => a - b))
   })
 
-  it("every document has real prose, a title, version and effective date — no placeholder shell", () => {
+  it("every document has real prose, a title, version and effective date - no placeholder shell", () => {
     for (const doc of allDocuments()) {
       expect(doc.title.length).toBeGreaterThan(0)
       expect(doc.currentVersion).toMatch(/^v\d+$/)
@@ -47,7 +47,7 @@ describe("legal document catalogue", () => {
   })
 })
 
-describe("SC-002 — the privacy policy is honest to the built system", () => {
+describe("SC-002 - the privacy policy is honest to the built system", () => {
   const privacy = getDocument("privacy-policy").body
 
   it("names every retained-after-deletion category from the inventory", () => {

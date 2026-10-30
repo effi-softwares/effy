@@ -62,7 +62,7 @@ export const DELIVERY_TYPE_WORDS = {
   courierPartner: "Delivered by a courier partner.",
   courierEstimatePrefix: "Usually arrives in",
   /** Never drop this: without it the estimate reads as a promised date. */
-  courierEstimateSuffix: "— an estimate, not a guaranteed date.",
+  courierEstimateSuffix: "- an estimate, not a guaranteed date.",
   /**
    * What a listed address reads when no window is left and the business sends the order by courier.
    * Not `DELIVERY_WINDOW_WORDS.noWindows`, which ends "Please try again later".
@@ -105,7 +105,7 @@ export function movedLines(m: OrderDeliveryMoveDTO | null | undefined): string[]
   return comp ? [said, comp] : [said];
 }
 
-/** "Usually arrives in 2–4 business days — an estimate, not a guaranteed date." */
+/** "Usually arrives in 2–4 business days - an estimate, not a guaranteed date." */
 export function courierEstimateSentence(estimate: string): string {
   return `${DELIVERY_TYPE_WORDS.courierEstimatePrefix} ${estimate} ${DELIVERY_TYPE_WORDS.courierEstimateSuffix}`;
 }
@@ -115,7 +115,7 @@ export function courierLines(estimate: string): string[] {
   return [DELIVERY_TYPE_WORDS.courierPartner, courierEstimateSentence(estimate)];
 }
 
-/** "As soon as possible — usually within 2–3 days". */
+/** "As soon as possible - usually within 2–3 days". */
 export function asapSentence(estimate: string): string {
   return `${DELIVERY_WINDOW_WORDS.asapEstimatePrefix} ${estimate}`.trim();
 }
@@ -150,7 +150,7 @@ export function deliveryMethodWord(method: string | null | undefined): string {
  *  Effy, a window today → "Delivered by Effy" · "Same-day delivery · Today, 4 pm – 6 pm"
  *  Effy, a later day → "Delivered by Effy" · "Standard delivery · Thu 8 Oct, 4 pm – 6 pm"
  *  Effy, a day, no time → "Delivered by Effy" · "Standard delivery · Thu 8 Oct · Any time during the day"
- *  Effy, as soon as poss. → "Delivered by Effy" · "As soon as possible — usually within 2–3 days"
+ *  Effy, as soon as poss. → "Delivered by Effy" · "As soon as possible - usually within 2–3 days"
  *  moved by back-office → the above, then `movedLines`
  * A courier order never reads its arrival estimates. One line per distinct promise (`distinctArrivals`),
  * so the line count never reveals the number of suppliers.

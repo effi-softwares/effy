@@ -72,7 +72,7 @@ describe("a refund the platform's own records say is owed", () => {
   it("offers no dismissal at all to someone who cannot issue refunds", async () => {
     renderSection({ proposedRefunds: [PROPOSAL] }, false)
 
-    // Still visible — a csa taking the call must be able to see that money is owed.
+    // Still visible - a csa taking the call must be able to see that money is owed.
     expect(await screen.findByText(/owed but not refunded/i)).toBeInTheDocument()
     expect(screen.queryByRole("button", { name: /not owed/i })).not.toBeInTheDocument()
   })
@@ -113,8 +113,8 @@ describe("refund history", () => {
       refundedAmount: "10.00",
     })
 
-    expect(await screen.findByText(/failed — needs attention/i)).toBeInTheDocument()
-    expect(screen.getByText(/refused — cannot be retried/i)).toBeInTheDocument()
+    expect(await screen.findByText(/failed - needs attention/i)).toBeInTheDocument()
+    expect(screen.getByText(/refused - cannot be retried/i)).toBeInTheDocument()
   })
 
   it("shows staff the provider's reason", async () => {
@@ -146,7 +146,7 @@ describe("refund history", () => {
     })
 
     expect(await screen.findByText(/1 × Milk/)).toBeInTheDocument()
-    expect(screen.getByText(/goodwill — delivered two hours late/i)).toBeInTheDocument()
+    expect(screen.getByText(/goodwill - delivered two hours late/i)).toBeInTheDocument()
   })
 })
 
@@ -204,8 +204,8 @@ describe("did the money go?", () => {
     ["submitting", /no answer from the bank/i],
     ["submitted", /on its way/i],
     ["succeeded", /^refunded$/i],
-    ["failed", /failed — needs attention/i],
-    ["refused", /refused — cannot be retried/i],
+    ["failed", /failed - needs attention/i],
+    ["refused", /refused - cannot be retried/i],
   ])("says plainly what %s means", async (status, expected) => {
     renderSection({
       refunds: [{ ...R, status, failureReason: status === "failed" ? "card_declined" : null }],
@@ -267,7 +267,7 @@ describe("answering a customer's request", () => {
     await waitFor(() => expect(declineRefundRequest).toHaveBeenCalledWith("rq1", "photo shows all six"))
   })
 
-  // A csa reads every order — triage is their work — and decides nothing.
+  // A csa reads every order - triage is their work - and decides nothing.
   it("offers no decline control to someone who cannot issue refunds", async () => {
     renderSection({ refundRequest: OPEN_REQUEST }, false)
     expect(await screen.findByText("Two cartons were missing")).toBeInTheDocument()

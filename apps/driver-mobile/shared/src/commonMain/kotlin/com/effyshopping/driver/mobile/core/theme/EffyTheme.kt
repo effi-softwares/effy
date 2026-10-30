@@ -15,12 +15,12 @@ import com.effyshopping.driver.mobile.design.EffyLightColorScheme
 import com.effyshopping.driver.mobile.design.EffyStorefrontShape
 import com.effyshopping.driver.mobile.design.effyTypography
 
-/** True while the driver app is drawn dark — what [EffyRoles] follows. */
+/** True while the driver app is drawn dark - what [EffyRoles] follows. */
 val LocalEffyDark = staticCompositionLocalOf { false }
 
 /**
  * The driver app's theme (092, constitution v3.5.0): the storefront identity, generated from
- * `packages/design-system/src/tokens.css` — Effy blue for the next action, Effy green for
+ * `packages/design-system/src/tokens.css` - Effy blue for the next action, Effy green for
  * done, a problem is black with an icon (no red, no orange), Geist, light and dark.
  */
 @Composable
@@ -48,7 +48,7 @@ fun EffyTheme(
 }
 
 /**
- * The roles Material 3 has no slot for — read them here, never as literals. Each follows the appearance.
+ * The roles Material 3 has no slot for - read them here, never as literals. Each follows the appearance.
  *
  * - [brand] Effy green: collected, delivered, on duty, done. Never an action.
  * - [brandMuted] the green tint a done word sits on.

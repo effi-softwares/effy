@@ -29,7 +29,7 @@ const base: Omit<InsertSubmissionInput, "referenceCode" | "sourceKey"> = {
   maxPerWindow: 3,
 }
 
-describe.skipIf(!RUN)("feedback repo — against real PostgreSQL", () => {
+describe.skipIf(!RUN)("feedback repo - against real PostgreSQL", () => {
   let container: StartedPostgreSqlContainer
   let pool: Pool
 

@@ -19,7 +19,7 @@ import type { UnitPriceDTO } from "./unit-price";
  */
 export type WireInt = number;
 
-/** A cart line, or a set-aside line — the same shape; re-priced against the catalog on every read. */
+/** A cart line, or a set-aside line - the same shape; re-priced against the catalog on every read. */
 export interface CartLineDTO {
   id: string;
   productId: string;

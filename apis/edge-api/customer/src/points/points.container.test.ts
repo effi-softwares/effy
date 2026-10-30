@@ -19,7 +19,7 @@ import { createPointsService } from "./service";
 
 const RUN = process.env.CONTAINER_TESTS === "1";
 
-describe.skipIf(!RUN)("074 — the customer's points", () => {
+describe.skipIf(!RUN)("074 - the customer's points", () => {
   let container: StartedPostgreSqlContainer;
   let pool: Pool;
   let seq = 0;

@@ -1,4 +1,4 @@
-# 04 — Delivery backlog
+# 04 - Delivery backlog
 
 Date: 2026-10-18 · Source: [03-gap-analysis.md](03-gap-analysis.md) (IDs in brackets).
 
@@ -36,7 +36,7 @@ walks). Claude writes the code; the operator runs anything live.
 | # | Item | Size | Done when |
 |---|---|---|---|
 | **A2.1** | Refuse back-office Unassign / Reassign of a delivery round that is loaded (out for delivery), except as a "hand over in person" reassign that moves custody. Dispatch actions take `PLANNER_PASS_LOCK` [W5, W6] | S | Container test: unassigning a loaded round is a 409; no parcel is re-gathered while in a van |
-| **A2.2** | `packageStatus` reads open and `lost` holds ("Problem — missing" / "Lost"). "Lost" prompts a refund decision on the order [W7] | S | A held parcel never reads "At hub" |
+| **A2.2** | `packageStatus` reads open and `lost` holds ("Problem - missing" / "Lost"). "Lost" prompts a refund decision on the order [W7] | S | A held parcel never reads "At hub" |
 | **A2.3** | Planner gates on the vehicle: status `active`, rego / insurance / roadworthy not expired. An unsafe check marks the **vehicle** off-road until cleared. Licence expiry in Melbourne time [W8] | S | Tests for each gate; handing the van over doesn't clear an unsafe check |
 | **A2.4** | Proof: `mediaKey` must be under `proof/<dropId>/` and exist (HEAD) before a drop is completed [W9, I5] | S | A fake key is a 422 |
 | **A2.5** | Fix the hidden 3-shops-per-collection-round cap: base feasibility on a configurable per-shop allowance from the round's opening, and say "too many shops for one run" when that's the reason [W15, I8] | S | A run with 6 ready shops and 2 drivers assigns all 6 |
@@ -111,5 +111,5 @@ walks). Claude writes the code; the operator runs anything live.
 | L10 | Refactors: split `override.ts`; `loadCalendar` helper; one area word in UI; trim comments; collapse waves to a log; replace or remove the schematic map | When the file is next touched | S3–S9, R6 |
 | L11 | Density levers: per-area window offering, "green" window labels | Routes regularly over ~10 drops per window | 02 §4 |
 | L12 | On-demand overflow via Uber Direct / DoorDash Drive for "today, no window left" | Demand for rapid delivery | 02 §1.3 |
-| L13 | Multi-hub | A second hub | — |
+| L13 | Multi-hub | A second hub | - |
 | L14 | Mark stale docs superseded (driver-app-review, logistics-engine-architecture, audit-00, console guides) | Any time (S) | R8 |

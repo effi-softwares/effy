@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation"
 
 /**
  * One account-section link, knowing only whether it is the current page (`aria-current`). Its look is
- * the caller's — the sidebar and the menu drawer each pass their own; glyph and label are
+ * the caller's - the sidebar and the menu drawer each pass their own; glyph and label are
  * server-rendered children.
  */
 export function AccountNavLink({

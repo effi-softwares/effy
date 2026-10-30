@@ -32,7 +32,7 @@ export function EditorSection({
   );
 }
 
-/** A label, its control, a line of help and — once it applies — what is wrong. */
+/** A label, its control, a line of help and - once it applies - what is wrong. */
 export function FormField({
   id,
   label,

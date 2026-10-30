@@ -64,7 +64,7 @@ export function RequestRefund({
   if (sent) {
     return (
       <p role="status" className="text-sm text-muted-foreground">
-        Thanks — we’ve got it and we’ll look into this order. We’ll be in touch about what happens next.
+        Thanks - we’ve got it and we’ll look into this order. We’ll be in touch about what happens next.
       </p>
     )
   }

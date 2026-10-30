@@ -16,16 +16,16 @@ import {
 export const SEND_BACK_REASONS: readonly { label: string; text: string }[] = [
   {
     label: "Picture",
-    text: "The main picture isn't the product itself — use a photo of the product, not a stock image.",
+    text: "The main picture isn't the product itself - use a photo of the product, not a stock image.",
   },
   {
     label: "Price rise",
     text: "A price rises by more than we can approve without a reason. Tell us the supplier's new cost in your next change, or keep today's price.",
   },
-  { label: "Required details", text: "Fill in the required details — they are marked on your product page." },
+  { label: "Required details", text: "Fill in the required details - they are marked on your product page." },
   {
     label: "Description",
-    text: "The description mentions prices or delivery promises — Effy says those. Please remove them.",
+    text: "The description mentions prices or delivery promises - Effy says those. Please remove them.",
   },
   { label: "Category", text: "It's filed in the wrong aisle. Move it to the category that matches what it is." },
 ]
@@ -60,7 +60,7 @@ export function SendBackDialog({
           <DialogTitle>Send back to {shopName}?</DialogTitle>
           <DialogDescription>
             {isChange ? "The live product stays as it is." : "The product stays off sale."} The shop sees why, from Effy
-            — not from you by name — and can fix it and send it again.
+            - not from you by name - and can fix it and send it again.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-3">

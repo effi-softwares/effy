@@ -20,7 +20,7 @@ const coded = { id: "p1", headline: "10% off the whole winter shop", supportingL
 const plain = { id: "p2", headline: "5% off every order", supportingLine: "No minimum", code: null };
 const picture = { url: "https://media.example.test/promotions/p/a.jpg", imageWidths: [320, 640], width: 1600, height: 900, alt: "A basket of oranges", focusX: 0.3, focusY: 0.6 };
 
-describe("PromoSkin (095) — the web renderer", () => {
+describe("PromoSkin (095) - the web renderer", () => {
   it.each(fixtures.geometry)("reserves the $layout box at $size", (c) => {
     render(<PromoSkin promotion={plain} layout={c.layout} size={c.size} settings={starterSettings(c.layout)} />);
     expect(screen.getByTestId("promo-skin").style.minHeight).toBe(`${c.expect.minHeight}px`);
@@ -76,7 +76,7 @@ describe("PromoSkin (095) — the web renderer", () => {
     expect(skinGeometry(layout, "large") ?? skinGeometry(layout, "medium") ?? skinGeometry(layout, "small") ?? skinGeometry(layout, "strip")).not.toBeNull();
   });
 
-  it("⚠ uses no token and no Tailwind colour utility — a skin's colours are its own", () => {
+  it("⚠ uses no token and no Tailwind colour utility - a skin's colours are its own", () => {
     for (const f of readdirSync(here).filter((n) => /\.tsx?$/.test(n) && !n.includes(".test."))) {
       const src = readFileSync(resolve(here, f), "utf8");
       expect(src, f).not.toMatch(/\b(bg|text|border|fill|stroke)-(primary|brand|foreground|background|muted|accent|white|black|[a-z]+-\d{2,3})\b/);

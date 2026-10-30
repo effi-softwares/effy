@@ -32,15 +32,15 @@ data class TodayUiState(
     val message: String? = null,
     /**
      * The offline write queue has existed since 049 and has never had an interface. A driver
-     * in a basement loading dock — which is where this app is used — could not tell whether the app
+     * in a basement loading dock - which is where this app is used - could not tell whether the app
      * was broken or the signal was.
      */
     val offline: Boolean = false,
-    /** When the shown run was last read from the platform — the offline banner's "Last synced". */
+    /** When the shown run was last read from the platform - the offline banner's "Last synced". */
     val syncedAtEpochMillis: Long? = null,
     /**
      * Distinct from [message], which today does double duty as both error text and informational
-     * text — so a screen cannot tell a failed load from a note and renders both as a red line.
+     * text - so a screen cannot tell a failed load from a note and renders both as a red line.
      */
     val loadFailed: Boolean = false,
     /** A "Return to hub" is being sent. */
@@ -61,7 +61,7 @@ class TodayViewModel(
     private val getToday: GetToday,
     private val setDuty: SetDuty,
     private val newChangeId: () -> String,
-    /** Flush the offline write queue — called on refresh, the natural "back online" moment. */
+    /** Flush the offline write queue - called on refresh, the natural "back online" moment. */
     private val syncFlush: suspend () -> Unit = {},
     /** "your work changed, or the channel just (re)connected: read now". Empty in tests. */
     private val liveChanges: Flow<Unit> = emptyFlow(),
@@ -86,14 +86,14 @@ class TodayViewModel(
     }
 
     /**
-     * Work was assigned, reassigned, withdrawn or re-ordered. Re-read without the loading state — the
-     * driver did nothing, so nothing should appear to be happening — and without touching a message
+     * Work was assigned, reassigned, withdrawn or re-ordered. Re-read without the loading state - the
+     * driver did nothing, so nothing should appear to be happening - and without touching a message
      * they have not dismissed. Skipped while a visible load is already running.
      */
     private suspend fun refreshQuietly() {
         val now = _state.value
         if (now.dutyStatus != DutyStatus.ON_DUTY || now.isLoading) return
-        // The channel also speaks when it reconnects — the moment queued writes can be sent.
+        // The channel also speaks when it reconnects - the moment queued writes can be sent.
         // Until now they waited for the driver to pull to refresh on this one screen.
         runCatching { syncFlush() }
         // A dispatcher clearing an unsafe check is announced as work changing: read it back.
@@ -111,10 +111,10 @@ class TodayViewModel(
     }
 
     /**
-     * Rev 2 — the screen is showing (again). The first time it loads with its loading state; every
+     * Rev 2 - the screen is showing (again). The first time it loads with its loading state; every
      * time after, it re-reads quietly. A fallback: the driver's own writes already re-read every
      * work screen through `WorkChanges` (the server never announces a driver's change back to them).
-     * This catches what slips past that — a write made before the app last closed, a missed signal.
+     * This catches what slips past that - a write made before the app last closed, a missed signal.
      */
     fun shown() {
         if (_state.value.today == null) refresh() else viewModelScope.launch { refreshQuietly() }

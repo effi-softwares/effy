@@ -2,7 +2,7 @@ package com.effyshopping.customer.mobile.features.checkout.domain
 
 /**
  * The order's delivery note: what the customer was supplied, line by line, once the order has
- * arrived. Digital only — there is no paper note in the bag.
+ * arrived. Digital only - there is no paper note in the bag.
  *
  * No prices and nothing about how the order was filled: the server merges the lines across packages.
  */
@@ -23,7 +23,7 @@ sealed interface DeliveryNoteResult {
     data class Ready(val note: DeliveryNote) : DeliveryNoteResult
     /** The order has not arrived yet. */
     data object NotYet : DeliveryNoteResult
-    /** Not this customer's, or no such order — the server says the same for both. */
+    /** Not this customer's, or no such order - the server says the same for both. */
     data object Unavailable : DeliveryNoteResult
     data object Failed : DeliveryNoteResult
 }
@@ -48,7 +48,7 @@ sealed interface TaxDocumentsResult {
 
 enum class BusinessIdentityResult { SAVED, ABN_INVALID, REFUSED, FAILED }
 
-/** Each refusal in the customer's words — never the server's prose. */
+/** Each refusal in the customer's words - never the server's prose. */
 fun taxRefusalWords(code: String): String = when (code) {
     "invoices_unavailable" -> "Tax invoices aren't available yet. Please try again later."
     "invoice_not_available_for_order" -> "A tax invoice isn't available for this order."

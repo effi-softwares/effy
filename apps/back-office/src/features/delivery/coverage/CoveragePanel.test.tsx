@@ -121,7 +121,7 @@ beforeEach(() => {
   repo.listCourierServices.mockResolvedValue({ items: [], collectionDefault: "hub" })
 })
 
-describe("Coverage — the list of postcodes Effy delivers to (076)", () => {
+describe("Coverage - the list of postcodes Effy delivers to (076)", () => {
   it("shows each postcode with its places, group, distance and how the distance was obtained", async () => {
     renderPanel()
     const row = (await screen.findByText("3121")).closest("tr")!
@@ -197,7 +197,7 @@ describe("Coverage — the list of postcodes Effy delivers to (076)", () => {
     await waitFor(() => expect(repo.removeCoveragePostcode).toHaveBeenCalledWith("3121"))
   })
 
-  it("097 — each postcode says whether delivery today is offered, and the count says how many are not", async () => {
+  it("097 - each postcode says whether delivery today is offered, and the count says how many are not", async () => {
     renderPanel()
     const on = (await screen.findByText("3121")).closest("tr")!
     expect(within(on).getByText("Offered")).toBeInTheDocument()
@@ -206,7 +206,7 @@ describe("Coverage — the list of postcodes Effy delivers to (076)", () => {
     expect(screen.getByTestId("coverage-counts")).toHaveTextContent("1 not offered delivery today")
   })
 
-  it("097 — 'Farther than' and 'Delivery today' filters ask the service", async () => {
+  it("097 - 'Farther than' and 'Delivery today' filters ask the service", async () => {
     const user = userEvent.setup()
     renderPanel()
     await screen.findByText("3121")
@@ -218,7 +218,7 @@ describe("Coverage — the list of postcodes Effy delivers to (076)", () => {
     await waitFor(() => expect([lastQs().get("minKm"), lastQs().get("today")]).toEqual(["25", "not_offered"]))
   })
 
-  it("097 — select all shown, then stop offering delivery today: one request for every selected postcode", async () => {
+  it("097 - select all shown, then stop offering delivery today: one request for every selected postcode", async () => {
     const user = userEvent.setup()
     repo.patchCoveragePostcodes.mockResolvedValue(undefined)
     renderPanel()
@@ -235,7 +235,7 @@ describe("Coverage — the list of postcodes Effy delivers to (076)", () => {
     await waitFor(() => expect(screen.getByText("2 selected", { exact: false }).closest("[data-state]")).toHaveAttribute("data-state", "closed"))
   })
 
-  it("097 — a customer-service agent sees the column and the filter, and cannot change it", async () => {
+  it("097 - a customer-service agent sees the column and the filter, and cannot change it", async () => {
     renderPanel(false)
     await screen.findByText("3121")
     expect(screen.getByText("Not offered")).toBeInTheDocument()
@@ -267,7 +267,7 @@ describe("Coverage — the list of postcodes Effy delivers to (076)", () => {
   })
 })
 
-describe("Coverage — adding places by name", () => {
+describe("Coverage - adding places by name", () => {
   it("tells same-named places apart, shows what each brings, and adds without a postcode or distance typed", async () => {
     const user = userEvent.setup()
     repo.searchCoveragePlaces.mockResolvedValue({
@@ -326,7 +326,7 @@ describe("Coverage — adding places by name", () => {
     )
   })
 
-  it("⚠ a whole postcode typed is searched as it is typed and ticked — 'type 3108, press Add' adds it", async () => {
+  it("⚠ a whole postcode typed is searched as it is typed and ticked - 'type 3108, press Add' adds it", async () => {
     const user = userEvent.setup()
     repo.searchCoveragePlaces.mockResolvedValue({
       results: [place({ postcode: "3108", matched: "DONCASTER", places: ["DONCASTER"], computedDistanceKm: "14.20" })],
@@ -347,7 +347,7 @@ describe("Coverage — adding places by name", () => {
     )
   })
 
-  it("097 — places can be added with delivery today not offered; offered is the default and is not sent", async () => {
+  it("097 - places can be added with delivery today not offered; offered is the default and is not sent", async () => {
     const user = userEvent.setup()
     repo.searchCoveragePlaces.mockResolvedValue({
       results: [place({ postcode: "3220", matched: "GEELONG", places: ["GEELONG"], computedDistanceKm: "64.48" })],
@@ -382,7 +382,7 @@ describe("Coverage — adding places by name", () => {
     expect(screen.getByRole("button", { name: /^Add/ })).toBeDisabled()
   })
 
-  it("⚠ adding where no driver can deliver is a question, not an error — and 'Add anyway' says so to the service", async () => {
+  it("⚠ adding where no driver can deliver is a question, not an error - and 'Add anyway' says so to the service", async () => {
     const user = userEvent.setup()
     repo.searchCoveragePlaces.mockResolvedValue({ results: [place()] })
     repo.addCoveragePostcodes
@@ -406,7 +406,7 @@ describe("Coverage — adding places by name", () => {
   })
 })
 
-describe("Coverage — the checker, groups and courier reach", () => {
+describe("Coverage - the checker, groups and courier reach", () => {
   it("the checker says who delivers and why, in words a person can repeat", async () => {
     const user = userEvent.setup()
     repo.checkCoverage.mockResolvedValue({
@@ -505,11 +505,11 @@ describe("Coverage — the checker, groups and courier reach", () => {
     )
   })
 
-  it("080 — the customer's words are the default service's timeframe, as a whole sentence; 079's free-text field is gone", async () => {
+  it("080 - the customer's words are the default service's timeframe, as a whole sentence; 079's free-text field is gone", async () => {
     repo.listCoverage.mockResolvedValue(list({ courier: ready }))
     renderCourier()
     expect(await screen.findByTestId("courier-estimate-preview")).toHaveTextContent(
-      "Usually arrives in 2–4 business days — an estimate, not a guaranteed date.",
+      "Usually arrives in 2–4 business days - an estimate, not a guaranteed date.",
     )
     expect(screen.getByTestId("courier-estimate-preview")).toHaveTextContent(
       "Test Courier · Parcel, the default service",
@@ -517,7 +517,7 @@ describe("Coverage — the checker, groups and courier reach", () => {
     expect(screen.queryByLabelText("How long a courier usually takes")).not.toBeInTheDocument()
   })
 
-  it("080 — how parcels reach the courier is a platform default, changed in one click", async () => {
+  it("080 - how parcels reach the courier is a platform default, changed in one click", async () => {
     repo.updateCourier.mockResolvedValue({ offered: false, whenNoWindows: false, collectionDefault: "supplier" })
     renderCourier()
     const hub = await screen.findByRole("radio", { name: "Via the hub" })
@@ -526,7 +526,7 @@ describe("Coverage — the checker, groups and courier reach", () => {
     await waitFor(() => expect(repo.updateCourier).toHaveBeenCalledWith({ collectionDefault: "supplier" }))
   })
 
-  it("079 — ready: the switch works, and on means offered", async () => {
+  it("079 - ready: the switch works, and on means offered", async () => {
     repo.listCoverage.mockResolvedValue(list({ courier: ready }))
     repo.updateCourier.mockResolvedValue({ offered: true, whenNoWindows: false })
     const { unmount } = renderCourier()
@@ -543,7 +543,7 @@ describe("Coverage — the checker, groups and courier reach", () => {
     expect(screen.queryByText(/starts with the new delivery model/)).not.toBeInTheDocument()
   })
 
-  it("079 — the no-window fallback is its own switch, and a refusal is said in words", async () => {
+  it("079 - the no-window fallback is its own switch, and a refusal is said in words", async () => {
     repo.updateCourier
       .mockRejectedValueOnce(refusal(409, "courier_service_missing"))
       .mockResolvedValue({ offered: false, whenNoWindows: true })
@@ -557,7 +557,7 @@ describe("Coverage — the checker, groups and courier reach", () => {
     await waitFor(() => expect(repo.updateCourier).toHaveBeenLastCalledWith({ whenNoWindows: true }))
   })
 
-  it("080 — courier services: listed with the customer's words and pickups; the first added becomes the default; a refusal names the field", async () => {
+  it("080 - courier services: listed with the customer's words and pickups; the first added becomes the default; a refusal names the field", async () => {
     repo.listCourierServices.mockResolvedValue({
       items: [
         service(),
@@ -579,7 +579,7 @@ describe("Coverage — the checker, groups and courier reach", () => {
       .closest("tr")!
     expect(within(first).getByText("Default")).toBeInTheDocument()
     expect(within(first).getByText("Mon, Tue, Wed, Thu, Fri, by 14:00")).toBeInTheDocument()
-    // The default cannot be retired from under checkout — the button is not there.
+    // The default cannot be retired from under checkout - the button is not there.
     expect(within(first).queryByRole("button", { name: "Retire" })).not.toBeInTheDocument()
     const second = within(table)
       .getByText(/Express/)
@@ -589,7 +589,7 @@ describe("Coverage — the checker, groups and courier reach", () => {
     await waitFor(() => expect(repo.updateCourierService).toHaveBeenCalledWith("s2", { isDefault: true }))
   })
 
-  it("080 — adding the first service makes it the default; field refusals are shown beside the field", async () => {
+  it("080 - adding the first service makes it the default; field refusals are shown beside the field", async () => {
     repo.createCourierService
       .mockRejectedValueOnce({
         kind: "unknown",

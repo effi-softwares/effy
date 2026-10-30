@@ -78,7 +78,7 @@ internal fun DriverIntro(ready: Boolean, darkTheme: Boolean, reducedMotion: Bool
     val ios = remember { platformTag() == "ios" }
     // From the splash's fixed colours to the app's: white ground + black word on the light theme; on the
     // dark theme the ground stays near-black and the word white.
-    val dark = EffyRoles.splashGround // #09090B — the splash ground (packages/brand SPLASH_GROUND)
+    val dark = EffyRoles.splashGround // #09090B - the splash ground (packages/brand SPLASH_GROUND)
     val light = MaterialTheme.colorScheme.background
     val splashInk = EffyRoles.splashInk
     val appInk = MaterialTheme.colorScheme.onSurface
@@ -121,7 +121,7 @@ internal fun DriverIntro(ready: Boolean, darkTheme: Boolean, reducedMotion: Bool
                 val dot = lerp(splashDot, appDot, handover).copy(alpha = 1f - fade)
                 letters.draw(this, p, reduced, unit, ink, dot)
 
-                // "DRIVER", centred under the word — below the y's descender — fading in once the word
+                // "DRIVER", centred under the word - below the y's descender - fading in once the word
                 // is whole. Laid out once at the word's final size, so nothing re-measures per frame.
                 val shown = ease(phase(t, LABEL_START_MS, LABEL_MS)) * (1f - fade)
                 if (shown > 0f) {
@@ -142,15 +142,15 @@ internal fun DriverIntro(ready: Boolean, darkTheme: Boolean, reducedMotion: Bool
 }
 
 /**
- * The splash canvas in the driver mark's units: the mark's width (61.75 … 449 — the e to the wheel's
+ * The splash canvas in the driver mark's units: the mark's width (61.75 … 449 - the e to the wheel's
  * rim) over the splash occupancy (0.45). The customer app's is 836.67 (its square dot ends at 438.25).
  */
 private const val SPLASH_CANVAS_UNITS = (449f - 61.75f) / 0.45f
 private const val WORD_WIDTH = 198.2f
 private const val LETTER_START_MS = 150f
-/** One step of the dot: e. → ef. → eff. → effy. — three steps, one after another. */
+/** One step of the dot: e. → ef. → eff. → effy. - three steps, one after another. */
 private const val STEP_MS = 230f
-/** The word is whole (and has finished growing) — the customer app's reveal, hold included. */
+/** The word is whole (and has finished growing) - the customer app's reveal, hold included. */
 private const val LETTERS_END_MS = LETTER_START_MS + 3 * STEP_MS + 250f
 /** "DRIVER" fades in as the word settles, then is held long enough to read. */
 private const val LABEL_START_MS = LETTERS_END_MS - 120f
@@ -181,7 +181,7 @@ private class IntroLetters {
     private val y = path(PATH_Y)
     private val dot = path(PATH_DOT)
 
-    // Right edges of e, f, f, y — read off the outlines.
+    // Right edges of e, f, f, y - read off the outlines.
     private val rights = floatArrayOf(53.1f, 91.5f, 131.3f, 186.2f)
     private val trailing = listOf(f1, f2, y)
 
@@ -191,7 +191,7 @@ private class IntroLetters {
      * edge). The splash's "e." spans 0 … 75.3 and centres on 44.2 vertically; the word keeps that line.
      */
     fun draw(scope: DrawScope, p: FloatArray, reduced: Boolean, unit: Float, ink: Color, dotColour: Color) = with(scope) {
-        // Where the dot rests after each step: 6 units after e, f, f — and tucked into the y's tail.
+        // Where the dot rests after each step: 6 units after e, f, f - and tucked into the y's tail.
         val q = FloatArray(3) { ease(p[it]) }
         var dotLeft = DOT_REST[0]
         for (i in 1..3) dotLeft += (DOT_REST[i] - DOT_REST[i - 1]) * q[i - 1]

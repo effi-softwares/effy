@@ -23,7 +23,7 @@ function sourceFiles(dir: string): string[] {
   return out;
 }
 
-describe("067 — the shop service never references Effy's margin", () => {
+describe("067 - the shop service never references Effy's margin", () => {
   it("no edge-api/shop source file names the margin columns or fields", () => {
     const files = sourceFiles(join(EDGE_API, "shop", "src"));
     expect(files.length).toBeGreaterThan(10);

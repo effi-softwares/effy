@@ -12,7 +12,7 @@ export interface ActivityEntryDTO {
   /** Unique within its log (sources that union several tables prefix it: `fe:…`, `ph:…`). */
   id: string;
   at: string;
-  /** One of the log's `ACTIVITY_LOGS[log].kinds` — the Type filter. */
+  /** One of the log's `ACTIVITY_LOGS[log].kinds` - the Type filter. */
   kind: string;
   /** What happened, in words. Composed on the server so search and export say what the drawer says. */
   title: string;

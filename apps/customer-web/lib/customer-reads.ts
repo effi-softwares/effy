@@ -10,14 +10,14 @@ import { getSession } from "@/lib/session"
  * The signed-in customer's own reads, each made at most once per request however many islands show
  * it.
  *
- * A signed-in page asks for the same things from several places at once — points from the header's
+ * A signed-in page asks for the same things from several places at once - points from the header's
  * account menu, the home shortcuts and the product page's delivery note; addresses from the delivery
  * bar and that note. Next's fetch memoization would probably collapse them, but only while every call
  * site keeps a byte-identical request; React's `cache` makes it one request by construction (the
  * same reasoning as `getHome`).
  *
  * Per customer, and per request only. `cache` lives for one server render, so nothing here is
- * shared between requests or customers — never move these behind `"use cache"`.
+ * shared between requests or customers - never move these behind `"use cache"`.
  *
  * Each returns null for a guest (no request is made) and throws when the read fails, so every caller
  * keeps deciding what a failure looks like where it is shown.

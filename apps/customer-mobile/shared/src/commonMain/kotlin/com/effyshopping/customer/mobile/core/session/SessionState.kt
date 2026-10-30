@@ -31,7 +31,7 @@ sealed interface SessionState {
  * Exists so a ViewModel depends on two methods rather than on the whole [SessionManager], which
  * drags in an `AuthDriver`, a `GetCustomer` use case and a coroutine scope. That is the difference
  * between a ViewModel test that constructs a fake in three lines and one that has to stand up the
- * entire auth stack — and a test that is expensive to write is a test that does not get written.
+ * entire auth stack - and a test that is expensive to write is a test that does not get written.
  */
 interface SessionWriter {
     fun setAuthenticated(customer: com.effyshopping.customer.mobile.features.account.domain.Customer)

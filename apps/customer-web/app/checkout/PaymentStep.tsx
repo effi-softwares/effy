@@ -31,12 +31,12 @@ import {
  *
  * It carries no order content. No basket lines, no delivery address, no delivery-speed control.
  * The shopper confirmed all of it on the step before, and restating it here invites a second
- * review instead of a payment. The one order-derived thing on the page is the amount — you cannot ask
+ * review instead of a payment. The one order-derived thing on the page is the amount - you cannot ask
  * someone to pay without saying how much, and the exact figure has to be shown before payment.
  *
  * Width comes from `container` and nothing else. No `max-w`, no `mx-auto` on the content: the repo's
  * own `@utility container` (80rem, 16px gutter, 24px at `sm`) sets the page, and the measure comes from
- * the grid below it. The pay rail is held by a hairline rule rather than a bordered box — Principle V's
+ * the grid below it. The pay rail is held by a hairline rule rather than a bordered box - Principle V's
  * "no card layouts" rule applies here as everywhere.
  */
 export function PaymentStep({
@@ -64,15 +64,15 @@ export function PaymentStep({
   const [failure, setFailure] = useState<PaymentFailure | null>(null)
   // Set while the bank has the shopper. Not a failure, and must not read like one.
   const [awaitingBank, setAwaitingBank] = useState(false)
-  // Whether a wallet actually rendered. Only then is the "or pay another way" rule meaningful — a rule
+  // Whether a wallet actually rendered. Only then is the "or pay another way" rule meaningful - a rule
   // with nothing above it is a divider dividing one thing.
   const [walletShown, setWalletShown] = useState(false)
 
   // The shopper's kept cards. Read once when the step opens.
   //
   // An empty list means "no kept cards"; a failed read means "we could not ask", and the two must not
-  // look the same. On failure the list stays empty and the card form is shown — the shopper can still
-  // pay, which is the outcome that matters — but nothing claims they have no cards.
+  // look the same. On failure the list stays empty and the card form is shown - the shopper can still
+  // pay, which is the outcome that matters - but nothing claims they have no cards.
   const [cards, setCards] = useState<PaymentMethodDTO[]>([])
   const [selectedCard, setSelectedCard] = useState<string>(NEW_CARD)
 
@@ -85,7 +85,7 @@ export function PaymentStep({
         const data = (await res.json()) as { paymentMethods?: PaymentMethodDTO[] }
         if (cancelled || !data.paymentMethods?.length) return
         setCards(data.paymentMethods)
-        // Pre-select the default, but only if it can actually be used — pre-selecting an expired
+        // Pre-select the default, but only if it can actually be used - pre-selecting an expired
         // card would put the shopper one tap from a refusal.
         const preferred =
           data.paymentMethods.find((c) => c.isDefault && c.usable) ??
@@ -104,7 +104,7 @@ export function PaymentStep({
   // Which family of payment the shopper is using. Card and pay-over-time are mutually
   // exclusive, and only one element is ever mounted (see MethodList).
   const [method, setMethod] = useState<MethodKind>("card")
-  // Straight from the server's read of the intent — never inferred here. See the dto's note.
+  // Straight from the server's read of the intent - never inferred here. See the dto's note.
   const laterAvailable = intent.payOverTimeAvailable === true
   const usingNewCard = selectedCard === NEW_CARD && method === "card"
 
@@ -175,7 +175,7 @@ export function PaymentStep({
    * so once it is submitted nothing of Effy's stands between the shopper and the charge. A place is
    * held for a few minutes from the intent call; a shopper who lingers past that may have lost it to
    * someone else, and must find out here rather than after paying. The server cannot enforce this
-   * (it honours and flags a late payer instead) — this is what makes that rare.
+   * (it honours and flags a late payer instead) - this is what makes that rare.
    */
   async function holdIsLive(): Promise<boolean> {
     if (!renewHold || !holdLapsed(intent.slotHeldUntil, Date.now())) return true
@@ -197,14 +197,14 @@ export function PaymentStep({
       // nothing typed and confirms by id; a new card confirms from the element.
       const outcome = method === "later"
         ? await confirmPayOverTime({
-            stripe,
-            elements: elements!,
-            clientSecret: intent.clientSecret,
-            billingDetails: intent.billingDetails ?? null,
-            returnUrl: `${window.location.origin}/checkout/complete?order=${intent.orderId}`,
-          })
+          stripe,
+          elements: elements!,
+          clientSecret: intent.clientSecret,
+          billingDetails: intent.billingDetails ?? null,
+          returnUrl: `${window.location.origin}/checkout/complete?order=${intent.orderId}`,
+        })
         : usingNewCard
-        ? await confirmCardPayment({
+          ? await confirmCardPayment({
             stripe,
             clientSecret: intent.clientSecret,
             // Non-null by the guard above: the new-card route returns early without an element.
@@ -212,13 +212,13 @@ export function PaymentStep({
             billingDetails: intent.billingDetails ?? null,
             saveCard,
           })
-        : await confirmSavedCard({
+          : await confirmSavedCard({
             stripe,
             clientSecret: intent.clientSecret,
             paymentMethodId: selectedCard,
           })
 
-      // The family only — never which provider, never an amount, never a card reference.
+      // The family only - never which provider, never an amount, never a card reference.
       const family =
         method === "later" ? "pay_over_time" : usingNewCard ? "card" : "saved_card"
 
@@ -234,7 +234,7 @@ export function PaymentStep({
           // A full page load, not `router.push`. Checkout is finished, and every scrap of client
           // state that belongs to it must die with it. A soft navigation leaves this flow's React
           // state in the client router's cache, where a later checkout can render a finished
-          // attempt's intent — which is precisely the defect the already-paid notice above records.
+          // attempt's intent - which is precisely the defect the already-paid notice above records.
           // The cost is one page load at the terminal step of the flow, which is not a cost.
           window.location.assign(`/checkout/complete?order=${intent.orderId}`)
           return
@@ -242,7 +242,7 @@ export function PaymentStep({
           capture({ name: "payment_failed", props: { method: family, reason: "needs_action" } })
           // The provider drives the bank's challenge and returns to `return_url`. Saying so is the
           // point: this is the moment a shopper most often panics and closes the tab, and being told
-          // in advance that their bank will ask — and that they will be brought back — is what stops
+          // in advance that their bank will ask - and that they will be brought back - is what stops
           // that.
           setAwaitingBank(true)
           return
@@ -253,14 +253,14 @@ export function PaymentStep({
     } finally {
       // Always. The previous implementation cleared `busy` only on a validation error, so the control
       // stayed disabled and reading "Processing…" through the navigation and the receipt's two server
-      // round trips — and forever if that navigation failed.
+      // round trips - and forever if that navigation failed.
       setBusy(false)
     }
   }
 
   // An already-paid order takes over the whole screen, rather than sitting as a notice beside a pay
   // button that cannot work. A form the shopper is invited to fill in and then refused is worse than no
-  // form; and the two things they might actually want — see what they paid for, or buy this basket
+  // form; and the two things they might actually want - see what they paid for, or buy this basket
   // are the only two controls here.
   if (alreadyPaidOrder) {
     return (
@@ -315,7 +315,7 @@ export function PaymentStep({
             onConfirm={async () => {
               setBusy(true)
               setFailure(null)
-    setAwaitingBank(false)
+              setAwaitingBank(false)
               try {
                 if (!(await holdIsLive())) return
                 const outcome = await confirmWalletPayment({
@@ -376,7 +376,7 @@ export function PaymentStep({
           </MethodList>
         </div>
 
-        {/* The pay rail. A border-left and space hold it — not a card (Principle V). */}
+        {/* The pay rail. A border-left and space hold it - not a card (Principle V). */}
         <aside className="flex min-w-0 flex-col gap-5 rounded-lg border bg-card p-5 shadow-xs sm:p-6 lg:sticky lg:top-24">
           <div>
             <span className="block text-xs font-medium uppercase tracking-[0.09em] text-muted-foreground">
@@ -406,7 +406,7 @@ export function PaymentStep({
               size="xl"
               className="w-full"
             >
-                      {busy ? "Paying…" : `Pay ${amount}`}
+              {busy ? "Paying…" : `Pay ${amount}`}
             </ActionButton>
             <p className="mt-4 flex items-center justify-center gap-2 text-center text-sm leading-relaxed text-muted-foreground">
               <Lock className="size-4 shrink-0" aria-hidden="true" />
@@ -414,7 +414,7 @@ export function PaymentStep({
             </p>
           </div>
 
-          {/* Point-of-sale legal links — new tab, so the payment funnel is never lost. */}
+          {/* Point-of-sale legal links - new tab, so the payment funnel is never lost. */}
           <p className="text-center text-xs leading-[1.7] text-muted-foreground">
             By placing your order you agree to our{" "}
             <a href="/legal/terms-of-service" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">

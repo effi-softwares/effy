@@ -26,7 +26,7 @@ export const metadata: Metadata = {
 
 /**
  * The receipt (019 US3, redesigned by 052 US1). Reads the webhook-authoritative order state from the
- * server — never the browser payment result. One Effy order itemized by product, with NO shop
+ * server - never the browser payment result. One Effy order itemized by product, with NO shop
  * identity. Gated + request-time, so it lives inside <Suspense>.
  */
 type ReturnParams = {
@@ -37,7 +37,7 @@ type ReturnParams = {
    *
    * It is a hint, not the truth. It is a query parameter on a URL the shopper's browser followed, so
    * it can be edited, replayed or stale. The order state below is read from the platform, which reads
-   * the webhook — that is authoritative. This value only decides which words to use
+   * the webhook - that is authoritative. This value only decides which words to use
    * while the authoritative answer is still settling.
    */
   redirect_status?: string
@@ -47,8 +47,8 @@ export default function CompletePage({ searchParams }: { searchParams: Promise<R
   return (
     // `container`, not a per-page `mx-auto max-w-*`. The storefront defines one content
     // column in app/globals.css and its comment records why: the four decisions (centring, full width,
-    // the cap, the gutter) had been written out twenty-four times. That is 80rem — far wider than the
-    // 42rem this page used — so the layout below is built for the width as two columns rather than
+    // the cap, the gutter) had been written out twenty-four times. That is 80rem - far wider than the
+    // 42rem this page used - so the layout below is built for the width as two columns rather than
     // constrained back down. A single column at 80rem puts the width of the page between an item's
     // name and its price.
     <div className="container py-10">
@@ -69,7 +69,7 @@ async function Receipt({ searchParams }: { searchParams: Promise<ReturnParams> }
   let dto: OrderDTO | null = null
   if (session?.accessToken) {
     // Finalize the order now via the idempotent confirm fallback, the moment the customer lands here
-    // after paying. The webhook is authoritative but may lag (or be misconfigured locally) — and a
+    // after paying. The webhook is authoritative but may lag (or be misconfigured locally) - and a
     // lingering `pending_payment` order gets reused by the customer's next checkout, whose deterministic
     // idempotency key then returns this order's already-succeeded PaymentIntent (the "second order asks
     // to pay for the first, same amount" bug). Confirming here moves the order out of pending_payment
@@ -78,7 +78,7 @@ async function Receipt({ searchParams }: { searchParams: Promise<ReturnParams> }
     try {
       await edgeApi(session).post(`/commerce/v1/checkout/confirm`, { orderId: order }, uncached())
     } catch {
-      // ignore — webhook backstop
+      // ignore - webhook backstop
     }
     try {
       dto = await edgeApi(session).get<OrderDTO>(`/commerce/v1/orders/${order}`, uncached())
@@ -129,7 +129,7 @@ async function Receipt({ searchParams }: { searchParams: Promise<ReturnParams> }
 
   return (
     <div>
-      {/* Paid, and only paid — see `state.ts`. */}
+      {/* Paid, and only paid - see `state.ts`. */}
       {mayClearCart(state) ? <ClearCart orderId={dto.id} /> : null}
 
       {/* Confirmation band */}

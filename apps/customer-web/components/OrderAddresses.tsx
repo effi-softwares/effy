@@ -8,9 +8,9 @@ import { handoverLabel } from "@/lib/delivery-instructions"
  * Shipping is always shown in full. Billing is shown in full only when the order snapshotted a
  * divergent one (`billing` non-null); a null billing means the customer left it "same as shipping", so
  * the line reads "Same as shipping" rather than repeating the address. Both snapshots are
- * immutable — editing/deleting the saved address later never changes what renders here.
+ * immutable - editing/deleting the saved address later never changes what renders here.
  *
- * A synchronous, pure component so it is unit-testable — the pages that host it (the receipt and order
+ * A synchronous, pure component so it is unit-testable - the pages that host it (the receipt and order
  * detail) are async Server Components, which Vitest cannot render.
  */
 export function OrderAddresses({
@@ -32,7 +32,7 @@ export function OrderAddresses({
 
       {/* Rendered only when the shopper said something. No placeholder, no "none given": an
           order placed before this existed must look exactly as it did.
-          `note` is customer-authored text and goes through a React text node — never an HTML
+          `note` is customer-authored text and goes through a React text node - never an HTML
           sink. `whitespace-pre-line` keeps the line breaks they typed without interpreting anything. */}
       {hasDeliveryInstructions(instructions) && (
         <section className="mt-6 text-sm">

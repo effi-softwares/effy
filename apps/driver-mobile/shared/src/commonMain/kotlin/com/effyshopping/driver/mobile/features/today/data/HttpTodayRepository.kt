@@ -102,7 +102,7 @@ private fun TodayDTO.toDomain(): Today = Today(
 )
 
 private fun TodayItemRef.toDomain(): TodayItem = TodayItem(
-    // Exhaustive on purpose — no `else`. Adding `HubCheckin` to the wire enum broke this `when` at
+    // Exhaustive on purpose - no `else`. Adding `HubCheckin` to the wire enum broke this `when` at
     // compile time, which is exactly what should happen: an `else` here would have mapped an unknown
     // kind onto some existing one and the hub would have silently rendered as a shop stop. 053, 056,
     // And 059 each shipped a defect through an enum widening that nothing forced anyone to read.

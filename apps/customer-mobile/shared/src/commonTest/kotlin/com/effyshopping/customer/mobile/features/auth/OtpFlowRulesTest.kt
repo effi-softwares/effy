@@ -24,7 +24,7 @@ class OtpFlowRulesTest {
     @Test
     fun `the ceiling mirrors the platform's twenty sends per address per hour`() {
         // ⚠ If `OTP_SENDS_PER_HOUR` in `apis/edge-api/auth/src/otp/policy.ts` ever changes, this
-        // number must change with it — the client counts locally precisely because the server's
+        // number must change with it - the client counts locally precisely because the server's
         // refusal is invisible (it returns a normal challenge with a masked destination).
         assertEquals(20, MAX_SENDS_PER_FLOW)
     }
@@ -38,10 +38,10 @@ class OtpFlowRulesTest {
     }
 
     @Test
-    fun `⚠ the 21st send is refused locally — not fired and silently dropped`() {
+    fun `⚠ the 21st send is refused locally - not fired and silently dropped`() {
         // The case this whole mechanism exists for. Past twenty sends the trigger refuses but still
         // returns a normal challenge, so firing anyway shows "we sent a code to a•••@…" for an email
-        // that does not exist — and the shopper discovers it only after burning three guesses.
+        // that does not exist - and the shopper discovers it only after burning three guesses.
         assertEquals(
             ResendVerdict.Ceiling,
             resendVerdict(sendsThisFlow = MAX_SENDS_PER_FLOW, resendRemaining = 0, loading = false),
@@ -54,7 +54,7 @@ class OtpFlowRulesTest {
     }
 
     @Test
-    fun `the twentieth send is still allowed — the ceiling is a count of SENDS — not of resends`() {
+    fun `the twentieth send is still allowed - the ceiling is a count of SENDS - not of resends`() {
         // Off-by-one guard: one initial code plus nineteen resends is twenty sends, and the twentieth must go.
         assertEquals(
             ResendVerdict.Allowed,
@@ -83,7 +83,7 @@ class OtpFlowRulesTest {
     fun `⚠ submitting a code does not stop the resend countdown`() {
         // The defect this pins. `loading` was checked before the cooldown, so tapping "Sign in" flipped
         // the verdict Cooldown → Busy and the screen replaced "Send another code in 9s" with "Didn't
-        // get it? Send another code" — answering a question the shopper had not asked, and offering the
+        // get it? Send another code" - answering a question the shopper had not asked, and offering the
         // one action the cooldown exists to withhold. A code submission is not a resend.
         assertEquals(
             ResendVerdict.Cooldown,
@@ -99,7 +99,7 @@ class OtpFlowRulesTest {
     @Test
     fun `⚠ the ceiling is reported even while cooling down is also true`() {
         // Cooldown is transient and self-clearing; the ceiling is not. A shopper told "wait 12
-        // seconds" when the real answer is "not for another forty minutes" has been misled — so once
+        // seconds" when the real answer is "not for another forty minutes" has been misled - so once
         // the countdown ends the verdict must be Ceiling, not Allowed.
         assertEquals(
             ResendVerdict.Cooldown,
@@ -112,7 +112,7 @@ class OtpFlowRulesTest {
     }
 
     @Test
-    fun `the cooldown is thirty seconds — matching customer-web`() {
+    fun `the cooldown is thirty seconds - matching customer-web`() {
         assertEquals(30, RESEND_COOLDOWN_SECONDS)
         assertEquals(RESEND_COOLDOWN_SECONDS, cooldownAfterSend())
     }
@@ -125,7 +125,7 @@ class OtpFlowRulesTest {
     }
 
     @Test
-    fun `a refused code costs one attempt — and the third ends the session`() {
+    fun `a refused code costs one attempt - and the third ends the session`() {
         val first = tallyAttempt(previous = 0, codeWasRefused = true)
         assertEquals(1, first.used)
         assertFalse(first.exhausted, "one wrong code must not end the session")
@@ -150,8 +150,8 @@ class OtpFlowRulesTest {
     }
 
     @Test
-    fun `⚠ a resend resets the attempt tally — because it is a NEW Cognito session`() {
-        // There is no resend API for a custom challenge — "resend" is a fresh `signIn`, and the server
+    fun `⚠ a resend resets the attempt tally - because it is a NEW Cognito session`() {
+        // There is no resend API for a custom challenge - "resend" is a fresh `signIn`, and the server
         // genuinely has no memory of the previous session's guesses. Showing "1 attempt left" on a
         // session that in fact allows three would be wrong in the direction that makes people give up.
         val exhausted = tallyAttempt(previous = 2, codeWasRefused = true)

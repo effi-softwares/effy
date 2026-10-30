@@ -35,7 +35,7 @@ private fun driverBearer(sessionProvider: suspend () -> Session?) =
 
 /**
  * Every 401 and 403 is reported to [onRejected]. The driver service answers 403 only from its guard
- * a driver who is disabled or not provisioned — so either status means the session is over.
+ * a driver who is disabled or not provisioned - so either status means the session is over.
  */
 private fun rejectionHook(onRejected: () -> Unit) =
     createClientPlugin("Rejection") {
@@ -46,7 +46,7 @@ private fun rejectionHook(onRejected: () -> Unit) =
 
 /**
  * The one client, for `DRIVER_API_BASE_URL` (cross-pool isolation, FR-029). [debug] gates request
- * logging — never `BODY` in release, and the Authorization header is redacted even in debug:
+ * logging - never `BODY` in release, and the Authorization header is redacted even in debug:
  * no code or credential reaches a log.
  */
 fun createHttpClient(

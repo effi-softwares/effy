@@ -13,7 +13,7 @@ let container: StartedPostgreSqlContainer;
 let pool: Pool;
 const one = async <T,>(sql: string, p: unknown[] = []) => (await pool.query(sql, p as never[])).rows[0] as T;
 
-d("101 US4 — storage and GST on every order line", () => {
+d("101 US4 - storage and GST on every order line", () => {
   beforeAll(async () => {
     container = await new PostgreSqlContainer("postgres:16-alpine").start();
     pool = new Pool({ connectionString: container.getConnectionUri() });

@@ -51,10 +51,10 @@ describe("DeliveryDaysPanel", () => {
     expect(screen.getByText("Christmas Day")).toBeInTheDocument()
   })
 
-  it("⚠ labels the unmeasured hub turnaround as an estimate, not a fact — and has no carrier lead time", async () => {
+  it("⚠ labels the unmeasured hub turnaround as an estimate, not a fact - and has no carrier lead time", async () => {
     renderPanel()
     await screen.findByLabelText(/hub turnaround/i)
-    expect(screen.getAllByText(/^Estimate — not yet timed/)).toHaveLength(1)
+    expect(screen.getAllByText(/^Estimate - not yet timed/)).toHaveLength(1)
     expect(screen.queryByLabelText(/carrier lead time/i)).not.toBeInTheDocument()
     expect(screen.queryByLabelText(/days a customer can choose from/i)).not.toBeInTheDocument()
     expect(screen.queryByText("Standard delivery days")).not.toBeInTheDocument()
@@ -84,7 +84,7 @@ describe("DeliveryDaysPanel", () => {
     expect(await screen.findByText(/the next checkout uses these/i)).toBeInTheDocument()
   })
 
-  it("078 — saves how many delivery days are offered after today, and puts its refusal on the field", async () => {
+  it("078 - saves how many delivery days are offered after today, and puts its refusal on the field", async () => {
     renderPanel()
     const offered = await screen.findByLabelText(/days offered after today/i)
     expect(offered).toHaveValue("3")

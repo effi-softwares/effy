@@ -12,7 +12,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-/** 101 — a category's glyph is the key staff chose, the same set the website and the database know. */
+/** 101 - a category's glyph is the key staff chose, the same set the website and the database know. */
 class CategoryIconsTest {
     private val fixture = Json.parseToJsonElement(CATEGORY_ICONS_FIXTURE).jsonObject
     private val keys = fixture.getValue("icons").jsonArray.map { it.jsonPrimitive.content }

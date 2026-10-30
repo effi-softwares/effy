@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 
 /**
  * Every package that renders a console table pins the SAME `@tanstack/react-table` (103). Two versions in one
- * app compile, pass their tests and then disagree at runtime about a table instance's shape — the driver app's
+ * app compile, pass their tests and then disagree at runtime about a table instance's shape - the driver app's
  * material3 / foundation mismatch (CLAUDE.md) is the same failure in another family.
  */
 const ROOT = resolve(__dirname, "../../../..");

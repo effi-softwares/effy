@@ -20,7 +20,7 @@ import kotlin.test.assertTrue
  * generic.
  */
 class OpeningTest {
-    // 2026-10-08T05:15:00Z — 4:15 pm in Melbourne (AEDT).
+    // 2026-10-08T05:15:00Z - 4:15 pm in Melbourne (AEDT).
     private val at = "2026-10-08T05:15:00.000Z"
     private val atMillis = 1_791_436_500_000L
 
@@ -30,7 +30,7 @@ class OpeningTest {
         assertEquals("Opens 4:15 pm", opening!!.sentence)
     }
 
-    /** Half an opening cannot be shown or cannot ever unlock — so the round is treated as open. */
+    /** Half an opening cannot be shown or cannot ever unlock - so the round is treated as open. */
     @Test fun half_an_opening_is_no_opening() {
         assertNull(Opening.of(at, null))
         assertNull(Opening.of(at, "  "))
@@ -46,7 +46,7 @@ class OpeningTest {
     }
 
     /**
-     * The server sends nothing once a round is open, so null must mean open — whatever this
+     * The server sends nothing once a round is open, so null must mean open - whatever this
      * device's clock says. A phone an hour slow must not lock a round the platform has opened.
      */
     @Test fun no_opening_means_open_whatever_the_clock_says() {
@@ -73,7 +73,7 @@ class OpeningTest {
 
     /**
      * Not a conflict. Both are a 409, and a conflict tells the driver "someone else just changed
-     * this. Pull to refresh" — which they could do for hours at a round that is simply not open.
+     * this. Pull to refresh" - which they could do for hours at a round that is simply not open.
      */
     @Test fun it_is_never_reported_as_someone_else_changed_this() {
         val notOpen = appErrorFor(409, problem("round_not_open", "opensAt" to at, "opensLabel" to "4:15 pm"))

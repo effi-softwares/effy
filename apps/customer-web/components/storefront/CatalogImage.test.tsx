@@ -6,7 +6,7 @@ import { CatalogImage } from "./CatalogImage"
 const SRC = "https://media.dev.effyshopping.com/products/o1/t1.jpg"
 
 describe("CatalogImage (086)", () => {
-  it("offers no copy when none exist — the original only", () => {
+  it("offers no copy when none exist - the original only", () => {
     const { container } = render(<CatalogImage src={SRC} alt="" sizes="10rem" />)
     expect(container.querySelector("source")).toBeNull()
     expect(container.querySelector("img")?.getAttribute("src")).toBe(SRC)

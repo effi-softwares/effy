@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 #
-# Platform-email-delivery — is the delivery-outcome pipeline actually running?
+# Platform-email-delivery - is the delivery-outcome pipeline actually running?
 #
 # `mail-verify` answers a different question: is the platform configured to send authenticated mail
 # (DKIM/spf/DMARC published, identity verified, configuration set present with an enabled event
-# destination). All of that can be perfectly true while nothing consumes the outcomes — and then the
+# destination). All of that can be perfectly true while nothing consumes the outcomes - and then the
 # platform is exactly as blind to a locked-out person as it was before this feature existed.
 #
 # why blindness is the failure that matters. A send to a hard-failed address returns success and a
-# message id and delivers nothing. For driver, shop and back-office — no password, no federated
-# route — that is a permanent account lockout with no signal to anyone. The rate alarms cannot see
+# message id and delivers nothing. For driver, shop and back-office - no password, no federated
+# route - that is a permanent account lockout with no signal to anyone. The rate alarms cannot see
 # it: one person never moves a rate. Only the per-message outcome stream can, so this script checks
 # the parts of that stream that only exist at runtime.
 #
@@ -48,7 +48,7 @@ topic_arn="$(
 )"
 
 if [ -z "${topic_arn}" ]; then
-  bad "no /effy/${ENV}/ses/events_topic_arn in SSM — Terraform has not been applied for this env"
+  bad "no /effy/${ENV}/ses/events_topic_arn in SSM - Terraform has not been applied for this env"
 else
   ok "topic published in SSM"
 
@@ -63,7 +63,7 @@ else
   if printf '%s' "${subs}" | grep -q "${CONSUMER}"; then
     ok "the consumer is subscribed to it"
   else
-    bad "NO lambda subscription for ${CONSUMER} — outcomes are published into nothing"
+    bad "NO lambda subscription for ${CONSUMER} - outcomes are published into nothing"
   fi
 fi
 
@@ -80,10 +80,10 @@ if $AWS lambda get-function --function-name "${CONSUMER}" >/dev/null 2>&1; then
       --query 'Policy' --output text 2>/dev/null | grep -q 'sns.amazonaws.com'; then
     ok "SNS is permitted to invoke it"
   else
-    bad "no resource policy permitting sns.amazonaws.com — every delivery will be refused"
+    bad "no resource policy permitting sns.amazonaws.com - every delivery will be refused"
   fi
 else
-  bad "not deployed — run: make edge-deploy SERVICE=admin ENV=${ENV}"
+  bad "not deployed - run: make edge-deploy SERVICE=admin ENV=${ENV}"
 fi
 
 # ── 3. Recent behaviour: has it run, and did it error? ─────────────────────────────────────────
@@ -106,27 +106,27 @@ invocations="$(metric Invocations)"
 errors="$(metric Errors)"
 
 # zero invocations is not a failure. On a quiet dev environment where nothing bounced, idle is the
-# correct state — which is exactly why this reports rather than fails. Treating idle as broken is
+# correct state - which is exactly why this reports rather than fails. Treating idle as broken is
 # how a check gets ignored.
 printf '  invocations: %s   errors: %s\n' "${invocations%.*}" "${errors%.*}"
 if [ "${errors%.*}" != "0" ]; then
-  bad "the consumer is erroring — outcomes are being dropped (see ${LOG_GROUP})"
+  bad "the consumer is erroring - outcomes are being dropped (see ${LOG_GROUP})"
 else
   ok "no consumer errors"
 fi
 
-# ── 4. SC-020 — no recipient address may ever reach CloudWatch ─────────────────────────────────
+# ── 4. SC-020 - no recipient address may ever reach CloudWatch ─────────────────────────────────
 head "Log hygiene (SC-020)"
 
 # this is the one check nothing else performs. The consumer handles addresses and the receiving
-# server's rejection text — which embeds the recipient — on every single invocation. 035's rule is
+# server's rejection text - which embeds the recipient - on every single invocation. 035's rule is
 # that neither ever reaches CloudWatch; a fingerprint correlates the lines instead. A unit test
 # proves the code paths it knows about. This proves what actually got written.
 if $AWS logs describe-log-groups --log-group-name-prefix "${LOG_GROUP}" \
      --query 'logGroups[0].logGroupName' --output text 2>/dev/null | grep -q "${CONSUMER}"; then
   # `--limit`, not `--max-items`. The latter is a client-side pagination control: the CLI keeps
   # fetching pages and prints the query result once per page, so `length(events)` came back as five
-  # lines of "0" — which is not the string "0", so the check reported a PII leak that did not exist.
+  # lines of "0" - which is not the string "0", so the check reported a PII leak that did not exist.
   # A guard that cries wolf gets switched off, and this one guards recipient addresses.
   hits="$(
     $AWS logs filter-log-events --log-group-name "${LOG_GROUP}" \
@@ -136,10 +136,10 @@ if $AWS logs describe-log-groups --log-group-name-prefix "${LOG_GROUP}" \
   if [ "${hits}" = "0" ] || [ "${hits}" = "None" ]; then
     ok "no '@' in any consumer log line"
   else
-    bad "${hits} log line(s) contain '@' — a recipient address is in CloudWatch. FIX BEFORE PROD."
+    bad "${hits} log line(s) contain '@' - a recipient address is in CloudWatch. FIX BEFORE PROD."
   fi
 else
-  note "no log group yet — the consumer has never been invoked"
+  note "no log group yet - the consumer has never been invoked"
 fi
 
 # ── 5. Every alarm this feature owns must be able to reach a person ────────────────────────────
@@ -163,7 +163,7 @@ for alarm in \
   state="$(printf '%s' "${desc}" | awk '{print $1}')"
   actions="$(printf '%s' "${desc}" | awk '{print $2}')"
   if [ "${actions}" = "0" ] || [ "${actions}" = "None" ]; then
-    bad "${alarm}: ${state}, but NO alarm action — nobody is told"
+    bad "${alarm}: ${state}, but NO alarm action - nobody is told"
   else
     ok "${alarm}: ${state}, ${actions} action(s)"
   fi
@@ -177,7 +177,7 @@ alerts_arn="$(
     --output text 2>/dev/null || echo "None"
 )"
 if [ "${alerts_arn}" = "None" ] || [ -z "${alerts_arn}" ]; then
-  bad "no ${PREFIX}-alerts topic — every alarm above fires into nothing"
+  bad "no ${PREFIX}-alerts topic - every alarm above fires into nothing"
 else
   # PendingConfirmation is the silent one: Terraform reports the subscription created, the alarm
   # reports an action, and no mail is ever sent because the operator never clicked the link.
@@ -195,11 +195,11 @@ else
     bad "no CONFIRMED subscriber on the alerts topic"
   fi
   if [ "${pending}" != "0" ] && [ "${pending}" != "None" ]; then
-    note "${pending} subscription(s) still PendingConfirmation — those people are NOT notified"
+    note "${pending} subscription(s) still PendingConfirmation - those people are NOT notified"
   fi
 fi
 
-# ── 7. FR-041 — a dev failure must not blind production ────────────────────────────────────────
+# ── 7. FR-041 - a dev failure must not blind production ────────────────────────────────────────
 head "Suppression isolation (FR-041)"
 
 supp="$(
@@ -207,8 +207,8 @@ supp="$(
     --query 'SuppressionOptions.SuppressedReasons' --output json 2>/dev/null || echo "missing"
 )"
 case "${supp}" in
-  missing) bad "configuration set ${CONFIG_SET} missing — sends produce no outcomes at all" ;;
-  "[]")    ok "override ACTIVE — a bounce here cannot add anyone to the account-wide list" ;;
+  missing) bad "configuration set ${CONFIG_SET} missing - sends produce no outcomes at all" ;;
+  "[]")    ok "override ACTIVE - a bounce here cannot add anyone to the account-wide list" ;;
   *)       note "inherits the account list (${supp}). Correct for PRODUCTION; wrong for ${ENV}." ;;
 esac
 

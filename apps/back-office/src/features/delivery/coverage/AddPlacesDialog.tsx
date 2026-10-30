@@ -150,19 +150,19 @@ export function AddPlacesDialog({
                         <span className="font-medium">{r.matched}</span>
                         <span className="text-muted-foreground">
                           {" "}
-                          · {r.state ?? "—"} · <span className="font-mono">{r.postcode}</span>
+                          · {r.state ?? "-"} · <span className="font-mono">{r.postcode}</span>
                         </span>
                         {r.listed ? <span className="ml-2 text-muted-foreground">Already on the list</span> : null}
                         <span className="block text-muted-foreground">
                           {r.places.length > 1
                             ? `Also brings ${r.places
-                                .filter((p) => p !== r.matched)
-                                .slice(0, 6)
-                                .join(", ")}${r.places.length > 7 ? "…" : ""}. `
+                              .filter((p) => p !== r.matched)
+                              .slice(0, 6)
+                              .join(", ")}${r.places.length > 7 ? "…" : ""}. `
                             : ""}
                           {r.computedDistanceKm !== null
                             ? `${r.computedDistanceKm} km from the hub.`
-                            : "No known location — its distance must be entered."}
+                            : "No known location - its distance must be entered."}
                         </span>
                       </span>
                     </label>

@@ -52,11 +52,11 @@ async function main() {
 
   const problems = missing.length + stale.length + orphans.length + (manifestStale ? 1 : 0)
   if (problems === 0) {
-    console.log(`brand-check: OK — ${files.length} assets match the authored mark (SC-008/SC-009).`)
+    console.log(`brand-check: OK - ${files.length} assets match the authored mark (SC-008/SC-009).`)
     return
   }
 
-  console.error("brand-check: FAILED — committed brand assets do not match the authored mark.\n")
+  console.error("brand-check: FAILED - committed brand assets do not match the authored mark.\n")
   const report = (label, list) => {
     if (!list.length) return
     console.error(`  ${label}:`)
@@ -79,11 +79,11 @@ async function main() {
   if (manifestStale) console.error("  MANIFEST: assets.manifest.json is stale or absent")
 
   console.error("\n  Fix: run `make brand-gen`, then commit the result.")
-  console.error("  Assets are GENERATED, never hand-edited — see packages/brand/README.md.")
+  console.error("  Assets are GENERATED, never hand-edited - see packages/brand/README.md.")
   process.exit(1)
 }
 
 main().catch((e) => {
-  console.error(`brand-check FAILED — ${e.message}`)
+  console.error(`brand-check FAILED - ${e.message}`)
   process.exit(1)
 })

@@ -14,7 +14,7 @@ const WEEKLY = "5d1e0000-0000-0000-0000-000000000005"
 const saved: SavedListDTO = { id: "default", isDefault: true, name: null, count: 12, onlyHereCount: 9 }
 const weekly: SavedListDTO = { id: WEEKLY, isDefault: false, name: "Weekly Items", count: 5, onlyHereCount: 2 }
 
-describe("068 — the lists tab row", () => {
+describe("068 - the lists tab row", () => {
   beforeEach(() => {
     push.mockReset()
     refresh.mockReset()

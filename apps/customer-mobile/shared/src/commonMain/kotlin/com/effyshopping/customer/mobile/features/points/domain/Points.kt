@@ -1,7 +1,7 @@
 package com.effyshopping.customer.mobile.features.points.domain
 
 /**
- * Effy points — store credit Effy gives and the customer spends.
+ * Effy points - store credit Effy gives and the customer spends.
  *
  * Nothing here is stored on the device. The balance is what the platform says it is right now; a
  * cached copy would show points that have since expired or been spent at checkout on the web.
@@ -31,17 +31,17 @@ data class PointsHistoryPage(val lines: List<PointsLine>, val nextCursor: String
 interface PointsRepository {
     /**
      * The balance and a page of history, in one read (the server answers both on one route).
-     * A failure throws — "you have no points" and "we could not ask" are different facts.
+     * A failure throws - "you have no points" and "we could not ask" are different facts.
      */
     suspend fun overview(cursor: String?): Pair<PointsBalance, PointsHistoryPage>
 }
 
-/** GetPoints — the balance and the first page of history, on open and on every live update. */
+/** GetPoints - the balance and the first page of history, on open and on every live update. */
 class GetPoints(private val repo: PointsRepository) {
     suspend operator fun invoke(): Pair<PointsBalance, PointsHistoryPage> = repo.overview(null)
 }
 
-/** GetOlderPoints — the next page of history. */
+/** GetOlderPoints - the next page of history. */
 class GetOlderPoints(private val repo: PointsRepository) {
     suspend operator fun invoke(cursor: String): PointsHistoryPage = repo.overview(cursor).second
 }

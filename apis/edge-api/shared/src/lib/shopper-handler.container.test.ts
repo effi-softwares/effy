@@ -24,7 +24,7 @@ function asRole(): Client {
   return new Client({ host: u.hostname, port: Number(u.port), database: u.pathname.slice(1), user: "limited_shopper", password: "pw" });
 }
 
-d("070 — a role's connection limit becomes a retryable 503", () => {
+d("070 - a role's connection limit becomes a retryable 503", () => {
   beforeAll(async () => {
     container = await new PostgreSqlContainer("postgres:16-alpine").start();
     const admin = new Client({ connectionString: container.getConnectionUri() });

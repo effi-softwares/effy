@@ -67,7 +67,7 @@ export function LookPanel({
   return (
     <Panel
       title="How this place looks"
-      description={`Layouts that fit a ${SIZE_WORD[group.size].toLowerCase()} place: ${fitsWords(group.size)} — and Classic, as it always looked.`}
+      description={`Layouts that fit a ${SIZE_WORD[group.size].toLowerCase()} place: ${fitsWords(group.size)} - and Classic, as it always looked.`}
     >
       <fieldset disabled={!canManage || update.isPending} className="grid gap-4 sm:grid-cols-3">
         <div className="space-y-2">
@@ -175,16 +175,16 @@ export function MemberLookDialog({
       settings: chosen.settings,
       ...(pic
         ? {
-            picture: {
-              url: pic.url,
-              imageWidths: pic.imageWidths,
-              width: pic.width,
-              height: pic.height,
-              alt: pic.alt,
-              focusX: pic.focusX,
-              focusY: pic.focusY,
-            },
-          }
+          picture: {
+            url: pic.url,
+            imageWidths: pic.imageWidths,
+            width: pic.width,
+            height: pic.height,
+            alt: pic.alt,
+            focusX: pic.focusX,
+            focusY: pic.focusY,
+          },
+        }
         : {}),
     }
   }

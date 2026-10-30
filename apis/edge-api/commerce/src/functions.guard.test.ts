@@ -44,7 +44,7 @@ describe("commerce functions", () => {
     expect(authed.length).toBeGreaterThan(0);
   });
 
-  it.each(authed)("$name ($file) is a customerRoute — it cannot serve a barred or closing shopper", ({ file }) => {
+  it.each(authed)("$name ($file) is a customerRoute - it cannot serve a barred or closing shopper", ({ file }) => {
     expect(source(file)).toMatch(/export const handler = customerRoute\(/);
   });
 

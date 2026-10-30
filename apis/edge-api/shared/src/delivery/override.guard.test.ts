@@ -28,7 +28,7 @@ const strip = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s
 const sources = files(services).map((f) => ({ file: relative(services, f), src: strip(readFileSync(f, "utf8")) }));
 const naming = (re: RegExp) => sources.filter((s) => re.test(s.src)).map((s) => s.file).sort();
 
-describe("081 — the courier override's one writers", () => {
+describe("081 - the courier override's one writers", () => {
   it("scans the services", () => expect(sources.length).toBeGreaterThan(300));
 
   it("delivery_override is written by override.ts only", () => {

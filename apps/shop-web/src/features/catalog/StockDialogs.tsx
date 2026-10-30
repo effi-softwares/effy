@@ -48,7 +48,7 @@ interface DialogProps {
 
 type FormProps = Omit<DialogProps, "open" | "onOpenChange"> & { onClose: () => void }
 
-const titled = (title: string, sizeLabel: string | null | undefined) => (sizeLabel ? `${title} — ${sizeLabel}` : title)
+const titled = (title: string, sizeLabel: string | null | undefined) => (sizeLabel ? `${title} - ${sizeLabel}` : title)
 
 export function ReceiveStockDialog({ open, onOpenChange, ...props }: DialogProps) {
   return (
@@ -174,7 +174,7 @@ function StartTrackingForm({ variantId, sizeLabel, sizeControl, onClose }: Omit<
             value={units}
             onChange={(e) => setUnits(e.target.value)}
           />
-          <p className="text-muted-foreground text-xs">Required — counting cannot start from an unknown number.</p>
+          <p className="text-muted-foreground text-xs">Required - counting cannot start from an unknown number.</p>
         </div>
 
         <div className="border-border border-t pt-4">

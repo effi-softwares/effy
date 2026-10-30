@@ -57,9 +57,9 @@ export function stateNote(status: FulfillmentStatus): string | null {
     case "pending":
       return "Acknowledging this order…"
     case "ready_for_pickup":
-      return "Awaiting collection — ready, but not yet gone."
+      return "Awaiting collection - ready, but not yet gone."
     case "collected":
-      return "Collected — this order has left the shop and can no longer be changed."
+      return "Collected - this order has left the shop and can no longer be changed."
     case "delivered":
       return "Delivered to the customer."
     case "unfulfillable":
@@ -83,7 +83,7 @@ const REASON_WORDS: Record<(typeof REASONS)[number], string> = {
   "Out of stock": "Out of stock",
   "Items damaged or unusable": "Items damaged or unusable",
   "Shop can't open or trade": "The shop can't open or trade",
-  Other: "Something else — say what happened",
+  Other: "Something else - say what happened",
 }
 
 export function CantSupplyDialog({
@@ -125,7 +125,7 @@ export function CantSupplyDialog({
     if (done > 0) {
       toast.success(
         single
-          ? "Marked can't supply — Effy will refund the customer"
+          ? "Marked can't supply - Effy will refund the customer"
           : `${done} order${done === 1 ? "" : "s"} marked can't supply`,
         { description: single ? targets[0]?.orderNumber : undefined },
       )

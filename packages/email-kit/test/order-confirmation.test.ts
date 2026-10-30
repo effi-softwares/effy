@@ -20,7 +20,7 @@ const identity: MailIdentity = {
 
 const GMAIL_FAIL = 102 * 1024;
 
-describe("order-confirmation — the large basket", () => {
+describe("order-confirmation - the large basket", () => {
   const large = loadFixture("order-confirmation.json");
 
   it("has a genuinely large basket, so the budget test is real", () => {
@@ -49,14 +49,14 @@ describe("order-confirmation — the large basket", () => {
     expect(m.text).not.toContain("<");
   });
 
-  it("carries the money values exactly as given — the template formats nothing", () => {
+  it("carries the money values exactly as given - the template formats nothing", () => {
     const m = render("order-confirmation", large, "customer", identity);
     expect(m.html).toContain(large.total);
     expect(m.html).toContain(large.subtotal);
   });
 });
 
-describe("order-confirmation — the hostile basket (escaping)", () => {
+describe("order-confirmation - the hostile basket (escaping)", () => {
   const hostile = loadFixture("order-confirmation.hostile.json");
 
   it("⚠ renders markup in product/shop/address names as inert text, never as structure", () => {
@@ -138,7 +138,7 @@ describe("order-confirmation", () => {
     expect(diverged.text).toContain("9 Other Rd");
   });
 
-  it("⚠ leaves the text part UNESCAPED — the order link must be usable in a plain-text client", () => {
+  it("⚠ leaves the text part UNESCAPED - the order link must be usable in a plain-text client", () => {
     const m = render(
       "order-confirmation",
       { ...large, orderUrl: "https://effyshopping.com/orders/8f2c1a?token=ABC&ref=email" },

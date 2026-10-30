@@ -148,7 +148,7 @@ describe("LiveRefresh", () => {
       await vi.advanceTimersByTimeAsync(0)
     })
     await act(() => vi.advanceTimersByTimeAsync(4_000))
-    expect(screen.getByRole("status").textContent).toMatch(/Reconnecting — this page was last updated at \d/)
+    expect(screen.getByRole("status").textContent).toMatch(/Reconnecting - this page was last updated at \d/)
   })
 })
 

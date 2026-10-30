@@ -1,7 +1,7 @@
 package com.effyshopping.customer.mobile.features.feedback.domain
 
 /**
- * Customer feedback — the domain model for the mobile submission slice.
+ * Customer feedback - the domain model for the mobile submission slice.
  *
  * Categories, statuses and length bounds are the platform's, defined once server-side and in
  * `@effy/shared-types`; this enum is the mobile mirror. Its labels are what the shopper reads.
@@ -17,7 +17,7 @@ enum class FeedbackCategory(val wire: String, val label: String) {
 /** Where the submission came from. Mobile submits `general` today; `checkout` is reserved. */
 enum class FeedbackSource(val wire: String) { GENERAL("general"), CHECKOUT("checkout"), OTHER("other") }
 
-/** Mirrors the shared FEEDBACK_MESSAGE_MAX — one bound, refused before storage. */
+/** Mirrors the shared FEEDBACK_MESSAGE_MAX - one bound, refused before storage. */
 const val FEEDBACK_MESSAGE_MAX = 5000
 
 /** A shopper's draft submission. `email`/`name` are honoured only for a guest (the authed route uses the profile). */

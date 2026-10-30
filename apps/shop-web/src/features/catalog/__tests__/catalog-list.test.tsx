@@ -91,7 +91,7 @@ describe("catalog list (103: the server's whole list, the view in the address)",
     expect(screen.queryByRole("button", { name: "Reset" })).not.toBeInTheDocument()
   })
 
-  it("101 — offers a Missing details filter with its count, and asks the server for those products only", async () => {
+  it("101 - offers a Missing details filter with its count, and asks the server for those products only", async () => {
     getShopTaxonomy.mockResolvedValue(SCHEMA)
     listSections.mockResolvedValue([])
     listProducts.mockImplementation(async (p: { missing?: boolean | string }) =>

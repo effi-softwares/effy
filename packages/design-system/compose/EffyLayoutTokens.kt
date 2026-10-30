@@ -1,10 +1,10 @@
-// GENERATED FROM packages/design-system/src/tokens.css — DO NOT EDIT.
+// GENERATED FROM packages/design-system/src/tokens.css - DO NOT EDIT.
 // Regenerate: pnpm --filter @effy/design-system tokens:gen
 package com.effyshopping.mobile.design
 
 import androidx.compose.ui.unit.dp
 
-/** Corner radii (dp) — sm/md pinned to equal the web --radius-sm/md; default = md. Pill via RoundedCornerShape(50%). */
+/** Corner radii (dp) - sm/md pinned to equal the web --radius-sm/md; default = md. Pill via RoundedCornerShape(50%). */
 object EffyRadius {
     val sm = 4.dp
     val md = 6.dp

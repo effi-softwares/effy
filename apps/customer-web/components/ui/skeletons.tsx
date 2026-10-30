@@ -5,7 +5,7 @@ import { Skeleton } from "./misc"
 /**
  * The storefront's loading shapes. A page that is still reading shows its OWN structure: its real title and
  * every word it already knows (a heading, a field's label, a section's name), with a bone where a value will
- * be — never one tall grey slab. Every Suspense fallback is built from these, inside `Loading`
+ * be - never one tall grey slab. Every Suspense fallback is built from these, inside `Loading`
  * (`skeletons.guard.test.ts`). The bone itself is `@effy/design-system/skeleton.css`, the same rule the
  * consoles use: it waits 120ms before it shows, so a quick read never flashes grey.
  */
@@ -60,7 +60,7 @@ export function Loading({ label = "Loading", children }: { label?: string; child
   )
 }
 
-/** An account-style page title — the real words when the page knows them, else a bone. */
+/** An account-style page title - the real words when the page knows them, else a bone. */
 export function PageTitleSkeleton({
   title,
   description,

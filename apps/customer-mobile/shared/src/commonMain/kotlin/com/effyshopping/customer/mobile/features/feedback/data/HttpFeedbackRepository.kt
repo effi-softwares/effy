@@ -20,7 +20,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
- * Feedback over the edge api (cold path — the routing law: feedback is low-frequency, async-email work,
+ * Feedback over the edge api (cold path - the routing law: feedback is low-frequency, async-email work,
  * not commerce). Maps the wire DTO to the domain explicitly (Principle VI).
  *
  * Two routes, one method. A signed-in shopper posts to `customer/v1/feedback` (the edge client
@@ -40,7 +40,7 @@ class HttpFeedbackRepository(private val edge: HttpClient) : FeedbackRepository 
                         rating = draft.rating,
                         source = draft.source.wire,
                         platform = platformTag(),
-                        // Sent only on the guest path — the authed route ignores a body email and uses
+                        // Sent only on the guest path - the authed route ignores a body email and uses
                         // the verified profile one. Null on the authed path keeps the payload honest.
                         email = if (authenticated) null else draft.email?.takeIf { it.isNotBlank() },
                         name = draft.name?.takeIf { it.isNotBlank() },

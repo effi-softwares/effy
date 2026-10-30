@@ -66,7 +66,7 @@ class PaymentWireContractTest {
         val reEncoded = json.encodeToString(PaymentMethodDTO.serializer(), pm)
         assertTrue(
             reEncoded.contains("\"expMonth\":4") && reEncoded.contains("\"expYear\":2028"),
-            "expiry serialised with a decimal point — this is the 027 R13 defect: $reEncoded",
+            "expiry serialised with a decimal point - this is the 027 R13 defect: $reEncoded",
         )
         assertFalse(
             reEncoded.contains("4.0") || reEncoded.contains("2028.0"),

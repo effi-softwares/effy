@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 vi.mock("../receipts/service", () => ({ resendReceipt: vi.fn() }))
 vi.mock("../password/identity", () => ({
   requireCaller: vi.fn(() => ({ sub: "sub-abc", accessToken: "tok" })),
-  TokenMismatchError: class TokenMismatchError extends Error {},
+  TokenMismatchError: class TokenMismatchError extends Error { },
 }))
 
 import { handler } from "../functions/customer-orders-v1-id-receipt-post"
@@ -28,7 +28,7 @@ async function call(id?: string) {
 describe("POST /customer/v1/orders/{id}/receipt (052 US4)", () => {
   beforeEach(() => mockResend.mockReset())
 
-  it("accepts a queued resend with 202 — it enqueues, it does not send", async () => {
+  it("accepts a queued resend with 202 - it enqueues, it does not send", async () => {
     mockResend.mockResolvedValue({ status: "queued" })
     const res = await call()
 

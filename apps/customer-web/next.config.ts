@@ -32,14 +32,14 @@ const nextConfig: NextConfig = {
     // CDN through `CatalogImage` (a plain <picture> offering the WebP copies the worker made at
     // upload), so nothing here is optimised and no remote host needs allowing. The S3 wildcard that
     // let presigned links through is gone with them. If `next/image` is ever reintroduced for a
-    // remote picture, name its host here — never a wildcard.
+    // remote picture, name its host here - never a wildcard.
     remotePatterns: [],
   },
 
   // Don't advertise the framework to the entire internet.
   poweredByHeader: false,
 
-  // `/browse` (the standalone category index) was retired by operator decision — the storefront
+  // `/browse` (the standalone category index) was retired by operator decision - the storefront
   // now has one catalogue page, `/search` ("All products"), which category tiles already funnel
   // into via `?category=`. This permanent redirect keeps any indexed or externally-linked
   // `/browse` URL alive instead of 404-ing it, and tells search engines the page moved.
@@ -54,7 +54,7 @@ const nextConfig: NextConfig = {
   // First-party reverse proxy for PostHog. Analytics + error tracking send to `/rc/*` on
   // our own origin (see lib/config.ts `ingestPath`), which Next rewrites to the PostHog host, so
   // tracking blockers can't drop the calls and no third-party host appears in the network tab. The
-  // host is region config (us | eu), never a literal — matching NEXT_PUBLIC_POSTHOG_HOST.
+  // host is region config (us | eu), never a literal - matching NEXT_PUBLIC_POSTHOG_HOST.
   skipTrailingSlashRedirect: true,
   async rewrites() {
     const host = process.env.NEXT_PUBLIC_POSTHOG_HOST ?? "https://us.i.posthog.com"

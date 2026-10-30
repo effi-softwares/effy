@@ -34,10 +34,10 @@ export async function upsertCustomer(input: {
             -- given_name / family_name: NEVER either, and for a different reason. The name is
             -- captured at registration and is then the CUSTOMER'S to change. Refreshing it
             -- from the token on every request would SILENTLY REVERT an edit made on the account page
-            -- the moment the customer loaded any other page — the token still carries whatever
+            -- the moment the customer loaded any other page - the token still carries whatever
             -- Cognito was told at sign-up. The claim SEEDS the record once; the record is the
             -- authority thereafter.
-            -- phone:         NEVER. Same argument as the names — it is the customer's.
+            -- phone:         NEVER. Same argument as the names - it is the customer's.
             -- closure_state: NEVER, and this is the most dangerous one. See the warning above.
      RETURNING ${CUSTOMER_COLUMNS}`,
     [

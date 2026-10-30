@@ -78,7 +78,7 @@ describe("summarise", () => {
   it("reports rows that had nothing to advance separately from failures", () => {
     const msg = summarise({ succeeded: [], failed: [], skipped: 3 })
     expect(msg).toBe("3 had nothing to advance.")
-    // Must not read as a failure — nothing went wrong, there was simply no work.
+    // Must not read as a failure - nothing went wrong, there was simply no work.
     expect(msg).not.toMatch(/refused|failed|error/i)
   })
 
@@ -91,7 +91,7 @@ describe("summarise", () => {
     expect(msg).not.toMatch(/advanced/)
   })
 
-  it("never returns an empty string — a silent control looks broken", () => {
+  it("never returns an empty string - a silent control looks broken", () => {
     expect(summarise({ succeeded: [], failed: [], skipped: 0 })).toBe("Nothing to advance.")
   })
 })

@@ -17,7 +17,7 @@ sealed interface AppError {
     data object NotFound : AppError
 
     /**
-     * A 409 conflict: a stale `expectedUpdatedAt` on a focused edit (concurrent-edit signal, FR-023a — the
+     * A 409 conflict: a stale `expectedUpdatedAt` on a focused edit (concurrent-edit signal, FR-023a - the
      * UI prompts a reload rather than silently overwriting), a duplicate SKU on create, or a hard-delete
      * guard ("archive instead", R8). Distinct from [Validation] so the UI can react specifically.
      */
@@ -29,7 +29,7 @@ sealed interface AppError {
      * read, in which case the screen still says "not yet" rather than something generic.
      *
      * Distinct from [Conflict] on purpose. Both are a 409, and [Conflict]'s message is "Someone
-     * else just changed this. Pull to refresh" — which would send a driver pulling to refresh at a
+     * else just changed this. Pull to refresh" - which would send a driver pulling to refresh at a
      * round that is simply not open, for as long as they cared to try.
      */
     data class NotOpenYet(val opening: com.effyshopping.driver.mobile.core.opening.Opening?) : AppError
@@ -46,7 +46,7 @@ sealed interface AppError {
     /** Throttled. [retryAfterSeconds] is shown; explain the wait, never loop. */
     data class RateLimited(val retryAfterSeconds: Long? = null) : AppError
 
-    /** No network / backend unreachable — degraded + retry; lose nothing. */
+    /** No network / backend unreachable - degraded + retry; lose nothing. */
     data object Network : AppError
 
     data object Unavailable : AppError
@@ -57,7 +57,7 @@ sealed interface AppError {
 class AppException(val error: AppError) : Exception()
 
 /**
- * True when the platform has given its final answer to a write — trying the same action again cannot
+ * True when the platform has given its final answer to a write - trying the same action again cannot
  * change it. A transient failure is not final: a retry keeps the same changeId (backlog C1).
  */
 fun AppError.isFinal(): Boolean = when (this) {

@@ -18,7 +18,7 @@ const FIELD_OF: Record<string, SheetField> = {
 }
 
 /**
- * What the shop is typing into its sizes — a price, its own code, a barcode, a packed weight — in either view (one
+ * What the shop is typing into its sizes - a price, its own code, a barcode, a packed weight - in either view (one
  * size in place, or the spreadsheet), held once so switching views keeps it. It starts from the product as the shop
  * is editing it (the live sizes, or the change already with Effy) and is saved as one change, through the same request
  * the sizes dialog sends.
@@ -101,13 +101,13 @@ export function useSizesDraft(detail: ProductDetail, onDraft?: (prices: Record<s
     save,
     changed: changed.length,
     dirty,
-    /** Refusals, by `sizeId:field` — shown once a save has been tried. */
+    /** Refusals, by `sizeId:field` - shown once a save has been tried. */
     errors: touched ? errors : undefined,
     invalid: touched && invalid,
     approved,
     saveLabel: approved ? "Send to Effy" : "Save",
     note: approved
-      ? "Effy checks it first — customers keep seeing today's version until it is approved."
+      ? "Effy checks it first - customers keep seeing today's version until it is approved."
       : "Saved straight to the product.",
     saving: edit.saving,
     error: edit.error,

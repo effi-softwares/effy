@@ -1,7 +1,7 @@
 # Quickstart / Validation: Driver Delivery App (049)
 
 How to prove the slice works end to end. Operator-run steps (cloud/DB/deploy) are marked ⚙ per the
-platform's mode-of-work — Claude authors, the operator runs anything touching live AWS/DB. Region
+platform's mode-of-work - Claude authors, the operator runs anything touching live AWS/DB. Region
 `ap-southeast-2`, `AWS_PROFILE=ef`.
 
 ## Prerequisites
@@ -24,7 +24,7 @@ platform's mode-of-work — Claude authors, the operator runs anything touching 
    mix of same-day and standard packages (a second order for the same customer from another shop proves the
    one-drop grouping, SC-006).
 
-## US1 — Collection run (P1)
+## US1 - Collection run (P1)
 
 1. **Sign in**: enter the work email → 6-digit code → home. Confirm **no** sign-up/password path anywhere
    (FR-001), and a disabled driver is refused even with a valid code (FR-002 / SC-008).
@@ -37,23 +37,23 @@ platform's mode-of-work — Claude authors, the operator runs anything touching 
    **same-day/standard split** (FR-016); confirm **standard packages are staged for the carrier** and leave
    active work (FR-017). Swipe to end the run.
 
-## US2 — Same-day delivery run (P1)
+## US2 - Same-day delivery run (P1)
 
 6. Hub check-in unlocks the **same-day delivery run**; the home flips to phase 2 (FR-021). Confirm a
    customer with same-day packages from two shops appears as **one drop** (FR-018, SC-006).
 7. Open a drop → address + instructions + packages (FR-020). Advance `out_for_delivery → en_route →
    arrived` (FR-019), each in one action (SC-001).
-8. **Complete with proof** — run all four at least once across drops: photo (capture/review/retake),
+8. **Complete with proof** - run all four at least once across drops: photo (capture/review/retake),
    delivery code (valid + invalid), signature (draw/clear), contactless + note (FR-024/025). Confirm a drop
    **cannot** reach delivered without a proof (FR-026), the proof is stored privately, and the order/
-   fulfilment reaches `delivered` — **replacing the 020 dev stub** (SC-011).
+   fulfilment reaches `delivered` - **replacing the 020 dev stub** (SC-011).
 9. Success state + "Next" (FR-027). Mark one drop **undeliverable** with a reason (FR-028); confirm it
    leaves the active run in a failed state recorded for back-office.
 
 ## US3–US7 (P2/P3)
 
 - **US4 map/contact**: per-run map (shops→hub, hub→drops), monochrome, external navigate hand-off (FR-029);
-  masked contact returns a relay handle **or** `503` while the relay is unbuilt (R6) — confirm the client
+  masked contact returns a relay handle **or** `503` while the relay is unbuilt (R6) - confirm the client
   hides/disables it gracefully.
 - **US5 history**: both record types (collection runs + same-day drops with proof), read-only (FR-033/034).
 - **US6 notifications**: in-app activity feed populated by assignment/ready events (FR-032); push when the
@@ -64,7 +64,7 @@ platform's mode-of-work — Claude authors, the operator runs anything touching 
 ## Cross-cutting
 
 - **Offline** (FR-039/040): airplane-mode a collect/deliver action; confirm it queues and applies **exactly
-  once** on reconnect (SC-007) — retried with the same `changeId`.
+  once** on reconnect (SC-007) - retried with the same `changeId`.
 - **Isolation** (SC-008): a second driver cannot see/act on the first driver's run (uniform 403).
 - **Design** (SC-009/010): every screen light+dark, AA contrast, no hue beyond the ramp + two semantic
   colours; every action/row ≥48dp.

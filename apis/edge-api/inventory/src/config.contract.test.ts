@@ -62,7 +62,7 @@ describe("inventory service deployment contract", () => {
     expect(missing, `${file} is missing: ${missing.join(", ")}`).toEqual([]);
   });
 
-  it("⚠ the two stacks declare the SAME environment — one service, deployed twice", () => {
+  it("⚠ the two stacks declare the SAME environment - one service, deployed twice", () => {
     // The handlers are shared, so a key one stack lacks is a function that throws on one gateway.
     expect([...readServerlessEnvKeys(staffYaml)].sort()).toEqual([...readServerlessEnvKeys(yaml)].sort());
   });
@@ -77,7 +77,7 @@ describe("inventory service deployment contract", () => {
   it("puts every shop route behind the SHOP authorizer and never the back-office one", () => {
     for (const fn of SHOP_ROUTES) {
       const block = blockFor(fn);
-      expect(block, `${fn} has no authorizer — it would be publicly writable`).toContain(
+      expect(block, `${fn} has no authorizer - it would be publicly writable`).toContain(
         "authorizer:",
       );
       expect(block, `${fn} must use the shop authorizer`).toContain("/edge/authorizer/shop_id");
@@ -94,7 +94,7 @@ describe("inventory service deployment contract", () => {
       .map(([, name]) => name!)
       .filter((name) => blockFor(name, staffYaml).includes("/inventory/v1/admin/"));
 
-    expect(adminFns.length, "the five admin routes — the derivation above is broken").toBe(5);
+    expect(adminFns.length, "the five admin routes - the derivation above is broken").toBe(5);
 
     for (const fn of adminFns) {
       const block = blockFor(fn, staffYaml);

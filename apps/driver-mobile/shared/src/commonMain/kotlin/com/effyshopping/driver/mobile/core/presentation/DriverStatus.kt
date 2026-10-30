@@ -27,7 +27,7 @@ import com.effyshopping.driver.mobile.resources.lucide_clock
 import com.effyshopping.driver.mobile.resources.lucide_store
 
 /**
- * Every status a driver screen says — "one word, one look" (the canvas's Foundations). Green only means
+ * Every status a driver screen says - "one word, one look" (the canvas's Foundations). Green only means
  * done; blue is the next thing to do; a problem is black (with its word), never red or orange.
  */
 enum class DriverStatus(val word: String) {

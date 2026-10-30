@@ -15,7 +15,7 @@ const KINDS: Record<
     icon: ShieldOff,
     problem: true,
     title: "Access denied",
-    body: "Your account doesn't have access to this area. The backend decided — the console only hides what it knows you can't use.",
+    body: "Your account doesn't have access to this area. The backend decided - the console only hides what it knows you can't use.",
     foot: "Need it? Ask an administrator to grant the role.",
   },
   notfound: {

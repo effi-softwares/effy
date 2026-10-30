@@ -31,9 +31,9 @@ class EffyApp : Application() {
                 host = AppConfig.posthogHost,
             ),
             pushTokenProvider = FirebasePushTokenProvider(applicationContext),
-            // What this installed build calls itself — shown on Help.
+            // What this installed build calls itself - shown on Help.
             appVersion = runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrNull(),
-            // Backlog B3 — proof photos taken with no signal, kept in app-private storage until sent.
+            // Backlog B3 - proof photos taken with no signal, kept in app-private storage until sent.
             proofFiles = DirectoryProofFiles(java.io.File(filesDir, "proof-outbox").path),
             connectivity = AndroidConnectivity(applicationContext),
         )
@@ -44,12 +44,12 @@ class EffyApp : Application() {
         try {
             AmplifyBootstrap.configure(applicationContext)
         } catch (e: Exception) {
-            // A config failure must not crash the app — the sign-in screen still renders, and
+            // A config failure must not crash the app - the sign-in screen still renders, and
             // currentSession returns null, so the app lands on SignedOut. Never log tokens.
             Log.e("EffyApp", "Amplify configuration failed: ${e.message}")
         }
         // Crash reporting on (independent of analytics consent, Q1); analytics ON by default for this
-        // internal audience (employees, disclosed — clarification Q4; no opt-out UI this slice). Off-thread.
+        // internal audience (employees, disclosed - clarification Q4; no opt-out UI this slice). Off-thread.
         container.startObservability(analyticsConsented = container.analyticsConsent.value)
     }
 }

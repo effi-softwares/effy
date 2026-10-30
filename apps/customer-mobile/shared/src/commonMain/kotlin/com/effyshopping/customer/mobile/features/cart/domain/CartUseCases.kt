@@ -5,18 +5,18 @@ import com.effyshopping.customer.mobile.core.error.AppException
 import com.effyshopping.customer.mobile.core.util.newUuid
 
 /**
- * The cart's use cases — the domain layer the UI calls, between the ViewModel/View and the
+ * The cart's use cases - the domain layer the UI calls, between the ViewModel/View and the
  * repository (Principle VI: presentation never reaches data directly).
  *
  * The one shape every mutation has
  *
- *  1. apply to the mirror — synchronous, so the tap lands immediately
- *  2. submit to the coordinator — which sends it, or drops it for a guest
+ *  1. apply to the mirror - synchronous, so the tap lands immediately
+ *  2. submit to the coordinator - which sends it, or drops it for a guest
  *
  * In that order, always. Reversing them would mean the UI waits on a network call before it moves, which
  * is the whole thing this design exists to avoid.
  *
- * Each mutation mints one `changeId` per shopper action, here. Not per attempt — a retry reuses it, so a
+ * Each mutation mints one `changeId` per shopper action, here. Not per attempt - a retry reuses it, so a
  * request that arrived without its response reaching us cannot apply twice. Minting inside the
  * retry loop would turn "add 1 milk" into "add 1 milk twice" precisely when the network is worst.
  */
@@ -92,8 +92,8 @@ class ClearCart(
  * Move a line out of the payable cart, keeping it.
  *
  * Set-aside is the one cart operation with no local shortcut. The mirror cannot move a line between the
- * two lists on its own without inventing what the saved list looks like — quantities, prices and
- * availability all come from the platform — so this waits for the answer and adopts it. A guest has no
+ * two lists on its own without inventing what the saved list looks like - quantities, prices and
+ * availability all come from the platform - so this waits for the answer and adopts it. A guest has no
  * server cart and therefore no saved list at all, which is why it is a no-op for them rather than a
  * half-working local imitation.
  */
@@ -136,7 +136,7 @@ class DeleteSaved(
  * Put a past order back in the cart, and say what could not come back.
  *
  * Server-side in one call, not a client loop over the order's items. A loop would be N round trips, would
- * leave a half-reordered cart on a dropped connection, and — decisively — could not produce the report:
+ * leave a half-reordered cart on a dropped connection, and - decisively - could not produce the report:
  * whether an item is unavailable or gone for good is only knowable where the catalogue is.
  *
  * Union-with-max, so a shopper who taps twice does not get double.
@@ -160,7 +160,7 @@ class ReorderPastOrder(
  * Apply a promotional code.
  *
  * Returns the refusal reason on failure rather than a bare false. "That code doesn't work" tells a
- * shopper nothing about whether to wait, spend more, or give up — and those are different answers.
+ * shopper nothing about whether to wait, spend more, or give up - and those are different answers.
  * The reason comes from the platform; this client never judges a code itself.
  *
  * Signed-in only: a per-shopper cap is unenforceable without an identity, so a guest is shown a sign-in
@@ -194,7 +194,7 @@ class RemovePromoCode(
     }
 }
 
-/** Bring the mirror up to date — cart open, app foreground, after sign-in. */
+/** Bring the mirror up to date - cart open, app foreground, after sign-in. */
 class SyncCart(private val sync: CartSyncCoordinator) {
     suspend operator fun invoke(): Boolean = sync.refresh()
 }
@@ -211,7 +211,7 @@ class MergeCartOnSignIn(
     suspend operator fun invoke(): Boolean {
         val lines = store.snapshot().lines
         if (lines.isEmpty()) {
-            // Nothing of our own to contribute — but the account cart still has to be adopted, or a
+            // Nothing of our own to contribute - but the account cart still has to be adopted, or a
             // shopper signing in on a fresh device would see an empty cart while the platform holds theirs.
             return runCatching { store.adopt(repo.get()) }.getOrDefault(false)
         }

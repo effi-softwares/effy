@@ -2,7 +2,7 @@ package com.effyshopping.driver.mobile.core.auth
 
 /**
  * A signed-in shop session (014 D2s). Carries the **access token** (the single bearer for `/shop/v1`)
- * and the **ID token** (used only client-side for the display email — never sent to the backend). No
+ * and the **ID token** (used only client-side for the display email - never sent to the backend). No
  * expiry field: Amplify owns refresh. Tokens live in the sdk's secure store; this is a transient read.
  */
 data class Session(
@@ -25,7 +25,7 @@ sealed interface AuthStep {
 /**
  * A closed set of auth failures. The sdk's exception text is never surfaced.
  *
- * [InvalidCredentials] covers both "unknown user" and "not authorized" — the message must never
+ * [InvalidCredentials] covers both "unknown user" and "not authorized" - the message must never
  * reveal whether the email is a provisioned operator; the pool sets
  * `prevent_user_existence_errors = ENABLED`, and the client must not undo that.
  */

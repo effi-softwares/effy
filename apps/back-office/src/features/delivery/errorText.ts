@@ -9,7 +9,7 @@ export function deliveryMutationError(err: unknown, conflictMessage?: string): s
     if (err.kind === "not-found") return "That item no longer exists."
     if (err.kind === "unavailable") return "The service is waking up or unreachable. Try again in a moment."
     if (err.status === 409) return conflictMessage ?? "That change conflicts with existing data."
-    if (err.status === 422) return conflictMessage ?? "That can't be applied yet — check the details."
+    if (err.status === 422) return conflictMessage ?? "That can't be applied yet - check the details."
     if (err.status === 400) return "Please check the fields and try again."
   }
   return "Something went wrong. Please try again."
@@ -29,7 +29,7 @@ const SLOT_FIELD_COPY: Record<string, string> = {
 }
 
 export const SLOT_DUPLICATE = "There is already a slot with these start and end times."
-export const HUB_NOT_SET = "Set the delivery hub on the Settings tab first — these settings are saved with it."
+export const HUB_NOT_SET = "Set the delivery hub on the Settings tab first - these settings are saved with it."
 
 export function fieldErrors(err: unknown): Record<string, string> {
   const out: Record<string, string> = {}
@@ -65,7 +65,7 @@ const COVERAGE_COPY: Record<string, string> = {
   courier_service_missing: "Add a courier service and make it the default before switching courier delivery on.",
   name_taken: "There is already a courier service with that courier and service name.",
   default_service_required:
-    "Make another service the default first — checkout tells courier customers the default's timeframe.",
+    "Make another service the default first - checkout tells courier customers the default's timeframe.",
   invalid_service: "Check the highlighted fields.",
 }
 
@@ -76,7 +76,7 @@ const COURIER_SERVICE_FIELD_COPY: Record<string, string> = {
   maxBusinessDays: "A whole number of business days, 1 to 30.",
   pickupWeekdays: "Choose at least one pickup day.",
   pickupCutoff: "A time, like 14:00.",
-  status: "The default service can't be retired — make another the default first.",
+  status: "The default service can't be retired - make another the default first.",
 }
 
 export const courierServiceError = (err: unknown): string => setFullText(err) ?? coverageError(err)

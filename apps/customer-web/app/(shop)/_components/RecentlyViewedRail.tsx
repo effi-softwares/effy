@@ -10,7 +10,7 @@ import { getRecentlyViewedIds } from "@/lib/recently-viewed"
 import { ProductRail } from "./ProductRail"
 
 /**
- * The "Recently viewed" rail — device-local, so it is a client island (not part of the cached shell).
+ * The "Recently viewed" rail - device-local, so it is a client island (not part of the cached shell).
  * It reads the ids from localStorage, hydrates them to cards via the public storefront endpoint, and
  * preserves most-recent-first order (the server returns them re-ordered to the id list).
  *

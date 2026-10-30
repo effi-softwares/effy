@@ -17,7 +17,7 @@ const item = "flex w-full items-center gap-2 rounded-sm px-2 py-2 text-left text
  * A `<details>`, not a scripted menu: it opens without JavaScript, and `AccountMenuAutoClose` adds
  * only the three behaviours a native disclosure lacks (outside press, Escape, following a link).
  *
- * `points` is null when the balance could not be read. The trigger then shows the name alone — it
+ * `points` is null when the balance could not be read. The trigger then shows the name alone - it
  * never shows "0 pts" for a customer who may have some.
  */
 export function AccountMenu({

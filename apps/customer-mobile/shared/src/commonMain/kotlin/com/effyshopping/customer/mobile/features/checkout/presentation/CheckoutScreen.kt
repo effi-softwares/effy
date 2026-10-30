@@ -156,7 +156,7 @@ fun CheckoutScreen(
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        // The app bar already names the screen — the duplicate H3 beneath it was the screen
+        // The app bar already names the screen - the duplicate H3 beneath it was the screen
         // saying "Checkout" twice, which the source never does.
         EffyAppBar(title = "Checkout", onBack = onBack)
 
@@ -218,7 +218,7 @@ private fun AddressAndPay(
             }
         }
 
-        // Delivery — serviceability + the GST-inclusive fee, shown before pay (no drip). The
+        // Delivery - serviceability + the GST-inclusive fee, shown before pay (no drip). The
         // server owns every fee.
         DeliverySection(s, vm)
 
@@ -226,7 +226,7 @@ private fun AddressAndPay(
         if (s.selectedId != null) {
             NumberedCard(3, "Delivery instructions", "Optional. Your driver sees this when they deliver.") {
                 DeliveryInstructionsField(draft = s.instructions, onChange = vm::setInstructions, title = null, hint = null)
-                // Offered only when there is something new to save — an always-present switch is a chore.
+                // Offered only when there is something new to save - an always-present switch is a chore.
                 if (s.instructionsDiffer) {
                     EffyCheckboxRow(
                         label = "Save to this address for next time",
@@ -247,7 +247,7 @@ private fun AddressAndPay(
                     onCheckedChange = vm::setUsePoints,
                 )
                 Text(
-                    "Points are a way of paying — your order total stays the same.",
+                    "Points are a way of paying - your order total stays the same.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = EffySpacing.xs),
@@ -261,7 +261,7 @@ private fun AddressAndPay(
 
         s.error?.let { EffyInlineError(it) }
 
-        // Point-of-sale consent — the purchase terms, at the moment of paying.
+        // Point-of-sale consent - the purchase terms, at the moment of paying.
         LegalLinksText(
             "By placing your order you agree to our [Terms of Service](/legal/terms-of-service), " +
                 "[Delivery Policy](/legal/delivery-policy) and [Refund & Returns Policy](/legal/refunds-returns).",
@@ -317,7 +317,7 @@ private fun AddressAndPay(
         }
     }
 
-    // The shared add-address form — raised for shipping OR billing.
+    // The shared add-address form - raised for shipping OR billing.
     // On the shared EffySheet now, which owns the title and the Save/Cancel pair.
     s.sheet?.let { sheet ->
         EffySheet(
@@ -359,7 +359,7 @@ private fun AddressSummary(addr: SavedAddress, deliveredBy: DeliveryType?) {
 
 /**
  * The money lines checkout shows, added from figures the platform gave (no float; cents only).
- * [pointsAmount] is what the points would cover — never more than the total. An estimate of the
+ * [pointsAmount] is what the points would cover - never more than the total. An estimate of the
  * split until Payment, which shows the exact one the intent decided.
  */
 internal data class CheckoutAmounts(
@@ -433,7 +433,7 @@ private fun OrderSummaryCard(cart: CartSnapshot, s: CheckoutUiState.Ready, pay: 
                 EffyDetailRow(
                     DeliveryFeeWords.label(line.kind),
                     if (saving) "−$${line.amount.removePrefix("-")}" else "$${line.amount}",
-                    // A saving (free delivery) in Effy green — the storefront's savings colour.
+                    // A saving (free delivery) in Effy green - the storefront's savings colour.
                     valueColor = if (saving) EffyRoles.brand else androidx.compose.ui.graphics.Color.Unspecified,
                 )
             }
@@ -463,7 +463,7 @@ private fun OrderSummaryCard(cart: CartSnapshot, s: CheckoutUiState.Ready, pay: 
 }
 
 /**
- * One numbered checkout section — "1. Delivery address" with its one-line purpose and an optional
+ * One numbered checkout section - "1. Delivery address" with its one-line purpose and an optional
  * blue action ("Change") on the right (Checkout board).
  */
 /** Checkout before the cart and addresses are read: the same numbered cards and the summary, values as bones. */
@@ -529,7 +529,7 @@ private fun NumberedCard(
 }
 
 /**
- * Delivery: serviceability, then who delivers and — for Effy — when.
+ * Delivery: serviceability, then who delivers and - for Effy - when.
  * No distance, ring, or shop is ever shown.
  *
  * No slot is selected for the shopper: a window is a promise about when someone will be
@@ -593,12 +593,12 @@ internal fun addAmounts(a: String, b: String): String {
  * When the order arrives, when Effy delivers it: One choice for the whole order.
  *
  *  Same-day delivery (a black "Today" badge) today's open windows, each with the time to order by;
- *  Standard delivery "Standard" (as soon as possible — its title and the business's estimate,
- *  nothing else) then the next delivery days, two tiles a row — A day is A
- *  complete choice — and, under the grid, the chosen day's optional
+ *  Standard delivery "Standard" (as soon as possible - its title and the business's estimate,
+ *  nothing else) then the next delivery days, two tiles a row - A day is A
+ *  complete choice - and, under the grid, the chosen day's optional
  *  "Need a specific time?" with that day's windows.
  *
- * Every word is `effyWindowsView`'S and [DeliveryWindowWords]' — twins of what the website renders,
+ * Every word is `effyWindowsView`'S and [DeliveryWindowWords]' - twins of what the website renders,
  * pinned to the same fixture. This composable only lays the words out.
  * Nothing is selected for the shopper.
  * What is selected is derived from the choice. The only local state is the day tapped when it
@@ -621,7 +621,7 @@ private fun EffyWindowsSection(
         return
     }
 
-    // A day tapped that cannot be bought without a time — nothing is chosen yet.
+    // A day tapped that cannot be bought without a time - nothing is chosen yet.
     var pendingDay by remember { mutableStateOf<String?>(null) }
     // "Need a specific time?" opened under a day that can be bought without one.
     var timeOpen by remember { mutableStateOf(false) }
@@ -649,7 +649,7 @@ private fun EffyWindowsSection(
             Text(view.standardTitle, style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = EffySpacing.md))
         }
 
-        // "Standard" first, then the days — one grid, two to a row (Checkout board).
+        // "Standard" first, then the days - one grid, two to a row (Checkout board).
         val tiles: List<@Composable RowScope.() -> Unit> = buildList {
             view.asap?.let { asap ->
                 add {
@@ -664,7 +664,7 @@ private fun EffyWindowsSection(
                         modifier = Modifier.weight(1f),
                     ) {
                         Text(asap.title, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium))
-                        // Always the business's estimate, as an estimate — never a day.
+                        // Always the business's estimate, as an estimate - never a day.
                         Text(asap.estimate, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
@@ -711,7 +711,7 @@ private fun EffyWindowsSection(
             }
         }
 
-        // The chosen day's details open under the grid (animated — Motion board), rather than appearing.
+        // The chosen day's details open under the grid (animated - Motion board), rather than appearing.
         AnimatedVisibility(activeDay != null) {
             val day = activeDay ?: return@AnimatedVisibility
             Column(modifier = Modifier.padding(top = EffySpacing.xs), verticalArrangement = Arrangement.spacedBy(EffySpacing.xs)) {
@@ -742,7 +742,7 @@ private fun EffyWindowsSection(
     }
 }
 
-/** "Today" — the black badge beside Same-day delivery (Checkout board). */
+/** "Today" - the black badge beside Same-day delivery (Checkout board). */
 @Composable
 private fun TodayBadge() {
     Box(
@@ -756,7 +756,7 @@ private fun TodayBadge() {
 }
 
 /**
- * A delivery choice: white with a hairline, or — chosen — the light-blue tint with a 2dp blue edge.
+ * A delivery choice: white with a hairline, or - chosen - the light-blue tint with a 2dp blue edge.
  * The whole tile is the target, announced as one radio button.
  */
 @Composable
@@ -818,9 +818,9 @@ private fun nowEpochMillis(): Long = kotlin.time.Clock.System.now().toEpochMilli
 /**
  * The delivery section when a courier delivers the order: who, and roughly when.
  *
- * There is nothing to choose, and so nothing to tap. No window, no day, no method — a disabled
+ * There is nothing to choose, and so nothing to tap. No window, no day, no method - a disabled
  * picker would only suggest one was meant to be there.
- * Every word is [DeliveryTypeWords]' — the twin of what the website prints. The estimate is always
+ * Every word is [DeliveryTypeWords]' - the twin of what the website prints. The estimate is always
  * said AS an estimate. Its fee is in the order summary, line by line.
  * When the address IS one Effy delivers to and no window is left, the shopper is told that first:
  * they were expecting a time to pick.
@@ -868,7 +868,7 @@ private fun BillingSection(s: CheckoutUiState.Ready, vm: CheckoutViewModel) {
     }
 }
 
-/** One selectable saved address — a card, blue-edged when chosen (Checkout board). Shipping + billing. */
+/** One selectable saved address - a card, blue-edged when chosen (Checkout board). Shipping + billing. */
 @Composable
 private fun AddressPickRow(addr: SavedAddress, selected: Boolean, onSelect: () -> Unit) {
     ChoiceTile(selected = selected, enabled = true, onClick = onSelect, modifier = Modifier.fillMaxWidth()) {
@@ -883,7 +883,7 @@ private fun AddressPickRow(addr: SavedAddress, selected: Boolean, onSelect: () -
     }
 }
 
-/** "12 Lygon St, Carlton VIC 3053" — the board's one-line address. */
+/** "12 Lygon St, Carlton VIC 3053" - the board's one-line address. */
 private fun SavedAddress.shortSummary(): String = buildString {
     append(line1)
     line2?.takeIf { it.isNotBlank() }?.let { append(", ").append(it) }
@@ -897,5 +897,5 @@ private fun SavedAddress.formatSummary(): String = buildString {
     append(", ").append(country)
 }
 
-/** "1,250" — grouped thousands. */
+/** "1,250" - grouped thousands. */
 private fun formatPointsCount(n: Long): String = n.toString().reversed().chunked(3).joinToString(",").reversed()

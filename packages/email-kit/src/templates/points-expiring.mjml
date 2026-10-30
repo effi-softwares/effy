@@ -2,7 +2,7 @@
   <mj-head>
     <mj-include path="../generated/theme.mjml" />
     <mj-title>{{points}} of your {{effyProductName}} points expire on {{expiresOn}}</mj-title>
-    <mj-preview>Use them before then — they're worth ${{valueAmount}}.</mj-preview>
+    <mj-preview>Use them before then - they're worth ${{valueAmount}}.</mj-preview>
   </mj-head>
 
   <mj-body width="600px">

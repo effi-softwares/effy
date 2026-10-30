@@ -23,7 +23,7 @@ class MapLibreAbsentGuardTest {
             fail(
                 "MapLibre is referenced again in: ${offenders.joinToString(", ")}. It was removed " +
                     "in 060 because it ABORTS THE APP under Xcode's debug build (SIGABRT on its " +
-                    "own render thread — pre-1.0 threading against the Kotlin/Native runtime). " +
+                    "own render thread - pre-1.0 threading against the Kotlin/Native runtime). " +
                     "It works when launched normally, so this is easy to re-add and ship. If you " +
                     "are deliberately retrying it, delete this test and say why in the plan.",
             )

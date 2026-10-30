@@ -123,7 +123,7 @@ export function PromotionGroupScreen({ groupId }: { groupId: string }) {
           >
             {g.members.length === 0 ? (
               <p className="px-5 py-4 text-sm text-muted-foreground">
-                Nothing in this group yet — the place it fills shows nothing.
+                Nothing in this group yet - the place it fills shows nothing.
               </p>
             ) : (
               <ol className="divide-y divide-border">
@@ -225,7 +225,7 @@ export function PromotionGroupScreen({ groupId }: { groupId: string }) {
             ) : preview.data ? (
               <div className="space-y-4">
                 {preview.data.shown.length === 0 ? (
-                  <p className="mt-0.5 block text-sm text-muted-foreground">Nothing — the place is not shown.</p>
+                  <p className="mt-0.5 block text-sm text-muted-foreground">Nothing - the place is not shown.</p>
                 ) : null}
                 <ol className="space-y-3" data-testid="group-preview">
                   {preview.data.shown.map((s) => (

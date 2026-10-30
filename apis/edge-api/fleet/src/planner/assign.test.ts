@@ -55,7 +55,7 @@ function plan(over: Partial<AssignInput> = {}) {
   });
 }
 
-describe("planWave — placing work (US1)", () => {
+describe("planWave - placing work (US1)", () => {
   it("gives ready work to an eligible on-duty driver", () => {
     const out = plan();
     expect(out.assignments.get("d1")?.map((p) => p.packageId)).toEqual(["p1"]);
@@ -70,7 +70,7 @@ describe("planWave — placing work (US1)", () => {
     expect(out.exclusions.some((e) => e.reason === "not_cleared" && e.driverId === "d1")).toBe(true);
   });
 
-  it("records `driverId: null` when there was no candidate at all — a different, more urgent problem", () => {
+  it("records `driverId: null` when there was no candidate at all - a different, more urgent problem", () => {
     const out = plan({ candidates: [] });
     expect(out.unassigned).toHaveLength(1);
     expect(out.exclusions).toEqual([{ packageId: "p1", driverId: null, reason: "not_on_duty" }]);
@@ -160,7 +160,7 @@ function round(p: Partial<BucketRound> & { roundId: string; driverId: string }):
   return { status: "planned", weightGrams: 0, stops: [], ...p };
 }
 
-describe("planWave — a package that becomes ready mid-round (FR-004a)", () => {
+describe("planWave - a package that becomes ready mid-round (FR-004a)", () => {
   const underWay = [
     round({ roundId: "r1", driverId: "d1", status: "in_progress", stops: [{ key: "shop-1", outstanding: true }] }),
   ];
@@ -172,7 +172,7 @@ describe("planWave — a package that becomes ready mid-round (FR-004a)", () => 
   });
 
   // A locked round is never loaded, so the planner never sees it.
-  it("does NOT join a round a dispatcher has locked — it is never shown one", () => {
+  it("does NOT join a round a dispatcher has locked - it is never shown one", () => {
     const out = plan({ rounds: [] });
     expect(out.additions.size).toBe(0);
     expect(out.assignments.has("d1")).toBe(true);
@@ -210,7 +210,7 @@ describe("planWave — a package that becomes ready mid-round (FR-004a)", () => 
   });
 });
 
-describe("planWave — one round per driver per run (072, US3)", () => {
+describe("planWave - one round per driver per run (072, US3)", () => {
   it("adds to the driver's not-yet-begun round instead of starting another", () => {
     const out = plan({
       packages: [pkg({ packageId: "p2", shopId: "shop-2" })],
@@ -279,7 +279,7 @@ describe("planWave — one round per driver per run (072, US3)", () => {
   });
 });
 
-describe("planWave — work that cannot be started yet (072, FR-005)", () => {
+describe("planWave - work that cannot be started yet (072, FR-005)", () => {
   // A run five hours off that opens 45 minutes before it.
   const far = new Date(NOW.getTime() + 5 * 3600_000);
   const opensAt = new Date(far.getTime() - 45 * 60_000);
@@ -308,7 +308,7 @@ describe("planWave — work that cannot be started yet (072, FR-005)", () => {
   });
 });
 
-describe("planWave — determinism (FR-014, SC-007)", () => {
+describe("planWave - determinism (FR-014, SC-007)", () => {
   it("produces the same plan for the same inputs, whatever order the candidates arrive in", () => {
     const packages = [pkg({ packageId: "p1" }), pkg({ packageId: "p2", shopId: "shop-2" })];
     const a = planWave({
@@ -326,23 +326,23 @@ describe("planWave — determinism (FR-014, SC-007)", () => {
   });
 });
 
-describe("planWave — how it was assigned, in one line (073)", () => {
+describe("planWave - how it was assigned, in one line (073)", () => {
   it("names the rule when it chose between drivers", () => {
     const out = plan({
       candidates: [driver({ driverId: "busy", packagesAssignedToday: 5 }), driver({ driverId: "free", packagesAssignedToday: 2 })],
     });
-    expect(out.notes.get("p1")).toBe("Auto-assigned — fewest packages today (2)");
+    expect(out.notes.get("p1")).toBe("Auto-assigned - fewest packages today (2)");
   });
 
   it("says when there was nobody else", () => {
-    expect(plan().notes.get("p1")).toBe("Auto-assigned — the only driver who could take it");
+    expect(plan().notes.get("p1")).toBe("Auto-assigned - the only driver who could take it");
   });
 
   it("says when it joined a driver already going to the shop", () => {
     const out = plan({
       rounds: [round({ roundId: "r1", driverId: "d1", stops: [{ key: "shop-1", outstanding: true }] })],
     });
-    expect(out.notes.get("p1")).toBe("Auto-assigned — this driver is already collecting at this shop");
+    expect(out.notes.get("p1")).toBe("Auto-assigned - this driver is already collecting at this shop");
   });
 
   it("writes no line for a package nobody took", () => {
@@ -353,7 +353,7 @@ describe("planWave — how it was assigned, in one line (073)", () => {
 
 // One trip: the collector delivers what they brought to the hub.
 
-describe("planWave — the collector is preferred for delivery (093 US3)", () => {
+describe("planWave - the collector is preferred for delivery (093 US3)", () => {
   const deliveryDriver = (driverId: string, packagesAssignedToday = 0, over: Partial<PlannerCandidate> = {}) =>
     driver({ driverId, packagesAssignedToday, clearances: [{ function: "delivery", zoneId: "zone-1" }], ...over });
   const delivery = (over: Partial<AssignInput>) => plan({ kind: "delivery", ...over });
@@ -364,7 +364,7 @@ describe("planWave — the collector is preferred for delivery (093 US3)", () =>
       candidates: [deliveryDriver("idle", 0), deliveryDriver("busy", 30)],
     });
     expect(out.assignments.get("busy")?.map((p) => p.packageId)).toEqual(["p1"]);
-    expect(out.notes.get("p1")).toBe("Auto-assigned — collected it, continuing to delivery");
+    expect(out.notes.get("p1")).toBe("Auto-assigned - collected it, continuing to delivery");
   });
 
   it("falls back to the fewest-packages rule when the collector cannot take it", () => {
@@ -401,7 +401,7 @@ describe("planWave — the collector is preferred for delivery (093 US3)", () =>
       rounds,
     });
     expect(out.additions.get("r-out")).toBeUndefined();
-    // It goes on a round not yet loaded — a new one for the same driver.
+    // It goes on a round not yet loaded - a new one for the same driver.
     expect(out.assignments.get("collector")?.map((p) => p.packageId)).toEqual(["p3"]);
   });
 

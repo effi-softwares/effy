@@ -32,7 +32,7 @@
 ## Notes
 
 - The user's technology-specific provisioning directives (instance class, storage,
-  disabled add-ons) are deliberately NOT in spec.md — they are recorded as binding
+  disabled add-ons) are deliberately NOT in spec.md - they are recorded as binding
   plan-phase input in [operator-directives.md](../operator-directives.md), keeping the
   spec zero-tech per constitution Principle I. The only technology reference in spec.md
   is the verbatim **Input** quote required by the template.

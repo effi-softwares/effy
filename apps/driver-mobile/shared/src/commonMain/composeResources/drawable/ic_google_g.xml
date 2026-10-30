@@ -11,14 +11,14 @@
   mark through its colourways, which is the one operation forbidden here. `mobile-assets/` is already
   the SSOT for an authored vector both mobile apps render from `commonMain`, already has a three-mode
   drift guard that names the stale surface, and already ships third-party-licensed art alongside its
-  licence (see MATERIAL_SYMBOLS_LICENSE.txt) — the direct precedent.
+  licence (see MATERIAL_SYMBOLS_LICENSE.txt) - the direct precedent.
 
   ⚠ These four values are an ASSET, not tokens. The constitution's monochrome rule names this exact
   exception: "a third-party sign-in mark whose provider's brand guidelines require its own colours;
   that is an asset, not a token." No token is added and `tokens:check` is unaffected.
 
   ⚠ NOTE FOR A FUTURE SWEEP: Google blue is visually close to the retired shop-splash blue that
-  `scripts/check-no-emerald.sh` bans. They are DIFFERENT values and this is not a violation — do not
+  `scripts/check-no-emerald.sh` bans. They are DIFFERENT values and this is not a violation - do not
   "fix" it to match. (The banned value is deliberately not written out here; the guards scan comments.)
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="18dp" android:height="18dp" android:viewportWidth="48" android:viewportHeight="48">

@@ -23,7 +23,7 @@ class RailSizingTest {
         )
         assertTrue(
             fraction * 3 > 1f,
-            "three tiles must NOT fit — the third has to be cut off, because that sliver is the only " +
+            "three tiles must NOT fit - the third has to be cut off, because that sliver is the only " +
                 "thing telling a shopper the row scrolls (FR-015)",
         )
     }
@@ -48,7 +48,7 @@ class RailSizingTest {
             val whole = (1f / fraction).toInt()
             assertTrue(
                 whole * fraction < 0.999f,
-                "$width fits $whole tiles exactly with no remainder — the row would end flush at the " +
+                "$width fits $whole tiles exactly with no remainder - the row would end flush at the " +
                     "edge and read as a complete set",
             )
         }
@@ -93,7 +93,7 @@ class BannerSizingTest {
     @Test
     fun `the banner is never taller than half a typical viewport`() {
         // 028's FR-017 caps a Home section at 50% of the viewport, and the banner is a section. At
-        // 2:1 on a 402dp-wide phone that is ~201dp against an ~874dp screen — but the assertion is
+        // 2:1 on a 402dp-wide phone that is ~201dp against an ~874dp screen - but the assertion is
         // what stops a future ratio change quietly breaking it.
         val phoneWidth = 402.dp
         val phoneHeight = 874.dp

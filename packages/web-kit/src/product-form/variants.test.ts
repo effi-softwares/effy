@@ -97,14 +97,14 @@ const flavourOption = (
   })),
 });
 
-describe("101 — shop-web variant sets", () => {
+describe("101 - shop-web variant sets", () => {
   it("a new product has no options and one variant", () => {
     const s = emptyVariantSet();
     expect(s.options).toEqual([]);
     expect(s.variants).toHaveLength(1);
   });
 
-  it("offers only the category's variant-option attributes — nothing of the platform's own (105)", () => {
+  it("offers only the category's variant-option attributes - nothing of the platform's own (105)", () => {
     expect(optionAttributes(rows).map((r) => r.name)).toEqual(["Flavour", "Colour"]);
   });
 

@@ -3,7 +3,7 @@
 **Input**: Design documents from `specs/088-failed-parcel-return/`
 **Prerequisites**: plan.md, spec.md, research.md (R1–R10), data-model.md, contracts/, quickstart.md (P1–P12)
 
-**Tests**: included — every behaviour in quickstart.md P1–P12 is pinned by a test, as on every slice of
+**Tests**: included - every behaviour in quickstart.md P1–P12 is pinned by a test, as on every slice of
 this platform. Container tests need Docker and `CONTAINER_TESTS=1`.
 
 **Paths**: `EA` = `apis/edge-api`, `DM` = `apps/driver-mobile/shared/src/commonMain/kotlin/com/effyshopping/driver/mobile`.
@@ -22,7 +22,7 @@ this platform. Container tests need Docker and `CONTAINER_TESTS=1`.
 
 ## Phase 2: Foundational (blocks every story)
 
-- [X] T004 Create `EA/shared/src/delivery/parcel-return.ts`: export SQL fragments `TO_RETURN_PACKAGES` (delivery `round_package` `assigned` on a `skipped` stop, no `package_arrival`) and `IN_TRANSIT_PACKAGES`, and `recordParcelReturn(tx, { roundId, driverId?, recordedBy, recordedBySub, changeId })` — replay by `change_id` answers the first result; locks the round; sets `state='returned', settled_at, return_id`; inserts one `parcel_return` when n > 0; then runs the delivery completion rule (T005); returns `{ returned, roundComplete }`; export from `EA/shared/src/delivery/index.ts` (research R1, R5)
+- [X] T004 Create `EA/shared/src/delivery/parcel-return.ts`: export SQL fragments `TO_RETURN_PACKAGES` (delivery `round_package` `assigned` on a `skipped` stop, no `package_arrival`) and `IN_TRANSIT_PACKAGES`, and `recordParcelReturn(tx, { roundId, driverId?, recordedBy, recordedBySub, changeId })` - replay by `change_id` answers the first result; locks the round; sets `state='returned', settled_at, return_id`; inserts one `parcel_return` when n > 0; then runs the delivery completion rule (T005); returns `{ returned, roundComplete }`; export from `EA/shared/src/delivery/index.ts` (research R1, R5)
 - [X] T005 Move the delivery round completion rule into `EA/shared/src/delivery/parcel-return.ts` as `completeDeliveryRoundIfFinished(tx, roundId)` (no open stop AND nothing to return) and make `EA/driver/src/proof/repository.ts` + `EA/driver/src/proof/sql.ts` call it instead of A1's `COMPLETE_ROUND_IF_FINISHED` (research R3)
 - [X] T006 Rewrite `CUSTODY_BY_DRIVER` in `EA/shared/src/lib/custody.ts` to add the delivery half (in transit or to return, via T004's fragments) and a `to_return` column; keep the collection half unchanged (research R2)
 - [X] T007 [P] Write `EA/shared/src/delivery/parcel-return.container.test.ts`: P2 (idempotent; second action returns 0), P3 (failed drop later proven is not to return), completion only after the return, custody lists in-transit + to-return but not staged (quickstart P2–P4)
@@ -31,7 +31,7 @@ this platform. Container tests need Docker and `CONTAINER_TESTS=1`.
 
 ---
 
-## Phase 3: User Story 1 — The driver brings failed parcels back (P1) 🎯 MVP
+## Phase 3: User Story 1 - The driver brings failed parcels back (P1) 🎯 MVP
 
 **Goal**: a failed parcel stays on the driver's work as "to return"; one action returns them; the round finishes then.
 **Independent test**: fail one drop of two, deliver the other → Today shows "Return to hub · 1"; return → round in History (quickstart walk 1–4).
@@ -54,25 +54,25 @@ this platform. Container tests need Docker and `CONTAINER_TESTS=1`.
 - [X] T018 [US1] Name the to-return count in the sign-out / off-duty confirmation in `DM/features/account/AccountScreen.kt` and the duty toggle path (FR-007)
 - [X] T019 [P] [US1] Host tests: `DM`-side `DeliveryViewModelTest` / `TodayViewModelTest` (return sent and queued; one changeId on retry) and a decode test of a Today fixture with and without `toReturn` in `apps/driver-mobile/shared/src/commonTest/.../features/today/` (quickstart P10–P11)
 
-**Checkpoint**: MVP — every failed parcel has an owner and a way back.
+**Checkpoint**: MVP - every failed parcel has an owner and a way back.
 
 ---
 
-## Phase 4: User Story 2 — Dispatch sees where failed parcels are (P1)
+## Phase 4: User Story 2 - Dispatch sees where failed parcels are (P1)
 
 **Goal**: back-office can tell "with [driver], to return" from "returned to the hub".
 **Independent test**: fail a drop → Exceptions "With driver", dispatch counts 1 with drivers; return → "At hub" (quickstart walk 3, 5).
 
-- [X] T020 [US2] Add the `returned` fact to `EA/shared/src/status/sql.ts` (`PACKAGE_STATUS_FACTS`: latest delivery row state) and `EA/shared/src/status/status.ts` (`packageStatus`: failed+returned+unresolved → `at_hub` "Returned after a failed delivery — needs a next step"; failed+not returned → `problem` as today) (research R7)
+- [X] T020 [US2] Add the `returned` fact to `EA/shared/src/status/sql.ts` (`PACKAGE_STATUS_FACTS`: latest delivery row state) and `EA/shared/src/status/status.ts` (`packageStatus`: failed+returned+unresolved → `at_hub` "Returned after a failed delivery - needs a next step"; failed+not returned → `problem` as today) (research R7)
 - [X] T021 [P] [US2] Table rows for P5 in `EA/shared/src/status/status.test.ts`
 - [X] T022 [US2] Derive `package_location` in `EA/fleet/src/exceptions/sql.ts` from T004's fragments (fixes the `picked_up` defect); add `round_id`, `returned_at`; map in `EA/fleet/src/exceptions/service.ts`
 - [X] T023 [P] [US2] Extend `EA/fleet/src/exceptions/exceptions.container.test.ts`: `with_driver` before the return, `at_hub` after (quickstart P9)
 - [X] T024 [US2] Add `failedParcels { withDrivers, returnedAwaitingDecision }` to the day read in `EA/fleet/src/dispatch/service.ts` / `EA/fleet/src/dispatch/sql.ts`; include `toReturn` in `EA/fleet/src/dispatch/custody.ts` rows
-- [X] T025 [US2] Back-office: show "With {driver} — to return" / "Returned {time}" in `apps/back-office/src/features/exceptions/ExceptionsScreen.tsx`; show the two counts in the header of `apps/back-office/src/features/dispatch/DispatchDayScreen.tsx` (text, no cards); component tests beside each
+- [X] T025 [US2] Back-office: show "With {driver} - to return" / "Returned {time}" in `apps/back-office/src/features/exceptions/ExceptionsScreen.tsx`; show the two counts in the header of `apps/back-office/src/features/dispatch/DispatchDayScreen.tsx` (text, no cards); component tests beside each
 
 ---
 
-## Phase 5: User Story 3 — A returned parcel gets a next step (P2)
+## Phase 5: User Story 3 - A returned parcel gets a next step (P2)
 
 **Goal**: returned parcels are held for staff; staff delivery tools release them; nothing moves a parcel still in a van.
 **Independent test**: returned parcel is not planned; after "choose a new window" it is (quickstart walk 5).
@@ -84,13 +84,13 @@ this platform. Container tests need Docker and `CONTAINER_TESTS=1`.
 
 ---
 
-## Phase 6: User Story 4 — Staff record a return on a driver's behalf (P3)
+## Phase 6: User Story 4 - Staff record a return on a driver's behalf (P3)
 
 **Goal**: a parcel handed in without the app can be returned from back-office, attributed to the staff member.
 **Independent test**: quickstart walk 6.
 
-- [X] T030 [US4] Create `EA/fleet/src/functions/dispatch-return-v1-post.ts` (`recordParcelReturn` with `recordedBy='staff'`, audit `dispatch.parcels_returned` — add the action to `EA/fleet/src/shared/audit.ts`; announce DISPATCH, ops/orders, shops and `driver/work` via `EA/fleet/src/lib/live.ts`) and route `POST /fleet/v1/dispatch/rounds/{roundId}/return` in `EA/fleet/serverless.yml`
-- [X] T031 [US4] Back-office "Record return" action on `with_driver` rows in `apps/back-office/src/features/exceptions/ExceptionsScreen.tsx` (+ `repo.ts`, `queries.ts`, `access.ts` — any active staff), with a confirm naming the driver and count
+- [X] T030 [US4] Create `EA/fleet/src/functions/dispatch-return-v1-post.ts` (`recordParcelReturn` with `recordedBy='staff'`, audit `dispatch.parcels_returned` - add the action to `EA/fleet/src/shared/audit.ts`; announce DISPATCH, ops/orders, shops and `driver/work` via `EA/fleet/src/lib/live.ts`) and route `POST /fleet/v1/dispatch/rounds/{roundId}/return` in `EA/fleet/serverless.yml`
+- [X] T031 [US4] Back-office "Record return" action on `with_driver` rows in `apps/back-office/src/features/exceptions/ExceptionsScreen.tsx` (+ `repo.ts`, `queries.ts`, `access.ts` - any active staff), with a confirm naming the driver and count
 - [X] T032 [P] [US4] Container test: staff return attributed, driver's `toReturn` cleared, idempotent (fleet)
 
 ---
@@ -120,5 +120,5 @@ this platform. Container tests need Docker and `CONTAINER_TESTS=1`.
 ## Implementation strategy
 
 1. **MVP** = Setup + Foundational + US1: failed parcels are tracked and returned; the round ends right.
-2. Add US2 (visibility, and the two `picked_up` defect fixes) — deployable with US1.
-3. Add US3 (the hold) and US4 (staff return) — then walk the quickstart end to end.
+2. Add US2 (visibility, and the two `picked_up` defect fixes) - deployable with US1.
+3. Add US3 (the hold) and US4 (staff return) - then walk the quickstart end to end.

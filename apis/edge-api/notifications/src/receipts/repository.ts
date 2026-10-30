@@ -142,7 +142,7 @@ export async function loadReceipt(orderId: string): Promise<{
   if (!order) return null;
 
   const itemsRes = await query<ReceiptItemRow>(
-    `SELECT CASE WHEN variant_label IS NULL THEN product_name ELSE product_name || ' — ' || variant_label END AS product_name, unit_price_amount::text AS unit_price_amount,
+    `SELECT CASE WHEN variant_label IS NULL THEN product_name ELSE product_name || ' - ' || variant_label END AS product_name, unit_price_amount::text AS unit_price_amount,
             quantity, line_subtotal_amount::text AS line_subtotal_amount
        FROM public.order_item WHERE order_id = $1 ORDER BY created_at ASC`,
     [orderId],

@@ -19,7 +19,7 @@ const NextLink: PromoSkinLink = ({ href, children, ...rest }) => (
 
 /**
  * A group's promotion in the skin staff chose for this place (`@effy/web-kit/promo-skin`, the
- * renderer back-office previews with). A promotion wearing Classic — or whose server sent no skin — is
+ * renderer back-office previews with). A promotion wearing Classic - or whose server sent no skin - is
  * drawn by the place's own pre-095 component; `isDesigned` says which.
  */
 export function SkinnedPromotion({

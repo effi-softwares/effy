@@ -21,7 +21,7 @@ function Harness({ initial = EMPTY_DRAFT, onDraft }: { initial?: InstructionsDra
   )
 }
 
-describe("066 — the checkout delivery-instructions control", () => {
+describe("066 - the checkout delivery-instructions control", () => {
   it("offers both handover choices, neither chosen", () => {
     render(<Harness />)
     expect(screen.getByRole("button", { name: "Leave at the door" })).toHaveAttribute("aria-pressed", "false")
@@ -37,7 +37,7 @@ describe("066 — the checkout delivery-instructions control", () => {
     expect(screen.getByRole("button", { name: "Meet at the door" })).toHaveAttribute("aria-pressed", "true")
   })
 
-  /** "No preference" is a real answer — a radio group, once touched, has no way back to it. */
+  /** "No preference" is a real answer - a radio group, once touched, has no way back to it. */
   it("⚠ a choice can be switched off again", async () => {
     const user = userEvent.setup()
     let last: InstructionsDraft = EMPTY_DRAFT
@@ -71,7 +71,7 @@ describe("066 — the checkout delivery-instructions control", () => {
   })
 
   /**
-   * SC-006. The note is customer-authored text. It must come back as the characters typed — no
+   * SC-006. The note is customer-authored text. It must come back as the characters typed - no
    * element created, nothing linked, nothing run.
    */
   it("⚠ markup typed into the note stays text", () => {

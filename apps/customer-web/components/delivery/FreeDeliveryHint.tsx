@@ -3,7 +3,7 @@ import { DELIVERY_FEE_WORDS } from "@effy/shared-types"
 import { formatMoney } from "@/lib/money"
 
 /**
- * "Spend $N more for free delivery", or that it has been earned — in the shared words.
+ * "Spend $N more for free delivery", or that it has been earned - in the shared words.
  *
  * Renders nothing when the business has set no free-delivery amount: a hint about a rule that does
  * not exist would be a promise. On the website the delivery postcode is first known at checkout,

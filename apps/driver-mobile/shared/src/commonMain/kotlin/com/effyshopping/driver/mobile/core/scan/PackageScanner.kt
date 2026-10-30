@@ -6,13 +6,13 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import com.effyshopping.driver.mobile.core.presentation.nowEpochMillis
 
-/** Why the camera cannot read labels — the screen then offers ticking by hand. */
+/** Why the camera cannot read labels - the screen then offers ticking by hand. */
 enum class ScannerUnavailable { PERMISSION_REFUSED, NO_CAMERA }
 
 /**
  * A live camera view that reads package labels continuously (driver backlog H4). Reads only QR
  * and Code 128; reports each label's code (never the raw value), at most once per two seconds while it
- * stays in view; anything that is not an Effy label is dropped before [onCode] — a product's barcode in
+ * stays in view; anything that is not an Effy label is dropped before [onCode] - a product's barcode in
  * view never reaches the screen.
  *
  * It draws only the camera. The frame, the checklist, the flash and the sounds belong to each scanning

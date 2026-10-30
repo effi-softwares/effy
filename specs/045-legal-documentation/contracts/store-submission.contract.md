@@ -8,10 +8,10 @@ mobile apps submit without a legal/privacy/deletion rejection. Not customer-faci
 - One row per `DataTypeDisclosure` (data-model): data type → collected? → linked to identity? → used
   for tracking? → purpose(s) → sub-processor(s).
 - Covers the app **and its third-party SDKs** (Stripe, PostHog, Crashlytics, FCM/APNs, Google
-  sign-in) — the questionnaire asks about SDK collection too.
+  sign-in) - the questionnaire asks about SDK collection too.
 - Notes the **Privacy Manifest** obligation (`PrivacyInfo.xcprivacy`) and ATT posture (expected: no
   cross-app tracking → no ATT prompt).
-- **MUST agree with the Privacy Policy** (same data types, purposes, sharing) — SC-004.
+- **MUST agree with the Privacy Policy** (same data types, purposes, sharing) - SC-004.
 
 ## `data-safety-mapping.md` (Google Play Data safety)
 
@@ -19,9 +19,9 @@ mobile apps submit without a legal/privacy/deletion rejection. Not customer-faci
   practices (encryption in transit/at rest), retention, and the **deletion** answers.
 - States the **in-app** deletion path (Account → Privacy & data → Delete) and the **web** deletion URL.
 - ⚠ The web deletion URL entered here **MUST equal** the URL cited in the Privacy Policy (FR-026,
-  SC-008) — both are `https://<canonical-host>/delete-account`.
+  SC-008) - both are `https://<canonical-host>/delete-account`.
 
-## `submission-checklist.md` (the itemised gate — `StoreSubmissionItem`s)
+## `submission-checklist.md` (the itemised gate - `StoreSubmissionItem`s)
 
 Each row: requirement · store · state (`satisfied` / `blocked-dependency` / `operator-action`) ·
 evidence. MUST include at least:

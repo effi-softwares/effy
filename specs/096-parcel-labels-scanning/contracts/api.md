@@ -1,4 +1,4 @@
-# API contracts — 096
+# API contracts - 096
 
 DTOs live in `@effy/shared-types`. The Kotlin contracts (`contract-driver`, `contract`) are regenerated.
 Every write takes a `changeId` (uuid) and is idempotent on it. Every error is `{ type, detail }` with a

@@ -3,7 +3,7 @@ import { proxyToEdge } from "@/lib/api/proxy"
 /**
  * The saved list with verdicts.
  *
- * Takes `postcode` from the query because the shopper's delivery location is device-local — it
+ * Takes `postcode` from the query because the shopper's delivery location is device-local - it
  * lives in localStorage and deliberately not in a cookie, so the server cannot read it during
  * rendering. Absent means "we have not been told", which is a first-class outcome, not an
  * error.

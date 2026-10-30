@@ -23,10 +23,10 @@ function many(n: number): Banner[] {
   )
 }
 
-/** The offer cards' own links — the section header also carries one ("All offers"). */
+/** The offer cards' own links - the section header also carries one ("All offers"). */
 const offerLinks = () => screen.queryAllByRole("link", { name: /^view offer/i })
 
-describe("OffersPanels — the composition degrades, it never pads (FR-018)", () => {
+describe("OffersPanels - the composition degrades, it never pads (FR-018)", () => {
   it("renders three cards for three offers", () => {
     render(<OffersPanels banners={many(3)} />)
 
@@ -63,7 +63,7 @@ describe("OffersPanels — the composition degrades, it never pads (FR-018)", ()
 })
 
 /** The destination is pinned against the banner's own data, not a shape chosen by the test. */
-describe("OffersPanels — where a panel leads (029's post-mortem)", () => {
+describe("OffersPanels - where a panel leads (029's post-mortem)", () => {
   it("uses the server-composed href", () => {
     render(<OffersPanels banners={[banner({ key: "x", href: "/promotions/x" })]} />)
 
@@ -103,9 +103,9 @@ describe("OffersPanels — where a panel leads (029's post-mortem)", () => {
   })
 })
 
-describe("OffersPanels — the message survives the artwork", () => {
+describe("OffersPanels - the message survives the artwork", () => {
   /**
-   * The words sit on a drawn banner — a flat promo colour and a decoration — so they read the same
+   * The words sit on a drawn banner - a flat promo colour and a decoration - so they read the same
    * whatever a promotion uploads. No artwork under them, and no gradient.
    */
   it("draws no artwork and no gradient under the words", () => {

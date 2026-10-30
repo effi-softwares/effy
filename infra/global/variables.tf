@@ -1,11 +1,11 @@
 variable "aws_region" {
-  description = "Region for this root's API calls. Route 53 is GLOBAL — a hosted zone has no region (010 research R2) — but the provider still needs one."
+  description = "Region for this root's API calls. Route 53 is GLOBAL - a hosted zone has no region (010 research R2) - but the provider still needs one."
   type        = string
   default     = "ap-southeast-2"
 }
 
 variable "aws_account_id" {
-  description = "Target AWS account id (12 digits) — pinned via provider allowed_account_ids."
+  description = "Target AWS account id (12 digits) - pinned via provider allowed_account_ids."
   type        = string
 
   validation {
@@ -21,21 +21,21 @@ variable "root_domain" {
 }
 
 # ── 037-platform-email-delivery: the apex's mail identity ─────────────────────────────────────
-# The apex does not send automated mail — the environments do, from their own namespaces. What it
+# The apex does not send automated mail - the environments do, from their own namespaces. What it
 # does is host the operator's human mailbox (workspace-admin@, with hello@ and support@ as aliases)
 # and publish the policy that stops anyone forging Effy's name.
 
 variable "workspace_dkim_public_key" {
   description = <<-EOT
     The FULL TXT value of the operator mail service's DKIM record, exactly as its admin console
-    issued it — "v=DKIM1; k=rsa; p=<base64>". OPERATOR-SUPPLIED: it cannot be derived, and the
+    issued it - "v=DKIM1; k=rsa; p=<base64>". OPERATOR-SUPPLIED: it cannot be derived, and the
     private half never leaves the provider (spec FR-025).
 
     ⚠ NOT A SECRET. A DKIM *public* key is published in public DNS by design; that is its entire
     purpose. Committed on purpose, like everything else in global.tfvars.
 
     ⚠ This value is longer than 255 characters, which is the maximum length of ONE DNS
-    character-string. dns.tf splits it — see the comment there before touching either.
+    character-string. dns.tf splits it - see the comment there before touching either.
   EOT
   type        = string
 
@@ -63,7 +63,7 @@ variable "dmarc_policy" {
     The apex's DMARC policy. Starts at `none` (monitor) ON PURPOSE.
 
     ⚠ Tighten only on evidence from the rua reports, and only AFTER the operator mail service is
-    both authorised (SPF) and signing (DKIM) on this domain — otherwise the policy quarantines
+    both authorised (SPF) and signing (DKIM) on this domain - otherwise the policy quarantines
     Effy's own support replies, silently (spec FR-021).
   EOT
   type        = string

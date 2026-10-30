@@ -31,7 +31,7 @@ describe("payment failures (051 US5)", () => {
       expect(f.detail.length).toBeGreaterThan(0)
       seen.add(f.title)
     }
-    // Not all distinct — lost_card and stolen_card deliberately share wording (see failures.ts)
+    // Not all distinct - lost_card and stolen_card deliberately share wording (see failures.ts)
     // but a single message covering everything would mean the mapping does nothing.
     expect(seen.size).toBeGreaterThan(4)
   })
@@ -95,7 +95,7 @@ describe("payment failures (051 US5)", () => {
   })
 
   /**
-   * A card reported lost or stolen must not be named as such to whoever is at the keyboard — they
+   * A card reported lost or stolen must not be named as such to whoever is at the keyboard - they
    * may not be the cardholder. Stripe's own guidance; the message stays truthful without alerting a
    * thief.
    */

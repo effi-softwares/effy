@@ -28,7 +28,7 @@ beforeEach(() => {
 })
 afterEach(() => vi.unstubAllGlobals())
 
-describe("⚠ iPad detection (T043) — the device this audience actually uses", () => {
+describe("⚠ iPad detection (T043) - the device this audience actually uses", () => {
   it("recognises an iPad that reports itself as a Mac", () => {
     stubUA(
       "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15",
@@ -77,7 +77,7 @@ describe("standalone detection", () => {
   })
 })
 
-describe("dismissal is remembered (FR-006 — not nagged on every visit)", () => {
+describe("dismissal is remembered (FR-006 - not nagged on every visit)", () => {
   it("hides the affordance and persists the choice", () => {
     installStore.setState(() => ({ method: "ios-manual", installed: false }))
     dismissInstall()

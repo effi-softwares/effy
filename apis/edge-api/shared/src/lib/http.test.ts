@@ -18,7 +18,7 @@ function fakeContext(): Context {
 }
 
 describe("preamble", () => {
-  it("disables callbackWaitsForEmptyEventLoop — the cached-socket hang guard", () => {
+  it("disables callbackWaitsForEmptyEventLoop - the cached-socket hang guard", () => {
     const ctx = fakeContext();
     preamble(fakeEvent(), ctx);
     expect(ctx.callbackWaitsForEmptyEventLoop).toBe(false);

@@ -1,12 +1,12 @@
 import type { FacetSetDTO, ProductSearchResultDTO, ProductSort } from "@effy/shared-types"
 
 /**
- * A listing's refinement, and the backend query it becomes — one definition, read by the server (which
+ * A listing's refinement, and the backend query it becomes - one definition, read by the server (which
  * renders the first page) and by the browser (which refines and pages).
  *
  * The two must build the same string from the same address: the browser shows what the server sent
  * only when the server's query is the one it would have asked itself (`SearchInitial.query`). A
- * second builder that ordered a parameter differently would not show anything wrong — it would
+ * second builder that ordered a parameter differently would not show anything wrong - it would
  * quietly ask twice.
  */
 export interface Refinement {
@@ -38,7 +38,7 @@ export const PAGE_SIZE = 24
 export interface SearchInitial {
   /** `productsQuery` of the refinement this answers. */
   query: string
-  /** When the server read it — tells one render's answer from the next. */
+  /** When the server read it - tells one render's answer from the next. */
   at: number
   result: ProductSearchResultDTO
   /** Null when the counts could not be read; the browser asks for them itself. */
@@ -85,7 +85,7 @@ function filters(r: Refinement): URLSearchParams {
   return p
 }
 
-/** The query string of `/storefront/v1/facets` — the filters, no sort and no paging. */
+/** The query string of `/storefront/v1/facets` - the filters, no sort and no paging. */
 export function facetsQuery(r: Refinement): string {
   return filters(r).toString()
 }

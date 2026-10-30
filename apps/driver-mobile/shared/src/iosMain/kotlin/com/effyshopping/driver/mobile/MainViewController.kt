@@ -22,12 +22,12 @@ import platform.UIKit.UIViewController
 
 /**
  * The iOS entry point. Swift builds an [IosAuthBridge] (over Amplify Swift, which Kotlin/Native
- * cannot call — D5) and hands it in; this wraps it in the common `AuthDriver` contract. See `iosApp/`.
+ * cannot call - D5) and hands it in; this wraps it in the common `AuthDriver` contract. See `iosApp/`.
  */
 fun MainViewController(
     authBridge: IosAuthBridge,
     // Observability bridges (Firebase Crashlytics + PostHog iOS). Push stays NoOp on iOS until
-    // APNs is set up (Apple Developer account — docs/observability-apple-blockers.md).
+    // APNs is set up (Apple Developer account - docs/observability-apple-blockers.md).
     crashBridge: IosCrashBridge,
     analyticsBridge: IosAnalyticsBridge,
 ): UIViewController {
@@ -36,9 +36,9 @@ fun MainViewController(
         authDriver = IosAuthDriver(authBridge),
         crashReporter = IosCrashReporter(crashBridge),
         analyticsDriver = IosAnalyticsDriver(analyticsBridge, AppConfig.posthogKey, AppConfig.posthogHost),
-        // What this installed build calls itself — shown on Help.
+        // What this installed build calls itself - shown on Help.
         appVersion = NSBundle.mainBundle.objectForInfoDictionaryKey("CFBundleShortVersionString") as? String,
-        // Backlog B3 — proof photos taken with no signal, kept in Application Support until sent.
+        // Backlog B3 - proof photos taken with no signal, kept in Application Support until sent.
         proofFiles = DirectoryProofFiles(proofOutboxDirectory()),
         connectivity = IosConnectivity(),
     )

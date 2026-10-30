@@ -106,7 +106,7 @@ export async function MobileNavIsland() {
           </ul>
 
           {/* POST, not GET. A GET sign-out is triggerable by any <img src="/sign-out"> anywhere on
-              the internet — a CSRF logout. A form also means sign-out works with JavaScript
+              the internet - a CSRF logout. A form also means sign-out works with JavaScript
               disabled, which is a nice thing to be able to say about the control that ends a
               session. Separated by a rule because it is the one destructive entry in the list. */}
           <form action="/sign-out" method="post" className="mt-2 border-t pt-2">

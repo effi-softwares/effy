@@ -154,7 +154,7 @@ export function collectionRunFor(
 /**
  * The run a parcel is due on: an Effy parcel sold a window travels on the latest run that still makes
  * it (`collectionRunFor`); a courier parcel, or an Effy parcel with no window ("any time" / ASAP), is
- * due on the next run — returned as null, for the caller to use the next run. The ONE rule: the fleet
+ * due on the next run - returned as null, for the caller to use the next run. The ONE rule: the fleet
  * planner collects by it and the shop service tells shops the same run (099).
  */
 export function dueRun(

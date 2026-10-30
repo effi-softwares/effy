@@ -20,7 +20,7 @@ class AudienceCopyGuardTest {
     )
 
     /**
-     * A driver sees counts, never currency — the design's own stated boundary and the
+     * A driver sees counts, never currency - the design's own stated boundary and the
      * driver app's rule since 049. No earnings, tips, pay or cash-out.
      */
     private val bannedMoney = listOf(
@@ -36,7 +36,7 @@ class AudienceCopyGuardTest {
     @Test
     fun `no currency reaches a driver's screen`() = sweep(bannedMoney) { phrase, file ->
         "Driver-app source mentions money: \"$phrase\" in ${file}. Every number a driver sees is a " +
-            "count, a distance, a time or a duration — never currency (FR-011)."
+            "count, a distance, a time or a duration - never currency (FR-011)."
     }
 
     private fun sweep(phrases: List<String>, message: (String, String) -> String) {

@@ -7,7 +7,7 @@ import { useSyncExternalStore } from "react"
  *
  * The step indicator lives in the checkout header, which is rendered by the layout; the step itself
  * is state inside the checkout flow, several components down. This is the smallest thing that lets
- * the one tell the other — no context provider wrapping the layout, no prop through the page.
+ * the one tell the other - no context provider wrapping the layout, no prop through the page.
  *
  * Display only. Nothing may branch on it: what the customer can do next is decided by the checkout
  * flow's own state and, in the end, by the server.

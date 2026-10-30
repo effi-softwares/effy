@@ -62,7 +62,7 @@ const stock = async () =>
     `SELECT stock_tracked, stock_on_hand, low_stock_threshold FROM public.product_variant WHERE product_id = $1`, [productId],
   )).rows[0];
 
-d("067 — stock is never reviewed (real PostgreSQL)", () => {
+d("067 - stock is never reviewed (real PostgreSQL)", () => {
   beforeAll(async () => {
     container = await new PostgreSqlContainer("postgres:16-alpine").start();
     pool = new Pool({ connectionString: container.getConnectionUri() });
@@ -117,7 +117,7 @@ SELECT id FROM p`, [shopId],
     expect((await stock()).stock_tracked).toBe(false);
 
     const after = await snapshot();
-    // The change waiting on Effy is exactly what the shop wrote — same proposal, same version.
+    // The change waiting on Effy is exactly what the shop wrote - same proposal, same version.
     expect(after.change).toEqual(before.change);
     // What customers see did not move, and neither did where the product stands with review.
     expect(after.live.name).toBe("Sourdough");

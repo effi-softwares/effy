@@ -69,7 +69,7 @@ object EffySize {
 /** Minimum touch target. Kept by name: dozens of call sites read it. Same value as [EffySize.target]. */
 val EffyMinTouchTarget = EffySize.target
 
-/** The button shape — the storefront's 6dp control radius, never a pill. */
+/** The button shape - the storefront's 6dp control radius, never a pill. */
 val EffyButtonShape: RoundedCornerShape @Composable get() = EffyStorefrontShape.control
 
 /**
@@ -79,7 +79,7 @@ val EffyButtonShape: RoundedCornerShape @Composable get() = EffyStorefrontShape.
  * placeholder is one step stronger ([skeleton], the hairline grey) so it never reads as content.
  */
 object EffySurface {
-    /** The page ground — white. */
+    /** The page ground - white. */
     val page: Color
         @Composable @ReadOnlyComposable get() = MaterialTheme.colorScheme.background
 
@@ -104,13 +104,13 @@ object EffyDisabled {
  * Display sizes (canvas Foundations board). Geist has a real Bold, so the big steps are 700.
  */
 enum class DisplaySize(internal val sp: Int, internal val lineHeightSp: Int, internal val trackingEm: Float, internal val bold: Boolean) {
-    /** 44 — the onboarding headline. */
+    /** 44 - the onboarding headline. */
     Hero(44, 46, -0.03f, false),
-    /** 34 — a tab root's large title. */
+    /** 34 - a tab root's large title. */
     Page(34, 41, -0.03f, true),
-    /** 20 — a section heading. */
+    /** 20 - a section heading. */
     Section(20, 28, -0.01f, false),
-    /** 20 — a sheet or empty-state title. */
+    /** 20 - a sheet or empty-state title. */
     Sub(20, 28, -0.01f, false),
 }
 
@@ -140,7 +140,7 @@ fun EffyDisplay(
 /**
  * A merchandising section header: title on the left, "See all" in blue on the right (Main board).
  *
- * The "See all" target is 48dp tall and carries the section name for a screen reader — three to six
+ * The "See all" target is 48dp tall and carries the section name for a screen reader - three to six
  * of these run down Home, and "See all" alone would be announced identically each time.
  */
 @Composable
@@ -182,7 +182,7 @@ fun EffyHairline(modifier: Modifier = Modifier, inset: Boolean = true) {
 /** Horizontal gutter between tiles. */
 val ProductGridGutter = EffySpacing.md
 
-/** Vertical gutter between rows — larger than the horizontal one, so a row reads as a new row. */
+/** Vertical gutter between rows - larger than the horizontal one, so a row reads as a new row. */
 val ProductGridRowGap = EffySpacing.xl
 
 /** Page padding around a product grid. */

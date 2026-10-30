@@ -23,7 +23,7 @@ import androidx.compose.runtime.setValue
 
 /**
  * The door scan, on iOS: type a package's code and add it. Reported crashing the app (sigabrt) on the
- * iOS simulator, and not on Android — so it runs where it failed.
+ * iOS simulator, and not on Android - so it runs where it failed.
  */
 @OptIn(ExperimentalTestApi::class)
 class DoorScanTypedCodeIosTest {
@@ -50,7 +50,7 @@ class DoorScanTypedCodeIosTest {
         onNodeWithText("Packages · 1 of 2 scanned", substring = true).assertExists()
     }
 
-    /** A paired Bluetooth scanner: key presses, no tap — the package counts, as a scan. */
+    /** A paired Bluetooth scanner: key presses, no tap - the package counts, as a scan. */
     @Test fun a_paired_scanner_reads_a_label() = runComposeUiTest {
         setContent {
             DropScreen(
@@ -107,7 +107,7 @@ class DoorScanTypedCodeIosTest {
         waitForIdle()
     }
 
-    /** The drop with its hand-over, Delivered and Not delivered — the other `when`s over a maybe-null type. */
+    /** The drop with its hand-over, Delivered and Not delivered - the other `when`s over a maybe-null type. */
     @Test fun the_drop_and_its_results_draw() = runComposeUiTest {
         var state by androidx.compose.runtime.mutableStateOf(
             DeliveryUiState(run = run, drop = drop.copy(handover = com.effyshopping.driver.mobile.features.delivery.domain.Handover.LeaveAtDoor)),

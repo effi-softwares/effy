@@ -13,7 +13,7 @@ import {
 
 /**
  * A titled section: shadcn's Card with a ruled head, a body and an optional foot for the panel's own
- * Cancel / Save — never a metric tile.
+ * Cancel / Save - never a metric tile.
  */
 export function Panel({
   title,

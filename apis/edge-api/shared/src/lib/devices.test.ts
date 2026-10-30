@@ -38,7 +38,7 @@ function deleteEvent(sub: string | undefined, token?: string): AuthedEvent {
 
 afterEach(() => vi.clearAllMocks());
 
-describe("registerDevice — validation + idempotent upsert (SC-009)", () => {
+describe("registerDevice - validation + idempotent upsert (SC-009)", () => {
   it("rejects an empty token", async () => {
     await expect(
       registerDevice({ sub: "s1", audience: "customer", fcmToken: "  ", platform: "android" }),
@@ -71,7 +71,7 @@ describe("registerDevice — validation + idempotent upsert (SC-009)", () => {
     ).rejects.toThrow(/web/);
   });
 
-  it("accepts platform web (C1) — the defect fix", async () => {
+  it("accepts platform web (C1) - the defect fix", async () => {
     query.mockResolvedValue({ rows: [] });
     await registerDevice({ sub: "s1", audience: "shop", fcmToken: "tok-w", platform: "web" });
     expect(query).toHaveBeenCalledTimes(1);
@@ -96,7 +96,7 @@ describe("registerDevice — validation + idempotent upsert (SC-009)", () => {
   });
 });
 
-describe("registerDevice — mutedTypes (C3/C4/C5)", () => {
+describe("registerDevice - mutedTypes (C3/C4/C5)", () => {
   it("refuses mutedTypes on a mobile platform rather than ignoring it (C3)", async () => {
     // Refused, not ignored: the mobile apps have no preference UI.
     await expect(
@@ -161,7 +161,7 @@ describe("registerDevice — mutedTypes (C3/C4/C5)", () => {
   });
 });
 
-describe("readRegistration / setMutedTypes — caller-scoped, no oracle (N3)", () => {
+describe("readRegistration / setMutedTypes - caller-scoped, no oracle (N3)", () => {
   it("reads only the caller's own registration", async () => {
     query.mockResolvedValue({ rows: [{ platform: "web", mutedTypes: ["shop_low_stock"] }] });
     const r = await readRegistration("s1", "tok-1");
@@ -171,7 +171,7 @@ describe("readRegistration / setMutedTypes — caller-scoped, no oracle (N3)", (
     expect(args).toEqual(["tok-1", "s1"]);
   });
 
-  it("returns null for a token that is not the caller's — indistinguishably from one that does not exist", async () => {
+  it("returns null for a token that is not the caller's - indistinguishably from one that does not exist", async () => {
     // Indistinguishable, or the route reveals which tokens are registered.
     query.mockResolvedValue({ rows: [] });
     expect(await readRegistration("s1", "someone-elses-token")).toBeNull();
@@ -192,7 +192,7 @@ describe("readRegistration / setMutedTypes — caller-scoped, no oracle (N3)", (
   });
 });
 
-describe("unregisterDevice — only the caller's own token (FR-020)", () => {
+describe("unregisterDevice - only the caller's own token (FR-020)", () => {
   it("deletes scoped to token AND subject", async () => {
     query.mockResolvedValue({ rows: [] });
     await unregisterDevice("s1", "tok-1");
@@ -202,7 +202,7 @@ describe("unregisterDevice — only the caller's own token (FR-020)", () => {
   });
 });
 
-describe("tokensForRecipient — fan-out lookup", () => {
+describe("tokensForRecipient - fan-out lookup", () => {
   it("returns the recipient's active tokens", async () => {
     query.mockResolvedValue({ rows: [{ fcmToken: "a", platform: "android" }] });
     const rows = await tokensForRecipient("s1", "customer");
@@ -219,7 +219,7 @@ describe("tokensForRecipient — fan-out lookup", () => {
   });
 });
 
-describe("makeDevicePostHandler — auth + validation", () => {
+describe("makeDevicePostHandler - auth + validation", () => {
   const handler = makeDevicePostHandler("driver");
 
   it("401 when unauthenticated (owner comes from the JWT, never the body)", async () => {
@@ -260,7 +260,7 @@ describe("makeDevicePostHandler — auth + validation", () => {
   });
 });
 
-describe("makeDeviceDeleteHandler — idempotent, caller-scoped", () => {
+describe("makeDeviceDeleteHandler - idempotent, caller-scoped", () => {
   const handler = makeDeviceDeleteHandler("customer");
 
   it("401 when unauthenticated", async () => {

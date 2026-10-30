@@ -1,4 +1,4 @@
-# 01 — What we have built: the Effy delivery system, indexed
+# 01 - What we have built: the Effy delivery system, indexed
 
 Date: 2026-10-18 · Code: `dev` @ `f9118e04` · Read-only review (nothing run against a database or device).
 
@@ -75,7 +75,7 @@ cart ─▶ POST /commerce/v1/checkout/quote
 
 Legend: ✅ built and believed live in dev · 🟡 built, **not migrated / deployed / walked** · ⛔ absent.
 
-### 3.1 Checkout promise (delivery engine) — map 1
+### 3.1 Checkout promise (delivery engine) - map 1
 | Capability | State | Where |
 |---|---|---|
 | Coverage: flat postcode list + optional groups; one SQL answer | ✅ | `public.coverage_for_postcode`, `shared/src/delivery/coverage.ts` |
@@ -89,7 +89,7 @@ Legend: ✅ built and believed live in dev · 🟡 built, **not migrated / deplo
 | Shop selection / stock-based allocation | ⛔ by design | fulfilling shop = `product.shop_id` |
 | Abandoned pending-order sweep | ⛔ | listed as "still ahead" |
 
-### 3.2 Middle mile and hub — map 2
+### 3.2 Middle mile and hub - map 2
 | Capability | State | Where |
 |---|---|---|
 | Collection schedule (daily run times) | ✅ | `delivery_collection_run` |
@@ -101,7 +101,7 @@ Legend: ✅ built and believed live in dev · 🟡 built, **not migrated / deplo
 | Hand-over records per step (scan / typed / manual) | 🟡 (090/091) | `package_handover`, `work/handover.ts` |
 | Missing-package holds | 🟡 (093) | `package_hold` |
 
-### 3.3 Dispatch and last mile — map 2
+### 3.3 Dispatch and last mile - map 2
 | Capability | State | Where |
 |---|---|---|
 | Automatic assignment pass every 5 min (gates, then fewest packages) | ✅ | `fleet/src/planner/` |
@@ -119,16 +119,16 @@ Legend: ✅ built and believed live in dev · 🟡 built, **not migrated / deplo
 | Driver register, Cognito provisioning, clearances by (function, area) | ✅ | `fleet/src/drivers`, `capabilities` |
 | Shifts / roster | ⛔ (self-declared duty only) | `driver_duty_session` |
 
-### 3.4 Courier lane — maps 1, 2
+### 3.4 Courier lane - maps 1, 2
 | Capability | State | Where |
 |---|---|---|
 | Courier services (operator-entered, one default) | ✅ | `courier_service` |
 | Via hub or supplier pickup | ✅ | `order.courier_collection`, `consignment.ts` |
 | Consignment record, events, label upload, one tracking link to customer | ✅ (manual) | `orders/src/consignments` |
-| Carrier / aggregator API (booking, labels, tracking webhooks) | ⛔ | — |
+| Carrier / aggregator API (booking, labels, tracking webhooks) | ⛔ | - |
 | Effy⇄courier emergency move with compensation | ✅ | `shared/src/delivery/override.ts` |
 
-### 3.5 Driver app — map 3
+### 3.5 Driver app - map 3
 | Capability | State |
 |---|---|
 | Email + 6-digit sign-in, Today / History / Account tabs | ✅ |
@@ -142,7 +142,7 @@ Legend: ✅ built and believed live in dev · 🟡 built, **not migrated / deplo
 | Map | Decorative schematic from postcode centroids |
 | Customer contact | Direct dial of the real number |
 
-### 3.6 Back-office — map 4
+### 3.6 Back-office - map 4
 | Screen | What it does |
 |---|---|
 | Delivery (7 tabs) | Coverage, Pricing, Collection runs, Delivery windows, Delivery days (+ driver-ops thresholds, vehicle-check toggle), Settings (hub lat/lng, prep buffer), Go-live (inert) |
@@ -152,7 +152,7 @@ Legend: ✅ built and believed live in dev · 🟡 built, **not migrated / deplo
 | Exceptions | Failed deliveries, runs waiting, missing packages, vehicle checks |
 | Dashboard | Placeholder sample data |
 
-### 3.7 Shop and customer — map 4
+### 3.7 Shop and customer - map 4
 | Surface | Delivery-related |
 |---|---|
 | shop-web | Fulfilment flow, labels, "Effy driver / Courier · ready by", supplier courier hand-over |

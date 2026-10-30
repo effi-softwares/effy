@@ -20,11 +20,11 @@ review stay unambiguous.
 |10 | Recently-viewed      | `RecentlyViewedRail` (reuse)  | device-local                                  | nothing viewed        | existing  |
 
 ¹ The rail itself is server-rendered; the per-tile **save control** is the existing client island already
-counted in today's `/` bundle — the redesign adds no new client island to rails.
+counted in today's `/` bundle - the redesign adds no new client island to rails.
 ² Zero-JS by design (Server Action + plain `<form>`, research R3).
 
 **Interleave rule**: the merchandised rails (2, 4, 5, 8) and offer blocks (3, 6) are interleaved so the page
-reads as a long merchandised landing (FR-001), but the exact rail↔offer ordering degrades gracefully — any
+reads as a long merchandised landing (FR-001), but the exact rail↔offer ordering degrades gracefully - any
 missing section collapses and its neighbours close up. **No section renders an empty frame** (FR-004).
 
 **Streaming/PPR**: sections **1–6 and 8** depend on request-time storefront reads and stream inside the
@@ -36,10 +36,10 @@ friendly "couldn't load the store" / "shelves being stocked" state (FR-016), nev
 
 **Budget**: net added client JS across the whole redesign MUST be ~0 KB; `/` stays ≤ 174 KB (SC-007). Any
 new interactivity uses Server Actions, never a new static client dependency.
-⚠ **Measured headroom is 2.3 KB, not 3.5** — `/` baselines at **171.7 KB** (quickstart § Baseline, T001),
+⚠ **Measured headroom is 2.3 KB, not 3.5** - `/` baselines at **171.7 KB** (quickstart § Baseline, T001),
 correcting plan.md § Summary.
 
-**⚠ The banner placement vocabulary is `"carousel" | "inline"` — there is NO `"offers"` value.**
+**⚠ The banner placement vocabulary is `"carousel" | "inline"` - there is NO `"offers"` value.**
 `BannerPlacement` is declared once in `packages/shared-types/src/banner.ts:50`. The first draft of this
 contract named an `offers` placement that does not exist; the second placement 029 created for the
 dedicated offers block is **`inline`**. Row 3/6 filter on `inline`, row "PromoCarousel" keeps `carousel`,

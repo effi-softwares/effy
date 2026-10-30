@@ -93,10 +93,10 @@ export function ProfileEditForm({ driver, onDone }: { driver: AdminDriverProfile
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="__none">Not recorded</SelectItem>
-              <SelectItem value="C">C — car and light vehicle</SelectItem>
-              <SelectItem value="LR">LR — light rigid</SelectItem>
-              <SelectItem value="MR">MR — medium rigid</SelectItem>
-              <SelectItem value="HR">HR — heavy rigid</SelectItem>
+              <SelectItem value="C">C - car and light vehicle</SelectItem>
+              <SelectItem value="LR">LR - light rigid</SelectItem>
+              <SelectItem value="MR">MR - medium rigid</SelectItem>
+              <SelectItem value="HR">HR - heavy rigid</SelectItem>
             </SelectContent>
           </Select>
           <p className="text-xs text-muted-foreground">

@@ -1,6 +1,6 @@
 /**
  * Device-local recently-viewed store. For a guest this lives only on the device
- * (localStorage) — there is no server table. Most-recent-first, capped.
+ * (localStorage) - there is no server table. Most-recent-first, capped.
  *
  * The ordering logic is a pure function so it is unit-testable without a DOM; the localStorage wrapper
  * is a thin edge that guards `typeof window` for SSR.
@@ -34,7 +34,7 @@ export function recordView(id: string): string[] {
   try {
     window.localStorage.setItem(KEY, JSON.stringify(next))
   } catch {
-    // storage full / disabled — recently-viewed is best-effort, never fatal.
+    // storage full / disabled - recently-viewed is best-effort, never fatal.
   }
   return next
 }

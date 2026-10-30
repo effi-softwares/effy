@@ -62,6 +62,6 @@ export function judgeRead(raw: string, method: ReadMethod, context: ScanContext)
   if (bag && has(context.counted, code)) return { outcome: "already_counted", code, words: READ_OUTCOME_WORDS.already_counted };
   if (bag) return { outcome: "accepted", code, words: `Bag ${bag.seq} of ${bag.of}` };
   const where = context.elsewhere?.[code];
-  if (where) return { outcome: "belongs_elsewhere", code, words: `For ${where} — not here` };
+  if (where) return { outcome: "belongs_elsewhere", code, words: `For ${where} - not here` };
   return { outcome: "not_on_this_work", code, words: READ_OUTCOME_WORDS.not_on_this_work };
 }

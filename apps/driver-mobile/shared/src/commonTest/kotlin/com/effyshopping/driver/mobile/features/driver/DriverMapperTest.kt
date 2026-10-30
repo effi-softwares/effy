@@ -50,7 +50,7 @@ class DriverMapperTest {
 
     @Test
     fun the_me_dto_carries_no_currency_field() {
-        // The driver never sees money — a structural guard against a money field creeping in.
+        // The driver never sees money - a structural guard against a money field creeping in.
         val fields = DriverMeDTO::class.simpleName
         assertTrue(fields == "DriverMeDTO")
     }

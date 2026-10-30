@@ -1,14 +1,14 @@
 import { expect, test } from "@playwright/test"
 
 /**
- * The content column — one `@utility container` in `app/globals.css`, used by every section, layout
+ * The content column - one `@utility container` in `app/globals.css`, used by every section, layout
  * and page on this surface (it replaced the string `mx-auto w-full max-w-7xl px-4 sm:px-6`, which was
  * written out in twenty-four places).
  *
  * Why this needs a test at all. Tailwind v4 still emits its own `.container` breakpoint rules
  * (40rem…96rem, no centring, no padding) alongside the override, and the override wins on source
- * order rather than specificity. If that order ever flipped — a Tailwind upgrade, a change to where
- * the utility is declared — nothing would break: every page would just get wider and lose its
+ * order rather than specificity. If that order ever flipped - a Tailwind upgrade, a change to where
+ * the utility is declared - nothing would break: every page would just get wider and lose its
  * gutter, which is indistinguishable from a design decision. Nobody would file a bug against it.
  *
  * So this asserts the computed values, in a real browser, at the widths where each rule would take
@@ -16,10 +16,10 @@ import { expect, test } from "@playwright/test"
  *
  * The numbers are the ones the storefront was built against, not new ones. 1280px is the old
  * `max-w-7xl`, and `productGrid`'s column counts were chosen from the card width they produce inside
- * it — so a wider column silently re-tunes every listing on the store.
+ * it - so a wider column silently re-tunes every listing on the store.
  */
 
-const CAP = 1280 // 80rem — the old `max-w-7xl`
+const CAP = 1280 // 80rem - the old `max-w-7xl`
 const GUTTER_SM = 24 // sm:px-6
 const GUTTER_BASE = 16 // px-4
 
@@ -37,7 +37,7 @@ const WIDTHS = [
 
 test.describe("the content column is capped, centred and guttered at every width", () => {
   for (const { width, expectWidth, expectPad } of WIDTHS) {
-    test(`${width}px — ${expectWidth}px wide, ${expectPad}px gutter`, async ({ page }) => {
+    test(`${width}px - ${expectWidth}px wide, ${expectPad}px gutter`, async ({ page }) => {
       await page.setViewportSize({ width, height: 800 })
       await page.goto("/")
 
@@ -53,7 +53,7 @@ test.describe("the content column is capped, centred and guttered at every width
         }
       })
 
-      // The cap itself — this is the assertion Tailwind's 96rem rule would break.
+      // The cap itself - this is the assertion Tailwind's 96rem rule would break.
       expect(box.maxWidth).toBe(`${CAP}px`)
       expect(box.width).toBe(expectWidth)
       expect(box.padLeft).toBe(`${expectPad}px`)

@@ -7,7 +7,7 @@ import com.russhwolf.settings.Settings
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
-/** [StopDrafts] in the phone's preferences — small, one stop, and gone once the stop is collected. */
+/** [StopDrafts] in the phone's preferences - small, one stop, and gone once the stop is collected. */
 class SettingsStopDrafts(
     private val settings: Settings,
     private val json: Json = Json { ignoreUnknownKeys = true },

@@ -46,7 +46,7 @@ let pool: Pool;
 let allPostcodes: string[];
 let shopId: string;
 
-d("076 — who delivers to a postcode", () => {
+d("076 - who delivers to a postcode", () => {
   beforeAll(async () => {
     container = await new PostgreSqlContainer("postgres:16-alpine").start();
     pool = new Pool({ connectionString: container.getConnectionUri() });

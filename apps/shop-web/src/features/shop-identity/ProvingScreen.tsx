@@ -23,7 +23,7 @@ export function ProvingScreen() {
       <CardHeader>
         <CardTitle>Your shop record</CardTitle>
         <CardDescription>
-          The platform's own record of you — proves this console reaches the backend as you.
+          The platform's own record of you - proves this console reaches the backend as you.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -41,10 +41,10 @@ export function ProvingScreen() {
           <div className="space-y-4">
             <dl className="space-y-2 text-sm">
               <Row label="Subject" value={<span className="font-mono">{data.subject}</span>} />
-              <Row label="Email" value={data.email ?? "—"} />
-              <Row label="Roles" value={data.roles.length > 0 ? data.roles.join(", ") : "—"} />
+              <Row label="Email" value={data.email ?? "-"} />
+              <Row label="Roles" value={data.roles.length > 0 ? data.roles.join(", ") : "-"} />
               <Row label="Status" value={data.status} />
-              <Row label="Shop" value={data.shop ? `${data.shop.name} (${data.shop.code})` : "—"} />
+              <Row label="Shop" value={data.shop ? `${data.shop.name} (${data.shop.code})` : "-"} />
             </dl>
 
             {data.roles.length === 0 ? (

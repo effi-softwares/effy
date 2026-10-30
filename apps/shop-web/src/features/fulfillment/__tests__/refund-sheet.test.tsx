@@ -8,7 +8,7 @@ import { orderDetail, orderList } from "./fixtures"
 
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children }: { children: ReactNode }) => <a href="#">{children}</a>,
-  useNavigate: () => () => {},
+  useNavigate: () => () => { },
   useSearch: () => ({}),
 }))
 
@@ -46,6 +46,8 @@ const DETAIL = orderDetail({
 })
 
 function wrap(roles: string[]) {
+  // A desktop window: the rail docks beside the page (below 1280px it is a drawer).
+  window.innerWidth = 1600
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   qc.setQueryData(["session"], {
     status: "signed-in",
@@ -95,14 +97,14 @@ describe("shop refund control", () => {
     expect(within(sheet).getByRole("button", { name: "Issue refund" })).toBeDisabled()
   })
 
-  it("sends lines and quantities — never an amount — and restock only when asked", async () => {
+  it("sends lines and quantities - never an amount - and restock only when asked", async () => {
     issueShopRefund.mockResolvedValue({ refundId: "r1", status: "submitted", amount: "6.00" })
     wrap(["shop_manager"])
     await userEvent.click(within(await paymentCard()).getByRole("button", { name: "Refund" }))
     const sheet = await screen.findByRole("dialog")
-    // The second line — oat milk, $3.00 each.
+    // The second line - oat milk, $3.00 each.
     await userEvent.click(within(sheet).getAllByRole("button", { name: "max 2" })[1]!)
-    expect(within(sheet).getByText("$6.00", { selector: "output" })).toBeInTheDocument()
+    expect(within(sheet).getByText("AUD 6.00", { selector: "output" })).toBeInTheDocument()
     await userEvent.click(within(sheet).getByRole("button", { name: "Issue refund" }))
 
     await waitFor(() => expect(issueShopRefund).toHaveBeenCalled())

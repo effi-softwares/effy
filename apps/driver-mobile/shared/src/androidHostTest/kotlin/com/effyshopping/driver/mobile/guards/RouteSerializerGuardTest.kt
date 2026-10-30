@@ -21,7 +21,7 @@ class RouteSerializerGuardTest {
         val declared = Regex(
             // The parameter list may itself contain a colon (`data class X(val id: String)`),
             // so it is matched explicitly rather than with a "anything but a colon" wildcard. The
-            // first draft used `[^:\n]*` and the guard failed on its own repository — every
+            // first draft used `[^:\n]*` and the guard failed on its own repository - every
             // parameterised route read as undeclared.
             """data\s+(?:object|class)\s+(\w+)\s*(?:\([^)]*\))?\s*:\s*AppNavKey""",
         ).findAll(text).map { it.groupValues[1] }.toSortedSet()
@@ -30,7 +30,7 @@ class RouteSerializerGuardTest {
             .findAll(text).map { it.groupValues[1] }.toSortedSet()
 
         if (declared.isEmpty()) {
-            fail("Guard found no AppNavKey declarations in ${source.path} — the guard itself is broken.")
+            fail("Guard found no AppNavKey declarations in ${source.path} - the guard itself is broken.")
         }
 
         val missing = declared - registered

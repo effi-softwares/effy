@@ -44,7 +44,7 @@ const refusal = (p: Promise<unknown>) =>
   }));
 const valid = { courierName: "Test Courier", serviceName: "Parcel", estimateText: "2–4 business days", maxBusinessDays: 4, pickupWeekdays: [5, 1, 1], pickupCutoff: "14:00" };
 
-describe.skipIf(!RUN)("080 — courier services", () => {
+describe.skipIf(!RUN)("080 - courier services", () => {
   beforeAll(async () => {
     container = await new PostgreSqlContainer("postgres:16-alpine").start();
     pool = new Pool({ connectionString: container.getConnectionUri() });
@@ -57,7 +57,7 @@ describe.skipIf(!RUN)("080 — courier services", () => {
     await container?.stop();
   });
 
-  it("starts empty — nothing is seeded", async () => {
+  it("starts empty - nothing is seeded", async () => {
     expect(await svc.list()).toEqual({ items: [], collectionDefault: "hub" });
   });
 

@@ -35,7 +35,7 @@ import com.effyshopping.driver.mobile.resources.lucide_pen_line
 /**
  * The camera was refused (canvas `PermissionDenied`). It says what is lost and how to turn it back on,
  * and offers the one proof that needs no camera. No "Open Settings" button: this app has no settings
- * launcher for the camera, and a button that does nothing is worse than none — the way is said in words.
+ * launcher for the camera, and a button that does nothing is worse than none - the way is said in words.
  */
 @Composable
 fun PermissionDeniedScreen(onBack: () -> Unit) {

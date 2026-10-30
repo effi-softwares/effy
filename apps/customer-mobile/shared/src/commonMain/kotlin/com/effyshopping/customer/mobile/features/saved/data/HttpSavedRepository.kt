@@ -71,7 +71,7 @@ class HttpSavedRepository(private val edge: HttpClient) :
 
     /**
      * "Saved" still reads `commerce/v1/saved`, not `commerce/v1/lists/default/items`. They are the same list, and the
-     * older route also answers on a backend from before 068 — so a stale backend costs a shopper
+     * older route also answers on a backend from before 068 - so a stale backend costs a shopper
      * their named lists, never their saved items.
      */
     override suspend fun list(listId: String): List<SavedItem> = request {
@@ -251,7 +251,7 @@ private fun SavedItemDTO.toDomain(): SavedItem = SavedItem(
     badges = badges.map { it.value },
     savedAt = savedAt,
     savedPriceAmount = savedPriceAmount,
-    // Absent on the wire means "no drop" (FR-044 — there is deliberately no priceRose).
+    // Absent on the wire means "no drop" (FR-044 - there is deliberately no priceRose).
     priceDropped = priceDropped ?: false,
     verdict = verdict.toDomain(),
     categoryKey = categoryKey,
@@ -263,7 +263,7 @@ private fun SavedItemDTO.toDomain(): SavedItem = SavedItem(
 
 /**
  * An exhaustive `when` over the generated enum, with no `else`. If the contract ever gains a sixth
- * verdict, this stops compiling — which is the point. A default arm would silently map an unknown
+ * verdict, this stops compiling - which is the point. A default arm would silently map an unknown
  * outcome onto one of the five and tell the shopper the wrong thing about whether they can buy.
  */
 private fun WireVerdict.toDomain(): SavedVerdict = when (this) {

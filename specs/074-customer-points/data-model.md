@@ -10,7 +10,7 @@ All amounts of money are `numeric(12,2)` like the rest of the order tables; all 
 
 ## New tables
 
-### `public.points_settings` — singleton (`id = 1`)
+### `public.points_settings` - singleton (`id = 1`)
 
 | Column | Type | Default | Rule |
 |---|---|---|---|
@@ -25,12 +25,12 @@ All amounts of money are `numeric(12,2)` like the rest of the order tables; all 
 
 Seeded with one row by the migration.
 
-### `public.points_settings_change` — audit of every settings change (FR-025)
+### `public.points_settings_change` - audit of every settings change (FR-025)
 
 `id uuid PK`, `field text`, `old_value text`, `new_value text`, `changed_by text NOT NULL`,
 `changed_at timestamptz`. Append-only.
 
-### `public.points_account` — the lock row
+### `public.points_account` - the lock row
 
 | Column | Type | Rule |
 |---|---|---|
@@ -38,9 +38,9 @@ Seeded with one row by the migration.
 | `created_at` | timestamptz | |
 
 Created on first use (`INSERT … ON CONFLICT DO NOTHING`), then `SELECT … FOR UPDATE`. Holds no
-figure — locking is its only job (R1).
+figure - locking is its only job (R1).
 
-### `public.points_entry` — every change to a balance (append-only)
+### `public.points_entry` - every change to a balance (append-only)
 
 | Column | Type | Rule |
 |---|---|---|
@@ -51,7 +51,7 @@ figure — locking is its only job (R1).
 | `reason` | text | closed vocabulary per kind (R11); `spent`/`returned`/`expired`/`forfeited` carry their kind as reason |
 | `note` | text NULL | internal, staff only; required when `reason = 'other'` (CHECK) |
 | `order_id` | uuid NULL → `order(id)` | must belong to `customer_id` (checked in the service under the lock, FR-010) |
-| `refund_id` | uuid NULL → `refund(id)` | set on `returned` only; **UNIQUE** — one return per refund |
+| `refund_id` | uuid NULL → `refund(id)` | set on `returned` only; **UNIQUE** - one return per refund |
 | `author_kind` | text | `staff` · `system` · `customer` (`spent` is the customer's own act) |
 | `author_sub` | text NULL | staff sub or customer sub; NULL for `system` |
 | `author_flow` | text NULL | required for `system`: e.g. `courier_override`, `points_expiry`, `refund` |
@@ -65,7 +65,7 @@ points > 0` for lots; UNIQUE `(order_id) WHERE kind = 'spent'`.
 ⚠ No UPDATE or DELETE is ever issued; `points-append-only.guard.test.ts` (new) scans every service
 for one, as `refund-append-only.guard.test.ts` does for refunds.
 
-### `public.points_allocation` — which lots a debit consumed (append-only)
+### `public.points_allocation` - which lots a debit consumed (append-only)
 
 | Column | Type | Rule |
 |---|---|---|
@@ -77,7 +77,7 @@ for one, as `refund-append-only.guard.test.ts` does for refunds.
 Invariant (checked by the reconciliation, R13): for every lot, Σ allocations ≤ its points; for every
 debit, Σ allocations = −its points.
 
-### `public.points_hold` — points set aside for one checkout (R3)
+### `public.points_hold` - points set aside for one checkout (R3)
 
 | Column | Type | Rule |
 |---|---|---|
@@ -88,10 +88,10 @@ debit, Σ allocations = −its points.
 | `held_until` | timestamptz NULL | NULL once spent/released |
 | `created_at`, `updated_at` | timestamptz | |
 
-Not history — a working record, like `delivery_slot_booking`. A lapsed `held` row is **not swept**;
+Not history - a working record, like `delivery_slot_booking`. A lapsed `held` row is **not swept**;
 it stops counting (R3).
 
-### `public.points_expiry_notice` — one warning per customer per expiry date (SC-007)
+### `public.points_expiry_notice` - one warning per customer per expiry date (SC-007)
 
 `id uuid PK`, `customer_id uuid`, `expiry_date date` (Melbourne), `points int`, `created_at`;
 UNIQUE `(customer_id, expiry_date)`.
@@ -142,7 +142,7 @@ public.points_usable(p_customer uuid, p_at timestamptz, p_except_order uuid DEFA
 
 = Σ over the customer's credit lots with `expires_at > p_at` of (lot points − Σ its allocations)
 − Σ `points_hold.points` with `state = 'held' AND held_until > p_at AND order_id IS DISTINCT FROM
-p_except_order`. `GREATEST(0, …)` is **not** applied — a negative result is an invariant violation the
+p_except_order`. `GREATEST(0, …)` is **not** applied - a negative result is an invariant violation the
 reconciliation must see, not hide.
 
 Read by: checkout quote/intent, finalize, staff debit, the customer balance route, the back-office

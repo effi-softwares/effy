@@ -19,9 +19,9 @@ distances or the hub's location."
 
 ## Why This Exists
 
-Effy is replacing "same-day vs standard" with a simpler question: **who delivers** — Effy's own
+Effy is replacing "same-day vs standard" with a simpler question: **who delivers** - Effy's own
 drivers, or a courier (`docs/prd/2026-10-delivery-model-v2-backlog.md`, epic E2; decisions D1, D2, D9).
-Everything after this — the new fee, the delivery windows, the checkout, the courier hand-off — needs
+Everything after this - the new fee, the delivery windows, the checkout, the courier hand-off - needs
 one fact first: **for this address, does Effy deliver, does a courier, or does nobody?**
 
 Today that fact is tangled. Where Effy delivers is expressed as zones sitting inside distance tiers,
@@ -29,7 +29,7 @@ with a per-zone "same-day" switch and per-shop exceptions on top. Three conseque
 
 - staff must understand tiers to add a suburb;
 - a **shop's** settings can change what a **customer** is offered, which the single-brand model says
-  must never happen — customers buy from Effy, not from a shop;
+  must never happen - customers buy from Effy, not from a shop;
 - nobody can answer "do we deliver to 3121, and why?" in one place.
 
 This feature replaces all of it with **one flat list of postcodes** that Effy alone owns, and one
@@ -77,8 +77,8 @@ They get the same answer, in the same words, when they add the address and when 
 reads.
 
 **Independent Test**: with one postcode on the list, one off it but within courier reach, and one
-excluded from courier reach, check an address in each — on the address screen and at checkout, on web
-and on mobile — and get three different answers, each identical across the places it appears.
+excluded from courier reach, check an address in each - on the address screen and at checkout, on web
+and on mobile - and get three different answers, each identical across the places it appears.
 
 **Acceptance Scenarios**:
 
@@ -87,14 +87,14 @@ and on mobile — and get three different answers, each identical across the pla
 2. **Given** an address whose postcode is not on the list and courier delivery is offered there,
    **When** it is checked, **Then** the answer is "Courier delivery".
 3. **Given** an address neither reaches, **When** it is checked, **Then** the customer sees one plain
-   sentence saying Effy cannot deliver there — the same sentence when adding the address and at
+   sentence saying Effy cannot deliver there - the same sentence when adding the address and at
    checkout, on every customer surface.
 4. **Given** any answer, **When** the customer sees it, **Then** no group name, distance or hub
    location is shown or can be worked out from what is shown.
 5. **Given** a saved address whose postcode has since left the list, **When** the customer next uses
    it, **Then** they get today's answer, not the one given when it was saved.
 6. **Given** a basket from any shop or shops, **When** the address is checked, **Then** the answer is
-   the same as for any other basket — what is in the basket and who fulfils it play no part.
+   the same as for any other basket - what is in the basket and who fulfils it play no part.
 
 ---
 
@@ -102,8 +102,8 @@ and on mobile — and get three different answers, each identical across the pla
 
 A customer-service agent has a customer on the line asking why they cannot get Effy delivery. The
 agent types the postcode (or a place name) into a checker and reads the answer and its reason: "On
-Effy's list — group Inner Melbourne, 6.2 km", or "Not on Effy's list; courier delivery is offered",
-or "Not on Effy's list; excluded from courier delivery — remote island".
+Effy's list - group Inner Melbourne, 6.2 km", or "Not on Effy's list; courier delivery is offered",
+or "Not on Effy's list; excluded from courier delivery - remote island".
 
 **Why this priority**: without it, every coverage question becomes a question to the operator.
 
@@ -143,7 +143,7 @@ on, it is "Courier delivery"; added to the exclusions, it is refused again.
 3. **Given** a manager excludes a postcode with a reason, **When** an address there is checked,
    **Then** it is refused, and staff see the reason.
 4. **Given** a postcode is both on Effy's list and excluded from courier delivery, **When** it is
-   checked, **Then** the answer is "Delivered by Effy" — the exclusion only concerns couriers.
+   checked, **Then** the answer is "Delivered by Effy" - the exclusion only concerns couriers.
 
 ---
 
@@ -156,7 +156,7 @@ pays changes when they do.
 **Why this priority**: convenience for staff; the list works without it.
 
 **Independent Test**: create a group, put postcodes in it, move one to another group, rename and
-remove a group — and confirm the answer for every affected address is unchanged throughout.
+remove a group - and confirm the answer for every affected address is unchanged throughout.
 
 **Acceptance Scenarios**:
 
@@ -202,8 +202,8 @@ same-day exceptions are gone. Customers in the delivery area notice nothing.
 
 **Why this priority**: a coverage feature that silently drops a suburb on release day is an outage.
 
-**Independent Test**: compare the set of postcodes served before and after release — identical; open
-the delivery console — no tier, same-day-zone or shop-exception control exists; an order in progress
+**Independent Test**: compare the set of postcodes served before and after release - identical; open
+the delivery console - no tier, same-day-zone or shop-exception control exists; an order in progress
 at release completes as it would have.
 
 **Acceptance Scenarios**:
@@ -287,8 +287,8 @@ at release completes as it would have.
 
 - **FR-019**: For any address, the platform MUST give exactly one of three answers: *Delivered by
   Effy*, *Courier delivery*, or *cannot deliver*. On Effy's list always means *Delivered by Effy*.
-- **FR-020**: The answer MUST be decided in one place and be identical wherever it is asked — adding
-  or editing an address, checkout, and the staff checker — on every surface.
+- **FR-020**: The answer MUST be decided in one place and be identical wherever it is asked - adding
+  or editing an address, checkout, and the staff checker - on every surface.
 - **FR-021**: The answer MUST be worked out from the list as it is at the moment of asking, never
   from a stored earlier answer.
 - **FR-022**: The refusal MUST be one plain sentence that says Effy cannot deliver to that address. It
@@ -326,7 +326,7 @@ at release completes as it would have.
 - **Coverage group**: a name staff give to a set of covered postcodes. Organisational only.
 - **Courier reach**: whether courier delivery is offered at all, and the excluded postcodes, each with
   a reason.
-- **Coverage answer**: for an address — *Delivered by Effy*, *Courier delivery*, or *cannot deliver* —
+- **Coverage answer**: for an address - *Delivered by Effy*, *Courier delivery*, or *cannot deliver* -
   with a staff-only reason. Never stored against the address.
 - **Coverage change record**: who changed what, when, from what to what.
 - **Hub**: Effy's single operating hub; its location is what distances are measured from (existing).
@@ -339,7 +339,7 @@ at release completes as it would have.
 - **SC-001**: A manager adds a new suburb to Effy's delivery area in under 1 minute without typing a
   postcode or a distance.
 - **SC-002**: The set of postcodes with Effy delivery is identical immediately before and after
-  release — zero gained, zero lost.
+  release - zero gained, zero lost.
 - **SC-003**: For 100% of test addresses, the answer shown when adding the address equals the answer
   at checkout and the answer in the staff checker, on web and mobile.
 - **SC-004**: The refusal wording is identical, character for character, everywhere a customer can
@@ -356,7 +356,7 @@ at release completes as it would have.
 
 ## Assumptions
 
-- **Courier delivery starts switched off.** Customers cannot yet place a courier order — that arrives
+- **Courier delivery starts switched off.** Customers cannot yet place a courier order - that arrives
   with the programme's checkout and courier features (E5, E6). Until the business switches courier
   delivery on, an address off Effy's list gets the refusal, exactly as an out-of-area address does
   today. This keeps the three-answer rule complete now without promising anything that cannot be

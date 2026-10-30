@@ -44,21 +44,21 @@ dist/
 .pnpm-store/
 
 # ⚠ EXCEPTION (038): packages/email-kit/dist/ is a COMMITTED, DRIFT-GUARDED artifact, not a build
-# output. `make email-check` regenerates it and fails if the contents changed — which is only
+# output. `make email-check` regenerates it and fails if the contents changed - which is only
 # meaningful if the previous contents are in the repository. Same rule as design-system's committed
 # Compose theme and @effy/brand's 57 committed assets; those escape this pattern only because they
 # do not live in a directory called `dist`.
-# ⚠ dist/preview/ IS a build output and stays ignored — it is regenerated on demand and would
+# ⚠ dist/preview/ IS a build output and stays ignored - it is regenerated on demand and would
 # otherwise put seven rendered HTML pages into every diff.
 # ⚠ BOTH lines are required. Git will not descend into an excluded directory, so re-including the
-# directory alone is not enough — the `/**` line is what actually re-includes the files. Verified
+# directory alone is not enough - the `/**` line is what actually re-includes the files. Verified
 # with `git check-ignore -v`, because the one-line version looks correct and silently does nothing.
 !packages/email-kit/dist/
 !packages/email-kit/dist/**
 packages/email-kit/dist/preview/
 
 # --- Terraform (infra) ---
-# NOTE: .terraform.lock.hcl and *.tfvars are COMMITTED on purpose — reproducible provider
+# NOTE: .terraform.lock.hcl and *.tfvars are COMMITTED on purpose - reproducible provider
 # versions and per-env config are code; no secrets live in tfvars (spec 001-infra-foundation).
 .terraform/
 *.tfstate
@@ -73,7 +73,7 @@ override.tf.json
 .turbo
 
 # --- Firebase client config (050-observability-push-foundation) ---
-# Per-app, per-env build inputs supplied by the operator — NOT committed (FR-031).
+# Per-app, per-env build inputs supplied by the operator - NOT committed (FR-031).
 # A missing file makes the mobile build fail loudly rather than ship a wrong default.
 **/androidApp/google-services.json
 **/iosApp/GoogleService-Info.plist
@@ -81,8 +81,8 @@ override.tf.json
 # --- Serverless Framework build output (054-product-inventory) ---
 # ⚠ AT THE ROOT DELIBERATELY, not per-service. Protection used to depend on each edge service
 # carrying its own .gitignore, and that discipline has failed twice: `edge-api/notifications` never
-# had one and committed 2.9 MB of build output — including a `serverless-state.json` carrying the
-# resolved RDS hostname, master username and secret ARN — and `edge-api/orders` (053) has none
+# had one and committed 2.9 MB of build output - including a `serverless-state.json` carrying the
+# resolved RDS hostname, master username and secret ARN - and `edge-api/orders` (053) has none
 # either and is still untracked, so it would have leaked the same on its first commit.
 # A rule here covers every service that exists and every one that will.
 **/.serverless/

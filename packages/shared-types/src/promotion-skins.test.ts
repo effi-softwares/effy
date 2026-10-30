@@ -42,7 +42,7 @@ const MOBILE = resolve(
   "../../../apps/customer-mobile/shared/src/commonTest/kotlin/com/effyshopping/customer/mobile/features/catalog/PromoSkinFixture.kt",
 );
 
-describe("promotion skins — the fixtures both renderers are held to", () => {
+describe("promotion skins - the fixtures both renderers are held to", () => {
   it("constants", () => {
     expect(fixtures.constants).toEqual({ textPx: TEXT_PX, spacingPx: SPACING_PX, radiusPx: RADIUS_PX, weight: WEIGHT_NUM });
   });

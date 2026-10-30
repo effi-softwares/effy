@@ -64,7 +64,7 @@ async function aRound(kind: "collection" | "delivery", deadline = "now() + inter
   )).id;
 }
 
-d("093 — dispatch and the order of work", () => {
+d("093 - dispatch and the order of work", () => {
   beforeAll(async () => {
     container = await new PostgreSqlContainer("postgres:16-alpine").start();
     pool = new Pool({ connectionString: container.getConnectionUri() });
@@ -125,7 +125,7 @@ d("093 — dispatch and the order of work", () => {
     const overdue = await overdueRuns();
     expect(overdue).toEqual([expect.objectContaining({ roundId, kind: "delivery", stage: "to_load", stageLabel: "To load" })]);
     expect(overdue[0]!.minutes).toBeGreaterThanOrEqual(59);
-    // It crossed 40 minutes ago — inside an hour's window, outside a five-minute one.
+    // It crossed 40 minutes ago - inside an hour's window, outside a five-minute one.
     expect(await overdueCrossedSince(pool, new Date(Date.now() - 60 * 60_000))).toBe(1);
     expect(await overdueCrossedSince(pool, new Date(Date.now() - 5 * 60_000))).toBe(0);
 

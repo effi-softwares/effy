@@ -136,7 +136,7 @@ export function CourierScreen() {
           </>
         }
       />
-      <p className="text-sm text-muted-foreground">Labels open through a short-lived link — never shared publicly.</p>
+      <p className="text-sm text-muted-foreground">Labels open through a short-lived link - never shared publicly.</p>
     </ListPage>
   )
 }

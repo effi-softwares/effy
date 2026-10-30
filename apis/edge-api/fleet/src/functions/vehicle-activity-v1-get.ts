@@ -7,7 +7,7 @@ import { activityResponse, preamble } from "@effy/edge-shared";
 import { vehicleActivitySource } from "../activity/sources";
 import { denied, guard, mapFleetError } from "../shared/handler-support";
 
-/** The vehicle's activity — changes, who held it, cleared checks — in the activity drawer (104). */
+/** The vehicle's activity - changes, who held it, cleared checks - in the activity drawer (104). */
 export const handler = async (
   event: AuthedEvent,
   context: Context,

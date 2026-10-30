@@ -78,7 +78,7 @@ beforeEach(() => {
   repo.listSlots.mockResolvedValue([])
 })
 
-describe("Pricing — fee plans (077)", () => {
+describe("Pricing - fee plans (077)", () => {
   it("lists plans with their state, and how much a draft still needs", async () => {
     renderPanel()
     const active = (await screen.findByText("Launch")).closest("tr")!
@@ -126,7 +126,7 @@ describe("Pricing — fee plans (077)", () => {
     renderPanel()
     await user.click(within((await screen.findByText("Launch")).closest("tr")!).getByRole("button", { name: "Open" }))
     const sheet = await screen.findByRole("dialog")
-    expect(within(sheet).getByText(/can't be changed — copy it to a new draft/)).toBeInTheDocument()
+    expect(within(sheet).getByText(/can't be changed - copy it to a new draft/)).toBeInTheDocument()
     expect(within(sheet).getByLabelText("Name")).toBeDisabled()
     expect(within(sheet).queryByRole("button", { name: /draft/ })).toBeNull()
   })
@@ -172,7 +172,7 @@ describe("Pricing — fee plans (077)", () => {
         totalAmount: "0.00",
       },
       steps: [
-        { label: "Distance", detail: "3.4 km — the band up to 10 km", amount: "6.00" },
+        { label: "Distance", detail: "3.4 km - the band up to 10 km", amount: "6.00" },
         { label: "Total", detail: "what the customer pays for delivery", amount: "0.00" },
       ],
       note: null,
@@ -182,14 +182,14 @@ describe("Pricing — fee plans (077)", () => {
     await user.click(screen.getByRole("button", { name: "Work it out" }))
     expect(await screen.findByText("Free delivery")).toBeInTheDocument()
     expect(screen.getByText("−$6.00")).toBeInTheDocument()
-    expect(screen.getByText("3.4 km — the band up to 10 km")).toBeInTheDocument()
+    expect(screen.getByText("3.4 km - the band up to 10 km")).toBeInTheDocument()
     expect(repo.simulateFee).toHaveBeenCalledWith(
       expect.objectContaining({ postcode: "3121", grams: 1000, basketAmount: "50.00", planId: null }),
     )
   })
 })
 
-describe("gapText — every gap has a sentence", () => {
+describe("gapText - every gap has a sentence", () => {
   const all: PlanGapDTO[] = (
     [
       ["distance_bands_missing", {}],
@@ -215,7 +215,7 @@ describe("gapText — every gap has a sentence", () => {
   })
 })
 
-describe("toInput — what is sent", () => {
+describe("toInput - what is sent", () => {
   it("sends the open distance band last whatever row it was typed on, and weights in grams", () => {
     const d = emptyDraft("effy")
     d.distanceBands = [

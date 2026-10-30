@@ -1,7 +1,7 @@
 import { proxyToEdge } from "@/lib/api/proxy"
 
 /**
- * Add every purchasable product in one list to the cart — the weekly-shop action.
+ * Add every purchasable product in one list to the cart - the weekly-shop action.
  *
  * The server decides what is purchasable, as for the saved list: everything it could
  * not add comes back named, with a reason.

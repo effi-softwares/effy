@@ -7,7 +7,7 @@ import { LegalDocumentView } from "@/components/legal/LegalDocumentView"
 
 /**
  * The canonical renderer for every legal document, driven by @effy/legal-content (the single source of
- * truth shared with mobile). Statically generated per slug — public, indexable, non-geofenced, zero
+ * truth shared with mobile). Statically generated per slug - public, indexable, non-geofenced, zero
  * client JS (the store + guest-bundle requirements). The words are authored in the shared package, not
  * here (Principle II); this file is the route and the shell only. Unknown slugs are rejected by the
  * `hasDocument` guard below (notFound), so no `dynamicParams` config is needed (nor allowed under

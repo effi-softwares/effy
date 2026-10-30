@@ -44,7 +44,7 @@ function CourierCollectionRows({ order, canChange, mode }: Props & { mode: "hub"
         <dt className="text-muted-foreground">Reaches the courier</dt>
         <dd>
           <span className="font-medium">{MODE_LABEL[mode]}</span>
-          <span className="text-muted-foreground"> — {MODE_HELP[mode]}</span>
+          <span className="text-muted-foreground"> - {MODE_HELP[mode]}</span>
         </dd>
       </dl>
       {canChange ? (

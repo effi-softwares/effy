@@ -189,7 +189,7 @@ export function SetPasswordDialog({
                     Didn&rsquo;t get it?{" "}
                     <button
                       type="button"
-                      onClick={() => void resend.resend().catch(() => {})}
+                      onClick={() => void resend.resend().catch(() => { })}
                       disabled={!resend.canResend}
                       data-testid="resend-code"
                       className="font-medium text-foreground underline underline-offset-2 hover:no-underline disabled:opacity-50"
@@ -240,7 +240,7 @@ export function SetPasswordDialog({
 
               <p className="text-sm text-foreground/80">
                 Setting a password will sign you out everywhere. You can still sign in with an emailed
-                code afterwards — adding a password doesn’t take that away.
+                code afterwards - adding a password doesn’t take that away.
               </p>
             </form>
 

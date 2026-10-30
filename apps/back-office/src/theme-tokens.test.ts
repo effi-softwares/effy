@@ -7,7 +7,7 @@ const tokensCss = raw.replace(/\/\*[\s\S]*?\*\//g, "").toLowerCase()
 const stylesCss = readFileSync(resolve(process.cwd(), "src/styles.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "")
 
 describe("back-office identity tokens", () => {
-  it("is the identity the app imports — and the only one", () => {
+  it("is the identity the app imports - and the only one", () => {
     expect(stylesCss).toContain('@import "@effy/design-system/console.css"')
     expect(stylesCss).not.toContain('@import "@effy/design-system/tokens.css"')
     expect(stylesCss).not.toContain("customer-web.css")

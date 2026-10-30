@@ -3,14 +3,14 @@
 **Feature**: 025-customer-ui-refresh | **Date**: 2026-07-27
 
 How to run both customer surfaces against this feature and verify it against the spec's success
-criteria. This is a validation guide — implementation detail belongs in `tasks.md`.
+criteria. This is a validation guide - implementation detail belongs in `tasks.md`.
 
 ---
 
 ## 0. Prerequisites
 
 **No migration.** This feature adds none. If `make db-status ENV=dev` shows pending migrations, they
-belong to an earlier slice and must be applied before starting — but not by this feature.
+belong to an earlier slice and must be applied before starting - but not by this feature.
 
 | Need | Command | Notes |
 |---|---|---|
@@ -20,7 +20,7 @@ belong to an earlier slice and must be applied before starting — but not by th
 | Delivery zones seeded | (021 dev seed: `MEL-METRO`, `VIC-REGIONAL`) | **Required for serviceability.** Without it every postcode answers `false` and SC-002/SC-002a cannot be walked. |
 | Hot path running | `make core-run` | ⚠ **Local Docker only.** `core-api` has no cloud deploy; every storefront read here is local-only. |
 
-> ⚠ **After Phase 0, `make core-run` must be restarted** — the serviceability route and the sort/count
+> ⚠ **After Phase 0, `make core-run` must be restarted** - the serviceability route and the sort/count
 > parameters need the new binary. This is the same trap 019 hit with `PUT /v1/cart`.
 
 ---
@@ -37,7 +37,7 @@ Mobile (customer):
 ```bash
 # Android
 cd apps/customer-mobile && ./gradlew :androidApp:installDebug
-# iOS — open apps/customer-mobile/iosApp in Xcode and run
+# iOS - open apps/customer-mobile/iosApp in Xcode and run
 # Device → local core-api: expose it first
 make cm-ngrok-core
 ```
@@ -81,7 +81,7 @@ cd apps/shop-mobile     && ./gradlew :shared:allTests
 and recorded under 020. Phase 0 fixes it. Until it is green, no other web verification is meaningful.
 
 Two related notes:
-- The `cw-size` help text in the Makefile still says "≤ 120 KB". That number is stale — the script's
+- The `cw-size` help text in the Makefile still says "≤ 120 KB". That number is stale - the script's
   real limit is 160 KB, and the script's own comment explains why 120 was unreachable. Fix the help
   string while in there.
 - `GUEST_PAGES` must be extended to `/search` and `/product/[id]`, or the gate will pass while
@@ -89,7 +89,7 @@ Two related notes:
 
 ---
 
-## 3. Serviceability — the SC-002a parity walk
+## 3. Serviceability - the SC-002a parity walk
 
 ```bash
 # A postcode inside a seeded zone
@@ -100,7 +100,7 @@ curl -s 'http://localhost:8080/v1/storefront/serviceability?postcode=3000' | jq
 curl -s 'http://localhost:8080/v1/storefront/serviceability?postcode=0800' | jq
 # → { "postcode": "0800", "serviced": false }
 
-# Not a postcode — MUST be 400, MUST NOT be serviced:false
+# Not a postcode - MUST be 400, MUST NOT be serviced:false
 curl -s -o /dev/null -w '%{http_code}\n' 'http://localhost:8080/v1/storefront/serviceability?postcode=abc'
 # → 400
 ```
@@ -109,11 +109,11 @@ Then confirm the same postcodes get the same answer at checkout (SC-002a). The p
 `core-test` asserts this automatically; the manual walk exists because a passing test against a shared
 function still deserves one live confirmation.
 
-**Also confirm the response contains no zone id, zone name, fee, or window** — FR-014a and FR-006.
+**Also confirm the response contains no zone id, zone name, fee, or window** - FR-014a and FR-006.
 
 ---
 
-## 4. Sort and total — the SC-003a integrity walk
+## 4. Sort and total - the SC-003a integrity walk
 
 ```bash
 # Total present and sort echoed
@@ -124,7 +124,7 @@ for s in newest price_asc price_desc; do
   curl -s "http://localhost:8080/v1/storefront/products?sort=$s&limit=5" | jq -c "{$s: [.items[].priceAmount]}"
 done
 
-# relevance without q falls back — and SAYS so
+# relevance without q falls back - and SAYS so
 curl -s 'http://localhost:8080/v1/storefront/products?sort=relevance&limit=3' | jq '.sort'
 # → "newest"
 
@@ -163,7 +163,7 @@ Walk each as a **signed-out guest**. Any sign-in prompt in these paths is a FR-0
 
 ---
 
-## 6. SC-005 — the structured visual review
+## 6. SC-005 - the structured visual review
 
 **This cannot be automated and the plan does not pretend otherwise.** No gate in this repo can tell
 whether a layout looks right. Walk the matrix and record a pass/fail per cell.
@@ -177,19 +177,19 @@ For each cell, confirm on every screen the feature touches:
 
 - [ ] No clipped, overlapped, or unreachable content
 - [ ] No essential content behind status bars, cutouts, gesture areas, or the keyboard
-- [ ] Product tiles fill their grid — no fixed-width gaps (FR-020)
+- [ ] Product tiles fill their grid - no fixed-width gaps (FR-020)
 - [ ] Every colour, type size, spacing step, radius resolves to the design-system SSOT (FR-007)
-- [ ] Cards appear **only** in the three permitted places (product tile, category tile, promo slide) —
+- [ ] Cards appear **only** in the three permitted places (product tile, category tile, promo slide) -
       no metric or summary cards anywhere, none at the top of any page (Principle V, research R11)
 
 Then, once per surface pair:
 
-- [ ] **SC-008** — the same content side by side on a phone and a desktop reads as one product,
+- [ ] **SC-008** - the same content side by side on a phone and a desktop reads as one product,
       **including the typeface** (this is the one that is currently visibly wrong)
 
 ---
 
-## 7. SC-006 — the mobile "nothing left behind" sweep
+## 7. SC-006 - the mobile "nothing left behind" sweep
 
 Grep-able, then visually confirmed. Each must return **zero reachable instances** in
 `apps/customer-mobile`:
@@ -216,11 +216,11 @@ Grep-able, then visually confirmed. Each must return **zero reachable instances*
 
 These need real people and cannot be closed any other way.
 
-- **SC-002** — ≥90% of shoppers correctly state whether Effy delivers to their address *before*
+- **SC-002** - ≥90% of shoppers correctly state whether Effy delivers to their address *before*
   adding anything to the cart.
-- **SC-003** — ≥90% narrow a >100-product result set to <20 using refinement alone, unaided, first
-  attempt. *(Requires a catalogue larger than the current dev seed — note this when scheduling.)*
-- **SC-013** — a product review rates hierarchy, discovery clarity, delivery confidence, and
+- **SC-003** - ≥90% narrow a >100-product result set to <20 using refinement alone, unaided, first
+  attempt. *(Requires a catalogue larger than the current dev seed - note this when scheduling.)*
+- **SC-013** - a product review rates hierarchy, discovery clarity, delivery confidence, and
   perceived modernity ≥4/5 on both surfaces.
 
 ---
@@ -239,7 +239,7 @@ change**:
 
 ## 11. Sign-off
 
-- [ ] Every gate in §2 green — **including the bundle budget**
+- [ ] Every gate in §2 green - **including the bundle budget**
 - [ ] §3–§8 walked and recorded
 - [ ] §9 scheduled or completed
 - [ ] §10 clean

@@ -55,7 +55,7 @@ make edge-deploy SERVICE=notifications ENV=dev       # points emails + push
 ```
 
 ⚠ **Deploy order matters.** Every service that runs `finalizeSucceeded` or the refund service must be
-on the new shared library before anyone can hold points — `commerce` (checkout, webhook, refund
+on the new shared library before anyone can hold points - `commerce` (checkout, webhook, refund
 reconciler), `orders` (staff refunds and cancellation) and `shop` (shop-manager refunds). Until the customer-facing clients ship,
 no one can choose points, so the window is safe if the backends go first.
 

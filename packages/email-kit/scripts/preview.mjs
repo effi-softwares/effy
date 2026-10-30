@@ -18,7 +18,7 @@ const escapeHtml = (s) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;
 
 const manifestPath = resolve(DIST, "manifest.json");
 if (!existsSync(manifestPath)) {
-  console.error("✗ nothing to preview — run `make email-gen` first");
+  console.error("✗ nothing to preview - run `make email-gen` first");
   process.exit(1);
 }
 const manifest = JSON.parse(read(manifestPath));
@@ -56,4 +56,4 @@ ${rows.join("\n")}
 </table>`,
 );
 
-console.log(`✓ email-preview — ${rows.length} template(s) → dist/preview/index.html`);
+console.log(`✓ email-preview - ${rows.length} template(s) → dist/preview/index.html`);

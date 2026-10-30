@@ -120,7 +120,7 @@ class PaymentViewModelTest {
         assertFalse(vm.state.value.paying)
     }
 
-    /** Backing out is a choice, not a failure — and it must not produce an alarming message. */
+    /** Backing out is a choice, not a failure - and it must not produce an alarming message. */
     @Test
     fun `cancelling says nothing and charges nothing`() = runTest {
         val vm = viewModel()
@@ -178,7 +178,7 @@ class PaymentViewModelTest {
 
     /**
      * Both halves or neither. The mobile SDKs take the session secret and the provider
-     * customer id together — `createWithCustomerSession(id, clientSecret)` — so a config carrying one
+     * customer id together - `createWithCustomerSession(id, clientSecret)` - so a config carrying one
      * without the other attaches no session at all and renders an empty saved-card list, with nothing
      * erroring anywhere. A shopper with kept cards would simply be asked to type one in again.
      */
@@ -205,7 +205,7 @@ class PaymentViewModelTest {
     }
 
     /**
-     * 051 US5 / FR-036 / FR-037 — every refusal a mobile shopper sees must name a cause and say what
+     * 051 US5 / FR-036 / FR-037 - every refusal a mobile shopper sees must name a cause and say what
      * happened to their money. The failure this guards is the easy one to ship: a fallback branch that
      * emits "something went wrong", which type-checks perfectly and tells the shopper nothing.
      */
@@ -249,7 +249,7 @@ class PaymentViewModelTest {
 
     /**
      * The cart mirror is this screen's job now. Checkout used to clear it when its own pay call
-     * returned, but checkout no longer takes the payment — so without this the badge would still show a
+     * returned, but checkout no longer takes the payment - so without this the badge would still show a
      * basket the shopper has just bought and paid for.
      */
     @Test
@@ -272,7 +272,7 @@ class PaymentViewModelTest {
         assertTrue(cart.snapshot().lines.isEmpty())
     }
 
-    /** A failed payment must not empty the cart — the shopper still has to be able to try again. */
+    /** A failed payment must not empty the cart - the shopper still has to be able to try again. */
     @Test
     fun `a failed payment leaves the cart alone`() = runTest {
         val cart = cartStore()

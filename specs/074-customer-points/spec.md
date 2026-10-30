@@ -11,7 +11,7 @@ and the customer can spend. This feature introduces the balance; earning points 
 of it. Back-office staff can credit or debit a customer's points for a stated reason, and every change
 is recorded with who did it, when, why, and which order it relates to (if any). A customer sees their
 balance and a plain history of every change on web and mobile. At checkout a customer can choose to use
-points toward an order — part of it or all of it, goods and delivery alike — and sees exactly how much
+points toward an order - part of it or all of it, goods and delivery alike - and sees exactly how much
 was paid by points and how much by card before paying. One point is worth one cent (a business
 setting). Points expire 12 months after they were credited (a business setting); the oldest points are
 used first, expired points are never usable, and the customer is told before points expire. If an order
@@ -103,7 +103,7 @@ balance after, and the receipt.
    order, **Then** the order uses only points still valid at that moment; if fewer are available than
    shown, the customer is shown the corrected amounts before anything is charged.
 7. **Given** an order paid with points, **When** the customer views the order or receipt (screen and
-   email), **Then** points appear as a way the order was paid — never as a discount on the price.
+   email), **Then** points appear as a way the order was paid - never as a discount on the price.
 
 ---
 
@@ -114,7 +114,7 @@ customer gets 200 points back and $6.00 on the card. Another order paid entirely
 cancelled; every point comes back.
 
 **Why this priority**: Without this, a refund could turn points into card money (a cash-out) or lose
-them — either breaks the rule that points are never cash and never vanish unfairly.
+them - either breaks the rule that points are never cash and never vanish unfairly.
 
 **Independent Test**: Refund part of, and cancel the whole of, orders paid with mixed and points-only
 payment; confirm the split and the history lines.
@@ -129,7 +129,7 @@ payment; confirm the split and the history lines.
 3. **Given** points returned by a refund, **When** they are credited, **Then** they get a new full expiry
    period from the day they come back, and the history line names the order and the refund.
 4. **Given** an order refunded piece by piece, **When** the last piece is refunded, **Then** the total
-   points returned equal the points spent and the total card money returned equals the card money paid —
+   points returned equal the points spent and the total card money returned equals the card money paid -
    never a cent more of either.
 
 ---
@@ -217,7 +217,7 @@ warning use it, and that the change is recorded.
   full expiry period (Story 3, scenario 3).
 - **A late card payment** that succeeds after the customer's points hold lapsed and the points were
   meanwhile spent elsewhere: the order is still honoured at what the customer saw, Effy absorbs the
-  shortfall, and staff are told — the customer is never charged again and the balance never goes
+  shortfall, and staff are told - the customer is never charged again and the balance never goes
   negative.
 - **A customer closes their account**: the platform tells them before closure how many points they will
   lose; remaining points are forfeited on closure and the history records it.
@@ -236,8 +236,8 @@ warning use it, and that the change is recorded.
 - **FR-002**: Every change to a balance MUST be recorded as one entry with: the number of points (added
   or removed), the kind of change (staff credit, staff debit, automatic credit, spent on an order,
   returned by cancellation or refund, expired, forfeited on account closure), the author (a named staff
-  member or a named platform flow), the reason, the related order (if any), the date and time, and —
-  for points added — the date they expire.
+  member or a named platform flow), the reason, the related order (if any), the date and time, and -
+  for points added - the date they expire.
 - **FR-003**: Recorded entries MUST never be edited or deleted. A correction MUST be a further entry.
 - **FR-004**: The usable balance MUST at every moment equal the points added, less points spent,
   debited, expired or forfeited, counting only points that have not expired. It MUST never be negative.
@@ -276,8 +276,8 @@ warning use it, and that the change is recorded.
 - **FR-016**: When points are spent, the oldest valid points MUST be used first.
 - **FR-017**: If the usable balance changes between showing and paying (expiry, a debit, another
   checkout), the customer MUST be shown the corrected amounts before anything is charged.
-- **FR-018**: Points MUST be recorded and shown as a way of paying — never as a discount on prices,
-  delivery fees or promotions — on the order, the receipt (screen and email) and in back-office.
+- **FR-018**: Points MUST be recorded and shown as a way of paying - never as a discount on prices,
+  delivery fees or promotions - on the order, the receipt (screen and email) and in back-office.
 
 **Returning points**
 
@@ -287,7 +287,7 @@ warning use it, and that the change is recorded.
   return more points than were spent or more card money than was paid.
 - **FR-020**: Points returned by a cancellation or refund MUST be credited with a new full expiry period
   from the day they are returned.
-- **FR-021**: Points MUST never be paid out as money — not on request, not on refund, not on account
+- **FR-021**: Points MUST never be paid out as money - not on request, not on refund, not on account
   closure.
 
 **Expiry**
@@ -322,29 +322,29 @@ warning use it, and that the change is recorded.
 
 ### Key Entities
 
-- **Points balance**: belongs to one customer; never stored on its own as a number anyone can edit — it
+- **Points balance**: belongs to one customer; never stored on its own as a number anyone can edit - it
   is what the history adds up to (valid points added, less points used).
-- **Points entry**: one change to a balance — kind, number of points, author (staff member or platform
+- **Points entry**: one change to a balance - kind, number of points, author (staff member or platform
   flow), reason, related order, time, and, for points added, expiry date. Never changed once recorded.
 - **Points reservation**: points set aside for one checkout until it is paid, fails or is abandoned.
 - **Order points payment**: on an order, the points used, their money value at the time, and the amount
   of points and card money returned so far.
-- **Points settings**: point value, expiry period, agent credit limit, warning period — with a record of
+- **Points settings**: point value, expiry period, agent credit limit, warning period - with a record of
   every change.
 
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes
 
-- **SC-001**: For every customer, at every moment, the usable balance equals the sum of their history —
+- **SC-001**: For every customer, at every moment, the usable balance equals the sum of their history -
   checked across every customer by a regular reconciliation, with zero mismatches.
-- **SC-002**: No customer's usable balance is ever negative — zero occurrences.
+- **SC-002**: No customer's usable balance is ever negative - zero occurrences.
 - **SC-003**: A customer sees a new credit on their points page within 10 seconds of it being recorded,
   without refreshing.
 - **SC-004**: A customer can apply points at checkout in one action (the default uses the most they can),
   and 100% of orders paid with points are charged to the card exactly the amount shown before paying.
 - **SC-005**: Across all refunds of any order, points returned never exceed points spent and card money
-  returned never exceeds card money paid — zero occurrences.
+  returned never exceeds card money paid - zero occurrences.
 - **SC-006**: Every points change is attributable: 100% of entries name an author, a kind and a reason.
 - **SC-007**: 100% of customers holding points that are about to expire receive exactly one warning
   before they expire.
@@ -354,14 +354,14 @@ warning use it, and that the change is recorded.
 ## Assumptions
 
 - **One point = one cent; points expire 12 months after crediting; warnings go 30 days before expiry**
-  — the operator's stated defaults, all business settings (backlog decision Q2, 2026-10-08).
+  - the operator's stated defaults, all business settings (backlog decision Q2, 2026-10-08).
 - **The customer-service per-credit limit** starts at 2,000 points ($20.00) until the business sets it.
 - **Points are promotional credit given free by Effy, not bought by the customer**, so they are not a
   gift card. Australian gift-card rules (minimum three-year expiry) are assumed **not** to apply; this
   and the customer-facing points terms go to legal review (045's legal system) before go-live.
 - **Points are a means of payment, not a discount**: prices, promotions and GST on the order are
   calculated exactly as without points; points then pay part or all of the total.
-- **Returned points get a fresh expiry** (rather than their original one) — simpler to explain and never
+- **Returned points get a fresh expiry** (rather than their original one) - simpler to explain and never
   unfair to the customer.
 - **Forfeiting points on account closure** is acceptable because points have no cash value; the customer
   is told beforehand.

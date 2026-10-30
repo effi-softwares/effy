@@ -41,7 +41,7 @@ fun DriverSectionLabel(text: String, modifier: Modifier = Modifier) {
 }
 
 /**
- * A bordered group of rows — the canvas's `rounded-lg border` list. Rows inside are separated by
+ * A bordered group of rows - the canvas's `rounded-lg border` list. Rows inside are separated by
  * hairlines ([DriverRow] draws its own unless it is [DriverRow]'s `last`).
  */
 @Composable

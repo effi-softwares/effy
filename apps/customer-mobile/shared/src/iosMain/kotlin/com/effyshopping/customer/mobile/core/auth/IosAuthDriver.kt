@@ -9,17 +9,17 @@ import kotlin.coroutines.resume
 
 /**
  * The iOS side of the auth boundary. Kotlin/Native cannot call Amplify Swift, so Swift
- * implements the simple, callback-based [IosAuthBridge] (no `suspend`, no `Flow` — neither of which a
+ * implements the simple, callback-based [IosAuthBridge] (no `suspend`, no `Flow` - neither of which a
  * Swift class can produce), and this Kotlin class adapts it to the common [AuthDriver] contract: it
  * converts each callback into a coroutine, maps the bridge's flat result to [AuthStep], and owns the
  * [sessionChanges] Flow itself. Swift builds [IosAuthDriver] and hands it to `MainViewController`.
  *
  * The interface's deliberate absences (no password write, no global sign-out, no escape hatch) carry
- * over unchanged — the Swift bridge has no such methods either.
+ * over unchanged - the Swift bridge has no such methods either.
  */
 class IosAuthDriver(private val bridge: IosAuthBridge) : AuthDriver {
 
-    // iOS has no Android-Keystore failure mode, so nothing emits here — the Flow just stays idle.
+    // iOS has no Android-Keystore failure mode, so nothing emits here - the Flow just stays idle.
     private val _sessionChanges = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     override val sessionChanges: Flow<Unit> = _sessionChanges.asSharedFlow()
 
@@ -51,7 +51,7 @@ class IosAuthDriver(private val bridge: IosAuthBridge) : AuthDriver {
     override suspend fun resendSignUpCode(email: String): AuthStep =
         mapResult(await { cb -> bridge.resendSignUpCode(email, cb) })
 
-    /** Not a resend — a fresh sign-in. See `AuthDriver.resendSignInCode`. */
+    /** Not a resend - a fresh sign-in. See `AuthDriver.resendSignInCode`. */
     override suspend fun resendSignInCode(email: String): AuthStep = signInWithEmailOtp(email)
 
     override suspend fun startPasswordReset(email: String): AuthStep =
@@ -87,7 +87,7 @@ class IosAuthDriver(private val bridge: IosAuthBridge) : AuthDriver {
     }
 }
 
-/** A signed-in session, flattened for the Swift bridge (no expiry — Amplify owns refresh). */
+/** A signed-in session, flattened for the Swift bridge (no expiry - Amplify owns refresh). */
 data class BridgeSession(val sub: String, val idToken: String, val accessToken: String)
 
 /**
@@ -103,8 +103,8 @@ data class BridgeAuthResult(
 )
 
 /**
- * The Swift-implemented bridge. Plain callbacks — no `suspend`, no `Flow`, no Kotlin sealed
- * types on the wire — so a Swift `NSObject` can conform to it and call Amplify Swift's async APIs,
+ * The Swift-implemented bridge. Plain callbacks - no `suspend`, no `Flow`, no Kotlin sealed
+ * types on the wire - so a Swift `NSObject` can conform to it and call Amplify Swift's async APIs,
  * invoking the callback when done. It has NO password-write / global-sign-out / escape-hatch method,
  * mirroring [AuthDriver]'s absences.
  */

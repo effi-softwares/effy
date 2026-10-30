@@ -3,7 +3,7 @@ package com.effyshopping.customer.mobile.features.catalog.domain
 /**
  * One level of the category tree as the app browses it (101, FR-033): the category being looked into (null at
  * the top: the departments) and its sub-categories with something to sell, in the platform's order. The tree is
- * up to five levels deep; a leaf is never a level — it opens its products.
+ * up to five levels deep; a leaf is never a level - it opens its products.
  */
 data class BrowseLevel(val parent: Category?, val children: List<Category>)
 

@@ -178,7 +178,7 @@ export function ConsignmentBlock({
       ) : (
         <p className="text-sm text-muted-foreground">
           {supplier
-            ? "Not booked yet — the supplier sees that a courier pickup is being arranged."
+            ? "Not booked yet - the supplier sees that a courier pickup is being arranged."
             : "Not booked yet. Recording the handover at the hub books it with the order's courier service."}
         </p>
       )}

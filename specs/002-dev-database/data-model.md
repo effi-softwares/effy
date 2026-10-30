@@ -7,7 +7,7 @@ Exact attributes live in the module files; this fixes shapes, relationships, and
 
 ---
 
-## E1 — Database Instance (`aws_db_instance` via `modules/rds-postgres`)
+## E1 - Database Instance (`aws_db_instance` via `modules/rds-postgres`)
 
 | Field | Value (dev) | Rule / Source |
 |---|---|---|
@@ -27,7 +27,7 @@ Exact attributes live in the module files; this fixes shapes, relationships, and
 feeds E4 (contract values). **State transitions**: `authored → planned → applied (dev)`;
 promotion = re-instantiation per env with levers flipped.
 
-## E2 — Network Boundary (`aws_security_group` + `aws_db_subnet_group`)
+## E2 - Network Boundary (`aws_security_group` + `aws_db_subnet_group`)
 
 | Field | Value | Rule |
 |---|---|---|
@@ -36,10 +36,10 @@ promotion = re-instantiation per env with levers flipped.
 | egress | none defined | RDS initiates nothing |
 | subnet group | default-VPC subnets (data-sourced) | ≥2 AZs required by RDS; override seam `vpc_id`/`subnet_ids` for the network slice (research D8) |
 
-**Rule**: `0.0.0.0/0` (or `::/0`) in `db_allowed_cidrs` is rejected by variable validation —
+**Rule**: `0.0.0.0/0` (or `::/0`) in `db_allowed_cidrs` is rejected by variable validation -
 the module cannot express "open to the internet" (FR-006 structurally).
 
-## E3 — Access Credential (RDS-managed secret)
+## E3 - Access Credential (RDS-managed secret)
 
 | Field | Value | Rule |
 |---|---|---|
@@ -48,7 +48,7 @@ the module cannot express "open to the internet" (FR-006 structurally).
 | published as | ARN pointer in E4 | consumers fetch by ARN with their own IAM |
 | rotation | available, OFF in dev | promotion lever; $0 while off |
 
-## E4 — Connection Contract Values (SSM, written by the dev root)
+## E4 - Connection Contract Values (SSM, written by the dev root)
 
 | Parameter | Type | Example |
 |---|---|---|
@@ -58,22 +58,22 @@ the module cannot express "open to the internet" (FR-006 structurally).
 | `/effy/dev/db/master_username` | String | `effy_admin` |
 | `/effy/dev/db/master_secret_arn` | String | `arn:aws:secretsmanager:…` (pointer, not secret) |
 
-**Rules**: `String` only — no secret material; the ARN is a reference. Adding keys =
+**Rules**: `String` only - no secret material; the ARN is a reference. Adding keys =
 backward-compatible; renaming = breaking (001 contract law). Writer: dev root `db.tf` only.
 
-## E5 — Engine Parameter Group (`aws_db_parameter_group`)
+## E5 - Engine Parameter Group (`aws_db_parameter_group`)
 
 | Field | Value | Rule |
 |---|---|---|
 | family | `postgres16` | tracks engine major |
 | `rds.force_ssl` | `1` | non-TLS connections refused (research D7) |
 
-## E6 — Cost Posture (the verifiable all-off set)
+## E6 - Cost Posture (the verifiable all-off set)
 
 The flag set from research D3, exposed 1:1 as module variables with cheap defaults; its
 live verification procedure is
 [contracts/cost-posture.contract.md](./contracts/cost-posture.contract.md). This entity IS
-spec US2 — configuration as a checkable object, not a hope.
+spec US2 - configuration as a checkable object, not a hope.
 
 ---
 

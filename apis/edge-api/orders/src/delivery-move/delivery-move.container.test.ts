@@ -94,7 +94,7 @@ const call = async (fn: typeof getMove, e: unknown) => {
 const preview = (sub: string, order: string, to = "courier") => call(getMove, event(sub, "GET", order, { query: { to } }));
 const move = (sub: string, order: string, body: unknown) => call(postMove, event(sub, "POST", order, { body }));
 
-d("081 — the delivery-move routes", () => {
+d("081 - the delivery-move routes", () => {
   beforeAll(async () => {
     container = await new PostgreSqlContainer("postgres:16-alpine").start();
     pool = new Pool({ connectionString: container.getConnectionUri() });
@@ -124,7 +124,7 @@ d("081 — the delivery-move routes", () => {
     holder.submitted = [];
   });
 
-  it("P8 — a customer-service agent previews and reads the history, and cannot move", async () => {
+  it("P8 - a customer-service agent previews and reads the history, and cannot move", async () => {
     const o = await effyOrder();
     const p = await preview("sub-csa", o.order);
     expect(p.status).toBe(200);
@@ -153,7 +153,7 @@ d("081 — the delivery-move routes", () => {
     expect(moves).toEqual([expect.objectContaining({ kind: "delivery", detail: expect.stringContaining("Points for the difference: 250 points ($2.50)") })]);
   });
 
-  it("P6/P7 — the request is checked field by field; a stale amount, a stale order and a repeat are refused with their codes", async () => {
+  it("P6/P7 - the request is checked field by field; a stale amount, a stale order and a repeat are refused with their codes", async () => {
     const o = await effyOrder();
     const p = await preview("sub-manager", o.order);
     const base = { to: "courier", reason: "Van off the road", compensation: "points_difference", expectedUpdatedAt: p.body.updatedAt, expectedAmount: "2.50" };

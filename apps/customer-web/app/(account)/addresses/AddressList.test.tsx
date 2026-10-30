@@ -36,7 +36,7 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
-describe("AddressList — view (T011)", () => {
+describe("AddressList - view (T011)", () => {
   it("lists the addresses as a list and marks exactly one default", () => {
     render(
       <AddressList
@@ -56,7 +56,7 @@ describe("AddressList — view (T011)", () => {
   })
 })
 
-describe("AddressList — set default (T026)", () => {
+describe("AddressList - set default (T026)", () => {
   it("sets a non-default as default, leaving exactly one default", async () => {
     const user = userEvent.setup()
     vi.stubGlobal(
@@ -76,14 +76,14 @@ describe("AddressList — set default (T026)", () => {
     expect(within(workRow).getByTestId("default-badge")).toBeInTheDocument()
   })
 
-  it("offers no set-default control on the already-default row (idempotent — FR-014)", () => {
+  it("offers no set-default control on the already-default row (idempotent - FR-014)", () => {
     render(<AddressList initial={[addr(), addr({ id: "a2", isDefault: false, label: "Work" })]} />)
     const homeRow = screen.getByText("Home").closest("li")!
     expect(within(homeRow).queryByRole("button", { name: /set as default/i })).toBeNull()
   })
 })
 
-describe("AddressList — delete (T030)", () => {
+describe("AddressList - delete (T030)", () => {
   it("confirms then removes a non-default row", async () => {
     const user = userEvent.setup()
     vi.stubGlobal("fetch", vi.fn(async () => jsonRes(null, true, 204)))
@@ -137,7 +137,7 @@ describe("AddressList — delete (T030)", () => {
   })
 })
 
-describe("AddressList — edit entry point (T033)", () => {
+describe("AddressList - edit entry point (T033)", () => {
   it("opens the pre-filled edit form from the row body", async () => {
     const user = userEvent.setup()
     render(<AddressList initial={[addr({ recipientName: "Pat", label: "Home" })]} />)

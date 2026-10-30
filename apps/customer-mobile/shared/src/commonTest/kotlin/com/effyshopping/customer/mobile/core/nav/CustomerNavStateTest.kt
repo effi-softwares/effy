@@ -39,7 +39,7 @@ class CustomerNavStateTest {
         val failure = assertFailsWith<IllegalArgumentException> {
             nav.resetTo(CustomerNavKey.Home)
         }
-        // The message must name both tabs — a bare "illegal argument" would not have helped anyone.
+        // The message must name both tabs - a bare "illegal argument" would not have helped anyone.
         assertTrue("Home" in failure.message.orEmpty() && "Account" in failure.message.orEmpty())
     }
 

@@ -6,7 +6,7 @@ Connection Contract Values, Forward-Only Policy) onto concrete shapes.
 
 ---
 
-## E1 — Migration File (`db/migrations/<timestamp>_<snake_case_title>.sql`)
+## E1 - Migration File (`db/migrations/<timestamp>_<snake_case_title>.sql`)
 
 | Field | Value / Rule |
 |---|---|
@@ -18,7 +18,7 @@ Connection Contract Values, Forward-Only Policy) onto concrete shapes.
 
 **State transitions**: `authored (db-new) → committed → applied (ledger row) [→ dev-only: stepped-back → re-applied]`.
 
-## E2 — Migration Ledger (`goose_db_version` table, in the target database)
+## E2 - Migration Ledger (`goose_db_version` table, in the target database)
 
 | Field | Value / Rule |
 |---|---|
@@ -26,19 +26,19 @@ Connection Contract Values, Forward-Only Policy) onto concrete shapes.
 | content | one row per applied migration (version id, is_applied, timestamp) |
 | authority | THE truth for `db-status` (SC-003); never hand-edited |
 
-## E3 — Workflow Commands (root Makefile)
+## E3 - Workflow Commands (root Makefile)
 
 | Target | Mutates? | Guards |
 |---|---|---|
 | `make db-new name=…` | no (local file) | name required; lands in `db/migrations/` with annotations scaffolded |
 | `make db-status ENV=…` | no | contract-existence = env guard (D9) |
-| `make db-up ENV=…` | **yes — 🧑‍💻 operator** | uncommitted-migrations guard (D7, `FORCE=1` override) + endpoint confirmation prompt |
-| `make db-down ENV=…` | **yes — 🧑‍💻 operator** | **hard-blocked unless `ENV=dev`**; exactly one step; endpoint confirmation prompt |
+| `make db-up ENV=…` | **yes - 🧑‍💻 operator** | uncommitted-migrations guard (D7, `FORCE=1` override) + endpoint confirmation prompt |
+| `make db-down ENV=…` | **yes - 🧑‍💻 operator** | **hard-blocked unless `ENV=dev`**; exactly one step; endpoint confirmation prompt |
 
 All wrap `AWS_PROFILE=ef`; DSN enters via process env (`GOOSE_DBSTRING`) only, never argv,
 never echoed (full surface: [contracts/makefile-db-targets.contract.md](./contracts/makefile-db-targets.contract.md)).
 
-## E4 — Connection Contract Values (consumed, not created)
+## E4 - Connection Contract Values (consumed, not created)
 
 `infra/scripts/db-dsn.sh <env>` composes, at invocation:
 
@@ -49,12 +49,12 @@ never echoed (full surface: [contracts/makefile-db-targets.contract.md](./contra
 | SSM | `/effy/<env>/db/name` | `dbname=` |
 | SSM | `/effy/<env>/db/master_username` | `user=` |
 | Secrets Manager (ARN from `/effy/<env>/db/master_secret_arn`) | secret JSON `.password` | `password=` |
-| fixed | — | `sslmode=require` (002 forced TLS) |
+| fixed | - | `sslmode=require` (002 forced TLS) |
 
 **Rules**: this slice adds **zero** new contract keys; libpq keyword format (no URL
 encoding); output only ever captured by command substitution.
 
-## E5 — Forward-Only Policy (encoded, not aspirational)
+## E5 - Forward-Only Policy (encoded, not aspirational)
 
 | Mechanism | Where |
 |---|---|
@@ -63,7 +63,7 @@ encoding); output only ever captured by command substitution.
 | shipped mistakes → new forward migration | `db/README.md` law + review discipline |
 | no `db-reset` / mass rollback exists | command surface (D6) |
 
-## E6 — Proving Migration (FR-011)
+## E6 - Proving Migration (FR-011)
 
 `<timestamp>_baseline_admin_schema.sql`: Up = `CREATE SCHEMA IF NOT EXISTS admin` +
 schema comment; Down = `DROP SCHEMA IF EXISTS admin` (safe while empty). Platform-owned

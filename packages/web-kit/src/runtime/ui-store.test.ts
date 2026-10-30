@@ -15,7 +15,7 @@ function mockMatchMedia(initialDark: boolean) {
     media: "(prefers-color-scheme: dark)",
     addEventListener: (_: string, cb: () => void) => listeners.add(cb),
     removeEventListener: (_: string, cb: () => void) => listeners.delete(cb),
-    /** test helper — flip the OS preference and notify listeners */
+    /** test helper - flip the OS preference and notify listeners */
     setOsDark(v: boolean) {
       matches = v;
       listeners.forEach((cb) => cb());

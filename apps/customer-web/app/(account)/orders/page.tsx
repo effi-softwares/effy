@@ -131,7 +131,7 @@ async function OrdersList({ searchParams }: { searchParams: Search }) {
         <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed px-6 py-12 text-center">
           <h2 className="text-lg font-semibold">No orders match</h2>
           <p className="max-w-md text-sm text-muted-foreground">
-            You have {orders.length === 1 ? "1 order" : `${orders.length} orders`} in all — none in this period with this filter.
+            You have {orders.length === 1 ? "1 order" : `${orders.length} orders`} in all - none in this period with this filter.
           </p>
           <Link href={href({ status: "all", period: "all" })} className={btnClass("outline", "md", "mt-2")}>
             Show all orders

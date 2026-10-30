@@ -42,7 +42,7 @@ describe("shop-web inherits the design system and defines no theme of its own", 
 
   it("resolves the action blue from the shared source: one fill, a lifted text blue in dark", () => {
     expect(tokensCss.match(/--primary-fill:\s*#2563eb/g)).toHaveLength(2) // the same fill in both
-    expect(tokensCss).toMatch(/--primary:\s*#60a5fa/) // dark text — brighter, same hue
+    expect(tokensCss).toMatch(/--primary:\s*#60a5fa/) // dark text - brighter, same hue
     expect(tokensCss.match(/--brand-fill:\s*#059669/g)).toHaveLength(2)
     expect(tokensCss).toMatch(/--brand:\s*#10b981/)
   })

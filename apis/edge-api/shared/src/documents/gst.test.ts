@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { adjustmentGst, gstOf, invoiceTotals, isValidAbn, money } from "./gst";
 
-describe("096 — GST arithmetic (R15)", () => {
+describe("096 - GST arithmetic (R15)", () => {
   it("one eleventh, rounded half up", () => {
     expect(gstOf(1100)).toBe(100);
     expect(gstOf(1000)).toBe(91); // 90.909…

@@ -39,7 +39,7 @@ const ALL: NotificationType[] = [
 ];
 
 describe("notification copy + wire contract", () => {
-  it("the catalogue is exhaustive — no type ships without copy, and none is left untested", () => {
+  it("the catalogue is exhaustive - no type ships without copy, and none is left untested", () => {
     expect([...NOTIFICATION_TYPES].sort()).toEqual([...ALL].sort());
   });
 
@@ -156,7 +156,7 @@ describe("notification copy + wire contract", () => {
     expect(isKnownNotificationType("constructor")).toBe(false);
   });
 
-  it("074 — a points notification opens the points screen, never a per-entry path that does not exist", () => {
+  it("074 - a points notification opens the points screen, never a per-entry path that does not exist", () => {
     for (const t of ["points_credited", "points_expiring"] as const) {
       expect(deepLinkFor(t, "entry-1")).toBe("effy://points");
       expect(webPathFor(t, "entry-1")).toBe("/account?tab=points");

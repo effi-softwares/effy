@@ -53,7 +53,7 @@ import com.effyshopping.mobile.design.EffySpacing
 import com.effyshopping.mobile.kit.live.LiveKind
 
 /**
- * Effy points — the balance and every change to it.
+ * Effy points - the balance and every change to it.
  *
  * The storefront identity permits cards (constitution v3.3.0): the balance is a card, the
  * history stays a list of rows.
@@ -64,7 +64,7 @@ fun PointsScreen(container: AppContainer, onBack: () -> Unit) {
     val state by vm.state.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) { container.analyticsDriver.capture(AnalyticsEvent.PointsViewed) }
 
-    // 087 (Points board): a pushed page with Back (it had none — FR-029), the balance in a card, the
+    // 087 (Points board): a pushed page with Back (it had none - FR-029), the balance in a card, the
     // history as rows below it, pull to refresh.
     Column(Modifier.fillMaxSize()) {
         EffyAppBar(title = "Effy points")
@@ -194,7 +194,7 @@ private fun LineRow(line: PointsLine) {
             (if (credit) "+" else "−") + formatPoints(kotlin.math.abs(line.points)),
             style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"),
             fontWeight = FontWeight.SemiBold,
-            // A credit is good news — Effy green (the storefront's savings colour). A use is plain.
+            // A credit is good news - Effy green (the storefront's savings colour). A use is plain.
             color = if (credit) EffyRoles.brand else MaterialTheme.colorScheme.onSurface,
         )
     }
@@ -205,5 +205,5 @@ private fun Centered(content: @Composable () -> Unit) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { content() }
 }
 
-/** "1,250" — grouped thousands, no locale API needed. */
+/** "1,250" - grouped thousands, no locale API needed. */
 internal fun formatPoints(n: Long): String = n.toString().reversed().chunked(3).joinToString(",").reversed()

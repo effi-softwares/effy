@@ -4,7 +4,7 @@
 **Prerequisites**: plan.md, spec.md, research.md (R1–R18), data-model.md, contracts/api.md, quickstart.md
 
 **Tests**: Included where the plan requires them (one-writer guards, the availability truth table,
-SC-004 concurrency, unit-price fixtures, selector logic) — the house standard, not optional extras.
+SC-004 concurrency, unit-price fixtures, selector logic) - the house standard, not optional extras.
 
 **Path shorthands**: `EA` = `apis/edge-api`, `ST` = `packages/shared-types/src`,
 `CM` = `apps/customer-mobile/shared/src/commonMain/kotlin/com/effyshopping/customer/mobile`,
@@ -30,7 +30,7 @@ runs against the new schema. Stories then add the variant behaviour on top.
 
 ---
 
-## Phase 2: Foundational (blocking — the platform runs on the new schema)
+## Phase 2: Foundational (blocking - the platform runs on the new schema)
 
 ### Shared contracts and rules
 
@@ -41,7 +41,7 @@ runs against the new schema. Stories then add the variant behaviour on top.
 ### Edge-shared writers and rules
 
 - [X] T011 Create `EA/shared/src/catalog/label.ts` (SQL fragment building the label from value names in option order + re-export of `variantLabel`) and `EA/shared/src/catalog/listing.ts` with `refreshListing(tx, productId)` (R4: min customer price among `state='active'` variants, its compare-at, `price_varies`)
-- [X] T012 Create `EA/shared/src/catalog/variants.ts` `applyVariantSet(tx, productId, shopId, options, variants, unitBasis)` — validate with `validateVariantSet`, upsert options/values/variants by id, delete what a DRAFT no longer has / mark `removed` what an APPROVED product drops, resolve `mediaStorageKey` → `media_id`, map unique violations to field errors; export `catalog` from the package index (R6)
+- [X] T012 Create `EA/shared/src/catalog/variants.ts` `applyVariantSet(tx, productId, shopId, options, variants, unitBasis)` - validate with `validateVariantSet`, upsert options/values/variants by id, delete what a DRAFT no longer has / mark `removed` what an APPROVED product drops, resolve `mediaStorageKey` → `media_id`, map unique violations to field errors; export `catalog` from the package index (R6)
 - [X] T013 Rewrite `EA/shared/src/lib/availability.ts`: `variantPurchasableSql(p, v)`, `productAvailableSql(p)`, `purchasable(status, state, tracked, onHand)`, `outOfStock(...)`, updated `AVAILABILITY_COLUMNS`; update `availability.test.ts` to run one truth table through all three forms and the storefront availability guard to accept only these (R5)
 - [X] T014 Add guard tests in `EA/shared/src/catalog/catalog.guard.test.ts`: (a) only `listing.ts` writes `list_price_amount|list_compare_at_amount|price_varies`; (b) only `variants.ts` and the state route's repository write `product_option*`/`product_variant` rows other than stock columns; (c) no SQL under `EA/*/src` reads `p.(price_amount|compare_at_amount|shop_price_amount|sku|gtin|weight_grams|weight_is_assumed|stock_tracked|stock_on_hand|low_stock_threshold)` on a `product` alias
 - [X] T015 Update `EA/shared/src/lib/margin.ts` callers' helper: add `priceVariants(tx, productId, margin)` in `EA/shared/src/catalog/variants.ts` that sets every variant's `price_amount`/`compare_at_amount` from `customerPrice` and calls `refreshListing` (R7)
@@ -62,7 +62,7 @@ runs against the new schema. Stories then add the variant behaviour on top.
 
 ---
 
-## Phase 3: User Story 1 — A shop lists one product in several forms, approved once (P1) 🎯 MVP
+## Phase 3: User Story 1 - A shop lists one product in several forms, approved once (P1) 🎯 MVP
 
 **Goal**: shop-web creates products with 0–2 options and a variant grid; back-office approves with one margin; every variant is priced.
 **Independent test**: quickstart walk rows 1–4.
@@ -80,7 +80,7 @@ runs against the new schema. Stories then add the variant behaviour on top.
 
 ---
 
-## Phase 4: User Story 2 — A shopper chooses a variant and buys exactly that (P1)
+## Phase 4: User Story 2 - A shopper chooses a variant and buys exactly that (P1)
 
 **Goal**: listings "From", product page selector, per-variant cart/order/saved/lists on customer-web and the app.
 **Independent test**: quickstart rows 5–8, 11, 13, 14.
@@ -102,20 +102,20 @@ runs against the new schema. Stories then add the variant behaviour on top.
 
 ---
 
-## Phase 5: User Story 3 — Stock is counted per variant (P1)
+## Phase 5: User Story 3 - Stock is counted per variant (P1)
 
 **Goal**: tracking, deduction, shortfall, refund return, restock and attention lists, back-office correction per variant.
 **Independent test**: quickstart row 9; SC-004.
 
-- [X] T049 [US3] Inventory service per variant: `EA/inventory/src/stock/service.ts` + `repository.ts` — reads/writes `product_variant` stock, movements with `variant_id`, `LowStockRowDTO` with `variantId`/`variantLabel`; `EA/shared/src/lib/low-stock.ts` per variant; announce `stock` as today
+- [X] T049 [US3] Inventory service per variant: `EA/inventory/src/stock/service.ts` + `repository.ts` - reads/writes `product_variant` stock, movements with `variant_id`, `LowStockRowDTO` with `variantId`/`variantLabel`; `EA/shared/src/lib/low-stock.ts` per variant; announce `stock` as today
 - [X] T050 [US3] Today/attention and insights in `EA/shop/src/today/repository.ts` and `EA/shop/src/insights/*`: low/out rows per variant with label; per-product sales sum variants (FR-025)
-- [X] T051 [P] [US3] Container tests: update `EA/inventory/src/stock/no-review.container.test.ts` and `append-only.guard.test.ts` for variants; new `EA/shared/src/payments/finalize-variants.container.test.ts` — two concurrent payments for the last unit of one variant never go below zero, other variants untouched, history sums to the count (SC-004)
-- [X] T052 [US3] shop-web stock UI per variant: `SW/catalog/{InventorySection.tsx, StockDialogs.tsx, StockHistory.tsx, stockRepo.ts, stockQueries.ts, ShopDefaultThreshold.tsx}` — stock column in `VariantGrid`, dialogs open per row, history titled with the label; restock list rows show labels
+- [X] T051 [P] [US3] Container tests: update `EA/inventory/src/stock/no-review.container.test.ts` and `append-only.guard.test.ts` for variants; new `EA/shared/src/payments/finalize-variants.container.test.ts` - two concurrent payments for the last unit of one variant never go below zero, other variants untouched, history sums to the count (SC-004)
+- [X] T052 [US3] shop-web stock UI per variant: `SW/catalog/{InventorySection.tsx, StockDialogs.tsx, StockHistory.tsx, stockRepo.ts, stockQueries.ts, ShopDefaultThreshold.tsx}` - stock column in `VariantGrid`, dialogs open per row, history titled with the label; restock list rows show labels
 - [X] T053 [US3] back-office `BO/shops/{ShopStockPanel.tsx, stockRepo.ts, stockQueries.ts}` per variant (+ update `ShopStockPanel.test.tsx`)
 
 ---
 
-## Phase 6: User Story 4 — Unit prices (P2)
+## Phase 6: User Story 4 - Unit prices (P2)
 
 **Goal**: "$0.64 / 100 g" beside every shopper-visible price.
 **Independent test**: quickstart rows 5–7 with pack sizes; SC-006.
@@ -127,30 +127,30 @@ runs against the new schema. Stories then add the variant behaviour on top.
 
 ---
 
-## Phase 7: User Story 5 — Everyone handling an order sees the variant (P2)
+## Phase 7: User Story 5 - Everyone handling an order sees the variant (P2)
 
 **Goal**: product name + variant label (and SKU/barcode for shops) on every order-line surface.
 **Independent test**: quickstart row 10; SC-003.
 
 - [X] T058 [P] [US5] shop-web order/pick/fulfilment views: `SW/fulfillment/**` (order detail lines, pick list print, packing) and `SW/today/**` show `variantLabel`, SKU and barcode; labels in `SW/fulfillment/labels/render.ts` line text if lines are printed
 - [X] T059 [P] [US5] back-office order views `BO/orders/**` and refunds show `variantLabel`
-- [X] T060 [P] [US5] Documents and email: `EA/shared/src/documents/{delivery-note,tax-invoice}.ts` line text "Name — Label"; `EA/notifications/src/receipts/sender.ts` and templates
+- [X] T060 [P] [US5] Documents and email: `EA/shared/src/documents/{delivery-note,tax-invoice}.ts` line text "Name - Label"; `EA/notifications/src/receipts/sender.ts` and templates
 - [X] T061 [P] [US5] Driver manifest: `EA/driver/src/work/sql.ts` returns optional `variantLabel`; `apps/driver-mobile` item line shows it when present (DTO field optional, no compatibility break)
 - [X] T062 [US5] Test `EA/shop/src/orders/variant-lines.container.test.ts`: an order with two variants of one product yields two labelled lines in shop order detail, pick list, driver manifest and delivery note
 
 ---
 
-## Phase 8: User Story 6 — Changing variants after the product is on sale (P3)
+## Phase 8: User Story 6 - Changing variants after the product is on sale (P3)
 
 **Goal**: post-approval variant edits are proposals; deactivate/reactivate/remove are immediate.
 **Independent test**: quickstart row 12.
 
-- [X] T063 [US6] Proposals: `EA/shop/src/products/change.ts` — `TargetValues` gains `options`, `variants`, `unitBasis`; `diffProposal` includes them only when they differ (order-insensitive compare by id); `overlay` lays them over live; approval in `EA/catalog/src/review/service.ts` applies them via `applyVariantSet` then `priceVariants`
+- [X] T063 [US6] Proposals: `EA/shop/src/products/change.ts` - `TargetValues` gains `options`, `variants`, `unitBasis`; `diffProposal` includes them only when they differ (order-insensitive compare by id); `overlay` lays them over live; approval in `EA/catalog/src/review/service.ts` applies them via `applyVariantSet` then `priceVariants`
 - [X] T064 [US6] Review diff rows `variantsAdded/Removed/Changed`, `optionsChanged` in `EA/catalog/src/review/service.ts`; back-office `BO/product-review/ReviewItemScreen.tsx` renders them as a table
 - [X] T065 [US6] New route `POST /shop/v1/products/{id}/variants/{variantId}/state`: `EA/shop/src/functions/product-variant-state-v1-post.ts`, service rule `last_variant` 409, removal frees SKU, `refreshListing`, announce `stock`; add to `EA/shop/serverless.yml`; update `change-map.guard.test.ts` and the gateway capacity contract count
-- [X] T066 [US6] Cart/saved effect: a deactivated/removed variant makes its cart line unavailable (existing notice path) and saved/list add-to-cart return `variant_unavailable` — cover in `EA/commerce/src/cart/variants.container.test.ts`
+- [X] T066 [US6] Cart/saved effect: a deactivated/removed variant makes its cart line unavailable (existing notice path) and saved/list add-to-cart return `variant_unavailable` - cover in `EA/commerce/src/cart/variants.container.test.ts`
 - [X] T067 [US6] shop-web: row actions Deactivate/Reactivate/Remove in `SW/catalog/VariantGrid.tsx` (confirm on remove), "Removed" section, pending-change overlay and banner in `ProductDetailScreen.tsx`/`ReviewPanel.tsx`
-- [X] T068 [P] [US6] Container test `EA/shop/src/products/variant-change.container.test.ts`: live product — add variant + price change pend, shoppers see old; deactivate immediate; approval applies; last variant refused
+- [X] T068 [P] [US6] Container test `EA/shop/src/products/variant-change.container.test.ts`: live product - add variant + price change pend, shoppers see old; deactivate immediate; approval applies; last variant refused
 
 ---
 
@@ -164,7 +164,7 @@ runs against the new schema. Stories then add the variant behaviour on top.
 
 ---
 
-## Phase 10: Amendment — Effy codes and a clearer grid (FR-027, FR-028)
+## Phase 10: Amendment - Effy codes and a clearer grid (FR-027, FR-028)
 
 - [X] T074 Migration `db/migrations/20261027090000_variant_code.sql`: `product_variant.code` (V + 6, database default `public.new_variant_code()`, unique, checked, backfilled one row per statement) and `order_item.variant_code` (snapshot); format pinned in `packages/shared-types/src/package-code.ts` (`isVariantCode`) + test
 - [X] T075 Code on the wire: `ShopVariantDTO.code`, `ReviewVariantDTO.code`, order line `variantCode` (shop console, fulfilment, pick lists, back-office orders); checkout snapshots it; storefront, shop product and promotion searches match it
@@ -172,7 +172,7 @@ runs against the new schema. Stories then add the variant behaviour on top.
 - [X] T077 shop-web grid: column help, errors after leaving a cell or on Next/Save, "Apply first to all" for price and weight (`applyToAll` + tests)
 - [X] T078 back-office: Effy code in the review sizes table ("On approval" for an added size) and on order lines
 
-## Phase 11: Amendment — sizes are counted; stock always names its size (FR-029)
+## Phase 11: Amendment - sizes are counted; stock always names its size (FR-029)
 
 - [X] T079 `applyVariantSet` creates a variant tracked at 0; migration `20261028090000_variants_counted_by_default.sql` converts existing untracked sizes (with a `tracking_enabled` movement each); the dev seed counts every size
 - [X] T080 shop-web stock dialogs name the size in their title; the header's Receive/Add stock chooses its size (`SizePicker`), never writing to an unchosen one; rules dialog named too
@@ -181,7 +181,7 @@ runs against the new schema. Stories then add the variant behaviour on top.
 
 ## Phase 12: Stock for every size in one table
 
-- [X] T083 shop-web Inventory tab: `StockTable` — one row per size (Effy code, on hand, state in words, low-at), one input per row, "Add received" (adds, reason `received`) or "Set count" (replaces, reason `correction`; an unchanged count writes nothing), an uncounted size starts counting at its number, "Use first row for all", an optional note, ONE Save through the existing per-size routes; a refused size keeps its number and says why, saved ones clear (no double-add on re-save). Pure rules in `stockPlan.ts` + tests; movements and rules stay per size below the table
+- [X] T083 shop-web Inventory tab: `StockTable` - one row per size (Effy code, on hand, state in words, low-at), one input per row, "Add received" (adds, reason `received`) or "Set count" (replaces, reason `correction`; an unchanged count writes nothing), an uncounted size starts counting at its number, "Use first row for all", an optional note, ONE Save through the existing per-size routes; a refused size keeps its number and says why, saved ones clear (no double-add on re-save). Pure rules in `stockPlan.ts` + tests; movements and rules stay per size below the table
 
 ## Dependencies & Execution Order
 

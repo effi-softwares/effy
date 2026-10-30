@@ -4,7 +4,7 @@
 
   ⚠ Why this exists when the same faces already live in `shared/src/commonMain/composeResources/font/`:
   Compose Resources have NO `R.font` id, and Stripe's payment element takes its typeface as
-  `PaymentSheet.Typography.fontResId` — without this file the element silently renders in the SYSTEM
+  `PaymentSheet.Typography.fontResId` - without this file the element silently renders in the SYSTEM
   font next to Effy's own type (research R8). Copies of packages/design-system/mobile-assets/font/.
 -->
 <font-family xmlns:android="http://schemas.android.com/apk/res/android">

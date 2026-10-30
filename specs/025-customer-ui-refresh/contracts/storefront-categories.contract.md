@@ -4,11 +4,11 @@
 
 > ⚠ **This is the G1 boundary interpretation.** Spec FR-001a authorises exactly two new read
 > capabilities, and this is neither of them. It is an **enrichment of the existing**
-> `GET /v1/storefront/categories` projection — same resource, same caller, same public authorisation,
+> `GET /v1/storefront/categories` projection - same resource, same caller, same public authorisation,
 > no new endpoint. That reading is a judgement call, recorded in `plan.md` and `research.md` so the
 > operator can overrule it. **The strict-reading fallback**: drop both new fields; browse becomes a
 > typographic category index. Complies exactly, materially weaker for a food-first store, and a
-> genuinely small reversal — see "Why the fallback is cheap" below.
+> genuinely small reversal - see "Why the fallback is cheap" below.
 
 ## Endpoint
 
@@ -18,7 +18,7 @@ GET /v1/storefront/categories
 
 Unchanged path, unchanged method, unchanged auth.
 
-### Response — two new fields per category
+### Response - two new fields per category
 
 ```json
 [
@@ -42,7 +42,7 @@ Unchanged path, unchanged method, unchanged auth.
 
 `parentKey` **already exists** in `StorefrontCategoryDTO`
 (`packages/shared-types/src/storefront.ts:86`). The browse hierarchy therefore needs no contract
-change at all — only imagery and counts are new. Reverting G1 removes two fields and one derivation;
+change at all - only imagery and counts are new. Reverting G1 removes two fields and one derivation;
 it does not touch navigation, routing, or the page's structure.
 
 ## Derived imagery
@@ -60,13 +60,13 @@ face between two page loads, which reads as a bug even though nothing is wrong.
 ## Empty categories
 
 `productCount: 0` is a legitimate state and the client must handle it: the category is shown with its
-count, and entering it lands on an explained empty result set with a recovery path (FR-021) — not
+count, and entering it lands on an explained empty result set with a recovery path (FR-021) - not
 hidden, and not a dead end.
 
 ## Caching
 
 `Cache-Control: public, max-age=300`. Taxonomy changes at operations pace. Note that `imageUrl` is a
-**presigned, expiring S3 URL** — the cache lifetime must stay well inside the signature's validity,
+**presigned, expiring S3 URL** - the cache lifetime must stay well inside the signature's validity,
 which is the same constraint the existing product-card images already live under.
 
 ## Client consumption
@@ -80,4 +80,4 @@ which is the same constraint the existing product-card images already live under
 **Crawlability, stated plainly**: `/browse` is crawlable; individual category result sets are not,
 because robots.txt disallows facet params (011's routes contract). This feature **preserves** that
 policy rather than changing it. Crawlable category landing pages would need path segments and their
-own caching policy — a spec-level decision and a future slice.
+own caching policy - a spec-level decision and a future slice.

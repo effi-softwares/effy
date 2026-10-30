@@ -21,7 +21,7 @@ const BY_TYPE: Record<string, string> = {
   "too-many-images": "A promotion has at most 10 pictures. Remove one first.",
   "invalid-upload": "That file can't be used: a JPEG, PNG or WebP picture up to 10 MB.",
   "not-a-picture": "That file isn't a picture we can show.",
-  "picture-too-small": "That picture is too small — at least 320 pixels on its shorter side.",
+  "picture-too-small": "That picture is too small - at least 320 pixels on its shorter side.",
   "not-uploaded": "The picture hasn't finished uploading. Try again.",
   "already-added": "That picture is already on this promotion.",
 }

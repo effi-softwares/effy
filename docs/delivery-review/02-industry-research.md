@@ -1,4 +1,4 @@
-# 02 — Industry Research: How Delivery and Last-Mile Platforms Work
+# 02 - Industry Research: How Delivery and Last-Mile Platforms Work
 
 **Date:** 2026-10-18 · **Scope:** reference platforms, industry-standard concepts and data model,
 AU courier and compliance landscape, last-mile SaaS table stakes, buy-vs-build for a small team.
@@ -22,7 +22,7 @@ AU courier and compliance landscape, last-mile SaaS table stakes, buy-vs-build f
 ## Contents
 
 1. Executive summary
-2. Reference platforms — how each models delivery
+2. Reference platforms - how each models delivery
 3. Industry-standard concepts and the canonical data model
 4. Delivery windows / slot management
 5. Route optimisation and dispatch
@@ -100,11 +100,11 @@ AU courier and compliance landscape, last-mile SaaS table stakes, buy-vs-build f
     there are enough drops to optimise; per-package (not per-order) promises; a second source of truth
     for status; and skipping the boring exception paths (failed delivery, return to hub, partial
     delivery) that cost ~$14–18 each when they go wrong.
-    ([Upper on metrics](https://www.upperinc.com/blog/last-mile-delivery-metrics/) — vendor figure)
+    ([Upper on metrics](https://www.upperinc.com/blog/last-mile-delivery-metrics/) - vendor figure)
 
 ---
 
-## 2. Reference platforms — how each models delivery
+## 2. Reference platforms - how each models delivery
 
 ### 2.1 Woolworths (AU)
 
@@ -140,7 +140,7 @@ basket value; "Delivery today" surcharge). The cheap long-window option is the s
   cancellation fee; unattended delivery excludes alcohol, tobacco and non-bagged orders; "Rapid
   delivery" $15 for up to 40 items. ([CHOICE](https://www.choice.com.au/compareproducts/shopping/everyday-shopping/supermarkets/online-grocery-delivery-services),
   [CHOICE Coles review](https://www.choice.com.au/products/shopping/everyday-shopping/supermarkets/coles-online))
-- **Fulfilment:** two Ocado-powered **customer fulfilment centres** — Truganina (VIC, Sept 2024, ~87,000
+- **Fulfilment:** two Ocado-powered **customer fulfilment centres** - Truganina (VIC, Sept 2024, ~87,000
   m², >10,000 orders/day at capacity) and **Wetherill Park (NSW, Oct 2024, 40 km west of Sydney CBD)**;
   700+ bots pick a 50-item order in ~5 minutes. Part of a ~$400m Ocado partnership.
   ([Food Processing](https://foodprocessing.com.au/content/materials-handling-storage-and-supply-chain/news/coles-opens-its-second-customer-fulfilment-centre-in-sydney-1069173759),
@@ -157,7 +157,7 @@ lighter-capex version; its competitive gap is speed, so the "today" window and c
 
 ### 2.3 Other AU players
 
-- **Harris Farm:** 3, 6 or 8 h windows; free at $250 (or $200 for 6/8 h and pre-dawn slots) — again
+- **Harris Farm:** 3, 6 or 8 h windows; free at $250 (or $200 for 6/8 h and pre-dawn slots) - again
   cheaper for wider windows; express fee tiers by basket. **IGA:** 2 h windows, $9 flat, cancel until
   picking starts. ([CHOICE](https://www.choice.com.au/compareproducts/shopping/everyday-shopping/supermarkets/online-grocery-delivery-services))
 - **Milkrun (startup):** promised ~10-minute delivery from dark stores, collapsed 14 April 2023 with
@@ -165,7 +165,7 @@ lighter-capex version; its competitive gap is speed, so the "today" window and c
   10-minute delivery, an unrealistic and costly pledge." ([Forbes AU](https://www.forbes.com.au/news/investing/woolworths-acquires-milkrun/),
   [Inside Retail NZ](https://insideretail.co.nz/2023/06/29/why-were-unlikely-to-see-another-wave-of-rapid-delivery-startups/))
 - **Amazon Australia** sells groceries (ambient) via its parcel network; Amazon Fresh (chilled) has not
-  launched in AU as of this writing (not independently verified this pass — treat as an assumption).
+  launched in AU as of this writing (not independently verified this pass - treat as an assumption).
 
 ### 2.4 Instacart (US/CA)
 
@@ -187,7 +187,7 @@ lighter-capex version; its competitive gap is speed, so the "today" window and c
 off (e.g. alcohol hours) without exposing internals. Effy's hold-at-intent matches the "reserve late"
 advice.
 
-### 2.5 Amazon Logistics — DSP and Flex
+### 2.5 Amazon Logistics - DSP and Flex
 
 - **DSP (Delivery Service Partner):** independent small businesses (not Amazon employees) run fleets of
   Amazon-branded vans out of Amazon delivery stations; launched 2018 with "as little as $10,000" start-up,
@@ -199,7 +199,7 @@ advice.
 - **Flex:** gig drivers reserve **blocks** (typically 2–4 h, some 1–6 h) in an app, check in at the
   station (no more than 15 min early), scan and load packages, then follow an in-app route; paid per
   block not per drop. ([Amazon Flex UK blog](https://flex.amazon.co.uk/blog/package-collection-tips/),
-  [Gridwise](https://gridwise.io/blog/everything-you-need-to-know-about-amazon-flex) — third-party)
+  [Gridwise](https://gridwise.io/blog/everything-you-need-to-know-about-amazon-flex) - third-party)
 
 **Effy relevance:** the **block** is the gig analogue of Effy's round: a time-boxed unit of work with a
 station check-in that opens it. Effy's `round_opens_at` + "refuse before open" is the same discipline
@@ -216,14 +216,14 @@ as Flex's "no earlier than 15 minutes".
   include van weight/capacity, driver hours, road restrictions and congestion charges; the problem is
   dynamic (orders added/amended/cancelled); travel times predicted by ML from history; solver is a
   metaheuristic + genetic algorithm tested in simulation. ([OR Society, Jan 2023](https://theorsociety.com/ORS/Publications/Magazines/IOR/January2023/OR-and-Ocado-are-beating-the-vehicle-routing-problem.aspx))
-- **Productivity metric:** **drops per van per week** — 121 (2009) → target 175 → 176 achieved in
+- **Productivity metric:** **drops per van per week** - 121 (2009) → target 175 → 176 achieved in
   2016, partly from routing changes that "pack customers more densely into routes".
   ([Retail Week](https://www.retail-week.com/city/ocado-outlines-target-depot-and-delivery-efficiencies/5014838.article),
   [Current News](https://current-news.co.uk/ocado-using-route-calculation-software-to-maximise-delivery-efficiency-8529))
 - **Green van:** at slot choice, customers can see whether a van is already nearby in a slot.
   ([Current News](https://current-news.co.uk/ocado-using-route-calculation-software-to-maximise-delivery-efficiency-8529))
 
-### 2.7 Picnic (NL/DE/FR) — the milkman model
+### 2.7 Picnic (NL/DE/FR) - the milkman model
 
 - Customers get a **selection of slots, not free choice**; the number of slots offered depends on
   neighbourhood density (3 one-hour slots/week at launch, 6 by late 2016; dense areas daily). Trips are
@@ -245,12 +245,12 @@ already allows it (set capacity per window/date), but nothing yet varies offered
   sells **Delivery Saver** subscriptions (originally £36/3 months; later an anytime pass ~£7.99/month;
   the cheaper midweek pass was dropped). ([Yorkshire Post](https://www.yorkshirepost.co.uk/read-this/tesco-is-scrapping-its-cheap-home-delivery-slots-heres-how-much-youll-have-to-pay-2923699),
   [Fresh Plaza](https://www.freshplaza.com/north-america/article/2097013/uk-tesco-unveils-delivery-saver-offer/))
-  — undated articles; shows both directions (variable → flat) are viable.
+  - undated articles; shows both directions (variable → flat) are viable.
 - Sainsbury's: edit items, change slot or cancel **until 11pm the day before**; earlier cutoff (8pm)
   for products with long preparation; a change requires re-checkout to re-reserve the slot.
   ([Sainsbury's help](https://help.sainsburys.co.uk/help/delivery-collection/order_amend))
 
-### 2.9 Quick commerce — Getir, Gorillas, Zapp, Gopuff
+### 2.9 Quick commerce - Getir, Gorillas, Zapp, Gopuff
 
 - **Gopuff:** vertically integrated dark stores (owns inventory); separate staging area for drivers;
   batches orders; low basket values make economics depend on density; >200 sites created long payback.
@@ -275,7 +275,7 @@ already allows it (set capacity per window/date), but nothing yet varies offered
   - **Effy takeaway:** the cheap version of this is "routing-engine ETA + a learned per-stop service
     time"; that is what Picnic does too.
 
-### 2.11 Last-mile SaaS — what they treat as table stakes
+### 2.11 Last-mile SaaS - what they treat as table stakes
 
 | Product | Model | Notable at entry tier | Upsell tier adds |
 |---|---|---|---|
@@ -284,9 +284,9 @@ already allows it (set capacity per window/date), but nothing yet varies offered
 | **OptimoRoute** | per driver | live tracking, live ETA/breadcrumbs, API | POD, customer notifications ([OptimoRoute](https://optimoroute.com/pricing/)) |
 | **Detrack** | per driver/vehicle | EPOD, unlimited jobs and office users | route optimisation, vehicle safety checks, rate cards ([Detrack](https://www.detrack.com/pricing/)) |
 | **Shipday** | per order | free starter incl. driver app | branded, AI dispatch ([Capterra](https://www.capterra.com.au/software/211323/shipday), [Wix listing](https://www.wix.com/app-market/local-delivery-with-shipday)) |
-| **Tookan** | per task, unlimited agents | chat, route optimisation | — ([xpay listing](https://www.xpay.sh/saas-pricing/tookan/)) |
-| **Bringg** | enterprise | orchestration across owned + 3PL fleets (250+ carriers), dynamic slots from live capacity, exception automation | — ([Bringg](https://www.bringg.com/platform), [SAP listing](https://www.sap.com/canada/products/crm/partners/bringg-delivery-technologies-ltd-bringg-lastmile-solutions.html)) |
-| **Circuit for Teams, Locus** | per seat / enterprise | — | pricing opaque ([CostBench](https://costbench.com/software/last-mile-delivery/circuit-for-teams/hidden-costs/), [Locus](https://locus.sh/blogs/onfleet-pricing-guide/)) |
+| **Tookan** | per task, unlimited agents | chat, route optimisation | - ([xpay listing](https://www.xpay.sh/saas-pricing/tookan/)) |
+| **Bringg** | enterprise | orchestration across owned + 3PL fleets (250+ carriers), dynamic slots from live capacity, exception automation | - ([Bringg](https://www.bringg.com/platform), [SAP listing](https://www.sap.com/canada/products/crm/partners/bringg-delivery-technologies-ltd-bringg-lastmile-solutions.html)) |
+| **Circuit for Teams, Locus** | per seat / enterprise | - | pricing opaque ([CostBench](https://costbench.com/software/last-mile-delivery/circuit-for-teams/hidden-costs/), [Locus](https://locus.sh/blogs/onfleet-pricing-guide/)) |
 
 **Reading across:** photo/signature POD, a customer tracking link, ETA notifications and an API with
 webhooks are present at *every* entry tier → they are table stakes. Barcode scanning, age verification,
@@ -326,7 +326,7 @@ tasks/parcels; derive the customer-facing status from execution events, never st
   ([Kroger spoke](https://massmarketretailers.com/kroger-fulfillment-spoke-extends-reach-of-denver-hub/),
   [Mileway/Picnic](https://mileway.com/our-customers/picnic-transforming-the-way-europe-grocery-shops/))
 - **Last mile:** facility → customer; ~53% of total shipping cost in 2024 per a vendor compilation.
-  ([SmartRoutes](https://smartroutes.io/blogs/last-mile-delivery-statistics) — vendor figure)
+  ([SmartRoutes](https://smartroutes.io/blogs/last-mile-delivery-statistics) - vendor figure)
 - **Direct (store-to-door)** removes a handling step and a leg but forces each node to run its own
   fleet/route; **hub-and-spoke** consolidates for denser routes and one dispatch point at the cost of
   an extra leg and a time deadline (the parcel must reach the hub before the round). Effy's
@@ -359,7 +359,7 @@ public encoding of this. ([Instacart](https://docs.instacart.com/connect/api/ful
   Albert.nl case, slot fees ranged €4.95–€8.95 by day/time and slots closed per zip code under load.
   ([Agatz et al. 2011, Transportation Science](https://repub.eur.nl/pub/25987/TimeSlotManagement_2011.pdf))
 - Two decisions are distinguished in the literature: **slot offering** (which slots to show in which
-  area — tactical, set in advance) and **slot allocation/pricing** (what to charge/accept in real time).
+  area - tactical, set in advance) and **slot allocation/pricing** (what to charge/accept in real time).
   ([Agatz/Campbell chapter](https://myweb.uiowa.edu/acampbll/papers/CDbookchap.pdf))
 - Bringg markets "dynamic slots" computed from live driver tracking, vehicle availability and cost,
   pushed to product pages and checkout. ([SAP/Bringg](https://www.sap.com/canada/products/crm/partners/bringg-delivery-technologies-ltd-bringg-lastmile-solutions.html))
@@ -399,13 +399,13 @@ substitute a different slot on expiry. Effy's "a window is never substituted" ru
 ### 4.4 Cutoffs
 
 Three distinct cutoffs show up in practice and should not be conflated:
-1. **Order cutoff** — last moment to buy a window (Woolworths same-day: 1pm). ([Woolworths](https://www.woolworths.com.au/shop/services/delivery))
-2. **Amend/cancel cutoff** — Sainsbury's 11pm day before; Woolworths 5:30pm/10:30pm; Coles 12pm.
+1. **Order cutoff** - last moment to buy a window (Woolworths same-day: 1pm). ([Woolworths](https://www.woolworths.com.au/shop/services/delivery))
+2. **Amend/cancel cutoff** - Sainsbury's 11pm day before; Woolworths 5:30pm/10:30pm; Coles 12pm.
    ([Sainsbury's](https://help.sainsburys.co.uk/help/delivery-collection/order_amend), [CHOICE](https://www.choice.com.au/compareproducts/shopping/everyday-shopping/supermarkets/online-grocery-delivery-services))
-3. **Operational cutoff** — the latest moment goods must reach the dispatch point (Effy: collection run
+3. **Operational cutoff** - the latest moment goods must reach the dispatch point (Effy: collection run
    reaches hub before window starts; Kroger: picked at hub, trucked to spoke).
 
-Effy's `judgeWindow` combines (1) and (3) for today. (2) — a customer amend cutoff — is not described
+Effy's `judgeWindow` combines (1) and (3) for today. (2) - a customer amend cutoff - is not described
 in CLAUDE.md; every AU grocer has one, with a cancellation/missed-delivery fee (Coles $30; others
 "$20 plus perishables"). ([CHOICE](https://www.choice.com.au/compareproducts/shopping/everyday-shopping/supermarkets/online-grocery-delivery-services))
 
@@ -432,7 +432,7 @@ in CLAUDE.md; every AU grocer has one, with a cancellation/missed-delivery fee (
 | **GraphHopper** | hosted routing + optimisation | Free 500 credits/day (non-commercial); Basic ~$69, Standard ~$199/month (third-party); Premium €384/month 50k credits/day | optimisation cost ≈ vehicles × locations credits ([GraphHopper credits](https://support.graphhopper.com/support/solutions/articles/44000718211-what-is-one-credit-), [pricing](https://www.graphhopper.com/pricing/)) |
 | **VROOM** | open source C++ | free (self-host) | VRPTW, CVRP, multi-depot, pickup-delivery, breaks; works on OSRM or a custom matrix; 2018 benchmark median 28 ms on TSPLIB ([GitHub](https://github.com/vroom-project/vroom), [SotM 2018](https://2018.stateofthemap.org/slides/T053-Solving_vehicle_routing_problems_with_OpenStreetMap_and_VROOM.pdf)) |
 | **OR-Tools** | open source library | free | most flexible; you own the matrix and the ops ([OR-Tools](https://developers.google.cn/optimization/routing?hl=en)) |
-| **Mapbox Optimization** | hosted | free to 100k req/month (research-02) | 12/50 coordinate caps — too small for full rounds |
+| **Mapbox Optimization** | hosted | free to 100k req/month (research-02) | 12/50 coordinate caps - too small for full rounds |
 | **Routific / OptimoRoute** | SaaS + API | see §16 | full product incl. driver app |
 
 **At Effy's scale** (one hub, < 10 drivers, tens to low hundreds of drops/day): Google Fleet Routing
@@ -467,14 +467,14 @@ upgrade when windows start overlapping.
 - **Tracking link:** Routific includes a customer tracking link with live driver location and ETA in
   its free plan; Onfleet ships a branded tracking page at its entry tier.
   ([Routific](https://www.routific.com/pricing), [Routific driver app blog](https://www.routific.com/blog/routific-launches-new-driver-app-with-gps-tracking-photo-capture))
-- **ETA accuracy is the foundation** — inaccurate alerts create more contacts, not fewer.
+- **ETA accuracy is the foundation** - inaccurate alerts create more contacts, not fewer.
   ([Locus](https://locus.sh/blogs/proactive-delivery-notifications/))
 - **ETA method for a small team:** routing-engine travel time + per-stop service time; refine the
   service time from history (Picnic predicts drop time from totes, floor, lift, weather). The big
   platforms add an ML residual (Uber DeepETA) or probabilistic ranges (DoorDash).
   ([Picnic](https://jobs.picnic.app/blogs/picnic-10-years-2016the-milkman-routes),
   [Uber](https://www.uber.com/en-CA/blog/deepeta-how-uber-predicts-arrival-times/))
-- **Telephony is billed separately** in most SaaS (Onfleet per segment; Routific SMS by quote) — budget
+- **Telephony is billed separately** in most SaaS (Onfleet per segment; Routific SMS by quote) - budget
   SMS per notification. ([Onfleet](https://onfleet.com/pricing), [Routific](https://www.routific.com/pricing))
 
 **Effy note:** AppSync Events (071) solves app-to-app freshness; the customer-facing *outbound*
@@ -586,17 +586,17 @@ which requires a sequenced round.
 
 | KPI | Definition | Benchmark (directional) | Source |
 |---|---|---|---|
-| **On-time %** | delivered inside promised window ÷ delivered | — | [Racklify](https://racklify.com/encyclopedia/on-time-delivery-vs-delivery-performance-which-kpi-should-your-warehouse-track/) |
-| **OTIF** | (on time **and** complete, undamaged, no unwanted substitution) ÷ total; early *and* late fail | — | [DHL Freight](https://dhl-freight-connections.com/en/business/otif-on-time-in-full/), [Shipsy](https://www.shipsy.ai/insights/what-is-otif-on-time-in-full) |
+| **On-time %** | delivered inside promised window ÷ delivered | - | [Racklify](https://racklify.com/encyclopedia/on-time-delivery-vs-delivery-performance-which-kpi-should-your-warehouse-track/) |
+| **OTIF** | (on time **and** complete, undamaged, no unwanted substitution) ÷ total; early *and* late fail | - | [DHL Freight](https://dhl-freight-connections.com/en/business/otif-on-time-in-full/), [Shipsy](https://www.shipsy.ai/insights/what-is-otif-on-time-in-full) |
 | **First-attempt delivery rate** | delivered on first attempt ÷ attempted | 85–93% avg, 95–98% best, < 80% red flag | [FleetRabbit](https://fleetrabbit.com/industry/e-commerce-logistics/what-is-first-attempt-delivery-rate-explained-with-benchmarks) (vendor) |
 | **Failed delivery rate** | failed ÷ attempted | ~5% | [Upper](https://www.upperinc.com/blog/last-mile-delivery-metrics/) (vendor) |
 | **Drops per hour / per shift** | completed stops ÷ driver on-route hours | Picnic ~14/h vs ~4/h typical grocery | [Substack](https://consumergoodies.substack.com/p/explained-what-is-milkman-20) |
 | **Drops per van per week** | Ocado's headline productivity metric | 176 (2016) | [Retail Week](https://www.retail-week.com/city/ocado-outlines-target-depot-and-delivery-efficiencies/5014838.article) |
 | **Cost per drop** | (driver + vehicle + fuel + tech + overhead) ÷ drops | urban $7.50–10.10 avg; $3.80–5.20 top fleets; grocery/specialty $10–20 | [FleetRabbit](https://fleetrabbit.com/industry/e-commerce-logistics/what-is-last-mile-delivery-explained-with-benchmarks), [Upper](https://www.upperinc.com/blog/last-mile-delivery-metrics/) (vendor) |
 | **Order accuracy / substitution** | items delivered as ordered or adequately substituted | CHOICE tests: Woolworths 60/62, Coles 57/62 | [CHOICE](https://www.choice.com.au/compareproducts/shopping/everyday-shopping/supermarkets/online-grocery-delivery-services) |
-| **ETA accuracy** | |actual − predicted| (mean/median) | — | [Uber DeepETA](https://www.uber.com/en-CA/blog/deepeta-how-uber-predicts-arrival-times/) |
+| **ETA accuracy** | |actual − predicted| (mean/median) | - | [Uber DeepETA](https://www.uber.com/en-CA/blog/deepeta-how-uber-predicts-arrival-times/) |
 | **WISMO contact rate** | "where is my order" contacts ÷ orders | 40–60% of support volume | [Shippypro](https://www.shippypro.com/blog/en/how-to-reduce-wismo-tickets-in-ecommerce-the-complete-guide) (vendor) |
-| **CSAT / NPS on delivery** | post-delivery rating | — | standard |
+| **CSAT / NPS on delivery** | post-delivery rating | - | standard |
 
 Caveat: almost all numeric benchmarks are from software vendors; Locus itself notes they come "from
 software vendors and content aggregators rather than research firms". ([Locus](https://locus.sh/blogs/last-mile-delivery-efficiency-benchmarks-north-america-2026/))
@@ -626,8 +626,8 @@ already records (custody, arrival, POD) plus driver shift hours.
   outage affecting all its merchants (July 2026). Design for "no courier quote available" as a
   normal state. ([isdown/Shippit](https://isdown.app/status/shippit/incidents/623182-investigating-uber-direct-delivery-quote-creation-failures))
 - **Two kinds of courier** fit Effy's fallback differently: *parcel networks* (AusPost, Sendle,
-  CouriersPlease, Aramex — days, manifest/pickup, labels) and *on-demand* (Uber Direct, DoorDash
-  Drive, Zoom2u — hours, quote-then-book per job). Effy's courier model (hub or supplier pickup,
+  CouriersPlease, Aramex - days, manifest/pickup, labels) and *on-demand* (Uber Direct, DoorDash
+  Drive, Zoom2u - hours, quote-then-book per job). Effy's courier model (hub or supplier pickup,
   "next pickup", one default service with a timeframe) is the parcel-network shape.
 
 ---
@@ -637,10 +637,10 @@ already records (custody, arrival, POD) plus driver shift hours.
 ### 13.1 Chain of Responsibility and fatigue
 
 - **HVNL applies to vehicles > 4.5 t GVM/ATM** (or combinations including one). Typical delivery vans
-  are below this and so outside heavy-vehicle fatigue and CoR rules — confirm per vehicle.
+  are below this and so outside heavy-vehicle fatigue and CoR rules - confirm per vehicle.
   ([NHVR judicial guide](https://www.nhvr.gov.au/document/46))
 - Where HVNL applies, CoR spreads liability to everyone who controls or influences the transport task
-  — operators, schedulers, consignors, loaders — so *schedules that require speeding or skipped rest*
+  - operators, schedulers, consignors, loaders - so *schedules that require speeding or skipped rest*
   are an offence by the scheduler. ([Logan CoR policy](https://www.logan.qld.gov.au/downloads/file/2508/chain-of-responsibility-policy),
   [Health & Safety Handbook](https://www.healthandsafetyhandbook.com.au/chapters/chain-of-responsibility/))
 - For light vehicles, **WHS law** still requires fatigue risk to be managed so far as reasonably
@@ -655,10 +655,10 @@ already records (custody, arrival, POD) plus driver shift hours.
 - Employee drivers of goods vehicles are generally covered by the **Road Transport and Distribution
   Award 2020 (MA000038)**; vans/utes ≤ 4.5 t GVM are reported as Grade 2 (third-party; confirm in the
   FWC pay guide). ([FWC MA000038](https://awards.fairwork.gov.au/MA000038.html),
-  [FairWorkMate NSW](https://fairworkmate.com.au/tools/pay-rates/delivery-driver-nsw) — unverified rates)
+  [FairWorkMate NSW](https://fairworkmate.com.au/tools/pay-rates/delivery-driver-nsw) - unverified rates)
 - Cost-per-drop modelling must use award rates + on-costs, not gig rates.
 
-### 13.3 Workplace surveillance — tracking drivers (NSW)
+### 13.3 Workplace surveillance - tracking drivers (NSW)
 
 - **Workplace Surveillance Act 2005 (NSW):** tracking surveillance (a device whose primary purpose is
   to record location, e.g. GPS) requires **14 days' written notice** before it starts (shorter only if
@@ -691,7 +691,7 @@ NSW **Same Day Alcohol Delivery** framework (orders delivered within 2 hours / s
 ### 13.5 Privacy
 
 Location history and POD photos are personal information under the Privacy Act 1988 (APP 11: secure
-and destroy when no longer needed) — covered in research-05 §3c; retention periods should be set,
+and destroy when no longer needed) - covered in research-05 §3c; retention periods should be set,
 not infinite.
 
 ---
@@ -708,7 +708,7 @@ not infinite.
 4. Driver app: run list → navigation hand-off → scan/POD (photo, optional signature) → failure reason
    → return to hub. *(built/being built in 088–093)*
 5. Customer comms: out-for-delivery + tracking link + delivered with photo + failure notice.
-   *(outbound customer notifications not evidenced in CLAUDE.md — verify)*
+   *(outbound customer notifications not evidenced in CLAUDE.md - verify)*
 6. Dispatcher: exceptions list, reassign/unassign, move to courier. *(built in 073/081)*
 7. Courier fallback through one integration. *(built: operator-entered courier services, consignments)*
 8. KPI basics: on-time %, first-attempt %, drops/hour. *(verify)*
@@ -791,10 +791,10 @@ Context: an AU metro grocery delivery service in 2026, own fleet + courier fallb
 |---|---|---|---|---|
 | Full last-mile stack (dispatch, driver app, POD, tracking) | very high | Onfleet | Launch $619/mo (2,500 tasks), Scale $1,349/mo (5,000), Enterprise $3,099/mo; SMS extra ([Onfleet](https://onfleet.com/pricing)) | Already built; buying now would duplicate. |
 | | | Routific | free ≤ 100 orders/mo; $150/mo ≤ 1,000; then 15¢→3¢/order; SMS extra ([Routific](https://www.routific.com/pricing)) | Good reference / fallback. |
-| | | OptimoRoute | Lite $35.10, Pro $44.10 /driver/mo (annual) ([OptimoRoute](https://optimoroute.com/pricing/)) | — |
-| | | Detrack | Pro $29, Advanced $39 /driver/mo (USD); AUD 464 / 626 per vehicle/yr cited ([Detrack](https://www.detrack.com/pricing/), [Detrack blog](https://www.detrack.com/blog/detrack-vs-solbox-pricing-features-and-support-breakdown/)) | — |
-| | | Shipday | free starter; ~$29/mo + per-order (sources conflict) ([Capterra](https://www.capterra.com.au/software/211323/shipday)) | — |
-| | | Tookan | ~$39–399/mo, unlimited agents, $0.06–0.14/task overage (sources conflict) ([xpay](https://www.xpay.sh/saas-pricing/tookan/)) | — |
+| | | OptimoRoute | Lite $35.10, Pro $44.10 /driver/mo (annual) ([OptimoRoute](https://optimoroute.com/pricing/)) | - |
+| | | Detrack | Pro $29, Advanced $39 /driver/mo (USD); AUD 464 / 626 per vehicle/yr cited ([Detrack](https://www.detrack.com/pricing/), [Detrack blog](https://www.detrack.com/blog/detrack-vs-solbox-pricing-features-and-support-breakdown/)) | - |
+| | | Shipday | free starter; ~$29/mo + per-order (sources conflict) ([Capterra](https://www.capterra.com.au/software/211323/shipday)) | - |
+| | | Tookan | ~$39–399/mo, unlimited agents, $0.06–0.14/task overage (sources conflict) ([xpay](https://www.xpay.sh/saas-pricing/tookan/)) | - |
 | | | Bringg / Locus / Circuit | quote-only | Overkill. |
 | Route optimisation (VRPTW) | high (and ongoing tuning) | Google Route Optimization | SVR 5,000 free then $10/1k; Fleet 1,000 free then $30/1k ([Google](https://developers.google.com/maps/billing-and-pricing/pricing)) | **Buy** when sequencing quality matters; ~$0–60/mo. |
 | | | GraphHopper | Free (non-commercial), ~€/$69–199/mo, Premium €384/mo ([GraphHopper](https://www.graphhopper.com/pricing/)) | Alternative; OSM-based, fewer licence limits. |
@@ -805,9 +805,9 @@ Context: an AU metro grocery delivery service in 2026, own fleet + courier fallb
 | Courier connectivity | medium per carrier | Shippit, Starshipit, ShipEngine, EasyPost | Shippit top tier ~AUD 899–1,099/mo (third-party) ([FitGap](https://us.fitgap.com/products/shippit)) | One broker when courier volume justifies; manual until then. |
 | On-demand courier | n/a | Uber Direct, DoorDash Drive, Zoom2u | DoorDash AU ~$8.50 ex GST + $1/km (reseller); Uber Direct merchant example $15 flat ([me&u](https://help.meandu.com/hc/en-us/articles/6539925528079-Introduction-to-DoorDash-Drive-Delivery-Service-AUS-only), [Uber/Bunnings](https://www.uber.com/au/en/newsroom/bunningsdirect)) | Option for "today, out of window" overflow. |
 | Parcel courier | n/a | AusPost/StarTrack (contract), Sendle (self-serve) | contract / flat by size | Sendle is the low-friction start. |
-| ETA model | low (routing ETA + service time) / high (ML) | comes with SaaS | — | Build the simple version. |
-| Driver app | high | comes with SaaS | — | Built (092/093). |
-| Live channel | — | AppSync Events | $1/M ops + $0.08/M connection-min (research-04) | Built (071). |
+| ETA model | low (routing ETA + service time) / high (ML) | comes with SaaS | - | Build the simple version. |
+| Driver app | high | comes with SaaS | - | Built (092/093). |
+| Live channel | - | AppSync Events | $1/M ops + $0.08/M connection-min (research-04) | Built (071). |
 
 ---
 

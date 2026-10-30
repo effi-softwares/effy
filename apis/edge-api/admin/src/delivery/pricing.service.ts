@@ -81,7 +81,7 @@ export function normalise(body: unknown): FeePlanInput {
     f.add(smallUnder === null ? "smallOrderUnderAmount" : "smallOrderFeeAmount", "set both the small-order amount and its fee, or neither");
   }
   if (smallUnder !== null && freeOver !== null && smallUnder >= freeOver) {
-    f.add("smallOrderUnderAmount", "the small-order amount must be below the free-delivery amount — a basket cannot be both");
+    f.add("smallOrderUnderAmount", "the small-order amount must be below the free-delivery amount - a basket cannot be both");
   }
 
   const distanceIn = Array.isArray(b.distanceBands) ? b.distanceBands : [];
@@ -97,7 +97,7 @@ export function normalise(body: unknown): FeePlanInput {
     const d = (raw ?? {}) as Record<string, unknown>;
     const open = d.upperKm === null || d.upperKm === undefined || d.upperKm === "";
     const km = open ? null : Number(d.upperKm);
-    if (km !== null && !(Number.isFinite(km) && km > 0 && km <= MAX_KM)) f.add(`distanceBands.${i}.upperKm`, `up to how many km — between 0 and ${MAX_KM}`);
+    if (km !== null && !(Number.isFinite(km) && km > 0 && km <= MAX_KM)) f.add(`distanceBands.${i}.upperKm`, `up to how many km - between 0 and ${MAX_KM}`);
     const add = f.cents(`distanceBands.${i}.addAmount`, d.addAmount);
     return { upperKm: km === null ? null : km.toFixed(2), addAmount: add === null ? "0.00" : formatCents(add) };
   });
@@ -107,7 +107,7 @@ export function normalise(body: unknown): FeePlanInput {
   const weightBands = weightIn.map((raw, i) => {
     const w = (raw ?? {}) as Record<string, unknown>;
     const grams = Number(w.upperGrams);
-    if (!Number.isSafeInteger(grams) || grams <= 0) f.add(`weightBands.${i}.upperGrams`, "up to how many grams — a whole number above 0");
+    if (!Number.isSafeInteger(grams) || grams <= 0) f.add(`weightBands.${i}.upperGrams`, "up to how many grams - a whole number above 0");
     const add = f.cents(`weightBands.${i}.addAmount`, w.addAmount);
     return { upperGrams: grams, addAmount: add === null ? "0.00" : formatCents(add) };
   });
@@ -199,7 +199,7 @@ export function stepsOf(b: FeeBreakdown, plan: Plan): FeeSimulationStepDTO[] {
     steps.push({ label: "Base", detail: "every delivery starts here", amount: amount(b.baseCents) });
     steps.push({
       label: "Distance",
-      detail: `${km(b.km ?? 0)} — ${b.distanceBandUpperKm === null ? "the last band, with no upper limit" : `the band up to ${km(b.distanceBandUpperKm)}`}`,
+      detail: `${km(b.km ?? 0)} - ${b.distanceBandUpperKm === null ? "the last band, with no upper limit" : `the band up to ${km(b.distanceBandUpperKm)}`}`,
       amount: amount(b.distanceCents),
     });
   } else {
@@ -207,7 +207,7 @@ export function stepsOf(b: FeeBreakdown, plan: Plan): FeeSimulationStepDTO[] {
   }
   steps.push({
     label: "Weight",
-    detail: `${kg(b.grams)} — ${b.weightBandUpperGrams === null ? "the heaviest band, which also prices everything above it" : `the band up to ${kg(b.weightBandUpperGrams)}`}`,
+    detail: `${kg(b.grams)} - ${b.weightBandUpperGrams === null ? "the heaviest band, which also prices everything above it" : `the band up to ${kg(b.weightBandUpperGrams)}`}`,
     amount: amount(b.weightCents),
   });
   if (b.premiumCents > 0) steps.push({ label: "Window surcharge", detail: "what the chosen window adds", amount: amount(b.premiumCents) });
@@ -277,8 +277,8 @@ export async function simulate(body: unknown): Promise<FeeSimulationDTO> {
 
   const note =
     kind === "courier" && coverage.kind === "effy" ? `${postcode} is delivered by Effy; this is what a courier would cost.`
-    : kind === "courier" ? `Effy does not deliver to ${postcode}; a courier does.`
-    : null;
+      : kind === "courier" ? `Effy does not deliver to ${postcode}; a courier does.`
+        : null;
   return {
     coverage: coverage.kind,
     plan: { id: plan.id, name: plan.name, kind: plan.kind, state: stateOf(plan) },

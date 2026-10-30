@@ -213,7 +213,7 @@ private fun RunBody(run: CollectionRun, hubName: String?, open: Boolean, next: C
         DriverAlert(
             DriverAlertKind.Muted, Res.drawable.lucide_circle_alert,
             title = "Short at ${s.shopName}",
-            description = "A package was left behind. Dispatch has been told — nothing else to do.",
+            description = "A package was left behind. Dispatch has been told - nothing else to do.",
         )
     }
 }
@@ -252,7 +252,7 @@ private fun StopRow(s: CollectionStop, isNext: Boolean, onClick: () -> Unit) {
 /** The three things that can be wrong with a package at a shop (redesign `03 Report a problem`). */
 private enum class Problem(val label: String, val hint: String) {
     Missing("Missing", "The shop can't find it"),
-    Damaged("Damaged", "Torn, leaking or crushed — don't take it"),
+    Damaged("Damaged", "Torn, leaking or crushed - don't take it"),
     NotReady("Not ready", "Still being packed"),
 }
 
@@ -263,7 +263,7 @@ private fun coverage(p: CollectionPackage): String =
 /**
  * One shop (redesign `05 Collection run / 02 Shop stop`): scan the packages, or tick each as it goes in
  * the van, report any that are not, and swipe to collect. Nothing is sent until the swipe (or the last
- * scan) — ticks and reports are kept on the phone.
+ * scan) - ticks and reports are kept on the phone.
  */
 @Composable
 fun ShopStopScreen(
@@ -371,7 +371,7 @@ fun ShopStopScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             state.message?.let { DriverAlert(DriverAlertKind.Problem, Res.drawable.lucide_circle_alert, title = it) }
-            if (stop.stale) Text("Last loaded copy — changes since then won't show.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (stop.stale) Text("Last loaded copy - changes since then won't show.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(stop.shopName, fontSize = 30.sp, lineHeight = 36.sp, fontWeight = FontWeight.Bold)
                 stop.address?.let { Text(it, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant) }
@@ -459,8 +459,8 @@ fun ShopStopScreen(
                 icon = Res.drawable.lucide_package,
                 onDismiss = { checking = false; swipeKey++ },
             ) {
-                DriverButton(if (unticked.size == 1) "Yes, it's in the van — collect" else "Yes, they're all in the van — collect", onClick = { checking = false; onCollect() }, modifier = Modifier.fillMaxWidth())
-                DriverButton("No — report a problem", onClick = { checking = false; swipeKey++; reporting = first.key }, style = DriverButtonStyle.Outline, modifier = Modifier.fillMaxWidth())
+                DriverButton(if (unticked.size == 1) "Yes, it's in the van - collect" else "Yes, they're all in the van - collect", onClick = { checking = false; onCollect() }, modifier = Modifier.fillMaxWidth())
+                DriverButton("No - report a problem", onClick = { checking = false; swipeKey++; reporting = first.key }, style = DriverButtonStyle.Outline, modifier = Modifier.fillMaxWidth())
                 DriverButton("Go back and check", onClick = { checking = false; swipeKey++ }, style = DriverButtonStyle.Ghost, tall = false, modifier = Modifier.fillMaxWidth())
             }
         }
@@ -541,7 +541,7 @@ private fun PackageRow(
                             horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically,
                         ) {
                             DriverIcon(Res.drawable.lucide_circle_alert, size = 13.dp, tint = scheme.surface)
-                            Text("$problem — leaving at shop", color = scheme.surface, fontSize = 13.sp, lineHeight = 18.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text("$problem - leaving at shop", color = scheme.surface, fontSize = 13.sp, lineHeight = 18.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
                         if (enabled) {
                             Text(
@@ -741,7 +741,7 @@ fun HubCheckinScreen(
                     if (scannable) "Swipe to check in without scanning" else "Swipe to check in",
                     onConfirm = { if (scannable) accounting = emptyList() else onCheckIn(emptyList(), emptyList()) },
                     enabled = !state.isWorking,
-                    note = if (scannable) "Fallback — use only if the labels won't scan" else "Hand every package to the hub team",
+                    note = if (scannable) "Fallback - use only if the labels won't scan" else "Hand every package to the hub team",
                 )
             }
         }
@@ -857,9 +857,9 @@ private fun Sending() {
             DriverIcon(Res.drawable.lucide_refresh_ccw, size = 28.dp, tint = MaterialTheme.colorScheme.primary)
         }
         Text("Saved on this phone", style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium), color = MaterialTheme.colorScheme.primary)
-        Text("Checked in — sending", fontSize = 34.sp, lineHeight = 40.sp, fontWeight = FontWeight.Bold)
+        Text("Checked in - sending", fontSize = 34.sp, lineHeight = 40.sp, fontWeight = FontWeight.Bold)
         Text(
-            "You're offline. Your check-in sends as soon as there's signal. Where each parcel goes will show then — hand them all to the hub team now.",
+            "You're offline. Your check-in sends as soon as there's signal. Where each parcel goes will show then - hand them all to the hub team now.",
             style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }

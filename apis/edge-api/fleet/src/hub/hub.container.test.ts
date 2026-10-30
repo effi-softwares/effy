@@ -72,7 +72,7 @@ async function aRun() {
   return { run: run.id, pkg: pkg.id, order: order.order_number, bag1: bag1.parcel_code, bag2: bag2.parcel_code, voided: voided.parcel_code, driver: driver.id };
 }
 
-d("096 US5 — the hub station", () => {
+d("096 US5 - the hub station", () => {
   beforeAll(async () => {
     container = await new PostgreSqlContainer("postgres:16-alpine").start();
     pool = new Pool({ connectionString: container.getConnectionUri() });
@@ -123,7 +123,7 @@ d("096 US5 — the hub station", () => {
     expect((await checkIn("hub-1", [read(`EFY1:${r.bag2}`)])).results[0]!.outcome).toBe("already_counted");
   });
 
-  it("refuses, in the scan rule's words, everything that is not a bag on its way in — and records every read", async () => {
+  it("refuses, in the scan rule's words, everything that is not a bag on its way in - and records every read", async () => {
     const r = await aRun();
     const out = await checkIn("hub-1", [
       read("hello world"),

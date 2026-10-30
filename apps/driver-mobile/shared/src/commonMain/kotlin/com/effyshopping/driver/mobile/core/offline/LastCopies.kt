@@ -4,7 +4,7 @@ import com.russhwolf.settings.Settings
 
 /**
  * The last copy of the few reads the app needs to open with no signal (backlog C3): the driver's
- * record and Today. Unlike [LastRead] it survives the app being closed — a driver opening the app in a
+ * record and Today. Unlike [LastRead] it survives the app being closed - a driver opening the app in a
  * loading dock saw the sign-in screen. Kept as the wire's JSON; cleared on sign-out, so a shared phone
  * never opens on the last driver's work.
  */

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- DEBUG BUILDS ONLY — the design gallery (092 rev 2): renders screens with sample data so they can be
+<!-- DEBUG BUILDS ONLY - the design gallery (092 rev 2): renders screens with sample data so they can be
      compared with the redesign's PNGs. Not in release builds. Launch:
      adb shell am start -n com.effyshopping.driver.mobile/.DesignGalleryActivity -e screen today -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">

@@ -1,9 +1,9 @@
-# ══ 102 — product imports: a shop's list, checked and created by a worker ══════════════════════════
+# ══ 102 - product imports: a shop's list, checked and created by a worker ══════════════════════════
 #
 # Spec specs/102-backoffice-product-catalogue (research R5). The catalog service writes an import and
 # sends one message per step (check, then create); the route-less worker in the same service does the
-# step. Pictures it fetches wait under imports/ in the media bucket — private, never notified, never in
-# local.public_media_prefixes — and expire after a week (media.tf).
+# step. Pictures it fetches wait under imports/ in the media bucket - private, never notified, never in
+# local.public_media_prefixes - and expire after a week (media.tf).
 
 # sse-SQS below; a CMK adds cost and IAM surface with no requirement behind it
 # trivy:ignore:avd-aws-0096

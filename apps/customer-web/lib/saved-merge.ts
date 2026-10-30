@@ -5,7 +5,7 @@
  *
  * Its own module, for bytes. `SaveControl` imports `saved-actions`, and `saved-actions` is
  * therefore on `/` and `/product/[id]`. When this code lived there it pushed `/` to
- * exactly 174.0 KB against a 174 KB budget — zero headroom. Nothing here is needed by a tile: the
+ * exactly 174.0 KB against a 174 KB budget - zero headroom. Nothing here is needed by a tile: the
  * merge runs on the auth pages and the disclosure is read by the saved list, none of which are
  * budgeted routes. Keep it that way.
  */
@@ -51,7 +51,7 @@ async function adoptMembership(): Promise<void> {
     const body = (await res.json()) as { productIds?: string[]; namedProductIds?: string[] }
     if (Array.isArray(body.productIds)) adoptSaved(body.productIds, body.namedProductIds ?? [])
   } catch {
-    /* transient — the platform still refuses a destructive tap */
+    /* transient - the platform still refuses a destructive tap */
   }
 }
 
@@ -61,7 +61,7 @@ export async function mergeSavedAfterSignIn(): Promise<number> {
   // mirror, or every heart renders unsaved until the next page load.
   const items: GuestEntry[] = ids.map((productId) => ({
     productId,
-    // null, not "0". The web store keeps ids only, so the device never observed a price — the
+    // null, not "0". The web store keeps ids only, so the device never observed a price - the
     // platform then uses the product's current price as the baseline instead of reporting the item as
     // having fallen from nothing.
     savedPriceAmount: null,
@@ -84,17 +84,17 @@ export async function mergeSavedAfterSignIn(): Promise<number> {
     void adoptMembership()
     const added = body.added ?? 0
     // The join is disclosed, never silent. Parked in sessionStorage because sign-in
-    // navigates away and an in-memory toast would not survive it — a shared device would otherwise
+    // navigates away and an in-memory toast would not survive it - a shared device would otherwise
     // absorb the previous person's saves with nothing said. Read and cleared by the saved list.
     if (added > 0) {
       try {
         window.sessionStorage.setItem(MERGE_NOTICE_KEY, String(added))
       } catch {
-        /* storage disabled — the disclosure is best-effort, the merge still happened */
+        /* storage disabled - the disclosure is best-effort, the merge still happened */
       }
     }
     return added
   } catch {
-    return 0 // transient — the device list stands and the next sign-in retries
+    return 0 // transient - the device list stands and the next sign-in retries
   }
 }

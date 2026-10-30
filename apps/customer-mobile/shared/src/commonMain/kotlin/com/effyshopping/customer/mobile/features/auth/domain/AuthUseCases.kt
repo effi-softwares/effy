@@ -5,9 +5,9 @@ import com.effyshopping.customer.mobile.core.auth.AuthStep
 import com.effyshopping.customer.mobile.features.account.domain.CustomerRepository
 
 /**
- * The auth domain layer. One class per use case, over the domain [AuthDriver] boundary — the
+ * The auth domain layer. One class per use case, over the domain [AuthDriver] boundary - the
  * ViewModel depends on these, not the driver. Each owns input normalization (trim email + names; never
- * a password — leading/trailing characters can be significant) so the rule lives in one place.
+ * a password - leading/trailing characters can be significant) so the rule lives in one place.
  *
  * The customer audience is the only one with registration + password + recovery, so these use cases
  * exist here and not in the shop app (Principle IV, per-audience).
@@ -23,7 +23,7 @@ class RegisterWithPassword(private val authDriver: AuthDriver) {
         authDriver.signUpWithPassword(email.trim(), password)
 }
 
-/** Register passwordless (a genuinely passwordless customer — no password seeded). */
+/** Register passwordless (a genuinely passwordless customer - no password seeded). */
 class RegisterPasswordless(private val authDriver: AuthDriver) {
     suspend operator fun invoke(email: String): AuthStep = authDriver.signUpPasswordless(email.trim())
 }
@@ -48,14 +48,14 @@ class SignInWithEmailOtp(private val authDriver: AuthDriver) {
 /**
  * Send another sign-in code.
  *
- * Named for what it does. There is no resend API for a custom challenge — this re-runs sign-in,
+ * Named for what it does. There is no resend API for a custom challenge - this re-runs sign-in,
  * which resets the attempt counter and consumes one of twenty hourly sends. See [AuthDriver].
  */
 class ResendSignInCode(private val authDriver: AuthDriver) {
     suspend operator fun invoke(email: String): AuthStep = authDriver.resendSignInCode(email.trim())
 }
 
-/** Send the sign-UP confirmation code again — Cognito's managed resend, a genuinely different call. */
+/** Send the sign-UP confirmation code again - Cognito's managed resend, a genuinely different call. */
 class ResendSignUpCode(private val authDriver: AuthDriver) {
     suspend operator fun invoke(email: String): AuthStep = authDriver.resendSignUpCode(email.trim())
 }
@@ -65,13 +65,13 @@ class ConfirmOtp(private val authDriver: AuthDriver) {
     suspend operator fun invoke(code: String): AuthStep = authDriver.confirmOtp(code.trim())
 }
 
-/** Begin account recovery — email a reset code. Recovery finishes at the backend (never the SDK). */
+/** Begin account recovery - email a reset code. Recovery finishes at the backend (never the SDK). */
 class StartPasswordReset(private val authDriver: AuthDriver) {
     suspend operator fun invoke(email: String): AuthStep = authDriver.startPasswordReset(email.trim())
 }
 
 /**
- * Finish recovery via the backend — not the SDK, which would corrupt `has_password`. Lives on
+ * Finish recovery via the backend - not the SDK, which would corrupt `has_password`. Lives on
  * [CustomerRepository], not the driver, which is exactly why recovery converges on one profile.
  */
 class ConfirmPasswordReset(private val customers: CustomerRepository) {

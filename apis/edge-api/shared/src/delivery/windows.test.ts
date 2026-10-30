@@ -28,32 +28,32 @@ describe("effyDays", () => {
     expect(effyDays(tue(10), 3, [], new Set(), true)[0]).toEqual({ date: "2026-10-06", isToday: true, nonDelivery: false });
   });
 
-  it("P3 — skips a non-delivery weekday and date, and neither counts toward the three", () => {
+  it("P3 - skips a non-delivery weekday and date, and neither counts toward the three", () => {
     // Friday 9 October; no Sundays; Monday 12 October is a public holiday.
     const days = effyDays(melbourne(2026, 10, 9, 10), 3, [7], new Set(["2026-10-12"]), true);
     expect(days.map((d) => d.date)).toEqual(["2026-10-09", "2026-10-10", "2026-10-13", "2026-10-14"]);
   });
 
-  it("P3 — keeps today when Effy does not deliver today, flagged, and still offers three later days", () => {
+  it("P3 - keeps today when Effy does not deliver today, flagged, and still offers three later days", () => {
     const days = effyDays(tue(10), 3, [2], new Set(), true);
     expect(days[0]).toEqual({ date: "2026-10-06", isToday: true, nonDelivery: true });
     expect(days.slice(1).map((d) => d.date)).toEqual(["2026-10-07", "2026-10-08", "2026-10-09"]);
   });
 
-  it("097 — today not offered here: today is ABSENT (never listed as closed) and the later days are unchanged", () => {
+  it("097 - today not offered here: today is ABSENT (never listed as closed) and the later days are unchanged", () => {
     const withToday = effyDays(tue(10), 3, [], new Set(), true);
     const without = effyDays(tue(10), 3, [], new Set(), false);
     expect(without.some((d) => d.isToday)).toBe(false);
     expect(without).toEqual(withToday.slice(1));
   });
 
-  it("097 — on a non-delivery today, not offering it gives the same later days", () => {
+  it("097 - on a non-delivery today, not offering it gives the same later days", () => {
     expect(effyDays(tue(10), 3, [2], new Set(), false)).toEqual(effyDays(tue(10), 3, [2], new Set(), true).slice(1));
     expect(effyDays(melbourne(2026, 10, 9, 10), 3, [7], new Set(["2026-10-12"]), false).map((d) => d.date))
       .toEqual(["2026-10-10", "2026-10-13", "2026-10-14"]);
   });
 
-  it("097 — with today not offered, an open window today is not offered and no Any-time today exists", () => {
+  it("097 - with today not offered, an open window today is not offered and no Any-time today exists", () => {
     const anyTime: Slot = { id: "any", start: c(12), end: c(21), cutoff: c(11), capacity: null, anyTime: true };
     const days = openWindows(tue(7), effyDays(tue(7), 3, [], new Set(), false), [...slots, anyTime], new Map(), runs, BUFFER, TURNAROUND);
     expect(days.map((d) => d.date)).toEqual(["2026-10-07", "2026-10-08", "2026-10-09"]);
@@ -65,7 +65,7 @@ describe("effyDays", () => {
     expect(effyDays(tue(10), lookahead, [], new Set(), true)).toHaveLength(total);
   });
 
-  it("P5 — one minute either side of midnight is two different todays", () => {
+  it("P5 - one minute either side of midnight is two different todays", () => {
     expect(effyDays(melbourne(2026, 10, 6, 23, 59), 3, [], new Set(), true)[0]!.date).toBe("2026-10-06");
     expect(effyDays(melbourne(2026, 10, 7, 0, 0), 3, [], new Set(), true)[0]!.date).toBe("2026-10-07");
   });
@@ -74,13 +74,13 @@ describe("effyDays", () => {
     ["clocks go forward on 4 October 2026", melbourne(2026, 10, 3, 23, 30), ["2026-10-03", "2026-10-04", "2026-10-05", "2026-10-06"]],
     ["clocks go back on 4 April 2027", melbourne(2027, 4, 3, 23, 30), ["2027-04-03", "2027-04-04", "2027-04-05", "2027-04-06"]],
     ["just after the clocks went back", melbourne(2027, 4, 4, 0, 30), ["2027-04-04", "2027-04-05", "2027-04-06", "2027-04-07"]],
-  ])("P5 — no day repeats or goes missing when %s", (_name, now, want) => {
+  ])("P5 - no day repeats or goes missing when %s", (_name, now, want) => {
     expect(effyDays(now, 3, [], new Set(), true).map((d) => d.date)).toEqual(want);
   });
 });
 
 describe("openWindows", () => {
-  it("P1 — at 10:00 today lacks the window whose cutoff has passed; every later day has all three", () => {
+  it("P1 - at 10:00 today lacks the window whose cutoff has passed; every later day has all three", () => {
     expect(ids(tue(10))).toEqual([
       ["2026-10-06", ["afternoon", "evening"], null],
       ["2026-10-07", ["morning", "afternoon", "evening"], null],
@@ -89,7 +89,7 @@ describe("openWindows", () => {
     ]);
   });
 
-  it("P1 — the cutoff alone closes a window today that a run could still serve, and not tomorrow", () => {
+  it("P1 - the cutoff alone closes a window today that a run could still serve, and not tomorrow", () => {
     // Starts 15:00, so the 13:00 run serves it; only its 09:00 cutoff stands in the way at 10:00.
     const early: Slot = { id: "early", start: c(15), end: c(17), cutoff: c(9), capacity: null, anyTime: false };
     expect(judgeWindow(tue(10), "2026-10-06", early, 0, runs, BUFFER, TURNAROUND).verdict).toBe("cutoff");
@@ -97,17 +97,17 @@ describe("openWindows", () => {
     expect(judgeWindow(tue(10), "2026-10-07", early, 0, runs, BUFFER, TURNAROUND).verdict).toBe("open");
   });
 
-  it("P2 — after the last cutoff today is closed and the later days are untouched", () => {
+  it("P2 - after the last cutoff today is closed and the later days are untouched", () => {
     const out = ids(tue(17, 1));
     expect(out[0]).toEqual(["2026-10-06", [], "closed"]);
     expect(out.slice(1).every(([, w]) => w.length === 3)).toBe(true);
   });
 
-  it("P3 — a day Effy does not deliver says so and offers nothing", () => {
+  it("P3 - a day Effy does not deliver says so and offers nothing", () => {
     expect(ids(tue(10), 3, [2])[0]).toEqual(["2026-10-06", [], "not_delivery_day"]);
   });
 
-  it("P4 — a window nobody can collect for is gone TODAY and there tomorrow", () => {
+  it("P4 - a window nobody can collect for is gone TODAY and there tomorrow", () => {
     // The evening window starts at 18:00, so the last run that serves it is 16:30, ordered by 16:00.
     // At 16:01 its own cutoff (17:00) has not passed, but nothing can be collected for it today.
     expect(judgeWindow(tue(16, 1), "2026-10-06", evening, 0, runs, BUFFER, TURNAROUND).verdict).toBe("uncollectable");
@@ -149,7 +149,7 @@ describe("openWindows", () => {
     expect(judgeWindow(tue(10), "2026-10-05", evening, 0, runs, BUFFER, TURNAROUND).verdict).toBe("cutoff");
   });
 
-  it("P5 — a window keeps its wall-clock times on the days the clocks change", () => {
+  it("P5 - a window keeps its wall-clock times on the days the clocks change", () => {
     for (const [now, date] of [[melbourne(2026, 10, 3, 12), "2026-10-04"], [melbourne(2027, 4, 3, 12), "2027-04-04"]] as const) {
       const j = judgeWindow(now, date, morning, 0, runs, BUFFER, TURNAROUND);
       if (j.verdict !== "open") throw new Error("expected open");
@@ -159,8 +159,8 @@ describe("openWindows", () => {
     }
   });
 
-  it("P5 — a window chosen as 'tomorrow' is judged by today's rules once midnight passes", () => {
-    // 23:58 on Tuesday: Wednesday's morning window is a later day — open, whatever the runs.
+  it("P5 - a window chosen as 'tomorrow' is judged by today's rules once midnight passes", () => {
+    // 23:58 on Tuesday: Wednesday's morning window is a later day - open, whatever the runs.
     expect(judgeWindow(melbourne(2026, 10, 6, 23, 58), "2026-10-07", morning, 0, [], BUFFER, TURNAROUND).verdict).toBe("open");
     // 00:01 on Wednesday: the same window is today's, and with no run it cannot be collected for.
     expect(judgeWindow(melbourne(2026, 10, 7, 0, 1), "2026-10-07", morning, 0, [], BUFFER, TURNAROUND).verdict).toBe("uncollectable");
@@ -182,15 +182,15 @@ describe("windowsUnavailable", () => {
   });
 });
 
-describe("085 — the Any-time window: a day sold with no time", () => {
+describe("085 - the Any-time window: a day sold with no time", () => {
   // Midday to 9 pm, order by 10:00, two orders a day.
   const anyTime: Slot = { id: "anytime", start: c(12), end: c(21), cutoff: c(10), capacity: 2, anyTime: true };
   const withAnyTime = [...slots, anyTime];
   const open = (now: Date, load = new Map<string, Map<string, number>>(), all: readonly Slot[] = withAnyTime) =>
     openWindows(now, effyDays(now, 3, [], new Set(), true), all, load, runs, BUFFER, TURNAROUND);
 
-  it("⚠ is never listed among a day's windows — it is filed as the day's anyTime", () => {
-    // 07:00 — the 08:00 run can still be made and reaches the hub (09:00) before the window starts.
+  it("⚠ is never listed among a day's windows - it is filed as the day's anyTime", () => {
+    // 07:00 - the 08:00 run can still be made and reaches the hub (09:00) before the window starts.
     for (const d of open(tue(7))) {
       expect(d.windows.map((w) => w.id)).not.toContain("anytime");
       expect(d.anyTime?.id).toBe("anytime");
@@ -199,7 +199,7 @@ describe("085 — the Any-time window: a day sold with no time", () => {
   });
 
   it("is judged by the ONE window rule: its own cutoff today, its own capacity on each day", () => {
-    // 10:01 — past its cutoff today; tomorrow untouched.
+    // 10:01 - past its cutoff today; tomorrow untouched.
     const late = open(tue(10, 1));
     expect(late[0]!.anyTime).toBeNull();
     expect(late[1]!.anyTime?.id).toBe("anytime");
@@ -214,7 +214,7 @@ describe("085 — the Any-time window: a day sold with no time", () => {
     expect(judgeWindow(tue(8), "2026-10-08", anyTime, 2, runs, BUFFER, TURNAROUND).verdict).toBe("full");
   });
 
-  it("a day's untimed room and its windows are independent — each can be gone without the other", () => {
+  it("a day's untimed room and its windows are independent - each can be gone without the other", () => {
     // Every timed window on Thursday taken, untimed still open.
     const limited = [{ ...morning, capacity: 1 }, { ...afternoon, capacity: 1 }, evening, anyTime];
     const load = new Map([["2026-10-08", new Map([["morning", 1], ["afternoon", 1], ["evening", 2]])]]);
@@ -222,7 +222,7 @@ describe("085 — the Any-time window: a day sold with no time", () => {
     expect(thu.windows).toEqual([]);
     expect(thu.closedReason).toBe("full");
     expect(thu.anyTime?.id).toBe("anytime");
-    // The reverse: untimed full, windows open — and the day's reason is still about its windows.
+    // The reverse: untimed full, windows open - and the day's reason is still about its windows.
     const reverse = open(tue(8), new Map([["2026-10-08", new Map([["anytime", 2]])]]))[2]!;
     expect(reverse.anyTime).toBeNull();
     expect(reverse.windows).toHaveLength(3);

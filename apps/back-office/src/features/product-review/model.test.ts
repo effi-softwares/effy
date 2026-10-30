@@ -56,7 +56,7 @@ describe("labels", () => {
 })
 
 describe("canDecideReview", () => {
-  it("is admin and manager — a csa reads the queue and decides nothing", () => {
+  it("is admin and manager - a csa reads the queue and decides nothing", () => {
     expect(canDecideReview(["admin"])).toBe(true)
     expect(canDecideReview(["manager"])).toBe(true)
     expect(canDecideReview(["csa"])).toBe(false)
@@ -69,7 +69,7 @@ describe("priceRange (098)", () => {
     expect(priceRange(["4.00"])).toBe("4.00")
     expect(priceRange(["4.00", "4.0"])).toBe("4.00")
     expect(priceRange(["5.50", "3.00", "4.25"])).toBe("3.00–5.50")
-    expect(priceRange([])).toBe("—")
+    expect(priceRange([])).toBe("-")
   })
 })
 
@@ -103,14 +103,14 @@ describe("attention lines (101)", () => {
 
 describe("the review page's reading of a change", () => {
   it("marks the words removed and added, the shared ones plain", () => {
-    const d = wordDiff("Cold-pressed olive oil.", "Early-harvest, cold-pressed olive oil — peppery.")
+    const d = wordDiff("Cold-pressed olive oil.", "Early-harvest, cold-pressed olive oil - peppery.")
     expect(d.was.filter((p) => p.changed).map((p) => p.text.trim())).toEqual(["Cold-pressed", "oil."])
     expect(d.now.filter((p) => p.changed).map((p) => p.text.trim())).toEqual([
       "Early-harvest, cold-pressed",
-      "oil — peppery.",
+      "oil - peppery.",
     ])
     expect(d.was.map((p) => p.text).join("")).toBe("Cold-pressed olive oil.")
-    expect(d.now.map((p) => p.text).join("")).toBe("Early-harvest, cold-pressed olive oil — peppery.")
+    expect(d.now.map((p) => p.text).join("")).toBe("Early-harvest, cold-pressed olive oil - peppery.")
   })
 
   it("says how far a price moved, and nothing for what is not one", () => {
@@ -129,8 +129,8 @@ describe("the review page's reading of a change", () => {
 
   it("finds the shop prices raised past the guide, by size", () => {
     const changes = [
-      { field: "variant:v2:shopPriceAmount", label: "750 mL — Shop price", before: "16.00", after: "18.00" },
-      { field: "variant:v1:shopPriceAmount", label: "375 mL — Shop price", before: "9.50", after: "9.90" },
+      { field: "variant:v2:shopPriceAmount", label: "750 mL - Shop price", before: "16.00", after: "18.00" },
+      { field: "variant:v1:shopPriceAmount", label: "375 mL - Shop price", before: "9.50", after: "9.90" },
     ]
     expect(bigPriceRises({ changes })).toEqual([{ label: "750 mL", move: 12.5 }])
   })

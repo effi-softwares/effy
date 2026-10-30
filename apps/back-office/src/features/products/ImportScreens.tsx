@@ -429,7 +429,7 @@ function Import({ i }: { i: ProductImportDTO }) {
       ) : null}
       {i.state === "failed" ? (
         <Callout tone="destructive" title="This import could not finish" role="alert">
-          Something failed while it ran — not a row. The team has been alerted; you can upload the list again.
+          Something failed while it ran - not a row. The team has been alerted; you can upload the list again.
         </Callout>
       ) : null}
       {i.state === "done" ? (
@@ -450,7 +450,7 @@ function Import({ i }: { i: ProductImportDTO }) {
         <Panel
           title={i.state === "done" ? "Left out" : "Not ready"}
           icon={<CircleAlert aria-hidden="true" />}
-          description="Fix these in the file and upload it again — rows already created are recognised by their SKU."
+          description="Fix these in the file and upload it again - rows already created are recognised by their SKU."
           flush
         >
           <ProductTable products={notReady} />
@@ -500,7 +500,7 @@ function ProductTable({ products }: { products: readonly ProductImportProductDTO
                 <TableCell className="tabular-nums">{p.pictures}</TableCell>
                 <TableCell>
                   {problems.length === 0 ? (
-                    <span className="text-muted-foreground">—</span>
+                    <span className="text-muted-foreground">-</span>
                   ) : (
                     <ul className="space-y-1 text-sm">
                       {problems.map((x, n) => (

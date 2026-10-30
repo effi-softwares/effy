@@ -75,7 +75,7 @@ import com.effyshopping.driver.mobile.features.today.presentation.TodayScreen
 import com.effyshopping.driver.mobile.features.today.presentation.TodayUiState
 
 /**
- * Debug only — the design gallery (092 rev 2). Renders one screen with sample data, chosen by the
+ * Debug only - the design gallery (092 rev 2). Renders one screen with sample data, chosen by the
  * `screen` extra, so it can be screenshotted and compared with `docs/reference-screens/Effy Driver
  * redesigns/`. `dark=true` for the dark appearance. Sample data lives here and nowhere in the app.
  */

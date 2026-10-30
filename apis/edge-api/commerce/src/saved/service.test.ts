@@ -125,7 +125,7 @@ describe("add a whole list to the cart", () => {
     ]);
   });
 
-  it("098 — adds the REMEMBERED variant; with several and none remembered, asks the shopper to choose", async () => {
+  it("098 - adds the REMEMBERED variant; with several and none remembered, asks the shopper to choose", async () => {
     const { svc, addToCart } = build({
       list: async () => [row(1, { variant_id: "v-1kg", variant_count: 3 }), row(2, { variant_count: 2 }), row(3)],
     });
@@ -171,12 +171,12 @@ describe("add a whole list to the cart", () => {
 });
 
 describe("lists", () => {
-  it("synthesises the default list when the shopper has none — a read never writes", async () => {
+  it("synthesises the default list when the shopper has none - a read never writes", async () => {
     const { svc } = build();
     expect(await svc.lists(CUST, null)).toEqual([{ id: "default", isDefault: true, name: null, count: 0, onlyHereCount: 0 }]);
   });
 
-  it("puts the default first under the id 'default' — its real id never reaches the wire", async () => {
+  it("puts the default first under the id 'default' - its real id never reaches the wire", async () => {
     const real = "0d000000-0000-0000-0000-000000000000";
     const { svc } = build({
       lists: async () => [summary({ id: real, is_default: true, name: null, count: 3, only_here: 1 }), summary({ count: 2, only_here: 2 })],

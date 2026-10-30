@@ -82,7 +82,7 @@ internal enum class DropStage { Detail, Scan, Choose, Camera, Review, Signature,
 
 /**
  * One drop (canvas `Drop` and its proof, outcome and can't-deliver screens). Two taps: Deliver opens
- * "how did you hand it over?", and completing the proof is the second (092, R5 — arrival is recorded
+ * "how did you hand it over?", and completing the proof is the second (092, R5 - arrival is recorded
  * silently by the ViewModel).
  */
 @Composable
@@ -282,13 +282,13 @@ private fun DropDetail(
         ) {
             message?.let { DriverAlert(DriverAlertKind.Problem, Res.drawable.lucide_circle_alert, title = it) }
             if (drop.stale) {
-                Text("Last loaded copy — changes since then won't show.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Last loaded copy - changes since then won't show.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 val now = rememberNow()
                 val ws = windowStatus(drop.window, drop.status, now)
                 if (ws != null || drop.window != null) {
-                    // The window as two pills: its state (Due now — blue while it's the time) and its hours.
+                    // The window as two pills: its state (Due now - blue while it's the time) and its hours.
                     Row(Modifier.padding(bottom = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                         ws?.let { if (it == DriverStatus.DueNow) DriverStatusPill(DriverStatus.Next, label = "Due now") else DriverStatusPill(it) }
                         drop.window?.let { w ->
@@ -333,7 +333,7 @@ private fun DropDetail(
                 // The drop is still at the hub: loading the van is the next step, not this drop.
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                     DriverIcon(Res.drawable.lucide_truck, size = 14.dp, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("Load the van first — then this drop opens.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Load the van first - then this drop opens.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 DriverButton("Go to Load the van", onClick = onLoadVan, icon = Res.drawable.lucide_truck, modifier = Modifier.fillMaxWidth())
             } else {
@@ -375,7 +375,7 @@ private fun InstructionCallout(drop: Drop) {
     }
 }
 
-/** The packages by position — never by shop (hidden fulfilment), each opening to its items. */
+/** The packages by position - never by shop (hidden fulfilment), each opening to its items. */
 @Composable
 private fun PackagesList(drop: Drop) {
     val n = drop.packages.size
@@ -437,7 +437,7 @@ private fun PackageRow(dropId: String, p: DropPackage, position: Int, of: Int, l
     }
 }
 
-/** A drop already finished before this screen opened — from history, or another phone. */
+/** A drop already finished before this screen opened - from history, or another phone. */
 @Composable
 private fun ClosedView(drop: Drop, onBack: () -> Unit) {
     Column(Modifier.fillMaxSize()) {

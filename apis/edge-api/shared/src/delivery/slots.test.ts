@@ -12,7 +12,7 @@ const run = (hour: number, minute: number): CollectionRun[] => [{ hour, minute }
 const judgeToday = (now: Date, slot: Slot, booked: number, runs: readonly CollectionRun[], buffer: number, turnaround: number) =>
   judgeWindow(now, melbourneDate(now), slot, booked, runs, buffer, turnaround);
 
-describe("judgeWindow — a window today", () => {
+describe("judgeWindow - a window today", () => {
   const cases: Array<[string, Date, number, CollectionRun[], number, number, SlotVerdict]> = [
     ["open well before everything", at(10, 0), 0, oneRun, 60, 60, "open"],
     ["open with one place left", at(10, 0), 1, oneRun, 60, 60, "open"],

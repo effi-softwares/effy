@@ -56,7 +56,7 @@ function renderIt() {
 
 beforeEach(() => vi.clearAllMocks())
 
-describe("085 — Change day or time…", () => {
+describe("085 - Change day or time…", () => {
   it("offers a day with no time beside the windows, and saves the one chosen with a reason", async () => {
     previewDeliveryMove.mockResolvedValue(PREVIEW)
     changeDeliveryWindow.mockResolvedValue({ orderId: "o1", promise: "day" })

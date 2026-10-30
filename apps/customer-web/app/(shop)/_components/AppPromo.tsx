@@ -15,7 +15,7 @@ export function AppPromo() {
         <div>
           <h2 className="text-lg font-semibold">The Effy app is on its way</h2>
           <p className="mt-1 max-w-xl text-sm text-muted-foreground">
-            We&rsquo;re building Effy for iPhone and Android — the same shop, the same basket, in your
+            We&rsquo;re building Effy for iPhone and Android - the same shop, the same basket, in your
             pocket. It isn&rsquo;t in the stores yet. When it is, it&rsquo;ll be right here.
           </p>
         </div>

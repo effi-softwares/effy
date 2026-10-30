@@ -23,8 +23,8 @@ const weekdaysText = (days: number[]): string =>
   days.length === 7
     ? "Every day"
     : WEEKDAYS.filter(([d]) => days.includes(d))
-        .map(([, w]) => w)
-        .join(", ")
+      .map(([, w]) => w)
+      .join(", ")
 
 type Draft = Required<Omit<CourierServiceInput, "status" | "isDefault">>
 const EMPTY: Draft = {
@@ -55,14 +55,14 @@ export function CourierServicesPanel({ canManage }: { canManage: boolean }) {
     setDraft(
       s
         ? {
-            courierName: s.courierName,
-            serviceName: s.serviceName,
-            estimateText: s.estimateText,
-            maxBusinessDays: s.maxBusinessDays,
-            pickupWeekdays: s.pickupWeekdays,
-            pickupCutoff: s.pickupCutoff,
-            collectsFromSupplier: s.collectsFromSupplier,
-          }
+          courierName: s.courierName,
+          serviceName: s.serviceName,
+          estimateText: s.estimateText,
+          maxBusinessDays: s.maxBusinessDays,
+          pickupWeekdays: s.pickupWeekdays,
+          pickupCutoff: s.pickupCutoff,
+          collectsFromSupplier: s.collectsFromSupplier,
+        }
         : EMPTY,
     )
   }
@@ -128,47 +128,47 @@ export function CourierServicesPanel({ canManage }: { canManage: boolean }) {
     },
     ...(canManage
       ? [
-          {
-            id: "actions",
-            header: () => <span className="sr-only">Actions</span>,
-            enableSorting: false,
-            cell: ({ row }) => {
-              const s = row.original
-              return (
-                <span className="space-x-1 whitespace-nowrap">
-                  <Button variant="ghost" size="sm" onClick={() => open(s)}>
-                    Edit
+        {
+          id: "actions",
+          header: () => <span className="sr-only">Actions</span>,
+          enableSorting: false,
+          cell: ({ row }) => {
+            const s = row.original
+            return (
+              <span className="space-x-1 whitespace-nowrap">
+                <Button variant="ghost" size="sm" onClick={() => open(s)}>
+                  Edit
+                </Button>
+                {!s.isDefault && s.status === "active" ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={busy}
+                    onClick={() => void run(() => update.mutateAsync({ id: s.id, body: { isDefault: true } }))}
+                  >
+                    Make default
                   </Button>
-                  {!s.isDefault && s.status === "active" ? (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      disabled={busy}
-                      onClick={() => void run(() => update.mutateAsync({ id: s.id, body: { isDefault: true } }))}
-                    >
-                      Make default
-                    </Button>
-                  ) : null}
-                  {!s.isDefault ? (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      disabled={busy}
-                      onClick={() =>
-                        void run(() =>
-                          update.mutateAsync({ id: s.id, body: { status: s.status === "active" ? "retired" : "active" } }),
-                        )
-                      }
-                    >
-                      {s.status === "active" ? "Retire" : "Reinstate"}
-                    </Button>
-                  ) : null}
-                </span>
-              )
-            },
-            meta: { label: "Actions", phone: "full", className: "text-right" },
-          } satisfies EffyColumnDef<CourierServiceDTO>,
-        ]
+                ) : null}
+                {!s.isDefault ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={busy}
+                    onClick={() =>
+                      void run(() =>
+                        update.mutateAsync({ id: s.id, body: { status: s.status === "active" ? "retired" : "active" } }),
+                      )
+                    }
+                  >
+                    {s.status === "active" ? "Retire" : "Reinstate"}
+                  </Button>
+                ) : null}
+              </span>
+            )
+          },
+          meta: { label: "Actions", phone: "full", className: "text-right" },
+        } satisfies EffyColumnDef<CourierServiceDTO>,
+      ]
       : []),
   ]
 
@@ -188,7 +188,7 @@ export function CourierServicesPanel({ canManage }: { canManage: boolean }) {
         <StaticTable label="Courier services" columns={columns} rows={[]} getRowId={(c) => c.id} loading loadingRows={2} />
       ) : items.length === 0 ? (
         <p className="text-sm text-muted-foreground" data-testid="courier-services-empty">
-          No courier services yet. Add the one Effy uses — courier delivery can't be switched on until there is a
+          No courier services yet. Add the one Effy uses - courier delivery can't be switched on until there is a
           default.
         </p>
       ) : (

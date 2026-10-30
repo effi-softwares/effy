@@ -33,7 +33,7 @@ const fieldNames = (body: string) => [...body.matchAll(/^\s*(\w+)\??:/gm)].map((
 
 const types = resolve(repo, "packages/shared-types/src");
 
-describe("P20 — what a customer and a shop are told about delivery", () => {
+describe("P20 - what a customer and a shop are told about delivery", () => {
   /** Customer contracts that may carry a fee, as lines and a total. */
   const CUSTOMER = ["delivery.ts", "delivery-fee.ts", "checkout.ts", "order.ts"];
   const LEAKS = /(^|[a-z])(km|distance|band|grams|weight|plan|breakdown|basketCents|premium|hub)/i;
@@ -78,7 +78,7 @@ describe("P20 — what a customer and a shop are told about delivery", () => {
   });
 });
 
-describe("P21 — nothing reads a distance tier or a method multiplier", () => {
+describe("P21 - nothing reads a distance tier or a method multiplier", () => {
   const GONE = /\b(delivery_ring|delivery_ring_price|ring_id|ringPrice\w*|coverage_ring_for_km|hub_distance_km|ring_is_overridden|suggested_ring_id|same_day_factor|standard_factor|factorMilli|sameDayFactor|standardFactor)\b/;
   const roots = ["apis", "apps", "packages"].map((d) => resolve(repo, d));
   const sources = roots
@@ -95,7 +95,7 @@ describe("P21 — nothing reads a distance tier or a method multiplier", () => {
   });
 });
 
-describe("P22 — fee parts are added up in the engine alone", () => {
+describe("P22 - fee parts are added up in the engine alone", () => {
   const delivery = resolve(repo, "apis/edge-api/shared/src/delivery");
   const all = ["apis", "apps"].flatMap((d) => files(resolve(repo, d), [".ts", ".tsx"])).filter((f) => !isTest(f));
 

@@ -29,7 +29,7 @@ class HttpPaymentMethodsRepository(private val edge: HttpClient) : PaymentMethod
     override suspend fun remove(id: String) {
         request {
             // Ownership is verified server-side before anything is detached; a client-supplied id is
-            // never trusted. A 404 means "not yours or not there" — deliberately the same
+            // never trusted. A 404 means "not yours or not there" - deliberately the same
             // answer, so the route cannot be used as an oracle for which ids exist. It is also benign
             // from the shopper's point of view: the card is gone either way.
             val response = edge.delete("commerce/v1/payment-methods/$id")

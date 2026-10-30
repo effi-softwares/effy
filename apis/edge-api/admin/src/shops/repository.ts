@@ -148,7 +148,7 @@ export async function listShops(req: ShopListRequest): Promise<{ items: ShopList
     const res = await query<ShopListRow & { full_count: string }>(
       `SELECT s.id, s.code, s.name, s.status,
               -- ⚠ whether a driver could be sent here at all. The address itself is NOT
-              -- selected — a register does not need a street, and a shop's location should not travel
+              -- selected - a register does not need a street, and a shop's location should not travel
               -- further than it has to.
               (s.address_line1 IS NOT NULL) AS has_address,
               count(ss.id) AS user_count,

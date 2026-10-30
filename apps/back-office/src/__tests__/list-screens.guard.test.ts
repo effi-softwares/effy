@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest"
 
 /**
  * 103: every console list and bounded table is `@effy/web-kit/data-table` (`DataTable` / `StaticTable`). A screen
- * may draw the raw `Table` only when it is a board, an editor, a review or a timeline — named here, with why.
+ * may draw the raw `Table` only when it is a board, an editor, a review or a timeline - named here, with why.
  */
 const RAW_TABLE_ALLOWED: Record<string, string> = {
   "delivery/pricing/PlanEditor.tsx": "editor: a fee plan's bands",
@@ -15,7 +15,6 @@ const RAW_TABLE_ALLOWED: Record<string, string> = {
   "drivers/components/DutyPanel.tsx": "board: who is on duty now",
   "exceptions/SequenceSections.tsx": "board: held packages, overdue runs, vehicle checks",
   "hub/HubStationScreen.tsx": "board: the hub station",
-  "orders/components/PackageRows.tsx": "bags: each row is a scan-to-find anchor",
   "orders/components/RefundsSection.tsx": "action list: proposed refunds (its history is a StaticTable)",
   "overview/TodaysWindows.tsx": "board: today's windows",
   "products/ImportScreens.tsx": "editor/review: an import's column map and outcome",

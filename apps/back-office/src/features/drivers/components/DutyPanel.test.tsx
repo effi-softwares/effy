@@ -36,7 +36,7 @@ function renderPanel() {
   })
 }
 
-describe("DutyPanel — an unknown finish time is SAID, never invented", () => {
+describe("DutyPanel - an unknown finish time is SAID, never invented", () => {
   it("⚠ renders 'unknown' when the driver did not say, and shows no time at all", async () => {
     getDuty.mockResolvedValue({
       onDuty: [onDuty({ expectedEndAt: null })],
@@ -59,7 +59,7 @@ describe("DutyPanel — an unknown finish time is SAID, never invented", () => {
     expect(screen.queryByText(/Finish time unknown/)).not.toBeInTheDocument()
   })
 
-  it("⚠ an unstated finish time is NOT an overrun — absence is not lateness", async () => {
+  it("⚠ an unstated finish time is NOT an overrun - absence is not lateness", async () => {
     getDuty.mockResolvedValue({
       onDuty: [onDuty({ expectedEndAt: null, pastExpectedEnd: false })],
       unassigned: { readyToCollect: 0, readyToDeliver: 0, driversOnDuty: 1 },

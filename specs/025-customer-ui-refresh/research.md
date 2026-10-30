@@ -3,18 +3,18 @@
 **Feature**: 025-customer-ui-refresh | **Date**: 2026-07-27
 
 Phase 0 decisions. Each entry: what was chosen, why, and what was rejected. Every decision below is
-grounded in code that was read, not assumed — file references are given so a reviewer can check the
+grounded in code that was read, not assumed - file references are given so a reviewer can check the
 premise rather than the conclusion.
 
 ---
 
-## R1 — Both new reads go on the HOT path (Principle III)
+## R1 - Both new reads go on the HOT path (Principle III)
 
-**Decision**: The two capabilities authorised by spec FR-001a — up-front serviceability and result
-ordering/count — are implemented in `apis/core-api` (Go hot path), not the cold path.
+**Decision**: The two capabilities authorised by spec FR-001a - up-front serviceability and result
+ordering/count - are implemented in `apis/core-api` (Go hot path), not the cold path.
 
 **Rationale**: Principle III routes latency-sensitive customer reads to the hot path, and 011's
-routing law (FR-028) already binds commerce — catalog, search, cart, order — to `core-api`. Both new
+routing law (FR-028) already binds commerce - catalog, search, cart, order - to `core-api`. Both new
 reads are typed-into-the-header-and-wait interactions on the platform's only public surface. Sort and
 count are literally the same query as the existing product search
 (`apis/core-api/internal/features/storefront/search.go`); putting them anywhere else would split one
@@ -24,13 +24,13 @@ query across two runtimes.
 until the hot path gets its own deployment slice. This feature does not change that and does not
 unblock it.
 
-**Rejected**: cold path (`apis/edge-api/customer`) — it exists and is deployed, which makes it
+**Rejected**: cold path (`apis/edge-api/customer`) - it exists and is deployed, which makes it
 tempting, but it would put customer-facing search latency on Lambda and split the search query's
 WHERE clause across two codebases, where the two halves would drift.
 
 ---
 
-## R2 — Serviceability reuses checkout's exact predicate, and returns only a boolean
+## R2 - Serviceability reuses checkout's exact predicate, and returns only a boolean
 
 **Decision**: `GET /v1/storefront/serviceability?postcode=NNNN` → `{ postcode, serviced }`.
 
@@ -52,14 +52,14 @@ depends on: *"A postcode in no row = no zone = undeliverable."* So serviceabilit
 row exist", which is why it can be answered without a cart.
 
 **The response deliberately omits zone id, zone name, fee, and window.**
-- Fee and window are forbidden before checkout by FR-014a — both depend on cart contents and origin
+- Fee and window are forbidden before checkout by FR-014a - both depend on cart contents and origin
   zone, so any number shown here would be an estimate that checkout then revises.
 - Zone id and zone name are withheld under FR-006: zone names in the dev seed are geographic
   (`MEL-METRO`, `VIC-REGIONAL`), and echoing one back tells a shopper something about where Effy
   fulfils from. A boolean leaks nothing.
 
 **Validation**: postcode is normalised (trimmed, digits only) and must be 4 digits for AU. Malformed
-input returns 400, not a 500 and not a silent `serviced: false` — "we don't deliver there" and "that
+input returns 400, not a 500 and not a silent `serviced: false` - "we don't deliver there" and "that
 isn't a postcode" are different answers and the UI says different things.
 
 **Rejected**: returning the full quote (spec option C, declined by the operator); returning the zone
@@ -67,7 +67,7 @@ so the client could cache per-zone (leaks fulfilment geography for no user benef
 
 ---
 
-## R3 — Sort is carried INSIDE the cursor; count is a second query
+## R3 - Sort is carried INSIDE the cursor; count is a second query
 
 **Decision**: `sort` ∈ `{ newest (default), price_asc, price_desc, relevance }`, plus a `total` on the
 response.
@@ -83,7 +83,7 @@ Each sort therefore needs its own keyset tuple: `(price_amount, id)` ascending o
 relevance a similarity score with `id` as the tiebreak. `id` stays in every tuple because none of the
 sort keys is unique and a keyset without a unique tiebreak silently skips or repeats rows.
 
-**The cursor becomes opaque and self-describing** — it encodes the sort it was issued under, and a
+**The cursor becomes opaque and self-describing** - it encodes the sort it was issued under, and a
 request whose `sort` disagrees with its cursor's is rejected with 400. This is the mechanism behind
 FR-016b: without it, changing the sort mid-scroll compares a price against a timestamp and produces a
 result set that is quietly, unreproducibly wrong. Rejecting is correct because the client's own
@@ -98,7 +98,7 @@ lower(name || ' ' || coalesce(sku,'') || ' ' || coalesce(brand,'') || ' ' || sho
 
 Matching the index expression exactly is what keeps it index-backed. When `q` is empty, relevance has
 no meaning: the server falls back to `newest` and echoes the sort it actually used, and the client
-hides the option. Note the existing `q` filter is `ILIKE '%…%'`, not a similarity threshold — this
+hides the option. Note the existing `q` filter is `ILIKE '%…%'`, not a similarity threshold - this
 feature adds scoring for *ordering* and deliberately does not change what *matches*, so no shopper's
 existing result set changes shape.
 
@@ -108,28 +108,28 @@ approximation escape hatch is specified but **not implemented now**; the documen
 implementing it is the count exceeding the storefront's read latency budget on real data.
 
 **Contract impact (Principle II)**: `ProductSearchResultDTO` gains `total` and `sort` in
-`@effy/shared-types`, and the Kotlin contract is regenerated. Additive — existing callers ignore both
+`@effy/shared-types`, and the Kotlin contract is regenerated. Additive - existing callers ignore both
 and `nextCursor` semantics are unchanged.
 
-**Rejected**: `OFFSET` pagination (the file's own header explains why keyset was chosen — stability
+**Rejected**: `OFFSET` pagination (the file's own header explains why keyset was chosen - stability
 under inserts); a client-side sort (only orders the page you have, which is a lie at any catalogue
-size); recomputing the count on every page (wasteful — it is fetched once per refinement change).
+size); recomputing the count on every page (wasteful - it is fetched once per refinement change).
 
 ---
 
-## R4 — Category browse enriches the EXISTING categories read; imagery is derived, not stored
+## R4 - Category browse enriches the EXISTING categories read; imagery is derived, not stored
 
 **Decision**: `/browse` renders a category index built from `GET /v1/storefront/categories`, whose
 projection is extended with child categories, an active-product count, and a representative image URL.
 Entering a category navigates to the existing filtered result set.
 
 `public.category` (`20260716092105_product_catalog.sql:71`) has `key`, `name`, `parent_id`,
-`display_order`, `status` — and **no image column**. Spec US1 AC2 asks for representative imagery.
+`display_order`, `status` - and **no image column**. Spec US1 AC2 asks for representative imagery.
 Rather than add a column (which FR-001 forbids), the representative image is **derived**: the primary
 image of an active product in that category, chosen deterministically. A category whose products have
-no images renders a typed brand-mark tile — never a broken frame.
+no images renders a typed brand-mark tile - never a broken frame.
 
-> **Governance note G1 — a boundary interpretation, recorded rather than smuggled.**
+> **Governance note G1 - a boundary interpretation, recorded rather than smuggled.**
 > Spec FR-001a authorises *exactly two* new read capabilities. Enriching the projection of the
 > already-existing categories read is treated here as **not a third capability**: same resource, same
 > caller, same public authorisation, no new endpoint. That is a judgement call, so it is named. If the
@@ -140,7 +140,7 @@ no images renders a typed brand-mark tile — never a broken frame.
 **Crawlability, unchanged and slightly unsatisfying**: refinements stay query parameters (FR-017,
 inherited from 011's routes contract), and robots.txt disallows facet params. So `/browse` is
 crawlable but individual category result sets are not. That is the *existing* policy and this feature
-preserves it. Crawlable category landing pages would need path segments and their own caching policy —
+preserves it. Crawlable category landing pages would need path segments and their own caching policy -
 a spec-level decision, and a future slice, not a thing to smuggle in here.
 
 **Rejected**: adding `category.image_url` (schema change, forbidden); hardcoding category imagery in
@@ -148,11 +148,11 @@ the client (goes stale the moment the taxonomy changes, and puts merchandising i
 
 ---
 
-## R5 — Mobile: share the 018 foundation; generate what cannot be shared
+## R5 - Mobile: share the 018 foundation; generate what cannot be shared
 
 **Decision**: three mechanisms, chosen by what each artifact actually is.
 
-Feature 018 built a real presentation foundation for `apps/shop-mobile` — but built it **app-local**,
+Feature 018 built a real presentation foundation for `apps/shop-mobile` - but built it **app-local**,
 so `apps/customer-mobile` inherited none of it. That is why the customer app still renders lettered
 navigation glyphs. The fix is not to copy it.
 
@@ -161,7 +161,7 @@ navigation glyphs. The fix is not to copy it.
 so adding `commonMain` files to it requires no build changes at all. `EffyComponents` moves there under
 the neutral `com.effyshopping.mobile.kit.ui` package, joining `Motion`, `WindowSize`,
 `ResponsiveNavigation`, `TabBackStacks`, and `NavKey`. `apps/shop-mobile` is refactored onto the shared
-copy in the same change and its app-local originals are deleted — SC-012 requires it to show no
+copy in the same change and its app-local originals are deleted - SC-012 requires it to show no
 behaviour change.
 
 **Platform drivers stay app-local.** `PlatformUiController` is `expect`/`actual`, and sharing it would
@@ -171,26 +171,26 @@ genuinely platform-specific, and the build churn buys nothing. Only `commonMain`
 **(b) The type scale → generated per app.** `effyTypography()` cannot be shared as-is: it imports
 app-specific generated resource accessors (`com.effyshopping.shop.mobile.resources.Res.font.…`). But
 the *scale* is data, and the platform already has a generator that emits per-app Kotlin from the token
-SSOT — `packages/design-system/scripts/gen-compose-theme.mjs` already writes `EffySpacing` into
+SSOT - `packages/design-system/scripts/gen-compose-theme.mjs` already writes `EffySpacing` into
 `compose/`, `compose-shop/`, and `compose-driver/`. It gains one more emission: the type scale, with
 the correct per-app font import. This means the typeface arrives on customer-mobile as a *generated,
 drift-checked artifact* under the existing `tokens:check` gate rather than as a hand-copied file.
 
-Worth noting: **`EffySpacing` already exists in `packages/design-system/compose/EffyTokens.kt:67`** —
+Worth noting: **`EffySpacing` already exists in `packages/design-system/compose/EffyTokens.kt:67`** -
 customer-mobile has had the shared spacing scale available the whole time and simply never used it.
 Adopting it is a rewrite of call sites, not new infrastructure.
 
 **(c) Binary assets → authored once, synced, drift-checked.** Icon vector XMLs and the Nunito Sans
-`.ttf` files must physically sit in each app's `composeResources/` directory — that is how Compose
+`.ttf` files must physically sit in each app's `composeResources/` directory - that is how Compose
 resources work, and no srcDir can change it. They are authored once under
 `packages/design-system/mobile-assets/`, copied into each app by the generator, and verified by
 `tokens:check`. This is precisely the pattern `packages/brand` already uses for 57 committed derived
-assets with `brand-check` naming the stale surface, so it introduces no new concept — and the Material
+assets with `brand-check` naming the stale surface, so it introduces no new concept - and the Material
 Symbols licence file travels with the icons, as it does in `apps/shop-mobile` today.
 
 **(d) Navigation.** `customer-mobile` migrates from `AdaptiveNavShell` + `NavGlyph` to the shared
 `ResponsiveNavigation`, which is already icon-based and already used by shop-mobile.
-**`AdaptiveNavShell` and `NavGlyph` are then deleted** — `NavGlyph` is the origin of the lettered
+**`AdaptiveNavShell` and `NavGlyph` are then deleted** - `NavGlyph` is the origin of the lettered
 glyphs, and leaving it in the shared package leaves the defect available to the next app.
 `apps/driver-mobile` is the untouched base template and consumes neither, so nothing else breaks.
 
@@ -200,14 +200,14 @@ change large enough to deserve its own slice, and unnecessary for `commonMain` c
 
 ---
 
-## R6 — The web guest bundle is the binding constraint, and it is ALREADY over
+## R6 - The web guest bundle is the binding constraint, and it is ALREADY over
 
 **Decision**: guest-path client code in this feature is **dependency-free**, and the budget gate is
 extended to cover the routes the feature actually touches.
 
 `apps/customer-web/scripts/bundle-budget.mjs` gzips the exact `<script>` tags the prerendered HTML
 serves and **fails the build** at `GUEST_LIMIT = 160 KB`. Per CLAUDE.md, customer-web currently
-measures **167.4 KB — a pre-existing overage** recorded under 020, byte-identical with recent features
+measures **167.4 KB - a pre-existing overage** recorded under 020, byte-identical with recent features
 stashed.
 
 That matters more than it first appears: **the gate is red before this feature adds a single byte.**
@@ -226,31 +226,31 @@ UI lands. This feature does not get to inherit a red gate and call it pre-existi
 | Delivery picker | native `<dialog>` + small island | tiny |
 | Mini-cart | native `<dialog>`, reusing the existing cart store | tiny |
 
-`useSyncExternalStore` is not a new idea here — `apps/customer-web/lib/cart-store.ts` is already a
+`useSyncExternalStore` is not a new idea here - `apps/customer-web/lib/cart-store.ts` is already a
 dependency-free store built exactly this way, by this app's deliberate design (019).
 
 **Prohibited on guest routes**: `radix-ui`, `sonner`, `vaul`, and any component from
 `@effy/design-system/ui` that pulls them. The design-system's `dialog`, `sheet`, `drawer`, `popover`,
-and `sonner` primitives remain the platform standard **on authenticated routes** — `(auth)`,
-`(account)`, `checkout` — which the budget script scopes separately, and on the two consoles, which
+and `sonner` primitives remain the platform standard **on authenticated routes** - `(auth)`,
+`(account)`, `checkout` - which the budget script scopes separately, and on the two consoles, which
 have no budget at all.
 
 **This is enforced, not requested.** Two machine gates:
 1. `GUEST_PAGES` in the budget script gains `/search` and `/product/[id]`, so the gate covers what
    this feature changes rather than only the two routes it covered before.
 2. A dependency-cruiser rule forbids those packages from being *reachable* from `app/(shop)/`. The
-   Amplify quarantine already works exactly this way — and 011's research D11 records that the first
+   Amplify quarantine already works exactly this way - and 011's research D11 records that the first
    version of that guard was wrong because it matched only direct imports and reported clean while
    Amplify sat on the home page via a component. The new rule uses `reachable: true` from the outset,
    and is proven by deliberately breaking it.
 
-**Rejected**: raising `GUEST_LIMIT` reflexively (the script's own comment explains why — a budget
+**Rejected**: raising `GUEST_LIMIT` reflexively (the script's own comment explains why - a budget
 raised to fit its overage is how budgets die); shipping radix on guest routes and "optimising later".
 See **R6a** for what the measurement actually found, and what was done about it.
 
 ---
 
-## R6a — The measured baseline (T001, 2026-07-27)
+## R6a - The measured baseline (T001, 2026-07-27)
 
 Measured **before any code in this feature changed**, via `make cw-build && make cw-size` plus a
 per-chunk gzip breakdown using the budget script's own method (prerendered HTML → the exact
@@ -261,7 +261,7 @@ per-chunk gzip breakdown using the budget script's own method (prerendered HTML 
 ✗ /browse     160.1 KB / 160 KB   (12 chunks)
 ```
 
-**Both** guest routes were over — not just `/`, which the CLAUDE.md note recorded.
+**Both** guest routes were over - not just `/`, which the CLAUDE.md note recorded.
 
 ### Per-chunk attribution
 
@@ -284,24 +284,24 @@ whatever it costs is the floor.
 | `08_.kl12ovtd1` | 4.8 KB | `AppearanceControl` (literal `Appearance`) |
 | `11qtpi_qzbs0r` | 3.5 KB | theming tail |
 | **app subtotal (`/browse`)** | **16.6 KB** | |
-| `128.9oo1ssvc7` | 7.3 KB | `RecentlyViewedRail` — **`/` only**, which is the whole 7.3 KB difference between the two routes |
+| `128.9oo1ssvc7` | 7.3 KB | `RecentlyViewedRail` - **`/` only**, which is the whole 7.3 KB difference between the two routes |
 
 Chunks are minified, so library names are gone; attribution is by surviving string literals
 (`Appearance`, `Recently viewed`, `theme`, `dark`) and by which route references which chunk.
 
-### What the measurement proved — on the two routes the gate watched
+### What the measurement proved - on the two routes the gate watched
 
 1. **The cause on `/` and `/browse` is the framework floor, not app bloat.** 143.5 KB of the 160 KB
    budget is consumed before this app's own code runs. 011's research D9 measured that floor at
    **~136 KB** on Next 16 + React 19 and set the budget at 160 to leave ~24 KB of app headroom. The
    floor has since grown **~7.5 KB** (Next 16.2.6 / React 19.2.4), and that growth is the entire
    overage on those two routes.
-2. **App code there is small and constitutionally required.** The 16.6 KB is the appearance switcher —
+2. **App code there is small and constitutionally required.** The 16.6 KB is the appearance switcher -
    Principle V mandates dark mode be *user-selectable*, so it is not discretionary weight.
 
 ### ⚠ Then the gate was widened, and it immediately found a real leak (T003 → T020)
 
-An earlier draft of this section concluded "no leak was found — the quarantine is working." **That
+An earlier draft of this section concluded "no leak was found - the quarantine is working." **That
 conclusion was correct about `/` and `/browse` and wrong as a general claim**, and the reason is the
 whole point of T003: the gate only ever measured two of the five routes a guest can reach. The moment
 `/search`, `/product/[id]`, and `/cart` were added:
@@ -325,12 +325,12 @@ One chunk was unique to the product page: **67.9 KB gzipped of `posthog-js`**, r
 
 A static import is resolved at build time and bundled unconditionally. Consent gated whether the SDK
 was *called*, never whether it was *downloaded*. Every guest who opened a product page paid 67.9 KB
-for analytics they had not agreed to — on the single most important route on the storefront, for two
+for analytics they had not agreed to - on the single most important route on the storefront, for two
 features, invisibly.
 
 **Fix**: the import is now dynamic and lives inside `initAnalytics()`, which already returns early
-without consent. `app/web-vitals.tsx` — rendered from the **root layout**, so a static import there
-would have put the SDK in *every* page's shared chunk — now obtains the handle through a new
+without consent. `app/web-vitals.tsx` - rendered from the **root layout**, so a static import there
+would have put the SDK in *every* page's shared chunk - now obtains the handle through a new
 `analytics()` accessor instead. All exported signatures are unchanged; callers are untouched.
 
 ```text
@@ -344,7 +344,7 @@ otherwise have passed for the wrong reason.
 
 ### The lesson worth keeping
 
-The Amplify quarantine did its job perfectly — and a different 68 KB package walked onto the guest
+The Amplify quarantine did its job perfectly - and a different 68 KB package walked onto the guest
 path anyway, through a module whose comment asserted it could not. **A gate that watches two of five
 routes has three blind spots**, and the missing routes were the ones shoppers actually spend time on.
 Widening the gate cost one line of config and paid for itself immediately.
@@ -373,37 +373,37 @@ is tracked as **T102**, and taking it would bring the budget back to ~168 KB.
 
 ---
 
-## R7 — Delivery context is device-local, seeded from the account, never written back
+## R7 - Delivery context is device-local, seeded from the account, never written back
 
 **Decision**: a per-device store on each surface.
 
 - **Web**: `localStorage` behind a `useSyncExternalStore` store (the cart-store pattern), read by a
-  client island in the header. The header's static shell is preserved — the island is a hole in it,
+  client island in the header. The header's static shell is preserved - the island is a hole in it,
   exactly as `UserIsland` and `CartBadge` already are. Nothing in this feature may call `cookies()` or
   `headers()` in `app/(shop)/layout.tsx`; that file's comment explains what it would cost, and it is
   machine-guarded.
 - **Mobile**: the existing persisted-preference pattern (`AppearancePreferenceStore`).
 
 A signed-in shopper with no local value is seeded from their default saved address. The store **never
-writes back to the account** — the spec is explicit that a guest location is a device preference and
+writes back to the account** - the spec is explicit that a guest location is a device preference and
 becomes an address only through the normal address-book flow.
 
 The serviceability answer is cached alongside the postcode that produced it, so navigating does not
 re-query. Changing the postcode invalidates it.
 
-**Rejected**: a cookie (would make the header dynamic and cost every public page its static shell —
+**Rejected**: a cookie (would make the header dynamic and cost every public page its static shell -
 the exact failure `layout.tsx` warns about); a server-side guest session (new state for a feature that
 needs none).
 
 ---
 
-## R8 — Search refinements move INTO the URL
+## R8 - Search refinements move INTO the URL
 
 **Decision**: all refinement state is derived from `useSearchParams`, written with `router.replace`,
 debounced for the text input.
 
 `app/(shop)/_components/SearchExperience.tsx:22` currently seeds `query` from the URL once and then
-keeps it in component state, never writing back — so a refined result set **cannot be shared today**,
+keeps it in component state, never writing back - so a refined result set **cannot be shared today**,
 and FR-017 is unmet before this feature starts. Sort and price range would make that worse by adding
 two more invisible dimensions.
 
@@ -415,10 +415,10 @@ than as a server-rendered search page.
 
 ---
 
-## R9 — Related products reuse the search endpoint
+## R9 - Related products reuse the search endpoint
 
 **Decision**: the product page issues one server-side search filtered by the product's primary
-category, `limit` 12, self excluded client-side of the query, rendered as a rail — inside its own
+category, `limit` 12, self excluded client-side of the query, rendered as a rail - inside its own
 Suspense boundary so it can never delay the buy box.
 
 No new capability, no recommendation engine, no new relationship (spec assumption). When the category
@@ -426,7 +426,7 @@ yields nothing else, the section is omitted entirely rather than rendered empty 
 
 ---
 
-## R10 — Sticky affordances are CSS, not JavaScript
+## R10 - Sticky affordances are CSS, not JavaScript
 
 **Decision**: the mobile sticky buy bar is a `Scaffold` bottom bar owned by the product screen; the
 web checkout summary is `position: sticky` in a two-column grid above the `lg` breakpoint. Neither
@@ -434,19 +434,19 @@ needs a scroll listener, which is what usually makes these janky and expensive.
 
 ---
 
-## R11 — No-card doctrine: what is permitted here, and why (Principle V)
+## R11 - No-card doctrine: what is permitted here, and why (Principle V)
 
 Principle V requires the plan to record any justified card usage. Three, and only three:
 
-1. **Product tile** — already the recorded exception (019): a scannable product grid is the
+1. **Product tile** - already the recorded exception (019): a scannable product grid is the
    industry-standard pattern and no better layout exists. **Unchanged by this feature**, other than
    becoming fluid (FR-020).
-2. **Category tile** (new, in browse) — image plus label, tappable, in a grid. Justified as the *same*
+2. **Category tile** (new, in browse) - image plus label, tappable, in a grid. Justified as the *same*
    pattern applied to the same kind of thing: a navigable catalogue entity presented for visual
-   scanning. Both reference platforms use it, and the alternative for a food-first store — a
-   twenty-item text list — is measurably worse at the one job browse has. Recorded as an **extension of
+   scanning. Both reference platforms use it, and the alternative for a food-first store - a
+   twenty-item text list - is measurably worse at the one job browse has. Recorded as an **extension of
    the existing exception, not a new class of card**.
-3. **Promo slide** — a full-bleed merchandising surface. It is not a container tiling content and is
+3. **Promo slide** - a full-bleed merchandising surface. It is not a container tiling content and is
    not a card in the sense the doctrine prohibits; it is named here so the review does not have to
    re-litigate it.
 
@@ -456,9 +456,9 @@ summary cards anywhere**, and none at the top of any page.
 
 ---
 
-## R12 — Telemetry (Principle VII requires this to be declared)
+## R12 - Telemetry (Principle VII requires this to be declared)
 
-**Web (PostHog — already a dependency of `apps/customer-web`)**, new typed events:
+**Web (PostHog - already a dependency of `apps/customer-web`)**, new typed events:
 `delivery_location_set`, `browse_category_opened`, `search_refined`, `search_sorted`,
 `product_gallery_viewed`, `related_product_opened`.
 
@@ -468,32 +468,32 @@ telemetry beyond the auth subject id. This is worth stating because the postcode
 tempting property to attach.
 
 **Hot path metrics**: the two new reads get the standard handler metrics, plus one counter for
-serviceability outcomes labelled `serviced` only — a two-value label, deliberately, because
+serviceability outcomes labelled `serviced` only - a two-value label, deliberately, because
 `postcode` as a label is an unbounded-cardinality mistake that would degrade the metrics backend.
 
 **Mobile telemetry remains deferred**, consistent with 013/014/015. This is a standing platform
-exception with an owning slice (`mobile-telemetry`), recorded here rather than silently skipped —
+exception with an owning slice (`mobile-telemetry`), recorded here rather than silently skipped -
 which means the mobile half of the events above does not ship in this feature.
 
 ---
 
-## R13 — How this gets verified
+## R13 - How this gets verified
 
 - **Go**: cursor round-trip per sort; a cursor from one sort rejected under another; count agrees with
-  the number of rows a full paged walk returns; **serviceability parity — the storefront read and
+  the number of rows a full paged walk returns; **serviceability parity - the storefront read and
   checkout's destination resolution return the same answer for the same postcode**, which is SC-002a
   made executable.
 - **Web**: Vitest for the stores and components; Playwright for the guest journeys, URL-state sharing,
   keyboard traversal, and the no-placeholder rule; `depcruise` for the new quarantine; the budget gate.
 - **Mobile**: `commonTest` for view models and stores on both Android and iOS targets; `mobile-guard`.
 - **Cross-cutting gates**: `tokens:check`, `brand-check`, `check-no-jade`, contract drift.
-- **SC-005 is a structured review, not an automated check** — 5 viewports × 2 appearances × 2
+- **SC-005 is a structured review, not an automated check** - 5 viewports × 2 appearances × 2
   surfaces, walked against a written matrix in `quickstart.md`. Claiming otherwise would be dishonest:
   no gate in this repo can tell whether a layout looks right.
 
 ---
 
-## R15 — The template-derived visual language, and how mobile adopts it (added 2026-07-28)
+## R15 - The template-derived visual language, and how mobile adopts it (added 2026-07-28)
 
 **Why this is a research entry rather than a spec change.** The spec asked for "one visual system
 across both surfaces" (US5) without naming a look, because at the time there was no look to name.
@@ -511,15 +511,15 @@ something other than memory.
   the storefront **inverts the mapping rather than inventing a colour**: page = `card`, tint =
   `background`, skeleton = `muted`. No token changes value, so `tokens:check` and the WCAG gate are
   untouched, and dark mode keeps working because both tokens already flip.
-- **Display type** — uppercase, `-0.02em` tracking, tight leading, at four sizes.
-- **Product tiles with no border and no shadow** — the tint alone separates them from the page.
+- **Display type** - uppercase, `-0.02em` tracking, tight leading, at four sizes.
+- **Product tiles with no border and no shadow** - the tint alone separates them from the page.
   Equal height across a row, image cropped to fill, price row pinned to a shared baseline.
 - **Pill actions** (`rounded-full` / `CircleShape`).
 - **A hero band, a promo carousel, hairline-closed rails, and a "shop by category" panel.**
 
 **⚠ What mobile does NOT take from the web.** The operator's rule is that the *content* matches and
 the *chrome* stays native. Specifically excluded: the two-row header, the pipe-separated nav, the
-hamburger drawer, and **the mini-cart dialog — the mobile cart is a pushed full screen and stays
+hamburger drawer, and **the mini-cart dialog - the mobile cart is a pushed full screen and stays
 one**. The bottom navigation bar, tab back stacks and deferred sign-in are unchanged by this work.
 
 **Three deliberate mobile adaptations**, each recorded because each is a visible difference:
@@ -534,19 +534,19 @@ one**. The bottom navigation bar, tab back stacks and deferred sign-in are uncha
    Regular/SemiBold/Bold; a fourth weight means another `.ttf` through
    `packages/design-system/mobile-assets` and regenerating all three Compose themes. Asking Compose
    for a weight it does not have produces synthetic bolding, which looks worse at display size than
-   real 700 — so this is recorded rather than faked.
+   real 700 - so this is recorded rather than faked.
 
 **Also folded in, because the same files were open:** the product tile existed three times in three
 screens (Home, Search, Favourites) with three tints and two price treatments; `money()` existed in
 **six** files; the quantity stepper in two. All are now single implementations in `StorefrontKit.kt` /
-`StorefrontFormat.kt`. `discountPercent()` **rounds**, matching the web's `Math.round` — truncating
+`StorefrontFormat.kt`. `discountPercent()` **rounds**, matching the web's `Math.round` - truncating
 would put the two surfaces one point apart on the same product.
 
 **Proof the inversion cost no token:** after the change, `make cm-codegen` regenerates all 8 Compose
-files byte-identically and `git status packages/` is empty. The mobile app was never missing tokens —
+files byte-identically and `git status packages/` is empty. The mobile app was never missing tokens -
 it was reading the console's mapping.
 
-## R14 — Sequencing
+## R14 - Sequencing
 
 Phase 0 (foundation) lands before any story: the bundle overage fix, the shared-contract change, the
 mobile foundation extraction, and the serviceability/sort backend. Every user story depends on some

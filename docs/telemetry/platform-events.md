@@ -18,9 +18,9 @@ in its `AnalyticsEvent` sealed class; the per-app drift check keeps them aligned
 
 | Event | Props | Emitted when |
 |---|---|---|
-| `push_permission_prompted` | — | The OS notification-permission prompt is shown |
-| `push_permission_granted` | — | Permission granted |
-| `push_permission_denied` | — | Permission denied |
+| `push_permission_prompted` | - | The OS notification-permission prompt is shown |
+| `push_permission_granted` | - | Permission granted |
+| `push_permission_denied` | - | Permission denied |
 | `notification_opened` | `{ type }` | A push is tapped (`type` = the notification-request type, e.g. `order_ready`; **no** order/customer data) |
 
 Audience-specific funnels live in [commerce-events.md](commerce-events.md) (customer),

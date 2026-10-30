@@ -68,7 +68,7 @@ async function readProductContent(id: string): Promise<ProductContent | null> {
 const getProductContent = cache(readProductContent)
 
 /**
- * The prices, sizes and availability, live — the product read itself, uncached (098: a card read
+ * The prices, sizes and availability, live - the product read itself, uncached (098: a card read
  * carries one price, and the selector needs every size's). Null when the product has stopped being
  * sold since its content was kept.
  */
@@ -111,7 +111,7 @@ function excerpt(text: string): string {
 type SearchParams = Promise<{ variant?: string | string[] }>
 
 export default function ProductPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: SearchParams }) {
-  // Do not await params here — reading it outside <Suspense> makes the whole route blocking under
+  // Do not await params here - reading it outside <Suspense> makes the whole route blocking under
   // cacheComponents. Pass the promise in and await it inside the boundary.
   return (
     <Suspense fallback={<ProductSkeleton />}>
@@ -147,7 +147,7 @@ async function ProductDetail({ params, searchParams }: { params: Promise<{ id: s
           {product.ageRestricted ? <AgeBadge className="mt-2 self-start" /> : null}
 
           {/* The current tier: prices, sizes and availability stream in from a live read
-              beside the kept content — one request per render. */}
+              beside the kept content - one request per render. */}
           <Suspense fallback={<PriceSkeleton />}>
             <LiveBuy product={product} searchParams={searchParams} />
           </Suspense>
@@ -181,10 +181,10 @@ async function ProductDetail({ params, searchParams }: { params: Promise<{ id: s
 }
 
 /**
- * Price, sizes, "Available now" and the add / save / list controls — read live, and the structured data
+ * Price, sizes, "Available now" and the add / save / list controls - read live, and the structured data
  * from the same read, so what a search engine is told matches what the page shows (`lib/json-ld.tsx`).
  * A product that has stopped being sold since its content was kept offers no control; a failed read
- * offers none either — the cart would refuse a price this page could not confirm.
+ * offers none either - the cart would refuse a price this page could not confirm.
  */
 async function LiveBuy({ product, searchParams }: { product: ProductContent; searchParams: SearchParams }) {
   const [live, query] = await Promise.all([getProductLive(product.id).catch(() => undefined), searchParams])
@@ -246,11 +246,11 @@ function PriceSkeleton() {
 }
 
 /**
- * Everything below the buy box, on one page with no tabs (reference: Product detail — single page).
+ * Everything below the buy box, on one page with no tabs (reference: Product detail - single page).
  *
  * A section with nothing to show is absent, never an empty heading: Description needs a description; the
  * details (Item specifics, Nutrition) are the selected size's and follow the selector (101). The allergen
- * notice is always shown — it is advice about the label, not a fact about this product.
+ * notice is always shown - it is advice about the label, not a fact about this product.
  */
 function ProductSections({ product, searchParams }: { product: ProductContent; searchParams: SearchParams }) {
   return (
@@ -269,7 +269,7 @@ function ProductSections({ product, searchParams }: { product: ProductContent; s
       <section className="max-w-3xl">
         <h2 className="text-xl font-semibold">Allergens &amp; safety</h2>
         <Alert title="Allergen & ingredient information" live={false} className="mt-4">
-          Always read the label on the physical product — online information may not be complete or
+          Always read the label on the physical product - online information may not be complete or
           current. See our{" "}
           <Link href="/legal/food-safety-allergens" className="text-foreground underline underline-offset-4">
             Food Safety &amp; Allergen Notice

@@ -11,7 +11,7 @@ const tf = readFileSync(resolve(repoRoot, "infra/envs/dev/courier-alarms.tf"), "
 const sweep = readFileSync(resolve(here, "functions/courier-late-sweep.ts"), "utf8");
 const yml = readFileSync(resolve(here, "../serverless.yml"), "utf8");
 
-describe("080 — late courier parcels are alarmed on what is emitted", () => {
+describe("080 - late courier parcels are alarmed on what is emitted", () => {
   it("the metric, namespace and every alarmed place are the sweep's", () => {
     expect(tf).toMatch(/metric_name\s*=\s*"CourierParcelsLate"/);
     expect(sweep).toMatch(/emitMetric\(NAMESPACE, "CourierParcelsLate"/);
@@ -29,7 +29,7 @@ describe("080 — late courier parcels are alarmed on what is emitted", () => {
   });
 });
 
-describe("081 — moves to courier are alarmed on what the route emits", () => {
+describe("081 - moves to courier are alarmed on what the route emits", () => {
   const service = readFileSync(resolve(here, "delivery-move/service.ts"), "utf8");
   it("the metric, namespace and dimension are the delivery-move route's", () => {
     const block = /resource "aws_cloudwatch_metric_alarm" "delivery_overrides_daily" \{[\s\S]*?\n\}/.exec(tf)?.[0] ?? "";

@@ -7,7 +7,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * 087 FR-021 / SC-003 — fat-finger sizes are a requirement, so the kit's minimums are asserted rather
+ * 087 FR-021 / SC-003 - fat-finger sizes are a requirement, so the kit's minimums are asserted rather
  * than trusted. Every component that takes a tap reads its size from [EffySize]; if a value here drops
  * below 48dp, every row, chip, stepper button and tab cell in the app drops with it.
  */
@@ -41,7 +41,7 @@ class KitSizingTest {
     }
 
     @Test
-    fun `the storefront shapes are controls 6, cards 8, banners 12, sheets 16 — no pills`() {
+    fun `the storefront shapes are controls 6, cards 8, banners 12, sheets 16 - no pills`() {
         assertEquals(6.dp, EffyStorefrontShape.md)
         assertEquals(8.dp, EffyStorefrontShape.lg)
         assertEquals(12.dp, EffyStorefrontShape.xl)

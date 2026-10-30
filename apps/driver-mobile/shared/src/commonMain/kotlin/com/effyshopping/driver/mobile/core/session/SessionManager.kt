@@ -15,8 +15,8 @@ import kotlinx.coroutines.launch
 
 /**
  * Owns [SessionState]. Reads the session from [authDriver] (Amplify owns tokens) and the record
- * via [getDriverIdentity] — identity is displayed from the record, never the token. Listens for SDK
- * session drops (Android Keystore failure — 013 D11).
+ * via [getDriverIdentity] - identity is displayed from the record, never the token. Listens for SDK
+ * session drops (Android Keystore failure - 013 D11).
  */
 class SessionManager(
     private val authDriver: AuthDriver,
@@ -24,7 +24,7 @@ class SessionManager(
     private val scope: CoroutineScope,
     /** Clears what the app keeps on the phone for the signed-in driver (last copies). */
     private val onSignedOut: () -> Unit = {},
-    /** Rev 2 — "the driver's work changed" (`WorkChanges`); the record is re-read on it. */
+    /** Rev 2 - "the driver's work changed" (`WorkChanges`); the record is re-read on it. */
     private val workChanges: Flow<Unit> = emptyFlow(),
 ) {
     private val _state = MutableStateFlow<SessionState>(SessionState.Restoring)
@@ -40,7 +40,7 @@ class SessionManager(
         _state.value = SessionState.Restoring
         val session = runCatching { authDriver.currentSession() }.getOrNull()
         // No session and "COULD NOT CHECK" are different answers (backlog C3). With no signal the
-        // tokens cannot be refreshed, so `currentSession` is null — yet this device is still signed
+        // tokens cannot be refreshed, so `currentSession` is null - yet this device is still signed
         // in. Only a device holding no sign-in goes to the sign-in screen.
         val signedIn = session != null || runCatching { authDriver.holdsSignIn() }.getOrDefault(false)
         if (signedIn) loadRecord() else _state.value = SessionState.SignedOut
@@ -48,7 +48,7 @@ class SessionManager(
 
     /**
      * The connection is back: if the app opened offline, check the session and record for real now.
-     * Quietly — the driver stays on what they are looking at unless the answer says otherwise.
+     * Quietly - the driver stays on what they are looking at unless the answer says otherwise.
      */
     fun recheckIfOffline() {
         val now = _state.value
@@ -66,8 +66,8 @@ class SessionManager(
     private val rechecking = MutableStateFlow(false)
 
     /**
-     * A request was answered 401 or 403 while signed in (backlog C4). Re-run [bootstrap] once — however
-     * many requests were refused together — which ends in SignedOut or Refused, or back in SignedIn if
+     * A request was answered 401 or 403 while signed in (backlog C4). Re-run [bootstrap] once - however
+     * many requests were refused together - which ends in SignedOut or Refused, or back in SignedIn if
      * the credential was only stale. Ignored before sign-in, where [loadRecord] handles those answers.
      */
     fun onRequestRejected() {
@@ -83,10 +83,10 @@ class SessionManager(
     }
 
     /**
-     * Rev 2 — the driver's work changed (`WorkChanges`): re-read their record quietly, so a hub, van
+     * Rev 2 - the driver's work changed (`WorkChanges`): re-read their record quietly, so a hub, van
      * or name back-office changed mid-shift shows on Today and Account. Back-office's driver edit
      * already tells this driver "work" (`announceDispatch`); until now nothing here listened. A failure
-     * changes nothing — a refused credential is [onRequestRejected]'s, via the client.
+     * changes nothing - a refused credential is [onRequestRejected]'s, via the client.
      */
     private suspend fun refreshRecordQuietly() {
         val now = _state.value

@@ -1,4 +1,4 @@
-# Effy Driver App — Package Scanning (research and design, 2026-10-15)
+# Effy Driver App - Package Scanning (research and design, 2026-10-15)
 
 Scanning becomes the **main way a driver moves work forward**: point the phone at a package label and
 the app ticks it, sorts it, or completes the step. Buttons and swipes stay as the **fallback** for
@@ -14,7 +14,7 @@ the redesign canvas (https://claude.ai/artifact/7GaPpGaAsRL5MY7McYhyDM).
 | Amazon Flex | Every package when loading at the station; failed packages again when returning them to the station | "Manually enter package ID" ([pickup](https://flex.amazon.com/blog/2024/navigating-the-package-pickup-process-with-ease), [returns](https://flex.amazon.com/blog/2025/navigating-the-package-returns-process-with-ease)) |
 | Onfleet | Pickup and dropoff tasks can require named barcodes. Modes are Single, Multiple and **Auto**, which stops once every required code is scanned. A separate route-load task verifies packages at loading | Manual check-off for unreadable labels ([docs](https://docs.onfleet.com/reference/barcode-scanning), [route load](https://support.onfleet.com/hc/en-us/articles/47768817655956-Route-Load-Task)) |
 | Parcel carriers and warehouses | A scan at every hand-over of custody. Receiving compares what was scanned with what was expected | Keyed entry |
-| Effy's own research | Scanning is the primary check at shop pickup and at the hub, with a hard stop on a shortfall. Scanning is **not** needed at the customer's door as proof — nobody scans their own groceries | `docs/research/logistics/research-05-proof.md` §2a–2c |
+| Effy's own research | Scanning is the primary check at shop pickup and at the hub, with a hard stop on a shortfall. Scanning is **not** needed at the customer's door as proof - nobody scans their own groceries | `docs/research/logistics/research-05-proof.md` §2a–2c |
 
 What they share:
 - **One scan per package at every hand-over**: shop → driver → hub → driver → customer → (hub, if failed).
@@ -28,7 +28,7 @@ What they share:
 |---|---|---|---|---|---|
 | S1 | **Shop stop** | Each package label at the counter | Ticked, green flash, "3 of 4" | **Collected automatically** after a 3-second "Collecting… Undo" | Tick by hand + swipe (today's flow) |
 | S2 | **Hub check-in** | Each package as it leaves the van | **A sort instruction for that package**: LOAD NOW · Today 4–6 pm / SHELVE · Thu 15 Oct / COURIER BAY | **Checked in automatically**; the run ends | Swipe to check in all |
-| S3 | **Load the van** (new — replaces per-drop "Start this drop") | Each package for this delivery run, at the hub shelf | Ticked; a parcel for another run is refused | All drops become **out for delivery** | "Mark all loaded" |
+| S3 | **Load the van** (new - replaces per-drop "Start this drop") | Each package for this delivery run, at the hub shelf | Ticked; a parcel for another run is refused | All drops become **out for delivery** | "Mark all loaded" |
 | S4 | **At the door** | The drop's packages | Ticked; a package for another address is a **hard stop** ("This is for 27 Rathdowne St") | Goes **straight to proof** (arrival recorded) | "Deliver without scanning" (recorded as manual) |
 | S5 | **Return to hub** | Each failed parcel | Ticked | Return recorded; the run is complete | Swipe to check in |
 
@@ -42,7 +42,7 @@ Not scanned:
   package scans already show the driver was there.
 - Seal numbers or cage tags (parcel-network practice that doesn't suit Effy's volume).
 
-## 3. The label (a prerequisite — nothing has one today)
+## 3. The label (a prerequisite - nothing has one today)
 
 Today a package is only its order number (`EF-20481`). One order split across three shops has three
 packages with the same number, so the order number cannot identify a package. Every package needs its
@@ -63,7 +63,7 @@ own label, printed by the shop when it packs the order.
 - **Printed beside it, readable by a person:** the package code in large type (this is what manual
   entry uses), `EF-20481 · package 2 of 3`, **EFFY · Today 4–6 pm** or **COURIER**, the destination
   suburb, and a cold or frozen mark.
-- **Never on the label:** the shop's name (hidden fulfilment — the customer sees this label), the
+- **Never on the label:** the shop's name (hidden fulfilment - the customer sees this label), the
   customer's name or street (privacy; the driver gets the address from the app), or prices.
 - **Printing:** "Print labels" in the shop console at the pack step. 62 mm thermal roll or 4×6 in,
   plus A4 sticker sheets as a fallback. A courier parcel carries both the courier's label and Effy's.
@@ -95,7 +95,7 @@ own label, printed by the shop when it packs the order.
 ## 5. Technology
 
 - **Android:** CameraX (already in the app for photo proof) feeding **ML Kit Barcode Scanning, the
-  bundled model** — available offline on first launch, about 2.4 MB
+  bundled model** - available offline on first launch, about 2.4 MB
   ([docs](https://developers.google.com/ml-kit/vision/barcode-scanning/android)). Restrict the
   formats to **QR and Code 128** so reads are faster and nothing else (EAN codes on the products
   themselves) triggers a match. On iOS, set the same two types in `metadataObjectTypes`.

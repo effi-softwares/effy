@@ -55,7 +55,7 @@ describe("the product screen offers no inventory control the platform cannot hon
   for (const { label, pattern } of FORBIDDEN) {
     it(`offers no ${label}`, () => {
       const offenders = files.filter((f) => pattern.test(code(f)))
-      expect(offenders, `${label} is not something this platform can answer — see this file's docblock`).toEqual([])
+      expect(offenders, `${label} is not something this platform can answer - see this file's docblock`).toEqual([])
     })
   }
 })

@@ -13,7 +13,7 @@ const ALL: SavedVerdict[] = [
 describe("saved-display", () => {
   /**
    * The central assertion of the feature, in one test. If any two outcomes ever say the same thing,
-   * a shopper cannot tell whether to wait, change their address, or give up — which is exactly the
+   * a shopper cannot tell whether to wait, change their address, or give up - which is exactly the
    * failure the predecessor shipped by collapsing all five into one `available` boolean.
    */
   it("gives every outcome a distinct sentence", () => {

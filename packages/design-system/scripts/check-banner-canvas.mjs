@@ -18,7 +18,7 @@ check(Number.isInteger(height) && height > 0, `height must be a positive integer
 check(
   Math.abs(width / height - aspectRatio) < 1e-9,
   `aspectRatio ${aspectRatio} disagrees with ${width}/${height} = ${width / height}. ` +
-    "Artwork would be stretched at every window width.",
+  "Artwork would be stretched at every window width.",
 );
 
 check(aspectRatio >= 1.5, `aspectRatio ${aspectRatio} is too tall for a Home banner (FR-017's 50% cap)`);
@@ -39,8 +39,8 @@ check(
   `textZone runs off the top edge: ${insetBottomPct}% + ${heightPct}% = ${insetBottomPct + heightPct}%`,
 );
 
-check(widthPct >= 40, `textZone is only ${widthPct}% wide — too narrow for a headline plus a code`);
-check(heightPct >= 30, `textZone is only ${heightPct}% tall — too short for three lines of copy`);
+check(widthPct >= 40, `textZone is only ${widthPct}% wide - too narrow for a headline plus a code`);
+check(heightPct >= 30, `textZone is only ${heightPct}% tall - too short for three lines of copy`);
 
 check(
   maxRenderWidthDp >= 420,
@@ -55,5 +55,5 @@ if (problems.length > 0) {
 }
 
 console.log(
-  `banner-canvas:check: ${width} × ${height} (${aspectRatio}:1), text zone ${widthPct}×${heightPct}% — coherent.`,
+  `banner-canvas:check: ${width} × ${height} (${aspectRatio}:1), text zone ${widthPct}×${heightPct}% - coherent.`,
 );

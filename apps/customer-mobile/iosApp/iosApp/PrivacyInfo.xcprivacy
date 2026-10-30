@@ -4,7 +4,7 @@
   Apple Privacy Manifest for the Effy customer app (045).
 
   ⚠ Declares THIS app's data collection and required-reason API use. It must stay consistent with the
-  App Store Connect "App Privacy" answers and the Privacy Policy — the single mapping that drives all
+  App Store Connect "App Privacy" answers and the Privacy Policy - the single mapping that drives all
   three is docs/store-submission/app-privacy-mapping.md (data types from @effy/legal-content inventory).
 
   ⚠ Third-party SDKs (Stripe, Firebase, PostHog) ship their OWN PrivacyInfo.xcprivacy inside their
@@ -135,7 +135,7 @@
 
     <key>NSPrivacyAccessedAPITypes</key>
     <array>
-        <!-- UserDefaults — the app persists preferences/session locally (multiplatform-settings on iOS
+        <!-- UserDefaults - the app persists preferences/session locally (multiplatform-settings on iOS
              is backed by NSUserDefaults). Reason CA92.1: access info only from/for the app itself. -->
         <dict>
             <key>NSPrivacyAccessedAPIType</key>

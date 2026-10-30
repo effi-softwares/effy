@@ -42,19 +42,19 @@ import com.effyshopping.driver.mobile.resources.lucide_phone
 
 /** The questions drivers ask, answered in the app's own words. */
 internal val HELP_QUESTIONS: List<Pair<String, String>> = listOf(
-    "Nobody's home — what do I do?" to
+    "Nobody's home - what do I do?" to
         "If the customer asked for \"leave at the door\", leave it safely and take a photo. Otherwise try " +
         "calling them, then choose Can't deliver → Nobody home and keep the parcels for the hub.",
     "A package is missing at the shop" to
         "On the stop, report the package as missing or short and collect the rest. Dispatch is told straight away.",
     "My run says it isn't open yet" to
-        "Work is given to you before it can be done. Look through it now — the buttons unlock by themselves at the time shown.",
-    "I'm offline — is my work saved?" to
+        "Work is given to you before it can be done. Look through it now - the buttons unlock by themselves at the time shown.",
+    "I'm offline - is my work saved?" to
         "Yes. What you do is saved on this phone and sends by itself when you're back online. Today says how many updates are waiting.",
     "How do I return parcels to the hub?" to
         "When only parcels you couldn't deliver are left, Today shows the return step. Scan them in at the hub, or return them all by hand.",
     "The customer wants to change the address" to
-        "The address can't be changed in the app. Call dispatch — they can move the order.",
+        "The address can't be changed in the app. Call dispatch - they can move the order.",
 )
 
 /**
@@ -82,20 +82,20 @@ fun HelpScreen(
                 DriverGroup {
                     DriverRow(
                         "Call dispatch",
-                        meta = dispatchPhone?.let { "$it · anything about today's work" } ?: "Not set up yet — ask your manager",
+                        meta = dispatchPhone?.let { "$it · anything about today's work" } ?: "Not set up yet - ask your manager",
                         onClick = dispatchPhone?.let { { onDial(it) } },
                         leading = { DriverIcon(Res.drawable.lucide_phone, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
                     )
                     DriverRow(
                         "Call the hub desk",
                         meta = hubDeskPhone?.let { listOfNotNull(it, driver.hub?.takeIf { h -> h.isNotBlank() }).joinToString(" · ") }
-                            ?: "Not set up yet — ask your manager",
+                            ?: "Not set up yet - ask your manager",
                         onClick = hubDeskPhone?.let { { onDial(it) } },
                         leading = { DriverIcon(Res.drawable.lucide_map_pin, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
                     )
                     DriverRow(
                         "Driver handbook",
-                        meta = if (handbookUrl != null) "Opens in your browser" else "Not set up yet — ask your manager",
+                        meta = if (handbookUrl != null) "Opens in your browser" else "Not set up yet - ask your manager",
                         onClick = handbookUrl?.let { { onOpenLink(it) } },
                         leading = { DriverIcon(Res.drawable.lucide_file_text, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
                         last = true,

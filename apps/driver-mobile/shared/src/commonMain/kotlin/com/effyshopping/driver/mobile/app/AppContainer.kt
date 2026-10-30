@@ -75,7 +75,7 @@ import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
 /**
- * The one hand-wired dependency container (Principle VI — no DI framework); the whole graph is greppable
+ * The one hand-wired dependency container (Principle VI - no DI framework); the whole graph is greppable
  * here, read top to bottom. The platform's [AuthDriver] is injected in (Amplify Android on Android, a
  * Swift driver on iOS). One client, for the driver API only (cross-pool isolation, Principle IV).
  *
@@ -95,11 +95,11 @@ class AppContainer(
      */
     val appVersion: String? = null,
     /**
-     * Where proof photos taken with no signal wait to be sent (backlog B3) — a directory the app owns,
+     * Where proof photos taken with no signal wait to be sent (backlog B3) - a directory the app owns,
      * per platform, so they survive the app being killed.
      */
     private val proofFiles: ProofFiles,
-    /** Backlog C6 — the connection coming back sends what is waiting, without the driver doing anything. */
+    /** Backlog C6 - the connection coming back sends what is waiting, without the driver doing anything. */
     val connectivity: Connectivity = NoConnectivity,
 ) {
     // data
@@ -128,7 +128,7 @@ class AppContainer(
         )
     }
     /**
-     * Rev 2 — the one "work changed, read now" stream: the live channel's word, plus each write of
+     * Rev 2 - the one "work changed, read now" stream: the live channel's word, plus each write of
      * the driver's once the platform has it (the `Signalling…Repository` wrappers below and the sync
      * coordinator). Every ViewModel that shows work collects [WorkChanges.changes].
      */
@@ -170,7 +170,7 @@ class AppContainer(
     // Kept on the phone: the stop in progress.
     val stopDrafts: StopDrafts by lazy { SettingsStopDrafts(Settings()) }
 
-    // domain (use cases) — the layer ViewModels + SessionManager depend on
+    // domain (use cases) - the layer ViewModels + SessionManager depend on
     val requestSignInCode by lazy { RequestSignInCode(authDriver) }
     val confirmSignIn by lazy { ConfirmSignIn(authDriver) }
     val getDriverIdentity by lazy { GetDriverIdentity(driver) }
@@ -280,7 +280,7 @@ class AppContainer(
     }
 
     /**
-     * The driver's analytics choice, kept on the phone (backlog F3 — it was hard-coded `true` at both
+     * The driver's analytics choice, kept on the phone (backlog F3 - it was hard-coded `true` at both
      * entry points). On until they turn it off in Account, which is what every build did before.
      */
     val analyticsConsent = MutableStateFlow(prefs.getBoolean(ANALYTICS_CONSENT_KEY, true))

@@ -29,7 +29,7 @@ export const handler = async (
 
   const clientId = process.env.CUSTOMER_APP_CLIENT_ID
   if (!clientId) {
-    scope.log.error("CUSTOMER_APP_CLIENT_ID is unset — recovery cannot run")
+    scope.log.error("CUSTOMER_APP_CLIENT_ID is unset - recovery cannot run")
     return unavailable(scope)
   }
 

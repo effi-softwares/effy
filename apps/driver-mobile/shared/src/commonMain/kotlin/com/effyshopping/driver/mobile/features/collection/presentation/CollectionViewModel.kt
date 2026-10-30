@@ -52,7 +52,7 @@ data class CollectionUiState(
 
 /** What is wrong with a package the driver is leaving at the shop. [kind] is the words they chose. */
 data class PackageProblem(val kind: String, val note: String?) {
-    fun asNote(): String = listOfNotNull(kind, note).joinToString(" — ")
+    fun asNote(): String = listOfNotNull(kind, note).joinToString(" - ")
 }
 
 class CollectionViewModel(
@@ -66,7 +66,7 @@ class CollectionViewModel(
     private val liveChanges: Flow<Unit> = emptyFlow(),
     /** Where the stop in progress is kept across the app being closed. Null in tests that do not care. */
     private val drafts: StopDrafts? = null,
-    /** The changeIds still waiting in the offline queue — how a saved check-in learns it was sent. */
+    /** The changeIds still waiting in the offline queue - how a saved check-in learns it was sent. */
     private val pendingChangeIds: Flow<Set<String>> = emptyFlow(),
 ) : ViewModel() {
     private val _state = MutableStateFlow(CollectionUiState())
@@ -124,16 +124,16 @@ class CollectionViewModel(
     }
 
     /**
-     * Rev 2 — the screen is showing (again). The first time it loads with its loading state; every
+     * Rev 2 - the screen is showing (again). The first time it loads with its loading state; every
      * time after, it re-reads quietly. A fallback: the driver's own writes already re-read every
      * work screen through `WorkChanges` (the server never announces a driver's change back to them).
-     * This catches what slips past that — a write made before the app last closed, a missed signal.
+     * This catches what slips past that - a write made before the app last closed, a missed signal.
      */
     fun showRun(quiet: Boolean = false) {
         when {
             _state.value.run != null -> viewModelScope.launch { reloadRunQuietly() }
             !quiet -> loadRun()
-            // A screen that works without the run (the stop, the hub — backlog F2) reads it with no
+            // A screen that works without the run (the stop, the hub - backlog F2) reads it with no
             // loading or error state of its own.
             else -> viewModelScope.launch {
                 runCatching { getRun(runId) }.onSuccess { fresh -> _state.update { it.copy(run = it.run ?: fresh) } }
@@ -153,12 +153,12 @@ class CollectionViewModel(
     }
 
     fun loadStop(stopId: String) {
-        // Ticks and reports belong to one stop. They are dropped when a different stop opens — and
+        // Ticks and reports belong to one stop. They are dropped when a different stop opens - and
         // kept when the same one is opened again, which is what coming back from the problem screen is.
         _state.update {
             if (it.stop?.stopId == stopId) it.copy(isLoading = true, message = null)
             else {
-                // A different stop — unless it is the one the driver was on when the app was closed.
+                // A different stop - unless it is the one the driver was on when the app was closed.
                 val kept = drafts?.load(runId, stopId)
                 it.copy(
                     isLoading = true, stop = null, message = null,
@@ -183,7 +183,7 @@ class CollectionViewModel(
     fun collect(stopId: String, onDone: () -> Unit) = collect(stopId, emptyMap(), emptyList(), onDone)
 
     /**
-     * [methods] — 092/096: how each BAG was handed over, by label code, from the scan screen. A bag of a
+     * [methods] - 092/096: how each BAG was handed over, by label code, from the scan screen. A bag of a
      * collected package with no scan was ticked (or swiped) by hand; [missing] are bags the driver said
      * were not at the shop (the package is collected, those bags are held).
      */
@@ -220,7 +220,7 @@ class CollectionViewModel(
                     _state.update { it.copy(isWorking = false) }
                     reloadStopQuietly()
                     val n = result.remaining
-                    _state.update { it.copy(message = "${if (n == 1) "1 more package was" else "$n more packages were"} added — collect ${if (n == 1) "it" else "them"} before you leave.") }
+                    _state.update { it.copy(message = "${if (n == 1) "1 more package was" else "$n more packages were"} added - collect ${if (n == 1) "it" else "them"} before you leave.") }
                     return@launch
                 }
                 drafts?.clear()
@@ -236,7 +236,7 @@ class CollectionViewModel(
     /**
      * Tick or untick one package at the current stop. A memory aid while loading: the
      * stop screen asks before committing with a package neither ticked nor reported. Ticking a
-     * reported package withdraws the report — it is in the van after all.
+     * reported package withdraws the report - it is in the van after all.
      */
     fun togglePackage(key: String) {
         _state.update { st ->
@@ -277,13 +277,13 @@ class CollectionViewModel(
         keepDraft()
     }
 
-    /** Undo a report: the package is neither reported nor ticked — the driver looks again. */
+    /** Undo a report: the package is neither reported nor ticked - the driver looks again. */
     fun withdrawReport(key: String) {
         _state.update { it.copy(reportedPackages = it.reportedPackages - key) }
         keepDraft()
     }
 
-    /** 093/096 — [missing]: bags collected that are not in the van (reason `not_in_van`). */
+    /** 093/096 - [missing]: bags collected that are not in the van (reason `not_in_van`). */
     fun checkIn(handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver> = emptyList(), missing: List<com.effyshopping.driver.mobile.core.scan.MissingBag> = emptyList()) {
         if (_state.value.isWorking || _state.value.checkInSending) return
         _state.update { it.copy(isWorking = true, message = null) }

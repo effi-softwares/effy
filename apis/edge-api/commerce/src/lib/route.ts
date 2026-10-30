@@ -51,7 +51,7 @@ export function jsonBody(event: APIGatewayProxyEventV2): Record<string, unknown>
 
 /**
  * An optional integer field. Absent is 0 (the caller's rules decide what 0 means); present but not
- * a whole number is `null` — a malformed request, not a quantity to be rounded.
+ * a whole number is `null` - a malformed request, not a quantity to be rounded.
  */
 export function intField(v: unknown): number | null {
   if (v === undefined || v === null) return 0;

@@ -52,7 +52,7 @@ beforeEach(() => {
   })
 })
 
-describe("DriversListScreen — the register", () => {
+describe("DriversListScreen - the register", () => {
   it("lists drivers with their clearance, duty state and employment status", async () => {
     renderScreen()
     expect(await screen.findByText("Sam Rivers")).toBeInTheDocument()
@@ -61,15 +61,15 @@ describe("DriversListScreen — the register", () => {
     expect(screen.getByText("Off duty")).toBeInTheDocument()
   })
 
-  it("⚠ SC-009 — a driver cleared for NOTHING says so on the register, before an order is affected", async () => {
+  it("⚠ SC-009 - a driver cleared for NOTHING says so on the register, before an order is affected", async () => {
     listDrivers.mockResolvedValue(onePage([
-        driver({
-          capabilitySummary: { total: 0, coversEveryZone: false, functions: [] },
-          blockedReasons: ["no_capabilities"],
-        }),
-      ]))
+      driver({
+        capabilitySummary: { total: 0, coversEveryZone: false, functions: [] },
+        blockedReasons: ["no_capabilities"],
+      }),
+    ]))
     renderScreen()
-    expect(await screen.findByText(/Not cleared for any work — cannot be given work/)).toBeInTheDocument()
+    expect(await screen.findByText(/Not cleared for any work - cannot be given work/)).toBeInTheDocument()
   })
 
   it("explains the empty register instead of showing a bare empty table", async () => {
@@ -84,7 +84,7 @@ describe("DriversListScreen — the register", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument())
   })
 
-  it("⚠ hides every mutating control from a csa — absent, not disabled", async () => {
+  it("⚠ hides every mutating control from a csa - absent, not disabled", async () => {
     roles.current = ["csa"]
     renderScreen()
     await screen.findByText("Sam Rivers")
@@ -97,7 +97,7 @@ describe("DriversListScreen — the register", () => {
     expect(await screen.findByRole("button", { name: /add driver/i })).toBeInTheDocument()
   })
 
-  it("⚠ pages the whole register — 053 shipped a console silently capped at 25 rows", async () => {
+  it("⚠ pages the whole register - 053 shipped a console silently capped at 25 rows", async () => {
     listDrivers.mockResolvedValue(onePage([driver()], { total: 60 }))
     renderScreen()
     expect(await screen.findByText("1–1 of 60")).toBeInTheDocument()
@@ -111,7 +111,7 @@ describe("DriversListScreen — the register", () => {
   })
 })
 
-describe("DutyPanel — FR-036, the state that was invisible", () => {
+describe("DutyPanel - FR-036, the state that was invisible", () => {
   it("⚠ says NOBODY IS ON DUTY when work is waiting and nobody is working", async () => {
     getDuty.mockResolvedValue({
       onDuty: [],
@@ -122,7 +122,7 @@ describe("DutyPanel — FR-036, the state that was invisible", () => {
     expect(screen.getByText("12")).toBeInTheDocument()
   })
 
-  it("⚠ shows a driver on duty and IDLE while work waits — the pair is the whole point", async () => {
+  it("⚠ shows a driver on duty and IDLE while work waits - the pair is the whole point", async () => {
     getDuty.mockResolvedValue({
       onDuty: [
         {
@@ -140,7 +140,7 @@ describe("DutyPanel — FR-036, the state that was invisible", () => {
     expect(await screen.findByText(/waiting to be picked up/)).toBeInTheDocument()
     expect(screen.queryByText(/Nobody is on duty/)).not.toBeInTheDocument()
     expect(screen.getAllByText("Sam Rivers").length).toBeGreaterThan(1)
-    expect(screen.getByText(/Idle — nothing is assigned/)).toBeInTheDocument()
+    expect(screen.getByText(/Idle - nothing is assigned/)).toBeInTheDocument()
   })
 
   it("says drivers go on duty from the app, so nobody looks for a control that is not there", async () => {

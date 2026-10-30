@@ -31,7 +31,7 @@ describe("no staff console maps shop statuses to position words (073)", () => {
         .split("\n")
         .map((l) => l.replace(/\/\/.*$/, ""))
         .join("\n");
-      // A record literal that names `collected:` with a quoted string value — a status→word map.
+      // A record literal that names `collected:` with a quoted string value - a status→word map.
       if (!/\bcollected\s*:\s*["']/.test(src)) continue;
       if (ALLOWED.some((a) => a.test(src) || a.test(file))) continue;
       offenders.push(file.slice(repo.length + 1));

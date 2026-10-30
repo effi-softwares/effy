@@ -1,4 +1,4 @@
-# 096 — Label redesign (US10)
+# 096 - Label redesign (US10)
 
 ## Before (089, as printed on 2026-10-21)
 

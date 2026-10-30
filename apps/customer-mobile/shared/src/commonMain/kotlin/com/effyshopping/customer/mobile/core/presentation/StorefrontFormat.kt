@@ -11,7 +11,7 @@ fun money(amount: String, currency: String): String =
 /**
  * Whether a product is genuinely discounted.
  *
- * A `compareAtAmount` that is present but not above the price is not a discount — it is stale or
+ * A `compareAtAmount` that is present but not above the price is not a discount - it is stale or
  * mis-entered data, and rendering it would print a struck-through price identical to (or below) the
  * price being charged. Every caller must gate on this rather than on `compareAtAmount != null`.
  */
@@ -25,7 +25,7 @@ fun isDiscounted(priceAmount: String, compareAtAmount: String?): Boolean {
  * The discount as a whole percentage, or null when there is nothing to claim.
  *
  * Rounds, matching `ProductCard.tsx`'s `Math.round(...)` on the web. Truncating instead would put
- * the two surfaces one point apart on most products — a $10 item at $6.66 reads "-33%" on one and
+ * the two surfaces one point apart on most products - a $10 item at $6.66 reads "-33%" on one and
  * "-34%" on the other, which is the kind of difference a shopper notices and support cannot explain.
  *
  * Returns null rather than 0 when the saving rounds to nothing, so a "-0%" chip can never render.

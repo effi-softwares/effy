@@ -182,7 +182,7 @@ export function authErrorMessage(err: unknown, context: "password" | "code" = "p
       return "Too many attempts. Wait a few minutes and try again."
     case "InvalidPasswordException":
       // The pool requires length only (no composition rules), stated from `PASSWORD_MIN_LENGTH`.
-      return `That password is too short. Use at least ${PASSWORD_MIN_LENGTH} characters — no special characters required.`
+      return `That password is too short. Use at least ${PASSWORD_MIN_LENGTH} characters - no special characters required.`
     case "UserLambdaValidationException":
       // The linking trigger refused: almost always an unverified email from the provider.
       return "We couldn't link that account. Make sure the email on your Google account is verified, then try again."

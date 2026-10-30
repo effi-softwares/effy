@@ -20,7 +20,7 @@ export function dayWord(iso: string | Date, now: Date = new Date()): string {
 }
 
 export function moment(iso: string | null | undefined, now: Date = new Date()): string {
-  if (!iso) return "—"
+  if (!iso) return "-"
   return `${dayWord(iso, now)}, ${clockAt(iso)}`
 }
 

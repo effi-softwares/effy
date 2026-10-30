@@ -181,7 +181,7 @@ describe("Today (US1)", () => {
     expect(within(link).getByText("Elin Wikström")).toBeInTheDocument()
     expect(within(link).getByText("New")).toBeInTheDocument()
     expect(within(link).getByText(/Just now · 4 items · Effy driver/)).toBeInTheDocument()
-    expect(within(link).getByText("$57.80")).toBeInTheDocument()
+    expect(within(link).getByText("AUD 57.80")).toBeInTheDocument()
   })
 
   it("drops the New badge once an arrival is over a minute old", async () => {

@@ -6,7 +6,7 @@
 
 **Status**: Draft
 
-**Input**: User description: "Product Variants with Variant-Based Stock and Pricing. Today every product is one sellable item with one price, one SKU/barcode, one stock count and one weight, so a shop must list "Rice 500 g" and "Rice 1 kg" as unrelated products and a shopper cannot choose a size or flavour on one product page. Introduce basic variants (industry-standard, kept simple) … The database will be cleaned and started fresh, so no migration of existing products is needed — implement the model correctly from scratch."
+**Input**: User description: "Product Variants with Variant-Based Stock and Pricing. Today every product is one sellable item with one price, one SKU/barcode, one stock count and one weight, so a shop must list "Rice 500 g" and "Rice 1 kg" as unrelated products and a shopper cannot choose a size or flavour on one product page. Introduce basic variants (industry-standard, kept simple) … The database will be cleaned and started fresh, so no migration of existing products is needed - implement the model correctly from scratch."
 
 ## Why this feature exists
 
@@ -22,8 +22,8 @@ has to list each as an unrelated product, so:
   size, and drifts.
 
 Every reference platform (Shopify, eBay, WooCommerce, the major grocery storefronts) solves this the
-same way: a **product** carries what is shared, and its **variants** — one per combination of up to a
-few **options** such as Size or Flavour — are what is actually bought, each with its own price,
+same way: a **product** carries what is shared, and its **variants** - one per combination of up to a
+few **options** such as Size or Flavour - are what is actually bought, each with its own price,
 stock code, barcode, stock count, weight and picture. Australian online grocery shoppers also expect
 a **unit price** ("$0.42 / 100 g") beside every price so sizes can be compared.
 
@@ -34,10 +34,10 @@ it is designed correctly from the start rather than retrofitted.
 
 ### Session 2026-10-22 (planning)
 
-- Q: "From" price — lowest in-stock or lowest active variant? → A: lowest **active** variant (FR-013), so
+- Q: "From" price - lowest in-stock or lowest active variant? → A: lowest **active** variant (FR-013), so
   listing prices and price sorting do not move when one size sells out.
 - Q: Are the heart and lists per product or per variant? → A: one per **product**, remembering the
-  chosen variant (FR-015a) — the heart on a listing tile has no variant to name.
+  chosen variant (FR-015a) - the heart on a listing tile has no variant to name.
 - Q: Barcode match while picking? → A: there is no scan-to-pick today; pick lines carry the variant's
   barcode (FR-022).
 
@@ -101,12 +101,12 @@ A shopper searching "rice" sees "Basmati Rice" once, priced "From $3.20". On the
 1 kg is pre-selected because it is the first size in stock; the 5 kg is shown but marked sold out.
 Choosing 500 g changes the price, the unit price, the picture (if the shop gave it one) and the
 "Add to cart" target. The shopper adds 2 × 1 kg and 1 × 500 g; the cart shows two lines, each named
-with its size. The order, receipt and order history all say "Basmati Rice — 1 kg" and keep the price
+with its size. The order, receipt and order history all say "Basmati Rice - 1 kg" and keep the price
 it was sold at.
 
 The same experience exists on the customer website and the customer mobile app.
 
-**Why this priority**: This is the value of the feature — shoppers find one product and choose.
+**Why this priority**: This is the value of the feature - shoppers find one product and choose.
 
 **Independent Test**: With a live product of three variants (one out of stock), browse, open the
 product page, switch variants, add two different variants to the cart, pay, and read the order on
@@ -181,7 +181,7 @@ shows it.
 
 ### User Story 4 - Shoppers can compare sizes by unit price (Priority: P2)
 
-Each variant can state its pack quantity — 500 g, 1 kg, 1.25 L, 6 each. The product states how it is
+Each variant can state its pack quantity - 500 g, 1 kg, 1.25 L, 6 each. The product states how it is
 compared (per 100 g, per kg, per 100 ml, per L, or each). Wherever a variant's price is shown to a
 shopper, the unit price is shown with it: "$3.20 · $0.64 / 100 g". A shopper can see at a glance that
 the 1 kg is better value than the 500 g.
@@ -215,7 +215,7 @@ customer surfaces.
 
 The shop's order screen, its pick list and its printed package labels, the hub, drivers' manifests,
 back-office order views, the customer's receipt and emails all show each line as product name plus
-variant label ("Basmati Rice — 1 kg"). A picker never has to guess which size to take.
+variant label ("Basmati Rice - 1 kg"). A picker never has to guess which size to take.
 
 **Why this priority**: Without it the wrong size is picked. It depends on US1–US3 existing.
 
@@ -224,7 +224,7 @@ every screen and document that lists order lines.
 
 **Acceptance Scenarios**:
 
-1. **Given** an order with "Basmati Rice — 1 kg" and "Basmati Rice — 500 g", **Then** the shop's order
+1. **Given** an order with "Basmati Rice - 1 kg" and "Basmati Rice - 500 g", **Then** the shop's order
    detail and pick list show two distinct lines, each with its variant label, stock code and barcode.
 2. **Given** a pick line, **Then** it shows the barcode of the variant sold, not merely of the product.
 3. **Given** a receipt, confirmation email, delivery note, tax invoice or order history, **Then** each
@@ -238,7 +238,7 @@ every screen and document that lists order lines.
 The shop adds a 2 kg size, raises the 500 g price, and stops selling the 5 kg. Adding the size and
 changing the price are proposed changes that Effy reviews, as edits to an approved product are
 today; the product keeps selling as it was until they are approved. Stopping the 5 kg takes effect
-immediately — a shop must never have to wait for approval to stop selling something.
+immediately - a shop must never have to wait for approval to stop selling something.
 
 **Why this priority**: Needed for a live catalogue but not for the first sale.
 
@@ -270,7 +270,7 @@ confirm the deactivation is immediate and the other two wait for approval and th
   and says that choice is no longer available; it is never silently swapped to another variant.
 - **Price changes while in the cart**: handled per variant exactly as for products today (the shopper
   is told and pays the current price).
-- **Two shoppers buy the last unit of a variant**: same accepted behaviour as 054 — the count never
+- **Two shoppers buy the last unit of a variant**: same accepted behaviour as 054 - the count never
   goes below zero and the short line is flagged to the shop at once.
 - **All variants deactivated or removed**: impossible by FR-019; the product is made unavailable
   instead.
@@ -332,7 +332,7 @@ confirm the deactivation is immediate and the other two wait for approval and th
 **Shopper surfaces (customer website and customer mobile app, at parity)**
 
 - **FR-012**: A product MUST appear once in listings, search, aisles, home rails, saved items and lists
-  — never once per variant.
+  - never once per variant.
 - **FR-013**: Listings MUST show the lowest price among the product's active variants, prefixed "From"
   when active variants' prices differ. (Active, not "in stock": the listed price and price sorting must
   not jump each time a size sells out. An out-of-stock product still shows the out-of-stock state.)
@@ -358,7 +358,7 @@ confirm the deactivation is immediate and the other two wait for approval and th
   variant MAY state its pack quantity in a unit compatible with that basis (g or kg for weight bases,
   ml or L for volume bases, a count for "each"). The shop console MUST refuse an incompatible unit or a
   quantity of zero or less.
-- **FR-018**: Wherever a shopper sees a variant's price — listing, product page, cart, checkout — the
+- **FR-018**: Wherever a shopper sees a variant's price - listing, product page, cart, checkout - the
   unit price MUST be shown beside it when the variant has a pack quantity, computed from the price the
   shopper will pay, rounded to the nearest cent, and shown with its basis ("$0.64 / 100 g").
 
@@ -374,9 +374,9 @@ confirm the deactivation is immediate and the other two wait for approval and th
 
 **Fulfilment and documents**
 
-- **FR-021**: Every screen and document that lists order lines — shop order detail and pick list,
+- **FR-021**: Every screen and document that lists order lines - shop order detail and pick list,
   package labels, hub and driver manifests, back-office order views, delivery note, tax invoice,
-  receipt, confirmation and other order emails — MUST show the variant label beside the product name.
+  receipt, confirmation and other order emails - MUST show the variant label beside the product name.
   The shop's pick view MUST also show each line's stock code and barcode.
 - **FR-022**: Each pick line MUST carry the barcode sold, so a shop can check the item in hand against
   it. (Scan-to-pick does not exist on the platform today and is not added by this feature; when it is,
@@ -408,7 +408,7 @@ confirm the deactivation is immediate and the other two wait for approval and th
 - **Option**: A dimension the product varies by ("Size", "Flavour"). Up to two per product, ordered,
   each with ordered values.
 - **Option value**: One choice within an option ("1 kg", "Spiced").
-- **Variant**: The thing that is bought, priced and counted — one combination of option values, with
+- **Variant**: The thing that is bought, priced and counted - one combination of option values, with
   its own codes, prices, stock, weight, pack quantity, picture, state and order.
 - **Stock history entry**: Unchanged in meaning; now about one variant.
 - **Cart line / order line / saved item / list entry**: Now name a variant. An order line keeps its
@@ -452,7 +452,7 @@ confirm the deactivation is immediate and the other two wait for approval and th
   shown as unavailable.
 - **Pictures**: a variant's picture is one of the product's gallery pictures; there is no separate
   per-variant gallery.
-- **Tax and temperature** stay at product level — every variant of a product shares them.
+- **Tax and temperature** stay at product level - every variant of a product shares them.
 - **Out of scope**: add-on modifiers (toppings, extras), sell-by-weight with price adjustment after
   picking, bundles and multipacks as one listing, more than two options, per-variant promotions or
   margins, per-variant descriptions, and variant-level back-in-stock alerts.

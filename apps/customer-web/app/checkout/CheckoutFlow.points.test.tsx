@@ -22,7 +22,7 @@ const ADDRESS: AddressDTO = {
 }
 /**
  * A courier quote on purpose: it has one fee ($6.00) and nothing to choose, so these tests can go
- * straight to paying — they are about the points split, not about picking a delivery window.
+ * straight to paying - they are about the points split, not about picking a delivery window.
  */
 const QUOTE = (usable: number): DeliveryQuoteDTO => ({
   postcode: "3000", serviced: true, coverage: "courier", expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
@@ -66,7 +66,7 @@ afterEach(() => {
 
 const payButton = () => screen.getByRole("button", { name: /continue to payment/i })
 
-describe("074 — points at checkout (web)", () => {
+describe("074 - points at checkout (web)", () => {
   it("uses the most points by default, shows the split, and sends them", async () => {
     const user = userEvent.setup()
     render(<CheckoutFlow initialAddresses={[ADDRESS]} />)

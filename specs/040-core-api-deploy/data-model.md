@@ -27,14 +27,14 @@ Grouped by the module that owns them. **Every row is the cheapest option meeting
 | `aws_iam_role` task | inline `s3:GetObject` on media bucket | Presign reads (R6). |
 | `aws_route53_record` A + AAAA | alias → ALB dns_name/zone_id; `evaluate_target_health = true` | Stable branded address (R4). |
 
-### `infra/envs/dev/core-api.tf` (NEW — thin wrapper)
+### `infra/envs/dev/core-api.tf` (NEW - thin wrapper)
 
 | Resource | Purpose |
 |---|---|
 | `module "core_api"` | Instantiates the module, wiring: `module.dns.certificate_arn` + `.zone_id` + `.zone_name`; the DB master-secret ARN (from the `/effy/<env>/db/master_secret_arn` param or `module.db`); Stripe secret ARNs; `aws_ssm_parameter.media_bucket` value; the customer pool id + web/mobile client ids; `var.core_api_cors_origins`; default-VPC public subnets. |
 | `aws_ssm_parameter.core_api_base_url` | Publishes `/effy/<env>/core-api/base_url = https://core-api.<namespace>` for clients (Principle II). |
 
-### NOT created (the cost audit's negative space — SC-004)
+### NOT created (the cost audit's negative space - SC-004)
 
 - **No** `aws_appautoscaling_target` / `_policy` (no autoscaling).
 - **No** `aws_nat_gateway`, `aws_eip` for NAT, `aws_vpc_endpoint`, or private subnets.
@@ -46,7 +46,7 @@ Grouped by the module that owns them. **Every row is the cheapest option meeting
 
 The container's environment, split by sensitivity. **Non-secret → `environment` (plaintext task-def
 OK). Secret → `secrets` (`valueFrom`, resolved at start by the execution role).** All values are
-resolved by Terraform from this root's own resources / the existing `/effy/<env>/*` contract — never
+resolved by Terraform from this root's own resources / the existing `/effy/<env>/*` contract - never
 literals.
 
 | Var | Delivery | Source | Secret? |
@@ -70,13 +70,13 @@ literals.
 **`DB_DSN` is intentionally absent in the cloud.** The app composes the DSN from `DB_HOST/PORT/NAME/USER`
 + the injected `DB_PASSWORD` into the same libpq keyword form `db-dsn.sh` builds
 (`host=… port=… dbname=… user=… password=… sslmode=require connect_timeout=10`). If `DB_DSN` **is** set
-(the local `make core-run` path), it wins unchanged — so nothing local changes.
+(the local `make core-run` path), it wins unchanged - so nothing local changes.
 
-### Application change (the only one) — DSN-from-parts loader
+### Application change (the only one) - DSN-from-parts loader
 
 - **Rule**: if `DB_DSN` is non-empty, use it verbatim (local path). Otherwise, require
   `DB_HOST/DB_PORT/DB_NAME/DB_USER/DB_PASSWORD` and compose the keyword DSN; a missing part **fails
-  loudly at start-up** (the task never goes healthy — never a silent wrong connection).
+  loudly at start-up** (the task never goes healthy - never a silent wrong connection).
 - **Not secret-logging**: the composed DSN and `DB_PASSWORD` are never logged (existing secret
   discipline; a redaction test guards it).
 - **Test**: a unit test asserts parts→DSN equals the `db-dsn.sh` keyword shape, that `DB_DSN` overrides
@@ -91,7 +91,7 @@ literals.
 
 No wildcards on secret access; no permission the running code doesn't call.
 
-## 4. State machine — deployment/health lifecycle
+## 4. State machine - deployment/health lifecycle
 
 ```
 push image ──▶ force-new-deployment ──▶ task PROVISIONING ──▶ RUNNING
@@ -107,20 +107,20 @@ push image ──▶ force-new-deployment ──▶ task PROVISIONING ──▶ 
 Accepted, documented consequences (cost trade): the **GAP** on deploy/crash, and full unavailability if
 a deploy fails with no prior good version (mitigated by the circuit breaker once a good version exists).
 
-## 5. Production delta (NOT built here — recorded so promotion is a known change, not a surprise)
+## 5. Production delta (NOT built here - recorded so promotion is a known change, not a surprise)
 
 Production instantiates the **same module** with different inputs; these are the deltas that are **more
 than config** and belong to the production bring-up action:
 
 | Concern | Dev (this slice) | Production (dependency) |
 |---|---|---|
-| Hostname | `core-api.dev.effyshopping.com` (child zone) | `core-api.effyshopping.com` — **apex-level**; needs an apex record + a cert covering it (`*.effyshopping.com` or a SAN), owned by the prod/global root, **not** the child wildcard. |
-| Network | default VPC public subnets, **public IP, no NAT** | **private** subnets, `assign_public_ip = false`, a **NAT gateway or interface endpoints** for egress — a real added cost. |
+| Hostname | `core-api.dev.effyshopping.com` (child zone) | `core-api.effyshopping.com` - **apex-level**; needs an apex record + a cert covering it (`*.effyshopping.com` or a SAN), owned by the prod/global root, **not** the child wildcard. |
+| Network | default VPC public subnets, **public IP, no NAT** | **private** subnets, `assign_public_ip = false`, a **NAT gateway or interface endpoints** for egress - a real added cost. |
 | Database | public endpoint, `0.0.0.0/0` + TLS | `db_publicly_accessible = false`, private path (in-VPC + endpoints or RDS Proxy). |
 | Image tag | `latest` (mutable) | **immutable git-sha** tag (known rollback artifact). |
-| Rollout | `min 0 / max 100` (brief gap accepted) | operator may choose `min 100 / max 200` for zero-downtime (costs a transient 2nd task) — a per-env choice, still no autoscaling. |
+| Rollout | `min 0 / max 100` (brief gap accepted) | operator may choose `min 100 / max 200` for zero-downtime (costs a transient 2nd task) - a per-env choice, still no autoscaling. |
 | DB backups | off (disposable dev) | at least automated backups / PITR before real customer data. |
 
 These are the module's existing inputs (subnets, `assign_public_ip`, hostname, cert ARN, secret ARNs,
-image tag, rollout percents) — so prod is the **same templates** with prod values, plus the apex
+image tag, rollout percents) - so prod is the **same templates** with prod values, plus the apex
 cert/record and private-DB work that live in the prod root by nature.

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { customerPrice, customerPriceCents, fromCents, toCents, validateMargin } from "./margin";
 
-describe("067 — Effy's margin", () => {
+describe("067 - Effy's margin", () => {
   it("a percentage is added on top of the shop price", () => {
     expect(customerPrice("10.00", { kind: "percent", value: "20" })).toBe("12.00");
     expect(customerPrice("10.00", { kind: "percent", value: "12.5" })).toBe("11.25");

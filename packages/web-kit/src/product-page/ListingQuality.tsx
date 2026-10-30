@@ -47,7 +47,7 @@ export function ListingQuality({ items }: { items: readonly QualityItem[] }) {
                   onClick={() => document.getElementById(i.section!)?.scrollIntoView({ block: "start" })}
                 >
                   {row}
-                  <span className="sr-only">{i.ok ? " — done" : " — go to it"}</span>
+                  <span className="sr-only">{i.ok ? " - done" : " - go to it"}</span>
                 </button>
               ) : (
                 <span className="flex items-center gap-2.5 py-1.5 text-sm">{row}</span>

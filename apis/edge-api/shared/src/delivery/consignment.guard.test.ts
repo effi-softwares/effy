@@ -27,7 +27,7 @@ const sources = files(services).map((f) => ({ file: relative(services, f), src: 
 const writing = (table: string) =>
   sources.filter((s) => new RegExp(`(INSERT INTO|UPDATE|DELETE FROM)\\s+public\\.("order"\\s+SET\\s+courier_collection|${table}\\b)`).test(s.src)).map((s) => s.file).sort();
 
-describe("080 — courier fulfilment's one writers", () => {
+describe("080 - courier fulfilment's one writers", () => {
   it("scans the services", () => expect(sources.length).toBeGreaterThan(300));
 
   it.each(["courier_consignment", "courier_consignment_event", "order_courier_collection_change", "carrier_handoff"])(

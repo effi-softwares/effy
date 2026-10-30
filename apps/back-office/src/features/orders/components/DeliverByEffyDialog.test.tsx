@@ -44,7 +44,7 @@ function renderIt() {
 
 beforeEach(() => vi.clearAllMocks())
 
-describe("081 — Deliver by Effy…", () => {
+describe("081 - Deliver by Effy…", () => {
   it("offers only the server's open windows and moves into the one chosen", async () => {
     previewDeliveryMove.mockResolvedValue(PREVIEW)
     moveDelivery.mockResolvedValue({ move: {} })

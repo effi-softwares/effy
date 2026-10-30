@@ -12,7 +12,7 @@ const order = (over: Partial<OrderDetail>): OrderDetail =>
     ...over,
   }) as OrderDetail
 
-describe("079 — the order's delivery type, for staff", () => {
+describe("079 - the order's delivery type, for staff", () => {
   it("a courier order: who, why, and what the customer was told", () => {
     render(
       <DeliveryTypeSection
@@ -25,9 +25,9 @@ describe("079 — the order's delivery type, for staff", () => {
     )
     expect(screen.getByText("Courier delivery", { selector: "dd" })).toBeInTheDocument()
     expect(screen.getByText("The address is outside Effy's delivery area", { selector: "dd" })).toBeInTheDocument()
-    // The estimate as sold, in the customer's sentence — an estimate, said as one.
+    // The estimate as sold, in the customer's sentence - an estimate, said as one.
     expect(
-      screen.getByText("Usually arrives in 2–4 business days — an estimate, not a guaranteed date."),
+      screen.getByText("Usually arrives in 2–4 business days - an estimate, not a guaranteed date."),
     ).toBeInTheDocument()
     // How the type was decided, and every change since, is the order's activity (104).
     expect(screen.queryByRole("table", { name: "Delivery type history" })).toBeNull()
@@ -40,7 +40,7 @@ describe("079 — the order's delivery type, for staff", () => {
   })
 })
 
-describe("081 — moves by back-office, on the order", () => {
+describe("081 - moves by back-office, on the order", () => {
   it("a customer-service agent is offered no move; the moves are in the order's activity (104)", () => {
     render(
       <DeliveryTypeSection

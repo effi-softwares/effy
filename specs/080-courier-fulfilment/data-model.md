@@ -7,7 +7,7 @@ One forward-only, additive migration: `db/migrations/<ts>_courier_fulfilment.sql
 | Column | Type | Rule |
 |---|---|---|
 | `id` | uuid PK | |
-| `courier_name` | text NOT NULL | 2–60 chars — entered by the operator, never seeded |
+| `courier_name` | text NOT NULL | 2–60 chars - entered by the operator, never seeded |
 | `service_name` | text NOT NULL | 2–60 chars; UNIQUE (courier_name, service_name) |
 | `estimate_text` | text NOT NULL | 3–60 chars, one line; completes "Usually arrives in …" |
 | `max_business_days` | int NOT NULL | 1–30; for "overdue with courier" (never shown) |
@@ -42,7 +42,7 @@ from `effy_shopper`.
 | Column | Type | Rule |
 |---|---|---|
 | `id` | uuid PK | |
-| `shop_fulfillment_id` | uuid NOT NULL | partial UNIQUE where `state <> 'cancelled'` — one live per package |
+| `shop_fulfillment_id` | uuid NOT NULL | partial UNIQUE where `state <> 'cancelled'` - one live per package |
 | `courier_service_id` | uuid NOT NULL | |
 | `collection` | text NOT NULL | `hub` \| `supplier` (as it was when booked/handed over) |
 | `reference` | text NULL | |
@@ -50,7 +50,7 @@ from `effy_shopper`.
 | `label_key` | text NULL | under `courier-label/` in the media bucket |
 | `pickup_date` | date NULL | supplier pickups |
 | `pickup_from`, `pickup_to` | time NULL | both or neither |
-| `state` | text NOT NULL | `booked`, `handed_over`, `in_transit`, `delivered`, `failed`, `lost`, `damaged`, `returned`, `cancelled` — the latest event's, kept for reads |
+| `state` | text NOT NULL | `booked`, `handed_over`, `in_transit`, `delivered`, `failed`, `lost`, `damaged`, `returned`, `cancelled` - the latest event's, kept for reads |
 | `created_by`, `created_at`, `updated_at` | | |
 
 ## New: `public.courier_consignment_event` (append-only)
@@ -64,9 +64,9 @@ from `effy_shopper`.
 list both call it (R4).
 
 ## Changed derivation: `PACKAGE_STATUS_FACTS`
-Adds `courier_problem` — the latest `failed|lost|damaged|returned` event of the live consignment with no
+Adds `courier_problem` - the latest `failed|lost|damaged|returned` event of the live consignment with no
 later `resolved` or `delivered`. `packageStatus`: after "delivered", a courier problem → Problem
-("With the courier — lost").
+("With the courier - lost").
 
 ## State: a consignment
 

@@ -6,7 +6,7 @@ import type { AddressDTO } from "@effy/shared-types"
  * Home or Work, or falls to Other with the value in a free-text field.
  */
 
-/** A saved delivery address as the address book renders it. Structurally the DTO — kept as its own
+/** A saved delivery address as the address book renders it. Structurally the DTO - kept as its own
  *  name so the surface never depends on the wire shape directly. */
 export type Address = AddressDTO
 

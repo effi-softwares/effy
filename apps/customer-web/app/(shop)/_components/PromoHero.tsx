@@ -23,7 +23,7 @@ import { offerHref } from "./OffersPanels"
  * contrast. The behaviour is the `PromoCarousel` island; every slide is rendered here.
  */
 
-/** The band's height, in one place — the skeleton below reserves exactly this. */
+/** The band's height, in one place - the skeleton below reserves exactly this. */
 const BAND_HEIGHT = "min-h-80"
 
 export function PromoHeroSkeleton() {
@@ -40,7 +40,7 @@ const eyebrow = "text-xs font-semibold uppercase opacity-85"
 
 /**
  * The home promo row (reference: Home · hero): a promo-green `rounded-xl` band spanning two of three
- * columns — the offer's words on the left, icon bubbles on the right from `md` — with up to two
+ * columns - the offer's words on the left, icon bubbles on the right from `md` - with up to two
  * full-colour cards stacked beside it.
  *
  * Slides share one grid cell rather than being pinned to the band, so the band is as tall as its
@@ -57,7 +57,7 @@ export function PromoHero({ slides, side }: { slides: PlacedBanner[]; side: Plac
   const tiles = side.filter((b) => b.key !== slides[0]?.key).slice(0, 2)
   const sideList =
     tiles.length > 0 ? (
-      // Stacked, equal rows, and absent below `md` — a phone gets the hero and then the store.
+      // Stacked, equal rows, and absent below `md` - a phone gets the hero and then the store.
       <ul className="hidden auto-rows-fr gap-4 md:grid">
         {tiles.map((banner, i) => (
           <li key={banner.key} className="flex">

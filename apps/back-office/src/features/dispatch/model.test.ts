@@ -25,7 +25,7 @@ describe("describeReasons", () => {
     expect(Object.keys(REASON_TEXT).sort()).toEqual([...all].sort())
   })
 
-  it("093 — every stage reads as words, the same words the driver's app shows", () => {
+  it("093 - every stage reads as words, the same words the driver's app shows", () => {
     expect(
       runStage({
         kind: "delivery",
@@ -51,7 +51,7 @@ describe("describeReasons", () => {
   })
 })
 
-describe("069 — a drop's delivery window on the dispatcher's round", () => {
+describe("069 - a drop's delivery window on the dispatcher's round", () => {
   const deliveryWindow = { startAt: "2026-10-08T17:00:00+11:00", endAt: "2026-10-08T19:00:00+11:00" }
   const at = (iso: string) => new Date(iso)
 
@@ -62,7 +62,7 @@ describe("069 — a drop's delivery window on the dispatcher's round", () => {
     expect(windowNoteFor(stop, at("2026-10-08T19:00:01+11:00"))).toEqual({ text: "5 pm – 7 pm", state: "late" })
   })
 
-  it("⚠ a finished drop is never called late here — that verdict is the order's, against its real arrival", () => {
+  it("⚠ a finished drop is never called late here - that verdict is the order's, against its real arrival", () => {
     for (const status of ["done", "skipped"]) {
       expect(windowNoteFor({ status, deliveryWindow }, at("2026-10-08T22:00:00+11:00"))?.state).toBe("finished")
     }
@@ -84,14 +84,14 @@ describe("069 — a drop's delivery window on the dispatcher's round", () => {
 // 2026-10-08, midday Melbourne (AEDT, UTC+11).
 const NOON = new Date("2026-10-08T01:00:00Z")
 
-describe("roundOpenState — has a round opened to its driver? (072)", () => {
+describe("roundOpenState - has a round opened to its driver? (072)", () => {
   const planned = (opensAt: string | null) => ({ opensAt, status: "planned" })
 
   it("says when a round opens, in Melbourne time", () => {
     expect(roundOpenState(planned("2026-10-08T02:15:00Z"), NOON)).toEqual({ open: false, text: "Opens 1:15 pm" })
   })
 
-  // A round can be for tomorrow's run now — the day has to be said.
+  // A round can be for tomorrow's run now - the day has to be said.
   it("names the day when it is not today", () => {
     expect(roundOpenState(planned("2026-10-09T00:15:00Z"), NOON).text).toBe("Opens tomorrow 11:15 am")
     expect(roundOpenState(planned("2026-10-10T00:15:00Z"), NOON).text).toBe("Opens Sat 10 Oct 11:15 am")
@@ -113,7 +113,7 @@ describe("roundOpenState — has a round opened to its driver? (072)", () => {
   })
 })
 
-describe("waitingFor — where an unassigned package is, and what for (072)", () => {
+describe("waitingFor - where an unassigned package is, and what for (072)", () => {
   it("names the collection run a shop-side package belongs to", () => {
     expect(waitingFor({ stage: "collection", targetAt: "2026-10-08T03:00:00Z" }, NOON)).toBe(
       "At the shop · next collection 2 pm",
@@ -139,7 +139,7 @@ describe("waitingFor — where an unassigned package is, and what for (072)", ()
   })
 })
 
-describe("091 — scanning counts on a round", () => {
+describe("091 - scanning counts on a round", () => {
   it("names each method once, leaving out what is zero", () => {
     expect(handoverCounts({ scan: 2, typed: 1, manual: 0 })).toBe("2 scanned · 1 typed")
     expect(handoverCounts({ scan: 0, typed: 0, manual: 3 })).toBe("3 by hand")

@@ -47,11 +47,11 @@ import com.effyshopping.customer.mobile.resources.lucide_x
 import com.effyshopping.mobile.design.EffySpacing
 import org.jetbrains.compose.resources.painterResource
 
-/** The search field's shape — fully rounded (a pill), unlike the 6dp form fields. */
+/** The search field's shape - fully rounded (a pill), unlike the 6dp form fields. */
 private val SearchFieldShape = androidx.compose.foundation.shape.RoundedCornerShape(percent = 50)
 
 /**
- * A labelled field — a plain label above a bordered box (the storefront's form control).
+ * A labelled field - a plain label above a bordered box (the storefront's form control).
  *
  * 48dp, 16sp text (so iOS never zooms), 1dp hairline that becomes a 2dp blue ring on focus. The
  * storefront's border is a deliberately light hairline (the border exception), so every field must
@@ -126,7 +126,7 @@ fun EffyField(
 }
 
 /**
- * A password input with a reveal toggle — the one password field in this app. The toggle is an
+ * A password input with a reveal toggle - the one password field in this app. The toggle is an
  * accessibility control (WCAG 2.2 SC 3.3.8); hidden by default and never restored after backgrounding.
  */
 @Composable
@@ -159,7 +159,7 @@ fun EffyPasswordField(
 }
 
 /**
- * The search field — light-blue fill, search glyph, clear button, 48dp, 16sp (Main and Search boards).
+ * The search field - light-blue fill, search glyph, clear button, 48dp, 16sp (Main and Search boards).
  *
  * Two modes: a live field ([onValueChange] set), or an entry that only navigates ([onEntryClick] set,
  * as on Home, where tapping it opens the Search tab with the keyboard up).
@@ -244,7 +244,7 @@ fun EffyInlineError(text: String, modifier: Modifier = Modifier) {
 
 /**
  * The live search field with caret and selection control (the Search screen keeps a kept query
- * selected on arrival, so typing replaces it in one action — 028 FR-012a).
+ * selected on arrival, so typing replaces it in one action - 028 FR-012a).
  */
 @Composable
 fun EffySearchField(

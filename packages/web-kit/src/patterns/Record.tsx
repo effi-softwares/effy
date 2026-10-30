@@ -14,7 +14,7 @@ const RAIL_DOCKED_FROM = 1280;
 
 /**
  * A record page (a product, in both consoles): the head and its row of facts, a section navigator that sticks
- * under the console header, the sections on hairlines — and beside all of it the side panel (`rail`): shadcn's right
+ * under the console header, the sections on hairlines - and beside all of it the side panel (`rail`): shadcn's right
  * Sidebar under the console header, open to start, hidden and shown by the circle on its edge, a drawer on a narrower
  * screen (as the product form's preview). One page instead of tabs, so nothing about the record hides behind another
  * view. The classes are `ef-record*` in `console.css`.
@@ -103,7 +103,7 @@ export interface RecordFact {
   note?: ReactNode;
 }
 
-/** The head's row of facts: each said once, as a labelled value. Not metric cards — they sit on one hairline. */
+/** The head's row of facts: each said once, as a labelled value. Not metric cards - they sit on one hairline. */
 export function RecordFacts({ facts }: { facts: readonly RecordFact[] }) {
   return (
     <dl className="ef-record__facts" aria-label="At a glance">

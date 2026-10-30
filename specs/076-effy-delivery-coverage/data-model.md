@@ -3,7 +3,7 @@
 **Feature**: 076-effy-delivery-coverage. One forward-only migration. Tables are **evolved in place**
 (research R1); names change at the cutover (E9).
 
-## `public.delivery_zone_postcode` — the list of postcodes Effy delivers to
+## `public.delivery_zone_postcode` - the list of postcodes Effy delivers to
 
 | Column | Change | Notes |
 |---|---|---|
@@ -17,12 +17,12 @@
 
 Backfill, in order: `computed` from `coverage_computed_distance_km(postcode)` where it is not NULL;
 otherwise `manual` from the zone's `hub_distance_km` with `distance_review = true`; otherwise the
-migration **raises** naming the postcodes — a listed postcode with no distance is not allowed to exist,
+migration **raises** naming the postcodes - a listed postcode with no distance is not allowed to exist,
 and a guessed one is worse (constitution: fail loudly).
 
 Rows whose zone is `disabled` are deleted first (research R4) and named in one `admin.audit_log` row.
 
-## `public.delivery_zone` — a coverage group
+## `public.delivery_zone` - a coverage group
 
 | Column | Change | Notes |
 |---|---|---|
@@ -40,7 +40,7 @@ Comments on both tables are rewritten: what they now mean, and that the names ar
 |---|---|
 | `courier_offered` | **new** `boolean NOT NULL DEFAULT false` (FR-016) |
 
-## `public.courier_excluded_postcode` — new
+## `public.courier_excluded_postcode` - new
 
 | Column | Type |
 |---|---|
@@ -58,7 +58,7 @@ Shopper role: `SELECT` only (the coverage function reads it during checkout).
 | `public.haversine_km(lat1, lon1, lat2, lon2)` | `numeric` | great-circle distance, km. `IMMUTABLE`. |
 | `public.coverage_computed_distance_km(p_postcode text)` | `numeric(7,2)` or NULL | hub → the postcode's primary place (has coordinates, highest `address_count`, then name). `STABLE`. |
 | `public.coverage_ring_for_km(p_km numeric)` | `uuid` or NULL | the active tier with the smallest `suggest_upper_km >= p_km`, else the open-ended tier, else the furthest. Bridge until E3. |
-| **`public.coverage_for_postcode(p_postcode text)`** | `(kind, reason, distance_km, group_id, group_name)` | **the only place coverage is decided** — see below. `STABLE`. |
+| **`public.coverage_for_postcode(p_postcode text)`** | `(kind, reason, distance_km, group_id, group_name)` | **the only place coverage is decided** - see below. `STABLE`. |
 
 ```
 coverage_for_postcode(p):

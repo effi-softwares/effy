@@ -16,21 +16,21 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.merge
 
 /**
- * Rev 2 — "THE DRIVER'S WORK CHANGED: READ NOW", from one place.
+ * Rev 2 - "THE DRIVER'S WORK CHANGED: READ NOW", from one place.
  *
  * Every screen that shows work (Today, a run, a stop, a drop, History) re-reads when this speaks. It
  * speaks for two reasons:
- *  • **the server said so** — the live channel: dispatch assigned, moved, re-ordered or withdrew
+ *  • **the server said so** - the live channel: dispatch assigned, moved, re-ordered or withdrew
  *  work, or the channel (re)connected;
- *  • **the driver did something** — a write of theirs reached the platform. The server never announces
+ *  • **the driver did something** - a write of theirs reached the platform. The server never announces
  *  a driver's own change back to them (it tells the shops, the customer and dispatch), so until this
  *  existed Today kept saying "Next · stop 1" after stop 1 was collected.
  *
  * It speaks only once the platform has the change: a write that was sent, or a queued one the sync
  * coordinator has just delivered ([changed] is called from there too). A write saved with no signal is
- * not announced — re-reading then would fetch the copy without it.
+ * not announced - re-reading then would fetch the copy without it.
  *
- * Screens also re-read when they are shown again (`shown` / `showRun`) — kept as the fallback.
+ * Screens also re-read when they are shown again (`shown` / `showRun`) - kept as the fallback.
  */
 class WorkChanges(private val server: Flow<Unit>) {
     private val own = MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)

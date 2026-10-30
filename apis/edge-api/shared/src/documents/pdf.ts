@@ -17,7 +17,7 @@ export function ansi(s: string): string {
   return s
     .replace(/[‘’]/g, "'")
     .replace(/[“”]/g, '"')
-    .replace(/[–—−]/g, "-")
+    .replace(/[–-−]/g, "-")
     .replace(/…/g, "...")
     .replace(/ /g, " ")
     .replace(/[^\x20-\x7E¡-ÿ€]/g, "");

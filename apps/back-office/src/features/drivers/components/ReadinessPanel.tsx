@@ -21,7 +21,7 @@ export function ReadinessPanel() {
           <PanelSkeleton
             title="Drivers who cannot be given work"
             icon={<UserX aria-hidden="true" />}
-            description="Fix the cause on their record — the next assignment pass picks them up."
+            description="Fix the cause on their record - the next assignment pass picks them up."
             flush
           >
             <ListSkeleton rows={3} media="icon" inset />
@@ -58,7 +58,7 @@ export function ReadinessPanel() {
       <Panel
         title="Drivers who cannot be given work"
         icon={<UserX aria-hidden="true" />}
-        description="Fix the cause on their record — the next assignment pass picks them up."
+        description="Fix the cause on their record - the next assignment pass picks them up."
         flush
       >
         {data.blocked.length === 0 ? (

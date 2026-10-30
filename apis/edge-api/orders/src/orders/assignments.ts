@@ -77,7 +77,7 @@ interface Row {
 function whyUnassigned(r: Row): string {
   if (r.nobody) return "No driver is on duty";
   if (r.reasons.length === 0) return "Waiting for auto-assign (every 5 minutes)";
-  return `No driver can take it — ${r.reasons.slice(0, 2).map(reasonWords).join(", ").toLowerCase()}`;
+  return `No driver can take it - ${r.reasons.slice(0, 2).map(reasonWords).join(", ").toLowerCase()}`;
 }
 
 function toAssignment(r: Row): OrderAssignment | null {

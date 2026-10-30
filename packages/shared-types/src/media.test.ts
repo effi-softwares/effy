@@ -10,7 +10,7 @@ const here = dirname(fileURLToPath(import.meta.url))
 interface Case { name: string; imageUrl: string; width: number; expect?: string; throws?: boolean }
 const { cases } = JSON.parse(readFileSync(resolve(here, "media.fixtures.json"), "utf8")) as { cases: Case[] }
 
-describe("renditionUrl — the one naming rule (086 contracts/wire.md)", () => {
+describe("renditionUrl - the one naming rule (086 contracts/wire.md)", () => {
   it.each(cases.map((c) => [c.name, c] as const))("%s", (_, c) => {
     if (c.throws) expect(() => renditionUrl(c.imageUrl, c.width)).toThrow(RangeError)
     else expect(renditionUrl(c.imageUrl, c.width)).toBe(c.expect)

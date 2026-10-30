@@ -1,4 +1,4 @@
-# Contract — Cross-pool isolation (both directions)
+# Contract - Cross-pool isolation (both directions)
 
 **Feature**: 007 (FR-009, SC-004) · **Enforced by**: the shared HTTP API's per-pool JWT authorizers
 (`infra/envs/dev/edge-gateway.tf`) · **Verified by**: the operator, not a unit test.
@@ -26,7 +26,7 @@ Every route names its authorizer **by id from SSM**:
 | `/admin/v1/*` | back-office | `/effy/<env>/edge/authorizer/back-office_id` |
 
 A token minted by the back-office pool fails `iss` **and** `aud` validation at the shop authorizer.
-The request is rejected with `401` **before any handler code runs** — there is no handler-level
+The request is rejected with `401` **before any handler code runs** - there is no handler-level
 check to forget, and no auth proxy to misconfigure. The same holds in reverse.
 
 ## The contract
@@ -41,7 +41,7 @@ check to forget, and no auth proxy to misconfigure. The same holds in reverse.
 ## Why this is not unit-tested
 
 The enforcement lives in API Gateway configuration, not in application code. A vitest suite could
-only assert against a fake event it constructed itself — it would prove that the test's own fixture
+only assert against a fake event it constructed itself - it would prove that the test's own fixture
 is shaped as expected, and nothing about the deployed gate. **Asserting it in vitest would be
 theater.**
 
@@ -54,7 +54,7 @@ gateway that serves production traffic patterns.
 | Symptom | Likely cause |
 |---|---|
 | `403` instead of `401` on a cross-pool call | the route lost its authorizer and is falling through to a handler-level role check |
-| `200` on a cross-pool call | a route was attached with the **wrong** authorizer id (e.g. `back-office_id` on a `/shop/` route) — the one mistake this design still permits |
+| `200` on a cross-pool call | a route was attached with the **wrong** authorizer id (e.g. `back-office_id` on a `/shop/` route) - the one mistake this design still permits |
 | `401` on a *same*-pool call | wrong `VITE_COGNITO_CLIENT_ID`, or the console sent an ID token where the audience expects the access token's `client_id` |
 
 The middle row is the reason `serverless.yml`'s authorizer references are reviewed as part of any

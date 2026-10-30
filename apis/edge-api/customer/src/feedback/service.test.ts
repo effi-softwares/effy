@@ -37,7 +37,7 @@ beforeEach(() => {
   sendEmail.mockResolvedValue(undefined)
 })
 
-describe("submitFeedback — validation before any work", () => {
+describe("submitFeedback - validation before any work", () => {
   it("rejects a missing/whitespace message with no insert and no email", async () => {
     for (const message of ["", "   ", "\n\t "]) {
       const r = await submitFeedback({ ...validBody, message }, guest, config)
@@ -85,7 +85,7 @@ describe("submitFeedback — validation before any work", () => {
   })
 })
 
-describe("submitFeedback — guest path", () => {
+describe("submitFeedback - guest path", () => {
   it("stores the submission and sends the acknowledgement when an email is given", async () => {
     const r = await submitFeedback(validBody, guest, config)
     expect(r).toEqual({ status: "ok", referenceCode: "FB-ABC123" })
@@ -124,7 +124,7 @@ describe("submitFeedback — guest path", () => {
   })
 })
 
-describe("submitFeedback — signed-in path", () => {
+describe("submitFeedback - signed-in path", () => {
   it("links the customer and uses the TRUSTED profile email, ignoring a body email", async () => {
     findCustomerBySub.mockResolvedValue({
       id: "cust-1",
@@ -143,7 +143,7 @@ describe("submitFeedback — signed-in path", () => {
   })
 })
 
-describe("submitFeedback — rate limit (FR-016)", () => {
+describe("submitFeedback - rate limit (FR-016)", () => {
   it("returns rate_limited without disclosing the threshold, and sends no email", async () => {
     insertSubmission.mockResolvedValue({ status: "rate_limited" })
     const r = await submitFeedback(validBody, guest, config)
@@ -154,7 +154,7 @@ describe("submitFeedback — rate limit (FR-016)", () => {
   })
 })
 
-describe("submitFeedback — failure isolation (FR-015)", () => {
+describe("submitFeedback - failure isolation (FR-015)", () => {
   it("does NOT lose the submission when the thank-you email throws", async () => {
     sendEmail.mockRejectedValue(new Error("SES down"))
     const r = await submitFeedback(validBody, guest, config)

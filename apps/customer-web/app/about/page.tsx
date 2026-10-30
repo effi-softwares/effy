@@ -21,7 +21,7 @@ export const metadata: Metadata = {
  * where the vans go are the operator's settings and change without this page: it says what each
  * thing IS and leaves the figure to the place that knows it (checkout, the points page).
  *
- * The company details come from `@effy/legal-content` and only what is recorded is shown — a
+ * The company details come from `@effy/legal-content` and only what is recorded is shown - a
  * missing ABN or address is left out, never filled with a placeholder. The authored "about"
  * document follows them, as written.
  */
@@ -43,7 +43,7 @@ export default function AboutPage() {
       <section className="mb-16 grid items-center gap-10 md:grid-cols-2">
         <div className="space-y-4">
           <Badge variant="brand">About Effy</Badge>
-          <h1 className="text-4xl font-semibold tracking-tight">Groceries, delivered — by people who pack them like their own.</h1>
+          <h1 className="text-4xl font-semibold tracking-tight">Groceries, delivered - by people who pack them like their own.</h1>
           <p className="text-lg text-muted-foreground">
             Effy is an Australian online grocery store. We pick, pack and deliver everyday food and household
             essentials with our own drivers, and send by courier where they don&apos;t reach yet.
@@ -71,7 +71,7 @@ export default function AboutPage() {
           estimate.
         </Point>
         <Point icon={Coins} title="Points that pay">
-          Effy points are a way of paying. Use them for part or all of an order — your account shows what they are worth.
+          Effy points are a way of paying. Use them for part or all of an order - your account shows what they are worth.
         </Point>
       </section>
 

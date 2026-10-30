@@ -59,7 +59,7 @@ function renderIt() {
 
 beforeEach(() => vi.clearAllMocks())
 
-describe("082 — delivery windows by day", () => {
+describe("082 - delivery windows by day", () => {
   it("opens on today, and switches to any day on sale", async () => {
     getWindows.mockImplementation(async (date: string | null) =>
       date ? WED : { days: DAYS, date: "2026-10-13", windows: [] },

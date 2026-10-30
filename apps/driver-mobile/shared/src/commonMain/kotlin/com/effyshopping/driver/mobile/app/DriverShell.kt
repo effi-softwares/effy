@@ -118,14 +118,14 @@ fun DriverShell(
         if (tabs.canGoBack) tabs.pop() else tabs.selectTab(DriverTab.TODAY)
     }
 
-    // Which screen is up — its kind only, never the run or drop it is showing.
+    // Which screen is up - its kind only, never the run or drop it is showing.
     val screenName = tabs.currentRoute::class.simpleName.orEmpty().removeSuffix("Route").removeSuffix("Root")
     LaunchedEffect(screenName) {
         if (screenName.isNotEmpty()) container.analyticsDriver.screen(screenName.lowercase())
     }
 
     // A tapped notification is about the driver's work, and Today is where their work is. One about
-    // a round opens that round (backlog D4) — when Today still holds it, which also says its kind.
+    // a round opens that round (backlog D4) - when Today still holds it, which also says its kind.
     val analyticsOn by container.analyticsConsent.collectAsState()
     val openedNotification by container.openedNotification.collectAsState()
     LaunchedEffect(openedNotification) {
@@ -144,7 +144,7 @@ fun DriverShell(
         }
     }
 
-    // Rev 2 — the tab bar shows only on the three tab roots; every screen pushed from a tab is a
+    // Rev 2 - the tab bar shows only on the three tab roots; every screen pushed from a tab is a
     // full-screen inner view with its own back bar (the redesign's navigation rule).
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Box(Modifier.weight(1f).fillMaxWidth()) {
@@ -158,7 +158,7 @@ fun DriverShell(
                 TodayRoot -> {
                     val vm = viewModel(key = "today") { newTodayVm(container, session) }
                     val state by vm.state.collectAsState()
-                    // Fallback only — the driver's own writes already re-read Today (`WorkChanges`); this
+                    // Fallback only - the driver's own writes already re-read Today (`WorkChanges`); this
                     // catches anything that slipped past it (a write made before the app last closed, say).
                     LaunchedEffect(Unit) { vm.shown() }
                     TodayScreen(
@@ -213,7 +213,7 @@ fun DriverShell(
                     val vm = viewModel(key = "coll-${route.runId}") { newCollectionVm(container, route.runId) }
                     val st by vm.state.collectAsState()
                     // The ViewModel is keyed per run, so `loadStop` is what drops one stop's ticks when
-                    // a different stop opens — and keeps them when this one is come back to.
+                    // a different stop opens - and keeps them when this one is come back to.
                     LaunchedEffect(route.stopId) {
                         vm.showRun(quiet = true)
                         vm.loadStop(route.stopId)
@@ -251,7 +251,7 @@ fun DriverShell(
                 is HubCheckinRoute -> {
                     val vm = viewModel(key = "coll-${route.runId}") { newCollectionVm(container, route.runId) }
                     val st by vm.state.collectAsState()
-                    // Backlog F2 — after the system reclaims the app, this screen is restored on its own,
+                    // Backlog F2 - after the system reclaims the app, this screen is restored on its own,
                     // with no run screen before it to have loaded the counts.
                     LaunchedEffect(route.runId) { vm.showRun(quiet = true) }
                     val todayVm = viewModel(key = "today") { newTodayVm(container, session) }
@@ -387,7 +387,7 @@ fun DriverShell(
                                 tabs.resetForSignOut(DriverTab.TODAY)
                                 scope.launch {
                                     // Signing out sets the driver off duty, so they stop being given work.
-                                    // Best-effort — signing out never waits on it.
+                                    // Best-effort - signing out never waits on it.
                                     if (todaySt.dutyStatus == DutyStatus.ON_DUTY) {
                                         runCatching { container.setDuty(false, container.newChangeId()) }
                                     }
@@ -409,8 +409,8 @@ fun DriverShell(
                 PermissionDeniedRoute -> PermissionDeniedScreen(onBack = { tabs.pop() })
 
                 // `ComingSoonScreen` is deleted: no destination in this app may
-                // show a placeholder. This branch is unreachable — every AppNavKey above is
-                // handled and RouteSerializerGuardTest enumerates them — so it renders nothing
+                // show a placeholder. This branch is unreachable - every AppNavKey above is
+                // handled and RouteSerializerGuardTest enumerates them - so it renders nothing
                 // rather than inventing a screen for a route that cannot occur.
                 else -> Unit
             }

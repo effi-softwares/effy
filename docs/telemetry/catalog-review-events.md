@@ -12,7 +12,7 @@ vocabulary, so the events stay low-cardinality.
 
 | Event | Props | Emitted when |
 |---|---|---|
-| `product_submitted_for_review` | `{ productId }` | A shop submits a never-approved product — from the product page, or as the last step of the create wizard |
+| `product_submitted_for_review` | `{ productId }` | A shop submits a never-approved product - from the product page, or as the last step of the create wizard |
 | `product_review_withdrawn` | `{ productId }` | A shop withdraws a submission, or discards a pending change |
 
 `apps/shop-mobile` performs the same two actions and emits nothing yet: mobile telemetry for the
@@ -30,6 +30,6 @@ decided.
 
 ## Operational signal (not analytics)
 
-`ProductReviewOldestWaitingHours` (CloudWatch, namespace `Effy/Catalog`) — the age of the oldest item
+`ProductReviewOldestWaitingHours` (CloudWatch, namespace `Effy/Catalog`) - the age of the oldest item
 waiting for review, emitted every 15 minutes by `edge-catalog`. Alarm:
 `<prefix>-product-review-stale` (`infra/envs/dev/catalog-review.tf`).

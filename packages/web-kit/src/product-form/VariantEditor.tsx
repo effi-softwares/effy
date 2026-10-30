@@ -189,7 +189,7 @@ export function VariantEditor({
                 "With variants",
                 noOptions
                   ? "This category has no options to choose between. Ask Effy to add one."
-                  : `Shoppers choose an option — ${offered.map((r) => r.name.toLowerCase()).slice(0, 3).join(", ")} — each with its own price.`,
+                  : `Shoppers choose an option - ${offered.map((r) => r.name.toLowerCase()).slice(0, 3).join(", ")} - each with its own price.`,
               ],
             ] as const
           ).map(([v, title, text]) => (
@@ -517,10 +517,10 @@ export function VariantEditor({
             )}
             {ready
               ? unitPriceField(
-                  missingQuantity > 0
-                    ? `Worked out from each variant's net quantity. ${missingQuantity === 1 ? "1 variant has" : `${missingQuantity} variants have`} none yet, so shows no unit price.`
-                    : "Worked out from each variant's net quantity, so shoppers can compare.",
-                )
+                missingQuantity > 0
+                  ? `Worked out from each variant's net quantity. ${missingQuantity === 1 ? "1 variant has" : `${missingQuantity} variants have`} none yet, so shows no unit price.`
+                  : "Worked out from each variant's net quantity, so shoppers can compare.",
+              )
               : null}
           </EditorSection>
         </>

@@ -2,7 +2,7 @@ import type { LinkProps } from "@tanstack/react-router";
 import type { LucideIcon } from "lucide-react";
 
 /**
- * The consoles' sidebar model — back-office and shop-web share it, and `StaffShell` renders it.
+ * The consoles' sidebar model - back-office and shop-web share it, and `StaffShell` renders it.
  *
  * Groups of entries; an entry may hold sub-pages; a leaf may carry a live count. A hidden item is a
  * courtesy, never the guard: `requiredRole` mirrors the gate the backend checks, and the backend
@@ -38,10 +38,10 @@ export interface StaffNavGroup<TRole extends string = string, TCount extends str
   items: readonly StaffNavEntry<TRole, TCount>[];
 }
 
-/** The tab a route opens on when the URL names none — a sub-page for it must count as active. */
+/** The tab a route opens on when the URL names none - a sub-page for it must count as active. */
 export type DefaultTabs = Readonly<Record<string, string>>;
 
-/** The menu this person sees. Role filtering only — the backend is the gate. */
+/** The menu this person sees. Role filtering only - the backend is the gate. */
 export function visibleStaffGroups<TRole extends string, TCount extends string>(
   groups: readonly StaffNavGroup<TRole, TCount>[],
   roles: readonly TRole[],
@@ -68,7 +68,7 @@ export interface Where {
 
 /**
  * Which leaf is the page on screen. The most specific `to` wins (`/orders/assignments` beats
- * `/orders`), and a leaf that names a tab only matches that tab — so "Pricing" and "Coverage" are
+ * `/orders`), and a leaf that names a tab only matches that tab - so "Pricing" and "Coverage" are
  * never both lit. Derived from the router every render; never held in state.
  */
 export function staffActiveKey(
@@ -107,8 +107,8 @@ function matchScore(
     return leaf.to.length * 2 + keys.length;
   }
   if (leaf.tab !== undefined) {
-    // A record under the page (`/customers/abc`) belongs to the page's default tab — the list it was
-    // opened from — not to a settings tab that happens to share the route.
+    // A record under the page (`/customers/abc`) belongs to the page's default tab - the list it was
+    // opened from - not to a settings tab that happens to share the route.
     if (pathname !== leaf.to) return leaf.tab === defaultTabs[leaf.to] ? leaf.to.length * 2 : 0;
     return leaf.tab === tab ? leaf.to.length * 2 + 1 : 0;
   }

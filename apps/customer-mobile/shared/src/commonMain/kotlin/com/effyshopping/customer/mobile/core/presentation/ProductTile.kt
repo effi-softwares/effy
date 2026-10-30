@@ -57,9 +57,9 @@ import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 
 /**
- * The product tile — one for every product listing in the app (Product card board).
+ * The product tile - one for every product listing in the app (Product card board).
  *
- * A grey image well (8dp corners, no border, no shadow — the well separates it from the page), the
+ * A grey image well (8dp corners, no border, no shadow - the well separates it from the page), the
  * Sale badge top-left, the save heart top-right ([imageOverlay]), and the ADD button bottom-right:
  * a white "+" that morphs into a blue quantity stepper once the product is in the cart (Motion board,
  * 250ms). Below: brand, name (two lines), price in tabular bold with the struck price and the saving
@@ -266,7 +266,7 @@ val HomeSectionGap = EffySpacing.xl + EffySpacing.s
 val RailItemGap = EffySpacing.md
 
 /**
- * How much of the window one rail tile occupies — 2.2 tiles on a phone (Foundations board), so the
+ * How much of the window one rail tile occupies - 2.2 tiles on a phone (Foundations board), so the
  * third peeks and the rail reads as scrollable. None of these divide 1.0 evenly (RailSizingTest).
  */
 fun railTileWidthFraction(width: WindowWidth): Float = when (width) {
@@ -411,13 +411,13 @@ fun EffyCategoryShortcut(
 }
 
 /**
- * The home hero (Main board, "This week's offer") — a flat Effy-green panel, 232dp, with white type:
+ * The home hero (Main board, "This week's offer") - a flat Effy-green panel, 232dp, with white type:
  * a small uppercase eyebrow, a 26sp bold headline, one sentence, a white "View offer" button, the
  * pager's dots bottom-right and the offer's glyph in a translucent circle top-right. The board's
  * decorative arcs are drawn, not downloaded.
  *
  * Flat, not a photograph. The design's banners are colour and type; an operator's artwork is not
- * drawn here (Foundations: "promo grounds — banner artwork only, white type"). The ground is the
+ * drawn here (Foundations: "promo grounds - banner artwork only, white type"). The ground is the
  * storefront's own green (`--brand`), not a new colour: the constitution allows the storefront no
  * third hue, so the board's violet offer card is drawn in Effy blue instead.
  */
@@ -528,7 +528,7 @@ fun EffyOfferCard(
     }
 }
 
-/** The board's decorative arcs and dots on a promo ground — white at low alpha, purely ornamental. */
+/** The board's decorative arcs and dots on a promo ground - white at low alpha, purely ornamental. */
 @Composable
 private fun PromoArt(modifier: Modifier) {
     androidx.compose.foundation.Canvas(modifier = modifier) {

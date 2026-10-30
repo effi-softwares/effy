@@ -16,7 +16,7 @@ export async function collectionSchedule(q: Queryable): Promise<{ runs: Collecti
   );
   const runs = await q.query<{ hour: number; minute: number }>(`
 		SELECT EXTRACT(HOUR FROM run_time)::int AS hour, EXTRACT(MINUTE FROM run_time)::int AS minute
-		-- availability-exempt: public.delivery_collection_run — a schedule's lifecycle.
+		-- availability-exempt: public.delivery_collection_run - a schedule's lifecycle.
 		FROM public.delivery_collection_run WHERE status = 'active' ORDER BY run_time`);
   return {
     runs: runs.rows.map((r) => ({ hour: r.hour, minute: r.minute })),

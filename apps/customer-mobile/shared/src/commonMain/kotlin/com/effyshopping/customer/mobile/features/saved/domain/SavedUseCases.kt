@@ -44,7 +44,7 @@ class ToggleSaved(
         variantId: String? = null,
     ): ToggleOutcome {
         val previous = store.isSaved(productId)
-        if (previous == saved) return ToggleOutcome.DONE // nothing to do — and nothing to revert if it fails
+        if (previous == saved) return ToggleOutcome.DONE // nothing to do - and nothing to revert if it fails
 
         if (!isSignedIn()) {
             // A guest has no named lists, so a guest's filled heart always un-saves.
@@ -86,7 +86,7 @@ const val GUEST_CAP = 50
  * Load the shopper's membership into the mirror.
  *
  * On failure the mirror is left alone rather than emptied. Emptying it would render every heart
- * unsaved, which invites exactly the destructive second tap this feature exists to remove — so a
+ * unsaved, which invites exactly the destructive second tap this feature exists to remove - so a
  * failed refresh degrades to stale-but-plausible instead of confidently wrong.
  */
 class LoadSavedMembership(
@@ -123,7 +123,7 @@ class MergeSavedOnSignIn(
     }
 }
 
-/** Adds every purchasable product in one list to the cart — the weekly-shop action. */
+/** Adds every purchasable product in one list to the cart - the weekly-shop action. */
 class AddAllSavedToCart(private val repo: SavedCartRepository) {
     suspend operator fun invoke(listId: String, changeId: String): SavedAddToCartOutcome =
         repo.addAllToCart(listId, changeId)
@@ -133,7 +133,7 @@ class AddAllSavedToCart(private val repo: SavedCartRepository) {
 
 /**
  * Every change below re-reads the membership rather than patching the mirror. Whether a product is
- * still saved, and whether it is still in a named list, depends on every list it is in — a rule the
+ * still saved, and whether it is still in a named list, depends on every list it is in - a rule the
  * platform owns. A failed re-read is swallowed: the change itself succeeded, and the next screen
  * with hearts reads again.
  */

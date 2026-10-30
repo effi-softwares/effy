@@ -7,7 +7,7 @@ import { expect, test } from "@playwright/test"
  * request leaves, and that the confirm page renders a real outcome from a real round trip.
  *
  * The subscribe path needs the `edge-customer` service deployed. Where it is not, the form correctly
- * reports the retryable error — so the tests that need a working backend skip rather than fail, and the
+ * reports the retryable error - so the tests that need a working backend skip rather than fail, and the
  * ones that do not (native validation, the confirm page's expired branch) always run.
  */
 
@@ -63,7 +63,7 @@ test.describe("newsletter form (US6)", () => {
 
     const text = (await status.textContent()) ?? ""
     if (/couldn/i.test(text)) {
-      // The failure branch — FR-033's input preservation is exactly what matters here.
+      // The failure branch - FR-033's input preservation is exactly what matters here.
       await expect(page.locator(field)).toHaveValue("e2e-probe@example.com")
     } else {
       expect(text).toMatch(/check your inbox/i)
@@ -73,7 +73,7 @@ test.describe("newsletter form (US6)", () => {
 
 test.describe("newsletter confirm page (US6)", () => {
   /**
-   * A tampered token must land on a clear, non-disclosing outcome — never an error page and never a
+   * A tampered token must land on a clear, non-disclosing outcome - never an error page and never a
    * hint that some other token would have worked.
    */
   test("a bogus token renders 'this link has expired'", async ({ page }) => {
@@ -83,7 +83,7 @@ test.describe("newsletter confirm page (US6)", () => {
     await expect(page.getByRole("link", { name: /back to the store/i })).toBeVisible()
   })
 
-  /** A missing token takes the same path — there is nothing useful to say differently. */
+  /** A missing token takes the same path - there is nothing useful to say differently. */
   test("no token at all renders the same outcome", async ({ page }) => {
     await page.goto("/newsletter/confirm")
 
@@ -106,11 +106,11 @@ test.describe("newsletter confirm page (US6)", () => {
    * token back into the page", which fails: Next serialises `searchParams` into the RSC flight payload
    * whether or not anything renders them, so the token appears three times in the HTML.
    *
-   * A confirm-then-redirect was built to remove it and reverted — `redirect` inside a streamed
+   * A confirm-then-redirect was built to remove it and reverted - `redirect` inside a streamed
    * Suspense boundary returns 200, not a 3xx, so the token stayed anyway, and a client without
    * JavaScript was left on "Confirming…" forever. See the note in `confirm/page.tsx`.
    *
-   * What actually matters, and is asserted here: the token is never rendered as content — not in the
+   * What actually matters, and is asserted here: the token is never rendered as content - not in the
    * visible text, not in a link, not in a form. By the time this HTML exists the token has already
    * been consumed and is worthless.
    */

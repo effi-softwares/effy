@@ -1,4 +1,4 @@
-# Delivery reference data — Australian localities (`au-localities.csv`)
+# Delivery reference data - Australian localities (`au-localities.csv`)
 
 The place record for the delivery serviceability + zone-composition features (spec
 `047-delivery-shipping-engine`). Loaded into `public.locality` by the operator command
@@ -30,9 +30,9 @@ launch area, plus a few interstate rows) so the loader and the container-backed 
 without a large download. It is **not** whole-of-Australia coverage.
 
 **To load the full dataset** (operator/data step): obtain a current G-NAF-derived
-postcode/locality/state/lat-lng/address-count CSV — either a maintained open wrapper of Open G-NAF
+postcode/locality/state/lat-lng/address-count CSV - either a maintained open wrapper of Open G-NAF
 (e.g. a `postcodes-au`-style release, MIT over the Open-G-NAF terms) or a direct re-derivation from the
-Open G-NAF download on data.gov.au (~1.7 GB) — place it at `db/reference/au-localities.csv` (same
+Open G-NAF download on data.gov.au (~1.7 GB) - place it at `db/reference/au-localities.csv` (same
 header), and run `make load-localities ENV=dev`. Whole-of-Australia is loaded even though only VIC /
 Greater Melbourne is composed into served zones at launch (spec FR-012), so expanding coverage later is
 composing new zones, not loading new data.

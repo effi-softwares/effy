@@ -3,7 +3,7 @@ import { proxyToEdge } from "@/lib/api/proxy"
 /**
  * Cancel an order.
  *
- * Cancelling moves money — it is a full refund. It goes to the commerce service, where checkout
+ * Cancelling moves money - it is a full refund. It goes to the commerce service, where checkout
  * and payment live.
  *
  * No body. There is nothing for the caller to say: which order is in the path, who they are comes

@@ -15,7 +15,7 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: { params: Promise<{ type: string }> }): Promise<Metadata> {
   const { type } = await params
   if (!hasDocument(type)) return {}
-  return { title: `${getDocument(type).title} — version history` }
+  return { title: `${getDocument(type).title} - version history` }
 }
 
 /** Version history for a document. At first publish only v1 exists, so this states that plainly. */
@@ -44,7 +44,7 @@ export default async function LegalVersionsPage({ params }: { params: Promise<{ 
         ]}
       />
       <div className="mb-6 space-y-2">
-        <h1 className="text-3xl font-semibold tracking-tight">{doc.title} — versions</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">{doc.title} - versions</h1>
         <p className="text-base text-muted-foreground">Every version we&apos;ve published, newest first.</p>
       </div>
       <div className="rounded-lg border bg-card px-4 py-2 shadow-xs sm:px-6">

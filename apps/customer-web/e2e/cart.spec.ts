@@ -42,7 +42,7 @@ test.describe("the cart survives the browser (SC-001)", () => {
     await second.close()
   })
 
-  test("an emptied cart stays empty across a reload — clearing is not a render-time illusion", async ({
+  test("an emptied cart stays empty across a reload - clearing is not a render-time illusion", async ({
     page,
   }) => {
     await addFirstProduct(page)
@@ -71,7 +71,7 @@ test.describe("the cart re-prices on open (FR-004)", () => {
     expect((await preview).method()).toBe("POST")
   })
 
-  test("a failed re-price leaves the cart alone — 'we could not check' must not read as 'you have nothing'", async ({
+  test("a failed re-price leaves the cart alone - 'we could not check' must not read as 'you have nothing'", async ({
     page,
   }) => {
     await addFirstProduct(page)
@@ -125,7 +125,7 @@ test.describe("a promotional code is judged by the platform (FR-041/FR-042/FR-04
     await addFirstProduct(page)
 
     const field = page.getByLabel(/promotional code/i)
-    // The field may be hidden entirely for a guest — either is a correct answer to FR-041, but
+    // The field may be hidden entirely for a guest - either is a correct answer to FR-041, but
     // "type a code and see a discount" is not.
     if (await field.count()) {
       await field.fill("SPRING20")
@@ -135,7 +135,7 @@ test.describe("a promotional code is judged by the platform (FR-041/FR-042/FR-04
     await expect(page.getByText(/% off/)).toHaveCount(0)
   })
 
-  test("a refusal states WHICH reason — 'that code doesn't work' is not an answer", async ({
+  test("a refusal states WHICH reason - 'that code doesn't work' is not an answer", async ({
     page,
   }) => {
     await addFirstProduct(page)

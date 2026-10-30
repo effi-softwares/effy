@@ -1,4 +1,4 @@
-# Data Model — 098 Product Variants
+# Data Model - 098 Product Variants
 
 One goose migration, `db/migrations/<ts>_product_variants.sql`. House style: raw SQL, text CHECK enums,
 an index on every FK, `COMMENT ON` everything, no triggers for business rules. Decisions cited as R#
@@ -15,7 +15,7 @@ DO $$ BEGIN
 END $$;
 ```
 
-## 1. `public.product` — what is shared
+## 1. `public.product` - what is shared
 
 **Dropped** (moved to the variant): `sku`, `gtin`, `price_amount`, `compare_at_amount`,
 `shop_price_amount`, `shop_compare_at_amount`, `weight_grams`, `weight_is_assumed`, `stock_tracked`,
@@ -56,7 +56,7 @@ the price keyset.
 | value | text NOT NULL | 1–40 chars; UNIQUE (option_id, lower(value)) |
 | position | smallint NOT NULL | 0–19 (≤ 20 values, FR-006); UNIQUE (option_id, position) DEFERRABLE (reordering) |
 
-## 4. `public.product_variant` (new) — the thing bought, priced and counted
+## 4. `public.product_variant` (new) - the thing bought, priced and counted
 
 | Column | Type | Rule |
 |---|---|---|
@@ -85,11 +85,11 @@ the price keyset.
 | created_at / updated_at | timestamptz | ⚠ stock writes never touch `updated_at` (054's rule) |
 
 Constraints and indexes:
-- `UNIQUE (id, product_id)` — target of every referencing composite FK (R3).
-- `UNIQUE (product_id, option1_value_id, option2_value_id) NULLS NOT DISTINCT WHERE state <> 'removed'` — FR-003; one option-less variant (R2); a removed combination can return.
+- `UNIQUE (id, product_id)` - target of every referencing composite FK (R3).
+- `UNIQUE (product_id, option1_value_id, option2_value_id) NULLS NOT DISTINCT WHERE state <> 'removed'` - FR-003; one option-less variant (R2); a removed combination can return.
 - Value FKs are `ON DELETE SET NULL`: the writer deletes a value only when no non-removed variant names it.
-- `INDEX (product_id) WHERE state = 'active'` — the availability EXISTS (R5).
-- `INDEX (shop_id, stock_on_hand) WHERE stock_tracked` — the restock list (054's index, moved).
+- `INDEX (product_id) WHERE state = 'active'` - the availability EXISTS (R5).
+- `INDEX (shop_id, stock_on_hand) WHERE stock_tracked` - the restock list (054's index, moved).
 - `INDEX (gtin) WHERE gtin IS NOT NULL`, `INDEX (shop_id, lower(sku))`.
 - The 058 trigger `shop_ops_product_upd` is dropped from `product` and recreated on `product_variant`
   `AFTER UPDATE OF stock_on_hand, low_stock_threshold, stock_tracked, state`; `product` keeps a trigger
@@ -109,15 +109,15 @@ with " / "; NULL when the variant has no option values.
 | `cart_saved_item` | + `variant_id NOT NULL`, same FK; unique per (cart, variant) |
 | `order_item` | + `variant_id NOT NULL` FK; + `variant_label text NULL`, `sku text NULL`, `gtin text NULL` (snapshots); UNIQUE (order_id, variant_id) |
 | `stock_movement` | + `variant_id NOT NULL` FK; index (variant_id, created_at DESC) |
-| `customer_saved_item` | + `variant_id NULL` FK — the remembered choice (FR-015a) |
-| `customer_list_entry` | unchanged — an entry references the saved item, whose remembered variant serves every list |
+| `customer_saved_item` | + `variant_id NULL` FK - the remembered choice (FR-015a) |
+| `customer_list_entry` | unchanged - an entry references the saved item, whose remembered variant serves every list |
 | `product_change` | unchanged shape; `proposed` may carry `options` and `variants` (§6) |
 
 Untouched: `fulfillment_item`, `refund_line`, `refund_request_item` (they reference `order_item`, which
 now names the variant), `promotion_target` (product-level, FR-023), `shop_product_sales_day` (per
 product, FR-025).
 
-## 6. `product_change.proposed` — the variant keys (R6)
+## 6. `product_change.proposed` - the variant keys (R6)
 
 ```text
 proposed.options?:  [{ id, position, name, values: [{ id, value, position }] }]       complete target set

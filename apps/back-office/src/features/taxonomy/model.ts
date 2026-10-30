@@ -101,7 +101,7 @@ export function canAddChild(id: string, byId: Map<string, Category>): boolean {
   return Boolean(c && c.status === "active" && depthOf(id, byId) < CATEGORY_DEPTH_MAX)
 }
 
-/** Active leaves under active ancestors, with their paths, in path order — for pickers. */
+/** Active leaves under active ancestors, with their paths, in path order - for pickers. */
 export function leavesWithPaths(categories: readonly Category[]): { id: string; path: string[] }[] {
   const byId = index(categories)
   const live = (c: Category): boolean => c.status === "active" && (c.parentId === null || live(byId.get(c.parentId)!))
@@ -111,6 +111,6 @@ export function leavesWithPaths(categories: readonly Category[]): { id: string; 
     .sort((a, b) => pathText(a.path).localeCompare(pathText(b.path)))
 }
 
-/** "Dairy, Eggs & Fridge › Yoghurt" — the one way a path is written. */
+/** "Dairy, Eggs & Fridge › Yoghurt" - the one way a path is written. */
 export const PATH_SEPARATOR = " › "
 export const pathText = (path: readonly string[]) => path.join(PATH_SEPARATOR)

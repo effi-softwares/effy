@@ -26,4 +26,4 @@ if [ -n "$hits" ]; then
   echo "$hits"
   exit 1
 fi
-echo "✓ driver delivery words — no driver or dispatch screen says same-day or standard"
+echo "✓ driver delivery words - no driver or dispatch screen says same-day or standard"

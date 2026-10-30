@@ -29,12 +29,12 @@ const err = (m) => errors.push(m);
   if (depth !== 0) err(`unbalanced braces after comment-stripping (depth ${depth})`);
 }
 
-if (/data-theme|prefers-color-scheme/.test(css)) err("theme switching is the .dark class only — found data-theme or a colour-scheme query");
+if (/data-theme|prefers-color-scheme/.test(css)) err("theme switching is the .dark class only - found data-theme or a colour-scheme query");
 
 function block(selector) {
   const body = css.match(new RegExp(`${selector}\\s*\\{([^}]*)\\}`))?.[1];
   if (!body) {
-    console.error(`check-tokens: FAILED — no ${selector} block`);
+    console.error(`check-tokens: FAILED - no ${selector} block`);
     process.exit(1);
   }
   const vars = {};
@@ -122,7 +122,7 @@ function checkAppearance(vars, label) {
   for (const [k, v] of Object.entries(vars)) {
     if (!/^#[0-9a-f]{6}$/.test(v)) continue;
     if (!PALETTE.has(v)) err(`${label}--${k}: ${v} is not a Tailwind palette colour`);
-    if (!MAY_BE_RED.test(k) && NO_RED.has(v)) err(`${label}--${k}: ${v} is red, pink or orange — only destructive, accent2 and promo may be`);
+    if (!MAY_BE_RED.test(k) && NO_RED.has(v)) err(`${label}--${k}: ${v} is red, pink or orange - only destructive, accent2 and promo may be`);
   }
   if (vars.warning !== vars.foreground) err(`${label}--warning must equal --foreground`);
   if (vars.ring !== vars.primary) err(`${label}--ring must equal --primary`);
@@ -152,5 +152,5 @@ if (errors.length) {
   process.exit(1);
 }
 console.log(
-  `check-tokens: OK — one theme, ${Object.keys(light).length} tokens × light + dark, all Tailwind palette colours, every pair at AA`,
+  `check-tokens: OK - one theme, ${Object.keys(light).length} tokens × light + dark, all Tailwind palette colours, every pair at AA`,
 );

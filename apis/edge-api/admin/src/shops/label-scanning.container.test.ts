@@ -21,7 +21,7 @@ const d = RUN ? describe : describe.skip;
 let container: StartedPostgreSqlContainer;
 let pool: Pool;
 
-d("091 — label scanning per shop", () => {
+d("091 - label scanning per shop", () => {
   beforeAll(async () => {
     container = await new PostgreSqlContainer("postgres:16-alpine").start();
     pool = new Pool({ connectionString: container.getConnectionUri() });

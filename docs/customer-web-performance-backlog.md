@@ -1,4 +1,4 @@
-# Customer web — speed, caching and reliability backlog
+# Customer web - speed, caching and reliability backlog
 
 Review date: 2026-10-12 · Branch reviewed: `cw-redesign` (after 084) · Scope: `apps/customer-web` and the
 `storefront` service it reads from.
@@ -10,8 +10,8 @@ This is a task backlog from a read-only review. Nothing here has been changed ye
 The app's structure is sound: a static shell, streamed islands, heavy SDKs kept off guest pages. Two
 things account for most of the available speed:
 
-1. **Images defeat every cache** — presigned URLs that change per request, original bytes, no CDN.
-2. **Nothing public is cached between requests** — categories, home, product and listings are read
+1. **Images defeat every cache** - presigned URLs that change per request, original bytes, no CDN.
+2. **Nothing public is cached between requests** - categories, home, product and listings are read
    live on every page view, by design (054 FR-015a).
 
 Separately, **the guest bundle budget is failing**, which blocks the next Amplify deploy.
@@ -38,45 +38,45 @@ Tasks marked **spec** change an earlier feature's requirement or add infrastruct
 
 ---
 
-## P0 — Bundle budget
+## P0 - Bundle budget
 
 ### PERF-01 · Bring guest routes back under the 174 KB budget
 
 - **Found:** `scripts/bundle-budget.mjs` run against the production build of 2026-10-12 20:38 fails on
   every guest route: `/` 182.3 KB, `/search` 184.7, `/cart` 184.8, `/product/[id]` 180.2, `/help` 181.3,
-  `/legal/*` 176.7. Even the static legal pages are over, so the **shared chunk** grew — most likely
+  `/legal/*` 176.7. Even the static legal pages are over, so the **shared chunk** grew - most likely
   chrome client components added in the redesign (All aisles menu, carousels, phone menu).
 - **Caveat:** that build predates commit `b9b7d584` (21:02), which moved Motion to on-demand loading
   (~2.9 KB). The current number was not re-measured.
 - **Why it matters:** `amplify.yml` runs `size` after `build`; a failure keeps the last good version live.
 - **Done 2026-10-12** (Amplify job 137 failed on this gate; budget NOT raised). Fresh build, every
   guest route: `/` 171.6 KB, `/search` 173.2, `/cart` 171.2, `/product/[id]` 168.5, `/help` 169.9,
-  `/offers` 165.5, `/delete-account` 165.9, `/legal/*` 164.0 — against 174.
+  `/offers` 165.5, `/delete-account` 165.9, `/legal/*` 164.0 - against 174.
 - **What it was** (attributed with `next experimental-analyze -o`, not guessed):
   - [x] **`tailwind-merge`, 8.1 KB on every route.** `btnClass` merged a call site's override into the
         button's utilities, and client components import it. The button is now component-layer CSS
         (`.btn`, `.btn-primary`, … in `app/globals.css`), where a call site's utility wins by the
         cascade; `btnClass` only names the classes. `Skeleton`, `MediaFrame` and `EmptyState` take the
         same route (`.sf-*`); `badge`, `alert`, `misc`, `kit` and the chrome's client components join
-        classes with `clsx`. ⚠ `cn` (`lib/utils`) is still fine in a module only the server renders —
+        classes with `clsx`. ⚠ `cn` (`lib/utils`) is still fine in a module only the server renders -
         the cost is a CLIENT module importing one that imports it.
   - [x] **`next/dynamic`'s runtime, 1.3 KB on every route**, to lazy-load two things. Replaced by
         `lib/use-on-demand.ts` (telemetry island, search filters).
   - [x] **The mini-cart's contents** (with `next/image` and the cart's write actions) now load when the
-        pointer or focus reaches the cart button, or on the first press — `MiniCartBody.tsx`.
+        pointer or focus reaches the cart button, or on the first press - `MiniCartBody.tsx`.
   - [x] **`/cart`'s "On sale now" rail** loads its code with its products (it already waited on a fetch).
   - [x] `NewsletterForm` / `CopyCodeButton` no longer import through `kit` (field strings moved to
         `components/storefront/fields.ts`). Worth 0.9 KB, not the cause.
 - **Not the cause:** Motion (already on demand), the All aisles menu, the carousels, the phone menu.
-- **Open:** not walked in a browser — buttons, badges, skeletons and the cart drawer's first open want
+- **Open:** not walked in a browser - buttons, badges, skeletons and the cart drawer's first open want
   a look on dev. Headroom is 0.8 KB on `/search`; the next client-side addition there must be measured.
 - **Done when:** every guest route passes the gate on a fresh build.
 
 ---
 
-## P1 — Images
+## P1 - Images
 
-### PERF-02 · Serve catalogue images from a CDN with stable URLs — **spec**
+### PERF-02 · Serve catalogue images from a CDN with stable URLs - **spec**
 
 - **Found:**
   - Every image URL is a presigned S3 GET signed fresh per request with a 15-minute life
@@ -86,13 +86,13 @@ Tasks marked **spec** change an earlier feature's requirement or add infrastruct
     CloudFront CDN was "deferred to the customer-facing slice"; it was never built.
 - **Fix:**
   - CloudFront distribution in front of the product-media bucket (origin access control; the bucket
-    stays private). Catalogue and promotion artwork prefixes only — `courier-label/` and delivery proof
+    stays private). Catalogue and promotion artwork prefixes only - `courier-label/` and delivery proof
     must stay presigned-only.
   - Storefront DTOs carry a stable CDN URL built from the storage key instead of a signed one.
   - Long `Cache-Control: public, max-age=31536000, immutable` (keys are already collision-free per upload).
 - **Tasks**
   - [x] Spec + plan (infra: CloudFront + certificate in `us-east-1`, DNS name under the env zone, SSM
-        parameter for the media base URL; constitution check — CloudFront is managed, not compute).
+        parameter for the media base URL; constitution check - CloudFront is managed, not compute).
   - [x] Terraform: distribution, OAC, bucket policy scoped to the public prefixes.
   - [x] Backend: a `publicImageUrl(storageKey)` helper in `@effy/edge-shared`; `storefront` (and
         `commerce` cart/order lines) use it instead of `presignRead` for catalogue images.
@@ -104,18 +104,18 @@ Tasks marked **spec** change an earlier feature's requirement or add infrastruct
 - **Done when:** the same product shows the same image URL across two requests, and a repeat page view
   loads its images from the browser cache.
 - **Built 2026-10-14** with PERF-03 as feature 086 (`specs/086-catalogue-image-delivery/`). NOT applied,
-  migrated or deployed — the operator steps are in its quickstart. Built as above, with two changes: the
+  migrated or deployed - the operator steps are in its quickstart. Built as above, with two changes: the
   CDN host is `media.<zone>`, and `next/image` was removed from customer-web entirely (a plain `<picture>`),
   which also dropped the `**.amazonaws.com` pattern and ~4.6 KB from every guest route.
 
-### PERF-03 · Right-sized, modern-format images — **spec** (rides PERF-02)
+### PERF-03 · Right-sized, modern-format images - **spec** (rides PERF-02)
 
 - **Built 2026-10-14 in 086**: copies made at upload by a queue-fed worker (WebP only; the original is the
   fallback), 160/320/640/1280 plus the source's own width. Not deployed. The unchecked tasks below are
   superseded by 086's tasks.md.
 
 - **Found:** every `<Image>` is `unoptimized` (ProductCard, ProductGallery, MiniCart, cart, checkout,
-  receipt, `MediaFrame`), so a 72px thumbnail downloads the original upload — up to 10 MB is accepted
+  receipt, `MediaFrame`), so a 72px thumbnail downloads the original upload - up to 10 MB is accepted
   (`MAX_IMAGE_FILE_SIZE`), JPEG/PNG/WebP only.
 - **Fix (recommended):** generate fixed-width variants (e.g. 160 / 320 / 640 / 1280, WebP + AVIF) when
   an image is uploaded, store them beside the original, and emit `srcSet` from the known widths.
@@ -131,7 +131,7 @@ Tasks marked **spec** change an earlier feature's requirement or add infrastruct
 ### PERF-04 · Prioritise the largest image on each page
 
 - **Found:**
-  - `components/storefront/PromoBanner.tsx:187` — the hero artwork uses `loading="lazy"`; it is the
+  - `components/storefront/PromoBanner.tsx:187` - the hero artwork uses `loading="lazy"`; it is the
     home page's largest element.
   - `ProductCard.tsx` gives no priority to the first row on home, search or related rails.
 - **Tasks**
@@ -140,12 +140,12 @@ Tasks marked **spec** change an earlier feature's requirement or add infrastruct
   - [x] `ProductCard`: accept `priority`; `ProductRail` / search grid pass it to the first row only.
   - [x] Verify the product gallery's first image (already `priority`) is the only eager one there.
 - **Done when:** the hero image request starts before any below-the-fold image in a network trace.
-- **Note:** small and independent — can ship before PERF-02.
+- **Note:** small and independent - can ship before PERF-02.
 - **Done 2026-10-14**, differently from the tasks above:
   - ⚠ **The hero has no artwork.** `PromoHero` never passes `imageUrl`; the band is drawn. The lazy
     `<img>` in `PromoBanner` is reached only by `OfferBannerCard`, which the home page does not give
     an image either. Nothing to prioritise there, so `PromoBanner` is unchanged.
-  - `ProductCard` takes `priority` (`loading="eager"`, `fetchPriority="high"` — not `next/image`'s
+  - `ProductCard` takes `priority` (`loading="eager"`, `fetchPriority="high"` - not `next/image`'s
     `priority`, which would also write four preloads into the head). The first `FIRST_ROW` (4) cards
     of the home page's first rail and of the search grid get it; related rails do not (the gallery
     is that page's largest element).
@@ -155,16 +155,16 @@ Tasks marked **spec** change an earlier feature's requirement or add infrastruct
 
 ---
 
-## P1 — Caching public data
+## P1 - Caching public data
 
-### PERF-05 · Cache the aisle list (categories) — **spec amendment (054 FR-015a)**
+### PERF-05 · Cache the aisle list (categories) - **spec amendment (054 FR-015a)**
 
 - **Found:** `/storefront/v1/categories` is read `uncached()` on **every page view** for the header
-  (`lib/categories.ts:18`) — aisle row, All aisles menu, search chooser, phone menu. The query runs two
+  (`lib/categories.ts:18`) - aisle row, All aisles menu, search chooser, phone menu. The query runs two
   correlated subqueries per category over its subtree (`storefront/src/catalog/repository.ts`). The list
   changes only when staff edit the taxonomy.
 - **Constraint:** `lib/storefront-freshness.guard.test.ts` bans `cached()` under `app/(shop)`; the read
-  lives in `lib/`, so it would not trip the guard, but the intent of FR-015a still applies — the payload
+  lives in `lib/`, so it would not trip the guard, but the intent of FR-015a still applies - the payload
   includes `productCount`, which is stock-derived.
 - **Fix:** cache names/tree/images for minutes under a `categories` tag; either drop the live count from
   the cached payload or accept a 60s-stale count (FR-015a already allows 60s for listings).
@@ -179,9 +179,9 @@ Tasks marked **spec** change an earlier feature's requirement or add infrastruct
 - **Done 2026-10-14, with PERF-06/07** (see "How P1 caching was built" below). Not deployed or walked.
   - ⚠ **60 seconds, not 300**: `productCount` is stock-derived and decides which aisles home shows, so
     the list is FR-015a's listing tier. Because the cache is that short, a 15-minute presigned
-    category picture is harmless — PERF-02 is not a deploy prerequisite here.
+    category picture is harmless - PERF-02 is not a deploy prerequisite here.
 
-### PERF-06 · Cache the home payload and banners for up to 60 seconds — **spec amendment**
+### PERF-06 · Cache the home payload and banners for up to 60 seconds - **spec amendment**
 
 - **Found:** `/storefront/v1/home` is uncached (`app/(shop)/home-data.ts`) and costs ~8 queries per view.
   029 keeps promotions live because "this offer is still available" is a live claim.
@@ -189,9 +189,9 @@ Tasks marked **spec** change an earlier feature's requirement or add infrastruct
   pause or end one.
 - **Tasks**
   - [x] Amend 029 / 054 wording to allow ≤60s on home rails and banners. (029's spec says nothing about
-        caching — only its tasks and code comments did; FR-015a carries the rule.)
+        caching - only its tasks and code comments did; FR-015a carries the rule.)
   - [x] `getHome`: tagged cache, 60s.
-  - [x] Backend `Cache-Control` on `/storefront/v1/home` ~~and `/promotions/{id}`~~ — see below.
+  - [x] Backend `Cache-Control` on `/storefront/v1/home` ~~and `/promotions/{id}`~~ - see below.
   - [x] ~~Tag invalidation from the admin promotion writes.~~ TTL only.
 - **Depends on:** PERF-02.
 - **Done 2026-10-14.** Not deployed or walked. The header's offers menu (`AisleRow`) and `/offers` read
@@ -199,22 +199,22 @@ Tasks marked **spec** change an earlier feature's requirement or add infrastruct
   - ⚠ **`/promotions/[id]` stays live** (and sends no header): it is the page a shopper copies the code
     from, it is one indexed row, and nothing reads it per page view.
 
-### PERF-07 · Split the product page into cached content and live availability — **spec amendment**
+### PERF-07 · Split the product page into cached content and live availability - **spec amendment**
 
 - **Found:** the product read is fully uncached; FR-015a requires availability to be immediate. Name,
   gallery, description, attributes and category path do not change with stock.
 - **Fix:** cache the static part per product (tag `product:<id>`); read `available` + price live in a
   small streamed island (or a slim `/availability` read).
 - **Tasks**
-  - [x] Decide whether price is "static" or "live" (it moves money — recommend live). **Live.**
-  - [x] Backend: ~~slim availability/price route, or split DTO~~ — neither: the existing
+  - [x] Decide whether price is "static" or "live" (it moves money - recommend live). **Live.**
+  - [x] Backend: ~~slim availability/price route, or split DTO~~ - neither: the existing
         `/storefront/v1/products?ids=<id>` card read carries price, was-price and availability, so no
         route was added (the shared gateway's 300-route ceiling).
   - [x] Page: cached `ProductContent` + live `<Suspense>` islands (price row, add-to-cart).
   - [x] ~~Invalidate `product:<id>` on shop/back-office product edits.~~ TTL only.
   - [x] With the product cached, give `generateMetadata` the real name and description (today every
         product is titled "Product · Effy").
-- **Depends on:** PERF-02 — and guarded rather than assumed (below).
+- **Depends on:** PERF-02 - and guarded rather than assumed (below).
 - **Done 2026-10-14.** Served locally against dev: the real name in `<title>`, prices and
   availability present, a repeat view 0.39s against 1.8s for the first. Not deployed or walked.
   - The kept content has `priceAmount`, `compareAtAmount`, `currency`, `available` and `badges`
@@ -227,11 +227,11 @@ Tasks marked **spec** change an earlier feature's requirement or add infrastruct
   - Fixed on the way: `/search` and `/promotions/[id]` were titled "Search · Effy · Effy" /
     "Offer · Effy · Effy" (the root layout already appends " · Effy").
   - A product that no longer exists still answers 200 with the not-found page (it is decided inside
-    the streamed boundary) — unchanged by this work.
+    the streamed boundary) - unchanged by this work.
 
 ### How P1 caching was built (PERF-05..07)
 
-- ⚠ **Fixed 2026-10-14 — PERF-05/06 had made the build depend on the backend.** `next build` ran the
+- ⚠ **Fixed 2026-10-14 - PERF-05/06 had made the build depend on the backend.** `next build` ran the
   cached aisle and home reads while prerendering; when one threw, every page under the header failed to
   prerender and the build stopped. Seen twice: the backend answering 503 (seven build workers at once
   against the shopper role's connection limit), and the backend unreachable. The shared reads now await
@@ -242,11 +242,11 @@ Tasks marked **spec** change an earlier feature's requirement or add infrastruct
 - **Next's `"use cache"`**, not the fetch-level `cached()` option: `getCategories` (`lib/categories.ts`),
   `getHome` (`app/(shop)/home-data.ts`), the product page's content. Each is still wrapped in React's
   `cache()` for one lookup per render.
-- **Two lifetimes, in one file** — `lib/cache-life.ts`: `listing` (stale 30 / revalidate 15 / expire 30
+- **Two lifetimes, in one file** - `lib/cache-life.ts`: `listing` (stale 30 / revalidate 15 / expire 30
   → at most 60s, FR-015a's tier) and `catalogue` (300 / 300 / 900 → at most 20 minutes, words and
   pictures only). Objects, not named profiles in `next.config.ts`: a named profile is typed only after
   `next build`, so `tsc` refused it on a clean checkout.
-- ⚠ **No tag is revalidated by any writer — a decision, not a gap.** `use cache` keeps its entries in
+- ⚠ **No tag is revalidated by any writer - a decision, not a gap.** `use cache` keeps its entries in
   each server instance's memory, so a revalidate call would clear one instance. The lifetimes are the
   contract; the tags (`categories`, `home`, `promotions`, `product:<id>`) are there for a shared cache
   handler if one is ever added.
@@ -258,7 +258,7 @@ Tasks marked **spec** change an earlier feature's requirement or add infrastruct
   a cached file, `listing`'s stale + expire ≤ 60, `catalogue` expire ≤ 15 minutes, and the product
   page's live read. Proven by breaking the 60s sum.
 - **Backend**: `categories` and `home` send the `listing` header (`storefront/src/lib/cache.ts`);
-  `cache.contract.test.ts` records it. Nothing in the browser calls them — it is for mobile and any
+  `cache.contract.test.ts` records it. Nothing in the browser calls them - it is for mobile and any
   future CDN. `storefront` NOT deployed.
 - Bundle: unchanged in kind (server-only); every guest route within 174 KB on a fresh build.
 
@@ -275,11 +275,11 @@ Tasks marked **spec** change an earlier feature's requirement or add infrastruct
   (the three older ones moved in); `cache.contract.test.ts` lists every function with its policy or
   `null`, so a new route must state one.
   - ⚠ **`max-age=30, stale-while-revalidate=30`, not `=60` as written above**: the two add up to the
-    oldest answer a browser shows, and 30 + 60 is 90 seconds — past FR-015a's 60. The test holds the sum.
+    oldest answer a browser shows, and 30 + 60 is 90 seconds - past FR-015a's 60. The test holds the sum.
 
 ---
 
-## P1 — Search and aisle pages
+## P1 - Search and aisle pages
 
 ### PERF-09 · Server-render the first page of results
 
@@ -293,14 +293,14 @@ Tasks marked **spec** change an earlier feature's requirement or add infrastruct
   - [x] `SearchExperience`: accept `initialResults` / `initialFacets`; skip the first fetch when they
         match the URL.
   - [x] Skeleton fallback shaped like the grid (today the fallback is empty).
-  - [x] Check `robots.ts` — facet params are disallowed; decide whether `?category=` aisle pages should
+  - [x] Check `robots.ts` - facet params are disallowed; decide whether `?category=` aisle pages should
         be indexable now that they have content.
 - **Done when:** the raw HTML of an aisle URL contains product cards.
-- **Done 2026-10-14** — a production build served locally against dev returned `/search` with 24
+- **Done 2026-10-14** - a production build served locally against dev returned `/search` with 24
   product cards in the raw HTML. Not walked in a browser.
   - The query is built once for server and browser (`lib/search-query.ts`); the browser shows the
     server's page only when it answers the query the address asks.
-  - ⚠ **Refinements now rewrite the address with `history.replaceState`, not the router** — the page
+  - ⚠ **Refinements now rewrite the address with `history.replaceState`, not the router** - the page
     reads its search params on the server, so a router navigation would read the listing there on
     every filter tick as well.
   - ⚠ **Bundle: `/search` is 173.8 KB of 174.** The phone filter sheet's markup moved into the
@@ -308,18 +308,18 @@ Tasks marked **spec** change an earlier feature's requirement or add infrastruct
   - **Open (operator's call): `robots.ts` unchanged.** Aisle pages now have content, but `/search?`
     stays disallowed and every search URL is canonical to `/search`. Indexing single-aisle URLs
     means an Allow for `/search?category=`, a Disallow for `/search?category=*&`, a per-aisle
-    title and canonical, and sitemap entries — a change to 011's route contract.
+    title and canonical, and sitemap entries - a change to 011's route contract.
 
 ### PERF-10 · Remove the debounce on first load; keep results across Back
 
 - **Tasks**
   - [x] Debounce only refinements, not the mount fetch (covered by PERF-09 if done first).
   - [x] Keep loaded pages and scroll position when returning from a product page (module-level store
-        keyed by the query string, or session storage) — today Back refetches from page one.
+        keyed by the query string, or session storage) - today Back refetches from page one.
   - [x] `loadMore` failure currently sets `exhausted`, silently ending the list; show a retry instead.
 - **Done 2026-10-14**, all three, in `SearchExperience.tsx`. Not walked in a browser.
   - Only a refinement waits 250 ms.
-  - The last listing is kept for the life of the tab and shown again on return — ⚠ **only while its
+  - The last listing is kept for the life of the tab and shown again on return - ⚠ **only while its
     first page is under 60 seconds old** (FR-015a); older than that, Back reads page one again.
     Keeping it longer needs FR-015a amended.
   - A failed page says so and offers "Try again"; scrolling does not retry on its own.
@@ -328,12 +328,12 @@ Tasks marked **spec** change an earlier feature's requirement or add infrastruct
 
 ---
 
-## P2 — Backend read cost
+## P2 - Backend read cost
 
 ### PERF-11 · Home: fewer round trips
 
 - **Found:** the DB pool is `max: 1` per Lambda (`shared/src/lib/db.ts`), so the `Promise.all` in
-  `home/service.ts` queues on one connection — ~8 round trips in series, not "two waves". 029 measured
+  `home/service.ts` queues on one connection - ~8 round trips in series, not "two waves". 029 measured
   ~135 ms per round trip from a local backend.
 - **Tasks**
   - [x] One query for all category rails (`LATERAL` per candidate, or a window function with
@@ -346,7 +346,7 @@ Tasks marked **spec** change an earlier feature's requirement or add infrastruct
   labelled with its rail. Home is now two statements (rails, banners) instead of eight.
   - Run against dev's data beside the old seven queries (read-only session): same rails, same
     Featured and On sale; **4.2–4.7 s → 0.3 s** measured from a laptop (so mostly round trips).
-  - ⚠ **The category rails can differ from before — on ties only.** The old candidate query ordered by
+  - ⚠ **The category rails can differ from before - on ties only.** The old candidate query ordered by
     display order then product count with no tie-break, so among the many categories tied at the same
     count it picked arbitrarily. It now breaks ties by `c.key` and is the same on every load.
 
@@ -364,11 +364,11 @@ Tasks marked **spec** change an earlier feature's requirement or add infrastruct
 
 - **Tasks**
   - [x] `EXPLAIN ANALYZE` on dev data; the per-category subtree count and image pick are correlated
-        subqueries — replace with one recursive CTE + aggregate if it shows.
+        subqueries - replace with one recursive CTE + aggregate if it shows.
 - **Done 2026-10-14; `storefront` NOT deployed.** It showed: each of 157 categories walked its subtree
-  and seq-scanned `product` twice (157 loops each), so cost grew with categories × products —
+  and seq-scanned `product` twice (157 loops each), so cost grew with categories × products -
   **59 ms on dev's 136 products**. Now one closure walk (`categoryClosure()`, beside
-  `categorySubtreeById` in `lib/category-tree.ts` — still the one definition of "under a category")
+  `categorySubtreeById` in `lib/category-tree.ts` - still the one definition of "under a category")
   and one aggregate each for counts and pictures: **4.5 ms**, all 157 rows identical to before.
 
 ### PERF-14 · Suggestions index check
@@ -385,8 +385,8 @@ Tasks marked **spec** change an earlier feature's requirement or add infrastruct
   `product_brand_trgm_idx`.
   - Measured on 50,000 products: a selective name match **20 ms → 1.6 ms**; the brand prefix uses its
     index. A term matching a tenth of the catalogue, or a catalogue of a few thousand, still reads
-    through — correctly, it is cheaper.
-  - `storefront.container.test.ts` asserts each statement CAN use the indexes (50,000 rows, scans off —
+    through - correctly, it is cheaper.
+  - `storefront.container.test.ts` asserts each statement CAN use the indexes (50,000 rows, scans off -
     with scans on, ANALYZE's random sample made it flip between plans, 1 run in 4). Proven by
     removing the migration.
 
@@ -397,8 +397,8 @@ Tasks marked **spec** change an earlier feature's requirement or add infrastruct
 - **Tasks**
   - [x] Measure p50/p95 for `home`, `categories`, `product` from CloudWatch (cold vs warm).
   - [ ] Only if cold p95 is a problem after caching: consider provisioned concurrency on the two or
-        three hottest functions (cost decision — operator's call).
-- **Measured 2026-10-14** — dev, last 14 days, Lambda `REPORT` lines, the version BEFORE PERF-11..13
+        three hottest functions (cost decision - operator's call).
+- **Measured 2026-10-14** - dev, last 14 days, Lambda `REPORT` lines, the version BEFORE PERF-11..13
   (handler time; a cold start adds its init on top):
 
   | Function | Warm n | Warm p50 / p95 | Cold n (share) | Cold p50 / p95 | Init avg |
@@ -413,11 +413,11 @@ Tasks marked **spec** change an earlier feature's requirement or add infrastruct
   - Dev's cold share is high because its traffic is low; it says little about production.
   - **No recommendation for provisioned concurrency yet.** With PERF-05/06 the storefront asks for
     home and the aisle list at most about once per 15–30 s per server instance, so these functions
-    see few calls — more of them cold, but far fewer shopper views waiting on one.
+    see few calls - more of them cold, but far fewer shopper views waiting on one.
 
 ---
 
-## P2 — Front-end details
+## P2 - Front-end details
 
 ### PERF-16 · Make per-customer read sharing explicit
 
@@ -431,13 +431,13 @@ Tasks marked **spec** change an earlier feature's requirement or add infrastruct
 - **Done 2026-10-14.** `UserIsland`, `DeliveryBar`, `HomeShortcuts`, `ProductDeliveryNote` and the
   account overview read through them. Each takes no argument (it reads the session itself), so a
   render has one cache entry per read; a guest costs no request; a failure still throws and each
-  caller keeps its own fallback. Also `defaultAddress()` — the "default, else first" rule was written
+  caller keeps its own fallback. Also `defaultAddress()` - the "default, else first" rule was written
   out in four places. Not walked signed in.
 
 ### PERF-17 · Preload the typeface, remove the swap shift
 
 - **Found:** Geist (57 KB variable) loads through plain `@font-face` with `font-display: swap` and no
-  preload — text paints in the fallback, then shifts. The root layout already records the fix.
+  preload - text paints in the fallback, then shifts. The root layout already records the fix.
 - **Tasks**
   - [x] `next/font/local` pointing at the design-system's existing `Geist-Variable.woff2` (not a second
         copy), with `adjustFontFallback`.
@@ -448,7 +448,7 @@ Tasks marked **spec** change an earlier feature's requirement or add infrastruct
   tokens now read `--font-geist` / `--font-geist-mono`, which the `<html>` class sets. Served locally:
   Geist is preloaded (a `Link: …; rel=preload; as="font"` response header) and Mono is not.
   - Mono: a guest home view did not download it. ⚠ It IS drawn on home when an offer with a code is
-    advertised (the hero's code chip, `PromoHero`), and then it costs 58 KB for a few characters —
+    advertised (the hero's code chip, `PromoHero`), and then it costs 58 KB for a few characters -
     worth setting the chip in Geist with `tabular-nums` if that matters. Not changed.
 
 ### PERF-18 · Recently viewed and other on-load client fetches
@@ -466,9 +466,9 @@ Tasks marked **spec** change an earlier feature's requirement or add infrastruct
     link that scrolls into view; the chrome (top bar "Track an order", header heart, phone tab bar,
     footer "Your account") links to Account, Orders and Saved, so each was fetched, redirected by the
     proxy, and the sign-in page prefetched again after it. Links to pages that need an account are
-    now never prefetched (`lib/account-routes.ts` — the proxy's list moved there, so the two cannot
+    now never prefetched (`lib/account-routes.ts` - the proxy's list moved there, so the two cannot
     disagree). After: none to Account, Orders or Saved.
-  - **Open — operator's call:** the other ~40 prefetches are Next's default for every product card,
+  - **Open - operator's call:** the other ~40 prefetches are Next's default for every product card,
     offer and aisle link in view, each fetched as several segment requests, and on Amplify each is an
     SSR compute invocation. Turning prefetch off for product cards (or to hover-only) would cut that
     sharply at the cost of a slower first tap. Not changed.
@@ -476,24 +476,24 @@ Tasks marked **spec** change an earlier feature's requirement or add infrastruct
 ### PERF-19 · Remaining plain `<img>`
 
 - **Tasks**
-  - [x] `app/(account)/orders/page.tsx:220` — add `loading="lazy"`, `decoding="async"` and dimensions
+  - [x] `app/(account)/orders/page.tsx:220` - add `loading="lazy"`, `decoding="async"` and dimensions
         (or use `MediaFrame`).
 - **Already done by 086**: the thumbnail is a `CatalogImage` (lazy, async, smallest copy for 56 px).
   The one remaining plain `<img>` (`PromoBanner`) is already lazy and async.
 
 ---
 
-## P3 — Measurement and guards
+## P3 - Measurement and guards
 
 ### PERF-20 · A baseline, so the gains are numbers
 
 - **Tasks**
   - [ ] Record LCP / INP / CLS / TTFB for `/`, an aisle page and a product page from the existing
-        web-vitals events (PostHog) before PERF-02..09 land. *(operator — query below)*
+        web-vitals events (PostHog) before PERF-02..09 land. *(operator - query below)*
   - [x] Lighthouse (mobile, throttled) on the same three URLs against dev; keep the reports in the
         feature's `specs/` folder. *(done once on 2026-10-14; script and reports removed 2026-10-25)*
   - [ ] Re-measure after each P1 item. *(field data only now; see below)*
-- **2026-10-14 — the lab half is built, but it is an AFTER, not a before.** By the time it ran, dev
+- **2026-10-14 - the lab half is built, but it is an AFTER, not a before.** By the time it ran, dev
   was already on `84554373` (everything through PERF-19). A lab "before" cannot be taken for code no
   longer deployed; the field data is the only before there is.
   - **Removed 2026-10-25.** The `make cw-lighthouse` script and its reports in `docs/perf/lighthouse/`
@@ -502,12 +502,12 @@ Tasks marked **spec** change an earlier feature's requirement or add infrastruct
     history has the script.
   - The one run, `2026-10-14-after-p1-p2` (Lighthouse 13.5, mobile, median of three): home score 72 /
     LCP 6.3 s, aisle 92 / 3.1 s, product 93 / 2.9 s, CLS 0 everywhere. Two findings:
-    - **Home's LCP is the promo hero's headline**, streamed once the home payload arrives — so home's
+    - **Home's LCP is the promo hero's headline**, streamed once the home payload arrives - so home's
       LCP is the home read: fast from a warm server's cache, seconds on a cold one (runs 4.3–7.1 s).
       PERF-11's two-query home (deploy pending at the time) and PERF-15's cold starts are the levers.
     - **TTFB is 0.7–1.9 s on every page**, the HTML `private, no-store` and a CloudFront miss:
       Amplify renders each page per request, the static shell included. Outside this backlog's scope.
-  - **Field numbers — operator.** No PostHog query access here (the project key only sends). In
+  - **Field numbers - operator.** No PostHog query access here (the project key only sends). In
     PostHog → SQL, run once for the weeks before 2026-10-14 and once for the week after a deploy:
 
     ```sql
@@ -531,7 +531,7 @@ Tasks marked **spec** change an earlier feature's requirement or add infrastruct
 
 - **Tasks**
   - [x] A test that no storefront DTO image URL contains a signature query string (after PERF-02).
-        *(2026-10-14: `storefront.container.test.ts` — "every picture address a shopper is sent is
+        *(2026-10-14: `storefront.container.test.ts` - "every picture address a shopper is sent is
         permanent and unsigned". 086's `media.guard.test.ts` already held the SOURCE of `storefront`
         and `commerce`; this holds the WIRE: search, the id hydration, home, the aisle list and two
         product pages, read with the real addressing, every `…Url` field must be a `media.<zone>`
@@ -546,13 +546,13 @@ Tasks marked **spec** change an earlier feature's requirement or add infrastruct
 
 ## Suggested order
 
-1. **PERF-01** — unblocks deploys.
-2. **PERF-04** — one-line image priority changes.
-3. **PERF-20** — take the baseline.
-4. **PERF-02 → PERF-03** — image CDN, then variants (one feature spec).
-5. **PERF-05, 06, 08** — caching for categories, home, HTTP headers (one feature spec, amends 054 FR-015a).
-6. **PERF-09, 10** — server-rendered search.
-7. **PERF-07** — product page split.
+1. **PERF-01** - unblocks deploys.
+2. **PERF-04** - one-line image priority changes.
+3. **PERF-20** - take the baseline.
+4. **PERF-02 → PERF-03** - image CDN, then variants (one feature spec).
+5. **PERF-05, 06, 08** - caching for categories, home, HTTP headers (one feature spec, amends 054 FR-015a).
+6. **PERF-09, 10** - server-rendered search.
+7. **PERF-07** - product page split.
 8. **PERF-11..19** as capacity allows.
 
 ## Not verified in this review

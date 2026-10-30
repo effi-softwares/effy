@@ -34,7 +34,7 @@ export function deleteGuardMessage(status: ProductStatus): string {
   if (canHardDelete(status)) {
     return "This draft has never been on sale, so it can be permanently deleted. This cannot be undone."
   }
-  return "A published product can't be deleted — archive it instead. Archiving hides it from the catalog but keeps its data."
+  return "A published product can't be deleted - archive it instead. Archiving hides it from the catalog but keeps its data."
 }
 
 interface VisibilityAction {
@@ -76,7 +76,7 @@ export function visibilityAction(
         target: "draft",
         confirmTitle: "Submit this product for review?",
         confirmBody:
-          "Effy checks it and sets the price customers pay. It goes on sale when it is approved — not before. You will be told either way, and you can keep adjusting stock while you wait.",
+          "Effy checks it and sets the price customers pay. It goes on sale when it is approved - not before. You will be told either way, and you can keep adjusting stock while you wait.",
         confirmLabel: "Submit for review",
       }
     case "active":
@@ -86,7 +86,7 @@ export function visibilityAction(
         target: "unavailable",
         confirmTitle: "Unpublish this product?",
         confirmBody:
-          "It disappears from the storefront straight away and nobody can buy it. Nothing is deleted — the product, its images and its stock count all stay exactly as they are, and orders already placed are unaffected.",
+          "It disappears from the storefront straight away and nobody can buy it. Nothing is deleted - the product, its images and its stock count all stay exactly as they are, and orders already placed are unaffected.",
         confirmLabel: "Unpublish",
       }
     case "unavailable":

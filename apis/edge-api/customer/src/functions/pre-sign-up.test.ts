@@ -34,12 +34,12 @@ afterEach(() => {
   delete process.env.AUTO_CONFIRM_SIGNUP;
 });
 
-describe("pre-sign-up — native sign-up", () => {
+describe("pre-sign-up - native sign-up", () => {
   it("⚠ does NOT auto-confirm by default", async () => {
     // Off: auto-confirming buys an email-squatting risk until it is shown to be needed.
     delete process.env.AUTO_CONFIRM_SIGNUP;
     const { handler } = await import("./pre-sign-up.js");
-    const out = await handler(nativeSignUp(), {} as never, (() => {}) as never);
+    const out = await handler(nativeSignUp(), {} as never, (() => { }) as never);
 
     expect((out as { response: { autoConfirmUser: boolean } }).response.autoConfirmUser).toBe(false);
   });
@@ -47,7 +47,7 @@ describe("pre-sign-up — native sign-up", () => {
   it("auto-confirms when the flag is explicitly enabled", async () => {
     process.env.AUTO_CONFIRM_SIGNUP = "true";
     const { handler } = await import("./pre-sign-up.js");
-    const out = await handler(nativeSignUp(), {} as never, (() => {}) as never);
+    const out = await handler(nativeSignUp(), {} as never, (() => { }) as never);
 
     expect((out as { response: { autoConfirmUser: boolean } }).response.autoConfirmUser).toBe(true);
   });
@@ -58,7 +58,7 @@ describe("pre-sign-up — native sign-up", () => {
       vi.resetModules();
       process.env.AUTO_CONFIRM_SIGNUP = value;
       const { handler } = await import("./pre-sign-up.js");
-      const out = await handler(nativeSignUp(), {} as never, (() => {}) as never);
+      const out = await handler(nativeSignUp(), {} as never, (() => { }) as never);
       expect(
         (out as { response: { autoConfirmUser: boolean } }).response.autoConfirmUser,
         `value: ${value}`,
@@ -66,10 +66,10 @@ describe("pre-sign-up — native sign-up", () => {
     }
   });
 
-  it("⚠ NEVER auto-verifies the email — not even with auto-confirm on (Principle IV)", async () => {
+  it("⚠ NEVER auto-verifies the email - not even with auto-confirm on (Principle IV)", async () => {
     process.env.AUTO_CONFIRM_SIGNUP = "true";
     const { handler } = await import("./pre-sign-up.js");
-    const out = await handler(nativeSignUp(), {} as never, (() => {}) as never);
+    const out = await handler(nativeSignUp(), {} as never, (() => { }) as never);
 
     const response = (out as { response: { autoVerifyEmail: boolean } }).response;
     // Confirmed is not verified: the address is verified only once a code sent to it is answered.

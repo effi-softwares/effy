@@ -9,7 +9,7 @@ interface MapLauncher {
     /** Open the device maps app navigating to a free-form address string. */
     fun navigateTo(address: String)
 
-    /** Open the phone's dialler on a number. It does not place the call — the driver presses call. */
+    /** Open the phone's dialler on a number. It does not place the call - the driver presses call. */
     fun dial(phoneNumber: String) {}
 
     /** Open a web link in the phone's browser. */

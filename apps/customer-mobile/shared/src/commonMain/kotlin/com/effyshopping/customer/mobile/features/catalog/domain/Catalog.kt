@@ -1,7 +1,7 @@
 package com.effyshopping.customer.mobile.features.catalog.domain
 
 /**
- * The catalog domain. Clean-Architecture domain models — the app's own types, mapped from the
+ * The catalog domain. Clean-Architecture domain models - the app's own types, mapped from the
  * generated wire DTOs in the data layer (Principle VI: wire shapes never leak past `data`). The customer
  * projection carries NO shop identity. Money is a decimal string + currency.
  */
@@ -23,7 +23,7 @@ data class ProductCard(
     /**
      * Opaque package grouping token, carried onto a guest-cart line at add-time so the cart
      * can show the anonymous per-package split. Not a shop id/name/location. Blank until the
-     * storefront read threads a token through — the customer projection carries no shop, so grouping is
+     * storefront read threads a token through - the customer projection carries no shop, so grouping is
      * authoritatively resolved server-side at quote time; a blank key degrades to one package.
      */
     val packageKey: String = "",
@@ -38,7 +38,7 @@ data class ProductCard(
     val priceVaries: Boolean = false,
     /** The comparison price of [priceAmount], when the platform gave one. */
     val unitPrice: UnitPrice? = null,
-    /** Sold to adults only: labelled 18+ (101). Labelling only — no age check yet. */
+    /** Sold to adults only: labelled 18+ (101). Labelling only - no age check yet. */
     val ageRestricted: Boolean = false,
 )
 
@@ -61,7 +61,7 @@ data class Banner(
      * phrase one promotion identically. Null when the promotion has no conditions.
      */
     val terms: String? = null,
-    /** Where the banner leads. Null — including for an unrecognised wire value — means not tappable. */
+    /** Where the banner leads. Null - including for an unrecognised wire value - means not tappable. */
     val target: BannerTarget? = null,
     /** Which of Home's two banner placements this promotion occupies. Exclusive. */
     val placement: BannerPlacement = BannerPlacement.CAROUSEL,
@@ -75,7 +75,7 @@ data class Banner(
  * a placement first.
  */
 enum class BannerPlacement {
-    /** The dedicated offers section — one bounded, swipeable block. */
+    /** The dedicated offers section - one bounded, swipeable block. */
     CAROUSEL,
 
     /** Between merchandising sections, at `position` (028's behaviour). */
@@ -89,7 +89,7 @@ enum class BannerPlacement {
  * compile error rather than a silent no-op.
  *
  * The wire's `href` is a web path and mobile has no URL router. An unrecognised wire `kind` maps to
- * `null` here rather than to some "unknown" case — the wire shape never leaks past `data`
+ * `null` here rather than to some "unknown" case - the wire shape never leaks past `data`
  * (Principle VI), and a banner with no target renders non-tappable. A tap that does nothing is worse
  * than no tap.
  */
@@ -108,7 +108,7 @@ sealed interface BannerTarget {
      * The promotion itself, in full.
      *
      * This is what every banner now carries, and it replaces a server that sent [Search] for all of
-     * them — so a tap landed on the unfiltered store, indistinguishable from tapping the Search tab
+     * them - so a tap landed on the unfiltered store, indistinguishable from tapping the Search tab
      * and carrying none of the promotion's own facts. The reason no better destination existed is in
      * the data model: a promotion has no product or category scoping, so there is no filtered list to
      * open. A whole-cart discount is a message, not a place.
@@ -122,11 +122,11 @@ data class Promotion(
     val title: String,
     val subtitle: String?,
     val imageUrl: String?,
-    /** What the shopper types in the cart. Non-null — the screen exists to hand this over. */
+    /** What the shopper types in the cart. Non-null - the screen exists to hand this over. */
     val code: String,
     /** The condition sentence, composed server-side so it matches the banner word for word. */
     val terms: String?,
-    /** How long is left — "Ends in 3 days". Null when the promotion has no end date. */
+    /** How long is left - "Ends in 3 days". Null when the promotion has no end date. */
     val validity: String?,
 )
 
@@ -169,7 +169,7 @@ data class ProductDetail(
     val longDescription: String?,
     val gallery: List<Media>,
     val categoryPath: List<String>,
-    /** The primary category's key — drives the related-products rail. */
+    /** The primary category's key - drives the related-products rail. */
     val categoryKey: String,
     /** The product's options in order; empty when it is sold one way (no selector). */
     val options: List<VariantOption> = emptyList(),
@@ -196,7 +196,7 @@ data class Variant(
     val unitPrice: UnitPrice?,
     /** Can be bought now (the one availability rule). */
     val available: Boolean,
-    /** The size's own picture, or null — the product's gallery stands. */
+    /** The size's own picture, or null - the product's gallery stands. */
     val imageUrl: String?,
     /** What a shopper is told about this size, by section (101): a detail that differs by size is its own. */
     val details: List<AttributeGroup> = emptyList(),
@@ -235,7 +235,7 @@ data class ProductPage(
 // Advanced filter facets
 
 /**
- * The control a facet drives — maps the wire `FacetType`. Tolerant reader: an unknown wire value
+ * The control a facet drives - maps the wire `FacetType`. Tolerant reader: an unknown wire value
  * degrades to [MULTI_SELECT] rather than throwing, so a facet type added server-side never blanks the
  * sheet.
  */
@@ -260,7 +260,7 @@ enum class FacetControl {
 /** A number facet's smallest and largest value in view, in [unit] (null when it has none). */
 data class FacetRange(val min: String, val max: String, val unit: String?)
 
-/** One selectable value with its count in the current set (count ≥ 1 — zero-count options are omitted). */
+/** One selectable value with its count in the current set (count ≥ 1 - zero-count options are omitted). */
 data class FacetOption(val value: String, val label: String, val count: Int)
 
 /** One refinable dimension: `category`, `brand`, or an attribute-definition key. */
@@ -314,6 +314,6 @@ interface CatalogRepository {
         ranges: Map<String, NumberRange> = emptyMap(),
     ): FacetSet
 
-    /** One advertised promotion in full — the destination of a banner tap. */
+    /** One advertised promotion in full - the destination of a banner tap. */
     suspend fun promotion(id: String): Promotion
 }

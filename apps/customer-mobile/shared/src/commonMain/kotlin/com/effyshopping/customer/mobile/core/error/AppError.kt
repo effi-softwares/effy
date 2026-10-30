@@ -11,7 +11,7 @@ sealed interface AppError {
     /** Not signed in, the token pair mismatched, or the wrong current password. */
     data object Unauthenticated : AppError
 
-    /** Wrong current password specifically — distinct from a lost session so the UI can say so. */
+    /** Wrong current password specifically - distinct from a lost session so the UI can say so. */
     data object WrongPassword : AppError
 
     /** Barred, or an account that cannot be used. A valid credential is not permission. */
@@ -38,7 +38,7 @@ sealed interface AppError {
     data class RateLimited(val retryAfterSeconds: Long? = null) : AppError
 
     /**
-     * The thing asked for is not there — 404.
+     * The thing asked for is not there - 404.
      *
      * Added because 404 was landing in [Unexpected], which reads to the shopper as "something broke"
      * and invites a retry that can never succeed. A promotion that expired or was fully claimed while
@@ -47,7 +47,7 @@ sealed interface AppError {
      */
     data object NotFound : AppError
 
-    /** No network / backend unreachable — recoverable; lose nothing the customer typed. */
+    /** No network / backend unreachable - recoverable; lose nothing the customer typed. */
     data object Network : AppError
 
     /** The backend is up but failing. */

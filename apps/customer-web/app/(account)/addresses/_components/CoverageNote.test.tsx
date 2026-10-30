@@ -5,7 +5,7 @@ import { COVERAGE_LABEL, COVERAGE_REFUSAL_SENTENCE } from "@effy/shared-types"
 
 import { CoverageNote } from "./CoverageNote"
 
-describe("CoverageNote — who delivers to an address (076)", () => {
+describe("CoverageNote - who delivers to an address (076)", () => {
   it("names Effy's own delivery", () => {
     render(<CoverageNote coverage="effy" />)
     expect(screen.getByTestId("coverage-label")).toHaveTextContent(COVERAGE_LABEL.effy)

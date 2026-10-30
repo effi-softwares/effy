@@ -39,7 +39,7 @@ beforeEach(() => {
   getCoverage.mockResolvedValue({ gaps: [gap()] })
 })
 
-describe("CoveragePanel — where the fleet has no cover", () => {
+describe("CoveragePanel - where the fleet has no cover", () => {
   it("⚠ distinguishes nobody-cleared from everybody-unavailable", async () => {
     getCoverage.mockResolvedValue({
       gaps: [
@@ -64,7 +64,7 @@ describe("CoveragePanel — where the fleet has no cover", () => {
       gaps: [gap({ function: "collection" })],
     })
     renderPanel()
-    expect(await screen.findByText(/^Collect —/)).toBeInTheDocument()
+    expect(await screen.findByText(/^Collect -/)).toBeInTheDocument()
     // A gap is per area and kind of work; no delivery method is named.
     expect(document.body.textContent).not.toMatch(/same[- ]day|standard/i)
   })

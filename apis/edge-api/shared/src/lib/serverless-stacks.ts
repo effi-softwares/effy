@@ -10,7 +10,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 
 /** `apis/edge-api`. */
 export const EDGE_API_DIR = resolve(here, "../../..");
-/** `infra/envs/dev` — the Terraform root the stacks' parameters come from. */
+/** `infra/envs/dev` - the Terraform root the stacks' parameters come from. */
 export const INFRA_DEV_DIR = resolve(EDGE_API_DIR, "../../infra/envs/dev");
 
 /** Which HTTP gateway a stack attaches its routes to. `null`: it has none (a worker). */
@@ -23,7 +23,7 @@ export interface Stack {
   file: string;
   /** What `make edge-deploy SERVICE=` calls it: the service name without `effy-edge-`. */
   name: string;
-  /** The `service:` line — the CloudFormation stack's name less the stage. */
+  /** The `service:` line - the CloudFormation stack's name less the stage. */
   service: string;
   gateway: Gateway | null;
   /** The file's text, for a guard that needs more than this module extracts. */
@@ -103,7 +103,7 @@ export function functionsOf(stack: Stack): StackFunction[] {
       const block = body.slice(e.index, events[j + 1]?.index);
       const method = /\n\s+method:\s*['"]?([A-Za-z*]+)/.exec(block)?.[1];
       const path = /\n\s+path:\s*['"]?(\/\S*?)['"]?\s*(?:\n|$)/.exec(block)?.[1];
-      if (!method || !path) throw new Error(`${stack.dir}/${stack.file}: ${key} has an httpApi event this reader cannot parse — write it as method: / path:`);
+      if (!method || !path) throw new Error(`${stack.dir}/${stack.file}: ${key} has an httpApi event this reader cannot parse - write it as method: / path:`);
       const auth = /\n\s+id:\s*\$\{ssm:\/effy\/\$\{sls:stage\}(\/[a-z_/-]+)\}/.exec(block)?.[1] ?? null;
       if (auth === null && /\n\s+authorizer:/.test(block)) throw new Error(`${stack.dir}/${stack.file}: ${key} has an authorizer that is not an /effy/<stage>/… parameter`);
       routes.push({ fn: key, method: method.toUpperCase(), path, authorizerParam: auth });

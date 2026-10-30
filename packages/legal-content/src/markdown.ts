@@ -6,7 +6,7 @@ import type { Block, InlineRun } from "./types"
  * links. Anything else raises.
  */
 
-export class MarkdownSubsetError extends Error {}
+export class MarkdownSubsetError extends Error { }
 
 const HEADING = /^(#{1,3})\s+(.*)$/
 const UL = /^[-*]\s+(.*)$/
@@ -73,7 +73,7 @@ export function parseMarkdown(src: string): Block[] {
       continue
     }
 
-    // A bare pipe line with no separator is a malformed table — reject rather than render as text.
+    // A bare pipe line with no separator is a malformed table - reject rather than render as text.
     if (TABLE_ROW.test(trimmed) && !para.length) {
       throw new MarkdownSubsetError(`Table row without a separator row: ${trimmed}`)
     }

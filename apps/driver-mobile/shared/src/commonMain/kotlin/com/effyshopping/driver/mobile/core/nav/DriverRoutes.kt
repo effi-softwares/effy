@@ -51,7 +51,7 @@ data class HistoryDetailRoute(val kind: String, val id: String, val title: Strin
 @Serializable
 data object HelpRoute : AppNavKey
 
-/** Rev 2 — the parcels from failed drops, coming back to the hub (redesign `11 Return parcels`). */
+/** Rev 2 - the parcels from failed drops, coming back to the hub (redesign `11 Return parcels`). */
 @Serializable
 data class ReturnHubRoute(val runId: String, val scan: Boolean = false) : AppNavKey
 
@@ -61,7 +61,7 @@ data object PermissionDeniedRoute : AppNavKey
 
 /**
  * The driver app's three tabs: Today (the phase-aware home and every run, stop and drop pushed
- * from it), History, Account. Map and Activity were removed — the map was a schematic with no
+ * from it), History, Account. Map and Activity were removed - the map was a schematic with no
  * cartography, and the round's changes are said on Today.
  */
 enum class DriverTab(val label: String, val start: AppNavKey) {
@@ -72,7 +72,7 @@ enum class DriverTab(val label: String, val start: AppNavKey) {
 
 fun driverStartRoute(tab: DriverTab): AppNavKey = tab.start
 
-/** JSON configured with the driver route module — backs the saveable per-tab back stacks. */
+/** JSON configured with the driver route module - backs the saveable per-tab back stacks. */
 val driverNavJson: Json = Json {
     ignoreUnknownKeys = true
     serializersModule = navKeySerializersModule {

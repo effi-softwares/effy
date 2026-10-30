@@ -61,7 +61,7 @@ function driverEntry(r: ActivityRow) {
       const reason = typeof v.reason === "string" ? v.reason : null;
       return {
         title,
-        detail: [status ? `Now ${status}` : null, reason].filter(Boolean).join(" — ") || null,
+        detail: [status ? `Now ${status}` : null, reason].filter(Boolean).join(" - ") || null,
         tone: status === "active" ? ("primary" as const) : ("problem" as const),
       };
     }
@@ -129,7 +129,7 @@ function vehicleEntry(r: ActivityRow) {
       const status = activityFact(r, "status");
       return {
         title,
-        detail: [status ? `Now ${status}` : null, activityFact(r, "reason")].filter(Boolean).join(" — ") || null,
+        detail: [status ? `Now ${status}` : null, activityFact(r, "reason")].filter(Boolean).join(" - ") || null,
         tone: status === "active" ? ("primary" as const) : ("problem" as const),
       };
     }

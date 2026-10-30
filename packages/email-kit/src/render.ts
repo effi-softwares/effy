@@ -39,7 +39,7 @@ export function render<T extends TemplateId>(
   if (problems.length) throw new Error(`email-kit: ${problems.join("; ")}`);
 
   const artifact = COMPILED_TEMPLATES[id];
-  if (!artifact) throw new Error(`email-kit: '${id}' has no compiled artifact — run \`make email-gen\``);
+  if (!artifact) throw new Error(`email-kit: '${id}' has no compiled artifact - run \`make email-gen\``);
 
   const context = { ...vars, ...platformVars(profile, identity) };
   return {

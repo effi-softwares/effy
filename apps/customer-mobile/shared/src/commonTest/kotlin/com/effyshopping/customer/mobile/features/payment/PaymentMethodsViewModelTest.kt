@@ -24,7 +24,7 @@ import kotlin.test.assertTrue
 /**
  * PaymentMethodsViewModel.
  *
- * No comma in a backtick test name — Kotlin/Native forbids it while the JVM accepts it, so a comma
+ * No comma in a backtick test name - Kotlin/Native forbids it while the JVM accepts it, so a comma
  * makes the iOS test compilation fail while Android stays green.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -70,7 +70,7 @@ class PaymentMethodsViewModelTest {
      * The distinction this viewmodel exists to preserve.
      *
      * "You have no cards" and "we could not ask" are different facts. Falling back to an empty list on
-     * a failed read tells a shopper with saved cards something false about their own account — and it
+     * a failed read tells a shopper with saved cards something false about their own account - and it
      * is the easy mistake to ship, because `catch { emptyList }` looks like sensible defensive code.
      */
     @Test
@@ -101,7 +101,7 @@ class PaymentMethodsViewModelTest {
 
     /**
      * A failed removal must keep the card. Dropping it optimistically would show the shopper a card
-     * that still exists at the provider and can still be charged — the list would be lying about what
+     * that still exists at the provider and can still be charged - the list would be lying about what
      * Effy can do with their money.
      */
     @Test

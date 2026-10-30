@@ -8,7 +8,7 @@
 | Routes | same 36 keys; `Cart` is the Cart tab's root, no longer pushed | `CustomerNavKeySerializationTest`, `customerNavSavedState`, `mobile-guard.sh` route-reference check |
 | Into the cart | every former `push(Cart)` → `selectTab(Cart)` (header icons removed) | `CartEntryTest` (new) |
 | Guest gating | unchanged: Orders/Account push `SignIn(returnTo)`; Cart tab open to guests; "Check out" pushes `SignIn(returnTo = Checkout)` | existing auth tests |
-| Tab bar visibility | visible only at a stack root (`currentStack.size == 1`) — unchanged rule | existing shell test |
+| Tab bar visibility | visible only at a stack root (`currentStack.size == 1`) - unchanged rule | existing shell test |
 | Re-tap active tab | pops to root (new) | `TabReselectTest` (new) |
 | System back | pop; at a non-Home root → Home (unchanged) | existing |
 | Back control | from `LocalNavBack` only (unchanged single source) | existing |
@@ -43,7 +43,7 @@
 | Order confirmed | tick path-draw 600ms + haptic success | static tick |
 | OTP caret | blink 650ms (kept) | static |
 
-## Kept from today (FR-016) — must all still exist
+## Kept from today (FR-016) - must all still exist
 
 push/pop slide, predictive pop, bar show/hide, primary-button press, product-card press, skeleton shimmer,
 pull-to-refresh translation, OTP caret blink, onboarding pager + indicator width, FAQ expand, banner

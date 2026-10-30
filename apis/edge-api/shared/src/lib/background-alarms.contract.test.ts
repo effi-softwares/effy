@@ -29,8 +29,8 @@ const alarmed = [...tf.matchAll(/function\s*=\s*"(effy-edge-[a-z-]+?)-\$\{var\.e
 
 /** Watched by a wired error alarm declared elsewhere; each says where. */
 const ALARMED_ELSEWHERE: Record<string, string> = {
-  "effy-edge-shop-dev-insightsRollup": "infra/envs/dev/insights.tf — insights_rollup_errors",
-  "effy-edge-admin-dev-sesIdentityHealth": "apis/edge-api/admin/serverless.yml — SesIdentityHealthErrorsAlarm",
+  "effy-edge-shop-dev-insightsRollup": "infra/envs/dev/insights.tf - insights_rollup_errors",
+  "effy-edge-admin-dev-sesIdentityHealth": "apis/edge-api/admin/serverless.yml - SesIdentityHealthErrorsAlarm",
 };
 
 describe("scheduled functions and their failure alarms", () => {
@@ -42,19 +42,19 @@ describe("scheduled functions and their failure alarms", () => {
     expect(new Set(alarmed).size).toBe(alarmed.length);
   });
 
-  it.each(alarmed)("%s — the alarm names a function that exists and is scheduled", (name) => {
-    expect(scheduled.map((s) => s.name), `${name} is alarmed but no service schedules a function by that name — was it renamed?`).toContain(name);
+  it.each(alarmed)("%s - the alarm names a function that exists and is scheduled", (name) => {
+    expect(scheduled.map((s) => s.name), `${name} is alarmed but no service schedules a function by that name - was it renamed?`).toContain(name);
   });
 
   it("every scheduled function has a failure alarm", () => {
     const unwatched = scheduled.map((s) => s.name).filter((n) => !alarmed.includes(n) && !(n in ALARMED_ELSEWHERE));
-    expect(unwatched, `scheduled with no failure alarm — add it to infra/envs/dev/background-functions.tf:\n  ${unwatched.join("\n  ")}`).toEqual([]);
+    expect(unwatched, `scheduled with no failure alarm - add it to infra/envs/dev/background-functions.tf:\n  ${unwatched.join("\n  ")}`).toEqual([]);
   });
 
   it("the exemptions are real: each names an alarm that exists, with an action", () => {
     for (const [name, where] of Object.entries(ALARMED_ELSEWHERE)) {
       expect(scheduled.map((s) => s.name), `${name} is exempted but is not a scheduled function any more`).toContain(name);
-      const [file, alarm] = where.split(" — ") as [string, string];
+      const [file, alarm] = where.split(" - ") as [string, string];
       const src = readFileSync(resolve(edgeApi, "../..", file), "utf8");
       const at = src.indexOf(alarm);
       expect(at, `${where} not found`).toBeGreaterThan(-1);

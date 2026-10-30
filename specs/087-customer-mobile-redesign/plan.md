@@ -14,7 +14,7 @@ Move `apps/customer-mobile` from the console identity to the **storefront identi
 Principle V) and rebuild every screen to its board: borderless iOS-style headers (large title on tab
 roots, "‹ Back" + centred title on pushed pages), a roomy **five-tab bar with Cart as a tab**, **bottom
 sheets for every overlay** with pinned actions, iOS push/pop with edge swipe, shared-element tile→product,
-and the micro-animations on the Motion board — keeping every existing animation and every pinned word.
+and the micro-animations on the Motion board - keeping every existing animation and every pinned word.
 
 The approach is **shell first**: (1) the theme pipeline generates a light-only customer theme from
 `storefront/tokens.css` with Geist and Lucide; (2) a customer UI kit replaces raw Material controls; (3) the
@@ -26,7 +26,7 @@ list is deferred; Google sign-in stays hidden while federation is parked (D16).
 ## Technical Context
 
 **Language/Version**: Kotlin 2.4.0, Compose Multiplatform 1.11.1, material3 1.11.0-alpha07 (the pinned
-trio — unchanged, and unchanged in shop/driver); Node 22 for the design-system generators; Swift for the
+trio - unchanged, and unchanged in shop/driver); Node 22 for the design-system generators; Swift for the
 iOS payment/auth bridges.
 
 **Primary Dependencies**: Navigation 3 1.1.1 (per-tab `NavBackStack`, `NavDisplay` transition specs,
@@ -36,7 +36,7 @@ Lucide icons (ISC) as committed resources.
 
 **Storage**: device preferences only (recent searches, D14). No server storage change.
 
-**Testing**: `:shared:allTests` (commonTest — kit sizing, nav, recent searches, receipt text, wording
+**Testing**: `:shared:allTests` (commonTest - kit sizing, nav, recent searches, receipt text, wording
 twins), design-system node guards (`tokens:check`, `mobile-assets:check`, `test`), `make cm-guard`
 (`scripts/mobile-guard.sh`, extended), `scripts/check-no-storefront-red.sh` (extended to Kotlin),
 `@effy/shared-types` tests (pinned wording twins), operator device walk (quickstart).
@@ -58,14 +58,14 @@ sites to convert, 3 navigation tests to update, 6 defects, 3 data additions.
 
 ## Constitution Check
 
-*GATE: Must pass before Phase 0 research. Re-checked after Phase 1 design — still passing.*
+*GATE: Must pass before Phase 0 research. Re-checked after Phase 1 design - still passing.*
 
 | Principle | Check | Result |
 |---|---|---|
 | I/II Single source, codegen | Theme, type, shapes generated from `storefront/tokens.css` by the existing generator (per-target source); no app-local palette; `tokens:check` guards drift (D1–D3) | ✅ |
 | III One serverless backend | No backend change at all | ✅ |
 | V Storefront identity | Customer mobile adopts the storefront identity the constitution reserves for it ("the customer mobile app when a later feature moves it"): five values, no red, **light only**, cards permitted, Geist bundled | ✅ |
-| V Dark mode | Required for the **console identity**; the storefront identity is light only — the customer app leaves the console identity in this feature, so no amendment. ⚠ The Sync Impact "Follow-up TODO (084 D14)" is closed by this feature (T-docs) | ✅ |
+| V Dark mode | Required for the **console identity**; the storefront identity is light only - the customer app leaves the console identity in this feature, so no amendment. ⚠ The Sync Impact "Follow-up TODO (084 D14)" is closed by this feature (T-docs) | ✅ |
 | V Native feel, fat-finger, micro-animations | iOS-first per HIG (large titles, edge swipe, sheets), Android system back; 48dp minimum; motion tokens + reduce-motion (D8, D9) | ✅ |
 | V No gradients / flat fills | Onboarding gradient and banner dark scrim are **removed** (D19; banner text sits on a flat panel per Main board) | ✅ |
 | V Shadows on floating layers only | Sheets, pinned bars, snackbars; storefront cards carry the hairline `shadow-xs` (permitted by the storefront clause) | ✅ |
@@ -138,18 +138,18 @@ the shared `ResponsiveNavigation`.
 
 ## Delivery order (each phase leaves the app shippable)
 
-1. **Pipeline** — generator per-target source, storefront theme (light), Geist, Lucide, Stripe appearance;
+1. **Pipeline** - generator per-target source, storefront theme (light), Geist, Lucide, Stripe appearance;
    `EffyTheme` light-only. The app already reads as the new colours/type with old layouts.
-2. **Kit** — controls, rows, fields, chips, stepper, pills, states, `ProductTile` with "+" (contracts/ui-kit.md).
-3. **Frame** — five tabs + `EffyTabBar` + badge; `EffyLargeTitleBar` / `EffyAppBar`; edge-to-edge; header
+2. **Kit** - controls, rows, fields, chips, stepper, pills, states, `ProductTile` with "+" (contracts/ui-kit.md).
+3. **Frame** - five tabs + `EffyTabBar` + badge; `EffyLargeTitleBar` / `EffyAppBar`; edge-to-edge; header
    actions removed; `EffySheet`/`EffyConfirmSheet`; every dialog and menu converted; transitions and
    shared element; reselect → root. (US1, US2.)
-4. **Screens by board group** — Discover & shop → Cart, checkout & orders → Account → Sign in, help &
+4. **Screens by board group** - Discover & shop → Cart, checkout & orders → Account → Sign in, help &
    legal → Onboarding & states. Each group closes its defects (US4) and data (US5) where they live:
    cart package count and guest message (Cart), receipt text and image (Order), Back (Points, Payment
    methods), address (Help), Google hidden (Auth), recents and sub-aisles (Search/Results), orders data
    (Orders), notifications empty state (Notifications).
-5. **Guards, docs, walk** — guard extensions, CLAUDE.md / constitution follow-up note / FEATURE-HISTORY,
+5. **Guards, docs, walk** - guard extensions, CLAUDE.md / constitution follow-up note / FEATURE-HISTORY,
    quickstart walk by the operator.
 
 ## Risks
@@ -167,4 +167,4 @@ the shared `ResponsiveNavigation`.
 
 ## Complexity Tracking
 
-None — no constitution violations.
+None - no constitution violations.

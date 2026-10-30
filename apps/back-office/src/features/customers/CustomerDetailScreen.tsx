@@ -75,12 +75,12 @@ export function CustomerDetailScreen({ customerId }: { customerId: string }) {
                 { ...activity, label: "Points activity" },
                 mayDebit
                   ? {
-                      label: "Remove points…",
-                      icon: CircleMinus,
-                      onSelect: () => setDebiting(true),
-                      disabled: c.points.usable === 0,
-                      hint: "Nothing to remove",
-                    }
+                    label: "Remove points…",
+                    icon: CircleMinus,
+                    onSelect: () => setDebiting(true),
+                    disabled: c.points.usable === 0,
+                    hint: "Nothing to remove",
+                  }
                   : null,
               ]}
             />
@@ -105,14 +105,14 @@ export function CustomerDetailScreen({ customerId }: { customerId: string }) {
               </div>
               <div className="ef-dl__row">
                 <dt>Held at checkout</dt>
-                <dd className="tabular-nums">{c.points.held > 0 ? formatPoints(c.points.held) : "—"}</dd>
+                <dd className="tabular-nums">{c.points.held > 0 ? formatPoints(c.points.held) : "-"}</dd>
               </div>
               <div className="ef-dl__row">
                 <dt>Next to expire</dt>
                 <dd className="tabular-nums">
                   {c.points.nextExpiry
                     ? `${formatPoints(c.points.nextExpiry.points)} after ${formatDay(c.points.nextExpiry.date)}`
-                    : "—"}
+                    : "-"}
                 </dd>
               </div>
             </dl>
@@ -199,7 +199,7 @@ export function CustomerDetailScreen({ customerId }: { customerId: string }) {
         app="back-office"
         log="bo-points"
         title="Points activity"
-        description={`${c.name || c.email} — every change to the balance. Nothing is edited or deleted; a correction is a new line.`}
+        description={`${c.name || c.email} - every change to the balance. Nothing is edited or deleted; a correction is a new line.`}
         api={api}
         path={`/orders/v1/customers/${c.id}/points/history`}
         queryKey={customersKeys.detail(c.id)}

@@ -36,7 +36,7 @@ describe("writeOrderPolicy", () => {
     ["a zero line ceiling", { minimumSubtotalAmount: "0.00", maxLineQuantity: 0, maxDistinctItems: 50 }],
     ["a distinct-item ceiling above 500", { minimumSubtotalAmount: "0.00", maxLineQuantity: 10, maxDistinctItems: 501 }],
     ["a negative minimum", { minimumSubtotalAmount: "-1.00", maxLineQuantity: 10, maxDistinctItems: 50 }],
-  ])("refuses %s — the schema would reject it when a shopper hit it", async (_label, input) => {
+  ])("refuses %s - the schema would reject it when a shopper hit it", async (_label, input) => {
     expect(await codeOf(writeOrderPolicy(input, "actor"))).toBe("order_policy_invalid");
     expect(repo.writeOrderPolicy).not.toHaveBeenCalled();
   });

@@ -30,7 +30,7 @@ describe("resolveCustomer", () => {
     if (!r.ok) expect(r.response.statusCode).toBe(401);
   });
 
-  it("no platform record is the SAME 401 — indistinguishable from a bad token", async () => {
+  it("no platform record is the SAME 401 - indistinguishable from a bad token", async () => {
     const none = await resolveCustomer(event("sub-1"), scope, async () => undefined);
     const anon = await resolveCustomer(event(), scope, async () => undefined);
     expect(none.ok).toBe(false);
@@ -48,7 +48,7 @@ describe("resolveCustomer", () => {
     }
   });
 
-  it("a lookup failure propagates — it is never mistaken for 'not signed in'", async () => {
+  it("a lookup failure propagates - it is never mistaken for 'not signed in'", async () => {
     await expect(
       resolveCustomer(event("sub-1"), scope, async () => {
         throw new Error("db down");

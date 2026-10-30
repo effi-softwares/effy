@@ -33,17 +33,17 @@ export const STATUS_MEANING: Record<DriverEmploymentStatus, string> = {
 }
 
 export const BLOCKED_LABEL: Record<DriverBlockedReason, string> = {
-  no_capabilities: "Not cleared for any work — cannot be given work",
-  suspended: "Suspended — cannot be given work",
-  offboarded: "Offboarded — cannot be given work",
-  licence_expired: "Licence expired — cannot be given work",
-  no_vehicle: "No vehicle assigned — cannot be given work",
-  vehicle_non_compliant: "Assigned vehicle is not roadworthy — cannot be given work",
+  no_capabilities: "Not cleared for any work - cannot be given work",
+  suspended: "Suspended - cannot be given work",
+  offboarded: "Offboarded - cannot be given work",
+  licence_expired: "Licence expired - cannot be given work",
+  no_vehicle: "No vehicle assigned - cannot be given work",
+  vehicle_non_compliant: "Assigned vehicle is not roadworthy - cannot be given work",
 }
 
 export function formatTime(iso: string): string {
   const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return "—"
+  if (Number.isNaN(d.getTime())) return "-"
   return d.toLocaleTimeString("en-AU", {
     hour: "numeric",
     minute: "2-digit",
@@ -61,9 +61,9 @@ export function durationSince(iso: string, now = Date.now()): string {
 }
 
 export function formatDate(iso: string | null): string {
-  if (!iso) return "—"
+  if (!iso) return "-"
   const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return "—"
+  if (Number.isNaN(d.getTime())) return "-"
   return d.toLocaleDateString("en-AU", {
     day: "numeric",
     month: "short",
@@ -73,9 +73,9 @@ export function formatDate(iso: string | null): string {
 }
 
 export function formatDateTime(iso: string | null): string {
-  if (!iso) return "—"
+  if (!iso) return "-"
   const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return "—"
+  if (Number.isNaN(d.getTime())) return "-"
   return d.toLocaleString("en-AU", {
     day: "numeric",
     month: "short",

@@ -20,7 +20,7 @@ export class CartApiError extends Error {
   }
 }
 
-/** A change id: one per shopper action, reused by every retry of it (never per attempt — see FR-018). */
+/** A change id: one per shopper action, reused by every retry of it (never per attempt - see FR-018). */
 export function newChangeId(): string {
   return crypto.randomUUID()
 }
@@ -48,7 +48,7 @@ export interface CartLineInputJson {
 export const cartApi = {
   get: () => call<CartDTO>("/api/cart"),
 
-  /** Add or increment — the only non-idempotent write, so `changeId` is not optional. */
+  /** Add or increment - the only non-idempotent write, so `changeId` is not optional. */
   add: (variantId: string, quantity: number, changeId: string) =>
     call<CartDTO>("/api/cart/items", {
       method: "POST",
@@ -87,7 +87,7 @@ export const cartApi = {
   deleteSaved: (variantId: string, changeId: string) =>
     call<CartDTO>(`/api/cart/saved/${seg(variantId)}${q(changeId)}`, { method: "DELETE" }),
 
-  /** Apply a promotional code. The platform decides validity and worth — never this client. */
+  /** Apply a promotional code. The platform decides validity and worth - never this client. */
   applyPromo: (code: string) => call<CartDTO>("/api/cart/promo", { method: "POST", body: JSON.stringify({ code }) }),
 
   removePromo: () => call<CartDTO>("/api/cart/promo", { method: "DELETE" }),

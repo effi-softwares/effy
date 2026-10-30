@@ -1,14 +1,14 @@
-# Effy — feature history
+# Effy - feature history
 
 Per-feature build record: what each slice changed, the defects found while building it, what was
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
-**105-category-driven-variants — Variants Only From Category Attributes.** 🔨 **BUILT 2026-10-30; NOT MIGRATED, DEPLOYED OR
+**105-category-driven-variants - Variants Only From Category Attributes.** 🔨 **BUILT 2026-10-30; NOT MIGRATED, DEPLOYED OR
 WALKED.** Spec, plan, tasks: [specs/105-category-driven-variants/](specs/105-category-driven-variants/tasks.md).
 - **Change**: a product's options are exactly the library attributes its category offers as variant options. The
-  platform's own option — **Pack size** (`product_option.kind = 'pack_size'`, values made from the variants' pack sizes)
-  — is gone from the schema, `@effy/shared-types` (`OptionKind`, `PACK_SIZE_OPTION_NAME`, `kind` on every option DTO),
+  platform's own option - **Pack size** (`product_option.kind = 'pack_size'`, values made from the variants' pack sizes)
+  - is gone from the schema, `@effy/shared-types` (`OptionKind`, `PACK_SIZE_OPTION_NAME`, `kind` on every option DTO),
   the one writer, the readers, CSV import, back-office review, the storefront and the customer contract (regenerated;
   the app reads no `kind`). A variant's `pack_quantity` / `pack_unit` stay as its **net quantity**, read only for unit
   pricing, and every screen says "Net quantity". The seeded clothing **Size** (`clothing_size`, XXS–4XL) is removed.
@@ -19,7 +19,7 @@ WALKED.** Spec, plan, tasks: [specs/105-category-driven-variants/](specs/105-cat
 - **Import**: "Pack quantity"/"Pack unit" columns are now "Net quantity"/"Net unit"; an old header is refused naming the
   new one; "Pack size" as an option name is refused like any option the aisle does not offer.
 - **Unit pricing for household goods** (operator, 2026-10-30): bases per 10 g, per 10 mL, per metre, per square metre
-  and per 100 sheets; net-quantity units m, m² and sheets — migration `20261030120000_unit_pricing_household.sql`. The
+  and per 100 sheets; net-quantity units m, m² and sheets - migration `20261030120000_unit_pricing_household.sql`. The
   app's `UnitBasis` and its fixture follow (an older build leaves an unknown basis out, it does not fail).
   ⚠ Defect: this was first written into `20261030090000` AFTER dev had applied that file (04:57 UTC), so dev never got it;
   the applied file was restored byte for byte and the change moved to its own migration.
@@ -35,23 +35,23 @@ WALKED.** Spec, plan, tasks: [specs/105-category-driven-variants/](specs/105-cat
   products and gave the expected rows. Not 105's: `shared-types` `package-status.guard.test.ts` (099), shop availability
   and catalog products/imports list tests of 103 (27 values on one option breaks the 0–19 position check; a too-deep
   page; an import checksum fixture).
-- **Operator, in order**: commit → `AWS_PROFILE=ef make db-up-one ENV=dev` (`20261030090000_category_driven_variants.sql` —
-  APPLIED to dev 2026-10-30 04:57 UTC — then `20261030120000_unit_pricing_household.sql`) → deploy `SERVICE=shop`, `SERVICE=catalog`, `SERVICE=storefront`, `SERVICE=commerce`
+- **Operator, in order**: commit → `AWS_PROFILE=ef make db-up-one ENV=dev` (`20261030090000_category_driven_variants.sql` -
+  APPLIED to dev 2026-10-30 04:57 UTC - then `20261030120000_unit_pricing_household.sql`) → deploy `SERVICE=shop`, `SERVICE=catalog`, `SERVICE=storefront`, `SERVICE=commerce`
   → shop-web, back-office, customer-web → walk [quickstart](specs/105-category-driven-variants/quickstart.md). To sell by
   quantity ("500 g / 1 kg") staff add their own option attribute in Categories & attributes and attach it.
 
-**104-activity-log-drawer — Every Activity Log in One Drawer.** 🔨 **BUILT 2026-10-29; NOT DEPLOYED OR WALKED.** Spec, plan,
+**104-activity-log-drawer - Every Activity Log in One Drawer.** 🔨 **BUILT 2026-10-29; NOT DEPLOYED OR WALKED.** Spec, plan,
 tasks: [specs/104-activity-log-drawer/](specs/104-activity-log-drawer/tasks.md).
 - **See**: twelve logs (back-office: order, shop, driver, vehicle, product, promotion, customer points, points rules,
-  email address; shop-web: team, order, product stock) open from the page head — an **Activity** item in its More
-  menu, else an **Activity** button — into ONE drawer, half the window wide (a bottom sheet on a phone). It pages
+  email address; shop-web: team, order, product stock) open from the page head - an **Activity** item in its More
+  menu, else an **Activity** button - into ONE drawer, half the window wide (a bottom sheet on a phone). It pages
   through everything (keyset, "10,000+"), newest or oldest first, with search, Type, dates and (stock) Size, and
   **Export CSV** of exactly what it shows (refused past 10,000, never cut). State is in the address (`log=1`,
   `log.q`, …); Back closes it. Feedback threads and order notes stay inline: they are conversations, not logs.
-- **Backend**: ONE helper, `@effy/edge-shared` `lib/activity.ts`. A log is an *activity source* — raw SQL scoped to one
-  record yielding `id, at, kind, action, actor, search_text, facts` — plus its words; `activityResponse` pages, searches
+- **Backend**: ONE helper, `@effy/edge-shared` `lib/activity.ts`. A log is an *activity source* - raw SQL scoped to one
+  record yielding `id, at, kind, action, actor, search_text, facts` - plus its words; `activityResponse` pages, searches
   (the raw facts by ILIKE **and** the actions whose server-side words match), filters and exports it. Words are composed
-  on the server so the drawer, search and CSV say the same thing. Names come from `staffNameSql` — no log shows a
+  on the server so the drawer, search and CSV say the same thing. Names come from `staffNameSql` - no log shows a
   sign-in subject any more. Five new staff routes (208/300), one shared (166/300); no migration.
 - **Removed**: every inline log UI and the embedded copies (`AdminOrderDetailDTO.history/deliveryMoves/
   deliveryTypeHistory/courierCollectionHistory`, package and bag `handovers`, consignment `events`,
@@ -66,10 +66,10 @@ tasks: [specs/104-activity-log-drawer/](specs/104-activity-log-drawer/tasks.md).
 - **Operator**: deploy `orders fleet catalog admin admin-promotions shop inventory`, then both consoles; walk the twelve
   drawers. Follow-up: the per-size stock reads still embed an unread first page of movements.
 
-**103-console-data-tables — One Data Table for Every Console List.** 🔨 **MVP (phases 1–3) DEPLOYED TO DEV; THE REST BUILT
+**103-console-data-tables - One Data Table for Every Console List.** 🔨 **MVP (phases 1–3) DEPLOYED TO DEV; THE REST BUILT
 2026-10-28, NOT DEPLOYED OR WALKED.** Spec, plan, tasks: [specs/103-console-data-tables/](specs/103-console-data-tables/tasks.md);
 the inventory it started from: [docs/research/console-data-tables.md](docs/research/console-data-tables.md).
-- **See**: every list in back-office and shop-web is `@effy/web-kit/data-table` — `DataTable` (server-driven:
+- **See**: every list in back-office and shop-web is `@effy/web-kit/data-table` - `DataTable` (server-driven:
   search, filters, sort, page and page size in the address; numbered pages with an exact total, or a cursor with
   a capped "10,000+" count) or `StaticTable` (a bounded table on a record page, or a capped staff-made set, sorted
   in the browser). Every list fills the window (header and pager stay, rows scroll), keeps its rows while a new
@@ -77,17 +77,17 @@ the inventory it started from: [docs/research/console-data-tables.md](docs/resea
   drives the narrow-width and phone layouts; a column can be hidden and stays hidden.
 - **Backend**: ONE list helper, `@effy/edge-shared` `lib/list-query.ts` (`parseListQuery`, whitelisted ORDER BY
   always ending in the id, offset ≤ 10 000, keyset cursors built from Postgres text, `?views=only` counts on the
-  same route — **no new routes**). Lists computed in code (availability, courier parcels) read every row, then
+  same route - **no new routes**). Lists computed in code (availability, courier parcels) read every row, then
   filter, sort and page in TypeScript. `list-query.guard.test.ts` holds every console list route to it, fails a
   spliced `ORDER BY ${…}` and a fixed `LIMIT` of 200+ outside its allow-list.
 - **Capped sets (FR-024)**: promotion groups, skins, courier services, fee plans, a shop's team (shop-web and
-  back-office) and the attribute library refuse a create past 500 — 409 `limit_reached`, "This list is full (500).
+  back-office) and the attribute library refuse a create past 500 - 409 `limit_reached`, "This list is full (500).
   Remove one before adding another." (`setIsFull` / `SET_FULL_SENTENCE` in `lib/capped-set.ts`; read on the client by
   `setFullText`). The check runs before the insert (under the taxonomy lock for attributes, plain elsewhere).
 - **Defects fixed**: (1) orders paging dropped rows tied on `placed` at a page edge (no id tie-break); (2) a keyset
   cursor built from a JS `Date` lost microseconds and skipped rows in the same millisecond (also in points
   history); (3) search, page and filters were lost on reload/Back for orders, drivers, vehicles and feedback;
-  (4) silent truncation — courier parcels at 1 000, exceptions at 200, low stock at 500, a size's stock history at
+  (4) silent truncation - courier parcels at 1 000, exceptions at 200, low stock at 500, a size's stock history at
   50; (5) feedback's view counts cost one request per view; (6) found while building: the search debounce never
   fired while anything else re-rendered (`restartRef`), and a keyset page and its back-stack were read from two
   router snapshots and could pair wrongly mid-navigation.
@@ -95,21 +95,21 @@ the inventory it started from: [docs/research/console-data-tables.md](docs/resea
   `PagedDTO`. The raw `Table` remains only on boards, editors, reviews and timelines, each named with why in
   `apps/{back-office,shop-web}/src/__tests__/list-screens.guard.test.ts`.
 - **Telemetry**: `list_viewed {list, mode}` and `list_filtered {list}` from `useListState`, through the sink each
-  app registers at `initTelemetry` (`setListEventSink`) — no search text, no ids.
+  app registers at `initTelemetry` (`setListEventSink`) - no search text, no ids.
 - ⚠ **Not run here**: every `*.container.test.ts` (no Docker in the session) and the seed script.
   `GET /inventory/v1/low-stock` (shop) is converted but no client reads it today; the shop console's restock view
   is Availability. An address's delivery history still answers the newest 50 events and now says so.
 - **Operator steps open**: (1) `make db-up-one ENV=dev` for `20261028090000_console_list_indexes.sql` if not yet
-  applied (CONCURRENTLY, no locks); (2) deploy backend before consoles —
+  applied (CONCURRENTLY, no locks); (2) deploy backend before consoles -
   `make edge-deploy-all ENV=dev SERVICES="orders catalog admin admin-promotions fleet inventory-staff inventory shop"`,
   then the back-office and shop-web pipelines straight after (a console older than the backend shows only the
-  first page of the lists that changed mode — cosmetic, keep it short); (3) `ENV=dev scripts/seed-list-volumes.sh`,
+  first page of the lists that changed mode - cosmetic, keep it short); (3) `ENV=dev scripts/seed-list-volumes.sh`,
   then the EXPLAINs in quickstart §4, then `--remove`; (4) the walk, quickstart §5.
 
-**102-backoffice-product-catalogue — Back-Office Product Catalogue.** 🔨 **BUILT 2026-10-27; NOT YET APPLIED, MIGRATED,
+**102-backoffice-product-catalogue - Back-Office Product Catalogue.** 🔨 **BUILT 2026-10-27; NOT YET APPLIED, MIGRATED,
 DEPLOYED OR WALKED.** Spec, plan, tasks: [specs/102-backoffice-product-catalogue/](specs/102-backoffice-product-catalogue/tasks.md).
 Decisions: research R1–R12 and its "Implementation notes".
-- **See**: back-office › Catalogue › Products — every shop's products, server-side search (name, SKU any case,
+- **See**: back-office › Catalogue › Products - every shop's products, server-side search (name, SKU any case,
   barcode, Effy code), filters (shop, aisle with its descendants, storage, margin, missing details, low stock), state
   tabs with counts from one expression (`BACKOFFICE_STATE_SQL`), filters in the URL; a product page (Overview · Sizes
   & stock · Details · Aisles · History). csa sees everything and is offered nothing. 50 000 products < 1 s (perf test).
@@ -121,15 +121,15 @@ Decisions: research R1–R12 and its "Implementation notes".
 - **Other controls**: margin inline and in bulk, size on/off sale, stock count (inventory-staff), placements; bulk hold
   / release / margin, ≤ 200, each product in its own transaction, refusals listed (FR-028).
 - **Effy creates**: `@effy/edge-shared/catalog` `authoring.ts` is now the ONE writer of a new product
-  (`insertProduct`; `authoring.guard.test.ts`) — the shop's create parsing moved there unchanged. Effy's product is a
+  (`insertProduct`; `authoring.guard.test.ts`) - the shop's create parsing moved there unchanged. Effy's product is a
   draft Effy finishes (`content_owner = 'effy'`, margin set, never queued); `completeIfReady` approves it and puts it
   on sale the moment it is complete, then it is the shop's. While Effy owns it every shop write is 409
   `effy_setting_up`; shop-web shows it read-only ("Effy is setting this up"). The shop's product form moved to
   `@effy/web-kit/product-form` (shared with back-office's New product / Finish); `ef-actionbar` moved to `console.css`.
 - **Import**: the browser parses .xlsx/.csv (`read-excel-file`, `write-excel-file`, `papaparse`, back-office only);
   `catalog` stores the import and SQS `product-import` drives a route-less worker: check (every row judged by the
-  form's own rules + SKU/barcode uniqueness + required details; picture links fetched by `fetchPicture` — https only,
-  private addresses refused inside the connection's DNS lookup, 10 MB, sniffed — into private `imports/`, 7-day
+  form's own rules + SKU/barcode uniqueness + required details; picture links fetched by `fetchPicture` - https only,
+  private addresses refused inside the connection's DNS lookup, 10 MB, sniffed - into private `imports/`, 7-day
   expiry), then create (one transaction per product through `insertProduct`, pictures copied to `products/`). SKU is
   required; the same file twice creates nothing. One `shop_products_imported` push per import.
 - **Live**: new kind `products` (back-office + the product's shop; not in the send-failure alarm). Mobile `LiveKind`
@@ -137,7 +137,7 @@ Decisions: research R1–R12 and its "Implementation notes".
 - **Defects caught while building**: `Number("")` read an empty cursor as 0 (now digits only); the IPv4-mapped IPv6
   BlockList rule blocked every IPv4 address (now checked as IPv4); the shop's create path accepts missing required
   details as a draft, so an import let them through (now not ready); a `pnpm add` in one package pruned another's
-  links (hoisted linker — `pnpm install`); the effy-owned test created its promises eagerly (unhandled rejections).
+  links (hoisted linker - `pnpm install`); the effy-owned test created its promises eagerly (unhandled rejections).
 - **Gates (2026-10-27)**: typecheck clean in every edge service, shared-types, web-kit, back-office, shop-web.
   Container suites: catalog 104/104, shop 481/481, notifications 70/70; shared passes except 088/096 parcel and bag
   suites that time out (10 s) under the full parallel run and pass alone (14/14). back-office 371, shop-web 478,
@@ -148,7 +148,7 @@ Decisions: research R1–R12 and its "Implementation notes".
   (`20261027090000_backoffice_product_catalogue.sql`) → deploy `SERVICE=shop`, `SERVICE=notifications`,
   `SERVICE=catalog`, then back-office and shop-web → walk [quickstart](specs/102-backoffice-product-catalogue/quickstart.md).
 
-**101-category-driven-catalogue — Category-Driven Catalogue.** 🔨 **BUILT 2026-10-26; NOT YET MIGRATED, DEPLOYED OR
+**101-category-driven-catalogue - Category-Driven Catalogue.** 🔨 **BUILT 2026-10-26; NOT YET MIGRATED, DEPLOYED OR
 WALKED.** Spec, plan, tasks: [specs/101-category-driven-catalogue/](specs/101-category-driven-catalogue/tasks.md).
 A clean rebuild (no legacy support, operator's call): product types, their forms and the old schema routes are gone.
 - **One tree**: up to five levels, staff-managed (back-office › Categories & attributes: drag or "Move to…", icon from
@@ -178,27 +178,27 @@ A clean rebuild (no legacy support, operator's call): product types, their forms
   `storefront.ts` ⇄ `variants.ts` type cycle (customer-web depcruise); `updateAttribute` judged a new shape before
   refusing a type change on a used attribute; a key slug lost an accent (`dips-and-p-te` → `dips-and-pate`).
 - **Gates (2026-10-26)**: typecheck clean across the workspace; every package's tests pass except two that were
-  already failing on a clean tree — `shared-types/package-status.guard.test.ts` (073) — and one 097 back-office test
+  already failing on a clean tree - `shared-types/package-status.guard.test.ts` (073) - and one 097 back-office test
   (`CoveragePanel.test.tsx`) that passes alone and failed once under the full parallel run. Container suites
   (`CONTAINER_TESTS=1`, every edge service): all pass except one run of driver's 065 manifest test, whose
-  `body.includes("4.5")` matches a timestamp like `…:14.512Z` — it passes alone; pre-existing, not 101's. Customer app host tests and `mobile-guard` pass; `allTests` still cannot build its iOS test
+  `body.includes("4.5")` matches a timestamp like `…:14.512Z` - it passes alone; pre-existing, not 101's. Customer app host tests and `mobile-guard` pass; `allTests` still cannot build its iOS test
   target (comma-named tests, pre-existing). Prettier warns on three files this feature did not touch.
 - **Operator steps (in order)**: commit; `terraform apply` (dev: `categories/` media prefix, its renditions queue, the
   new alarm); `make purge-orders ENV=dev`; `psql "$(infra/scripts/db-dsn.sh dev)" -f db/reset/101_purge_catalogue_dev.sql`;
   `make db-up ENV=dev`; `make edge-deploy SERVICE=admin` FIRST (frees `/admin/v1/catalog/*`), then every other
   service (`catalog`, `shop`, `storefront`, `commerce`, `fleet`, `orders`, `driver`, `notifications`,
-  `admin-promotions`, `media`, and the rest — all bundle the changed shared library); then shop-web, back-office,
+  `admin-promotions`, `media`, and the rest - all bundle the changed shared library); then shop-web, back-office,
   customer-web; then the customer app build; then `db/reset/101_minimal_catalogue_dev.sql` (replaces the seeded tree
   with Dairy & Eggs › Milk, two attributes and one product; needs an active shop, refuses while orders exist) and walk [quickstart.md](specs/101-category-driven-catalogue/quickstart.md).
 
-**099-shop-floor-signals — Shop Floor Signals: Collection, Pick Order, Availability and Quality.** 🔨 **BUILT
-2026-10-24 — SPEC SIGNED OFF BY THE OPERATOR 2026-10-24; NOT YET MIGRATED, DEPLOYED OR WALKED.** The four parts the shop-console redesign drew as "Needs backend".
+**099-shop-floor-signals - Shop Floor Signals: Collection, Pick Order, Availability and Quality.** 🔨 **BUILT
+2026-10-24 - SPEC SIGNED OFF BY THE OPERATOR 2026-10-24; NOT YET MIGRATED, DEPLOYED OR WALKED.** The four parts the shop-console redesign drew as "Needs backend".
 Spec, plan, tasks: [specs/099-shop-floor-signals/](specs/099-shop-floor-signals/tasks.md).
 - **Next collection**: the shop is told the Effy collection run that will take each package and its next run's
   state (`none` · `assigned` · `on_the_way` · `collected`), on Today (`nextCollection`), the queue, the list and an
   order's page (`collection`). ⚠ **The run is the planner's own rule**: `dueRun` moved into
   `@effy/edge-shared` and `shopPackageRuns` (`@effy/edge-shared/delivery`) reads the window **there** and hands the
-  shop only run times — `shop/src/fulfillments/no-delivery-window.guard.test.ts` still forbids any shop file from
+  shop only run times - `shop/src/fulfillments/no-delivery-window.guard.test.ts` still forbids any shop file from
   reading a window. "On the way" = the round is open (`round_opens_at`) and its driver on duty; the screen flips
   it at the opening minute on its own clock. No driver name, position or other stop. A courier's own pickup from
   the supplier never gets an Effy run; a courier parcel via the hub does (the planner collects it).
@@ -206,7 +206,7 @@ Spec, plan, tasks: [specs/099-shop-floor-signals/](specs/099-shop-floor-signals/
   affected collection rounds (`announceCollectionShops`, `@effy/edge-shared/live`).
 - **Pick order**: `storageClass` on every shop order line and pick-list line (from `order_item.storage_class`); the
   pick list and the printed sheet run Ambient → Chilled → Frozen.
-- **Availability**: `GET /shop/v1/availability` (shared gateway 163 → 164/300) — sizes of live/unavailable
+- **Availability**: `GET /shop/v1/availability` (shared gateway 163 → 164/300) - sizes of live/unavailable
   products, views Needs a look · Out of stock · Low stock · Off sale · Everything, `lastOnSale`. The switch is the
   existing variant state route (one writer). Screen: Catalog › Availability, and the palette's "Take a size off sale".
 - **Quality**: five columns on `shop_sales_hour` (`db/migrations/20261024084434_shop_floor_signals.sql`, which marks
@@ -219,28 +219,28 @@ Spec, plan, tasks: [specs/099-shop-floor-signals/](specs/099-shop-floor-signals/
 
 **Shop console redesign (2026-10-24, no spec).** shop-web moved to the back-office identity sized for touch, per
 `docs/shop-web-redesign-brief.md` and the canvas in `docs/reference-screens/Effy Shop Console Redesign/`. ⚠ Built
-straight from the brief at the operator's request — there is no `spec.md`/`plan.md`/`tasks.md` for it, which
+straight from the brief at the operator's request - there is no `spec.md`/`plan.md`/`tasks.md` for it, which
 constitution Principle I requires before merge; write them (or fold them into a spec) before this merges.
 - **One look, shared**: back-office's primitive and pattern styles moved into `@effy/design-system`
   (`backoffice/primitives.css`, `backoffice/patterns.css`) and its pattern components into `@effy/web-kit/patterns`;
   both consoles import them. shop-web adds one layer, `apps/shop-web/src/styles/touch.css` (touch sizes, the queue,
   pick line, tick, stepper, action bar, KPI strip). ⚠ Fixed on the way: "done" statuses read `--brand-muted`, which
-  the back-office identity does not declare, so they were blue — now `--success`.
+  the back-office identity does not declare, so they were blue - now `--success`.
 - **New on screen**: Orders › Queue (four lanes), the new-order alert with a repeating chime and the header's Sound
   chip, ⌘K search and commands, the header's Scan dialog, choice-card dialogs (no native selects or `confirm()`),
   the pick list's 44px ticks and product-barcode scan. A shop's "Cancel order" is now "Can't supply it…", and
   "Items from other shops" is no longer shown (brief §6).
 - **One console shell, one scale (2026-10-25, operator direction).** Back-office and shop-web now render the SAME
-  shell — `StaffShell` in `@effy/web-kit/console` (sidebar with groups/sub-pages/counts/search/environment tag,
-  64px header with breadcrumb, account menu; nav model `StaffNavGroup`) — and BOTH wear the shop's touch scale
+  shell - `StaffShell` in `@effy/web-kit/console` (sidebar with groups/sub-pages/counts/search/environment tag,
+  64px header with breadcrumb, account menu; nav model `StaffNavGroup`) - and BOTH wear the shop's touch scale
   (`@effy/design-system/backoffice/touch.css`: 44px controls, 15px body, 40px sidebar rows) and frame styles
   (`backoffice/shell.css`, moved from back-office; `--header-h` 64). `ConsoleShell`, `NavList`, `MobileNavBar`,
   `ConsoleUserMenu` and back-office's own `AppSidebar`/`SiteHeader`/`NavUser` are deleted. ⚠ shop-web lost its
   bottom tab bar (below 768px both use the menu sheet; 768–1023 the 96px labelled rail) and its header subtitle
   line; its always-on "Live" chip is now back-office's quiet pill (shows only when updates are off).
 
-**098-product-variants — Product Variants: Sizes, Flavours, Per-Variant Stock and Unit Pricing.** ✅ **BUILT
-2026-10-22 — COMPLETE IN DEV (operator-reported 2026-10-23: migrated, deployed and walked).** A product is now its shared details plus one or more **variants**
+**098-product-variants - Product Variants: Sizes, Flavours, Per-Variant Stock and Unit Pricing.** ✅ **BUILT
+2026-10-22 - COMPLETE IN DEV (operator-reported 2026-10-23: migrated, deployed and walked).** A product is now its shared details plus one or more **variants**
 (up to two options such as Size and Flavour, up to 20 values each, up to 50 variants). Each variant has its own shop
 price, "was" price, SKU, barcode, weight, pack size, stock and optional picture; a product sold one way has exactly
 one variant and no selector. Spec, plan, tasks: [specs/098-product-variants/](specs/098-product-variants/tasks.md).
@@ -249,10 +249,10 @@ one variant and no selector. Spec, plan, tasks: [specs/098-product-variants/](sp
   listing summary (`list_price_amount`, `list_compare_at_amount`, `price_varies`). Cart lines, saved-for-later
   lines, order lines (+ `variant_label`, `sku`, `gtin` snapshots) and stock movements name a variant through a
   composite FK `(variant_id, product_id)`; a saved item remembers one (`customer_saved_item.variant_id`, SET NULL).
-  ⚠ The migration **refuses to run** while any product, order or cart row exists — the purge script comes first.
+  ⚠ The migration **refuses to run** while any product, order or cart row exists - the purge script comes first.
 - **One writer each** (`@effy/edge-shared/catalog`): `applyVariantSet` (options/values/variants; a variant left
   out of a draft is deleted, of a live product REMOVED and kept), `priceVariants` (the product's ONE margin prices
-  every variant), `setVariantState` (on/off/remove, immediate; the last active variant cannot go — 409),
+  every variant), `setVariantState` (on/off/remove, immediate; the last active variant cannot go - 409),
   `refreshListing` (the summary; lowest ACTIVE price, never moved by a sale). Stock columns stay with the 054 stock
   writers; `finalize` locks and deducts per variant. `catalog.guard.test.ts` fails a second writer.
 - **Approval**: a draft is edited in place; a live product's edits propose the WHOLE option/variant set, applied at
@@ -268,16 +268,16 @@ one variant and no selector. Spec, plan, tasks: [specs/098-product-variants/](sp
   labels); customer-web and the customer app at parity ("From", "Choose" on multi-size tiles, the selector with
   sold-out sizes struck through, unit price, labels in cart/checkout/receipt, saved/lists remember the size,
   `ProductGroup` JSON-LD on the web). Driver manifest, receipts email and documents name the size in the line.
-- ⚠ **Carts from before 098 are DROPPED** on both clients (web storage key `effy:cart:v3`, app cart schema 2) —
+- ⚠ **Carts from before 098 are DROPPED** on both clients (web storage key `effy:cart:v3`, app cart schema 2) -
   they named products and the catalogue was started afresh, so a guessed size would be a wrong one.
 - ⚠ **026's mobile-guard ban on size pickers was lifted** (`scripts/mobile-guard.sh`): it kept the UI kit's apparel
   picker out; 098's selector is drawn from the product's own options.
 - **Defects found while building**: (1) the migration's DROP COLUMN failed on the shop-ops trigger that depended on
-  the column — the trigger is dropped and recreated around it; (2) a plain combination unique index refused a size
-  re-added after removal, and value FKs on removed variants blocked deleting an option — now a partial unique index
-  and SET NULL FKs; (3) validation that ran a query first aborted the caller's transaction on a malformed id — the
+  the column - the trigger is dropped and recreated around it; (2) a plain combination unique index refused a size
+  re-added after removal, and value FKs on removed variants blocked deleting an option - now a partial unique index
+  and SET NULL FKs; (3) validation that ran a query first aborted the caller's transaction on a malformed id - the
   pure rules now run before any query; (4) customer-web's product page kept per-size prices in its MINUTES-long
-  content cache — sizes are now part of the live read (`LIVE_FIELDS`, guarded); (5) a BigInt literal in
+  content cache - sizes are now part of the live read (`LIVE_FIELDS`, guarded); (5) a BigInt literal in
   `unit-price.ts` failed customer-web's compile target; (6) the app's saved list could not add a single-size
   product with nothing remembered until the DTO's `variantId` meant "the size to add".
 - **Verified**: every edge-api unit suite, shop-web 509, back-office 390, customer-web 717 (+ production build,
@@ -291,29 +291,29 @@ one variant and no selector. Spec, plan, tasks: [specs/098-product-variants/](sp
   database whose name lacks "dev"); `make db-up ENV=dev`; `psql "$DSN" -f db/seeds/084_storefront_catalogue_dev.sql`
   then `psql "$DSN" -f db/seeds/098_variant_catalogue_dev.sql`; `make edge-deploy ENV=dev SERVICE=…` for
   `storefront`, `commerce`, `shop`, `catalog`, `inventory`, `inventory-staff`, `orders`, `driver`, `fleet`,
-  `notifications`, `admin-promotions` — ALL before dev is used; then shop-web, back-office, customer-web; then a new
+  `notifications`, `admin-promotions` - ALL before dev is used; then shop-web, back-office, customer-web; then a new
   customer app build. Walk [quickstart.md](specs/098-product-variants/quickstart.md).
-- **AMENDMENT (2026-10-22, after the first dev walk) — Effy codes and a clearer grid (FR-027/028).** Every variant
+- **AMENDMENT (2026-10-22, after the first dev walk) - Effy codes and a clearer grid (FR-027/028).** Every variant
   now has Effy's own permanent code, `V` + 6 from the package-code alphabet (e.g. `V7K3Q9M`), generated by the
   database (`20261027090000_variant_code.sql`; backfills existing variants) and snapshotted on order lines
   (`order_item.variant_code`). The `V` and length keep it apart from bag codes in scan-to-find. The shop's `sku` is
   now labelled "Your code" (optional); lines read "Effy code · your code" (`shop-web/fulfillment/codes.ts`).
   Searches (storefront, shop products, promotion products) match the code. The variant grid gained column help,
   errors only after a cell is left or on Next/Save, and "Apply first to all" for price and weight. Defect found:
-  printed pick lists (Today and the order screen) dropped the size label — fixed. **Operator**: `make db-up
+  printed pick lists (Today and the order screen) dropped the size label - fixed. **Operator**: `make db-up
   ENV=dev`, then deploy `commerce`, `shop`, `catalog`, `storefront`, `orders`, `admin-promotions`, then push.
-- **AMENDMENT 2 (2026-10-22) — sizes are counted; stock always names its size (FR-029).** A new variant now starts
+- **AMENDMENT 2 (2026-10-22) - sizes are counted; stock always names its size (FR-029).** A new variant now starts
   **tracked at 0** (`applyVariantSet`), so it cannot be bought until the shop adds stock; migration
   `20261028090000_variants_counted_by_default.sql` converted every existing untracked size the same way (a
-  `tracking_enabled` movement each) — ⚠ dev sizes are unbuyable until stocked. Defects found reviewing stock after the
+  `tracking_enabled` movement each) - ⚠ dev sizes are unbuyable until stocked. Defects found reviewing stock after the
   first walk: (1) the product header's Receive/Add stock wrote to whichever size the Inventory section had selected
-  and never said which — dialogs now name the size and the header chooses it; (2) Today's low/out-of-stock rows were
-  keyed by product (two sizes collided; Restock opened no size) — now `variantId`, opening `?size=`; (3) stock
-  notifications tracked occurrences per PRODUCT, so restocking one size could close another's alert — now per size.
+  and never said which - dialogs now name the size and the header chooses it; (2) Today's low/out-of-stock rows were
+  keyed by product (two sizes collided; Restock opened no size) - now `variantId`, opening `?size=`; (3) stock
+  notifications tracked occurrences per PRODUCT, so restocking one size could close another's alert - now per size.
   **Operator**: `make db-up ENV=dev`, deploy `shop`, push; then add stock to the sizes you want to sell.
 - **Stock table (2026-10-22).** shop-web's Inventory tab is now ONE table of every size: type a delivery ("Add
   received") or a stocktake ("Set count") against any sizes and Save once (`StockTable`, rules in `stockPlan.ts`). It
-  writes through the existing per-size stock routes — no new route — one size after another; a refused size keeps its
+  writes through the existing per-size stock routes - no new route - one size after another; a refused size keeps its
   number, saved sizes clear, so re-saving cannot add a delivery twice. Movements and rules stay per size below it.
 - ⚠ **DEPLOY GOTCHA (hit 2026-10-22): an HTTP API cannot rename a path variable in one deploy.** CloudFormation
   creates `…/cart/items/{variantId}` before deleting `…/cart/items/{productId}`, and API Gateway refuses two
@@ -322,14 +322,14 @@ one variant and no selector. Spec, plan, tasks: [specs/098-product-variants/](sp
   `aws apigatewayv2 delete-route`, then redeploy `commerce` (CloudFormation's delete of the gone routes succeeds).
   Inventory's rename changed the literal segment too (`products` → `variants`), so it does not collide.
 
-**096-parcel-labels-scanning — Order Package Labels, Scanning & Printed Documents.** ✅ **BUILT 2026-10-22 — COMPLETE IN DEV (operator-reported 2026-10-23: migrated, deployed and walked)**. Every physical
+**096-parcel-labels-scanning - Order Package Labels, Scanning & Printed Documents.** ✅ **BUILT 2026-10-22 - COMPLETE IN DEV (operator-reported 2026-10-23: migrated, deployed and walked)**. Every physical
 bag of an order now has its own permanent code and a professional carrier-style label; every hand-over is per bag and
 on record; back-office can scan anything to find it and run a hub station; customers get a delivery note and, once Effy's
 tax details are entered, an ATO-style tax invoice. Grounded in [research-08](docs/research/logistics/research-08-labels-scanning-documents.md).
 Spec, plan, tasks: [specs/096-parcel-labels-scanning/](specs/096-parcel-labels-scanning/tasks.md).
 
 - **Bags (US1)**: `package_parcel`, one row per bag; bag 1's code IS the package's 089 code (made at payment by
-  `createFirstParcels` in `payments/finalize.ts`, backfilled by the migration — ⚠ no trigger: the shop trigger guard bans
+  `createFirstParcels` in `payments/finalize.ts`, backfilled by the migration - ⚠ no trigger: the shop trigger guard bans
   them). One code space (UNIQUE). Shops declare bags per temperature zone; a cold line needs a bag of its zone. ⚠ Once a
   label is printed only the LAST bag may be removed, and bag 1 never. Changes stop when a bag leaves the shop.
 - **Labels (US10, US2)**: ONE renderer (`shop-web …/labels/render.ts`, SVG) for preview, browser print and ZPL; fixed
@@ -340,39 +340,39 @@ Spec, plan, tasks: [specs/096-parcel-labels-scanning/](specs/096-parcel-labels-s
   cannot be marked ready until every bag's label is printed (and pack-scanned, where required).
 - **Driver (US3)**: collect, hub check-in, load, door and return each account for EVERY bag (`expectedParcels` +
   `accountFor`, 409 `parcels_unaccounted`); one bag missing holds that bag, every bag missing holds the package (093's
-  shape). Every read — accepted or refused — is recorded (`label_read`, one writer `recordReads`, with the server's own
+  shape). Every read - accepted or refused - is recorded (`label_read`, one writer `recordReads`, with the server's own
   outcome beside the phone's). The app lists and scans bags; the shared scan rule has a Kotlin twin pinned to
   `scan-rule.fixtures.json`.
 - **Shop pack scanning (US4)**: each bag scanned as packed; back-office's "Require pack scanning" switch per shop
   (`PUT /fleet/v1/shops/{id}/pack-scanning`, the one writer; audited). Courier hand-overs are recorded per bag.
 - **Back-office (US5, US6)**: scan anywhere (a handheld scan on any page opens the bag's order, highlighted; typed codes
-  through ⌘K) via `GET /orders/v1/admin/lookup`; the **hub station** (`/hub`, admin/manager — `GET /fleet/v1/hub/expected`,
+  through ⌘K) via `GET /orders/v1/admin/lookup`; the **hub station** (`/hub`, admin/manager - `GET /fleet/v1/hub/expected`,
   `POST /fleet/v1/hub/checkins`): the driver's own rules, the last bag of a run closes it as hub staff's; order detail
   shows each bag with its hand-overs (shop and hub staff said by role); Exceptions name the held bag; a held bag reads
   "Problem" to staff only; the **hand-over report** (`/reports/handovers`): scan/typed/by hand overall, per shop, per
   driver, refused reads, missing bags, ⚠ exceptions per 1,000 hand-overs (an exception = a refused read that is not a
-  repeat, or a bag declared missing — the spec did not define one).
-- **Delivery note (US7)**: digital only — merged by product NAME across packages (two shops' listings of one thing are
+  repeat, or a bag declared missing - the spec did not define one).
+- **Delivery note (US7)**: digital only - merged by product NAME across packages (two shops' listings of one thing are
   two rows; keeping them apart would leak the supplier count), no price, no shop; on the order page (web and app) and
   linked from the delivered email; PDF by `pdf-lib` in the Lambda. 409 `not_delivered` until every coming package arrived.
 - **GST status (US9)**: `product.gst_status`, ONE writer `setGstStatus` (history in `product_gst_change`, via
   create/direct/review/bulk; `documents.guard.test.ts`). Required to create a product; a live product's change is
   PROPOSED and reviewed (067); back-office "GST missing" tab with bulk set; frozen onto `order_item.gst_status` at checkout;
   while invoices are on, an unclassified product is refused at the intent (409 `product_unavailable`, alarm).
-- **Tax invoice (US8)**: issued ONCE on the customer's first request (never on page view — so the optional business name
+- **Tax invoice (US8)**: issued ONCE on the customer's first request (never on page view - so the optional business name
   and ABN, FR-085, can be given first), from a frozen snapshot; numbered `EFY-INV-000001`; GST = round half-up of taxable
   ÷ 11 over the invoice; fees per `business_tax.fee_treatment`; points listed as a payment; the buyer printed at $1,000+;
   one adjustment note per settled refund. ⚠ **Nothing is issued until the operator enters the legal name, ABN (checksum
-  validated) and fee treatment in back-office → Settings → Tax AND every live product is classified** — customers are
+  validated) and fee treatment in back-office → Settings → Tax AND every live product is classified** - customers are
   told "not available yet" and `TaxInvoiceRequestedWhileDisabled` alarms. Orders from before 096 get no invoice.
-- **Defects found while building**: the user's `git stash` removed every untracked 096 file mid-build — all rebuilt from
+- **Defects found while building**: the user's `git stash` removed every untracked 096 file mid-build - all rebuilt from
   the session (docs replayed from the transcript); the migration's version clashed with 097's (renamed
   `20261024090000`); ⚠ `product_gst_change` referenced `product` without a cascade, so deleting a draft product would
-  fail — fixed by a SECOND migration (`20261025090000_gst_change_follows_product.sql`) because the first may already be
+  fail - fixed by a SECOND migration (`20261025090000_gst_change_follows_product.sql`) because the first may already be
   applied; the hub station's nav key collided with Delivery's "hub"; the restored check-in core tripped the storefront
   availability guard (courier service, exempted with a reason).
 - **Gateways**: shared 173/300 (58%), staff 198/300 (66%).
-- **Verified**: whole-repo typecheck (26 tasks); with containers — edge-shared 1072 (incl. new labels, documents, GST,
+- **Verified**: whole-repo typecheck (26 tasks); with containers - edge-shared 1072 (incl. new labels, documents, GST,
   tax-invoice and guard tests), shop 496/497, driver 224/224, fleet 335/335, catalog 46/46, commerce 341/342, orders
   111/121, admin 232/238; shop-web 505, back-office 389, customer-web 711, shared-types 201, web-kit 143; driver app 160
   and customer app host tests (incl. the scan-rule fixture and the documents ViewModel); the delivery-word, refresh-timer,
@@ -380,36 +380,36 @@ Spec, plan, tasks: [specs/096-parcel-labels-scanning/](specs/096-parcel-labels-s
 - ⚠ **PRE-EXISTING failures, not caused by 096** (as recorded under 097): commerce checkout "079 P9" (085's `promise`);
   admin go-live (6) and orders `repository.container` (10) build from migrations before 085; shop `attention`
   "recipients from the platform record".
-- **⚠ Open — operator**: (1) commit; (2) `AWS_PROFILE=ef make db-up ENV=dev` — `20261024090000_parcels_scanning_documents.sql`
+- **⚠ Open - operator**: (1) commit; (2) `AWS_PROFILE=ef make db-up ENV=dev` - `20261024090000_parcels_scanning_documents.sql`
   and `20261025090000_gst_change_follows_product.sql` (and 097's if not yet applied); (3) straight away
   `make edge-deploy ENV=dev` `SERVICE=commerce` FIRST (bag 1 at payment), then `driver`, `shop`, `fleet`, `orders`,
-  `catalog`, `admin` — ⚠ between the migration and these deploys driver hand-overs fail and newly paid orders get no bag 1;
+  `catalog`, `admin` - ⚠ between the migration and these deploys driver hand-overs fail and newly paid orders get no bag 1;
   (4) web consoles and storefront deploy on push; rebuild the driver and customer apps; (5) `AWS_PROFILE=ef make apply
   ENV=dev` for the two new commerce alarms; (6) enter Effy's legal name, ABN and fee treatment (confirm the fee treatment
   and rounding with the accountant), classify every product, then turn invoices on; (7) the walk in
   [quickstart.md](specs/096-parcel-labels-scanning/quickstart.md).
 
-**097-same-day-by-postcode — Delivery Today, Postcode by Postcode.** ✅ **BUILT 2026-10-21 — COMPLETE IN DEV (operator-reported 2026-10-23: migrated, deployed and walked).** Each postcode on Effy's list now says whether a window TODAY may be sold there (default: offered). Staff
+**097-same-day-by-postcode - Delivery Today, Postcode by Postcode.** ✅ **BUILT 2026-10-21 - COMPLETE IN DEV (operator-reported 2026-10-23: migrated, deployed and walked).** Each postcode on Effy's list now says whether a window TODAY may be sold there (default: offered). Staff
 switch far postcodes off in bulk from Delivery → Coverage; customers there get Standard delivery from the next
 delivery day, with no new wording. Spec, plan, tasks: [specs/097-same-day-by-postcode/](specs/097-same-day-by-postcode/tasks.md).
 
 - **The fact**: `delivery_zone_postcode.today_offered boolean NOT NULL DEFAULT true` (migration
-  `20261023090000_coverage_today_offered.sql`). ⚠ **Per postcode, never per group** — a group still decides nothing a
+  `20261023090000_coverage_today_offered.sql`). ⚠ **Per postcode, never per group** - a group still decides nothing a
   customer sees. ⚠ **Read only through `public.coverage_for_postcode`**, which gained a sixth result column (dropped and
   re-created: its result columns changed); `coverageForPostcode` returns it as `Coverage.todayOffered` (true when not
-  listed, where it restricts nothing). `coverage.guard.test.ts` unchanged — no new reader of the list's table.
+  listed, where it restricts nothing). `coverage.guard.test.ts` unchanged - no new reader of the list's table.
 - ⚠ **THE WHOLE RULE IS ONE ABSENCE: `effyDays(now, lookahead, noWeekdays, noDates, todayOffered)` leaves today OUT**
-  for such an address (all five arguments now required — a defaulted flag is how a new caller would sell today
+  for such an address (all five arguments now required - a defaulted flag is how a new caller would sell today
   everywhere). Every path that sells or changes an Effy window builds its days there, so with no other change:
   no `same_day` day in the quote → no Same-day section on web or app (both already render "no today" as no section,
   so installed apps are correct); no "Delivery today" surcharge; "as soon as possible" lands on a later day; a stale
   choice of today is refused at the intent (`date_unavailable`, which re-quotes); back-office move-to-Effy and
   re-time neither list nor accept today (`override.ts` `windowsNow` / `bindEffyWindow`, `window_unavailable`). The two
   staff calendars not about an address (`fleet` dispatch, `fleet` slots) pass `true`.
-- **Rejected** (research R3): a new `judgeWindow` verdict — today would still be listed, so the customer would read
-  "No windows left today." in a Same-day section; marking today `nonDelivery` — they would read "We don't deliver
+- **Rejected** (research R3): a new `judgeWindow` verdict - today would still be listed, so the customer would read
+  "No windows left today." in a Same-day section; marking today `nonDelivery` - they would read "We don't deliver
   today.", which is false. Both are new customer wording; the absence is none.
-- **A held place and a placed order keep what they bought** — the hold is not re-judged, bookings are not touched.
+- **A held place and a placed order keep what they bought** - the hold is not re-judged, bookings are not touched.
 - **Staff**: no new route. `GET …/coverage` gains `todayOffered` per row, `counts.todayNotOffered`, filters
   `today=offered|not_offered` and `minKm` (refused when malformed, never ignored); `PATCH …/coverage/postcodes` takes
   `todayOffered` for up to 500 postcodes, all-or-nothing (404 `not_listed`), one `coverage.postcode.today` audit row
@@ -428,19 +428,19 @@ delivery day, with no new wording. Spec, plan, tasks: [specs/097-same-day-by-pos
   checkout "079 P9" expects an order's `delivery` without 085's `promise` field; `admin` go-live (6) and `orders`
   `repository.container` (10) build their database from migrations that stop before 085 (`any_time`,
   `delivery_promise` missing).
-- **⚠ Open — operator**: (1) `make db-up ENV=dev`; (2) `make edge-deploy` `SERVICE=commerce`, `orders`, `admin`, `fleet`
+- **⚠ Open - operator**: (1) `make db-up ENV=dev`; (2) `make edge-deploy` `SERVICE=commerce`, `orders`, `admin`, `fleet`
   (any order, after step 1); back-office deploys on push to `dev`. ⚠ **Switch no postcode off until `commerce` AND
-  `orders` are deployed** — an undeployed one keeps selling today everywhere. (3) The walk in
+  `orders` are deployed** - an undeployed one keeps selling today everywhere. (3) The walk in
   [quickstart.md](specs/097-same-day-by-postcode/quickstart.md) §3.
 
-**095-promotion-skins — Promotion Skins: Designed by Staff, Chosen per Placement.** ✅ **COMPLETE IN DEV 2026-10-21** —
+**095-promotion-skins - Promotion Skins: Designed by Staff, Chosen per Placement.** ✅ **COMPLETE IN DEV 2026-10-21** -
 migrated, deployed and signed off by the operator ([SIGNOFF.md](specs/095-promotion-skins/SIGNOFF.md)). Two defects
 found at deploy, both fixed: the admin stack passed CloudFormation's 500 resources (promotion routes → stack
 `admin-promotions`), and the website's hero/offers/aisles menu failed (React #441: a server component called a
-`"use client"` export — `isDesigned` now lives in `skin-designed.ts`). Spec, plan, tasks: [specs/095-promotion-skins/](specs/095-promotion-skins/tasks.md).
+`"use client"` export - `isDesigned` now lives in `skin-designed.ts`). Spec, plan, tasks: [specs/095-promotion-skins/](specs/095-promotion-skins/tasks.md).
 
 - **A skin is data**: one of six layouts (panel, header card, full picture, picture beside text, tile, strip) plus a
-  settings document — background colour or picture with a tint, label, headline, supporting line, button, code chip,
+  settings document - background colour or picture with a tint, label, headline, supporting line, button, code chip,
   decorations, corners, spacing, outline, optional dark colours for the app. Declared ONCE in
   `@effy/shared-types/promotion-skins.ts` with `validateSkin`, `skinContrast`, `skinGeometry`, `pickPicture`.
 - ⚠ **Any colour, readability enforced on the server** (constitution **v3.6.0**: skins are CONTENT, their colours
@@ -460,7 +460,7 @@ found at deploy, both fixed: the admin stack passed CloudFormation's 500 resourc
   back-office's editor and group previews; no Tailwind or token in it (guarded). The app's `PromoSkinView.kt` is held
   to the same numbers by `promotion-skins.fixtures.json` (embedded in `PromoSkinFixture.kt`).
 - ⚠ **The app reads a skin leniently** (`decodePromotionGroups`): kotlinx fails a whole response on an unknown enum,
-  so the skin is decoded separately and dropped if this build does not know it — the promotion is drawn in the app's
+  so the skin is decoded separately and dropped if this build does not know it - the promotion is drawn in the app's
   own look. 094 builds ignore the field.
 - **`mega-nav`** (size small): the website's All aisles menu now reads it (public read only), seeded with what the
   menu showed (`home.banners` = home-hero + home-between).
@@ -470,14 +470,14 @@ found at deploy, both fixed: the admin stack passed CloudFormation's 500 resourc
   `TargetClass`); `CatalogMappers.kt` maps both. The 094 migration container test now stops before stage C.
 
 **Operator steps** (in order):
-1. `AWS_PROFILE=ef make db-up-one ENV=dev` — `20261022090000_promotion_skins.sql`.
-2. `make edge-deploy SERVICE=admin ENV=dev`, THEN `SERVICE=admin-promotions` (new stack — the promotion routes split out of `admin`, which hit CloudFormation's 500-resource limit at 533), then `storefront`, then `commerce`.
+1. `AWS_PROFILE=ef make db-up-one ENV=dev` - `20261022090000_promotion_skins.sql`.
+2. `make edge-deploy SERVICE=admin ENV=dev`, THEN `SERVICE=admin-promotions` (new stack - the promotion routes split out of `admin`, which hit CloudFormation's 500-resource limit at 533), then `storefront`, then `commerce`.
 3. Build back-office and customer-web (Amplify), then the customer app.
 4. Walk [specs/095-promotion-skins/quickstart.md](specs/095-promotion-skins/quickstart.md); T026 (release-day
    screenshots identical) is the operator's comparison.
 
-**094-promotions-rebuild — Promotions Rebuilt: a Full Promotion System, Grouped for Display.** ✅ **COMPLETE IN
-DEV** — built 2026-10-20; migrated, every service and client deployed, the customer app built, and the
+**094-promotions-rebuild - Promotions Rebuilt: a Full Promotion System, Grouped for Display.** ✅ **COMPLETE IN
+DEV** - built 2026-10-20; migrated, every service and client deployed, the customer app built, and the
 quickstart walked by the operator. Only stage C (removing the old tables) is open. Spec, plan, tasks: [specs/094-promotions-rebuild/](specs/094-promotions-rebuild/tasks.md).
 
 - **The 027/028/029 one-code model is replaced.** A promotion is one of four kinds:
@@ -518,7 +518,7 @@ quickstart walked by the operator. Only stage C (removing the old tables) is ope
   Performance and History. Display groups have their own pages for ordering and a preview of what a
   shopper sees, with why each hidden promotion is hidden.
 - **Shops.** The shop money panel keeps the order's discount total. `promoCode` is now always null
-  (deprecated — compatibility), and shop-web no longer names the code.
+  (deprecated - compatibility), and shop-web no longer names the code.
 - ⚠ **Triggers were written and then removed.** The shop trigger guard forbids triggers that can abort a
   write. FR-020 (fixed once used), the fixed group key and the headline rule are enforced in the admin
   service inside the write, under the promotion row lock.
@@ -540,13 +540,13 @@ quickstart walked by the operator. Only stage C (removing the old tables) is ope
   5. Back-office, customer-web, then the app.
   6. Walk `specs/094-promotions-rebuild/quickstart.md`.
 
-**093-driver-work-sequence — Driver Work in One Order, and Trips That Join Up.** ✅ **BUILT (2026-10-17); COMPLETE IN DEV (operator-reported 2026-10-23: migrated, deployed and walked).** Research: [research-07](docs/research/logistics/research-07-driver-task-sequencing.md)
+**093-driver-work-sequence - Driver Work in One Order, and Trips That Join Up.** ✅ **BUILT (2026-10-17); COMPLETE IN DEV (operator-reported 2026-10-23: migrated, deployed and walked).** Research: [research-07](docs/research/logistics/research-07-driver-task-sequencing.md)
 (Onfleet Route Load, Bringg linked tasks, Track-POD load check, Amazon Flex/DSP, Shipsy hub exceptions). Spec,
 plan, tasks: [specs/093-driver-work-sequence/](specs/093-driver-work-sequence/tasks.md).
 
 - **The order of work is enforced BY THE SERVER** (`driver/src/work/sequence.ts`, one gate per step, 409 with a
   sentence): check-in after every shop is settled (`stops_outstanding`); nothing on a drop before the van is
-  loaded (`run_not_loaded` — loading is now the ONLY writer of `out_for_delivery`, per-drop "Start this drop"
+  loaded (`run_not_loaded` - loading is now the ONLY writer of `out_for_delivery`, per-drop "Start this drop"
   removed); no load while holding collected-not-checked-in or failed-not-returned parcels
   (`finish_collection_first` / `return_parcels_first`); no collect with deliveries in the van
   (`finish_deliveries_first`). A dispatcher may waive the cross-run gate for ONE run with a reason
@@ -569,7 +569,7 @@ plan, tasks: [specs/093-driver-work-sequence/](specs/093-driver-work-sequence/ta
   (`load_overdue_min` 20 / `checkin_overdue_min` 30, on Delivery days); the 5-minute pass announces a crossing.
 - **Daily vehicle check** (US6): six items; `vehicle_check_due` / `vehicle_unsafe` eligibility reasons via
   `vehicleCheckStateSql`; `POST /driver/v1/vehicle-check`, `POST /fleet/v1/vehicle-checks/{id}/clear`.
-  ⚠ **OFF BY DEFAULT** (`delivery_settings.vehicle_check_required`) — turned on before the app that asks is
+  ⚠ **OFF BY DEFAULT** (`delivery_settings.vehicle_check_required`) - turned on before the app that asks is
   installed, every driver would get no work. Not on the readiness list yet (Exceptions + unassigned reasons only).
 - **Found while building:** `one-ordering.guard` was already failing on `dev` (a `.sort(` in `delivery.ts`);
   the 069 delivery-days defaults test had never been given 085's `asapEstimate`; the drop-progress fixture seeds
@@ -579,22 +579,22 @@ plan, tasks: [specs/093-driver-work-sequence/](specs/093-driver-work-sequence/ta
   capacity (+1 shared, +3 staff). Held-exclusion and gate guards negative-proven.
 - **Operator steps:** `make db-up ENV=dev` (`20261017100000_driver_work_sequence.sql`) → `make edge-deploy
   ENV=dev SERVICE=driver` and `SERVICE=fleet` → back-office → the driver app (⚠ the app and `driver` must ship
-  together: the collect body and drop status changed, with no compatibility kept — the app has no installed
+  together: the collect body and drop status changed, with no compatibility kept - the app has no installed
   users). Then walk `specs/093-driver-work-sequence/quickstart.md`; turn the vehicle check on when ready.
 
-**092-driver-mobile-redesign — Driver App Redesign.** ✅ **BUILT (2026-10-16). COMPLETE IN DEV (operator-reported 2026-10-23: deployed and walked).**
+**092-driver-mobile-redesign - Driver App Redesign.** ✅ **BUILT (2026-10-16). COMPLETE IN DEV (operator-reported 2026-10-23: deployed and walked).**
 Driver backlog G1–G3 with E1–E5, F1 and the scanning screens H6–H11. Built from the canvas
 `docs/reference-screens/Effy Driver Mobile v2/` (61 artboards). Spec, plan, tasks:
 [specs/092-driver-mobile-redesign/](specs/092-driver-mobile-redesign/tasks.md).
 
-- **REV 2 (2026-10-17) — matched to `docs/reference-screens/Effy Driver redesigns/` (PNG + HTML). ⚠ NEEDS
-  `make edge-deploy SERVICE=driver ENV=dev`** — the app reads new optional wire fields; an old service
+- **REV 2 (2026-10-17) - matched to `docs/reference-screens/Effy Driver redesigns/` (PNG + HTML). ⚠ NEEDS
+  `make edge-deploy SERVICE=driver ENV=dev`** - the app reads new optional wire fields; an old service
   leaves them empty and the screens fall back (no map, no progress line), nothing breaks.
   - **Navigation:** the tab bar (`DriverTabBar`) shows on the three tab roots only; every inner screen is
     full-screen with "‹ Parent" + centred title. Return-to-hub is its own screen (`ReturnHubRoute`).
   - **Run map (decision D25):** `core/map/RunMapView.kt` draws the schematic map (seeded streets, legs,
     van, pins, legend; animations off under reduced motion and on a past run). Points come from
-    `driver/src/work/run-map.ts` only — postcode places + the hub's point; no new data, no device position.
+    `driver/src/work/run-map.ts` only - postcode places + the hub's point; no new data, no device position.
   - **Wire (all optional):** Today `progress` / `map` and richer card refs; run `map`; drop outcomes
     (street, completedAt, proof method, failure reason); returned parcels; History rows with street /
     proof / reason / window, run detail `map` + `window`, drop detail order / packages / window / reason.
@@ -602,13 +602,13 @@ Driver backlog G1–G3 with E1–E5, F1 and the scanning screens H6–H11. Built
     run, drop, scanner panels, Delivered / Not delivered / Can't deliver / Left safely, History + past run +
     past delivery, Account, sign in.
   - **Paired Bluetooth scanners (2026-10-17):** every scanning screen listens for a keyboard-style scanner
-    (`core/scan/HardwareScanner.kt`) — a label counts the moment `EFY1:` + 6 characters has arrived
+    (`core/scan/HardwareScanner.kt`) - a label counts the moment `EFY1:` + 6 characters has arrived
     (Enter, Tab or no suffix), recorded as a SCAN, through the same `ScanRule` as the camera. Caps Lock
     and a stray key before the scan are tolerated; a key event with no character (iOS) is mapped from
     the key. The type-a-code sheet no longer mangles a scan typed into it (it kept "EFY15M"). Verified:
     `KeyboardWedgeTest`, iOS UI tests with real key presses, and `adb input` on the Android emulator.
   - **Debug-only design gallery:** `androidApp/src/debug/.../DesignGalleryActivity.kt` renders each screen
-    from sample data — `adb shell am start -n com.effyshopping.driver.mobile/.DesignGalleryActivity -e
+    from sample data - `adb shell am start -n com.effyshopping.driver.mobile/.DesignGalleryActivity -e
     screen today` (today, today-delivery, today-return, today-off, collection-run, shop-stop, scan-shop,
     hub, hub-done, delivery-run, drop, delivered, not-delivered, return, history, past-run, account).
     Never in a release build.
@@ -616,7 +616,7 @@ Driver backlog G1–G3 with E1–E5, F1 and the scanning screens H6–H11. Built
     driver / delivery-words / refresh-timer guards. **Not walked on a device against dev.**
 
 - **The driver app wears the storefront identity (constitution v3.5.0)** like the customer app (087): Geist
-  bundled, Lucide icons, Effy blue for actions, Effy green only for done, **problems black with an icon —
+  bundled, Lucide icons, Effy blue for actions, Effy green only for done, **problems black with an icon -
   never red or orange**, light and dark. `gen-compose-theme.mjs`'s driver target reads `storefront/tokens.css`;
   `EffyStorefrontShape`; driver `EffyRoles`. `scripts/driver-guard.sh`: no colour literal in a screen, no
   red/`colorScheme.error`/warning, no money, no Map/Activity.
@@ -625,43 +625,43 @@ Driver backlog G1–G3 with E1–E5, F1 and the scanning screens H6–H11. Built
   connection banners in ONE order (`driverBanners`: offline → waiting → refused → live paused), sheet,
   snackbar, states, skeleton, large-title / inline bars, text field, choice rows, progress, swipe-to-confirm.
   Every overlay is a sheet.
-- **Three tabs** — Today · History · Account. ⚠ **Removed**: Map (`features/map`, `EffyMapCanvas`, `MapRoot`),
+- **Three tabs** - Today · History · Account. ⚠ **Removed**: Map (`features/map`, `EffyMapCanvas`, `MapRoot`),
   the activity feed (`features/activity`, `ActivityRoute`, `SettingsActivitySeen`), the placeholder framework
   (`core/placeholder`, every `PlaceholderData.kt`, its guard test), day stats and the shift timer,
   `AppearanceScreen` (inline in Account), `ShopProblemScreen` (a sheet), `EnRouteScreen`, `ArrivedScreen`.
   The activity route stays on the server for old builds.
 - **Two taps per drop** (E2, R5): Scan to deliver → "How did you hand it over?" → proof. ⚠ **Arrival is still
-  recorded** — `DeliveryViewModel.deliver` sends `arrived` silently BEFORE the proof (both queued in order
+  recorded** - `DeliveryViewModel.deliver` sends `arrived` silently BEFORE the proof (both queued in order
   offline); an arrived drop is not moved again. "Load the van" (090's route) replaces per-drop start.
 - **Scanning screens** (`core/scan/ScanPanel.kt`, H6–H11): camera, torch, Type a code, a banner per read, a
   count, every package tickable by hand, and a 3-second auto-complete bar with Undo. A beep/buzz for a package
   that counts, a low tone + long buzz for the hard stop (`ScanTone`, silent mode respected). Wired at the shop
   (S1), hub with per-package sort words (S2), load (S3), door (S4) and return (S5). Each hand-over sends each
   package's method; an unscanned collected package is recorded `manual`.
-- **Server (driver, additive)**: `DeliveryDropDTO.customerPhone` — the checkout phone, **open drops of the
-  caller's round only** (F1, Call button); `HubCheckinResponse.nextCourierPickupLabel` — the default courier
-  service's next pickup in server words; `PackageHandover.packageCode` — a hand-over may name a package by its
+- **Server (driver, additive)**: `DeliveryDropDTO.customerPhone` - the checkout phone, **open drops of the
+  caller's round only** (F1, Call button); `HubCheckinResponse.nextCourierPickupLabel` - the default courier
+  service's next pickup in server words; `PackageHandover.packageCode` - a hand-over may name a package by its
   label code (resolved against the hand-over's own packages; a foreign code names nothing).
 - **Completing pass (same day)**: Today shows dispatch's change note with "Got it"
-  (`TodayDTO.changedNote` — the round's `changed_note`, already read, now sent); History → a run lists its
-  stops and how each ended (`HistoryDetailDTO.stops`) — ⚠ **this also fixes a live defect**: a run's detail
+  (`TodayDTO.changedNote` - the round's `changed_note`, already read, now sent); History → a run lists its
+  stops and how each ended (`HistoryDetailDTO.stops`) - ⚠ **this also fixes a live defect**: a run's detail
   looked its id up as a STOP and was always "not found"; after check-in the screen says when the delivery run
   opens; snackbars for collected / van loaded / parcels checked in; push slides in, pop slides out, tabs fade,
   nothing moves under reduced motion; buttons give to 97% on press; the hub scan lists load-now first.
   Tidy: mobile-kit's `SwipeToConfirm` and `ClassSummaryRow` deleted; E7 `Phase.SAME_DAY_DELIVERY` →
   `Phase.DELIVERY` (the wire keeps `same_day_delivery`).
 - **Launch, as the customer app (same day)**: the driver app now takes its icon and splash from
-  `@effy/brand`, with ITS OWN MARK — `src/logo-driver.svg`: the same "e.", its full stop a small Effy-blue
+  `@effy/brand`, with ITS OWN MARK - `src/logo-driver.svg`: the same "e.", its full stop a small Effy-blue
   STEERING WHEEL (colourway `driver`: dot #1d4ed8; targets carry `mark: "driver"`). ⚠ The brand tests that
   asserted the driver app was OUT of scope (024 FR-020) and that there is ONE colourway now assert the
   driver app gets the customer app's slots from the driver mark, and nothing else uses it. Android: adaptive icon with the monochrome layer, `Theme.Effy.Splash` (core-splashscreen),
   `installSplashScreen` removed instantly; iOS: `UILaunchScreen` (LaunchLogo on LaunchBackground),
-  `INFOPLIST_KEY_UILaunchScreen_Generation = NO`, light/dark/tinted app icons. Then `DriverIntro` — the
+  `INFOPLIST_KEY_UILaunchScreen_Generation = NO`, light/dark/tinted app icons. Then `DriverIntro` - the
   customer app's "e. → effy." intro, copied, with the wheel leading as the full stop (blue → the app's
-  blue) and "DRIVER" fading in beneath the finished word — hands over once the session is known; the old `SplashScreen`
+  blue) and "DRIVER" fading in beneath the finished word - hands over once the session is known; the old `SplashScreen`
   is deleted. ⚠ The launcher name was the developer string "driver-mobile" on BOTH platforms; it is
   "Effy Driver" now (`app_name`, `CFBundleDisplayName`).
-- **Not drawn, no data**: "Navigate to the hub" — the platform holds no hub address (`HUB_LABEL` is a
+- **Not drawn, no data**: "Navigate to the hub" - the platform holds no hub address (`HUB_LABEL` is a
   constant in `driver/service.ts`); it needs a hub record first.
 - **Verified**: driver container tests (phone open/settled/blank, courier pickup label, code-named hand-over),
   driver unit + typecheck; driver-mobile host tests (kit words and banner order, Today states, two-tap order
@@ -671,21 +671,21 @@ Driver backlog G1–G3 with E1–E5, F1 and the scanning screens H6–H11. Built
   app build. Walk on a device: sign in, go on duty, a collection run by scan and by tick, hub check-in, load the
   van, a drop by scan (photo, left safely, signature), Can't deliver, return to hub, dark mode.
 
-**091-handover-visibility — Scan Versus Manual Visibility.** ✅ **BUILT (2026-10-16). COMPLETE IN DEV (operator-reported 2026-10-23: deployed and walked).** Driver
+**091-handover-visibility - Scan Versus Manual Visibility.** ✅ **BUILT (2026-10-16). COMPLETE IN DEV (operator-reported 2026-10-23: deployed and walked).** Driver
 backlog H12: three read-only views of 090's `package_handover`, each in the service that owns its screen; no
 route, no migration. Spec, plan, tasks: [specs/091-handover-visibility/](specs/091-handover-visibility/tasks.md).
 
-- **Order** (`orders`): each package lists its hand-overs oldest first — "Collected · scanned · Ada · time"
+- **Order** (`orders`): each package lists its hand-overs oldest first - "Collected · scanned · Ada · time"
   (`AdminOrderPackageDTO.handovers`, back-office `PackageRows`).
-- **Round** (`fleet` `readRound`): each stop counts its hand-overs on THAT round — "2 scanned · 1 typed".
-- **Shop** (`admin` shop detail): `labelScanning` over the last 30 days — "8 scanned · 2 not scanned (20%)".
+- **Round** (`fleet` `readRound`): each stop counts its hand-overs on THAT round - "2 scanned · 1 typed".
+- **Shop** (`admin` shop detail): `labelScanning` over the last 30 days - "8 scanned · 2 not scanned (20%)".
 - ⚠ Nothing is inferred: no record shows nothing, never "by hand". Nothing reaches a customer, shop or driver.
 - **Verified**: orders/fleet/admin container tests for each read; back-office 389. Pre-existing and unrelated:
-  admin `go-live.container.test.ts` (6 — its schema lacks 085's `any_time`), orders 9, fleet 1 (as recorded above).
+  admin `go-live.container.test.ts` (6 - its schema lacks 085's `any_time`), orders 9, fleet 1 (as recorded above).
 - **Operator steps**: `make edge-deploy SERVICE=orders|fleet|admin ENV=dev` → back-office. Data appears once
   drivers use the scanning screens.
 
-**090-scanning-foundation — Package Scanning: Foundations.** ✅ **BUILT (2026-10-16). COMPLETE IN DEV (operator-reported 2026-10-23: migrated, deployed and walked).** Everything under the scanning screens (driver backlog H4, H5 and the platform halves of
+**090-scanning-foundation - Package Scanning: Foundations.** ✅ **BUILT (2026-10-16). COMPLETE IN DEV (operator-reported 2026-10-23: migrated, deployed and walked).** Everything under the scanning screens (driver backlog H4, H5 and the platform halves of
 H6–H10); the screens follow the redesign. Spec, plan, tasks: [specs/090-scanning-foundation/](specs/090-scanning-foundation/tasks.md).
 
 - **One scan rule** (`core/scan/ScanRule.kt`, pure, offline): Accepted / AlreadyScanned / BelongsElsewhere
@@ -696,16 +696,16 @@ H6–H10); the screens follow the redesign. Spec, plan, tasks: [specs/090-scanni
 - **The camera reader** `PackageScanner` (expect/actual): Android CameraX → ML Kit **bundled**
   `barcode-scanning 17.3.0` (QR + Code 128 only; the one new dependency); iOS AVFoundation metadata output
   written in Kotlin/Native (no Swift bridge). Torch; labels only; `ReadDebouncer` 2 s per code. It draws only
-  the camera — no screen uses it yet.
+  the camera - no screen uses it yet.
 - **Hand-over record** `public.package_handover` (`20261016160000_package_handover.sql`): one row per package
   per hand-over (`collect` / `checkin` / `load` / `deliver` / `return`) with `handover_method` (scan / typed /
   manual); written by `work/handover.ts` inside each hand-over; optional on every request; a retry records once.
-  ⚠ The column is NOT `method` — that name belonged to a column 083 dropped, and `schema-drift.guard.test.ts`
+  ⚠ The column is NOT `method` - that name belonged to a column 083 dropped, and `schema-drift.guard.test.ts`
   tracks dropped names schema-wide (it failed on the first draft).
 - **Hub instruction** per package on the collection run (`hubSort`, `work/hub-sort.ts`): LOAD NOW · window,
-  SHELVE · day, COURIER BAY — 082's decision and words. ⚠ `kind` is a STRING on the wire, not an enum: a
+  SHELVE · day, COURIER BAY - 082's decision and words. ⚠ `kind` is a STRING on the wire, not an enum: a
   later kind must not fail installed builds' run read (the 088 lesson).
-- **Load the van**: `POST /driver/v1/delivery/runs/{runId}/load` — every staged drop out for delivery in one
+- **Load the van**: `POST /driver/v1/delivery/runs/{runId}/load` - every staged drop out for delivery in one
   action; later drops untouched; gated (072); idempotent by state. Shared gateway +1.
 - **Verified**: shared-types 134, shared 944, driver 198 (incl. scan/hand-over/load container tests), fleet
   (all but the pre-existing slots-defaults test), driver-mobile host tests (ScanRule 10, token, debouncer),
@@ -713,23 +713,23 @@ H6–H10); the screens follow the redesign. Spec, plan, tasks: [specs/090-scanni
 - **Operator steps**: `make db-up ENV=dev` → `make edge-deploy SERVICE=driver ENV=dev`. No app release needed
   until the redesign's screens use the reader; on a device, read a printed 089 label to check the reader.
 
-**089-package-labels — Package Labels.** ✅ **BUILT (2026-10-16). COMPLETE IN DEV (operator-reported 2026-10-23: migrated, deployed and walked).**
+**089-package-labels - Package Labels.** ✅ **BUILT (2026-10-16). COMPLETE IN DEV (operator-reported 2026-10-23: migrated, deployed and walked).**
 Driver backlog H1–H3: the prerequisite for scanning. Spec, plan, tasks: [specs/089-package-labels/](specs/089-package-labels/tasks.md).
 
-- **Every package has a permanent 6-character code** — `shop_fulfillment.package_code`, generated by the
+- **Every package has a permanent 6-character code** - `shop_fulfillment.package_code`, generated by the
   database default `public.new_package_code()` (alphabet `23456789ABCDEFGHJKMNPQRSTVWXYZ`, no look-alikes),
   UNIQUE, CHECKed, backfilled row by row in `20261016150000_package_code.sql`. Never changed or reused.
-- **One token definition** — `packages/shared-types/src/package-code.ts`: `EFY1:<code>`, and a parser that
+- **One token definition** - `packages/shared-types/src/package-code.ts`: `EFY1:<code>`, and a parser that
   ignores anything else (a product's EAN). A test pins the alphabet to the migration.
-- **2026-10-17 — the BARCODE is the main element** (operator direction: shops and the hub may use handheld
+- **2026-10-17 - the BARCODE is the main element** (operator direction: shops and the hub may use handheld
   scanners, as delivery services do; the driver app's camera reads Code 128 too). First on the label and
-  ~full printable width; bar width per layout 0.31 / 0.53 / 0.34 mm (the A4 sheet's was 0.19 mm — too
+  ~full printable width; bar width per layout 0.31 / 0.53 / 0.34 mm (the A4 sheet's was 0.19 mm - too
   fine for a phone). The QR stays, smaller, beside the code. Rendered and decoded (Code 128 →
   `EFY1:5MQKVF`) on all three layouts; `labels.test.ts` pins order and width. Ships with the next
   shop-web deploy.
-- **Labels in the shop console** — "Print label" on the order detail, three layouts (62 mm roll, 4×6 in,
+- **Labels in the shop console** - "Print label" on the order detail, three layouts (62 mm roll, 4×6 in,
   A4 21-up), remembered per browser. QR via `qrcode-generator@2.0.4` (the one new dependency), Code 128 B
-  by our own pinned encoder (`labels/code128.ts`). ⚠ **EFFY / COURIER only — no window, day or estimate**
+  by our own pinned encoder (`labels/code128.ts`). ⚠ **EFFY / COURIER only - no window, day or estimate**
   (spec Clarifications: a shop is told who takes a package away and nothing else, 079); never a shop name,
   customer name, street or price (tested on every layout). Cold mark from the order-line snapshot (065).
 - **Where the code shows**: shop order detail (summary bar), back-office order packages, and additively on
@@ -741,12 +741,12 @@ Driver backlog H1–H3: the prerequisite for scanning. Spec, plan, tasks: [specs
   `package_code`), driver-mobile host tests + `assembleDebug`; delivery-word guards; contract stable.
 - **Operator steps**: `make db-up ENV=dev` (backfills every package) → `make edge-deploy SERVICE=shop`,
   `SERVICE=orders`, `SERVICE=driver` (ENV=dev) → shop-web and back-office. No driver app build needed.
-  Walk: [quickstart.md](specs/089-package-labels/quickstart.md) — including scanning a printed QR with a phone.
+  Walk: [quickstart.md](specs/089-package-labels/quickstart.md) - including scanning a printed QR with a phone.
 
-**088-failed-parcel-return — Return Failed Parcels to the Hub.** ✅ **BUILT (2026-10-16). COMPLETE IN DEV (operator-reported 2026-10-23: migrated, deployed and walked).** Driver backlog A4. A parcel on a failed drop stays in the driver's custody until it is
+**088-failed-parcel-return - Return Failed Parcels to the Hub.** ✅ **BUILT (2026-10-16). COMPLETE IN DEV (operator-reported 2026-10-23: migrated, deployed and walked).** Driver backlog A4. A parcel on a failed drop stays in the driver's custody until it is
 checked back in at the hub; the round finishes only then; a returned parcel waits for staff to choose its
 next step. Spec, plan, tasks: [specs/088-failed-parcel-return/](specs/088-failed-parcel-return/tasks.md).
-Built with the driver backlog's sprints 1–2 (A1–A3, B1–B3, C1–C6, D1–D2, D4–D5, F2–F3 — see
+Built with the driver backlog's sprints 1–2 (A1–A3, B1–B3, C1–C6, D1–D2, D4–D5, F2–F3 - see
 [docs/driver-app-backlog.md](docs/driver-app-backlog.md)), deployed by the operator on 2026-10-16.
 
 - **One writer**: `recordParcelReturn` in `@effy/edge-shared/delivery` (`parcel-return.ts`), called by the
@@ -756,21 +756,21 @@ Built with the driver backlog's sprints 1–2 (A1–A3, B1–B3, C1–C6, D1–D
 - **"To return" is derived** (`TO_RETURN_SQL`): a delivery `round_package` still `assigned` on a `skipped`
   stop. The return writes `state = 'returned'` + a `parcel_return` row (migration
   `20261016140000_parcel_return.sql`). The delivery completion rule (A1's) moved beside it:
-  `completeDeliveryRoundIfFinished` — no stop open AND nothing to return.
+  `completeDeliveryRoundIfFinished` - no stop open AND nothing to return.
 - ⚠ **Two live defects fixed, the EFY-GNYQ58 shape again**: `CUSTODY_BY_DRIVER` and the exceptions list's
-  `package_location` both read `picked_up`, a state no delivery package is ever in — so a failed parcel in
+  `package_location` both read `picked_up`, a state no delivery package is ever in - so a failed parcel in
   a van was in nobody's custody (the go-off-duty check never fired) and back-office said "at hub".
 - **Held for staff** (spec FR-010, operator default): the delivery gather skips a `returned` parcel whose
   failure is unresolved. `moveToCourier` / `moveToEffy` / `changeEffyWindow` resolve the order's open
   failures as they act, and refuse while a parcel is still in the van (`with_driver_after_failure`).
   Dispatch `reassign` / `unassign` refuse such a round (409 `parcels_to_return`).
-- **Status**: returned + unresolved → **At hub**, "Returned after a failed delivery — needs a next step";
+- **Status**: returned + unresolved → **At hub**, "Returned after a failed delivery - needs a next step";
   not yet returned → **Problem** naming the driver (as before). The customer's words are unchanged.
-- **Driver wire is additive** — `toReturn` on `TodayDTO` and `DeliveryRunDTO`, NEVER a new
+- **Driver wire is additive** - `toReturn` on `TodayDTO` and `DeliveryRunDTO`, NEVER a new
   `TodayItemRef.kind` (installed builds decode it as a closed enum and would fail the whole Today). The
   app shows a "Return to hub" block (one swipe, queued offline) on Today when it is the only work left
   and at the foot of the run; the sign-out warning names the parcels.
-- **Back-office**: Exceptions shows "With {driver} — to return" / "Returned {time}" and a "Record return"
+- **Back-office**: Exceptions shows "With {driver} - to return" / "Returned {time}" and a "Record return"
   action; Dispatch shows failed parcels with drivers / awaiting a decision.
 - **Verified**: shared 939, driver 187, fleet (all but the pre-existing 069 slots-defaults test),
   back-office 384, driver-mobile host tests + `assembleDebug` + iOS compile; guards (live change map,
@@ -781,7 +781,7 @@ Built with the driver backlog's sprints 1–2 (A1–A3, B1–B3, C1–C6, D1–D
   and `SERVICE=driver` → back-office → the driver app. The previous app build keeps working (it ignores
   `toReturn`; staff can record its returns). Walk: [quickstart.md](specs/088-failed-parcel-return/quickstart.md).
 
-**087-customer-mobile-redesign — Customer Mobile Redesign.** ✅ **BUILT (2026-10-14). COMPLETE (operator-reported 2026-10-23: walked).** The customer mobile app takes the storefront identity the website adopted in 084, iOS-first, from
+**087-customer-mobile-redesign - Customer Mobile Redesign.** ✅ **BUILT (2026-10-14). COMPLETE (operator-reported 2026-10-23: walked).** The customer mobile app takes the storefront identity the website adopted in 084, iOS-first, from
 the design canvas (https://claude.ai/artifact/WSJRR99YaDrAU6LJaChbQv; boards committed to
 `docs/reference-screens/Effy Customer Mobile/`). Spec, plan, tasks: [specs/087-customer-mobile-redesign/](specs/087-customer-mobile-redesign/tasks.md).
 **No backend, migration, Terraform or deploy step.**
@@ -799,7 +799,7 @@ the design canvas (https://claude.ai/artifact/WSJRR99YaDrAU6LJaChbQv; boards com
   above the keyboard, in-sheet discard), `EffyConfirmSheet`, `EffyLargeTitleBar` (collapses on
   scroll), `EffyPinnedBar`, `ProductTile` "+" → stepper, `EffyStatusPill`, `EffyCard`,
   `EffySnackbarHost`, shared-element plumbing, `EffyStorefrontMotion`.
-- **Navigation**: FIVE tabs — Cart became a tab (`ScreenInventoryTest` changed deliberately; the guard
+- **Navigation**: FIVE tabs - Cart became a tab (`ScreenInventoryTest` changed deliberately; the guard
   fails `push(CustomerNavKey.Cart)`). Re-tapping the active tab returns it to its root. mobile-kit's
   `ResponsiveNavigation` gained ONE optional `bottomBar` slot (default null; shop/driver unchanged).
 - **Motion**: iOS push/pop 350ms on the iOS curve with the page below drifting 30%; the iOS edge swipe
@@ -818,7 +818,7 @@ the design canvas (https://claude.ai/artifact/WSJRR99YaDrAU6LJaChbQv; boards com
   package split; aisle icons all fell back after 084's re-seed (now the website's word rules).
 - **Data**: the Orders list maps `stage`, `arrivalEstimates`, `deliveredAt`, `thumbnails`, `placedAt`,
   `fullyRefunded` (already served since 084/086); aisles show sub-aisle chips (`parentKey`); recent
-  searches are kept on the device (cleared on sign-out). The notifications LIST is deferred (Q1) —
+  searches are kept on the device (cleared on sign-out). The notifications LIST is deferred (Q1) -
   the page is an honest empty state with a link to system settings.
 - **Tests changed deliberately**: `ScreenInventoryTest` (five tabs), `CategoryIconsTest` (084 aisles),
   `AccountCentreTest` (device setting no longer the appearance); deleted with their subjects:
@@ -829,55 +829,55 @@ the design canvas (https://claude.ai/artifact/WSJRR99YaDrAU6LJaChbQv; boards com
 - **Board-gap pass (2026-10-15, operator-directed)**: Checkout as numbered cards (address with
   "Change" → sheet; "Today" badge; Standard tile = title + the business's estimate only; days two to a
   row; two-part Leave/Meet control; points note; Order summary with thumbnails, free-delivery bar and
-  "To pay by card"; lock "Pay now"). ⚠ **No step indicator** (Delivery · Payment · Done) — the operator
+  "To pay by card"; lock "Pay now"). ⚠ **No step indicator** (Delivery · Payment · Done) - the operator
   declined it. Order details / Confirmed: stage pill, progress tracker (server stage only), Receipt card
   with Paid + "Send again", "Report a problem" card, pinned "Buy again" (with "View cart") and "Track
   this order". Help is ONE page (the three old routes all open it). Saved summary + sort chips; Delete
   account cards, retention table, pinned "Keep my account"; sign-in from checkout says the cart is
   saved; Cart points notice + "On sale now" rail; Orders "Track order"/"View order"; address-book
   intro; "Mobile number"; "Copy code"; legal "Updated" dates. ⚠ Checkout's points/card split is an
-  ESTIMATE (cents, whole points) — Payment still shows the intent's exact figures. Not done: the
+  ESTIMATE (cents, whole points) - Payment still shows the intent's exact figures. Not done: the
   board's out-of-stock line notice (no per-item status on the wire).
-- ⚠ **OPEN — found, not fixed (outside 087)**: the GENERATED legal documents (`features/legal/generated/
-  LegalContent.kt`, from 045's source) name `support@effyshopping.com` ~40 times — an address that is
+- ⚠ **OPEN - found, not fixed (outside 087)**: the GENERATED legal documents (`features/legal/generated/
+  LegalContent.kt`, from 045's source) name `support@effyshopping.com` ~40 times - an address that is
   not one of the approved mailboxes. Excluded from the guard; needs a legal-content change.
 - ⚠ **OPERATOR STEPS**: walk `specs/087-customer-mobile-redesign/quickstart.md` on an iPhone (incl. SE)
-  and an Android phone — boards side by side, large text, reduce motion, edge swipe — and sign off.
+  and an Android phone - boards side by side, large text, reduce motion, edge swipe - and sign off.
 
-**086-catalogue-image-delivery — Catalogue Pictures That Load Once.** ✅ **BUILT (2026-10-14). COMPLETE IN DEV (operator-reported 2026-10-23: applied, migrated, deployed and walked).** Backlog PERF-02 + PERF-03. Every shopper picture (product,
+**086-catalogue-image-delivery - Catalogue Pictures That Load Once.** ✅ **BUILT (2026-10-14). COMPLETE IN DEV (operator-reported 2026-10-23: applied, migrated, deployed and walked).** Backlog PERF-02 + PERF-03. Every shopper picture (product,
 aisle, promotion) has ONE permanent address on a CDN that browsers keep for a year, and is delivered as a
 WebP copy at about the size it is drawn. Spec, plan, tasks: [specs/086-catalogue-image-delivery/](specs/086-catalogue-image-delivery/tasks.md).
 
 - ⚠ **THE BUCKET STAYS PRIVATE, AND THE CDN READS ONLY THE PUBLIC SET.** CloudFront at `media.<zone>`
   (`infra/envs/dev/media.tf`) reaches `effy-<env>-product-media` through Origin Access Control; the
   bucket policy grants `s3:GetObject` on `products/`, `promotions/`, `renditions/` ONLY, and NO
-  `ListBucket` — so a missing key and a refused one both answer 403. Labels (`courier-label/`) and
-  proof (`proof/`) stay presigned-only. ⚠ The set is stated twice — `PUBLIC_MEDIA_PREFIXES`
-  (`@effy/edge-shared` `media-public.ts`) and `local.public_media_prefixes` — and
+  `ListBucket` - so a missing key and a refused one both answer 403. Labels (`courier-label/`) and
+  proof (`proof/`) stay presigned-only. ⚠ The set is stated twice - `PUBLIC_MEDIA_PREFIXES`
+  (`@effy/edge-shared` `media-public.ts`) and `local.public_media_prefixes` - and
   `media-public.guard.test.ts` reads `media.tf` to hold them equal and to keep proof and labels out.
 - ⚠ **ONE BUILDER OF A PUBLIC ADDRESS**: `publicImageUrl` (null outside the set, throws when
   `MEDIA_PUBLIC_BASE_URL` is unset). Only `storefront` and `commerce` call it (guarded), and neither may
-  call `presignRead` / `imageUrlOrNull` (guarded). ⚠ `imageUrlOrNull` is now the PRIVATE reader —
+  call `presignRead` / `imageUrlOrNull` (guarded). ⚠ `imageUrlOrNull` is now the PRIVATE reader -
   `orders` reads LABELS through it; never "fix" it into a public one. Both shopper services lost
   `S3_MEDIA_BUCKET` and their S3 permission.
 - **Copies are made at upload, not on request.** Uploads under `products/` / `promotions/` notify an SQS
-  queue (DLQ after 3); the new route-less **`media`** service (`apis/edge-api/media`, no gateway — the
+  queue (DLQ after 3); the new route-less **`media`** service (`apis/edge-api/media`, no gateway - the
   `live` precedent) makes WebP q78 copies at 160/320/640/1280 below the source width **plus the source's
   own width when ≤ 1280** (a mid-size picture is never an enlarged smaller copy), under
-  `renditions/<key without extension>/w<width>.webp` (never notified — no loop). Animated pictures get
+  `renditions/<key without extension>/w<width>.webp` (never notified - no loop). Animated pictures get
   none (served whole). It records what exists in **`public.media_rendition`** (its ONE writer); readers
   join it through `renditionWidthsSql`. `sharp` 0.34.5 is an esbuild external installed for linux-arm64
   at package time.
-- **Wire, additive**: `imageUrl` keeps its type — now the CDN address of the original — and
+- **Wire, additive**: `imageUrl` keeps its type - now the CDN address of the original - and
   `imageWidths` is added to cards, gallery, categories, banners, promotions, cart, saved and order lines
   (`thumbnailWidths` on the order list). ⚠ **Sent only when copies exist**, so a picture with none is
   byte-identical to before (the app's strict wire fixtures). Clients derive a copy's address with
   `renditionUrl` (`@effy/shared-types` `media.ts`, pinned by `media.fixtures.json`; the worker's
   `renditionKey` is tested against the same fixtures). Installed apps ignore the field (FR-007).
-- **customer-web**: every catalogue picture is `CatalogImage` — a plain `<picture>` with a WebP `<source>`
+- **customer-web**: every catalogue picture is `CatalogImage` - a plain `<picture>` with a WebP `<source>`
   over the original `<img>`. ⚠ **`next/image` is gone from customer-web**, and with it ~4.6 KB on every
   guest route (`/search` 173.8 → 169.2 KB) and the `**.amazonaws.com` remote pattern.
-- **Alarms**: DLQ ≥ 1; render errors; **any** `RenditionFailed` (FR-020); CloudFront 5xx/4xx rate —
+- **Alarms**: DLQ ≥ 1; render errors; **any** `RenditionFailed` (FR-020); CloudFront 5xx/4xx rate -
   ⚠ in **us-east-1**, with a second alerts topic there (CloudFront metrics exist only there) subscribed
   to the same `var.alert_email`.
 - **Verified here**: every edge-api suite and typecheck; the new guards; the migration applied with every
@@ -893,16 +893,16 @@ WebP copy at about the size it is drawn. Spec, plan, tasks: [specs/086-catalogue
   (2) `make db-up ENV=dev`; (3) deploy `media`, upload one picture, check its row and `w320.webp`, run
   `renditionBackfill` (twice); (4) deploy `storefront` and `commerce`; (5) deploy customer-web; (6) walk.
 
-**085-flexible-standard-delivery — Flexible Standard Delivery.** ✅ **BUILT (2026-10-13). COMPLETE IN DEV (operator-reported 2026-10-23: migrated, deployed and walked).** Standard delivery lets a customer choose a **day with no time**
-(the default), **"No particular day"** (as soon as possible), or — behind "Need a specific time?" — a
+**085-flexible-standard-delivery - Flexible Standard Delivery.** ✅ **BUILT (2026-10-13). COMPLETE IN DEV (operator-reported 2026-10-23: migrated, deployed and walked).** Standard delivery lets a customer choose a **day with no time**
+(the default), **"No particular day"** (as soon as possible), or - behind "Need a specific time?" - a
 window. Same-day delivery is unchanged. One choice per order, nothing pre-selected. Spec, plan, tasks and
 the walk: [specs/085-flexible-standard-delivery/](specs/085-flexible-standard-delivery/tasks.md).
 
 - ⚠ **THE WHOLE FEATURE IS ONE WINDOW, AND IT IS NOT A SWITCH.** An order with no time is an order in THE
   **Any time** delivery window (`delivery_slot.any_time`). The migration creates it (hours spanning the
-  existing windows, no limit); exactly one, always active; no API sets the flag or turns it off — staff
+  existing windows, no limit); exactly one, always active; no API sets the flag or turns it off - staff
   edit its hours and limit only. The operator rejected an earlier build in which staff had to create it. Capacity, the hold, the cutoff,
-  the collection run, the round and when it opens are a window's own rules, unchanged — `judgeWindow`,
+  the collection run, the round and when it opens are a window's own rules, unchanged - `judgeWindow`,
   `engine.ts`, `collectionRunFor`, the planner and `round_opens_at` were not edited. Its capacity IS the
   day's limit for untimed orders.
 - **"As soon as possible"** = at the intent, the first day of the calendar whose Any time window is open
@@ -912,7 +912,7 @@ the walk: [specs/085-flexible-standard-delivery/](specs/085-flexible-standard-de
   ⚠ It reaches TODAY only while a collection run can still reach the hub before the Any time window
   STARTS. The migration starts it at the earliest existing window's start, so ASAP usually lands on the
   next delivery day until staff give the Any time window a later start.
-- **The fee**: an untimed order pays `baseFee` — no window surcharge, and no "Delivery today" surcharge
+- **The fee**: an untimed order pays `baseFee` - no window surcharge, and no "Delivery today" surcharge
   even when ASAP lands today. One line in `quote.ts`; the fee sum is untouched.
 - **What was sold** is `order.delivery_promise` (`window` | `day` | `asap`) + `asap_estimate`; NULL before 085
   reads as `window`. Two writers (checkout, `override.ts`), guarded. The customer DTO strips the window's
@@ -921,22 +921,22 @@ the walk: [specs/085-flexible-standard-delivery/](specs/085-flexible-standard-de
 - **Wire, additive**: quote `days[].anyTime` (never today's) and `effyWindows.asap`; intent
   `deliveryPromise: "asap"` (a day-only choice is the existing `deliveryWindow` naming the Any time slot);
   order `delivery.promise` / `asapEstimate`. An installed app that ignores them still buys windows.
-- **Staff**: the Any time window's hours and limit (Windows panel — badged, no off switch) and the estimate's
+- **Staff**: the Any time window's hours and limit (Windows panel - badged, no off switch) and the estimate's
   wording (Delivery days panel, `fleet`); Orders shows and
   filters by what was sold; **Change day or time…** on an Effy order → new staff route
   `POST /orders/v1/orders/{orderId}/delivery-window` → `changeEffyWindow` (same rule and lock as
   `moveToEffy`, whose binding block it shares; recorded in `admin.audit_log`, since `delivery_override`
   needs a type change). `moveToEffy` lists and accepts the Any time window.
-- **Drivers and dispatch**: labels only, written by the server ("Sat 10 Oct · Any time") — no driver-app
+- **Drivers and dispatch**: labels only, written by the server ("Sat 10 Oct · Any time") - no driver-app
   update. Untimed parcels ride their own round for the Any time window.
 - **On from the migration, no flag**: there is nothing to enable. A day asks for a time only when its
   untimed room is taken; "No particular day" is hidden only while no day has room. Go-live's "windows
   defined" and the `none_defined` alarm still mean TIMED windows.
-- **The picker (customer web)**: ONE row of tiles that never moves — first **"Standard"** with the
+- **The picker (customer web)**: ONE row of tiles that never moves - first **"Standard"** with the
   business's timeframe under it (the as-soon-as-possible choice, named the way most shops name it;
   `DELIVERY_WINDOW_WORDS.asapTitle`), then the three days. A chosen day's "Any time during the day" and
   its optional "Need a specific time?" sit below the row. ⚠ **"Standard" is selected by default**, once
-  per destination (`CheckoutFlow.tsx`) — the operator's direction, replacing "nothing is chosen"; a
+  per destination (`CheckoutFlow.tsx`) - the operator's direction, replacing "nothing is chosen"; a
   refused choice still leaves nothing chosen. ⚠ The customer APP has the new word but neither the
   one-row layout nor the default yet.
 - **Also in this change (customer web, ahead of the feature)**: the checkout step no longer overflows on
@@ -944,28 +944,28 @@ the walk: [specs/085-flexible-standard-delivery/](specs/085-flexible-standard-de
 - **Verified here**: unit suites and typechecks of every touched service, shared-types (both fixtures and
   their Kotlin copies), customer-web (666), back-office (383), the customer app's host tests, and the
   wording / legacy / refresh-timer / gateway-capacity / change-map guards.
-- ⚠ **NOT VERIFIED**: no `*.container.test.ts` ran (no Docker in the session) — including the new
+- ⚠ **NOT VERIFIED**: no `*.container.test.ts` ran (no Docker in the session) - including the new
   `changeEffyWindow` and one-Any-time-window cases; the migration has never been applied; nothing was seen
   in a browser or on a device; the customer app's iOS target was not compiled.
-- ⚠ **KNOWN GAPS**: a staff re-timing tells the customer through the order page only (no push or email —
+- ⚠ **KNOWN GAPS**: a staff re-timing tells the customer through the order page only (no push or email -
   081's moves have none either). Re-timing an order into the window it already holds counts its own
   booking against the limit. ASAP can be a cheaper way to get an order today than a same-day window
   (accepted in the spec).
 - **Operator steps, in order**: (1) `CONTAINER_TESTS=1` suites for `shared`, `fleet`, `commerce`, `orders`;
-  (2) `make db-up ENV=dev` — TWO migrations: `20261013120000_flexible_standard_delivery` (applied to dev
+  (2) `make db-up ENV=dev` - TWO migrations: `20261013120000_flexible_standard_delivery` (applied to dev
   2026-10-13) and `20261013130000_any_time_window_always` (creates the window; proved on a scratch
   Postgres, not yet applied to dev); (3) deploy `commerce`
   and `notifications`, then `fleet`, `driver`, `orders`, `admin`; (4) deploy customer-web and
   back-office; (5) ship the customer app; (6) optionally set the Any time window's hours and limit in
   back-office; (7) walk `quickstart.md`.
 
-**084-customer-storefront-redesign — Customer Storefront Redesign.** 🚧 **BUILT; `storefront` AND `commerce`
+**084-customer-storefront-redesign - Customer Storefront Redesign.** 🚧 **BUILT; `storefront` AND `commerce`
 DEPLOYED TO DEV AND THE CATALOGUE SEED RUN (operator-reported, 2026-10-12). NOT WALKED, NOT SIGNED OFF.**
 The customer web storefront rebuilt to the "Effy Storefront Redesign" reference
 (`docs/reference-screens/Effy Storefront Redesign/`, indexed in
 [specs/084-customer-storefront-redesign/screen-index.md](specs/084-customer-storefront-redesign/screen-index.md));
 task state and every departure from the reference:
-[tasks.md](specs/084-customer-storefront-redesign/tasks.md). Customer web only — the consoles and the
+[tasks.md](specs/084-customer-storefront-redesign/tasks.md). Customer web only - the consoles and the
 mobile apps keep their identity.
 
 - **Its own identity, in one file**: `packages/design-system/src/storefront/tokens.css` (zinc greys, blue
@@ -975,31 +975,31 @@ mobile apps keep their identity.
 - ⚠ **THE STOREFRONT'S SESSION WAS RE-IMPLEMENTED.** Three `HttpOnly` cookies set only by its own server
   (`POST /api/session`), ONE read (`getSession`), ONE refresher (`proxy.ts`, now on every page and
   `/api`), sign-out revokes the refresh token. No Amplify on the server. **Why**: the adapter's token
-  check gave the pool's key download 1.5s and silently treated a slow one as "signed out" — measured
+  check gave the pool's key download 1.5s and silently treated a slow one as "signed out" - measured
   failing six times in six from the operator's machine.
 - ⚠ **A CATEGORY NOW MEANS ITSELF AND EVERYTHING UNDER IT** (`storefront/src/lib/category-tree.ts`): search,
   facets, home rails and category counts. Before, an aisle link matched only products filed in that
   exact category and top-level aisles opened onto empty pages. The mobile app's aisle pages change the
   same way.
-- **New route**: `GET /storefront/v1/suggestions` (shared gateway, 160/300) — phrases and products from the
+- **New route**: `GET /storefront/v1/suggestions` (shared gateway, 160/300) - phrases and products from the
   catalogue itself, never from other shoppers' searches. **Extended**: `GET /commerce/v1/orders` rows gain
   optional `stage`, `arrivalEstimates`, `deliveredAt`, `refundedTotal`, `fullyRefunded`, `thumbnails`,
   each derived by the receipt's own functions.
-- **Dev seed**: `db/seeds/084_storefront_catalogue_dev.sql` — eleven aisles, three levels, 86 products with
+- **Dev seed**: `db/seeds/084_storefront_catalogue_dev.sql` - eleven aisles, three levels, 86 products with
   no pictures in an existing shop; retires dev's old `food` / `grocery` top levels.
 - **Defects found while building**: (1) 084 dropped the Tailwind `@source` for the shared UI package, so
   the sign-in code boxes rendered collapsed; (2) password sign-in ignored Cognito's answer and navigated
   a still-signed-out customer away; (3) the search page named a category from the facet counts, so an
   aisle with nothing filed directly in it was titled "All products".
-- ⚠ **NOT DONE**: the payment step is restyled only — it is still the split card fields, not the Payment
+- ⚠ **NOT DONE**: the payment step is restyled only - it is still the split card fields, not the Payment
   Element the handoff describes (a money-path change). No "Emails from Effy" switches, no mobile-number
   verification (texted codes are held), no newsletter "unsubscribed" page, no receipt download.
 - ⚠ **THE LOGO IS NOW THE PLATFORM'S (operator, 2026-10-13).** The "effy." wordmark and its "e." icon
   (white letter, green square, near-black tile) replaced the bag mark on every surface `packages/brand`
   generates for: the three web apps' favicons and PWA icons, and the customer and shop mobile launcher
-  icons and splash (ground now `#09090b`). ONE colourway — the three per-surface colourways are gone, so
+  icons and splash (ground now `#09090b`). ONE colourway - the three per-surface colourways are gone, so
   the customer, shop and back-office icons are identical. Two authored vectors (`src/wordmark.svg`,
-  `src/logo.svg`); the logo as files (light / dark — white word, same green / icon) is generated into
+  `src/logo.svg`); the logo as files (light / dark - white word, same green / icon) is generated into
   `packages/brand/svg/`. The consoles' sidebar tile is the icon (`/icon.svg`), not a letter.
   ⚠ Android's `splash_background` (four `colors.xml`) is hand-maintained and must equal `SPLASH_GROUND`.
   **Not verified on a device**: the mobile icons and splash were regenerated and pass the package's
@@ -1007,32 +1007,32 @@ mobile apps keep their identity.
 - ⚠ **NOT VERIFIED**: signed-in pages were checked on previews with sample data, not with a real account;
   e2e was not run and its specs still describe the old structure; `next build` and the bundle budget
   were not re-run (five guest routes were over budget at last measure).
-- **Operator steps (dev)**: done — `make edge-deploy SERVICE=storefront`, `SERVICE=commerce`, the seed.
+- **Operator steps (dev)**: done - `make edge-deploy SERVICE=storefront`, `SERVICE=commerce`, the seed.
   Still open: walk screen-index.md; decide the icon question; the WAF rule on the customer pool
   (100 requests / 5 min / IP) against the storefront's egress, since the server now refreshes sessions.
 
-**083-delivery-model-cutover — Delivery Model Cutover.** ✅ **BOTH STAGES MIGRATED AND DEPLOYED TO DEV (operator-reported,
+**083-delivery-model-cutover - Delivery Model Cutover.** ✅ **BOTH STAGES MIGRATED AND DEPLOYED TO DEV (operator-reported,
 2026-10-10), MARKED COMPLETE BY THE OPERATOR. ⚠ Walks V1–V10 were not recorded.** Ninth and last slice of the delivery model v2 programme
 ([docs/prd/2026-10-delivery-model-v2-backlog.md](docs/prd/2026-10-delivery-model-v2-backlog.md), epic E9). Sign-off notes:
 [specs/083-delivery-model-cutover/SIGNOFF.md](specs/083-delivery-model-cutover/SIGNOFF.md). Runbook:
 [docs/runbooks/delivery-model-v2-cutover.md](docs/runbooks/delivery-model-v2-cutover.md). What the old model was:
 [docs/archive/delivery-model-v1.md](docs/archive/delivery-model-v1.md).
 
-- **Stage 1 — the switch.** Back-office → Delivery → **Go-live**: a readiness checklist, the moment (now or
+- **Stage 1 - the switch.** Back-office → Delivery → **Go-live**: a readiness checklist, the moment (now or
   scheduled; change, cancel, turn back off with a reason), who set it, and the old orders still open.
   ⚠ ONE writer of the switch (`admin/src/delivery/go-live.repository.ts`, admins only, audited); ONE
   "ready" (`goLiveReadiness`), asked by the page, the setter and a 5-minute sweep that clears a scheduled
   switch the platform is no longer ready for; ONE "old order still open" (`LEGACY_OPEN_ORDER_SQL`).
-- **Stage 2 — the removal.** One checkout: a serviced address answers Effy windows or a courier. The
+- **Stage 2 - the removal.** One checkout: a serviced address answers Effy windows or a courier. The
   method choice, the slot and day pickers, the same-day bridge, the per-package fee, the carrier lead time
   and the standard look-ahead are gone, in code and in the schema.
 - ⚠ **THE REMOVAL MIGRATION REFUSES** while an old-kind order is open, or on a database that took orders
-  and was never switched over — and runs on one with no orders (a new environment). **Not reversible.**
+  and was never switched over - and runs on one with no orders (a new environment). **Not reversible.**
 - ⚠ **`delivery_model_v2_at` ANSWERS TRUE FOR GOOD; no service asks it.** After the removal the go-live
   route refuses every change (409 `removed`).
 - ⚠ **THE QUOTE LOST FIELDS, SO THE CUSTOMER WEB AND APP GO OUT WITH `commerce`.** A build from before
   cannot read the new quote; checkout stops at delivery, uncharged. Shop and driver wire fields were
-  KEPT (`same_day_delivery`, `sameDayCount`, `standardCount`, `deliveryMethod`) — there is no app-update
+  KEPT (`same_day_delivery`, `sameDayCount`, `standardCount`, `deliveryMethod`) - there is no app-update
   mechanism.
 - ⚠ **`same_day` / `standard` ARE NOT LEGACY**: for an Effy order they are the customer's words (a window
   today / on a later day). `scripts/check-no-legacy-delivery.sh` fails the old path's identifiers only.
@@ -1048,9 +1048,9 @@ mobile apps keep their identity.
   the switch is on and no old order is open (or the orders are purged). Walks V7–V10 in
   [quickstart.md](specs/083-delivery-model-cutover/quickstart.md).
 
-**082-driver-operations-realignment — Driver Operations Realignment.** ✅ **SIGNED OFF BY THE OPERATOR (2026-10-09) —
+**082-driver-operations-realignment - Driver Operations Realignment.** ✅ **SIGNED OFF BY THE OPERATOR (2026-10-09) -
 DEPLOYED TO DEV. ⚠ Walks V1–V7 were not recorded. No migration.** Eighth slice of the delivery model v2 programme
-([docs/prd/2026-10-delivery-model-v2-backlog.md](docs/prd/2026-10-delivery-model-v2-backlog.md), epic E8) — the last
+([docs/prd/2026-10-delivery-model-v2-backlog.md](docs/prd/2026-10-delivery-model-v2-backlog.md), epic E8) - the last
 thing 078's model switch waited for. Sign-off notes:
 [specs/082-driver-operations-realignment/SIGNOFF.md](specs/082-driver-operations-realignment/SIGNOFF.md).
 
@@ -1061,27 +1061,27 @@ thing 078's model switch waited for. Sign-off notes:
   **Effy delivery (by day and window)** and **Courier**. Dispatch gets a day view.
 - ⚠ **Nothing reads `driver_zone_capability.method`** (`driver-method.guard.test.ts`); no rows were
   rewritten; the column goes at E9. A postcode in no group is cleared by any clearance for the function.
-- ⚠ **The driver wire is additive** — `effyGroups`, `deliveredBy`, `windowLabel`; `same_day_delivery`,
+- ⚠ **The driver wire is additive** - `effyGroups`, `deliveredBy`, `windowLabel`; `same_day_delivery`,
   `sameDayCount` and `standardCount` stay until E9 so the previous app keeps working.
-- ⚠ **Drivers and dispatch never read "same-day" / "standard"** — `scripts/check-driver-delivery-words.sh`.
+- ⚠ **Drivers and dispatch never read "same-day" / "standard"** - `scripts/check-driver-delivery-words.sh`.
 - **Known gap**: the orders list's "needs a driver" still lists a parcel ready at its supplier before it
   is due on a run (dispatch's list is right). See SIGNOFF.
 - **Operator steps (dev):** `make edge-deploy` for `fleet`, `driver`, `orders`; back-office build on push;
   a driver app release. No migration, no `apply`. **Leave the model switch NULL.** Walks V1–V7 in
   [quickstart.md](specs/082-driver-operations-realignment/quickstart.md).
 
-**081-courier-override-compensation — Back-Office Courier Override & Compensation.** ✅ **SIGNED OFF BY THE OPERATOR (2026-10-09) —
+**081-courier-override-compensation - Back-Office Courier Override & Compensation.** ✅ **SIGNED OFF BY THE OPERATOR (2026-10-09) -
 MIGRATED AND DEPLOYED TO DEV. ⚠ Walks V1–V7 were not recorded; rides 078's switch.** Seventh slice of the delivery model v2 programme
 ([docs/prd/2026-10-delivery-model-v2-backlog.md](docs/prd/2026-10-delivery-model-v2-backlog.md), epic E7).
 Sign-off notes: [specs/081-courier-override-compensation/SIGNOFF.md](specs/081-courier-override-compensation/SIGNOFF.md).
 Runbook: [docs/runbooks/courier-override.md](docs/runbooks/courier-override.md).
 
 - **What it is.** Admins/managers move a paid Effy order to courier in an emergency (**Send by courier…**),
-  choosing how the customer is made whole — points for the difference (default), free delivery as points
-  or to the card, the difference to the card (last resort), or nothing with a note — and back
+  choosing how the customer is made whole - points for the difference (default), free delivery as points
+  or to the card, the difference to the card (last resort), or nothing with a note - and back
   (**Deliver by Effy…**) before the courier has it. The customer is told by push and email; the order
   page lists every move for every role.
-- ⚠ **One transaction, one writer** — `@effy/edge-shared/delivery` `override.ts`; `delivery_override` is
+- ⚠ **One transaction, one writer** - `@effy/edge-shared/delivery` `override.ts`; `delivery_override` is
   append-only and written nowhere else (`override.guard.test.ts`). It writes through the one writers:
   `changeDeliveryType` (079), `setCourierRouting` (080), `removeAssignment` (073, moved to
   `delivery/driver-work.ts`), `points.credit` (074, `quiet`), `recordRefundIn` + `submitRecorded` (055).
@@ -1093,30 +1093,30 @@ Runbook: [docs/runbooks/courier-override.md](docs/runbooks/courier-override.md).
   **Leave the model switch NULL.** Walks V1–V7 in
   [quickstart.md](specs/081-courier-override-compensation/quickstart.md).
 
-**080-courier-fulfilment — Courier Fulfilment: via the hub or pickup from the supplier.** ✅ **SIGNED OFF BY THE OPERATOR (2026-10-09) —
+**080-courier-fulfilment - Courier Fulfilment: via the hub or pickup from the supplier.** ✅ **SIGNED OFF BY THE OPERATOR (2026-10-09) -
 MIGRATED AND DEPLOYED TO DEV. ⚠ Walks V1–V6 were not recorded; rides 078's switch.** Sixth slice of the delivery model v2 programme
 ([docs/prd/2026-10-delivery-model-v2-backlog.md](docs/prd/2026-10-delivery-model-v2-backlog.md), epic E6).
 Sign-off notes: [specs/080-courier-fulfilment/SIGNOFF.md](specs/080-courier-fulfilment/SIGNOFF.md).
 Runbook: [docs/runbooks/courier-handover.md](docs/runbooks/courier-handover.md).
 
-- **What it is.** Courier services (operator-entered, one default — its timeframe is what checkout
+- **What it is.** Courier services (operator-entered, one default - its timeframe is what checkout
   tells, and the order keeps it); a platform default + per-order switch for how parcels reach the
   courier (**via the hub** or **pickup from the supplier**); a **consignment** per parcel handed over
   (service, reference, tracking link, label, progress); a Courier tab in back-office; a supplier
   "Handed over to courier" on shop-web and shop-mobile; "Courier" at the driver's hub check-in; one
   tracking link (or "by email") for the customer, plus a push and an email per parcel.
-- ⚠ **One writer** — `@effy/edge-shared/delivery` `consignment.ts` writes consignments, their events,
+- ⚠ **One writer** - `@effy/edge-shared/delivery` `consignment.ts` writes consignments, their events,
   `carrier_handoff` and the mode; "delivered" writes 053's `package_arrival` through it. The consignment
   sits BESIDE the handoff and arrival rather than replacing them, so status and completion are unchanged.
 - ⚠ **A supplier-pickup parcel is excluded from the collection gather** through one SQL fragment; the
   shop console and the planner cannot disagree about whose it is to hand over.
 - ⚠ **Nothing is seeded.** Courier delivery cannot be switched on until an active default service exists.
 - **Deviations** (recorded in the backlog and SIGNOFF): a mode switch to supplier is refused while a
-  driver is assigned (unassign first); "Courier problem" is an OPEN problem only — overdue with the
+  driver is assigned (unassign first); "Courier problem" is an OPEN problem only - overdue with the
   courier is "Late" on the Courier tab; the customer notification opens the orders list (its entity is
   the consignment).
 - **Defects found while building:**
-  - ⚠ customer-mobile stopped compiling after the contract regeneration — quicktype renamed `Kind` →
+  - ⚠ customer-mobile stopped compiling after the contract regeneration - quicktype renamed `Kind` →
     `TargetKind` once a second `kind` enum appeared. Compile the customer app after every
     `make cm-contract-gen`.
   - The handover first queued a PUSH only (`appendNotification`); the per-parcel EMAIL the order page
@@ -1129,8 +1129,8 @@ Runbook: [docs/runbooks/courier-handover.md](docs/runbooks/courier-handover.md).
   **Leave the model switch NULL.** Walks V1–V6 in
   [quickstart.md](specs/080-courier-fulfilment/quickstart.md).
 
-**079-effy-vs-courier-checkout — Checkout & Orders: Delivered by Effy vs Courier delivery.** ⚠ **BUILT, MIGRATED AND
-DEPLOYED TO DEV (2026-10-09, operator-reported). NOT WALKED, NOT SIGNED OFF — and it rides 078's switch,
+**079-effy-vs-courier-checkout - Checkout & Orders: Delivered by Effy vs Courier delivery.** ⚠ **BUILT, MIGRATED AND
+DEPLOYED TO DEV (2026-10-09, operator-reported). NOT WALKED, NOT SIGNED OFF - and it rides 078's switch,
 so nothing a customer sees changes until the cutover.** Fifth slice of the delivery model v2 programme
 ([docs/prd/2026-10-delivery-model-v2-backlog.md](docs/prd/2026-10-delivery-model-v2-backlog.md), epic E5).
 Sign-off notes: [specs/079-effy-vs-courier-checkout/SIGNOFF.md](specs/079-effy-vs-courier-checkout/SIGNOFF.md).
@@ -1159,72 +1159,72 @@ Sign-off notes: [specs/079-effy-vs-courier-checkout/SIGNOFF.md](specs/079-effy-v
   - ⚠ **`shop/src/attention/repository.ts` `recipientsForShop` names columns that do not exist**
     (`shop_staff_role.shop_staff_id` / `shop_role_id`, `shop_role.id` / `name`; the schema has
     `staff_id` / `role_key` and `shop_role.key`). Its container test has been red since before 078.
-    **NOT fixed here** — it changes who is sent shop notifications, and is the operator's call.
+    **NOT fixed here** - it changes who is sent shop notifications, and is the operator's call.
   - `orders/service.ts` counted an Effy later-day package as "awaiting handover" on the order page (it
-    had missed 078's rule) — fixed by the one function.
+    had missed 078's rule) - fixed by the one function.
   - `shop/orders` paging test expected oldest-first after the default became newest-first (2026-09-19)
-    — test fixed.
-- **Operator steps (dev):** `make db-up ENV=dev` (one additive migration — safe first), then
+    - test fixed.
+- **Operator steps (dev):** `make db-up ENV=dev` (one additive migration - safe first), then
   `make edge-deploy` for `notifications`, `commerce`, `storefront`, `orders`, `shop`, `admin`; web builds
   on push; customer and shop mobile builds. **Leave the model switch NULL.** Walks V1–V11 in
   [quickstart.md](specs/079-effy-vs-courier-checkout/quickstart.md).
 
-**078-effy-delivery-windows — Effy Delivery Windows: today and the next delivery days.** ✅ **SIGNED OFF BY THE
-OPERATOR (2026-10-09) — MIGRATED AND DEPLOYED TO DEV. ⚠ Walks V1–V10 were not recorded — AND IT IS
+**078-effy-delivery-windows - Effy Delivery Windows: today and the next delivery days.** ✅ **SIGNED OFF BY THE
+OPERATOR (2026-10-09) - MIGRATED AND DEPLOYED TO DEV. ⚠ Walks V1–V10 were not recorded - AND IT IS
 STILL SWITCHED OFF.** Fourth
 slice of the delivery model v2 programme
 ([docs/prd/2026-10-delivery-model-v2-backlog.md](docs/prd/2026-10-delivery-model-v2-backlog.md), epic E4).
 Sign-off: [specs/078-effy-delivery-windows/SIGNOFF.md](specs/078-effy-delivery-windows/SIGNOFF.md).
-- **What it is**: the customer picks ONE window for the order — today's under "Same-day delivery"
+- **What it is**: the customer picks ONE window for the order - today's under "Same-day delivery"
   (cutoff not passed, room left, a collection run can still reach the hub), or one on the next three
   delivery days under "Standard delivery" (room that day; non-delivery days skipped and not counted).
   Each window has its own room on each day. Back-office sees how full each window is, day by day, and
   sets how many days are offered.
 - ⚠ **OPERATOR DECISIONS (2026-10-08)**: the customer words **"Same-day delivery" / "Standard
-  delivery" stay** — "standard" changes meaning to *Effy, on a later day, in a window* (supersedes the
+  delivery" stay** - "standard" changes meaning to *Effy, on a later day, in a window* (supersedes the
   backlog's "the old names disappear"); and it is **built off, switched on at the cutover**.
 - ⚠ **THE SWITCH IS `delivery_settings.delivery_model_v2_from`, AND NOTHING SETS IT.** One SQL
   function reads it (`delivery_model_v2_at`), one TypeScript function calls that (`deliveryModelV2At`),
-  and only the quote calls that — `windows.guard.test.ts`. E9 adds the setter behind its checklist.
+  and only the quote calls that - `windows.guard.test.ts`. E9 adds the setter behind its checklist.
   ⚠ Until E8 the planner gathers `same_day` only: a later-day order would get no driver round.
 - ⚠ **RELEASING IT CHANGES NOTHING A CUSTOMER IS OFFERED.** With the switch off the quote is byte for
-  byte the 077 quote (`effyWindows` is ABSENT, not null — the three existing byte-for-byte wire tests
+  byte the 077 quote (`effyWindows` is ABSENT, not null - the three existing byte-for-byte wire tests
   pass unchanged) and a `deliveryWindow` sent anyway is ignored.
 - ⚠ **ONE CUSTOMER-VISIBLE CHANGE SHIPS REGARDLESS OF THE SWITCH**: an order's arrivals are said once
   per DISTINCT promise (`distinctArrivals`). Before, the order page listed one arrival per supplier
-  package and the receipt said "Multiple deliveries" for any multi-supplier order — telling the
+  package and the receipt said "Multiple deliveries" for any multi-supplier order - telling the
   customer how many suppliers filled it. An order split across today and a later day still shows two.
-- ⚠ **CAPACITY NEEDED NO SCHEMA CHANGE** — `delivery_slot_booking` / `delivery_slot_load` have been
+- ⚠ **CAPACITY NEEDED NO SCHEMA CHANGE** - `delivery_slot_booking` / `delivery_slot_load` have been
   per `(slot, date)` since 069; every CALLER asked about today. The one migration adds the switch,
   `effy_lookahead_days`, the function, and relaxes `order_package_delivery_window_ck` (a window on
   either method). Additive; safe before the deploy.
 - ⚠ **A `standard` PACKAGE WITH A WINDOW IS EFFY'S.** Carrier handover refuses it (`not_carrier`); the
   handover list, the orders list's "needs handover" badge and filter, the back-office order action
   and the on-time check all read the window. E5's `order.delivery_type` turns the convention into a column.
-- ⚠ **ONE WINDOW RULE** — `judgeWindow(now, date, …)`; 069's `judgeSlot` is it for today. ⚠ The new
+- ⚠ **ONE WINDOW RULE** - `judgeWindow(now, date, …)`; 069's `judgeSlot` is it for today. ⚠ The new
   path does NOT ask the per-shop same-day bridge: one window for the whole order, never a split.
-- **Routes**: none added (shared 158, staff 146 — unchanged). Quote gains `effyWindows`; intent
+- **Routes**: none added (shared 158, staff 146 - unchanged). Quote gains `effyWindows`; intent
   `deliveryWindow` and refusal `no_windows_available`; fleet `GET delivery-slots` gains `days[]` and
   per-slot `load[]`; `delivery-days` gains `effyLookaheadDays`. No new live kind. One alarm
-  (`EffyWindowsNoneDefined`, emitted on the quote READ — a shopper shown "no windows" never reaches the intent).
+  (`EffyWindowsNoneDefined`, emitted on the quote READ - a shopper shown "no windows" never reaches the intent).
 - **Defects I made and the checks that caught them**: (1) `effyWindows: null` on the off path broke
-  three byte-for-byte wire tests — they were right; the field is now absent; (2) my first cutoff proof
-  did not prove the cutoff (the collection test closed the same windows) — found by breaking it, fixed
+  three byte-for-byte wire tests - they were right; the field is now absent; (2) my first cutoff proof
+  did not prove the cutoff (the collection test closed the same windows) - found by breaking it, fixed
   with a window only the cutoff can close; (3) a wrong insert into `shop_sameday_exception` hidden by a
   `.catch` meant the "never splits" test proved nothing until the fixture was fixed and the proof
   broken once; (4) the analysis found the back-office order screen and I then found the orders LIST
   both still called a windowed package "needs handover".
-- ⚠ **NOT MINE, STILL RED**: two `shop` container tests fail with and without this feature —
+- ⚠ **NOT MINE, STILL RED**: two `shop` container tests fail with and without this feature -
   `attention/repository` (`column "id" does not exist`) and `orders/repository` (paging order).
 - **Still open**: confirm `make apply ENV=dev` (one alarm), the back-office + customer-web builds and a
   customer mobile build. Walks V1–V4 with the switch off; V5–V10 only with it turned on by hand in dev
   and **turned off again**.
 
-**077-delivery-fee-engine-v2 — Delivery Fee Engine v2.** ✅ **MIGRATED AND DEPLOYED TO DEV
-(2026-10-08, reported by the operator). ⚠ NOT WALKED BY A PERSON — V1–V17 remain.** Third slice of the delivery model v2 programme
+**077-delivery-fee-engine-v2 - Delivery Fee Engine v2.** ✅ **MIGRATED AND DEPLOYED TO DEV
+(2026-10-08, reported by the operator). ⚠ NOT WALKED BY A PERSON - V1–V17 remain.** Third slice of the delivery model v2 programme
 ([docs/prd/2026-10-delivery-model-v2-backlog.md](docs/prd/2026-10-delivery-model-v2-backlog.md), epic E3).
 Sign-off: [specs/077-delivery-fee-engine-v2/SIGNOFF.md](specs/077-delivery-fee-engine-v2/SIGNOFF.md).
-- **What it is**: ONE delivery fee per ORDER — base + distance band + weight band + window surcharge,
+- **What it is**: ONE delivery fee per ORDER - base + distance band + weight band + window surcharge,
   rounded up, clamped; $0 at the free-delivery amount (surcharge included); a small-order fee below its
   amount, outside the maximum. A courier fee table (kind `courier`). Back-office → Delivery → **Pricing**
   (plans, editor, activation, simulator) replaces "Fee plans"; every order since 077 shows "How the
@@ -1232,13 +1232,13 @@ Sign-off: [specs/077-delivery-fee-engine-v2/SIGNOFF.md](specs/077-delivery-fee-e
 - ⚠ **ONE FEE PER ORDER, NEVER PER SHOP** (operator, 2026-10-08): Effy collects to the hub, so the order
   comes from one place. `order_package_delivery.delivery_fee_amount` and `shop_fulfillment`'s are
   written NULL from 077 (dropped at E9). Multi-shop baskets got cheaper.
-- ⚠ **SAME-DAY IS A FIXED SURCHARGE, NOT A MULTIPLIER** — `delivery_fee_plan.today_premium_amount`.
+- ⚠ **SAME-DAY IS A FIXED SURCHARGE, NOT A MULTIPLIER** - `delivery_fee_plan.today_premium_amount`.
   The migration ASKS for it (`EFFY_TODAY_PREMIUM`, via `-- +goose ENVSUB ON`) and raises without it;
   it also raises if the active plan's `standard_factor` ≠ 1 (a per-band copy could not reproduce it).
 - ⚠ **TWO MIGRATIONS AND A NEW MAKE TARGET.** `…_delivery_fee_engine_v2` is additive (the running
   checkout still reads tier prices); `…_drop_delivery_rings` drops the tiers AFTER the deploy.
-  `make db-up-one` applies one migration — **never `make db-up` for the first step.**
-- ⚠ **ONE SUM** — `effyFee` / `courierFee` in `shared/src/delivery/engine.ts`. `fee.guard.test.ts`
+  `make db-up-one` applies one migration - **never `make db-up` for the first step.**
+- ⚠ **ONE SUM** - `effyFee` / `courierFee` in `shared/src/delivery/engine.ts`. `fee.guard.test.ts`
   P22 fails any other file that adds fee parts; P21 fails any reader of a tier or a multiplier; P20
   fails a customer DTO with a distance/band/weight/plan or a shop DTO with delivery money.
 - ⚠ **CHARGED = SHOWN**: the intent takes `shownDeliveryAmount`; a different total is 409
@@ -1248,39 +1248,39 @@ Sign-off: [specs/077-delivery-fee-engine-v2/SIGNOFF.md](specs/077-delivery-fee-e
 - ⚠ **The order stores its breakdown** (`"order".delivery_fee_breakdown` jsonb). A customer or shop route
   may select `->'lines'` only; the rest (plan, km, grams) is staff-only.
 - ⚠ **ACTIVATION IS ONE SQL FUNCTION** (`delivery_plan_activate`: advisory lock, gaps, deactivate THEN
-  activate — a single swapping UPDATE trips the partial unique index on row order). Gaps come from
+  activate - a single swapping UPDATE trips the partial unique index on row order). Gaps come from
   `delivery_plan_gaps`; VALUE errors are 422 fields from the service. A retired plan is never
   re-activated; an activated one is never edited (service, row lock).
-- **Defects I made and the checks that caught them**: (1) an immutability TRIGGER on the plan tables —
+- **Defects I made and the checks that caught them**: (1) an immutability TRIGGER on the plan tables -
   `shop/src/db/triggers.guard.test.ts` (058 R6: triggers only mark analytics buckets) refused it; moved
   to the service; (2) the dev seed broke twice (tiers; and 076's SET NULL left postcodes behind so a
-  second run hit a duplicate) — found by running it twice through real goose; (3) a simulator
-  expectation of a $5 surcharge line where the $4 minimum meant the window added $4 — the engine was
+  second run hit a duplicate) - found by running it twice through real goose; (3) a simulator
+  expectation of a $5 surcharge line where the $4 minimum meant the window added $4 - the engine was
   right; (4) back-office live-routes test needed `pricing`.
 - **Routes**: `admin` +2 (PUT plan, POST simulate), −1 (rings) → staff 146 / 300. No new customer
   route: serviceability gained `offer`, the quote `standardFee` / per-slot `fee` + `surchargeAmount` /
   `freeDeliveryRemainingAmount`, the intent `shownDeliveryAmount` / `deliveryFee`, the order `deliveryFee`.
   Shop order DTO lost `deliveryFee`. Live kind `pricing` (ops).
-- ⚠ **Found while deploying — `coverage/` in a `.gitignore` hid SOURCE**: the back-office Amplify build
+- ⚠ **Found while deploying - `coverage/` in a `.gitignore` hid SOURCE**: the back-office Amplify build
   failed (`Cannot find module './coverage/CoveragePanel'`) because `apps/back-office/.gitignore` had
   ignored 076's `src/features/delivery/coverage/` since 076; `apis/edge-api/fleet/.gitignore` hid
   `fleet/src/coverage/` the same way. Both now `/coverage/`. ⚠ Name a source folder `coverage` and an
-  unanchored ignore rule will hide it — `git status --ignored` shows it.
+  unanchored ignore rule will hide it - `git status --ignored` shows it.
 - **Still open**: walks V1–V17; customer-mobile build. Open product call: should shops see the
   customer's order total at all?
 
-**076-effy-delivery-coverage — Effy Delivery Coverage.** ✅ **MIGRATED AND DEPLOYED TO DEV,
-CHECKED LIVE BY MACHINE (2026-10-08). ⚠ NOT WALKED BY A PERSON — V1–V12 remain.** Second slice of the delivery model v2
+**076-effy-delivery-coverage - Effy Delivery Coverage.** ✅ **MIGRATED AND DEPLOYED TO DEV,
+CHECKED LIVE BY MACHINE (2026-10-08). ⚠ NOT WALKED BY A PERSON - V1–V12 remain.** Second slice of the delivery model v2
 programme ([docs/prd/2026-10-delivery-model-v2-backlog.md](docs/prd/2026-10-delivery-model-v2-backlog.md),
 epic E2). Sign-off: [specs/076-effy-delivery-coverage/SIGNOFF.md](specs/076-effy-delivery-coverage/SIGNOFF.md).
-- **What it is**: one flat list of postcodes Effy delivers to, and one answer per address —
+- **What it is**: one flat list of postcodes Effy delivers to, and one answer per address -
   *Delivered by Effy* / *Courier delivery* / cannot deliver. Back-office → Delivery → **Coverage**
   replaces the Zones and Rings tabs. Customers see who delivers beside each saved address.
 - ⚠ **THE TABLES WERE EVOLVED IN PLACE, NOT COPIED.** `delivery_zone_postcode` IS the list (it already
   held each postcode once); `delivery_zone` IS an optional group. The backlog sketched new
   `effy_coverage_*` tables; a copy would have been a second answer to "does Effy deliver here?" while
   the live checkout, fee and planner still read the old one. Names change at E9.
-- ⚠ **ONE FUNCTION DECIDES** — `public.coverage_for_postcode` (kind + a staff-only reason), read through
+- ⚠ **ONE FUNCTION DECIDES** - `public.coverage_for_postcode` (kind + a staff-only reason), read through
   `coverageForPostcode`. Never stored against an address; the address book calls it inside the row read.
   `coverage.guard.test.ts` (P12) lists the five files that may touch the list's table at all.
 - ⚠ **`ON DELETE CASCADE` → `SET NULL`.** Until 076, deleting a zone deleted every postcode in it.
@@ -1289,14 +1289,14 @@ epic E2). Sign-off: [specs/076-effy-delivery-coverage/SIGNOFF.md](specs/076-effy
 - ⚠ **THREE FROZEN BRIDGES** in `zoneForPostcode`, each a `COALESCE`, each deleted by a later epic:
   fee tier = the pre-076 group's `ring_id`, else `coverage_ring_for_km(distance)` (**E3**); same-day =
   the pre-076 group's flag, else true (**E5**); driver clearances keyed on the group (**E8**).
-  Nobody's fee or same-day offer moved at release — proofs P1 and P7, written before the code.
+  Nobody's fee or same-day offer moved at release - proofs P1 and P7, written before the code.
 - ⚠ **AN UNGROUPED POSTCODE IS DELIVERABLE ONLY BY AN EVERY-ZONE DRIVER** until E8. The console shows
   "N drivers can deliver here" per group and asks (409 `no_driver_covers`, confirm to proceed) before
   leaving postcodes with none. A later change on the Drivers screen can still cause it.
 - ⚠ **COURIER DELIVERY CANNOT BE SWITCHED ON**: `COURIER_ORDERING_AVAILABLE = false` in
   `@effy/edge-shared/delivery`; the admin route refuses, the storefront maps a courier answer to none,
   and the quote throws `CourierNotPurchasableError`. **E5 flips the constant.**
-- ⚠ **ONE REFUSAL SENTENCE** — `COVERAGE_REFUSAL_SENTENCE` ("Sorry, we can't deliver to this address.")
+- ⚠ **ONE REFUSAL SENTENCE** - `COVERAGE_REFUSAL_SENTENCE` ("Sorry, we can't deliver to this address.")
   in `packages/shared-types/src/delivery.ts`; code `address_not_covered`, **422** (was a 400 with its
   own words). The app's `CoverageWords.kt` is a mirror held by `coverage-words.test.ts`.
 - **Distance lives in SQL** (`haversine_km`, `coverage_computed_distance_km`): stored per postcode as
@@ -1306,10 +1306,10 @@ epic E2). Sign-off: [specs/076-effy-delivery-coverage/SIGNOFF.md](specs/076-effy
   distance raises, naming it. It also **removes postcodes of DISABLED zones** (not served today) and
   prints them. ⚠ `sameday_eligible` now defaults to **true**.
 - **Defects I made and the checks that caught them**: (1) the script that removed eleven function
-  blocks from `admin/serverless.yml` also deleted its whole `resources:` section — four alarms —
+  blocks from `admin/serverless.yml` also deleted its whole `resources:` section - four alarms -
   caught by `background-alarms.contract.test.ts`; (2) the hub-move test could not fail (its only
-  hand-entered distance had no location to recalculate from) — found by breaking it; (3) a fleet
-  fixture had to name `distance_km`, which `no-location.guard.test.ts` forbids in that service —
+  hand-entered distance had no location to recalculate from) - found by breaking it; (3) a fleet
+  fixture had to name `distance_km`, which `no-location.guard.test.ts` forbids in that service -
   fixed with `LISTED_POSTCODE_FIXTURE_SQL` in the shared test support rather than by weakening the guard.
 - **Routes**: `admin` −11 +12 (staff gateway 145 / 300). No customer route added: `serviceability`,
   the address routes and the quote each gained a `coverage` field. Serviceability's public cache went
@@ -1318,26 +1318,26 @@ epic E2). Sign-off: [specs/076-effy-delivery-coverage/SIGNOFF.md](specs/076-effy
   `customer`, then `admin` with the back-office build close behind (the old Zones tab calls removed
   routes); `make apply` for the live kind; customer-web and customer-mobile builds; walks V1–V12.
   ⚠ Between the migration and the `admin` deploy, the OLD console's "Add postcode" fails (it sends no
-  distance) — do not edit zones in that window.
+  distance) - do not edit zones in that window.
 
-**075-staff-gateway — A Second Front Door for Back-Office.** ✅ **MOVED IN DEV AND CLEANED UP
+**075-staff-gateway - A Second Front Door for Back-Office.** ✅ **MOVED IN DEV AND CLEANED UP
 (2026-10-08).** Shared gateway 158 / 300 (53%), staff 144 / 300 (48%), read from the live environment.
 Walks W1 and W4–W7 are the operator's and not yet reported. Sign-off:
 [specs/075-staff-gateway/SIGNOFF.md](specs/075-staff-gateway/SIGNOFF.md).
-- **Why**: an HTTP API holds at most 300 routes and **300 integrations — a limit the provider does not
-  raise** — and the framework creates one integration per function. 074's deploy was refused at
+- **Why**: an HTTP API holds at most 300 routes and **300 integrations - a limit the provider does not
+  raise** - and the framework creates one integration per function. 074's deploy was refused at
   300 / 300 and completed only by merging two routes. Nothing had been counting.
 - **What it is**: back-office gets its own gateway (`staff-api.<zone>`). `admin`, `fleet`, `orders`,
   `catalog` and a new `inventory-staff` stack attach to it; customers, shops and drivers stay on the
   shared one. Shared drops to 158 (53%), staff holds 144 (48%). Constitution **v3.2.0**.
-- ⚠ **`inventory` is TWO stacks from ONE directory** (`serverless.yml`, `serverless.staff.yml`) — a
+- ⚠ **`inventory` is TWO stacks from ONE directory** (`serverless.yml`, `serverless.staff.yml`) - a
   stack attaches to one gateway. Deployed as `SERVICE=inventory` / `SERVICE=inventory-staff`. Anything
   that needs "every stack" uses `listStacks()` (`shared/src/lib/serverless-stacks.ts`); two guards
   that read `<dir>/serverless.yml` were corrected.
 - ⚠ **The audience boundary is now per gateway**: the staff gateway has exactly one authorizer, the
-  shared one none for back-office (after the move). Held by `gateway-placement.contract.test.ts` —
+  shared one none for back-office (after the move). Held by `gateway-placement.contract.test.ts` -
   a new stack must be added to its placement table or the test fails.
-- **How it was moved without an outage** (history — the machinery is removed): a
+- **How it was moved without an outage** (history - the machinery is removed): a
   `staff_gateway_cutover` variable stepped `prepare → forward → website → complete`, with five
   temporary `ANY /<prefix>/{proxy+}` routes on the shared gateway forwarding to the staff one, so
   stacks moved one at a time while the website kept its old address. `catalog` went first to free
@@ -1353,7 +1353,7 @@ Walks W1 and W4–W7 are the operator's and not yet reported. Sign-off:
   W1, W4–W7 (back-office unchanged, live updates, cross-audience 401s, one refund and one
   cancellation, the usage metric and an alarm).
 
-**074-customer-points — Customer Points (store credit).** 🚧 **CODE-COMPLETE AND MACHINE-VERIFIED. NOT
+**074-customer-points - Customer Points (store credit).** 🚧 **CODE-COMPLETE AND MACHINE-VERIFIED. NOT
 DEPLOYED, NOT COMMITTED, NOT WALKED (2026-10-08).** First slice of the delivery model v2 programme
 ([docs/prd/2026-10-delivery-model-v2-backlog.md](docs/prd/2026-10-delivery-model-v2-backlog.md), epic
 E1); spec 080 (courier override compensation) is its first automatic creditor. Sign-off:
@@ -1365,7 +1365,7 @@ E1); spec 080 (courier override compensation) is its first automatic creditor. S
   (`points-append-only.guard.test.ts`); the shopper role has UPDATE/DELETE revoked on both tables.
 - ⚠ **POINTS ARE A WAY OF PAYING, NOT A DISCOUNT.** `order.grand_total_amount` is unchanged;
   `payment.amount` is now the **CARD** amount (total − points). Anything that read `payment.amount` as
-  "what the order cost" must add `order.points_value_amount` — the refund ceiling was the one place,
+  "what the order cost" must add `order.points_value_amount` - the refund ceiling was the one place,
   and it does.
 - **Checkout**: points are HELD at the intent call (`points_hold`, 069's slot pattern) and SPENT inside
   `finalizeSucceeded`. A late payer whose hold lapsed spends what is left; the gap is recorded on the
@@ -1374,7 +1374,7 @@ E1); spec 080 (courier override compensation) is its first automatic creditor. S
 - **Refunds**: split by CUMULATIVE proportion (`splitRefund`), so partial refunds end at exactly the
   points spent and the card paid. Only the card part reaches the provider; points return when the
   card part is accepted, once, whichever of submission / webhook / reconciler gets there first.
-- ⚠ **A SHOP COULD HAVE LEARNED AN ORDER WAS PAID WITH POINTS** — the shared refund result gained the
+- ⚠ **A SHOP COULD HAVE LEARNED AN ORDER WAS PAID WITH POINTS** - the shared refund result gained the
   split and the shop-manager route returned it whole. Found by writing the isolation test; fixed with
   `withoutPaymentSplit`, pinned by `shop/src/points-isolation.contract.test.ts`.
 - ⚠ **A POINTS-ONLY CHECKOUT COULD LEAVE A PAYABLE CARD INTENT BEHIND.** The gateway gained
@@ -1389,12 +1389,12 @@ E1); spec 080 (courier override compensation) is its first automatic creditor. S
   `customer` was refused by AWS at 299 + 2. The two customer points routes were merged into one
   (`GET /customer/v1/points` returns balance + a history page). **No route can be added to this
   gateway now**; the route limit is adjustable, the integration limit is not. The operator agreed
-  (2026-10-08) to a second gateway — that work precedes 075.
-- **New back-office screen**: Customers (search by order number or email — deliberately no browsable
+  (2026-10-08) to a second gateway - that work precedes 075.
+- **New back-office screen**: Customers (search by order number or email - deliberately no browsable
   register), with credit / remove / history / settings.
 - **Not built, recorded**: customer push deep links (the app routes no push tap at all); a points line
   in the refund email (nothing sends `order-refunded`); forfeiture's caller (the erasure worker does
-  not exist — candidates register item 3).
+  not exist - candidates register item 3).
 - **Verified**: typecheck clean; shared 638, commerce 295, customer 220, orders 95 (all with real
   databases), back-office 297, customer-web 613, three mobile apps + an iOS compile; 8 proofs broken
   once and caught. The two shop failures recorded under 073 are unchanged.
@@ -1404,11 +1404,11 @@ E1); spec 080 (courier override compensation) is its first automatic creditor. S
   **together**, then `customer`; `terraform apply` (live kind, 4 alarms); web pipelines; mobile build.
   Legal review of the points terms (promotions-terms v2). Walk V1–V7.
 
-**073-order-dispatch-control — Simple Order Status & Driver Assignment in Orders.** 🚧 **CODE-COMPLETE
+**073-order-dispatch-control - Simple Order Status & Driver Assignment in Orders.** 🚧 **CODE-COMPLETE
 AND MACHINE-VERIFIED. NOT DEPLOYED, NOT COMMITTED, NOT WALKED (2026-10-07).** Simplified mid-plan on
 operator direction ("simpler is better"). Sign-off:
 [specs/073-order-dispatch-control/SIGNOFF.md](specs/073-order-dispatch-control/SIGNOFF.md).
-- ⚠ **THE DEFECT: STATUS WAS GUESSED FROM THE SHOP'S STATUS ALONE.** Checked against live dev data — the
+- ⚠ **THE DEFECT: STATUS WAS GUESSED FROM THE SHOP'S STATUS ALONE.** Checked against live dev data - the
   records were right. Back-office said "At hub" (standard) / "Out for delivery" (same-day) the moment a
   driver picked a package up; hub check-in changed nothing anywhere; the shop console stopped at
   "Collected"; hub check-in told no shop. Now ONE derived status in nine words
@@ -1416,31 +1416,31 @@ operator direction ("simpler is better"). Sign-off:
   shown by one `PackageStatusPill`; four app-local label maps deleted; `package-status.guard.test.ts`
   keeps them out. Hub check-in, drop started/failed and not-collected now announce to the shops.
 - **Who has it**: Driver column + "Needs a driver" filter; each package shows Collect / Deliver lines
-  with a one-line "how" (`round_package.assigned_note`, written once — by the planner in plain words,
+  with a one-line "how" (`round_package.assigned_note`, written once - by the planner in plain words,
   or "Assigned by Ann").
 - **Manual**: "Assign to…" (also the way to move) and "Unassign", with drivers grouped Fine / Concern
-  (not cleared for the area, may run late — a person may accept) / Can't take it (refused by the
-  server). Built on the planner's own gather, rule and `commitWave` — no second placement path. Every
+  (not cleared for the area, may run late - a person may accept) / Can't take it (refused by the
+  server). Built on the planner's own gather, rule and `commitWave` - no second placement path. Every
   action ends with a one-line toast.
 - **Removed**: the round lock (since 072 the planner never moves assigned work), the planning-passes
   list, the Dispatch nav item (now Orders → Assignments; old links redirect), the word "wave".
 - **Verified**: typecheck clean; edge-shared 586, fleet 288, driver 177, back-office 294, shop-web 450,
-  shared-types 71 — all with real-database tests; 8 negative proofs + the guard each broken once.
+  shared-types 71 - all with real-database tests; 8 negative proofs + the guard each broken once.
   **Three failures pre-date 073** and fail without its changes: orders `recordArrival` concurrency
   (intermittent), shop "pages with a total order", shop attention "resolves recipients" (`column "id"
   does not exist`).
 - **⚠ Open**: `make db-up` (additive); deploy `fleet`, `orders`, `shop`, `driver` (any order); back-office
-  and shop-web. `driver_round.locked_by_sub` is now unused — drop it in a later migration. Walk V1 first.
+  and shop-web. `driver_round.locked_by_sub` is now unused - drop it in a later migration. Walk V1 first.
 
-**072-immediate-driver-assignment — Immediate Driver Work Assignment.** 🚧 **CODE-COMPLETE AND
+**072-immediate-driver-assignment - Immediate Driver Work Assignment.** 🚧 **CODE-COMPLETE AND
 MACHINE-VERIFIED across the migration, both edge services, the driver app, the console and the
 infrastructure. NOT DEPLOYED, NOT COMMITTED, NOT WALKED BY A PERSON (2026-10-07).** Sign-off:
 [specs/072-immediate-driver-assignment/SIGNOFF.md](specs/072-immediate-driver-assignment/SIGNOFF.md).
 - **What changed**: every 5-minute pass now assigns every package a driver can take, however far off
-  its run or window. First come, first served — nothing rebalances. A round OPENS at its run time (or
+  its run or window. First come, first served - nothing rebalances. A round OPENS at its run time (or
   window start) less `planning_lead_min`; before then it is readable in full and every progressing
   driver route answers **409 `round_not_open`** (`driver/src/work/open.ts`, guarded by
-  `open.guard.test.ts`). The opening time is **derived, never stored** — `public.round_opens_at` is the
+  `open.guard.test.ts`). The opening time is **derived, never stored** - `public.round_opens_at` is the
   only definition. Packages accumulate in one not-yet-begun round per driver per run/window.
 - ⚠ **063 FR-035 WAS NEVER BUILT.** Going off duty returned no work to the pool; tasks T105/T125 were
   ticked. Harmless while rounds lived 45 minutes; fatal with early assignment. Now the first step of
@@ -1449,13 +1449,13 @@ infrastructure. NOT DEPLOYED, NOT COMMITTED, NOT WALKED BY A PERSON (2026-10-07)
 - ⚠ **THE GATHER WEIGHED A LINE ONCE PER PRODUCT ATTRIBUTE.** It joined every attribute value to find
   `storage`, so a product with five attributes counted five times toward the capacity gate. Unseen
   because no fixture had order lines. Now a lateral per line.
-- ⚠ **A DELIVERED PACKAGE WAS RE-GATHERED FOR DELIVERY** — its collection row stays `picked_up` and its
+- ⚠ **A DELIVERED PACKAGE WAS RE-GATHERED FOR DELIVERY** - its collection row stays `picked_up` and its
   delivery row is `delivered`, not `assigned`, so the `NOT EXISTS` passed. Masked by the planning
   window; the gather now requires `sf.status = 'collected'`.
-- ⚠ **REASSIGN CHECKED A FICTIONAL ROUND** — hard-coded no refrigeration, 8 h, 12 min/stop, first zone
+- ⚠ **REASSIGN CHECKED A FICTIONAL ROUND** - hard-coded no refrigeration, 8 h, 12 min/stop, first zone
   only. A dispatcher could put chilled goods in a van that cannot carry them. Now the round's real
   needs, per zone.
-- ⚠ **`nextRunInstant` FIRST USED `now + 24h` FOR TOMORROW** — on the 23-hour DST day that skips a whole
+- ⚠ **`nextRunInstant` FIRST USED `now + 24h` FOR TOMORROW** - on the 23-hour DST day that skips a whole
   day. Found by its own DST fixture; uses the next local date. The deleted `nextPlanningTime` had the
   same shape.
 - **Alarms**: `DispatchWaveAssignedNothing` and the persistent-unassigned alarm would fire every night
@@ -1466,37 +1466,37 @@ infrastructure. NOT DEPLOYED, NOT COMMITTED, NOT WALKED BY A PERSON (2026-10-07)
   edge-driver **174** (incl. container) · back-office **294** · driver-mobile `testAndroidHostTest`
   **71** + iOS main/test compile · `check-no-refresh-timers` OK · `terraform validate`/`fmt`. **Every
   container proof C1–C16 plus the guard and the two found defects was broken once and failed.**
-- **⚠ Open**: ⚠ **deploy `driver` BEFORE `fleet`** (the reverse of 063) — the lock must exist before work
+- **⚠ Open**: ⚠ **deploy `driver` BEFORE `fleet`** (the reverse of 063) - the lock must exist before work
   is handed out early. `make db-up` first (additive, safe for the old fleet). `make apply` for the
   alarm swap. ⚠ **W7 (off duty before opening) is the most important walk.** Nobody has looked at any
-  screen. Three-stop limit per collection round at the default 45-minute lead is unchanged — raise
+  screen. Three-stop limit per collection round at the default 45-minute lead is unchanged - raise
   `planning_lead_min` if rounds need more.
 
-**071-live-updates — Live Updates Without Polling.** ⚠ **BUILT FOR ALL SIX APPS; ONLY THE FIRST
-SLICE IS DEPLOYED AND PROVED (2026-10-05).** 51/53 tasks — what remains is the operator's second
+**071-live-updates - Live Updates Without Polling.** ⚠ **BUILT FOR ALL SIX APPS; ONLY THE FIRST
+SLICE IS DEPLOYED AND PROVED (2026-10-05).** 51/53 tasks - what remains is the operator's second
 round of deploys and the walk. Sign-off, deploy order and what is still unmeasured:
 [specs/071-live-updates/SIGNOFF.md](specs/071-live-updates/SIGNOFF.md). Which change tells whom:
 [contracts/change-map.md](specs/071-live-updates/contracts/change-map.md).
 
 No screen refreshes its data on a timer any more. The backend function that commits a change
-publishes "this KIND of thing changed" to a managed channel (AWS AppSync Events — constitution
+publishes "this KIND of thing changed" to a managed channel (AWS AppSync Events - constitution
 v3.1.0 permits it); each open app re-reads through its existing routes. Independent of push.
-- ⚠ **AN UPDATE IS ONE WORD** — `{"k":"orders"}`. No id, no status, no amount. A duplicate, late or
+- ⚠ **AN UPDATE IS ONE WORD** - `{"k":"orders"}`. No id, no status, no amount. A duplicate, late or
   reordered update cannot show anything wrong, and there is nothing in it to leak.
 - ⚠ **THE CHANNEL NEVER RE-CHECKS AN OPEN SUBSCRIPTION**, and a connection can live a day. So the
-  channel name carries a ten-minute epoch and every app re-subscribes — through the authorizer —
+  channel name carries a ten-minute epoch and every app re-subscribes - through the authorizer -
   each epoch. Worst case a removed person hears for 12 minutes. This is the feature's one piece of
   real complexity, and it exists only because the service has no "disconnect this person" call.
 - ⚠ **A CUSTOMER HEARS ONLY WHEN THEIR OWN PAGE WOULD CHANGE.** The page shows the LEAST advanced
   package, so on an order split across two shops the customer gets exactly the updates a one-shop
-  order gives — the count and timing cannot reveal the split. Only three shared functions may build
+  order gives - the count and timing cannot reveal the split. Only three shared functions may build
   a customer's update; a guard test holds that.
 - **One authorizer function** (`apis/edge-api/live`) for all four pools: verifies the token against
   the pool its issuer names, then checks the channel against the platform record. Customers are
   checked against their own token subject with no database read.
 - **Three guards**: every state-changing route announces or is exempted with a reason
-  (`change-map.guard.test.ts` — proved by removing one announcement: nine routes failed); names
-  agree across TypeScript, YAML and Terraform (`live.contract.test.ts` — on its first run it caught
+  (`change-map.guard.test.ts` - proved by removing one announcement: nine routes failed); names
+  agree across TypeScript, YAML and Terraform (`live.contract.test.ts` - on its first run it caught
   a service granted the publish permission before it published anything); no refresh timer in the
   six apps (`scripts/check-no-refresh-timers.sh`, in CI).
 - **Defects found while building.** (1) A fixed "re-read at most every 2 s" costs six reads for a
@@ -1504,19 +1504,19 @@ v3.1.0 permits it); each open app re-reads through its existing routes. Independ
   a second of quiet. (2) The guard's first version followed imports through `commerce`'s wiring
   module, so every cart route "reached" the refund service and the check was vacuous for the whole
   service. (3) customer-web's production build failed on `useState(() => Date.now())` in a
-  prerendered client component — every unit test had passed. (4) The plan named OkHttp for the
+  prerendered client component - every unit test had passed. (4) The plan named OkHttp for the
   Android socket; the version catalog records that it clashes with the auth SDK's. CIO instead.
   (5) A server-side throttle on pick progress was planned and dropped: a frozen function cannot
   send "the last one, after a pause".
-- **Cost**: under 0.05 USD a month now. About 4.8 USD at fifty shops (65 operations an order) —
+- **Cost**: under 0.05 USD a month now. About 4.8 USD at fifty shops (65 operations an order) -
   inside the 5 USD bound with little room; a 4 USD budget notifies the existing alerts topic.
 - ⚠ **Not proved on a device**: that the CIO and Darwin engines send both WebSocket subprotocols.
   The mobile client passes against a fake socket on Android and compiles for iOS; nothing more.
 
-**070-retire-core-api — One Backend: Retire the Always-On Shopper Service.** ✅ **THE MIGRATION IS
+**070-retire-core-api - One Backend: Retire the Always-On Shopper Service.** ✅ **THE MIGRATION IS
 DONE (2026-10-05): the new services are live in dev, the clients are released, the old backend's
 infrastructure is DESTROYED and its source is DELETED.** 96/102 tasks. ⚠ **NOT YET WALKED BY A
-PERSON** — the fifteen-journey walk and the measurement harness are what remain. What the old
+PERSON** - the fifteen-journey walk and the measurement harness are what remain. What the old
 backend was, and how to recover its code: [docs/archive/core-api.md](docs/archive/core-api.md). Sign-off
 and the operator's next steps: [specs/070-retire-core-api/SIGNOFF.md](specs/070-retire-core-api/SIGNOFF.md).
 Route map and every deliberate behaviour change:
@@ -1524,11 +1524,11 @@ Route map and every deliberate behaviour change:
 
 Every route the Go backend served (52) now has a home in the serverless backend, so the container
 service, load balancer and image registry can be destroyed. Operator decisions, settled first: **one
-cut-over with no fallback** (pre-launch — bugs are fixed forward); build and deploy first, destroy
+cut-over with no fallback** (pre-launch - bugs are fixed forward); build and deploy first, destroy
 after the apps are switched; the shop console's **live stream is dropped**, not rebuilt.
 - **Two new services.** `storefront` (public catalogue, 8 routes) and `commerce` (cart, saved items
   and lists, promo, checkout, payment, the provider webhook, a shopper's orders, cancellation,
-  refund requests — 40 routes and one schedule). Staff refunds went to the services that already
+  refund requests - 40 routes and one schedule). Staff refunds went to the services that already
   owned those audiences: `orders` (back-office) and `shop` (shop manager).
 - ⚠ **MONEY LOGIC LIVES ONCE: `@effy/edge-shared/payments`.** Payment finalisation, refunds,
   cancellation, the provider port. Three services call it; none re-implements it. It is NOT
@@ -1543,20 +1543,20 @@ after the apps are switched; the shop console's **live stream is dropped**, not 
   transaction as the handling. Invalid signature → 400; handling failure → rollback and 5xx.
 - ⚠ **REFUNDS LEFT UNCERTAIN ARE RESOLVED.** A submission the provider never answered stayed
   `submitting` for ever. `refundReconcile` (every 5 min) asks the provider whether it exists, records
-  it if so, and otherwise sends it under the key stored on the row — never a new one.
+  it if so, and otherwise sends it under the key stored on the row - never a new one.
 - ⚠ **PROMO CODES WORK.** Both clients called `POST`/`DELETE /v1/cart/promo`; no such route existed.
 - ⚠ **FOUR DEFECTS THE OLD BACKEND HAD, FOUND BY THE REAL-DATABASE TESTS.** (1) An empty cart
   reached the provider as a zero amount → 500. (2) Two shoppers paying at once for the last unit:
-  stock stopped at zero but NEITHER order was flagged short — the shelf was read before it was
+  stock stopped at zero but NEITHER order was flagged short - the shelf was read before it was
   locked. (3) **Two refunds issued at the same instant could each pass the ceiling**: a refund is
   recorded, committed, and only then sent, and in that window it was not counted. Only the provider
   refusing the second stood in the way. It now counts while in flight (60 s). ⚠ The test for it
-  failed ONE RUN IN FOUR before the fix — it was nearly dismissed as flaky. (4) A stalled refund
+  failed ONE RUN IN FOUR before the fix - it was nearly dismissed as flaky. (4) A stalled refund
   retried after the order was refunded another way would have exceeded what was paid.
 - ⚠ **THE LIVE STREAM IS GONE, AND SO IS ITS PROMISE.** `GET /v1/shop/live`, `useShopLive`,
   `web-kit`'s stream reader and `shop_ops_poke` (migration `20261005075916`) are removed. Today
   re-reads every 30 s; 058's under-ten-seconds target is withdrawn and recorded in its sign-off.
-  ⚠ Every 058 trigger is KEPT — three are now empty hooks — because the triggers are the list of
+  ⚠ Every 058 trigger is KEPT - three are now empty hooks - because the triggers are the list of
   changes a shop's screens depend on, which is what any replacement will need.
 - ⚠ **THE "135 ms" PREMISE WAS A LAPTOP MEASUREMENT.** Principle III's two-path split rested on a
   latency figure taken from a workstation to Sydney, never in-region. Constitution **v3.0.0**
@@ -1565,14 +1565,14 @@ after the apps are switched; the shop console's **live stream is dropped**, not 
   `infra/observability/alerts/` were loaded by nothing. They are replaced by seven CloudWatch alarms
   in `infra/envs/dev/commerce-alarms.tf`, and `alarms.contract.test.ts` fails if an alarm watches a
   metric name or dimension value the code does not emit. ⚠ Money metrics all go to ONE namespace
-  (`Effy/Commerce`) whichever service emitted them — an alarm per service would watch one of three.
+  (`Effy/Commerce`) whichever service emitted them - an alarm per service would watch one of three.
 - ⚠ **MIRRORED RULES ARE NOW ONE RULE.** The customer's progress word (`stageFor`), the refund
   ceiling's status set and the collection deadline were each written twice, in two languages, kept
   honest by tests that read the other side's source. Each now has one implementation.
 - ⚠ **WIRE CONTRACTS HAVE ONE COPY.** The mobile app's contract tests each had a Go twin holding a
   hand-duplicated fixture. The backend tests now READ the literal out of the Kotlin file
   (`@effy/edge-shared/testing`) and compare it with the real mapper's output.
-- **New guards.** `schema-drift.guard.test.ts` (no service names a dropped column — proven by
+- **New guards.** `schema-drift.guard.test.ts` (no service names a dropped column - proven by
   re-introducing 051's `display_name` bug), `functions.guard.test.ts` (every signed-in commerce
   route resolves the platform's own customer record; every function answers overload), the
   append-only guard re-pointed with a "one writer" assertion, the trigger guard now forbids notifying.
@@ -1580,9 +1580,9 @@ after the apps are switched; the shop console's **live stream is dropped**, not 
 - **Deferred, on purpose:** the order-placed record is still written and not delivered; abandoned
   unpaid orders are still not swept (their window holds lapse on their own).
 - ⚠ **STILL OPEN**: the verification walk (fifteen journeys, every surface) and the measurement
-  harness (`scripts/verify-070/README.md`) — including ONE PAID TEST ORDER THROUGH THE NEW WEBHOOK
+  harness (`scripts/verify-070/README.md`) - including ONE PAID TEST ORDER THROUGH THE NEW WEBHOOK
   ENDPOINT, which had not been seen when the old backend was destroyed; `make db-up` for
-  `drop_shop_ops_poke` if not yet applied; the bill before and after. Bugs are fixed forward — there
+  `drop_shop_ops_poke` if not yet applied; the bill before and after. Bugs are fixed forward - there
   is no backend to fall back to.
 - ⚠ **THE TEARDOWN APPLY LEFT A STALE STATE LOCK.** It destroyed the service, load balancer and DNS,
   then stopped at the image registry (which refuses deletion while it holds images) without
@@ -1594,7 +1594,7 @@ after the apps are switched; the shop console's **live stream is dropped**, not 
 - ⚠ **PRE-EXISTING, NOT FIXED:** two `shop` real-database tests fail with or without 070; and
   `scripts/check-no-telemetry-pii.sh` exits 1 on the notifications worker's `email` channel name.
 
-**069 amendment (2026-10-07) — a same-day slot has no capacity limit by default.** On operator
+**069 amendment (2026-10-07) - a same-day slot has no capacity limit by default.** On operator
 direction (spec FR-008a). `delivery_slot.capacity` is now nullable and **NULL means no limit**: the
 slot never fills and is closed only by its cutoff and the collection schedule. Back-office › Delivery
 › Time slots asks with a checkbox ("Limit how many deliveries this slot takes"), unticked by
@@ -1603,10 +1603,10 @@ limit (sent as `null`; an absent key in a PATCH keeps the old value). Existing s
 the number they have. Touches the migration `20261007044315`, `@effy/edge-shared` (`judgeSlot`,
 `finalize`), `fleet` slots, `@effy/shared-types` and back-office. ⚠ **Deploy order: migration first**
 (`make db-up ENV=dev`), then `fleet`, `commerce` and `orders` (`finalize` is shared money code), then
-back-office — the old `fleet` refuses a slot with no capacity, and the old column refuses NULL.
+back-office - the old `fleet` refuses a slot with no capacity, and the old column refuses NULL.
 ⚠ Not run: the real-database tests (no Docker in the session that wrote this).
 
-**069-delivery-slots-dates — Delivery Time Slots & Standard Delivery Date.** 🚧 **81/82 tasks —
+**069-delivery-slots-dates - Delivery Time Slots & Standard Delivery Date.** 🚧 **81/82 tasks -
 CODE-COMPLETE AND MACHINE-VERIFIED across the migration, the hot path, four cold-path services, both
 customer surfaces, back-office and the driver app. NOT DEPLOYED, NOT COMMITTED, NOT WALKED BY A
 PERSON.** Sign-off: [specs/069-delivery-slots-dates/SIGNOFF.md](specs/069-delivery-slots-dates/SIGNOFF.md).
@@ -1622,7 +1622,7 @@ honoured **through the carrier** (049's model stands), and **the fee does not va
 - ⚠ **"RE-CHECK AT PAYMENT" HAS TO BE A HOLD.** The client confirms payment with the provider
   directly; the intent call is the last server moment before the charge. It checks the slot and
   holds a place (10 min, configurable) under the slot's **row lock**, BEFORE the payment intent
-  exists. Finalize confirms. A lapsed hold is not swept — it stops counting.
+  exists. Finalize confirms. A lapsed hold is not swept - it stops counting.
 - ⚠ **THE LATE PAYER IS HONOURED AND FLAGGED, never moved or refunded.** Payment after the hold
   lapsed into a slot that has since filled keeps its window with `over_capacity = true`.
 - ⚠ **THE STANDARD FALLBACK IS NO LONGER A SAFETY NET.** Before 069 a same-day request that could not
@@ -1631,14 +1631,14 @@ honoured **through the carrier** (049's model stands), and **the fee does not va
   quote never offered same-day on.
 - ⚠ **FINALIZE NO LONGER COPIES `promised_to` INTO THE SHOP'S READY-BY.** It was harmless only while
   nothing wrote `promised_to`. Left in, an order for next Thursday would tell the shop it is not due
-  until Thursday — but a standard package waits at the HUB. Proven by restoring the line.
+  until Thursday - but a standard package waits at the HUB. Proven by restoring the line.
 - ⚠ **"A BOOKING COUNTS" IS ONE VIEW**, `delivery_slot_load`, read by checkout (Go) and the console
   (TypeScript). ⚠ **NO GO↔TYPESCRIPT RULE DUPLICATE** this time: Go turns a slot's wall-clock times
   into instants once, at booking, and everything downstream reads the stored instants.
 - ⚠ **ONE WORDING FOR "WHEN IT ARRIVES".** `formatArrival` in `shared-types` is called by the web
   panel and the receipt email; both apps carry a Kotlin twin tested against the same fixture, and a
   TypeScript test fails if an app's embedded copy of that fixture drifts. It uses no `Intl` to
-  produce text — ICU's "5 pm" differs between runtimes.
+  produce text - ICU's "5 pm" differs between runtimes.
 - ⚠ **SAME-DAY IS OFFERED WHEN ANY DELIVERY CAN GO TODAY**, not every. customer-web and
   customer-mobile both gated on "every package", so a basket with one excepted shop could not be
   placed same-day though the server has resolved per package since 047. Such an order now asks for
@@ -1658,7 +1658,7 @@ honoured **through the carrier** (049's model stands), and **the fee does not va
   bundle gate within budget · **eight things proven by breaking them**, including the row lock (20
   concurrent customers, capacity 3).
 - **⚠ Open (1)**: the operator's deploy and walks. ⚠ **`edge-deploy SERVICE=fleet` and CREATE SLOTS
-  BEFORE `core-deploy`** — same-day needs an open slot from the moment the hot path deploys. Then
+  BEFORE `core-deploy`** - same-day needs an open slot from the moment the hot path deploys. Then
   `orders`, `driver`, `notifications`, the two web apps and the two apps. No Terraform changed.
   ⚠ An older mobile build choosing same-day gets a generic checkout error. ⚠ Hub turnaround (60 min)
   and carrier lead time (1 day) are guesses, labelled as such in the console. Registers:
@@ -1667,7 +1667,7 @@ honoured **through the carrier** (049's model stands), and **the fee does not va
   [admin](docs/audiences/admin-capabilities.md) §069. Guides:
   [delivery](docs/delivery-console-guide.md), [orders](docs/order-console-guide.md).
 
-**068-customer-lists — Customer Lists.** 🚧 **58/61 tasks — CODE-COMPLETE AND MACHINE-VERIFIED across
+**068-customer-lists - Customer Lists.** 🚧 **58/61 tasks - CODE-COMPLETE AND MACHINE-VERIFIED across
 the migration, the hot path and both customer surfaces. NOT DEPLOYED, NOT COMMITTED, NOT WALKED BY A
 PERSON.** Sign-off: [specs/068-customer-lists/SIGNOFF.md](specs/068-customer-lists/SIGNOFF.md). Client
 feedback R3 ([docs/prd/2026-10-client-feedback-prd.md](docs/prd/2026-10-client-feedback-prd.md)).
@@ -1707,13 +1707,13 @@ FR-066.**
   walks, incl. the previous mobile build's heart. The e2e a11y suite was not extended. The client
   has not confirmed the reading or answered the starter-lists question.
 
-**067-product-approval-margin — Product Approval & Effy Margin.** 🚧 **68/70 tasks — CODE-COMPLETE
+**067-product-approval-margin - Product Approval & Effy Margin.** 🚧 **68/70 tasks - CODE-COMPLETE
 AND MACHINE-VERIFIED across the migration, the hot path, four cold-path services (one new), the
 back-office console, shop-web and shop-mobile. NOT DEPLOYED, NOT COMMITTED, NOT WALKED BY A PERSON.**
 Sign-off: [specs/067-product-approval-margin/SIGNOFF.md](specs/067-product-approval-margin/SIGNOFF.md).
 Client feedback R1 + R2 ([docs/prd/2026-10-client-feedback-prd.md](docs/prd/2026-10-client-feedback-prd.md)).
 
-A shop no longer publishes. Effy approves a new product — setting its margin — before it goes on
+A shop no longer publishes. Effy approves a new product - setting its margin - before it goes on
 sale, and approves every later change to its details. Stock is never reviewed.
 - ⚠ **`price_amount` STAYS THE CUSTOMER PRICE.** It is read in ~14 hot-path places; renaming its
   meaning would have changed every one. The new column is `shop_price_amount`, **nullable**: NULL
@@ -1727,7 +1727,7 @@ sale, and approves every later change to its details. Stock is never reviewed.
   the approved version" is true by construction, and a send-back has nothing to undo.
 - ⚠ **A NEW COLD-PATH SERVICE, `apis/edge-api/catalog`** (routes `/catalog/v1/…`, back-office
   authorizer). Every decision is ONE transaction under a row lock, checked against the version the
-  reviewer saw — compared as `updated_at::text`, never a JS Date (056's lesson).
+  reviewer saw - compared as `updated_at::text`, never a JS Date (056's lesson).
 - ⚠ **ONE MARGIN CALCULATION** (`edge-shared/lib/margin.ts`, whole cents, half-up). The console's
   preview mirrors it; the server's figure is the one that sells.
 - ⚠ **THE SHOP NEVER SEES THE MARGIN AS A FIGURE.** It sees its own price and the customer price. A
@@ -1746,13 +1746,13 @@ sale, and approves every later change to its details. Stock is never reviewed.
   with containers (+ the 2 already red) · edge-inventory **62** · back-office **245** · shop-web
   **456** · shop-mobile **115** Android host, iOS main and test compile · Go checkout container
   suite green · `tokens:check` unchanged · six negative proofs, all caught.
-- **⚠ Open (2, operator)**: the deploy and the walks. ⚠ **W1 first** — after `db-up` the catalogue
+- **⚠ Open (2, operator)**: the deploy and the walks. ⚠ **W1 first** - after `db-up` the catalogue
   must look identical. Not done: shop-mobile cannot edit a product (its Edit button has been a
   no-op since 016); nothing notifies back-office staff of a submission; the 24 h alarm threshold is
   a default nobody at Effy chose. Registers:
   [shop](docs/audiences/shop-capabilities.md) §067 · [admin](docs/audiences/admin-capabilities.md) §067.
 
-**066-delivery-instructions — Customer Delivery Instructions.** 🚧 **49/51 tasks — CODE-COMPLETE
+**066-delivery-instructions - Customer Delivery Instructions.** 🚧 **49/51 tasks - CODE-COMPLETE
 AND MACHINE-VERIFIED across the hot path, three cold-path services, both customer surfaces,
 back-office and the driver app. NOT DEPLOYED, NOT COMMITTED, NOT WALKED BY A PERSON.** Sign-off:
 [specs/066-delivery-instructions/SIGNOFF.md](specs/066-delivery-instructions/SIGNOFF.md). Client
@@ -1761,14 +1761,14 @@ feedback R4a ([docs/prd/2026-10-client-feedback-prd.md](docs/prd/2026-10-client-
 A shopper tells the driver how to deliver: "Leave at the door" / "Meet at the door" and/or a note of
 up to 250 characters, optionally saved as an address's default.
 - ⚠ **COLUMNS ON THE ORDER, NOT KEYS IN `delivery_address`.** That jsonb snapshot is read by fifteen
-  files in seven services, including the SHOP console and the RECEIPT EMAIL — both forbidden from
+  files in seven services, including the SHOP console and the RECEIPT EMAIL - both forbidden from
   showing instructions. A guard in `edge-shared` fails naming any shop or notification file that
   references them.
 - ⚠ **ONE RULE, PINNED ACROSS TWO LANGUAGES.** `normaliseDeliveryInstructions` lives in
   `shared-types`; the Go hot path carries a mirror; both test suites read the SAME fixture file. The
   limit is counted in code points (an emoji is one), matching PostgreSQL's `char_length` CHECK.
 - ⚠ **THE HOT PATH NEVER READS AN ADDRESS'S SAVED DEFAULT.** An order stores what its own request
-  carried; prefilling is the client's job. So an address edit cannot reach a placed order — by
+  carried; prefilling is the client's job. So an address edit cannot reach a placed order - by
   construction, and a source guard keeps it that way.
 - ⚠ **THE DRIVER FIELD WAS ALWAYS NULL.** `DeliveryDropDTO.instructions` existed since 049 and three
   screens rendered it; 066 is the first thing to fill it.
@@ -1784,14 +1784,14 @@ up to 250 characters, optionally saved as an address's default.
   the two live checks (251-character `curl`; sentinel-note log sweep). The telemetry event emits
   nothing. ⚠ `make storefront-locks` is red **at HEAD**, unrelated to this slice.
 
-**065-driver-item-manifest — Driver Item Manifest & Temperature Classes.** 🚧 **41/43 tasks —
+**065-driver-item-manifest - Driver Item Manifest & Temperature Classes.** 🚧 **41/43 tasks -
 CODE-COMPLETE AND MACHINE-VERIFIED. NOT DEPLOYED, NOT COMMITTED, NOT WALKED BY A PERSON.** Sign-off:
 [specs/065-driver-item-manifest/SIGNOFF.md](specs/065-driver-item-manifest/SIGNOFF.md). Client
 feedback R5 ([docs/prd/2026-10-client-feedback-prd.md](docs/prd/2026-10-client-feedback-prd.md)).
 
 Drivers see every item in each package, marked Frozen / Chilled / Normal, at pickup and at the door.
 - **The class is a SNAPSHOT on the order line** (`order_item.storage_class`, written by checkout),
-  not a read of the live catalogue — a shop's later edit must not rewrite what a driver is told
+  not a read of the live catalogue - a shop's later edit must not rewrite what a driver is told
   about goods already packed. ⚠ NULL = sold before 065, shown as "Class not recorded", **never
   Normal**, and deliberately not backfilled.
 - ⚠ **TWO PRE-EXISTING DEFECTS FIXED**: every package at a shop stop carried the stop's whole item
@@ -1800,7 +1800,7 @@ Drivers see every item in each package, marked Frozen / Chilled / Normal, at pic
 - ⚠ **The storage attribute's values are back-office DATA.** Copying `value_text` straight onto the
   order line would let an admin-added fourth value fail the CHECK and stop a shopper paying;
   anything not exactly `frozen`/`chilled` is written `ambient`.
-- ⚠ **A drop's packages are labelled by POSITION only** — a package is one shop's portion.
+- ⚠ **A drop's packages are labelled by POSITION only** - a package is one shop's portion.
 - **Verified**: typecheck 20/20 · edge-driver **128** with containers (+24) · 4 Go container tests
   against every migration · driver-mobile **49** Android host tests + iOS test compile · four
   negative proofs, all caught.
@@ -1808,20 +1808,20 @@ Drivers see every item in each package, marked Frozen / Chilled / Normal, at pic
   app release → walks W1–W10. `driver_manifest_opened` is declared, not emitted. ⚠ Two `edge-shop`
   container tests are red **without** this slice (attention recipients; order paging).
 
-**063-driver-work-assignment — Driver Work Assignment & Wave Planning.** 🚧 **155/183 tasks —
+**063-driver-work-assignment - Driver Work Assignment & Wave Planning.** 🚧 **155/183 tasks -
 CODE-COMPLETE AND MACHINE-VERIFIED across the migration, both edge services, the console and the
 infrastructure. NOT DEPLOYED, NOT COMMITTED, NOT WALKED BY A PERSON.** Sign-off:
 [specs/063-driver-work-assignment/SIGNOFF.md](specs/063-driver-work-assignment/SIGNOFF.md).
 
-**Slice C of the logistics rebuild** — the engine between 061's fleet and 062's clearances.
+**Slice C of the logistics rebuild** - the engine between 061's fleet and 062's clearances.
 - ⚠ **THE DEFECT: nothing on the platform assigned work to any driver.** The old work model was torn
   down deliberately (2026-09-20) and nothing replaced it, so a shop could pick, pack and mark ready
   every order it had and **no driver was ever told**. Now: ahead of each configured collection run the
   planner gathers ready packages, applies hard gates, balances by load and pushes a round; the driver
   collects, checks in at the hub, and same-day work goes back out.
 - ⚠ **THE TEARDOWN REMOVED SIXTEEN ROUTES AND NOTHING FAILED.** The driver app calls **21** routes; the
-  backend served **6**. Its client code and the `driver.ts` contract were fully intact — five HTTP
-  repositories, all wired into ViewModels — so nothing compiled wrong and no test failed. Found by
+  backend served **6**. Its client code and the `driver.ts` contract were fully intact - five HTTP
+  repositories, all wired into ViewModels - so nothing compiled wrong and no test failed. Found by
   reading the app. `route-inventory.guard.test.ts` now reads the routes the Kotlin actually calls and
   fails naming any the service does not declare; Slice D's three proof routes are explicit deferrals.
 - ⚠ **THE FLAGGED CUTOFF DECISION IS SETTLED**: a **deliberate Go↔TypeScript duplicate pinned by a
@@ -1837,35 +1837,35 @@ infrastructure. NOT DEPLOYED, NOT COMMITTED, NOT WALKED BY A PERSON.** Sign-off:
 - ⚠ **AN FK THAT WAS WRONG IN PRINCIPLE.** `round_stop.customer_address_id` pointed at
   `customer_address`, but orders **snapshot** the address as jsonb (019 R13) precisely so a customer
   editing their address book cannot corrupt a placed order. The stop now references the order.
-- ⚠ **`driver-contract:check` WAS ALREADY RED AT HEAD** — `1b386d8` added `expectedEndAt` and never
+- ⚠ **`driver-contract:check` WAS ALREADY RED AT HEAD** - `1b386d8` added `expectedEndAt` and never
   regenerated the Kotlin, which also still carried `LocationRequest { lat, lng }`, a DTO D22 removed.
 - ⚠ **TWELVE NEGATIVE PROOFS, AND FOUR FOUND SOMETHING.** NP7 targeted a line nothing reads (exposing
   dead code); **NP8's guard did not catch its own proof** (it matched `stops.sort(`, the break sorted
   `keyed`); **NP9's C14 did not exist**, then asserted against its own copy of the query; **NP11's C17
-  did not exist** — T073 had been marked complete without being written. ⚠ **Two were tests already
+  did not exist** - T073 had been marked complete without being written. ⚠ **Two were tests already
   CLAIMED AS DONE.**
 - ⚠ **CAPACITY IS WEIGHT-ONLY.** Vehicles record `payload_kg`, `load_volume_litres` and
-  `crate_capacity`; the catalogue describes no product volume. A stated limitation, not an oversight —
+  `crate_capacity`; the catalogue describes no product volume. A stated limitation, not an oversight -
   inventing a per-product volume would be a gate that looks enforced and is arithmetic over a guess.
 - ⚠ **THREE THINGS REFUSED RATHER THAN FABRICATED**: delivery `instructions` (the contract carries the
   field and **nothing stores it**), `proofCaptured`/proof (Slice D), activity read receipts (the feed
   is derived, so there is nothing to mark).
 - **Verified**: `pnpm -r typecheck` **20/20** · edge-fleet **172** (was 121) · edge-driver **29**
   (was 10, with **zero** container tests) · edge-shared **121** (was 75) · back-office **214** ·
-  **21 container tests against the REAL migrations** (loaded from `db/migrations`, not transcribed —
+  **21 container tests against the REAL migrations** (loaded from `db/migrations`, not transcribed -
   which surfaced ten fixture errors at once). **UNMODIFIED**: edge-orders **16**, edge-customer
   **170**, edge-notifications **43**, edge-inventory **59**, customer-web **463**, shop-web **440**.
   Go clean · `tokens:check` **unchanged** · `terraform validate`/`fmt`.
-- **⚠ Open (28)**: ⚠ **`edge-deploy SERVICE=fleet` BEFORE `SERVICE=driver`** — `driver` serves work
+- **⚠ Open (28)**: ⚠ **`edge-deploy SERVICE=fleet` BEFORE `SERVICE=driver`** - `driver` serves work
   `fleet` creates, and the reverse gives a driver an empty day indistinguishable from "no work today";
   `make db-up` (additive, safe before the deploy); `make apply` for two alarms; the dispatcher's
   reassign/lock **UI controls** (service layer and container proofs done, screens read-only). ⚠ **W5 is
-  the most important walk** — a zone nobody covers must appear as unassigned *with a reason*. ⚠
+  the most important walk** - a zone nobody covers must appear as unassigned *with a reason*. ⚠
   **Nobody has looked at any screen**: 039 shipped four live defects with a fully green suite. Parity
   register: [docs/audiences/driver-capabilities.md](docs/audiences/driver-capabilities.md) §063.
 
-**059-shop-web-pwa — Shop Console as an Installable, Notifying Production App.** 🚧 **109/128 tasks
-— CODE-COMPLETE AND MACHINE-VERIFIED across the migration, both edge services, the console and the
+**059-shop-web-pwa - Shop Console as an Installable, Notifying Production App.** 🚧 **109/128 tasks
+- CODE-COMPLETE AND MACHINE-VERIFIED across the migration, both edge services, the console and the
 infrastructure. NOT DEPLOYED, NOT COMMITTED, NOT WALKED BY A PERSON, AND NO NOTIFICATION HAS EVER
 BEEN DELIVERED.** Sign-off: [specs/059-shop-web-pwa/SIGNOFF.md](specs/059-shop-web-pwa/SIGNOFF.md);
 research deliverable: [specs/059-shop-web-pwa/research.md](specs/059-shop-web-pwa/research.md).
@@ -1875,15 +1875,15 @@ arrives, and makes the console survive a shop-floor network dropout.
 - ⚠ **THE DEFECT: the platform has decided to tell shops about new orders since 050, and told nobody.**
   `core-api/checkout/store.go:621` enqueues one `shop_new_order` intent **per active staff member of
   every fulfilling shop, on every paid order**; the worker resolves those to `device_token` rows; and
-  `device_token.platform` was `CHECK (… IN ('android','ios'))` — while the shop audience works in a
+  `device_token.platform` was `CHECK (… IN ('android','ios'))` - while the shop audience works in a
   **web console**. Every intent since 050 was written, attempted and recorded `skipped`. **One line of
   the migration is the fix.** ⚠ **No backfill**: those rows are a record of a real defect, not a queue
-  to replay — resending would notify operators about orders picked weeks ago.
+  to replay - resending would notify operators about orders picked weeks ago.
 - ⚠ **`POST /shop/v1/devices` ALREADY EXISTED.** Research found US1 needed no new producer and no new
   endpoint. The slice is one enum widening, one sender branch, and the client half.
-- ⚠ **FCM WEB PUSH, NOT STANDALONE VAPID — and the rejected option is recorded with its reasoning.**
+- ⚠ **FCM WEB PUSH, NOT STANDALONE VAPID - and the rejected option is recorded with its reasoning.**
   Most 2026 guidance recommends `web-push` + VAPID, and for greenfield it is right: vendor-neutral,
-  zero client SDK. Rejected because this is not greenfield — the existing outbox already carries
+  zero client SDK. Rejected because this is not greenfield - the existing outbox already carries
   retry, idempotency and **dead-token pruning** that a parallel sender would have to re-earn, and FCM
   is a **locked** technology (swapping it needs a constitution amendment).
 - ⚠ **`awaiting_pick` BECOMES TRUE BY THE PASSAGE OF TIME**, which is the single fact that decided the
@@ -1892,26 +1892,26 @@ arrives, and makes the console survive a shop-floor network dropout.
   only shape that works. New table `public.shop_attention_state`; ⚠ **a row is DELETED when its
   condition clears**, and that delete is what makes "notifies again on recurrence" a consequence of
   the design rather than a rule somebody must remember.
-- ⚠ **THE READER AUDIT FOUND A FOURTH READER THE PLAN'S RESEARCH MISSED** — `packages/shared-types/src/device.ts`,
+- ⚠ **THE READER AUDIT FOUND A FOURTH READER THE PLAN'S RESEARCH MISSED** - `packages/shared-types/src/device.ts`,
   **dormant** (exported, imported by nothing), whose comment read *"Web push is out of scope this
   slice"*. Found by grep, not by a failing build, which is exactly how it would have sat contradicting
   the live contract forever. 053 and 056 each shipped a defect through an enum widening; 057 records
   the pattern a third time.
 - ⚠ **AND A WAY FOR ONE UNKNOWN ROW TO KILL THE WHOLE DRAIN.** `worker/repository.ts` casts
   `PendingRow.type` with nothing checking it, so a row written by a newer producer would throw on
-  `.title` and take **every audience's** notifications down — 053's "unconfigured FCM halted the whole
+  `.title` and take **every audience's** notifications down - 053's "unconfigured FCM halted the whole
   drain" by another road. ⚠ **My first fix was wrong and was reversed**: making `copyFor` return
   `undefined` pushed an impossible case onto every call site and cost the "suites pass unmodified"
   proof. The lie is the **cast**; the boundary is where it had to stop.
 - ⚠ **`manifest.webmanifest` WOULD HAVE BEEN ANSWERED WITH HTML AND A 200.** The Amplify SPA rewrite's
   extension allow-list (`amplify-consoles.tf`) did not contain `webmanifest`, so the console would
-  simply not be installable — no error in the page, the build, any test or any log — and on iPadOS,
+  simply not be installable - no error in the page, the build, any test or any log - and on iPadOS,
   where the Push API exists **only** for a home-screen app, that would have taken notifications with
   it. Proven against the live regex (NP1).
 - ⚠ **THE BUILT SERVICE WORKER WOULD HAVE BEEN AN ES MODULE** while `pwa.ts` registers it as classic.
   It works today **by accident** (the bundle happens to emit no top-level import); a dependency change
   would break registration **only in a real browser**. Pinned to `iife`. 024's VectorDrawable and
-  058's `WriteTimeout` shape — valid, compiling, tested, wrong only where it runs.
+  058's `WriteTimeout` shape - valid, compiling, tested, wrong only where it runs.
 - ⚠ **ONE SERVICE WORKER, ENFORCED BY A TEST.** The Firebase SDK registers its own
   `firebase-messaging-sw.js` unless `getToken` is handed a registration; beside Workbox that is the
   documented **continuous-reload loop**. Two guards: one call site for `register`, and every
@@ -1920,9 +1920,9 @@ arrives, and makes the console survive a shop-floor network dropout.
   the SDK render a second banner; and **iOS revokes permission from a worker that receives a push and
   displays nothing**, so the fallback path is a platform rule, not defensive padding.
 - ⚠ **TWO COALESCING MECHANISMS, DELIBERATELY OPPOSITE.** Attention coalesces at the **producer** (one
-  intent per kind per run — a stock count can drop forty products at once); orders coalesce in the
+  intent per kind per run - a stock count can drop forty products at once); orders coalesce in the
   **service worker** by `tag` (batching them would delay the first, which is what SC-001 measures).
-- ⚠ **`pnpm -r test` WAS GREEN WHILE `typecheck` FAILED** — vitest does not run `tsc`. 029 recorded it;
+- ⚠ **`pnpm -r test` WAS GREEN WHILE `typecheck` FAILED** - vitest does not run `tsc`. 029 recorded it;
   it recurred here and was caught only by running the full typecheck separately.
 - ⚠ **A `platform` DIMENSION ON THE EXISTING SEND METRIC WOULD HAVE BLINDED THE ALARM** (a dimensioned
   metric is a different metric in CloudWatch). Emitted as its own EMF record instead; 054 recorded the
@@ -1932,53 +1932,53 @@ arrives, and makes the console survive a shop-floor network dropout.
   `tokens:check` **UNCHANGED** · `brand-check` 62 assets · `check-no-emerald`/`check-no-jade` ·
   `terraform validate`/`fmt`. **UNMODIFIED**: back-office **191**, customer-web **463**, edge-customer
   **170**, edge-driver **10**, edge-admin **191**, `drain.test.ts` **12**, and `edge-shop/src/today/`
-  **untouched entirely**. **TWELVE negative proofs, each executed by breaking the thing** — ⚠ NP7
+  **untouched entirely**. **TWELVE negative proofs, each executed by breaking the thing** - ⚠ NP7
   (dedupe keyed on the product id) and NP8 (nullable `subject_key`) are the two that leave a green
   suite and a feature that looks like it works; both are caught by multiple tests.
 - **⚠ Open (19, all operator)**: ⚠ **the four Firebase values in `dev.tfvars`** (`terraform plan`
-  REFUSES without them, deliberately — without the VAPID key the console boots, permission is granted,
+  REFUSES without them, deliberately - without the VAPID key the console boots, permission is granted,
   the toggle turns on and the tablet never rings, with nothing thrown); `make db-up ENV=dev`; ⚠
-  **`edge-deploy SERVICE=notifications` BEFORE `SERVICE=shop`** — the consumer must learn the new types
+  **`edge-deploy SERVICE=notifications` BEFORE `SERVICE=shop`** - the consumer must learn the new types
   before the producer writes them; `make apply ENV=dev`; push to `dev`. ⚠ **Docker was down all
-  session, so the 40 container tests have NEVER RUN** — 058 was the last slice for which that was true
+  session, so the 40 container tests have NEVER RUN** - 058 was the last slice for which that was true
   and its container tests then found three defects a green suite had missed. ⚠ **§3b of the
   [quickstart](specs/059-shop-web-pwa/quickstart.md) is the first moment anything here is proven**;
-  **§6 — the capability walk — is what the brief actually asked for.** Parity register:
+  **§6 - the capability walk - is what the brief actually asked for.** Parity register:
   [docs/audiences/shop-capabilities.md](docs/audiences/shop-capabilities.md) §059.
 
-**058-shop-today-insights — Shop Console: Today & Insights.** 🚧 **DEPLOYED TO DEV (first migration,
+**058-shop-today-insights - Shop Console: Today & Insights.** 🚧 **DEPLOYED TO DEV (first migration,
 both backends, the console) and the screens answer. ⚠ A SECOND MIGRATION IS PENDING, NOT COMMITTED,
 NOT DEPLOYED. NOT WALKED BY A PERSON.** ⚠ **Docker was down while this was written, so the container
-tests ran only AFTERWARDS — and they found three defects the whole green suite had missed** (below).
+tests ran only AFTERWARDS - and they found three defects the whole green suite had missed** (below).
 Spec/artifacts:
 [specs/058-shop-today-insights/](specs/058-shop-today-insights/); research deliverable:
 [docs/insights-architecture.md](docs/insights-architecture.md).
 
 Replaces 057's dashboard with **Today** (what needs doing right now) and adds **Insights** (how the
-shop is performing) — the shop audience's first sight of its own revenue over time.
-- ⚠ **RESEARCH FIRST, AS THE BRIEF DEMANDED** — `docs/insights-architecture.md` (24 cited sources)
+shop is performing) - the shop audience's first sight of its own revenue over time.
+- ⚠ **RESEARCH FIRST, AS THE BRIEF DEMANDED** - `docs/insights-architecture.md` (24 cited sources)
   compares how Shopify/Stripe/Saleor/Medusa serve these two workloads, webhook-reliability practice,
   and **monthly cost at 10k and 500k orders/month**. It concludes: rollup tables in Postgres, **no edge
   runtime and no CDN cache** (every operator and the database are in Sydney; the payload is private
-  per shop — Vercel's own docs now say run functions next to the data), and **SSE + Postgres
+  per shop - Vercel's own docs now say run functions next to the data), and **SSE + Postgres
   LISTEN/NOTIFY** for live updates. **≈$0/month at 10k, ≈$13–14 at 500k**, against **$25–110** for
-  every hosted realtime option — each of which *still* needs the same database listener.
+  every hosted realtime option - each of which *still* needs the same database listener.
 - ⚠ **THE PLATFORM'S FIRST DATABASE TRIGGERS**, and the justification is narrow: **six services on two
   backends** write the tables these screens derive from. A poke or a dirty-mark written in application
-  code must be remembered by every one of them, forever, and missing one is **silent** — 054's
+  code must be remembered by every one of them, forever, and missing one is **silent** - 054's
   `availability`-in-14-places lesson. A trigger fires inside the writing transaction and cannot be
   forgotten. `triggers.guard.test.ts` enumerates every trigger function in `public` and **fails naming
   it** if one does anything beyond `pg_notify` + an `ON CONFLICT DO NOTHING` insert (proven by breaking
-  it). ⚠ The `shop_ops` channel is **NOT the event backbone** (Principle VI) — a shop id, no envelope,
+  it). ⚠ The `shop_ops` channel is **NOT the event backbone** (Principle VI) - a shop id, no envelope,
   no consumer may read business meaning from it.
-- ⚠ **`core-api` GAINED A SECOND SHOP-POOL ROUTE** — `GET /v1/shop/live`, a recorded Principle III
+- ⚠ **`core-api` GAINED A SECOND SHOP-POOL ROUTE** - `GET /v1/shop/live`, a recorded Principle III
   exception: API Gateway's HTTP API caps an integration at **30 s**, so the cold path cannot hold a
   stream, and Fargate is the platform's only long-running process. It carries **no data at all** (every
   frame is `data: {}`), so no shop READ moved to the hot path. ⚠ 057's comment claiming the refund was
-  "the whole of the shop's reach into core-api" **was corrected in the same change** — a count in a
+  "the whole of the shop's reach into core-api" **was corrected in the same change** - a count in a
   comment is true only while someone maintains it.
 - ⚠ **A LIVE-ONLY DEFECT CAUGHT BY READING THE CONFIG, NOT THE TESTS**: `http.Server.WriteTimeout` is
-  **30 s** for this service and applies to a response's whole lifetime — so every stream would have died
+  **30 s** for this service and applies to a response's whole lifetime - so every stream would have died
   at 30 seconds while `httptest` (which sets no timeouts) passed every test. Cleared per-request with
   `http.NewResponseController`. This is 024's VectorDrawable shape: valid, compiling, tested, wrong only
   where it runs.
@@ -1986,15 +1986,15 @@ shop is performing) — the shop audience's first sight of its own revenue over 
   wall-clock fields is **ambiguous** on the day daylight saving ends (02:30 happens twice), and the first
   draft silently **skipped an entire trading hour**; and `nextLocalHour` "snapped" through the same
   ambiguity. A 25-hour day now yields **25 buckets** (02 twice) and a 23-hour day **23**, proven against
-  real zone rules — plus Adelaide's **+9:30**, where local hours begin at :30 UTC and a UTC-hour bucket
+  real zone rules - plus Adelaide's **+9:30**, where local hours begin at :30 UTC and a UTC-hour bucket
   could never express them.
-- ⚠ **REFUNDS ARE DATED WHEN ISSUED, NOT WHEN SOLD** — Shopify's own practice, and **the spec was
+- ⚠ **REFUNDS ARE DATED WHEN ISSUED, NOT WHEN SOLD** - Shopify's own practice, and **the spec was
   amended** (FR-032) rather than the code bent: a reported past day then never changes because of
   something that happened later. Recomputation is **from source, never incremental**: 055 says a
   submitted refund can be rejected **thirty days later**, so a figure must be able to move backwards.
-- ⚠ **THREE CONTROLS REFUSED, THREE CELLS REPLACED** — not styling. `New order` (a shop cannot create
+- ⚠ **THREE CONTROLS REFUSED, THREE CELLS REPLACED** - not styling. `New order` (a shop cannot create
   one), `Discount code` (codes are platform-wide and would discount other shops' items),
-  `Message a customer` (a shop never gets the customer's email — 023 FR-018; the design's
+  `Message a customer` (a shop never gets the customer's email - 023 FR-018; the design's
   `orders@effy.shop` does not exist). `Conversion rate` / `New customers` / `Returns open` became
   **Can't supply · Cancelled · Ready for pickup**. ⚠ The refusals guard uses **word-bounded phrases over
   comment-stripped source** and was proven with the exact shape that defeated 057's first attempt
@@ -2002,68 +2002,68 @@ shop is performing) — the shop audience's first sight of its own revenue over 
 - ⚠ **FR-006 IS STRUCTURAL, NOT A CONVENTION**: the Needs attention row, its unit figure, the badge, the
   sidebar badge and **both** Insights fulfilment cells render from ONE field of ONE cached query; the
   glance strip's money cells read the **same cache entry Insights reads**. Proven by breaking it.
-- ⚠ **Insights may never touch raw orders** (FR-026) — `rollup-only.guard.test.ts` reads the repository
+- ⚠ **Insights may never touch raw orders** (FR-026) - `rollup-only.guard.test.ts` reads the repository
   and fails naming the file; the rollup job is the one place allowed to. Proven by injecting a join.
 - **Principle II, three promotions**: 055's refund-proposal rule and 054's low-stock predicate moved to
   `@effy/edge-shared`; the pick-list renderer and the orders CSV export were extracted so Today and the
-  order console cannot diverge. ⚠ **edge-orders' 16 tests pass UNMODIFIED** — the proof the first
+  order console cannot diverge. ⚠ **edge-orders' 16 tests pass UNMODIFIED** - the proof the first
   promotion changed nothing.
-- ⚠ **THE CONTAINER TESTS FOUND A HOLE IN THE TRIGGER PATH — a second migration,
+- ⚠ **THE CONTAINER TESTS FOUND A HOLE IN THE TRIGGER PATH - a second migration,
   `20260915171139_insights_mark_on_order_item.sql`.** The order triggers watch `AFTER UPDATE OF status`,
-  which is the production path (019 creates an order `pending_payment` and pays it by UPDATE) — but a
+  which is the production path (019 creates an order `pending_payment` and pays it by UPDATE) - but a
   line ADDED to an order that is already paid (a correction, a re-fan-out) changes a shop's figures and
   marked nothing dirty. A third trigger on `public.order_item` INSERT closes it, with an idempotent
-  backfill. ⚠ It also exposed that the FIXTURE was wrong in the same way — it inserted orders already
+  backfill. ⚠ It also exposed that the FIXTURE was wrong in the same way - it inserted orders already
   `paid`, so the trigger never fired and the suite would have passed over an empty rollup.
 - ⚠ **AND A PRODUCTION DEFECT IN THE PRODUCT ROLLUP THAT ONLY THE SECOND RECOMPUTE SHOWS.**
   `RECOMPUTE_PRODUCTS` deleted the day's rows in a **data-modifying CTE** on its own INSERT. PostgreSQL
   runs a WITH's sub-statements concurrently on one snapshot, so the INSERT's unique index still sees the
   rows the DELETE is removing: every **second** recompute of a day died on `shop_product_sales_day_pkey`
-  — which is every correction, every reconciliation and every reversed refund, i.e. **exactly the
+  - which is every correction, every reconciliation and every reversed refund, i.e. **exactly the
   idempotency the whole design rests on**. Split into two statements; proven by putting the CTE back.
 - ⚠ **A THIRD, IN A TEST'S OWN CLOCK**: the top-products fixture derived its dates with
   `toISOString()` (UTC) while `local_date` is the **shop's** Melbourne date. Green in some timezones and
-  red in others — it failed on a machine in `Asia/Colombo` at 17:17 UTC, when Melbourne had already
+  red in others - it failed on a machine in `Asia/Colombo` at 17:17 UTC, when Melbourne had already
   turned over. The fixture now asks the shop's zone, like the service does.
 - **Verified**: `pnpm -r typecheck` **19/19** · shop-web **335** (37 files) · edge-shop **314** ·
   web-kit **63** · edge-orders **16 UNMODIFIED** · edge-inventory **59** · Go build/vet/gofmt clean ·
   **12 new Go tests** (hub, handler, listener) · `terraform validate`/`fmt`. **Seven negative proofs**,
   each executed by breaking the thing. ✅ **WITH DOCKER UP**: edge-shop **364/364 across 29 files**
   incl. **40 container tests against the real migrations** (triggers, rollups, Today, orders), Go
-  `shoplive` green (101.7 s), and **`orders/` 12/12 UNMODIFIED** — the proof the new trigger broke
+  `shoplive` green (101.7 s), and **`orders/` 12/12 UNMODIFIED** - the proof the new trigger broke
   nothing that already worked.
-- **⚠ Open (operator)**: ⚠ **commit the second migration + `make db-up ENV=dev`** (schema only — the
+- **⚠ Open (operator)**: ⚠ **commit the second migration + `make db-up ENV=dev`** (schema only - the
   running rollup job picks up the newly-marked buckets, so no code deploy); ⚠ **`make edge-deploy
   SERVICE=shop ENV=dev`** carries the product-rollup fix, which is a **code** change and does need one;
-  then the [quickstart](specs/058-shop-today-insights/quickstart.md) walks W1–W13 — **W8** (a late refund
+  then the [quickstart](specs/058-shop-today-insights/quickstart.md) walks W1–W13 - **W8** (a late refund
   lands in today's figures while the older day's revenue stays put) is the one that exercises the
   second recompute the CTE defect broke. ⚠ **Nobody has looked at any screen**: 039 shipped four
   live defects with a fully green suite. Parity register:
   [docs/audiences/shop-capabilities.md](docs/audiences/shop-capabilities.md) §058.
 
-**057-shop-web-redesign — Shop Console Redesign.** 🚧 **88/95 tasks — every phase BUILT and fully
+**057-shop-web-redesign - Shop Console Redesign.** 🚧 **88/95 tasks - every phase BUILT and fully
 machine-verified, INCLUDING against real PostgreSQL. NOT DEPLOYED, NOT COMMITTED, NOT WALKED BY A
 PERSON.** Spec/artifacts: [specs/057-shop-web-redesign/](specs/057-shop-web-redesign/).
 
 Rebuilds `apps/shop-web` on an imported Claude Design mockup (project `951bb710`, read via
-`DesignSync` — it is **not** in the repo), and adds the three capabilities the shop audience never had.
-- ⚠ **AMENDMENT A1 (2026-09-10, design revision): PURCHASING REMOVED — deferred, not left dormant.** No
+`DesignSync` - it is **not** in the repo), and adds the three capabilities the shop audience never had.
+- ⚠ **AMENDMENT A1 (2026-09-10, design revision): PURCHASING REMOVED - deferred, not left dormant.** No
   Restock screen on shop-web OR shop-mobile; suppliers / purchase orders / default supplier gone from UI,
   edge-shop (10 routes), shared-types and telemetry; `20260910065158_remove_shop_purchasing.sql` drops
   the schema (refund `actor_kind='shop'` untouched). The low-stock READ stays (dashboard, back-office).
   Header: breadcrumb trail replaces the title (new opt-in `headerBreadcrumb` on `ConsoleShell`), primary
   action + theme toggle removed (appearance stays in the user menu). Default threshold → Catalog → Stock
   settings. See spec.md § Amendment A1.
-- ⚠ **AMENDMENT A2 (2026-09-10, design revision): PRODUCT DETAIL IS FOUR TABS AGAIN** — Details
+- ⚠ **AMENDMENT A2 (2026-09-10, design revision): PRODUCT DETAIL IS FOUR TABS AGAIN** - Details
   (details · pricing · attributes) · Inventory (stock rules · stock movements) · Media · Visibility,
   default Details and **reset per product** (body keyed on `productId`). The summary rail is gone; its
   content is an **Activity** right-side `Sheet` whose change log shows **every** stock movement (the rail
   fit four), and Archive moved into the header (destructive label, operator decision). Sections are open
   (title + subtitle + action, one rule, label-over-value field grid) via new `DetailSection` /
   `FieldGrid` / `Field` primitives beside `Section`/`DetailRow`. ⚠ **The revision's variants, unit
-  cost/margin, reorder point, "Last 30 days" stats, seeded log and coloured dots were NOT reproduced** —
+  cost/margin, reorder point, "Last 30 days" stats, seeded log and coloured dots were NOT reproduced** -
   each slot carries the real equivalent (spec A2 §5, research R10); `inventory-guard` passes unchanged.
-- ⚠ **AMENDMENT A3 (2026-09-10): THE ORDER CONSOLE — ORDERS LIST + ORDER DETAIL**, built to the
+- ⚠ **AMENDMENT A3 (2026-09-10): THE ORDER CONSOLE - ORDERS LIST + ORDER DETAIL**, built to the
   design's MARKUP through three same-day revisions (a first pass on A2's conventions was rejected:
   "follow the design"). Current state (spec § A3 §2): **header** has no search; order pagination sits
   in the header on detail only. **List**: search · Filters (right sheet: Date · Payment · Delivery,
@@ -2075,7 +2075,7 @@ Rebuilds `apps/shop-web` on an imported Claude Design mockup (project `951bb710`
   `20260910090000` (tags, notes, widened `fulfillment_event`) + `20260911090000` (`pick_note`).
   ⚠ **Order money IS shown on shop-web (operator decision)**; the pick contract shop-mobile reads is
   untouched. ⚠ **A part pick records the remainder unavailable, and Fulfil marks untouched lines
-  unavailable first** (FR-024) — the refund proposal keys on it, so nothing leaves short unrecorded.
+  unavailable first** (FR-024) - the refund proposal keys on it, so nothing leaves short unrecorded.
   ⚠ Still refused as impossible, not stylistic: Capture, VAT, Duplicate/Resend/Print invoice/Edit
   order, carrier/tracking, returns, customer email/history/billing. ⚠ **Pre-existing defects fixed**:
   the shop refund's `restock` was parsed and IGNORED by core-api (FR-023, `SkipStockReturn`);
@@ -2086,31 +2086,31 @@ Rebuilds `apps/shop-web` on an imported Claude Design mockup (project `951bb710`
   It ships payment **capture**, **carrier/tracking**, order-**line editing** and a **password** sign-in.
   Effy captures at payment (055 R3); a shop hands its portion to an Effy driver (049) and never sees a
   carrier; an order is a paid financial record 055 refuses to edit; and the shop audience is *strictly
-  passwordless* — the pool has no password flow, so that field would collect a credential Cognito
+  passwordless* - the pool has no password flow, so that field would collect a credential Cognito
   rejects. All four are refused by **source guards that read this directory and fail naming the file**.
 - ⚠ **THE COLOUR LAW HELD, THREE TIMES.** The mockup carries a third `--warning` hue (amber), a
   `--destructive` that fails AA, and a dark `--success` **byte-identical to the retired 024 splash
-  green** — which fired `check-no-emerald.sh` on my own comment. None adopted. `check-tokens.mjs` now
+  green** - which fired `check-no-emerald.sh` on my own comment. None adopted. `check-tokens.mjs` now
   checks **both** token files and a new `check-shop-theme.mjs` proves the shop layer overrides **all 36**
   platform colour vars, so a missed one cannot silently mix two neutral ramps. ⚠ `tokens:check` passes
-  **unchanged** — the mechanical proof nothing reached the three mobile Compose themes.
+  **unchanged** - the mechanical proof nothing reached the three mobile Compose themes.
 - ⚠ **A SHOP-SCOPED TOKEN LAYER, INSIDE THE SHARED PACKAGE** (`design-system/src/tokens/shop.css`):
   the zinc ramp, Geist, a single 8px radius. Mechanism shared, values per-surface. ⚠ Recorded
   consequence: shop-web's radii now **diverge from shop-mobile's**, ending 017's SC-004 parity for this
   one surface. Intended, and written down so nobody "fixes" it as drift.
-- ⚠ **`core-api` GAINED A THIRD COGNITO VERIFIER** (shop), on **exactly one route** — the refund. Same
+- ⚠ **`core-api` GAINED A THIRD COGNITO VERIFIER** (shop), on **exactly one route** - the refund. Same
   reasoning 055 used for back-office: the payment secret lives there and nowhere else. The gate asks
   **three** questions (active operator · `shop_manager` · at an active shop **that is on this order**);
   the third is what makes it unlike every other gate, and it is proven against real PostgreSQL.
 - ⚠ **A LATENT DEFECT FOUND AND FIXED: every shop-issued refund would have been UNATTRIBUTABLE.**
-  `actor_label` is resolved by a LEFT JOIN against `admin.staff` **only** — correct for back-office and
+  `actor_label` is resolved by a LEFT JOIN against `admin.staff` **only** - correct for back-office and
   matching nothing for anyone else. The moment a shop could refund, back-office's audit trail would
-  render "—" with nothing saying anything was missing, in the table whose own comment calls that "the
+  render "-" with nothing saying anything was missing, in the table whose own comment calls that "the
   audit gap this table exists to close." Now joins both staff tables and the DTO carries `actorKind`.
 - ⚠ **T006 WAS WRONG AND WAS NOT BUILT AS WRITTEN.** It asked for `initiated_by` +
   `initiated_by_shop_staff_id` on `public.refund`; that table has carried `actor_kind` + `actor_sub`
   since 055. Two columns answering one question is 033/052/053's shape. The migration **widens the
-  CHECK** instead — after auditing all three readers, because 053 and 056 each shipped a defect through
+  CHECK** instead - after auditing all three readers, because 053 and 056 each shipped a defect through
   an enum widening.
 - ⚠ **RESEARCH R5 WAS WRONG TOO.** It recorded 009's provisioning as safe to reuse as-is;
   `ensureShopUser` **re-enables a disabled account** (break-glass for a back-office admin, a trap for a
@@ -2118,7 +2118,7 @@ Rebuilds `apps/shop-web` on an imported Claude Design mockup (project `951bb710`
   reused email and names the situation, and never reaches Cognito.
 - ⚠ **A DEFECT OF MY OWN, CAUGHT ONLY BY THE CONTAINER TEST**: a fully-`received` purchase order
   refused further receives. `received` is **derived**, so that broke idempotency (a retry errored) and
-  correction (a mis-keyed receive could never be undone) — a derived state a human cannot escape, which
+  correction (a mis-keyed receive could never be undone) - a derived state a human cannot escape, which
   is 056's stranded-work shape. Only `cancelled` refuses now.
 - ⚠ **AND ONE GUARD THAT DID NOT CATCH ITS OWN NEGATIVE PROOF.** The FR-012 source guard required a
   delimiter after the phrase, so an injected `<RotateCcw />Capture payment` sailed through. Fixed to
@@ -2127,15 +2127,15 @@ Rebuilds `apps/shop-web` on an imported Claude Design mockup (project `951bb710`
 - ⚠ **AND A BEHAVIOUR CHANGE A 054 TEST STOPPED ME SHIPPING**: sorting the restock query by supplier
   silently demoted an out-of-stock product at one supplier below a merely-low one at another. Grouping
   moved to the client; 054's urgency guarantee is untouched.
-- ⚠ **THE SIX MAIN SCREENS WERE REBUILT AGAINST THE MOCKUP'S ACTUAL MARKUP, not just its tokens** —
+- ⚠ **THE SIX MAIN SCREENS WERE REBUILT AGAINST THE MOCKUP'S ACTUAL MARKUP, not just its tokens** -
   a second pass after the first delivered the theme and left five screens only lightly restyled. The
   shell (224px rail, 56px header carrying the screen's identity + live subtitle + search + theme + a
   route-derived CTA), catalog (segmented status tabs, `--muted` table head, 6 columns), product detail
-  (six tabs collapsed into one scrolling column with a summary rail — ⚠ **superseded by A2**: four tabs
+  (six tabs collapsed into one scrolling column with a summary rail - ⚠ **superseded by A2**: four tabs
   + an Activity sheet),
-  order detail (sticky action bar, activity timeline, address rail — ⚠ **superseded by A3**), sign-in (brand lockup + bare
+  order detail (sticky action bar, activity timeline, address rail - ⚠ **superseded by A3**), sign-in (brand lockup + bare
   column) and the add-product wizard (⚠ **a modal turned into a ROUTE** with a progress rail and live
-  preview — a URL survives the refresh a modal dropped). Shared chrome changes are **opt-in props** on
+  preview - a URL survives the refresh a modal dropped). Shared chrome changes are **opt-in props** on
   `ConsoleShell`/`ConsoleHeader`/`OtpSignInCard`; back-office's **190 tests pass unmodified**, which is
   the proof.
 - ⚠ **THE PLATFORM'S PILL SYSTEM WAS REVERSED TO A SQUARED ONE**, on operator direction, and the
@@ -2147,20 +2147,20 @@ Rebuilds `apps/shop-web` on an imported Claude Design mockup (project `951bb710`
 - ⚠ **`Button` AND `Input` CARRIED `rounded-full`** (051's "the platform's ONE button shape", h-11 pill
   fields). Both are now `rounded-md` / `h-9`, along with select, textarea, OTP field, card
   (`xl`→`lg`), menu surfaces (`md`→`lg`), menu rows (`sm`→`md`), the brand mark and the avatar
-  (discs→6px squares). ⚠ **The badge went the OTHER way** — `md`→`full` — because a status chip is a
+  (discs→6px squares). ⚠ **The badge went the OTHER way** - `md`→`full` - because a status chip is a
   lozenge around a word, a shape rather than a radius step; squared, it read as a tiny disabled button.
   ⚠ **This changes customer-web and back-office too** (they share the components and are queued for
   their own redesigns); their **458 + 190 tests pass unmodified**, and `tokens:check` is **unchanged**,
   so no mobile Compose theme moved.
 - ⚠ **A NEW GUARD, `check-component-shape.mjs`**, because a reversal is exactly what gets half-undone
   later: someone reads 051's pill comment in the history and "restores" one component, and nothing
-  fails — a class string is not typechecked and no DOM test looks at corners. It asserts controls are
+  fails - a class string is not typechecked and no DOM test looks at corners. It asserts controls are
   never pills, the badge always is, and **no surface is sharper than the rows inside it**. Proven by
   breaking all three.
 - ⚠ **FOUR MORE MOCKUP BLOCKS REFUSED, all on order detail**: its money totals (a shop portion carries
-  no order-level money — 020 SC-007 — and its "VAT 25%" is Swedish, while AU grocery is a mixed supply),
+  no order-level money - 020 SC-007 - and its "VAT 25%" is Swedish, while AU grocery is a mixed supply),
   its **Capture** button (Effy captures at payment, 055 R3), its **Duplicate**/**Edit order** (an order
-  is a paid record 055 refuses to edit) and **Print invoice** (`canIssueTaxInvoice()` is false — no ABN,
+  is a paid record 055 refuses to edit) and **Print invoice** (`canIssueTaxInvoice()` is false - no ABN,
   no per-item GST). Its `TONES` map was refused wholesale: amber is a third hue, and it uses `--success`
   as TEXT at 4.00:1, below the 4.5:1 bar that is exactly why `--success` has no `-foreground` pair.
 - **Verified**: `pnpm -r typecheck` **19/19** · `pnpm -r test` **18 packages, 1,750 tests, zero
@@ -2173,26 +2173,26 @@ Rebuilds `apps/shop-web` on an imported Claude Design mockup (project `951bb710`
 - **⚠ Open (7 tasks, all operator)**: the commit; `make db-up ENV=dev`; ⚠ `make apply ENV=dev` **first**
   (core-api needs `AUTH_SHOP_*` or it **fails closed at boot**, and edge-shop needs the shop-pool
   Cognito grant or every invite 500s); `core-image-push && core-deploy`; `make edge-deploy SERVICE=shop`
-  and `SERVICE=inventory`; then the quickstart walks (incl. A2-09, the product-detail tabs + Activity sheet). ⚠ **Nobody has looked at any screen** — 039
+  and `SERVICE=inventory`; then the quickstart walks (incl. A2-09, the product-detail tabs + Activity sheet). ⚠ **Nobody has looked at any screen** - 039
   shipped four live defects with a fully green suite. Parity register:
   [docs/audiences/shop-capabilities.md](docs/audiences/shop-capabilities.md) §057.
 
-**056-driver-management — Back-Office Driver Management.** 🚧 **CODE-COMPLETE + FULLY MACHINE-VERIFIED
+**056-driver-management - Back-Office Driver Management.** 🚧 **CODE-COMPLETE + FULLY MACHINE-VERIFIED
 across the new service, the console, the migration and both corrections. NOT DEPLOYED, NOT COMMITTED,
 NOT WALKED BY A PERSON.** Sign-off:
 [specs/056-driver-management/SIGNOFF.md](specs/056-driver-management/SIGNOFF.md).
 
-Builds the driver console **049 deferred in writing** — its own spec said "a full driver-management
+Builds the driver console **049 deferred in writing** - its own spec said "a full driver-management
 console is out of scope for this slice unless folded in during planning." This is that slice.
 - ⚠ **THE DEFECT: the driver app has been recording exceptions for a reader that does not exist.**
   `public.delivery_failure` and `public.collection_task_issue` are both annotated *"recorded for
-  back-office follow-up"* — and `apis/edge-api/driver` is the **only** code that has ever touched
+  back-office follow-up"* - and `apis/edge-api/driver` is the **only** code that has ever touched
   either, and only to INSERT. A repo-wide search for a reader returns nothing. So a driver marks a drop
   undeliverable, the package stays `collected`, and the shopper keeps seeing "on the way" indefinitely
   with **nobody at Effy told**. [ORDER-FLOW-GAPS.md](ORDER-FLOW-GAPS.md) named this the **top remaining
-  structural gap**; 056 builds the reader. ⚠ **Closed for Effy, NOT for the shopper** — no customer
+  structural gap**; 056 builds the reader. ⚠ **Closed for Effy, NOT for the shopper** - no customer
   notification and no re-attempt scheduling; that is the slice this one unblocks.
-- ⚠ **STANDING A DRIVER DOWN CAN STRAND PHYSICAL GOODS, PERMANENTLY AND INVISIBLY** — and this was in
+- ⚠ **STANDING A DRIVER DOWN CAN STRAND PHYSICAL GOODS, PERMANENTLY AND INVISIBLY** - and this was in
   no register because nobody knew. `releaseIneligibleWork` correctly never yanks picked-up work (the
   packages are in a van), but `collection_task_package_uq UNIQUE(shop_fulfillment_id)` then keeps them
   claimed and the sweep's `NOT EXISTS` skips them **forever**, an order attached to each. **Derived on
@@ -2201,28 +2201,28 @@ console is out of scope for this slice unless folded in during planning." This i
   asserts something about the physical world no query can know.
 - ⚠ **A NEW COLD-PATH SERVICE, `apis/edge-api/fleet`** (18 routes, back-office authorizer), on a
   **measured** constraint: `effy-edge-admin` declared **77 handlers at 434/500** CloudFormation
-  resources with `versionFunctions: false` **already spent** — and its own header records that the
+  resources with `versionFunctions: false` **already spent** - and its own header records that the
   **driver routes** are what tipped it to 511 in the first place. The five 049 routes **MOVED** here, so
-  admin goes **77 → 72** — the first time that stack has gone *down*. ⚠ Deliberately **not** in
+  admin goes **77 → 72** - the first time that stack has gone *down*. ⚠ Deliberately **not** in
   `edge-api/driver`, which would be structurally sound but where a mis-wired route hands a **driver** the
   ability to edit driver records, including their own employment status.
 - **⚠ THE ACCESS GATE WAS A NEGATIVE TEST, AND THIS SLICE WOULD HAVE BROKEN IT.** `requireDriver` read
   `=== "disabled"`; widening the enum to three values meant a **suspended driver satisfied its negation
-  and kept a working session** — stood down in the console, still signing in and being assigned work,
+  and kept a working session** - stood down in the console, still signing in and being assigned work,
   with nothing failing. That is 055's lesson recurring on the very next slice (053's `<> 'delivered'`
   blocker, two new terminal states straight through it). Now `!== "active"`, with the test parameterised
   over every non-active state so a fourth status forces a decision instead of inheriting "permitted".
 - **⚠ CREATING A "NEW" DRIVER SILENTLY OVERWROTE AN EXISTING ONE.** `ensureDriverUser` swallowed the
   exists exception and **re-enabled a stood-down Cognito account**; `insertDriver` upserted on conflict.
   Together: reusing a departed employee's work email adopted their record, overwrote name/zone/vehicle,
-  **brought their sign-in back to life** — and reported success. Both halves now refuse, naming them.
+  **brought their sign-in back to life** - and reported success. Both halves now refuse, naming them.
 - **⚠ A PROFILE FIELD COULD NEVER BE CLEARED.** `COALESCE($n, col)` cannot distinguish "leave alone"
   from "clear", so a zone once assigned was permanent. The write now reads the **presence** of a key.
-- **⚠ DRIVER MANAGEMENT WROTE NO AUDIT ROW AT ALL** — the only privileged back-office domain that did
+- **⚠ DRIVER MANAGEMENT WROTE NO AUDIT ROW AT ALL** - the only privileged back-office domain that did
   not. Shops, promotions and catalog schema all do. ⚠ The audit detail records a PII field as
   **changed**, never its value: the emergency contact is a **third party** who never dealt with Effy.
 - **⚠ THE CONCURRENCY TOKEN WOULD HAVE MADE EVERY EDIT FAIL, and only the container test found it.**
-  `toISOString()` truncates to **milliseconds**; PostgreSQL stores **microseconds** — so
+  `toISOString()` truncates to **milliseconds**; PostgreSQL stores **microseconds** - so
   `WHERE updated_at = $2` never matched its own row and every save would have said *"changed by someone
   else"*. Invisible to `tsc` (both strings) and to the mocked tests (they mock the repository). Also
   caught there: **two wrong column names** (`order.reference` → `order_number`,
@@ -2231,55 +2231,55 @@ console is out of scope for this slice unless folded in during planning." This i
   edge-fleet **91** (62 unit + **29 container-backed against real PostgreSQL**) · edge-admin **191
   UNMODIFIED** (the proof the extraction changed nothing else) · back-office **190** · Go clean ·
   `tokens:check` **unchanged** · `brand-check`. **SEVEN negative proofs**, each done by breaking the
-  thing — ⚠ including one where **the break was NOT caught** and the guard had to be fixed: it matched
+  thing - ⚠ including one where **the break was NOT caught** and the guard had to be fixed: it matched
   only `{ driver }` and the injected leak was `{ driver: row }`.
 - **⚠ Open (14, all operator)**: the baseline record; the commit; `make db-up`; ⚠ `edge-deploy
   SERVICE=fleet` **BEFORE** `admin` (or driver management answers nothing at all); `SERVICE=driver`;
-  `make apply`; then the walks. ⚠ **§6 is the most important walk** — collect a real package, stand the
+  `make apply`; then the walks. ⚠ **§6 is the most important walk** - collect a real package, stand the
   driver down, confirm the itemised warning, release the stranded work. ⚠ **Nobody has looked at any
   screen**: 039 shipped four live defects with a fully green suite. Parity register:
   [docs/audiences/driver-capabilities.md](docs/audiences/driver-capabilities.md) §056.
 
-**055-refunds-cancellation — Refunds & Cancellation.** 🚧 **90/106 tasks — ALL SIX USER STORIES BUILT
+**055-refunds-cancellation - Refunds & Cancellation.** 🚧 **90/106 tasks - ALL SIX USER STORIES BUILT
 and fully machine-verified. NOT DEPLOYED, NOT COMMITTED, NOT WALKED BY A PERSON.** Sign-off:
 [specs/055-refunds-cancellation/SIGNOFF.md](specs/055-refunds-cancellation/SIGNOFF.md).
 
-Closes gap **G3** — the money half of the post-purchase story.
+Closes gap **G3** - the money half of the post-purchase story.
 - ⚠ **THE DEFECT: money could go INTO the platform and never come back out.** `public.refund` did not
   exist; `order.status = 'canceled'` had been permitted by a CHECK since 019 and was **written by
   nothing** (055 is its first writer); a shopper whose items never arrived was told *"contact support
   and we'll sort it out"* by a screen whose own comment admitted no money could move.
 - ⚠ **A REFUND IS A STATE MACHINE, NOT A CALL.** The provider accepting one means only *submitted*;
-  the bank can reject it **up to thirty days later**. Five states — `submitting`/`submitted` answer
+  the bank can reject it **up to thirty days later**. Five states - `submitting`/`submitted` answer
   "has the provider got it", `failed`/`refused` answer "could retrying ever help". `failed` counts
   against the ceiling so a bouncing retry cannot refund an order repeatedly; `submitting` does not, or
   an outage on our side would make the platform refuse money it still holds.
 - ⚠ **`core-api` GAINED A SECOND COGNITO VERIFIER** (back-office) because the payment secret lives
-  there and nowhere else (019 SC-012). Per-pool validation against that pool's own issuer — the shape
-  Principle IV sanctions — **not** the auth proxy it forbids; the rejected alternative was the cold
+  there and nowhere else (019 SC-012). Per-pool validation against that pool's own issuer - the shape
+  Principle IV sanctions - **not** the auth proxy it forbids; the rejected alternative was the cold
   path forwarding an operator's token (research R1). Isolation proven in **both** directions.
 - ⚠ **CANCELLING *IS* REFUNDING.** `CaptureMethod: automatic` means the money is captured at payment,
   so the provider's cancel operation never applies to an Effy order (R3).
-- ⚠ **THE PUBLISHED POLICY WAS CORRECTED IN THE SAME CHANGE** (FR-016a) — as a NEW VERSION (`v2.md`),
+- ⚠ **THE PUBLISHED POLICY WAS CORRECTED IN THE SAME CHANGE** (FR-016a) - as a NEW VERSION (`v2.md`),
   so a policy someone already read keeps its text and its date. It said "before it is dispatched"
   (looser than the platform can honour) and "to cancel, use the app" (untrue until this shipped). ⚠ The
   audit found a **second lie**: "refund **or replacement**", and the platform has **no replacement
-  mechanism and no back-office order creation** — verified, not assumed.
+  mechanism and no back-office order creation** - verified, not assumed.
 - **⚠ MY OWN WORST DEFECT, CAUGHT BY READING THE CODE BACK**: `HandleWebhook` opened with
-  `if evt.PaymentIntentID == "" { return nil }` — which is **every** `refund.*` event. Refund events
+  `if evt.PaymentIntentID == "" { return nil }` - which is **every** `refund.*` event. Refund events
   were **discarded before they were deduped or dispatched**, and every test on both sides passed
   because each half was correct in isolation: `HandleRefundEvent` worked perfectly and was never
   called.
 - **⚠ AND ONE I NEARLY SHIPPED**: neither customer surface carried `orderItemId`. `order_item` has no
   uniqueness on (order, product), so passing a product id where a line id is expected does **not
-  error** — the join matches nothing and every item a shopper names is **silently dropped**. Third
+  error** - the join matches nothing and every item a shopper names is **silently dropped**. Third
   outing of that shape after `brand`, `badges` and (033) `productId`.
 - **⚠ PRE-EXISTING, FOUND AND FIXED**: `cm-contract-check` was **already red at HEAD** (proven by
-  stashing) — 054 committed the TS `errors` field and never regenerated the Kotlin. And the
+  stashing) - 054 committed the TS `errors` field and never regenerated the Kotlin. And the
   **account-closure blocker was wrong a third time**: 053 fixed the value and kept the shape, so both
   new terminal states satisfied `<> 'delivered'` and would have held a customer for seven days over a
   package nobody is carrying. Terminal states are now named positively.
-- **Proposals are DERIVED, never stored** — only the *dismissal* is a row (027's counted-not-stored
+- **Proposals are DERIVED, never stored** - only the *dismissal* is a row (027's counted-not-stored
   rule, third application). **Stock returns only where the platform can know it should** (item-derived,
   tracked, uncollected): inventing stock is worse than not returning it.
 - **Verified**: `pnpm -r typecheck` **19/19** · `pnpm -r test` **1,813**, 17 packages, exit 0 · Go
@@ -2289,79 +2289,79 @@ Closes gap **G3** — the money half of the post-purchase story.
 - **⚠ Open (16)**: the commit; `make db-up`; ⚠ `make apply` **first** (core-api needs the back-office
   pool ids + CORS origin); `core-image-push && core-deploy`; `edge-deploy SERVICE=orders|shop`;
   registering the **`refund.*` webhook events** (without them no refund ever settles); then the walks.
-  ⚠ **T097 is the most important open item on the platform** — force a real `refund.failed` and confirm
+  ⚠ **T097 is the most important open item on the platform** - force a real `refund.failed` and confirm
   the order stops claiming the money went back. ⚠ **Nobody has looked at any screen**: 039 shipped four
   live defects with a fully green suite. Register:
   [ORDER-FLOW-GAPS.md](ORDER-FLOW-GAPS.md) (**G3 closed**); operator guide:
   [docs/order-console-guide.md](docs/order-console-guide.md).
 
-**054-product-inventory — Product Inventory (Shop-Managed Stock).** 🚧 **78/93 tasks — US1–US5 all BUILT
+**054-product-inventory - Product Inventory (Shop-Managed Stock).** 🚧 **78/93 tasks - US1–US5 all BUILT
 and FULLY machine-verified, ✅ INCLUDING SC-003 AGAINST REAL POSTGRESQL. NOT DEPLOYED, NOT COMMITTED,
 NOT WALKED BY A PERSON.** Spec/artifacts: [specs/054-product-inventory/](specs/054-product-inventory/).
 
-Closes gap **G2** — the top item in [ORDER-FLOW-GAPS.md](ORDER-FLOW-GAPS.md) after 053.
+Closes gap **G2** - the top item in [ORDER-FLOW-GAPS.md](ORDER-FLOW-GAPS.md) after 053.
 - ⚠ **THE DEFECT: nothing on the platform knew how much of anything a shop had.** `public.product`
   carried `status` and nothing else; a repo-wide search for stock/inventory/on_hand returned only
   prose. So a shopper could buy 20 of something a shop had 2 of, and the sole discovery mechanism was
-  a picker at an empty shelf hours later — routing straight into G3, which has no money path.
+  a picker at an empty shelf hours later - routing straight into G3, which has no money path.
   `20260710050004_shop_staff_rbac.sql:22` said it outright: "no address, hours, capacity, **or
-  inventory** — those arrive with the slice that needs them." This is that slice.
-- **Data**: one migration `<ts>_product_inventory.sql` — three columns on `public.product`
+  inventory** - those arrive with the slice that needs them." This is that slice.
+- **Data**: one migration `<ts>_product_inventory.sql` - three columns on `public.product`
   (`stock_tracked` / `stock_on_hand` / `low_stock_threshold`), `public.stock_movement` (append-only),
   `public.shop_stock_settings`. ⚠ **COLUMNS, NOT A SIDE TABLE** (research R8): the availability rule is
   evaluated in 14 hot-path places incl. the storefront home read 029 rescued from a 3-second timeout,
   so a join would be added everywhere to learn one integer. ⚠ A `CHECK` makes **"tracked with no
   count" unrepresentable**, so FR-003 is the database's rule, not a service's.
-- ⚠ **TRACKING IS OPT-IN PER PRODUCT.** An untracked product behaves *exactly* as before 054 existed —
+- ⚠ **TRACKING IS OPT-IN PER PRODUCT.** An untracked product behaves *exactly* as before 054 existed -
   which is what makes this non-breaking for the entire existing catalogue on day one. **Proven, not
   asserted**: every pre-054 cart/storefront test passes with its expectations unmodified, and
   `TestUntrackedIsExactlyThePreviousRule` states the equivalence directly.
 - ⚠ **ONE AVAILABILITY RULE, IN ONE PLACE** (`internal/platform/availability`). It was the literal
   `p.status = 'active'` written by hand in 14 spots across four features; adding stock meant changing
   the answer in all of them, and missing one leaves a surface quietly selling what a shop does not
-  have — no error, no log line, no failing test. `guard_test.go` greps the hot path and **fails naming
+  have - no error, no log line, no failing test. `guard_test.go` greps the hot path and **fails naming
   the file**; each legitimate non-product site carries an `availability-exempt: <table>` marker, so an
   exemption justifies itself where it lives instead of in an allow-list nobody reads while editing.
 - ⚠ **THE SAME RULE DOES THREE DIFFERENT JOBS, and conflating them was a defect I shipped into Phase 2
   and caught in Phase 4**: **cart/checkout REFUSE** (money moves); **search/product page PROJECT**
-  `available` (FR-013/A10 — an out-of-stock product stays listed, or saved lists, shared links and
-  search results all break); **home rails FILTER** (FR-023, required since 025 — merchandising must not
+  `available` (FR-013/A10 - an out-of-stock product stays listed, or saved lists, shared links and
+  search results all break); **home rails FILTER** (FR-023, required since 025 - merchandising must not
   offer what cannot be bought). Making it a filter everywhere made sold-out products *vanish*.
 - ⚠ **A NEW COLD-PATH SERVICE, `apis/edge-api/inventory`**, carrying **both** audiences' routes behind
   **two authorizers** (8 shop + 6 back-office). `edge-api/admin` declares 77 functions at **434/500**
   CloudFormation resources with `versionFunctions: false` already spent, so the assisted path had
-  nowhere to go — 053 made the same call. One service means ONE stock service and repository instead of
+  nowhere to go - 053 made the same call. One service means ONE stock service and repository instead of
   two that drift; API Gateway authorizers are per-ROUTE, so Principle IV holds structurally.
-- **Stock reduces inside `FinalizeSucceeded`** — no dedupe key, because the status-guarded transition
+- **Stock reduces inside `FinalizeSucceeded`** - no dedupe key, because the status-guarded transition
   at the top already makes everything below it exactly-once. ⚠ **The shortfall is flagged BEFORE the
   deduction**: afterwards the shelf reads 0, so the deficit would report the whole line as short. ⚠ A
   **pick shortfall empties the shelf** (the picker has better information than the count did), but
-  **un-flagging does not** — "it turned up after all" says nothing about how many more are there.
+  **un-flagging does not** - "it turned up after all" says nothing about how many more are there.
 - ⚠ **A RESIDUAL OVERSELL WINDOW IS ACCEPTED, NOT CLOSED** (A6). Between creating a payment and it
   succeeding, another shopper can take the last unit. Reservations would need an abandoned-checkout
   sweep the platform lacks. Instead the pick line is **pre-flagged before picking begins**, moving
   discovery from "a picker at a shelf hours later" to "the moment the order arrives".
 - **⚠ FOUR PRE-EXISTING DEFECTS FOUND AND FIXED**: (1) `toDomainError` in `@effy/api-client` read
-  `problem.fields` while the wire carries **`errors`** — so `DomainError.fields` was `undefined` on
+  `problem.fields` while the wire carries **`errors`** - so `DomainError.fields` was `undefined` on
   **every refusal, on every surface, since the type existed**; 053 recorded it as latent, and FR-016
   could not be met around it. The package had **no tests at all**. (2) shop-mobile's product detail
-  tabs were **decorative** — `DetailTabs()` hard-coded index 0. (3) A comment in `edge-api/shop`
+  tabs were **decorative** - `DetailTabs()` hard-coded index 0. (3) A comment in `edge-api/shop`
   asserting pick rows "do not exist until picking begins", now false. (4) `TestRailsCarryOnlyAvailable
   Products` passed **vacuously** once rails emptied.
 - **⚠ FIVE DEFECTS OF MY OWN, each caught by a test or a read-back**: the storefront filter/projection
   confusion above; the shortfall computed after the deduction; `run { … }` in a ViewModel resolving to
   **Kotlin's stdlib `run`**, so `load()` never published state; the pick correction firing on un-flag;
-  and a metric declared with label `outcome` but called with `stage` — which does **not** panic, it
+  and a metric declared with label `outcome` but called with `stage` - which does **not** panic, it
   silently emits a series every alert querying `{stage=…}` misses.
 - ⚠ **027's R13 RECURRING, caught before shipping**: the first contract draft used bare `number` and
-  the generator emitted `val delta: Double`. The drift guard would never have caught it — the generated
+  the generator emitted `val delta: Double`. The drift guard would never have caught it - the generated
   file matched its source exactly. Only reading the Kotlin back does. Now `WireInt` → `Long`.
 - **Verified**: `pnpm -r typecheck` **19/19** · `pnpm -r test` **1,711**, zero failures ·
   `go test -short ./...` **16/16 packages** · shop-mobile **107** Android host tests + **iOS main AND
   test compile** · `sm-guard` · `mobile-assets:check` · `tokens:check` **unchanged** (this slice adds
   no token). **TEN negative proofs**, each done by breaking the thing.
 - ✅ **SC-003 IS PROVEN.** Two concurrent payments for the last unit, against real PostgreSQL: the count
-  never reads below zero, both movements are recorded — and **removing the `GREATEST(0, …)` floor makes
+  never reads below zero, both movements are recorded - and **removing the `GREATEST(0, …)` floor makes
   the second payment violate the CHECK constraint**, so the floor is doing the work. The **57
   previously-skipped** edge container tests pass too (`CONTAINER_TESTS=1`). ⚠ The two Go packages still
   red are the **pre-existing** gates, error text matching this file verbatim.
@@ -2369,11 +2369,11 @@ Closes gap **G2** — the top item in [ORDER-FLOW-GAPS.md](ORDER-FLOW-GAPS.md) a
   `core-deploy` (**before** pushing to `dev`); the quickstart walks. ⚠ **Nobody has looked at any
   screen**: 039 shipped four live defects with a fully green suite. ⚠ **`make core-image-push` never
   logged in to ECR** (found 2026-08-29 when a 12-hour token expired and the push 403'd while
-  `core-deploy` cheerfully redeployed a two-day-old image) — the target now authenticates first.
+  `core-deploy` cheerfully redeployed a two-day-old image) - the target now authenticates first.
   Parity register:
   [docs/audiences/shop-capabilities.md](docs/audiences/shop-capabilities.md) §054.
 
-**053-order-lifecycle-completion — Order Lifecycle Completion.** 🚧 **70/88 tasks — CODE-COMPLETE +
+**053-order-lifecycle-completion - Order Lifecycle Completion.** 🚧 **70/88 tasks - CODE-COMPLETE +
 MACHINE-VERIFIED across the new service, the console, both corrections and the email channel. NOT
 DEPLOYED, NOT COMMITTED, NOT WALKED BY A PERSON.** Spec/artifacts:
 [specs/053-order-lifecycle-completion/](specs/053-order-lifecycle-completion/).
@@ -2385,44 +2385,44 @@ Makes an order capable of **finishing**, and gives Effy somewhere to finish it f
   `same_day`. So most orders sat at `collected` forever, `stage.go` mapped that to **"on the way"
   forever**, `order_delivered` never fired on the majority path, and the order never left the customer's
   active list.
-- **Data**: one migration `20260826232728_order_lifecycle_completion.sql` — `public.carrier_handoff` +
+- **Data**: one migration `20260826232728_order_lifecycle_completion.sql` - `public.carrier_handoff` +
   `public.package_arrival` (both `UNIQUE(shop_fulfillment_id)`), and `notification_request` gains
   **`channel`** (`push|email`) + a snapshotted `recipient_email`. ⚠ **`shop_fulfillment.status` is
-  UNCHANGED** — no `handed_over` state. A package in a carrier's van and one on the hub floor are the
+  UNCHANGED** - no `handed_over` state. A package in a carrier's van and one on the hub floor are the
   same fact to a shopper, so the status would exist only to be mapped; the handoff row's **existence**
   is the precondition (research R3).
 - ⚠ **A NEW COLD-PATH SERVICE, `apis/edge-api/orders`**, on a **measured** constraint (T001):
   `effy-edge-admin` packages to **434/500** CloudFormation resources and already carries
   `versionFunctions: false` (049 was forced into it). ~6 routes ≈ 30 resources would leave ~1 feature of
   runway in the domain where refunds/cancellation/returns are queued next. Attaches to the shared
-  gateway + the **existing** back-office authorizer — no new pool.
+  gateway + the **existing** back-office authorizer - no new pool.
 - **Back-office → Orders** (`apps/back-office`, 2 screens): find an order, read packages/items/payment/
   destination and a four-way **history projection** (`fulfillment_event` + `driver_task_event` +
   `carrier_handoff` + `package_arrival`). ⚠ **Nobody at Effy could look up an order before this**, which
   is why 020's "contact support and we'll sort it out" reached people who could not see it. Read = any
-  active staff **incl. csa**; record = **admin/manager** (FR-015 — with no carrier signal, "arrived" is
+  active staff **incl. csa**; record = **admin/manager** (FR-015 - with no carrier signal, "arrived" is
   an *assertion* about a package nobody saw, and it finishes a financial record + emails the customer).
 - **⚠ FOUR PRE-EXISTING DEFECTS FOUND AND FIXED**: (1) the **account-closure blocker was wrong in BOTH
-  directions** — `f.status <> 'collected'` meant a **delivered** order blocked closure while an order
+  directions** - `f.status <> 'collected'` meant a **delivered** order blocked closure while an order
   **genuinely in transit** did not; written before the lifecycle existed, promising to "become correct
   automatically", and 049 landed it with a *different* terminal state. (2) A **mixed order announced
-  itself delivered while half was still out** — the driver enqueued `order_delivered` deduped on the
+  itself delivered while half was still out** - the driver enqueued `order_delivered` deduped on the
   DROP id, and a drop covers only the *same-day* packages. (3) **Every same-day arrival was
   unattributable**; the driver path now writes `package_arrival` too, or SC-010 was false on day one.
   (4) An unconfigured FCM **halted the whole drain**, which with email on the same outbox would let a
   push misconfiguration silently suppress the only message a web-only shopper gets.
 - **Email**: 11th template `order-delivered` + a `channel` fan-out in the notifications worker. ⚠ It
-  carries **no package count and no shop reference** (FR-021) — the catalogue gives it no var to say it
+  carries **no package count and no shop reference** (FR-021) - the catalogue gives it no var to say it
   with, and a test pins that. ⚠ Scope boundary: `order_ready`/`order_out_for_delivery` stay push-only,
   and `order_paid` **must not** gain one (052's receipt already exists).
 - ⚠ **NO CUSTOMER-FACING TRACKING REFERENCE** (FR-022, settled): references are per-package and packages
   are per-shop, so listing them discloses how many shops served the order. Recorded for staff only.
-- **Both customer surfaces gained NOTHING** — no screen, no route, no contract change. `ready_for_pickup`
+- **Both customer surfaces gained NOTHING** - no screen, no route, no contract change. `ready_for_pickup`
   rank 2→1 in `orders/stage.go` fixes web + mobile in **one line**, which is the return on 052 deleting
   `summarizeFulfillment`. **Proven by reverting**: 3 tests fail.
-- **⚠ THREE DEFECTS OF MY OWN, found by reading the code back — all green until then.** (1) Paging
+- **⚠ THREE DEFECTS OF MY OWN, found by reading the code back - all green until then.** (1) Paging
   **re-showed rows**: the list ordered/filtered on `created_at` but minted the cursor from `placed_at`,
-  always the later instant. ⚠ **And the first test written for it PASSED with the defect in place** —
+  always the later instant. ⚠ **And the first test written for it PASSED with the defect in place** -
   it called the repository directly and supplied its own cursor, never touching the service where the
   cursor is minted. (2) **Every console refusal collapsed to one generic sentence**: the screen used
   `e instanceof Error`, but the api-client throws a **plain object**, so FR-006's named refusal was
@@ -2430,46 +2430,46 @@ Makes an order capable of **finishing**, and gives Effy somewhere to finish it f
   at the newest 25 orders. Also found (NOT fixed, latent): `problem()` emits field errors as `errors`
   while `toDomainError` reads `fields`, so **`DomainError.fields` is always undefined** platform-wide.
 - **Verified**: `pnpm -r typecheck` **18/18** · `pnpm -r test` **18/18** · edge-orders **33** (incl. **22
-  container-backed**, Docker UP — concurrency, 5× idempotency, mixed-order rollup, paging, every refusal)
+  container-backed**, Docker UP - concurrency, 5× idempotency, mixed-order rollup, paging, every refusal)
   · edge-customer **200** (closure container both directions) · edge-notifications **28** · email-kit **81**
   · back-office **96** · `make email-check` **11 templates** · `brand-check` · `tokens:check` **unchanged**
-  · `terraform validate`. **Four things proven by breaking them** — the stage correction (3 tests), the
+  · `terraform validate`. **Four things proven by breaking them** - the stage correction (3 tests), the
   console↔Go drift guard, the authz extraction (admin's 199 pass unmodified), and the paging cursor.
 - **⚠ Open (18)**: the commit; `make db-up ENV=dev`; `make edge-deploy SERVICE=orders|driver|customer|
   notifications`; `core-deploy` (**before** pushing to `dev`); `make apply` (one new alarm); then the
-  quickstart walks — ⚠ **§4, a standard order end-to-end to `delivered`, is the one thing that has never
+  quickstart walks - ⚠ **§4, a standard order end-to-end to `delivered`, is the one thing that has never
   happened on this platform**. Also: gateway-401 negatives, the web/app wording comparison, and **looking
   at the console** (039 shipped four live defects with a fully green suite).
 - **⚠ Two PRE-EXISTING red gates, verified at clean HEAD, NOT caused by this slice**: Go
   `platform/delivery` container tests (`z.sameday_eligible does not exist`) and `features/saveditems`
-  (`public.delivery_pricing_rule does not exist` — 033 already records this). `make check-no-phantm`
+  (`public.delivery_pricing_rule does not exist` - 033 already records this). `make check-no-phantm`
   also fails on specs 042/045/050 prose. Register: [ORDER-FLOW-GAPS.md](ORDER-FLOW-GAPS.md); operator
   guide: [docs/order-console-guide.md](docs/order-console-guide.md); parity:
   [docs/audiences/customer-capabilities.md](docs/audiences/customer-capabilities.md) §053.
 
-**052-order-confirmation-invoice — Order Confirmation & Emailed Receipt.** ✅ **CONCLUDED (PARTIAL BY
-DESIGN) 2026-08-26 — 62/68 tasks. CODE-COMPLETE + MACHINE-VERIFIED on web, Android, iOS and email.
+**052-order-confirmation-invoice - Order Confirmation & Emailed Receipt.** ✅ **CONCLUDED (PARTIAL BY
+DESIGN) 2026-08-26 - 62/68 tasks. CODE-COMPLETE + MACHINE-VERIFIED on web, Android, iOS and email.
 NOT DEPLOYED. ⚠ NO RECEIPT HAS EVER BEEN SENT.** Sign-off:
 [specs/052-order-confirmation-invoice/SIGNOFF.md](specs/052-order-confirmation-invoice/SIGNOFF.md).
 
 Turns the thank-you page into a **document-grade receipt** on both customer surfaces, and **emails it**
-— closing the gap where a shopper who closed the tab had no record of their purchase at all.
-- **Data**: one migration `20260826122449_order_receipt.sql` — three nullable `payment.method_*`
+- closing the gap where a shopper who closed the tab had no record of their purchase at all.
+- **Data**: one migration `20260826122449_order_receipt.sql` - three nullable `payment.method_*`
   columns + `public.receipt_dispatch` (simultaneously the outbox, the rate-limit ledger and the audit
   trail). ⚠ **Exactly-once is a PARTIAL UNIQUE INDEX**, not code: `receipt_dispatch_auto_uq` on
   `(order_id) WHERE reason='order_paid'`, leaving the `customer_request` arm unconstrained so a resend
-  stays representable. That asymmetry is why `notification_request` (050) could NOT carry this — its
+  stays representable. That asymmetry is why `notification_request` (050) could NOT carry this - its
   `UNIQUE(dedupe_key)` is exactly what makes push exactly-once and exactly what would forbid a resend.
 - **Paths**: receipt READ = hot (`core-api/orders`, already there); receipt SEND = cold (a new
   scheduled `receiptDrain` in `edge-api/notifications`); RESEND = cold (`edge-api/customer/receipts`).
   An SES call on the paid path would make a payment's success depend on a mail service being up.
 - ⚠ **THE DELIVERY PROMISE IS DATE-GRANULAR.** `promised_from`/`promised_to` are `date` columns; the
   platform has no delivery time window and cannot derive one. The design canvas drew "Today, 5:00–8:00
-  pm" — a promise the business has not made, on the one document a customer treats as a record.
+  pm" - a promise the business has not made, on the one document a customer treats as a record.
   Corrected to a date across all three surfaces (research R4).
 - ⚠ **The stage is SERVER-DERIVED** (`orders/stage.go`) and it is a **ROLLUP, NOT A MAX**: a two-shop
   order with one portion delivered and one still picking is `packing`. customer-web's own
-  `summarizeFulfillment` was DELETED for being a second implementation of one rule — 029's banner
+  `summarizeFulfillment` was DELETED for being a second implementation of one rule - 029's banner
   target and 033's `available` flag, where both surfaces keep rendering something so divergence is
   silent. Proven by breaking it: a `max` makes exactly one test fail.
 - ⚠ **The resend takes NO address.** The recipient is resolved from the authenticated subject; an
@@ -2477,24 +2477,24 @@ Turns the thank-you page into a **document-grade receipt** on both customer surf
   address and purchase history. Its rate limit is an **atomic count-inside-the-INSERT** (039's
   newsletter lesson), and "not yours" / "no such order" are **byte-identical** refusals or the route
   becomes an oracle for which order ids are real.
-- **Colour**: a **bounded status palette** (a recorded Principle V exception — the amber same-day badge
+- **Colour**: a **bounded status palette** (a recorded Principle V exception - the amber same-day badge
   is a genuine third hue). Component-local on BOTH surfaces, deliberately duplicated rather than shared,
   because the shared package for colour IS the design system and that is exactly where it must not go.
   The hue is never text (a dot carries it, the label stays on the ramp). ⚠ `tokens:check` **unchanged**
-  is the mechanical proof; also proven by deletion — removing one file breaks 3 imports and nothing else.
+  is the mechanical proof; also proven by deletion - removing one file breaks 3 imports and nothing else.
 - ⚠ **NOT A TAX INVOICE, and that is two gaps not one** (research R13): the **ABN is unsupplied**
-  (operator input; the constitution forbids inferring it) AND **per-item GST treatment is unmodelled** —
+  (operator input; the constitution forbids inferring it) AND **per-item GST treatment is unmodelled** -
   basic food is GST-free in Australia, so a grocery basket is a **mixed supply** and "total price
   includes GST" is FALSE for most orders. `canIssueTaxInvoice()` stays false until BOTH land. The tax
   fields are **absent, not placeholder** (FR-031); the block's position is reserved and commented at all
   three render sites.
-- **⚠ SIX PRE-EXISTING DEFECTS FOUND, five fixed**: (1) the **mobile receipt's lines did not add up** —
+- **⚠ SIX PRE-EXISTING DEFECTS FOUND, five fixed**: (1) the **mobile receipt's lines did not add up** -
   `deliveryFeeAmount` was never mapped, so it showed Items − Discount = Total while delivery had been
   charged; 051's FR-043 recorded this exact defect and fixed it **on web only**. (2) `packages/brand`
   was **RED before this slice began** (048's console `robots.txt` unexempted), aborting `pnpm -r test`
-  at **4 packages of 17**. (3) `MethodList.test.tsx` **had been asserting nothing** — 051's styling
+  at **4 packages of 17**. (3) `MethodList.test.tsx` **had been asserting nothing** - 051's styling
   commit moved the class its selector matched. (4) 050's `NOTIF_*` env vars were **undeclared**.
-  (5) ⚠ `apis/edge-api/notifications` had **no `.gitignore`** — the only edge service missing it — so
+  (5) ⚠ `apis/edge-api/notifications` had **no `.gitignore`** - the only edge service missing it - so
   **1.7 MB of build artifacts** were committed, including a `serverless-state.json` carrying resolved
   DB hostname, username and secret ARNs. Untracked; ⚠ **still in history**.
 - **Verified**: `pnpm -r typecheck` **17/17** · `pnpm -r test` **17/17** · Go build/vet/gofmt clean ·
@@ -2503,30 +2503,30 @@ Turns the thank-you page into a **document-grade receipt** on both customer surf
   `tokens:check` unchanged · `terraform validate` · guest bundle within budget.
 - **⚠ Open (6, all operator)**: the commit, `make db-up ENV=dev`, `make apply ENV=dev` (one new alarm),
   `core-image-push`+`core-deploy`, `edge-deploy SERVICE=customer` and `SERVICE=notifications`, then the
-  live SC walk. ⚠ **Deploy `core-api` BEFORE pushing to `dev`** — Amplify auto-deploys customer-web on
+  live SC walk. ⚠ **Deploy `core-api` BEFORE pushing to `dev`** - Amplify auto-deploys customer-web on
   push, and 047 recorded that the reverse order briefly broke dev checkout. ⚠ **Docker was down all
-  session**, so every container-backed test — including the exactly-once and resend-concurrency proofs —
+  session**, so every container-backed test - including the exactly-once and resend-concurrency proofs -
   **skipped**. ⚠ **Nobody has looked at any of this**: 039 shipped four live defects with a fully green
   suite, because layout, contrast and hierarchy are not properties a DOM assertion can see. Triage:
   [docs/receipt-triage.md](docs/receipt-triage.md). Parity register:
   [docs/audiences/customer-capabilities.md](docs/audiences/customer-capabilities.md) §052.
 
-**050-observability-push-foundation — Platform Observability & Push Notification Foundation.** ✅
-**CONCLUDED (PARTIAL BY DESIGN) 2026-08-23 — 53/60 tasks. DEPLOYED TO DEV; Crashlytics + PostHog
+**050-observability-push-foundation - Platform Observability & Push Notification Foundation.** ✅
+**CONCLUDED (PARTIAL BY DESIGN) 2026-08-23 - 53/60 tasks. DEPLOYED TO DEV; Crashlytics + PostHog
 CONFIRMED WORKING; push wired+deployed but delivery unconfirmed (carried to the order-flow slice).**
 Sign-off: [specs/050-observability-push-foundation/SIGNOFF.md](specs/050-observability-push-foundation/SIGNOFF.md).
 Turns on the three long-deferred client capabilities (constitution Principle VII): **Crashlytics**
-(mobile crash), **PostHog** (analytics + web error tracking, finally initialised — closes the "PostHog
+(mobile crash), **PostHog** (analytics + web error tracking, finally initialised - closes the "PostHog
 never initialised" carry-forward), and **FCM push** to customer/shop/driver.
-- **Confirmed live**: Crashlytics (customer-mobile Android — fatal + non-fatal) and PostHog analytics
+- **Confirmed live**: Crashlytics (customer-mobile Android - fatal + non-fatal) and PostHog analytics
   (customer-mobile Android consent-gated + web consoles on-by-default). **Mobile compiles verified** for
   all 3 apps (customer full APK + host tests + iOS Kotlin; shop/driver shared Android).
-- **⚠ Push delivery UNCONFIRMED** — the chain (order `paid` → `order_paid` outbox row → notifications
+- **⚠ Push delivery UNCONFIRMED** - the chain (order `paid` → `order_paid` outbox row → notifications
   worker → FCM → device) is built + deployed (migration, edge services, worker, core-api producers, FCM
   service-account secret) but a live push has not been observed; to be debugged with the order-flow
   slice (which produces the event). Triage: `notification_request.status` (no row=not paid · skipped=no
   token · failed=FCM · sent=delivered).
-- **⛔ iOS push** deferred (Apple Developer account — APNs + the unwritten `SwiftPushBridge`;
+- **⛔ iOS push** deferred (Apple Developer account - APNs + the unwritten `SwiftPushBridge`;
   `docs/observability-apple-blockers.md`). iOS crash+analytics bridges ARE written; iOS Kotlin compiles;
   iOS builds need the SPM packages added in Xcode.
 - **GCP note**: creating the FCM service-account key required lifting the managed org policy
@@ -2537,13 +2537,13 @@ never initialised" carry-forward), and **FCM push** to customer/shop/driver.
   notification-tap deep-link, the full SC/perf/kill-switch walks. Spec/artifacts:
   [specs/050-observability-push-foundation/](specs/050-observability-push-foundation/).
 
-**049-driver-mobile-app — Driver Delivery App (the 6th & final client surface).** ✅ **CONCLUDED (PARTIAL
-BY DESIGN) 2026-08-23 — 54/61 tasks (7 deferred). All 7 user stories built; DEPLOYED TO DEV; P1 loop WALKED
+**049-driver-mobile-app - Driver Delivery App (the 6th & final client surface).** ✅ **CONCLUDED (PARTIAL
+BY DESIGN) 2026-08-23 - 54/61 tasks (7 deferred). All 7 user stories built; DEPLOYED TO DEV; P1 loop WALKED
 LIVE.** Sign-off: [specs/049-driver-mobile-app/SIGNOFF.md](specs/049-driver-mobile-app/SIGNOFF.md); parity
 register: [docs/audiences/driver-capabilities.md](docs/audiences/driver-capabilities.md). The platform's **hub-and-spoke** driver operation:
 a KMP app (`apps/driver-mobile`, Android+iOS) + a new cold-path service (`apis/edge-api/driver`) + a
 scheduled auto-assignment worker + minimal back-office provisioning (`edge-api/admin/src/drivers`) + one
-migration. Closes the **commerce→fulfilment→delivery loop** — retires the 020 dev-only `collected`/
+migration. Closes the **commerce→fulfilment→delivery loop** - retires the 020 dev-only `collected`/
 `delivered` stubs.
 - **Model** (settled, see "Driver logistics model" above): collection run (shops→hub) → **hub check-in**
   (same-day/standard split, standard→external carrier) → same-day delivery run (hub→customers) with proof.
@@ -2551,40 +2551,40 @@ migration. Closes the **commerce→fulfilment→delivery loop** — retires the 
   duty → **worker auto-assigns** a collection run → collect each shop → hub check-in → delivery run →
   deliver each drop with **proof (delivery-code + contactless)** → order reaches `delivered`.
 - **US4 (partial)**: external **Navigate** hand-off works (device maps, customer address); **masked contact**
-  is a capability-flagged 503 + disabled affordance (relay unbuilt, R6). ⛔ **In-app pinned map DEFERRED —
+  is a capability-flagged 503 + disabled affordance (relay unbuilt, R6). ⛔ **In-app pinned map DEFERRED -
   blocked on geodata**: shops have NO address/coords and orders carry an un-geocoded jsonb address, so
   nothing can be plotted (research R13; add `shop.address` + geocode to unblock). **US5 history** built
   (both record types, timeline + proof, read-only).
 - **Verified**: iOS + Android compile & host tests · edge-driver Vitest · full workspace typecheck ·
   mobile-guard · contract drift-guard · terraform validate. **Deployed to dev by the operator; P1 walked.**
-- **⚠ Open**: photo/signature proof capture (camera — platform-specific), permission priming (T009),
+- **⚠ Open**: photo/signature proof capture (camera - platform-specific), permission priming (T009),
   offline queue (T015), cutoff flag (T061), mobile ViewModel tests (T024/T032/T045), US6 notifications,
-  polish (T053–T059). ⚠ **admin `versionFunctions:false`** was needed — the driver routes tipped the
+  polish (T053–T059). ⚠ **admin `versionFunctions:false`** was needed - the driver routes tipped the
   admin CloudFormation stack past the 500-resource limit. Spec/artifacts: [specs/049-driver-mobile-app/](specs/049-driver-mobile-app/).
 
-**048-console-web-cicd — Internal Console Continuous Deployment (Shop-Web & Back-Office).** ✅
-**CONCLUDED 2026-08-22 — 35/41 tasks. DEPLOYED TO DEV AND LIVE ON BOTH SURFACES.** Sign-off:
+**048-console-web-cicd - Internal Console Continuous Deployment (Shop-Web & Back-Office).** ✅
+**CONCLUDED 2026-08-22 - 35/41 tasks. DEPLOYED TO DEV AND LIVE ON BOTH SURFACES.** Sign-off:
 [specs/048-console-web-cicd/SIGNOFF.md](specs/048-console-web-cicd/SIGNOFF.md).
 
 Applies 042's Amplify monorepo CI/CD to the two internal **Vite SPA** consoles that were local-only:
 `apps/shop-web` (007, shop pool) is **LIVE at `shop.dev.effyshopping.com`** and `apps/back-office` (005,
-admin pool) at **`back-office.dev.effyshopping.com`** — each auto-builds on a push/merge to `dev`,
+admin pool) at **`back-office.dev.effyshopping.com`** - each auto-builds on a push/merge to `dev`,
 serves over TLS, and prod is a second instantiation (`shop.effyshopping.com` /
 `back-office.effyshopping.com`) by values, not rework (FR-020/FR-021). Amplify app ids: shop-web
 `djjaj6nj4se6`, back-office `d3cu4od3kgw5sk`.
-- **The 042 module was GENERALISED, not forked** (Principle II) — `infra/modules/amplify-web-app` gained
+- **The 042 module was GENERALISED, not forked** (Principle II) - `infra/modules/amplify-web-app` gained
   `platform` (default `WEB_COMPUTE`; consoles pass **`WEB`**), `subdomain_prefix` (default `""`=apex;
   consoles pass `shop`/`back-office`), and `custom_rules` (default `[]`). Every default keeps the
   customer-web app byte-identical (SC-010). New env root `infra/envs/dev/amplify-consoles.tf`
   instantiates it twice.
 - **⚠ Static `WEB` designs OUT 042's worst hazard.** A Vite SPA has no server runtime, so the module
-  creates **no** SSR service role and sets no `iam_service_role_arn` — the "Unable to assume specified
+  creates **no** SSR service role and sets no `iam_service_role_arn` - the "Unable to assume specified
   IAM Role at CreateApp" failure that dogged 042 is a `WEB_COMPUTE`-only concern and cannot arise here.
 - **⚠ SPA rewrite is mandatory or deep links 404.** A client-router (TanStack Router) SPA on static
   hosting must serve `/index.html` with **status 200** (a rewrite, not a redirect) for any non-asset
   path, or a refresh/direct-visit of `/orders/123` hits a host 404. Carried by the module's
   `custom_rule` (FR-011).
-- **⚠ Subdomains, not the apex — no email-record cutover.** The apex is the storefront's (042); the
+- **⚠ Subdomains, not the apex - no email-record cutover.** The apex is the storefront's (042); the
   consoles take fresh `shop.`/`back-office.` subdomains of the in-account zone, so 042's highest-risk
   task (reconciling the apex A/AAAA email-sender records with no resolution gap) **does not recur**.
   Two-stage cutover (`amplify_consoles_domain_enabled`): stage A on the `…amplifyapp.com` hostname →
@@ -2592,38 +2592,38 @@ serves over TLS, and prod is a second instantiation (`shop.effyshopping.com` /
 - **⚠ One `amplify.yml`, THREE applications now.** 042's "exactly one application" invariant is
   superseded: Amplify monorepo mode selects, per app, the single `applications[]` entry whose `appRoot`
   equals that app's `AMPLIFY_MONOREPO_APP_ROOT`. Adding the two console entries does **not** change what
-  customer-web builds — the isolation guarantee (FR-006/FR-009) is per-app-root, not per-file.
+  customer-web builds - the isolation guarantee (FR-006/FR-009) is per-app-root, not per-file.
 - **⚠ Gateway CORS had to learn the deployed origins.** The consoles call the shared edge gateway from
   the browser (`/shop/v1/*`, `/admin/v1/*`); the Terraform-owned `allow_origins` gained
-  `https://shop.dev…` + `https://back-office.dev…` **config-derived** from the zone + subdomain vars —
+  `https://shop.dev…` + `https://back-office.dev…` **config-derived** from the zone + subdomain vars -
   without them every authenticated console call fails at the OPTIONS pre-flight (FR-017).
 - **Internal ⇒ not discoverable**: `noindex` meta + disallow-all `robots.txt` in each console's own
   source; **Cognito login is the real gate** (an Amplify HTTP basic-auth gate was deferred as
   values-only). Confirmed live: Cognito **EMAIL_OTP needs no callback/allowed-origin registration** for
   the new subdomains (SDK custom-auth, not Hosted UI). Build failures for both apps route to the
   existing alerts SNS via one EventBridge FAILED rule (FR-023).
-- **The consoles carry NO secret** — every `VITE_*` value (correct pool per console: `shop_pool` vs
+- **The consoles carry NO secret** - every `VITE_*` value (correct pool per console: `shop_pool` vs
   `back_office_pool`, plus the gateway address) is build-time-inlined and public-safe. No new operator
   secret; the 042 GitHub token is reused.
 - **Verified**: `terraform validate`/`fmt` · shop-web **139 tests + typecheck** · back-office **79 +
   typecheck** · banned-address + source secret sweeps clean. Committed to `dev` (`bd79e5f` + `7e49856`).
-- **⚠ Open (optional live walks, 6/41 — none blocks the conclusion)**: deep-link refresh (SC-004),
+- **⚠ Open (optional live walks, 6/41 - none blocks the conclusion)**: deep-link refresh (SC-004),
   touch-one-console scope negative (SC-005), customer-web-unchanged (SC-010), `noindex`/`robots` fetch
   (SC-008), deployed-bundle secret sweep, and the deliberate-fail-alert proof (SC-006). Spec/artifacts:
   [specs/048-console-web-cicd/](specs/048-console-web-cicd/); parity register:
   [docs/audiences/shop-capabilities.md](docs/audiences/shop-capabilities.md) §048.
 
-**047-delivery-shipping-engine — Delivery Zones & Shipping-Fee Engine.** ✅ **CONCLUDED (PARTIAL BY
-DESIGN) 2026-08-22 — 56/57 tasks. Code-complete + machine-verified across the hot path, both cold-path
+**047-delivery-shipping-engine - Delivery Zones & Shipping-Fee Engine.** ✅ **CONCLUDED (PARTIAL BY
+DESIGN) 2026-08-22 - 56/57 tasks. Code-complete + machine-verified across the hot path, both cold-path
 services, the back-office console, customer-web AND customer-mobile; DEPLOYED TO DEV AND PROVEN LIVE on
 web + mobile.** Sign-off: [specs/047-delivery-shipping-engine/SIGNOFF.md](specs/047-delivery-shipping-engine/SIGNOFF.md).
 
 Reintroduces delivery after the four-slice build (021 zones + rate grid, 030 locality lookup, 031 area
 decisions, 032 banded pricing + a shop-proposes/admin-approves same-day workflow) was **withdrawn whole**
 on 2026-08-02 for having too many independent refusal terms. The rebuild is governed by **one rule
-(FR-001): serviceability is one fact — is the postcode in a served zone — and a served zone can never
+(FR-001): serviceability is one fact - is the postcode in a served zone - and a served zone can never
 fail to produce a standard fee.** One decision, one legible refusal.
-- **The fee engine has exactly one home** — a pure Go function in `apis/core-api/internal/platform/delivery`
+- **The fee engine has exactly one home** - a pure Go function in `apis/core-api/internal/platform/delivery`
   (`fee = clamp(roundUp(factor × (ring_price + weight_add), step), floor, cap)`): the delivery **method**
   (same-day factor a ≥ standard factor b), the destination zone's **distance ring**, and the package
   **weight in slabs** (stepped, never linear); snapped **up** (never down), a **floor** ("never lose money
@@ -2656,35 +2656,35 @@ fail to produce a standard fee.** One decision, one legible refusal.
   distinguish past-cutoff from not-eligible; the committed locality CSV is a 17-row sample (load full
   G-NAF to widen coverage); mobile telemetry deferred; PostHog still not initialised on customer-web (039).
 
-**046-customer-feedback — Customer Feedback (listening channel).** ✅ **CONCLUDED (PARTIAL BY DESIGN)
-2026-08-17 — 41/43 tasks. Code-complete + fully machine-verified across all six surfaces; NOT deployed,
+**046-customer-feedback - Customer Feedback (listening channel).** ✅ **CONCLUDED (PARTIAL BY DESIGN)
+2026-08-17 - 41/43 tasks. Code-complete + fully machine-verified across all six surfaces; NOT deployed,
 NOT committed, NOT walked by a person.** Sign-off:
 [specs/046-customer-feedback/SIGNOFF.md](specs/046-customer-feedback/SIGNOFF.md).
 
 Makes the checkout header's existing "Give us feedback" link real, end to end. A shopper (guest or
 signed-in) sends categorised feedback + optional rating + reply email; it is stored, acknowledged with
 a thank-you email when an address is given, and back-office staff read/search/filter/triage/note and
-**reply** — a reply is emailed to the submitter. **Cold path both sides** (the user's instruction and
-the correct path — low-frequency, async-email work; hot path explicitly NOT used).
-- **Two submit routes, one service** (research D2) — API Gateway authorizers are per-route, so authed
+**reply** - a reply is emailed to the submitter. **Cold path both sides** (the user's instruction and
+the correct path - low-frequency, async-email work; hot path explicitly NOT used).
+- **Two submit routes, one service** (research D2) - API Gateway authorizers are per-route, so authed
   `/customer/v1/feedback` (links the verified sub, trusted profile email) and public
   `/customer/v1/feedback/public` (guest, unverified email) are separate. The client picks by session.
-- **⚠ Rate limiting is buildable HERE, unlike 035** — the HTTP API v2 event carries
+- **⚠ Rate limiting is buildable HERE, unlike 035** - the HTTP API v2 event carries
   `requestContext.http.sourceIp`, so a per-source cooldown is a real SQL predicate (an atomic
   count-inside-the-INSERT, the newsletter check-then-write lesson). Stored as a HASHED `source_key`,
   never the raw IP (PII). 60 min / 5 per source, env-overridable.
-- **Two email templates, OPPOSITE failure policies** — exactly the discriminator `@effy/email-kit`
-  exists to carry: `feedback-received` **swallows** (the submission is already stored — a thrown
+- **Two email templates, OPPOSITE failure policies** - exactly the discriminator `@effy/email-kit`
+  exists to carry: `feedback-received` **swallows** (the submission is already stored - a thrown
   failure would contradict a true fact, the `account-password-changed` pattern) and `feedback-reply`
   **throws** (a submission must never be marked replied while the shopper got nothing, the
   `newsletter-confirmation` pattern; the reply row + `status='replied'` are written ONLY after a
   successful send, in one transaction).
 - **Console RBAC from `admin.staff`** (never the claim, mirrors deliverability): read/search/status/
   notes = any active staff **incl. csa** (triage is CSA work); **reply = admin/manager only** (an
-  outward brand-facing email). No cross-schema FK — staff attribution is a `staff_sub` snapshot.
-- **Data**: one migration `20260816221653_customer_feedback.sql` — `public.feedback_{submission,reply,
+  outward brand-facing email). No cross-schema FK - staff attribution is a `staff_sub` snapshot.
+- **Data**: one migration `20260816221653_customer_feedback.sql` - `public.feedback_{submission,reply,
   note}`; `pg_trgm` + `citext`; immutable context vs mutable status/child rows (FR-040, enforced by
-  repository discipline not a trigger — C1). **Storefront**: `/feedback` PPR (static shell + Suspense
+  repository discipline not a trigger - C1). **Storefront**: `/feedback` PPR (static shell + Suspense
   form island; 163.1 KB / 174; registered in the bundle gate); checkout link carries `?from=checkout`.
   **Mobile**: KMP Clean-Arch/MVVM `features/feedback` reached from Account; `platformTag()` expect/actual.
 - **⚠ Corrected a PRE-EXISTING drift in passing**: `ScreenInventoryTest` asserted **30** customer
@@ -2701,20 +2701,20 @@ the correct path — low-frequency, async-email work; hot path explicitly NOT us
   negatives, inert-text, the no-PII-in-logs sweep); an on-device mobile walk.
 - **Carry-forwards**: `feedback_submitted` telemetry is wired on web (dynamic import) but a **no-op
   until PostHog inits on customer-web** (039); mobile telemetry deferred (D9). **Async hard-bounce** on
-  a reply is out of scope (G1) — only send-time failure is caught; `feedback_reply.delivery_ok` is a
+  a reply is out of scope (G1) - only send-time failure is caught; `feedback_reply.delivery_ok` is a
   hook for later reconciliation against the 037 deliverability path. The reply send-failure metric
   filter/alarm is deferred like 038's (the service already logs `feedback.reply_send_failed`).
   Spec/artifacts: [specs/046-customer-feedback/](specs/046-customer-feedback/); parity register:
   [docs/audiences/customer-capabilities.md](docs/audiences/customer-capabilities.md) §046.
 
-**042-customer-web-cicd — Customer Storefront Continuous Deployment (dev).** ✅ **DEPLOYED & LIVE at
+**042-customer-web-cicd - Customer Storefront Continuous Deployment (dev).** ✅ **DEPLOYED & LIVE at
 `https://dev.effyshopping.com`** (HTTPS, valid cert; auto-builds from the `dev` branch;
 Terraform-managed). Commit + formal SC walk pending. Gives `apps/customer-web` (Next 16 SSR, previously local-only)
 a **managed Git-driven pipeline**: a push/merge to the `dev` branch of `github.com/effi-softwares/effy`
-auto-builds **only** that one workspace (AWS Amplify Hosting **monorepo mode** — repo-root `amplify.yml`
+auto-builds **only** that one workspace (AWS Amplify Hosting **monorepo mode** - repo-root `amplify.yml`
 declaring exactly one application; the mechanical guarantee no other surface deploys) and serves it at
 **`https://dev.effyshopping.com`**. Prod reaches the reserved apex `effyshopping.com` by re-instantiating
-the reusable `infra/modules/amplify-web-app` module with prod values — no pipeline rework (FR-018/FR-019).
+the reusable `infra/modules/amplify-web-app` module with prod values - no pipeline rework (FR-018/FR-019).
 - **The storefront takes over the zone apex.** 037's apex A/AAAA alias records (which pointed
   `dev.effyshopping.com` at the edge API gateway only so the email sender domain resolves) are **gated
   on `amplify_domain_enabled`** (`count → 0` at cutover), so Amplify claims the apex with **no window
@@ -2722,16 +2722,16 @@ the reusable `infra/modules/amplify-web-app` module with prod values — no pipe
 - **Two-stage cutover** (`amplify_domain_enabled`, like `ses_sender_enabled`): stage A builds on the
   Amplify default hostname; stage B attaches apex + `www` and removes the old aliases in one apply.
 - **Env values**: Cognito ids + URLs from Terraform refs; GitHub token + Stripe publishable key from
-  operator SSM; **publishes `/effy/dev/web/site_url`** — closing 039's newsletter-confirm-link fallback.
-  `platform = WEB_COMPUTE` (Next SSR); `.npmrc node-linker=hoisted` (Amplify pnpm/Turborepo req — ⚠
+  operator SSM; **publishes `/effy/dev/web/site_url`** - closing 039's newsletter-confirm-link fallback.
+  `platform = WEB_COMPUTE` (Next SSR); `.npmrc node-linker=hoisted` (Amplify pnpm/Turborepo req - ⚠
   changes install linking for the WHOLE monorepo, re-verify gate T003). Build runs the storefront's
-  own gates (`typecheck→test→build→size`; ⚠ `build` before `size` — size reads build output) so a
+  own gates (`typecheck→test→build→size`; ⚠ `build` before `size` - size reads build output) so a
   failure keeps the last good version live; Amplify build FAILED → the existing alerts SNS topic.
 - **⚠⚠ THE SSR SERVICE ROLE MUST EXIST AT `CreateApp` TIME.** "Unable to assume specified IAM Role"
-  is NOT about trust/permissions or Terraform-vs-console — Amplify only registers the role association
+  is NOT about trust/permissions or Terraform-vs-console - Amplify only registers the role association
   at create time. An app created without a role and then given one by a later apply fails every build
   forever. **Recreate the app if the role must change; never bolt it on.** (Removing the `module` block
-  and applying once **destroyed the live app** — don't.)
+  and applying once **destroyed the live app** - don't.)
 - **✅ The Terraform domain association WORKED**: Amplify auto-created + verified the in-account Route53
   records (apex + `www`) and issued the ACM cert (`us-east-1`); no console step. `dev.effyshopping.com`
   is live over HTTPS; the apex→gateway records were removed in the same apply with no resolution gap.
@@ -2739,36 +2739,36 @@ the reusable `infra/modules/amplify-web-app` module with prod values — no pipe
   formal SC walk (SC-004 no-console-exposure, SC-005 failed-gate, SC-007 no-secret-in-bundle sweep;
   the rest shown by the live deploy). T003 (hoisted-linker re-verify) still advisable. Carry-forwards:
   e2e in a separate CI, `REVALIDATE_SECRET`/`/api/revalidate` (a DIFFERENT unbuilt "home composer"
-  feature — not this slice), PostHog init (039), per-PR previews. Spec/artifacts:
+  feature - not this slice), PostHog init (039), per-PR previews. Spec/artifacts:
   [specs/042-customer-web-cicd/](specs/042-customer-web-cicd/); sign-off:
   [specs/042-customer-web-cicd/SIGNOFF.md](specs/042-customer-web-cicd/SIGNOFF.md).
 
-**041-monochrome-console-redesign — Monochrome Consoles & Shop Mobile: Unified Dashboard Identity.**
+**041-monochrome-console-redesign - Monochrome Consoles & Shop Mobile: Unified Dashboard Identity.**
 🚧 **Foundation + both consoles + shop-mobile theme BUILT and machine-verified; operator device walk +
 commit pending.** Adopts an operator-supplied appearance identity as the shared design-token SSOT,
 puts **shop-web** and **back-office** on the shadcn **dashboard** structure (a shared `DashboardOverview`:
 section cards + a `recharts` chart + the existing proving screen, inside the shared `ConsoleShell`), and
 re-skins **shop-mobile** by regenerating its Compose theme (colour only, no structure/flow change).
 - **Constitution → v1.13.0**: UI stays monochrome (the neutral ramp carries every UI accent, still
-  inverting by appearance); ONE bounded exception — a **data-visualisation palette** (`--chart-1..5`)
+  inverting by appearance); ONE bounded exception - a **data-visualisation palette** (`--chart-1..5`)
   **for charts only**, never a UI accent, never surfaced to mobile.
 - **⚠ Pasted values were adopted in VALUE, not verbatim.** The oklch was hex-converted (the token
   guards + Compose generator are hex-only); the constitutional semantic error stays `#e01010` (not the
-  theme's `#e7000b`); the AA invariant was NOT relaxed — the adopted `muted-foreground` (4.35:1) and
+  theme's `#e7000b`); the AA invariant was NOT relaxed - the adopted `muted-foreground` (4.35:1) and
   `ring` (2.58:1) **fail AA** and were tuned (`#6b6b6b`, `#808080`); and the dark theme's **blue
   `sidebar-primary` was neutralized** to the monochrome accent.
 - **⚠ Two non-monochrome hues were live and are now gone**: `amber` used as a "warning" colour across
   shop-web fulfillment/catalog (→ monochrome emphasis by weight), and a green-tinted `#5c6b64` in
   back-office's bootstrap fallback.
 - **⚠ Aligned to shadcn preset `bIkeymG`** (operator-supplied, `apply --preset`): it is **fully
-  monochrome** — the charts are **greyscale** (`#d4d4d4…#262626`), not the colored palette first
-  shipped — and uses the preset's tighter **radii (sm 6 / md 8 / lg 10 / xl 14 px**, down from 8/16;
+  monochrome** - the charts are **greyscale** (`#d4d4d4…#262626`), not the colored palette first
+  shipped - and uses the preset's tighter **radii (sm 6 / md 8 / lg 10 / xl 14 px**, down from 8/16;
   parity preserved, mobile regenerated). The preset's AA-failing `muted-foreground`/`ring`, its
-  `#e7000b` red, and its blue dark `sidebar-primary` were **not** followed — hard invariants (AA,
+  `#e7000b` red, and its blue dark `sidebar-primary` were **not** followed - hard invariants (AA,
   the constitution's `#e01010`, the neutral sidebar) win. Confirmed by running the CLI in a throwaway
   project. The v1.13.0 chart-palette exception is now **unused** (charts are neutral), so it could be
   tightened later.
-- **⚠ Email is a token-derived surface too** — the sweep caught that `packages/email-kit/dist/*` are
+- **⚠ Email is a token-derived surface too** - the sweep caught that `packages/email-kit/dist/*` are
   generated from `tokens.css`; regenerated (10 files) and re-verified (`email-check` clean, contrast
   holds under the new tokens). Compose themes for all three mobile apps regenerated + drift-checked.
 - **Verified**: `pnpm -r typecheck` 14/14 · design-system AA gate green (36 vars × 2) · `tokens:check`
@@ -2777,44 +2777,44 @@ re-skins **shop-mobile** by regenerating its Compose theme (colour only, no stru
   customer-web bundle **172.8 KB / 174** (SC-006 unchanged).
 - **⚠ Open (operator)**: the shop-mobile full Gradle/Android/iOS compile + on-device walk
   (Light/Dark/Follow-System), and the commit. Overview chart data is **illustrative sample data**
-  (labelled) — live metrics are a later slice; recharts adds ~400 KB to the login-gated consoles
+  (labelled) - live metrics are a later slice; recharts adds ~400 KB to the login-gated consoles
   (code-split candidate). Spec/artifacts: [specs/041-monochrome-console-redesign/](specs/041-monochrome-console-redesign/);
   parity register: [docs/audiences/shop-capabilities.md](docs/audiences/shop-capabilities.md) §041.
 
-**039-customer-home-redesign — Customer Web Home: Merchandised Landing Redesign.** 🚧 **84/94 tasks —
+**039-customer-home-redesign - Customer Web Home: Merchandised Landing Redesign.** 🚧 **84/94 tasks -
 every section BUILT and machine-verified. Not deployed, not committed, NOT WALKED BY A PERSON.**
 Sign-off record: [specs/039-customer-home-redesign/SIGNOFF.md](specs/039-customer-home-redesign/SIGNOFF.md).
 
 Turns the storefront home into a **longer merchandised landing** adapting an operator-supplied grocery
 reference: image-led hero, category shortcuts, interleaved rails, promotional offer panels, an
-app-awareness band and a newsletter. A **presentation slice over data the platform already serves** —
-zero `core-api` changes, zero storefront DTO changes (FR-003) — plus one new capability, the newsletter.
+app-awareness band and a newsletter. A **presentation slice over data the platform already serves** -
+zero `core-api` changes, zero storefront DTO changes (FR-003) - plus one new capability, the newsletter.
 - **Six sections cost +1.0 KB.** `/` went **171.7 → 172.7 KB** against a 174 KB gate. Every section is a
   server component; the only client boundary is the newsletter form. ⚠ The plan claimed 170.5 KB /
-  3.5 KB headroom; it was **171.7 / 2.3** — a third less room than the constraint was written against.
+  3.5 KB headroom; it was **171.7 / 2.3** - a third less room than the constraint was written against.
 - **⚠⚠ EVERY EMAIL'S PLAIN-TEXT PART WAS HTML-ESCAPED**, in the shared `email-kit` render path.
   Handlebars turns `=` into `&#x3D;`, so a tokenised URL became `…?token&#x3D;ABC`. Harmless in HTML
   (clients decode entities in attributes); **in text/plain nothing decodes it**. Double opt-in would
-  have failed for every plain-text reader **with no error anywhere** — send succeeds, mail arrives, link
+  have failed for every plain-text reader **with no error anywhere** - send succeeds, mail arrives, link
   is visible, confirmation never happens. Invisible until a template first needed a query parameter.
 - **⚠ The offers block was wired to a placement that does not exist.** Spec, contract and tasks all said
   `placement === "offers"`; `BannerPlacement` is `"carousel" | "inline"`. It would have matched nothing
-  and rendered as **absent** — a *valid* state under FR-018, so it would not have looked like a bug.
+  and rendered as **absent** - a *valid* state under FR-018, so it would not have looked like a bug.
 - **⚠ THE PLATFORM'S FIRST COLOURED CHROME**, on operator direction: three value panels in `#F95F09` /
   `#374128` / `#6BB252`. A recorded Principle V exception (**FR-005a**), bounded exactly as 024 bounded
-  the mobile splash grounds — component-local, **never design tokens**, not named for a role.
+  the mobile splash grounds - component-local, **never design tokens**, not named for a role.
   **`tokens:check` passes unchanged**, which is the mechanical proof it did not enter the design system;
   deleting one constant is the entire revert. ⚠ The reference's own panels **fail WCAG AA** with white
   text (orange **3.15:1**, green **2.59:1**), so the fills are exact and the *foreground* is adapted per
-  panel — ratios computed in the test, not asserted in a comment.
+  panel - ratios computed in the test, not asserted in a comment.
 - **⚠ FOUR DEFECTS FOUND ONLY BY LOOKING.** An orphaned divider; a **backwards phone layout**
   (`order-first` is unprefixed, so it applied at every breakpoint while `lg:` made desktop look right);
   the **CTA hierarchy vanishing in dark mode** (the monochrome accent inverts, the photograph does not);
   a scrim bleaching the artwork. All four were live with a fully green suite. **These tests were not
-  wrong — layout, contrast and hierarchy are not properties a DOM assertion can see.**
+  wrong - layout, contrast and hierarchy are not properties a DOM assertion can see.**
 - **⚠ TWO REQUIREMENTS HAD IMPLEMENTATION AND NO COVERAGE.** FR-035's abuse resistance had **no test at
   all**. FR-033's input preservation was **broken**: React resets an uncontrolled form once its action
-  completes, so the field cleared on every outcome — including the failure whose whole point is that the
+  completes, so the field cleared on every outcome - including the failure whose whole point is that the
   address survives, while the message read "your address is still here".
 - **⚠ The hero asset resolution was a defect documented as behaviour.** A module-scope `const` meant a
   long-running dev server cached `null` forever; the operator dropped the artwork in and kept seeing the
@@ -2822,10 +2822,10 @@ zero `core-api` changes, zero storefront DTO changes (FR-003) — plus one new c
   indistinguishable from a bug is worse than no fallback.
 - **FR-002 is now mechanical.** The header/nav/product-card/footer lock was a comment; `make
   storefront-locks` is a sha256 baseline that fails and names what drifted (proven by breaking it).
-- **Data**: one forward-only migration `20260807115924_newsletter_subscriber.sql` — `public.
+- **Data**: one forward-only migration `20260807115924_newsletter_subscriber.sql` - `public.
   newsletter_subscriber`, **no FK to `customer`** (research R8: conflating them would make subscribe an
   account-existence oracle). **Email**: a seventh live template, `newsletter-confirmation`.
-  **Backend**: `apis/edge-api/customer/src/newsletter/` — two **public** routes, cold path.
+  **Backend**: `apis/edge-api/customer/src/newsletter/` - two **public** routes, cold path.
   ⚠ FR-035's gateway throttle was **unbuildable where the plan put it** (stage `route_settings` is
   Terraform-owned) and was narrowed to a per-address SQL cooldown, with the residual per-source gap
   recorded rather than hidden.
@@ -2833,54 +2833,54 @@ zero `core-api` changes, zero storefront DTO changes (FR-003) — plus one new c
   edge-customer **134** · email-kit **52** · `make email-check` **8 templates** · **44 e2e** on a
   production build · `storefront-locks` · `brand-check` · `check-tokens`/`tokens:check` unchanged ·
   bundle gate **10 routes**.
-- **⚠ Open (10)**: the newsletter's three operator steps — commit the migration + `make db-up`,
+- **⚠ Open (10)**: the newsletter's three operator steps - commit the migration + `make db-up`,
   `make edge-deploy SERVICE=customer`, and the live walk (**gated on 038 being deployed**; also needs
-  `/effy/dev/web/site_url`, or the confirm link points at localhost) — plus **five deferred UI reviews**
+  `/effy/dev/web/site_url`, or the confirm link points at localhost) - plus **five deferred UI reviews**
   and the commit. ⚠ **Six findings that are NOT 039's** are recorded in its quickstart so they are not
   mistaken for it: three storefront e2e specs stale since **025**, two `a11y` tests referencing a
   removed delivery control (**verified against a clean HEAD build**), `SaveControl` at **36×36 on web**
   (033 raised the mobile one and never the web one), 8×8 carousel dots, the hero **not preloaded** while
-  three below-the-fold banners are, and **PostHog never initialised on customer-web** — which is why
+  three below-the-fold banners are, and **PostHog never initialised on customer-web** - which is why
   039 declared five telemetry events and ships **one**. Spec/artifacts:
   [specs/039-customer-home-redesign/](specs/039-customer-home-redesign/); parity register:
   [docs/audiences/customer-capabilities.md](docs/audiences/customer-capabilities.md) §039.
 
-**038-email-template-system — Platform Email Template System.** 🚧 **97/134 tasks — every authoring
+**038-email-template-system - Platform Email Template System.** 🚧 **97/134 tasks - every authoring
 and wiring phase BUILT and machine-verified; only operator deploy/walks + telemetry-doc remain. Not
 deployed, not committed.**
 
 Moves the platform's email from **plain-text strings assembled inside two Lambdas** to one designed,
-guarded system — a new shared package **`@effy/email-kit`** (65 files). Every message the platform can
+guarded system - a new shared package **`@effy/email-kit`** (65 files). Every message the platform can
 send is defined in **one typed catalogue**, authored in **MJML**, compiled at build time to
 **committed, drift-guarded artifacts**, and rendered with **Handlebars** at send. The premise needed
 correcting first: ⚠ **the platform had never sent an HTML email** (both existing mailers built a
 `string[]` and set only a text body), and ⚠ **four of the six live message types are sent by Cognito
 itself**, not by platform code.
-- **The design derives from the monochrome tokens, generated not transcribed** — a change to
+- **The design derives from the monochrome tokens, generated not transcribed** - a change to
   `tokens.css` reaches email with no hand edit (SC-020). ⚠ **A hueless ramp is the design's biggest
   asset in the inbox**: for a zero-saturation colour, lightness-inversion and channel-inversion
   produce the same value, so the ramp is **mathematically immune** to the hue distortion that mangles
-  branded email in forced dark mode — it flips end-for-end and stays legible. The exposure is the two
+  branded email in forced dark mode - it flips end-for-end and stays legible. The exposure is the two
   semantic colours (never the sole carrier of meaning) and **partial** inversion (every text colour
   declares its own background).
-- **Cost was not a decision input** — every architecture costs ~$20/mo at 200k emails. The constraint
+- **Cost was not a decision input** - every architecture costs ~$20/mo at 200k emails. The constraint
   that chose the shape is the **5-second Cognito trigger wall**: three of four audiences have no
   password, so a slow render is a sign-in outage. That ruled out runtime MJML (100 MB+ deps), React
   Email (a documented ~80 MB/function bundle regression), and any queue hop on the sign-in path.
   ⚠ Proven: the auth Lambda bundle carries **neither the MJML compiler nor** (for the render-only
   interceptor) **the SES client**.
 - **All six live messages are on the system.** `edge-auth`'s sign-in code and `edge-customer`'s
-  password-changed notice **delegate** to it (both hand-rolled mailers deleted — zero email content
+  password-changed notice **delegate** to it (both hand-rolled mailers deleted - zero email content
   left in a request handler); Cognito's four (sign-up, reset, verify, MFA) are branded by a **new
-  `CustomMessage` interceptor** on all four pools that ⚠ **NEVER throws** — any failure returns the
+  `CustomMessage` interceptor** on all four pools that ⚠ **NEVER throws** - any failure returns the
   event unmodified so Cognito falls back to its default, because a throw breaks sign-up/recovery.
   ⚠ The platform **never sees the Cognito codes**: the templates emit Cognito's `{####}` placeholder,
   which it substitutes after the trigger returns (a security property, not a limitation).
-- **A seventh template — `order-confirmation` — is the commerce proof** (template only, no call site,
+- **A seventh template - `order-confirmation` - is the commerce proof** (template only, no call site,
   FR-062): a line-item table that survives the Word engine, a totals block, money formatting, proven
   **under render with a 25-item basket at ~33 KB** against Gmail's 102 KB clip.
 - ⚠ **Two size budgets, not one**: Gmail's ~102 KB, and ⚠ **~20,000 characters for the four
-  Cognito-sent templates** — five times tighter, and confirming the exact figure against a live pool
+  Cognito-sent templates** - five times tighter, and confirming the exact figure against a live pool
   is the top open non-operator item (**T125**). The first compiled template came out at 24,336 chars
   (over) before restructuring; MJML's **~2.5 KB per `mj-section`** is what spends the budget.
 - **Guards, all fail-and-name-the-template** (`make email-check`): drift, size (both budgets), missing
@@ -2891,51 +2891,51 @@ itself**, not by platform code.
   fifth guard of 035's defect), self-checked against email-kit's exported `MAIL_ENV_KEYS`.
 - **⚠ Defects found by building, all fixed**: internal commentary (incl. phishing reasoning) was
   shipping **inside customer email** (MJML `keepComments` defaults true); **every message carried a
-  request to `fonts.googleapis.com`** (MJML auto-injects Google Fonts for the "Roboto" fallback) — a
+  request to `fonts.googleapis.com`** (MJML auto-injects Google Fonts for the "Roboto" fallback) - a
   privacy leak on the platform's most sensitive mail; **the dark restatement did nothing** because
   MJML puts `css-class` on the `<td>` while the colour is on an inner element; and **the receipt
   button was invisible in dark mode** (same nested-element class of bug on the fill).
 - **Data**: one forward-only migration adds nullable `public.email_delivery_event.template_id`; 037's
-  consumer reads the SES `effy-template` tag into it. ⚠ NULL means "sent by Cognito, or pre-038" —
+  consumer reads the SES `effy-template` tag into it. ⚠ NULL means "sent by Cognito, or pre-038" -
   data, not a gap. **Infra**: the `CustomMessage` trigger in the cognito module (one
   `aws_lambda_permission` per pool, two-stage ARN), three new SSM keys
   (`ses/reply_to_internal`, `mail/nonprod_allowlist`, `mail/postal_address`, the last two
   operator-supplied with a placeholder-refusing validation), and a **`custom_message_fallback`
-  alarm** (the one blind spot the interceptor introduces — a branded message silently falling back).
+  alarm** (the one blind spot the interceptor introduces - a branded message silently falling back).
 - **Verified**: `pnpm -r typecheck` **14/14** · `pnpm -r test` (**7 email templates**, ~55 email-kit
   tests, 20 interceptor tests, all edge + web suites) · `make email-check` · `terraform validate`/`fmt`
   · retired-hue guards · the bundle proofs. **Not walked by a person** anywhere.
 - ⚠ **Open**: the two-stage trigger-ARN deploy + live walks (all four audiences, the fail-safe proven
-  by causing it), the **client-matrix walk** (nothing open-source renders the Word engine — the one
+  by causing it), the **client-matrix walk** (nothing open-source renders the Word engine - the one
   thing no test substitutes for), **T125** (measure Cognito's real limit), and the order-confirmation
-  wiring (a later slice). Telemetry metric-filters (T126) deferred with rationale — the sign-in send
+  wiring (a later slice). Telemetry metric-filters (T126) deferred with rationale - the sign-in send
   is already metered by `otp_send_failed`. Spec/artifacts:
   [specs/038-email-template-system/](specs/038-email-template-system/); parity register:
   [docs/audiences/customer-capabilities.md](docs/audiences/customer-capabilities.md) §038.
 
-**035-six-digit-otp — Platform-Wide Six-Digit One-Time Codes.** ✅ **CONCLUDED (PARTIAL BY DESIGN)
-2026-08-04 — 93/128 tasks. DEPLOYED TO DEV AND PROVEN LIVE on one surface.** Sign-off record:
+**035-six-digit-otp - Platform-Wide Six-Digit One-Time Codes.** ✅ **CONCLUDED (PARTIAL BY DESIGN)
+2026-08-04 - 93/128 tasks. DEPLOYED TO DEV AND PROVEN LIVE on one surface.** Sign-off record:
 [specs/035-six-digit-otp/SIGNOFF.md](specs/035-six-digit-otp/SIGNOFF.md).
 
 **The platform now issues its own sign-in code**, and a real person has signed in with one
 (customer-mobile, iOS simulator, live dev pools). Passwordless sign-in delivered **8** digits while
 sign-up confirmation, password reset and both step-up flows delivered **6**.
 - **⚠ IT WAS NOT COSMETIC.** `shop-mobile` filtered and truncated code input to six characters, so a
-  real 8-digit code was cut to its first six and submitted — **passwordless sign-in there could not
+  real 8-digit code was cut to its first six and submitted - **passwordless sign-in there could not
   succeed**, and nothing on screen said why. Two of the platform's own UIs already told users the
   code was six digits. ⚠ D23 (011) recorded "do NOT hardcode a length"; the rule held on the three
   web surfaces and was **broken on both mobile ones**.
-- **⚠ THE LENGTH IS NOT CONFIGURABLE — anywhere.** Not on the pool, the app client,
+- **⚠ THE LENGTH IS NOT CONFIGURABLE - anywhere.** Not on the pool, the app client,
   `SignInPolicyType`, `EmailMfaConfigType`, the message templates, or the Terraform provider schema;
   the Amplify team closed the request as a Cognito-side limitation. A **Custom Email Sender** trigger
-  cannot help either — it receives the code Cognito already generated and has **no response field to
+  cannot help either - it receives the code Cognito already generated and has **no response field to
   return a different one**, so emailing our own would lock out every user. The only route is a
   **custom challenge**, which is what **supersedes D23** (recorded in place in 011's research).
 - **⚠ THE DESIGN STORES ALMOST NOTHING.** The code lives in the shopper's inbox and as a **keyed hash
-  in `challengeMetadata`** — the only channel that survives between `CreateAuthChallenge`
+  in `challengeMetadata`** - the only channel that survives between `CreateAuthChallenge`
   invocations, since `privateChallengeParameters` starts empty on every retry. Attempt counting is
   free from `session[]`. **No Goose migration.** The only persisted state is one hourly counter over a
-  *hashed* address — the platform's **first DynamoDB table**, a recorded exception to the locked
+  *hashed* address - the platform's **first DynamoDB table**, a recorded exception to the locked
   PostgreSQL standard (⚠ the decisive reason is not latency: edge Lambdas reach RDS today *only*
   because the dev DB is publicly accessible, which `edge-network.tf` calls invalid for prod).
 - **⚠ FR-013 IS NOT BUILDABLE IN A LAMBDA.** The trigger event's `callerContext` has exactly two
@@ -2945,167 +2945,167 @@ sign-up confirmation, password reset and both step-up flows delivered **6**.
 - **Data**: none. **Infra**: `apis/edge-api/auth` (4 triggers, all four pools, **104 tests**),
   DynamoDB counter, WAF, 4 alarms, operator-seeded HMAC secret. Internal pools **drop
   `ALLOW_USER_AUTH`** entirely; ⚠ **customer keeps it** because passwordless `SignUp` requires it, so
-  the managed 8-digit flow stays reachable there by raw API — a **consistency gap, not a privilege
+  the managed 8-digit flow stays reachable there by raw API - a **consistency gap, not a privilege
   escalation** (T003b would close it).
 - **⚠ FOUR DEFECTS OF MY OWN, three found by my own tests and one on the first deploy**: (1) a
-  **brute-force BYPASS** — success was checked before the attempt cap, so `[wrong,wrong,wrong,correct]`
-  issued tokens; (2) `normalizeOtp` **truncated**, which FR-004 forbids — and **no test covered it**,
+  **brute-force BYPASS** - success was checked before the attempt cap, so `[wrong,wrong,wrong,correct]`
+  issued tokens; (2) `normalizeOtp` **truncated**, which FR-004 forbids - and **no test covered it**,
   because the one test touching normalisation used a string with exactly six digits and passed
   identically before and after the bug; (3) `NotAuthorizedException` now means two things, and the
   code route showed **password wording to passwordless shoppers**; (4) ⚠ **the audience map read four
-  env vars `serverless.yml` never declared** — every pool resolved "unknown", no email was ever sent,
+  env vars `serverless.yml` never declared** - every pool resolved "unknown", no email was ever sent,
   and **100 passing tests missed it because they set those vars themselves**. That is 027 R13 / 029 /
   033's failure mode a fourth time; a **config-contract test** now reads the real `serverless.yml`.
 - **⚠ ONE TASK IN MY OWN PLAN WAS WRONG AND WAS REVERSED**: T071 would have removed `autoSignIn` from
-  sign-up, costing customers a **second** code — the `ConfirmSignUp` code is already six digits and
+  sign-up, costing customers a **second** code - the `ConfirmSignUp` code is already six digits and
   untouched (FR-003).
-- **Governance**: constitution **1.11.1** (PATCH — "EMAIL_OTP" names the **credential**, not the
+- **Governance**: constitution **1.11.1** (PATCH - "EMAIL_OTP" names the **credential**, not the
   vendor enum); both audience registers updated; `verify-pool-credentials.sh` **extended** (⚠ it would
   have reported ✓ PASS while four pools gained a new first-factor flow).
 - **Verified**: 13/13 typecheck · **997 JS/TS tests** · 86 shop-mobile + 238 customer-mobile ·
   Android **and** iOS compile incl. `compileTestKotlinIosSimulatorArm64` (which 033 found had never
   run) · `terraform validate`/`fmt` · `depcruise` · both mobile guards · `tokens:check` unchanged ·
   bundle **byte-identical** on all nine guest routes. **Six negative proofs.**
-- **⚠ ~~BLOCKING FOR PRODUCTION — DELIVERABILITY~~ — CORRECTED 2026-08-05 by 037.** This entry said
+- **⚠ ~~BLOCKING FOR PRODUCTION - DELIVERABILITY~~ - CORRECTED 2026-08-05 by 037.** This entry said
   **"SES is in SANDBOX"** and named it the platform's headline production blocker. **It was already
   false when 037 began**, and nobody had re-tested: unrestricted sending was **GRANTED** (review case
   `178578384200127`, 50,000/day at 14/sec) and `dev.effyshopping.com` was verified with DKIM and a
-  working custom MAIL FROM. A stale blocker left standing is worse than no note at all — it hides the
-  real ones. Of the three items it listed: (a) production access — **already granted**; (b) a website
-  on the apex — **no longer a prerequisite** (the request was approved without one), though the apex
-  is still bare; (c) ⚠ **bounce visibility — REAL, and now built by 037**: a configuration set with an
+  working custom MAIL FROM. A stale blocker left standing is worse than no note at all - it hides the
+  real ones. Of the three items it listed: (a) production access - **already granted**; (b) a website
+  on the apex - **no longer a prerequisite** (the request was approved without one), though the apex
+  is still bare; (c) ⚠ **bounce visibility - REAL, and now built by 037**: a configuration set with an
   SNS event destination, an idempotent consumer, `public.email_delivery_{status,event}`, a back-office
   view and an audited two-part repair. The note called it "a product defect deserving its own slice";
   it got one.
-- **⚠ Open**: 4 of 5 surfaces unwalked — ⚠ **shop-mobile most of all**, since its broken sign-in
+- **⚠ Open**: 4 of 5 surfaces unwalked - ⚠ **shop-mobile most of all**, since its broken sign-in
   (SC-001) is the defect that justified the slice and is still unconfirmed on a device. The 10-check
   table (attempt cap, expiry, supersession, rate limit, 8-digit paste refusal, log-leak sweep) is
   **unobserved everywhere**; SC-007 timing parity is structural, not measured; `email_verified`
   (FR-020) uninspected; **T001 was never run**; and ⚠ **Android has never been looked at across 028,
-  029, 033 — and now 035.** Spec/artifacts: [specs/035-six-digit-otp/](specs/035-six-digit-otp/).
+  029, 033 - and now 035.** Spec/artifacts: [specs/035-six-digit-otp/](specs/035-six-digit-otp/).
 
-**033-customer-saved-items — Customer Saved Items: a watchlist.** 🚧 **183/214 tasks — every feature phase BUILT and machine-verified except telemetry;
+**033-customer-saved-items - Customer Saved Items: a watchlist.** 🚧 **183/214 tasks - every feature phase BUILT and machine-verified except telemetry;
 operator walks + commit pending.**
 
-Replaces the half-built favourites capability **entirely** — its behaviour, its stored data, and every
+Replaces the half-built favourites capability **entirely** - its behaviour, its stored data, and every
 trace of it on all three customer surfaces. It was not unbuilt; it was **built wrong**, in two ways
 that made a shopper trust it and then be misled.
 - **⚠ THE HEART LIED.** Nothing on the platform could answer "is this product already saved?", so every
-  surface assumed *not saved* on every render — `FavoriteButton` opened `useState(false)` and its own
+  surface assumed *not saved* on every render - `FavoriteButton` opened `useState(false)` and its own
   comment admitted it. A shopper who saved something yesterday saw an empty heart today, tapped it (a
-  no-op `PUT`), tapped again — and **silently un-saved the thing they were trying to save**. Fixed by
+  no-op `PUT`), tapped again - and **silently un-saved the thing they were trying to save**. Fixed by
   **one bulk membership read per screen** (`GET /v1/saved/ids`), never an `isSaved` boolean on catalogue
   reads, which would make every product response shopper-specific and destroy the static shell.
 - **⚠ AND `available` WAS CATALOGUE STATUS, NOT PURCHASABILITY.** With hidden fulfilment and zone-scoped
   delivery a product can be `status='active'` and still unreachable at the shopper's address, so the
   list invited people into a checkout that refused them. Replaced by a **five-way verdict** in ONE SQL
-  statement. The DTO deliberately **omits `available`** — carrying both would leave two fields
+  statement. The DTO deliberately **omits `available`** - carrying both would leave two fields
   disagreeing about one question.
 - **⚠ IT IS A WATCHLIST, NOT A WISHLIST**, and that was researched rather than assumed. Tesco and
   Sainsbury's auto-populate "favourites" from purchase history (nobody taps a heart); the AU tap-a-heart
   list (Woolworths, Coles) is a **price-and-availability watchlist**. **Buy It Again is named as a
   RESERVED SIBLING** so a later slice need not rename this one. Uber Eats' "Lists" are shareable
   merchant curation and **do not transfer** to single-brand hidden fulfilment.
-- **Data**: one migration `20260802052141_customer_saved_items.sql` — creates `customer_saved_item`,
+- **Data**: one migration `20260802052141_customer_saved_items.sql` - creates `customer_saved_item`,
   **DROPS `customer_favorite`**. ⚠ Old saved items are **not carried forward** (FR-005): they hold no
   save-time price, and migrating them would fabricate a baseline never observed. ⚠ `cart_saved_item`
   (027's set-aside) is a **different table**, untouched, suite green.
 - **⚠ GUEST SAVING IS THE FEATURE'S CENTRAL BET.** The sign-in wall is the single biggest documented
   reason saved-item features go unused, and the predecessor put one on the very first tap. A guest now
   saves freely, the list **survives a restart** on both surfaces, and it joins the account by an
-  idempotent union on sign-in — **including the federated (Google) return**, omitting which is how a
+  idempotent union on sign-in - **including the federated (Google) return**, omitting which is how a
   Google sign-in silently drops the guest list.
 - **⚠ FOUR OF MY OWN DEFECTS, CAUGHT BEFORE SHIPPING**: (1) `SavedItemDTO` extended
-  `StorefrontProductCardDTO`, which requires `available` — the very field being replaced — and **my
+  `StorefrontProductCardDTO`, which requires `available` - the very field being replaced - and **my
   key-set test passed because I wrote the expectation from my own struct instead of the contract**,
   which is 029's exact failure mode. (2) The merge defaulted a missing price to `"0"`, which would have
   reported **every merged item as a massive price drop**; now nullable, falling back to the product's
-  current price. (3) FR-039 was unmet on mobile — the postcode was read lazily, so changing location
+  current price. (3) FR-039 was unmet on mobile - the postcode was read lazily, so changing location
   left every verdict stale. (4) A sort control with no UI to change it.
 - **⚠ RESEARCH R12 WAS WRONG**, and is corrected: FR-008 was recorded as "blocked at the contract"
-  because the order line carried no `productId`. **It has since 019** — only the mobile *domain model*
+  because the order line carried no `productId`. **It has since 019** - only the mobile *domain model*
   dropped it, the same mapper-discards-what-the-backend-sends shape that hid `brand`/`badges`.
 - **⚠ TWO SPEC AMENDMENTS, both on measured evidence rather than convenience.** **FR-007**: the control
-  is **omitted from the web search-results grid only** — `/search` had 0.1 KB against a 174 KB gate and
+  is **omitted from the web search-results grid only** - `/search` had 0.1 KB against a 174 KB gate and
   the control costs 0.7; four reclaim attempts recovered 0.2 (one made it *worse*). **The budget was not
-  raised.** **FR-053**: a barred shopper is refused the list too — the platform's barred gate is uniform
+  raised.** **FR-053**: a barred shopper is refused the list too - the platform's barred gate is uniform
   and a carve-out would be a second, weaker authorization path.
 - **⚠ AMENDED 2026-08-02 (Phase 11, operator direction): THE MOBILE LIST IS NOW A CART-SHAPED LIST.**
   It was a two-column product grid; it is now a **vertical list of detail rows built from `CartRow`'s
   own composition**, with **pull-to-refresh in every state** (new **FR-068**). The grid's R18
   justification held for a *catalogue* surface, where a photograph answers "which of these do I want?";
-  this screen answers **"what changed, and can I buy it yet?"**, and every part of that answer is TEXT —
-  price now, price at save time, one sentence per verdict — which a half-width tile column wraps into
+  this screen answers **"what changed, and can I buy it yet?"**, and every part of that answer is TEXT -
+  price now, price at save time, one sentence per verdict - which a half-width tile column wraps into
   ragged lines. It also ends an **unjustified parity split**: `customer-web`'s list always was a list.
   **⚠ Wiring the row closed two gaps that had been TICKED AND NOT BUILT**: T132/T133 claimed
   add-to-cart on both surfaces while `AddAllSavedToCart` had **no mobile call site**, and the undo
   affordance (FR-017/FR-018) was published by `SavedViewModel` and **rendered by nothing**, so a
   mis-tap on the list was unrecoverable. **⚠ And it surfaced a third**: removing the grid left
   `TileSaveControl` with **no call site at all**, which exposed that the mobile home/browse/search
-  tiles had **never** been wired to it — **FR-007's tile placement was unbuilt on mobile** and the
+  tiles had **never** been wired to it - **FR-007's tile placement was unbuilt on mobile** and the
   parity register's ✅ was optimistic. Also fixed: the loading state wrapped an **empty `Column`**,
   which has nothing to scroll, so the refresh gesture it was wrapped in **could not fire**.
 - **⚠ FR-007 CLOSED THE SAME DAY (Phase 11b): the heart is now on every mobile tile.** Home's rails and
-  `SearchScreen` — which **is** search, browse, category and "see all" in one screen — go through one
+  `SearchScreen` - which **is** search, browse, category and "see all" in one screen - go through one
   `rememberSavedTiles`, where the three rules that make a tile heart honest live: **one membership read
   per screen** (FR-020, never one per tile), **one mirror every control reads** (FR-013, so two tiles
-  for one product cannot disagree), and **a refusal that is actually said** — the guest cap refuses
+  for one product cannot disagree), and **a refusal that is actually said** - the guest cap refuses
   deliberately, and a refusal a shopper cannot see is indistinguishable from a bug. **⚠ The read is
   signed-in only**: a guest's would `401`, and `LoadSavedMembership` **`adopt()`s** its answer, so an
-  empty one would **wipe the device list**. **⚠ And the control's touch target was 32 dp, not 48** —
+  empty one would **wipe the device list**. **⚠ And the control's touch target was 32 dp, not 48** -
   `toggleable` on a 24 dp icon with 4 dp padding, directly under a comment claiming it cleared the
   constitution's minimum. Harmless on one detail screen; **load-bearing in the corner of a tile**,
   where a miss navigates away from the thing being saved. Now a 48 dp box around a 32 dp scrim.
   ⚠ Still unwired: product detail's **"More like this"** rail, which draws a bespoke tile instead of
-  `EffyProductCard` — the fix is the shared tile, not a second heart (T197).
+  `EffyProductCard` - the fix is the shared tile, not a second heart (T197).
 - **⚠ AND THE BULK ADD HAD NEVER ADDED ANYTHING (Phase 11c).** An operator screenshot showed
   "**0 items added to your cart**" with all three products refused as "couldn't be added right now".
   Cause: `AddAllToCart` derived its per-item change id as **`changeID + ":" + productID`**, and
-  `public.cart_change_log.change_id` is a **uuid** column — so **every** insert failed with `invalid
+  `public.cart_change_log.change_id` is a **uuid** column - so **every** insert failed with `invalid
   input syntax for type uuid`, the cart errored on every item, and `cartReason`'s default reported each
   as `unavailable`. **The shopper was told their products were the problem when the request never
-  reached the cart.** Now a **UUIDv5** over (fixed namespace, `changeID:productID`) — still one id per
+  reached the cart.** Now a **UUIDv5** over (fixed namespace, `changeID:productID`) - still one id per
   (batch, product), still deterministic, so a retry is still recognised as a retry.
   **⚠ The test was watching it happen**: `TestAddAllToCart_GivesEachItemItsOwnChangeID` asserted only
   that the ids DIFFER, which `"chg:a"`/`"chg:b"` do, because `fakeCart` takes a `string` and accepts
-  anything — **the fixture agreed with the code instead of with the database**, 027 R13's lesson
+  anything - **the fixture agreed with the code instead of with the database**, 027 R13's lesson
   recurring. It now parses each id as a uuid (proved by reverting the fix) and pins retry determinism.
   **Layout, same screenshot**: "Add everything available to cart" moved from the list's first item to a
   **fixed bottom bar** (it scrolled away and sat furthest from the thumb); the bulk result became a
-  **toast** with counts plus a per-row `skipNote` where the reason can be acted on — FR-052 still met,
+  **toast** with counts plus a per-row `skipNote` where the reason can be acted on - FR-052 still met,
   nothing omitted; "0 items added" now reads "Nothing could be added to your cart"; and the
   `SnackbarHost` became a bottom **overlay** instead of a column child that pushed content down.
-- **⚠ DOES ADDING TO THE CART REMOVE THE SAVED ITEM? NO — and that is now written down (FR-050/FR-050a,
+- **⚠ DOES ADDING TO THE CART REMOVE THE SAVED ITEM? NO - and that is now written down (FR-050/FR-050a,
   Phase 11d).** Two genres of list behave oppositely and this platform has one of each: a **staging**
   list (the cart's own set-aside, 027) is *consumed* when its item moves to the cart; a **watchlist** is
   not. eBay's Watchlist, Amazon's Wish List and the Woolworths/Coles favourites are the second kind, and
-  Principle V names **eBay** as this capability's reference. Groceries are re-bought weekly — Tesco and
-  Sainsbury's derive favourites from purchase history precisely so the list is never consumed — and
+  Principle V names **eBay** as this capability's reference. Groceries are re-bought weekly - Tesco and
+  Sainsbury's derive favourites from purchase history precisely so the list is never consumed - and
   **removing the entry would destroy the save-time price the watch is measured against**, so the next
   drop could not be reported. **⚠ But keeping it exposed a hazard**: a repeat add **increments the
   quantity**, so a row still saying "Add to cart" invites a tap that silently buys two. **FR-050a**:
-  the row now reads **"In your cart · View"** / **"N in your cart · View"** (the count matters — it is
+  the row now reads **"In your cart · View"** / **"N in your cart · View"** (the count matters - it is
   how a shopper catches the double tap), the **bottom bar becomes "Go to cart"** once everything
-  available is in there (the bulk add is *not* idempotent across taps — each tap is a new batch), and
+  available is in there (the bulk add is *not* idempotent across taps - each tap is a new batch), and
   the screen `syncCart()`s on arrival because it now renders from that mirror. **⚠ Deliberately not a
-  quantity stepper**: that is the grocery-tile pattern, and quantity is the cart's business — a stepper
+  quantity stepper**: that is the grocery-tile pattern, and quantity is the cart's business - a stepper
   here would make two screens responsible for one number.
 - **⚠ `saveditems`' 25 container-backed tests are RED on this branch, and were before any of this
-  work** — `repository_test.go` seeds `public.delivery_pricing_rule`, which the delivery withdrawal
+  work** - `repository_test.go` seeds `public.delivery_pricing_rule`, which the delivery withdrawal
   (`a478734`) dropped. The "25 container-backed" claim below is **stale**; T206 tracks it. Those are
   exactly the tests that would have caught the uuid defect.
 - **⚠ AND THE iOS TEST SUITE HAD NEVER COMPILED.** Three backtick test names in this slice's own
   `commonTest` files contain a **comma**, which **Kotlin/Native forbids in a declaration name** while
-  the JVM accepts it — so `testAndroidHostTest` was green and `:shared:iosSimulatorArm64Test` failed at
+  the JVM accepts it - so `testAndroidHostTest` was green and `:shared:iosSimulatorArm64Test` failed at
   `compileTestKotlinIosSimulatorArm64` with `Name contains illegal characters: ","`. Every "iOS
   compile" claim in this slice covered the **main** compilation only, never the tests. Commas replaced
-  with dashes; **iOS now runs 217 tests, 0 failures — the same count as Android**.
+  with dashes; **iOS now runs 217 tests, 0 failures - the same count as Android**.
 - **Verified**: Go build/vet/gofmt + all packages (**~65 saveditems tests, 25 container-backed**) ·
   **492 mobile tests** · **242 customer-web tests** · iOS + Android compile · `pnpm -r typecheck` 12/12 ·
   `depcruise` · `cm-guard` · `cm-tokens-check` · all six routes within budget. Phase 11 re-verified
   `:shared:compileAndroidMain` · `:shared:testAndroidHostTest` · `:shared:compileKotlinIosSimulatorArm64` ·
   `mobile-guard`. Phase 11b added `:androidApp:assembleDebug`.
-- **⚠ Open**: **Phase 8 telemetry is unbuilt and CUTTABLE** — and PostHog has **never been initialised
+- **⚠ Open**: **Phase 8 telemetry is unbuilt and CUTTABLE** - and PostHog has **never been initialised
   on customer-web**, so `capture()` has always been a no-op platform-wide, making **SC-012/SC-013
   unmeasurable**. Mobile telemetry deferred a **twelfth** slice. **22 operator walks** remain, incl.
   ⚠ `make db-up` (**destroys the old saved data**), the five-observer verdict test, the colour-free
@@ -3113,70 +3113,70 @@ that made a shopper trust it and then be misled.
   looked at across 028/029/033**. Spec/artifacts: [specs/033-customer-saved-items/](specs/033-customer-saved-items/);
   parity register: [docs/audiences/customer-capabilities.md](docs/audiences/customer-capabilities.md) §033.
 
-**029-promotional-banner-carousel — Promotional Banners: Fixed Canvas, Template & Offers Carousel.**
-✅ **CONCLUDED (PARTIAL BY DESIGN) 2026-08-01 — 78/89 tasks** (62/73 at sign-off + Phase 9's 16/16
+**029-promotional-banner-carousel - Promotional Banners: Fixed Canvas, Template & Offers Carousel.**
+✅ **CONCLUDED (PARTIAL BY DESIGN) 2026-08-01 - 78/89 tasks** (62/73 at sign-off + Phase 9's 16/16
 post-sign-off fix). Sign-off record:
 [specs/029-promotional-banner-carousel/SIGNOFF.md](specs/029-promotional-banner-carousel/SIGNOFF.md).
 ⚠ **"Concluded" closes the slice; it does not make the 11 open tasks true.** All eleven are operator
-walks — **T051 (the bypass test) is still the most important open item on the platform**, and
+walks - **T051 (the bypass test) is still the most important open item on the platform**, and
 **Android has still never been looked at** across 028 *and* 029.
 
 Gives 028's advertising facet a canonical shape and a second placement. **The first real promotional
 banners this platform has ever rendered** now appear on a device.
-- **One canvas definition** — `packages/shared-types/src/banner-canvas.json` (1200×600, 2:1, 150 KB,
+- **One canvas definition** - `packages/shared-types/src/banner-canvas.json` (1200×600, 2:1, 150 KB,
   marked text zone). In `shared-types`, **not** `design-system`: an admin Lambda importing a UI package
   to learn two numbers is wrong. Consumed by the seeder, the admin service, the console and the mobile
-  renderer — **no literal `1200` appears in any of them** (Principle II).
+  renderer - **no literal `1200` appears in any of them** (Principle II).
 - **⚠ Nothing is ever cropped, by construction.** FR-013 read like it needed crop arithmetic; locking
   the ratio at **both** ends (artwork 2:1 AND render box 2:1) removes the case entirely. That is
-  exactly why the **server-side conformance check** — a ranged GET reading real dimensions from header
-  bytes, which **refuses rather than resizes** — matters more than any rendering code here.
+  exactly why the **server-side conformance check** - a ranged GET reading real dimensions from header
+  bytes, which **refuses rather than resizes** - matters more than any rendering code here.
 - **A dedicated offers carousel** (`HomeBlock.Offers`) distinct from 028's between-sections placement,
   via a new `banner_placement` column. A promotion is in one or the other, **never both** (FR-027).
 - **Data**: one migration `20260731104629_promo_banner_placement.sql`.
 - **⚠ THE OPERATOR HALF HAS STILL NEVER BEEN WALKED.** Every banner that exists was seeded straight
-  into the database — which is **precisely the bypass path quickstart §2a exists to prove is refused**.
+  into the database - which is **precisely the bypass path quickstart §2a exists to prove is refused**.
   So **T051 is the most important open item on the platform**: until someone presigns a URL, PUTs a
   wrong-shaped image and confirms the save is **REFUSED**, **FR-004 is decorative** and SC-002 rests on
   the seeder's arithmetic, not on enforcement. **T050** (console walk, SC-001 unmeasured) and **T054**
-  (exhaustion take-down) are likewise unwalked. **⚠ Android has still never been looked at** — 028
+  (exhaustion take-down) are likewise unwalked. **⚠ Android has still never been looked at** - 028
   recorded that exact gap and asked it not be repeated; it was repeated.
-- **⚠ Two live defects found and fixed, both structural.** (1) **The scrim was white** — it was
+- **⚠ Two live defects found and fixed, both structural.** (1) **The scrim was white** - it was
   `colorScheme.surface`, so light mode bleached the photo and put dark type on a white film over a busy
   image. The real error: **the artwork is the same picture in both appearances**, so the thing making
   type legible over it cannot be the thing that inverts. Now fixed dark + fixed light type, both ramp
-  steps, no new colour. Its gradient was also bottom-left→top-right — **weakest exactly where the
-  bottom-anchored title sits** — now vertical. (2) **⚠ `GET /v1/storefront/home` was intermittently
+  steps, no new colour. Its gradient was also bottom-left→top-right - **weakest exactly where the
+  bottom-anchored title sits** - now vertical. (2) **⚠ `GET /v1/storefront/home` was intermittently
   503-ing the whole storefront** at exactly 3.007 s: `Home()` issued **8 strictly serial queries** and a
   Sydney RDS round trip **measures 135 ms** from local `core-api` → ~1.08 s of pure latency, **46% of a
-  3 s budget**, so a cold pool tipped it over. **This is 027's defect recurring on the READ path** —
+  3 s budget**, so a cold pool tipped it over. **This is 027's defect recurring on the READ path** -
   027 recorded it, fixed the cart *write* path, and left this one untouched. Now two waves (ordering
   held outside the goroutines; the server owns section order), `-race` clean. **Measured 1.37 s →
   0.39–0.62 s.**
-- **⚠ Also**: `pnpm -r test` was green while `typecheck` FAILED — **vitest does not run `tsc`**; caught
+- **⚠ Also**: `pnpm -r test` was green while `typecheck` FAILED - **vitest does not run `tsc`**; caught
   only because the "Done" count fell 12→11, so counting reporting packages is now part of the sweep.
-- **⚠ POST-SIGN-OFF DEFECT, FIXED 2026-08-01 — the banner tap went nowhere useful.** Found by the
+- **⚠ POST-SIGN-OFF DEFECT, FIXED 2026-08-01 - the banner tap went nowhere useful.** Found by the
   operator on device. `banners()` set `Target: {Kind: "search"}` for **every** promotion, so a tap
-  opened the **unfiltered store** — the Search tab by another name — carrying **none of the
+  opened the **unfiltered store** - the Search tab by another name - carrying **none of the
   promotion's facts** (no code, no terms). The real cause is in the **data model, not the
   navigation**: `promo_code` has **no product or category scoping**, so a whole-cart discount has no
   set of qualifying products to filter to. **A cart-level code is a message, not a place.** Fixed with
   a `promotion` target + a **promotion detail screen**, served by a new public hot-path read
   `GET /v1/storefront/promotions/:id` that **re-applies the same visibility predicate Home used**
-  (shared as a SQL const so they cannot drift) — a promotion that expired or was exhausted between the
+  (shared as a SQL const so they cannot drift) - a promotion that expired or was exhausted between the
   Home read and the tap answers **404 → "this offer has ended", with no retry affordance**, never void
   terms. 028 gains **FR-034a/FR-034b**, which *narrow* FR-034 rather than contradict it: that rule
   protects **content** a shopper could miss, and a promotion detail restates the banner.
-  **⚠ The test that should have caught it asserted the defect** — `banner_test.go` demanded
+  **⚠ The test that should have caught it asserted the defect** - `banner_test.go` demanded
   `Kind == "search"`, encoding the same misreading as the code; and the cross-language wire contract
   pinned `{"kind":"sale"}`, **a shape no banner ever emitted**. Both now pin the real payload.
   **⚠ Also fixed**: mobile mapped **404 → `AppError.Unexpected`**, so "that isn't there" reached the
   shopper as "something broke, try again". `AppError.NotFound` now exists.
-  **✅ FIXED ON BOTH SURFACES** — `customer-web` gained **`/promotions/[id]`** (`◐ PPR`, **noindex**,
+  **✅ FIXED ON BOTH SURFACES** - `customer-web` gained **`/promotions/[id]`** (`◐ PPR`, **noindex**,
   **uncached** alone among the public reads, since "still available" is a live claim other shoppers
   can falsify; one client component, the copy button; **171.0 KB / 174 KB**, added to the bundle
-  gate's route list in the same change). Web routes on **`href`**, mobile on **`target`** — the closed
-  vocabulary exists because mobile has no URL router — so the server sets **both from one promotion
+  gate's route list in the same change). Web routes on **`href`**, mobile on **`target`** - the closed
+  vocabulary exists because mobile has no URL router - so the server sets **both from one promotion
   id** and a Go test pins that they agree. ⚠ **Half a carry-forward remains**: web's banner **face**
   still ignores `code`/`terms`/`placement`; FR-037d holds anyway ("from the banner **or from where it
   leads**"). ⚠ **Neither surface has been walked live**, the refusal path least of all.
@@ -3186,51 +3186,51 @@ banners this platform has ever rendered** now appear on a device.
   a minimum shows there **without its terms**); the category rollup; mobile telemetry now **ten**
   consecutive slices deferred; `/search` and `/cart` sit **0.5 KB and 0.2 KB** from the 174 KB gate.
 
-**028-mobile-home-merchandising — Customer Mobile Home: Sectioned Merchandising & Search Entry.**
-✅ **SIGNED OFF (PARTIAL BY DESIGN) 2026-07-31 — 74/77 tasks.** Sign-off record:
+**028-mobile-home-merchandising - Customer Mobile Home: Sectioned Merchandising & Search Entry.**
+✅ **SIGNED OFF (PARTIAL BY DESIGN) 2026-07-31 - 74/77 tasks.** Sign-off record:
 [specs/028-mobile-home-merchandising/SIGNOFF.md](specs/028-mobile-home-merchandising/SIGNOFF.md).
 
 Replaces the customer mobile Home tab's flat "Discover" grid with a merchandised, sectioned storefront:
 a one-tap search handoff (keyboard already up), named horizontally-scrolling rails with "see all",
 a category shortcut row with 13 authored vectors, and promotional banners driven by real back-office
-promotions. **⚠ It REVERSES 026's FR-025a for the Home tab**, on operator direction (FR-003) — every
+promotions. **⚠ It REVERSES 026's FR-025a for the Home tab**, on operator direction (FR-003) - every
 other 026 screen is untouched, and the virtue 026 was protecting is retained as SC-002/SC-006.
 
-- **Data**: one migration `20260731072813_promo_advertising.sql` — an **advertising facet** on
+- **Data**: one migration `20260731072813_promo_advertising.sql` - an **advertising facet** on
   `promo_code` (5 columns + a CHECK making an advertised-but-untitled promotion **unrepresentable** +
-  a partial index). No new table. **Advertising is opt-in and defaults to false** — private promotions
+  a partial index). No new table. **Advertising is opt-in and defaults to false** - private promotions
   (a goodwill credit for one customer, a partner code) are ordinary, and the default is the only thing
   between them and the public storefront. Exhaustion is **counted from `promo_redemption`, never
   stored** (027's rule), which is what makes an exhausted promotion stop advertising itself.
 - **Paths**: Home read → **hot path** (`core-api/storefront`); advertising a promotion → **cold path**
   (`edge-api/admin/promotions`). Exactly the split `promo_code` already had.
 - **Principle II**: the S3 presign helper was **promoted** from `shop/products/media.ts` into
-  `@effy/edge-shared` and consumed by both services — **shop's 164 tests pass unmodified**, which is
+  `@effy/edge-shared` and consumed by both services - **shop's 164 tests pass unmodified**, which is
   the proof the extraction changed no behaviour.
 - **⚠ 027's biggest carry-forward is CLOSED.** That post-mortem named a Go↔Kotlin contract test as
   "the strongest carry-forward" and did not build it. `wire_contract_test.go` +
   `BannerWireContractTest.kt` now share one **byte-identical JSON literal**, duplicated by hand.
   Proved by breaking it two ways: `int`→`float64` fails at compile time; a silent `json:"terms"`
   rename compiles fine and is caught by the byte comparison.
-- **⚠ FIVE defects found, four with the same signature** — a test passed because the FIXTURE agreed
+- **⚠ FIVE defects found, four with the same signature** - a test passed because the FIXTURE agreed
   with the code rather than with the world (027's lesson, recurring):
-  (1) the **category row rendered nothing** — every product's primary category is a leaf,
+  (1) the **category row rendered nothing** - every product's primary category is a leaf,
   `productCount` does not roll up, so all three top-level categories reported 0; and category
   filtering is exact-match everywhere, so a top-level shortcut would have opened an empty screen.
   **FR-024/SC-004 were amended in the spec**, not patched in code alone (Principle I).
-  (2) **rail tiles ignored their width** — `BoxWithConstraints` inside a `LazyRow`, whose main axis is
-  **unbounded**. (3) **images had no loading state** — the placeholder only ran when the URL was null.
-  (4) **the skeleton could not match the content** — a `Row` allocates width sequentially and coerces
+  (2) **rail tiles ignored their width** - `BoxWithConstraints` inside a `LazyRow`, whose main axis is
+  **unbounded**. (3) **images had no loading state** - the placeholder only ran when the URL was null.
+  (4) **the skeleton could not match the content** - a `Row` allocates width sequentially and coerces
   `Modifier.width()` into what is left; fixed by building it from the **same primitives** (`LazyRow`).
   (5) **"See all" was a 40dp touch target** with five identical labels.
 - **⚠ Also corrected**: six verification tasks marked complete on reasoning rather than checking.
   Re-opened and audited; three of the defects above fell out of that audit.
-- **⚠ OPEN (operator)** — 3 tasks, all in [SIGNOFF.md](specs/028-mobile-home-merchandising/SIGNOFF.md):
-  **T068** the advertised-promotion walk — **no promotion was ever marked advertisable, so the banner
+- **⚠ OPEN (operator)** - 3 tasks, all in [SIGNOFF.md](specs/028-mobile-home-merchandising/SIGNOFF.md):
+  **T068** the advertised-promotion walk - **no promotion was ever marked advertisable, so the banner
   has never rendered**; the whole operator half is machine-verified only, and research **R9's headline
   design risk (does a hueless banner draw the eye?) is unanswerable** until it is. **T003/T069** no
   measurements taken (SC-005/SC-006/SC-008 unmeasured). Also unwalked: SC-009 (5/5 testers), SC-010
-  (screen reader), SC-011 (dark/large-text/tablet), SC-012 (empty store), and **SC-013 — only iOS was
+  (screen reader), SC-011 (dark/large-text/tablet), SC-012 (empty store), and **SC-013 - only iOS was
   ever looked at; nobody has seen Android**.
 - **Carry-forwards**: a **category rollup** (recursive CTE) is what would make top-level shortcuts
   possible; `customer-web` still ignores `code`/`terms`/`target`/`position`, so a promotion with a
@@ -3238,208 +3238,208 @@ other 026 screen is untouched, and the virtue 026 was protecting is retained as 
   specified, none emitted). Parity register:
   [docs/audiences/customer-capabilities.md](docs/audiences/customer-capabilities.md) §028.
 
-**027-customer-cart-sync — Customer Cart Synchronisation, Promotions & Order Rules.** ✅ **118/142 tasks
-— every feature phase BUILT + fully machine-verified. Live sign-off + commit pending.**
+**027-customer-cart-sync - Customer Cart Synchronisation, Promotions & Order Rules.** ✅ **118/142 tasks
+- every feature phase BUILT + fully machine-verified. Live sign-off + commit pending.**
 
 The slice that makes the cart an **account-level thing**. It started from a one-word answer: does the
-customer-mobile cart save to the backend? No — and it never had. **Three stacked defects, all
+customer-mobile cart save to the backend? No - and it never had. **Three stacked defects, all
 pre-existing from 019, each masked by the one in front:**
-- **R12a (the real cause)** — one auth plugin sent the **ID token** to both backends. `core-api` requires
+- **R12a (the real cause)** - one auth plugin sent the **ID token** to both backends. `core-api` requires
   `token_use == "access"`, so every mobile cart write was rejected. Fixed with a `BearerToken` enum and a
-  pure, testable `authHeadersFor(bearer, session)` in `EffyHttpClient.kt` — Edge takes id+access, Core
+  pure, testable `authHeadersFor(bearer, session)` in `EffyHttpClient.kt` - Edge takes id+access, Core
   takes access. **Necessary but not sufficient.**
-- **R12b** — `auth.PoolVerifier` accepted exactly ONE app client per pool (`claims.ClientID != v.clientID`),
+- **R12b** - `auth.PoolVerifier` accepted exactly ONE app client per pool (`claims.ClientID != v.clientID`),
   so the mobile client was refused even with the right token. Now a `clientIDs []string` set; the Makefile
   passes `web,mobile` from SSM.
-- **R13 (the one that survived both fixes)** — Kotlin serialised quantities as `Double`, so the wire
+- **R13 (the one that survived both fixes)** - Kotlin serialised quantities as `Double`, so the wire
   carried `1.0`; Go's `encoding/json` refuses `1.0` into an `int`. Found by querying the DB directly
-  (revision 1, zero items) rather than by any test. Fixed **at the contract** — a `WireInt` alias carrying
+  (revision 1, zero items) rather than by any test. Fixed **at the contract** - a `WireInt` alias carrying
   `@asType integer` in `packages/shared-types/src/cart.ts`, so the generated Kotlin cannot regress.
 - **⚠ The lesson**: every unit test passed throughout, because the fakes spoke Kotlin at both ends and
   never crossed the wire. **A generated-Kotlin-vs-real-Go contract test would have caught R13 on day one**
   and is the strongest carry-forward from this slice.
 
-**The design (research R0 — it supersedes 019's R8 "Option B").** The **platform is authoritative**; each
+**The design (research R0 - it supersedes 019's R8 "Option B").** The **platform is authoritative**; each
 surface keeps an **optimistic local mirror**. Every mutation is *mirror first, send second*, always in
 that order. Correctness comes from three properties rather than from locking:
-- **Absolute quantities** — which is what lets ten stepper taps debounce into ONE request without
+- **Absolute quantities** - which is what lets ten stepper taps debounce into ONE request without
   corrupting the total (SC-005). With increments it would be unsafe.
-- **`changeId` per shopper ACTION, not per attempt** — a retry reuses it, so a request that arrived
+- **`changeId` per shopper ACTION, not per attempt** - a retry reuses it, so a request that arrived
   without its response reaching us cannot apply twice (FR-018).
-- **A monotonic `cart.revision`** — a slow response can never overwrite a newer cart. The merge is
+- **A monotonic `cart.revision`** - a slow response can never overwrite a newer cart. The merge is
   **union with MAXIMUM quantity**, so the guest→account fold is idempotent and safe on every sign-in.
 
 **Built (all three surfaces + the operator console):**
-- **`core-api/cart`** — the full resource (add · set · remove · clear · merge · preview · reorder ·
+- **`core-api/cart`** - the full resource (add · set · remove · clear · merge · preview · reorder ·
   set-aside/restore/discard · apply/remove promo), a combined `AllLines` read, and `checkoutState` (the
-  minimum-order gate, re-decided at intent time — the client never decides it). New
+  minimum-order gate, re-decided at intent time - the client never decides it). New
   `platform/cartpolicy` reads the order rules. Promo evaluation is a **pure** file (`promo.go`) with
   **eight distinguishable refusals**, because "that code doesn't work" tells a shopper nothing about
   whether to wait, spend more, or give up.
-- **`customer-mobile`** — `CartStore` (forward-only adopt), `CartSyncCoordinator` (debounce · drain ·
-  backoff · a persisted offline queue), use cases, `HttpCartRepository`. Plus **`EffyPullToRefresh`** — a
-  shared gesture with an elastic follow — on Cart, Home, Search, Orders and Favourites.
-- **`customer-web`** — `cart-store` (versioned key + legacy migration) · `cart-api` · `cart-actions` ·
+- **`customer-mobile`** - `CartStore` (forward-only adopt), `CartSyncCoordinator` (debounce · drain ·
+  backoff · a persisted offline queue), use cases, `HttpCartRepository`. Plus **`EffyPullToRefresh`** - a
+  shared gesture with an elastic follow - on Cart, Home, Search, Orders and Favourites.
+- **`customer-web`** - `cart-store` (versioned key + legacy migration) · `cart-api` · `cart-actions` ·
   `cart-sync`, a `PromoField`, and the below-minimum gate.
-- **`back-office` promotions console (US10)** — `edge-api/admin/src/promotions/` (9 routes) +
+- **`back-office` promotions console (US10)** - `edge-api/admin/src/promotions/` (9 routes) +
   `features/promotions/` (register · detail · order rules). **`redemptionCount` is COUNTED from
-  `promo_redemption` on every read, never stored** — a counter and the rows can disagree, and then nobody
+  `promo_redemption` on every read, never stored** - a counter and the rows can disagree, and then nobody
   knows which is true. That is also what makes **FR-068** enforceable: a redeemed code's window, caps and
   status can change; **its value cannot**, because a paid order's discount was computed from the
   definition as it stood. The rule is enforced **inside the writing transaction** under `FOR UPDATE`, not
-  in the service — a code can be redeemed between a check and a write.
-- **Data**: one migration `20260730102329_cart_sync_promotions.sql` — 5 new tables (`promo_code`,
+  in the service - a code can be redeemed between a check and a write.
+- **Data**: one migration `20260730102329_cart_sync_promotions.sql` - 5 new tables (`promo_code`,
   `promo_redemption`, `order_policy`, `cart_saved_item`, `cart_change_log`), 3 altered.
-- **⚠ Latency fix**: the first working write timed out — ~14 round trips to Sydney RDS inside a 4 s
+- **⚠ Latency fix**: the first working write timed out - ~14 round trips to Sydney RDS inside a 4 s
   budget. Pruning left the write path, a combined read replaced N queries, timeout → 12 s.
 - **⚠ Regression found by the operator on device and fixed**: adding pull-to-refresh wrapped the empty
-  cart in a `verticalScroll` Column, which **top-aligns** — silently un-centring the 026 empty state.
+  cart in a `verticalScroll` Column, which **top-aligns** - silently un-centring the 026 empty state.
   `fillMaxSize()` *before* `verticalScroll` plus `Arrangement.Center` restores it.
 - **⚠ Bundle**: a static `import { capture } from "@/lib/telemetry"` in one cart client component cost
   **+1.0 KB on four GUEST routes** and put `/search` and `/cart` over the 174 KB gate. Both promo events
-  and the removal event now fire through a **dynamic** import — byte-neutral. Measured delta vs HEAD:
+  and the removal event now fire through a **dynamic** import - byte-neutral. Measured delta vs HEAD:
   **+0.2…+1.1 KB**, all inside budget. ⚠ `/search` sits **0.5 KB** from the limit.
 - **Verified**: `pnpm -r typecheck`, **847 JS/TS tests**, `turbo build` (3 web surfaces), Go
   build/vet/test/gofmt, both mobile suites + `assembleDebug` + the iOS compile, `cm-guard`/`sm-guard`,
   `cm-contract-check` (no drift), `tokens:check` **unchanged** (this slice adds no token), `depcruise`
   clean, bundle budget green. Also **fixed three pre-existing red gates** the sweep surfaced: two
-  orphaned mobile drawables (`ic_notifications_outlined`, `ic_location_outlined` — used but never
+  orphaned mobile drawables (`ic_notifications_outlined`, `ic_location_outlined` - used but never
   promoted to the `mobile-assets/` SSOT) and the unused KMP-template `compose-multiplatform.xml`.
-- **⚠ Open (operator)** — the 12 remaining tasks are all live walks: **T011** `make db-up ENV=dev` (the
+- **⚠ Open (operator)** - the 12 remaining tasks are all live walks: **T011** `make db-up ENV=dev` (the
   migration; 003 commit-guard), **T104** `make edge-deploy SERVICE=admin ENV=dev` + create the eight
-  fixture codes **through the console**, `make core-run`, then quickstart §3/§4 — cross-device sync,
+  fixture codes **through the console**, `make core-run`, then quickstart §3/§4 - cross-device sync,
   force-quit survival, the guest→sign-in merge, the debounce request counts, the eight promo refusals,
   the Stripe webhook re-delivery, the `curl` bypass attempts, the **rendered** two-shop below-minimum
-  cart (SC-017's phrasing half), and the Playwright cart spec (`e2e/cart.spec.ts`, 18 tests — it needs a
+  cart (SC-017's phrasing half), and the Playwright cart spec (`e2e/cart.spec.ts`, 18 tests - it needs a
   live `core-api` and a seeded catalogue). Then **T134** sign-off + **T135** commit.
   Spec/artifacts: [specs/027-customer-cart-sync/](specs/027-customer-cart-sync/); parity register:
   [docs/audiences/customer-capabilities.md](docs/audiences/customer-capabilities.md) §027.
 
-**024-brand-icons-splash — Brand Marks: App Icons, Splash Screens & Favicons.** ✅ **Code-complete +
+**024-brand-icons-splash - Brand Marks: App Icons, Splash Screens & Favicons.** ✅ **Code-complete +
 fully machine-verified; device sign-off + commit pending.**
 The platform's first brand-identity slice. Before it, **not one of the six surfaces carried the Effy
 mark** where a person first meets it: two consoles had no favicon at all, all three mobile apps still
-shipped the **stock Android template robot**, and **no mobile app had a splash screen** — a tap opened
+shipped the **stock Android template robot**, and **no mobile app had a splash screen** - a tap opened
 onto a blank white frame.
 - **One authored vector → 57 committed assets** via a new **`packages/brand`** (`@effy/brand`),
   deliberately shaped like `design-system`'s `tokens:gen`/`tokens:check`: authored source → **committed**
   derived artifacts → a drift check that fails and **names the stale surface**. `make brand-gen` /
   `make brand-check`; the gate rides `pnpm test` (`make lint` is Terraform-only and never runs it).
-- **Three colourways, one mark** — **Emerald** `#10b981`/`#065f46` (customer-web + customer-mobile),
+- **Three colourways, one mark** - **Emerald** `#10b981`/`#065f46` (customer-web + customer-mobile),
   **Sky** `#0ea5e9`/`#075985` (shop-web + shop-mobile; amended 2026-07-27 from blue-500 `#3b82f6` /
-  blue-800 `#1e40af` — hue gap to emerald narrows ~57°→~38°, so the SC-002/SC-003 side-by-side
+  blue-800 `#1e40af` - hue gap to emerald narrows ~57°→~38°, so the SC-002/SC-003 side-by-side
   observer test is now load-bearing), **Neutral** (back-office). The navy outline
-  `#0C1D36` and off-white tag `#F4F5F7` are **shared by all three** — that invariant is what makes them
+  `#0C1D36` and off-white tag `#F4F5F7` are **shared by all three** - that invariant is what makes them
   read as one brand at two hues (SC-003), and it is unit-tested.
-- **⚠ The supplied artwork was in the RETIRED Jade palette** (`#0FB57E`/`#047857`) — committing it would
+- **⚠ The supplied artwork was in the RETIRED Jade palette** (`#0FB57E`/`#047857`) - committing it would
   have failed `scripts/check-no-jade.sh`, which scans `*.svg`. The committed master is recoloured into
   the live palette, using the **lighter emerald-500 for the bag body** so the mark stays legible at
   16 px where emerald-800 alone reads near-black. **No constitution amendment, no guard exemption.**
 - **⚠ The shop sky blue is NOT a design token (FR-014a).** `@effy/brand` does **not depend on**
   `design-system`; no token added, **no Compose theme regenerated** (proved by `tokens:check` passing
-  unchanged). Shop UI stays emerald — Principle V's single-accent rule untouched.
+  unchanged). Shop UI stays emerald - Principle V's single-accent rule untouched.
 - **Composition is vector-space, from a MEASURED bbox** (`x 136.0…379.8, y 71.8…414.8`; the mark fills
   only 48.8%×68.7% of its authored canvas, off-centre). 11 profiles declared by **occupancy**, so
   Android's **66/108 dp safe zone** (≤61.1%) is an asserted invariant, not a hope.
 - **Toolchain**: `@resvg/resvg-js` renders, `sharp` strips alpha, a **25-line stdlib ICO writer** (no
-  third image dep). iOS icons are **PNG colour-type 2** — App Store rejects *any* alpha channel, even
+  third image dep). iOS icons are **PNG colour-type 2** - App Store rejects *any* alpha channel, even
   opaque, and the generator now **cannot emit a rejectable icon**. Android gets **VectorDrawables**
   (fg/bg/**monochrome** themed layer + splash) via a converter that **fails loudly** on geometry it
   doesn't understand; legacy raster mipmaps remain for **API 24–25 only**.
 - **Splash**: `androidx.core:core-splashscreen` 1.0.1 (backports to API 21 → one mechanism for the whole
   `minSdk 24…36` range) + `installSplashScreen()` before `setContent`; iOS a storyboard-free
-  `UILaunchScreen` dict — landed **atomically** with `INFOPLIST_KEY_UILaunchScreen_Generation → NO`,
+  `UILaunchScreen` dict - landed **atomically** with `INFOPLIST_KEY_UILaunchScreen_Generation → NO`,
   which conflicts with it.
-- **⚠ Splash ground is a BRAND colour (amended 2026-07-27, operator request)** — customer `#4ade80`
+- **⚠ Splash ground is a BRAND colour (amended 2026-07-27, operator request)** - customer `#4ade80`
   (green-400), shop `#3b82f6` (blue-500), **one value per app, light AND dark**. It replaces the
   original `#EFEFF1`/`#171717` app-surface ground, whose entire purpose was a seamless splash→app
   handover (FR-011); that seam is now **accepted by design**, and **FR-013's light/dark rule no longer
   applies to the splash ground** (it still binds every icon variant). Declared once in
   `packages/brand/src/compositions.mjs` `SPLASH_GROUND`; the iOS `LaunchBackground.colorset` is
   generated from it, the Android `values{,-night}/colors.xml` are hand-maintained to match. **Still
-  asset-local (rule C4)** — no token, no Compose theme, app UI stays emerald. ⚠ Note the shop splash
-  is **blue-500 while the shop mark is sky-500** — a deliberate two-tone, not a drift.
-- **Latent defects fixed** (found, not introduced): `layout.tsx` imported **`next/head`** — a Pages
+  asset-local (rule C4)** - no token, no Compose theme, app UI stays emerald. ⚠ Note the shop splash
+  is **blue-500 while the shop mark is sky-500** - a deliberate two-tone, not a drift.
+- **Latent defects fixed** (found, not introduced): `layout.tsx` imported **`next/head`** - a Pages
   Router API, **inert** in the App Router, so its Apple title never rendered; manifest carried
   placeholder `#ffffff` brand colours; PWA icons declared **only** `maskable`; both Android launcher
   labels were developer strings (`customer-mobile`/`shop-mobile` → **"Effy"**/**"Effy Shop"**).
 - **Verified**: 84 new brand tests + **792 JS/TS tests**, `pnpm -r typecheck`, all three web builds,
   both Android builds + both KMP suites, `mobile-guard`, `check-no-jade`, `tokens:check`. **SC-009
   proven** (two full regenerations byte-identical) and **SC-008 proven by deliberately breaking it**
-  three ways — stale / orphaned / missing, each exiting non-zero and naming the surface.
-- **⚠ Bundle**: `customer-web` guest budget is **167.4 KB / 160 KB** — measured **byte-identical with
+  three ways - stale / orphaned / missing, each exiting non-zero and naming the surface.
+- **⚠ Bundle**: `customer-web` guest budget is **167.4 KB / 160 KB** - measured **byte-identical with
   this feature stashed**, so the overage is entirely **pre-existing** (recorded under 020) and this
   slice is byte-neutral. It ships zero client JS.
 - **⚠ LIVE-ONLY BUG found on first device run, FIXED + device-verified (2026-07-26).** Neither the
   launcher icon nor the splash appeared. Cause: the SVG→VectorDrawable converter's attribute regex was
   `[a-zA-Z-]+`, which **cannot match `x1`/`y1`/`x2`/`y2`**, so the mark's three `<line>` elements (the
   tag's diagonal strokes) emitted `android:pathData="M undefined,undefined L undefined,undefined"`.
-  That is **valid XML** — it compiled through aapt2 and packaged into the APK — but Android's
+  That is **valid XML** - it compiled through aapt2 and packaged into the APK - but Android's
   `PathParser` throws on it, so the **whole drawable failed to inflate** and both the adaptive icon and
   the splash silently fell back to system defaults. The only signal was one logcat line:
   `W ShellStartingWindow: Get attribute fail … drawable/ic_splash_logo`. **The lesson**: the converter
-  claimed to "fail loudly on geometry it doesn't understand" — it understood `<line>` perfectly and
+  claimed to "fail loudly on geometry it doesn't understand" - it understood `<line>` perfectly and
   then emitted rubbish. Fixed three ways: the regex admits digits; coordinates are validated as finite
   numbers at conversion; and **`assertRenderable()` now tokenises the emitted pathData the way a path
   parser does** and refuses to write anything Android could not inflate. 17 regression tests added
   (**101 brand tests**). Re-verified on an API-36 emulator: splash renders the full mark, launcher icon
-  renders unclipped inside the circular mask. **No raster asset was ever affected** — iOS and web go
+  renders unclipped inside the circular mask. **No raster asset was ever affected** - iOS and web go
   SVG→resvg and never touch the converter.
-- **⚠ Open (operator)**: physical **iOS + Android** sign-off — SC-004 (no clipping across launcher mask
+- **⚠ Open (operator)**: physical **iOS + Android** sign-off - SC-004 (no clipping across launcher mask
   shapes), SC-005 (branded splash on cold launch), SC-007b (dark/tinted/themed variants); the
   **side-by-side observer test** SC-002/SC-003 with both apps on one device; SC-007a (three web tabs);
-  and the **commit**. **`apps/driver-mobile` is untouched by design (FR-020)** — this slice brands five
+  and the **commit**. **`apps/driver-mobile` is untouched by design (FR-020)** - this slice brands five
   surfaces, not six. Spec/artifacts: [specs/024-brand-icons-splash/](specs/024-brand-icons-splash/).
 
-**020-shop-order-fulfillment** — Shop Order Fulfillment (Receive → Pick → Handoff). ✅ **SIGNED OFF
-(partial by design) 2026-07-21 — 89/93 tasks. The commerce→fulfilment loop is PROVEN LIVE.**
+**020-shop-order-fulfillment** - Shop Order Fulfillment (Receive → Pick → Handoff). ✅ **SIGNED OFF
+(partial by design) 2026-07-21 - 89/93 tasks. The commerce→fulfilment loop is PROVEN LIVE.**
 Gives the 019 fan-out a consumer: 019 wrote one `shop_fulfillment` per (order, shop) and **nothing read
-it** — its status never left `pending`. 020 is that consumer — an order **queue**, a **pick screen**, and
+it** - its status never left `pending`. 020 is that consumer - an order **queue**, a **pick screen**, and
 a **state machine** (`pending → received → picking → ready_for_pickup` + dev-only `collected`), at parity
 on **both** shop surfaces (shop-web + shop-mobile, whose Orders tab was a placeholder).
 - **Path (Principle III)**: shop side → **cold path** `apis/edge-api/shop/fulfillments/` (`/shop/v1/
-  fulfillments…`) — the doctrine's "internal operator console" (research R1 inverted the spec's guess:
+  fulfillments…`) - the doctrine's "internal operator console" (research R1 inverted the spec's guess:
   core-api has no cloud deploy, so a hot-path queue could never go live). The **customer** half (US5,
-  anonymous progress + terminal-gated shortfalls) stays on the **hot path** `core-api/orders` — one
+  anonymous progress + terminal-gated shortfalls) stays on the **hot path** `core-api/orders` - one
   capability, two audiences, two paths, exactly the operator's rule.
-- **Data**: one migration `20260720093119_shop_order_fulfillment.sql` — widens `shop_fulfillment.status`
+- **Data**: one migration `20260720093119_shop_order_fulfillment.sql` - widens `shop_fulfillment.status`
   to the 5-state machine + `state_changed_at`; new `fulfillment_item` (pick progress + shortfall, kept
   OFF the receipt line) + append-only `fulfillment_event` (the sole accountability control, since **both**
-  `shop_manager` and `shop_staff` have full access — FR-019a).
+  `shop_manager` and `shop_staff` have full access - FR-019a).
 - **PROVEN LIVE (SC-001/SC-002)**: real Stripe test-card checkout → order `EFY-HVX2AE` `paid` → fan-out to
   2 shops (`shop one` 2/$20.00, `Effy SHOP TWO` 6/$37.80; Σ $57.80 == item subtotal); a shop advanced its
   portion to `picking` in the app. Code-verified: workspace typecheck + **576 JS/TS tests** + build, Go
   build/vet/test/gofmt, **152 shop-mobile tests** (Android+iOS), mobile-guard, contract drift guard.
 - ⚠ **Live-only bug found + fixed during sign-off**: `apis/core-api/.../checkout/stripegateway.go` now uses
-  `ConstructEventWithOptions{IgnoreAPIVersionMismatch: true}` — a newer account API version
+  `ConstructEventWithOptions{IgnoreAPIVersionMismatch: true}` - a newer account API version
   (`2026-05-27.dahlia` vs stripe-go/v82's `2025-08-27.basil`) was 400-ing **every** webhook and stranding
   every paid order at `pending_payment`. A 019 checkout fix that only 020's first live run could surface.
 - ⚠ **Carry-forwards (NOT done)**: SC-005 (concurrency), SC-007 (adversarial no-leak), SC-010 (the *second*
   shop surface live), SC-011/012 (shortfall flow), SC-013 (deployed stub 404 probe) are unit-proven not
   live; the full SC table walk remains (quickstart §4). **`customer-web` 160 KB guest-bundle gate is at
-  167.3 KB — PRE-EXISTING, byte-identical with 020 reverted; needs its own fix.**
+  167.3 KB - PRE-EXISTING, byte-identical with 020 reverted; needs its own fix.**
 - ⚠ **The dev-only pickup stub has NO route in any environment** (FR-031): `POST .../pickup` returns 404;
   invoked locally only via `apis/edge-api/shop/scripts/invoke-pickup-stub.mjs`. Removal trigger = the
   driver slice. **`scripts/stripe-listen.sh`** (new) syncs the CLI webhook secret into Secrets Manager +
-  records the forward URL in SSM before forwarding — kills the secret-drift that stranded the first order.
+  records the forward URL in SSM before forwarding - kills the secret-drift that stranded the first order.
   Spec/artifacts: [specs/020-shop-order-fulfillment/](specs/020-shop-order-fulfillment/); parity register:
   [docs/audiences/shop-capabilities.md](docs/audiences/shop-capabilities.md) §020.
 
-**019-customer-commerce-flow** — Customer Commerce Flow (Browse → Order). ✅ **SIGNED OFF 2026-07-20 —
+**019-customer-commerce-flow** - Customer Commerce Flow (Browse → Order). ✅ **SIGNED OFF 2026-07-20 -
 68/77 tasks; verified on all three surfaces. TWO CARRY-FORWARDS (below) are NOT done.**
-- ⚠ **Carry-forward 1 — Android card payment is a PLACEHOLDER.** `AndroidPaymentDriver` returns a
+- ⚠ **Carry-forward 1 - Android card payment is a PLACEHOLDER.** `AndroidPaymentDriver` returns a
   "use web checkout" failure; the real Stripe **PaymentSheet** (SDK + Activity `ActivityResultRegistry`
   wiring) is still outstanding (**T003/T006/T054**). iOS Swift-bridge path is coded (compile-verified,
   not device-run). **Web checkout is fully live.**
-- ⚠ **Carry-forward 2 — no live end-to-end purchase has ever run.** SC-001/SC-002 are unproven live;
+- ⚠ **Carry-forward 2 - no live end-to-end purchase has ever run.** SC-001/SC-002 are unproven live;
   Stripe→webhook→finalizer has never executed against real Stripe. Needs `stripe listen` + a test-card
   checkout. (Also outstanding: Playwright E2E T053/T060/T066/T070, `FULL=1` testcontainers.)
 - ✅ **SC-005 (multi-shop fan-out) + SC-006 (idempotency) PROVEN** against the live dev schema with real
   two-shop data: 3 lines / 2 shops → exactly 2 `shop_fulfillment` rows, each only its own shop's items,
   Σ subtotals == order subtotal, 4 items ordered == 4 fanned; re-run inserted 0 rows. (Rolled back.)
-- **Dev seed data**: 2 shops — `shop one` (26 products) + `Effy SHOP TWO` (12 grocery/household) — 92
+- **Dev seed data**: 2 shops - `shop one` (26 products) + `Effy SHOP TWO` (12 grocery/household) - 92
   Openverse CC images in S3 (presign-verified). Seeder is scratchpad-only (not yet in the repo).
-The platform's **first commerce slice** — the customer's complete journey (discover → product → cart →
+The platform's **first commerce slice** - the customer's complete journey (discover → product → cart →
 checkout → **Stripe** pay → receipt → **multi-shop fan-out**) on **both** customer surfaces, served by the
 **hot path** (`core-api`, FR-028). Turns the 016 catalog into a shoppable storefront.
 - **Backend (net-new on the Go hot path)**: `storefront` (home rails, product detail, **search** w/
@@ -3452,19 +3452,19 @@ checkout → **Stripe** pay → receipt → **multi-shop fan-out**) on **both** 
   `s3.NewPresignClient`). **Payment = Stripe** (`stripe-go/v82`); the SECRET never leaves core-api.
 - **Web** (`customer-web`, Next 16): merchandised Home, product page, search (infinite scroll), cart,
   the **Stripe Payment Element** checkout (under `app/checkout/`, OUTSIDE the `(shop)` Amplify
-  quarantine — session-safe), webhook-authoritative receipt, orders, favourites. ⚠ **Dependency-free
-  cart** (`useSyncExternalStore` — no TanStack, by this app's tiny-guest-bundle design). All commerce
+  quarantine - session-safe), webhook-authoritative receipt, orders, favourites. ⚠ **Dependency-free
+  cart** (`useSyncExternalStore` - no TanStack, by this app's tiny-guest-bundle design). All commerce
   routes build as **`◐ PPR`**; Stripe stays out of the guest bundle.
-- **Mobile** (`customer-mobile`, KMP): the same flow — catalog/cart/checkout/orders/favorites features
+- **Mobile** (`customer-mobile`, KMP): the same flow - catalog/cart/checkout/orders/favorites features
   (Clean-Arch + MVVM), a `PaymentDriver` capability (real **iOS** Swift-bridge path; **Android**
   PaymentSheet is an operator-gated placeholder), a saveable Home back stack (Home→Product→Cart→
   Checkout→Receipt). Commerce DTOs generated to Kotlin (`contract/CommerceDto.kt`, own package).
-- **Data**: one forward-only migration `20260719120000_customer_commerce.sql` — `public.{customer_address,
+- **Data**: one forward-only migration `20260719120000_customer_commerce.sql` - `public.{customer_address,
   cart, cart_item, order, order_item, shop_fulfillment, payment, stripe_event, customer_favorite,
   event_outbox}`.
 - **Verified (all layers)**: `go test` (storefront/cart/checkout/money/…); web `pnpm typecheck` + Vitest
   (63) + `pnpm build`; mobile **iOS Kotlin/Native compile + `commonTest` all green**. Secret/PII sweep
-  clean (no card data — Stripe Elements/PaymentSheet own it). Parity register updated
+  clean (no card data - Stripe Elements/PaymentSheet own it). Parity register updated
   ([docs/audiences/customer-capabilities.md](docs/audiences/customer-capabilities.md) §019).
 - **⚠ Open (operator / device)**: commit + `make db-up ENV=dev` (the migration; 003 commit-guard);
   Stripe **test** keys → Secrets Manager + client env/`secrets.properties` (T003/T006); `make core-run` +
@@ -3473,7 +3473,7 @@ checkout → **Stripe** pay → receipt → **multi-shop fan-out**) on **both** 
   **cloud go-live tracks the hot path's own deploy slice** (core-api is local-only). Spec/artifacts:
   [specs/019-customer-commerce-flow/](specs/019-customer-commerce-flow/).
 
-**017-platform-theme-tokens** — Platform Theme & Design Tokens Refresh. ✅ **Concluded — web complete +
+**017-platform-theme-tokens** - Platform Theme & Design Tokens Refresh. ✅ **Concluded - web complete +
 verified; mobile theme foundation done + drift-guarded; not committed.**
 A platform-wide rebrand + a runtime appearance switcher, all from the ONE token SSOT
 (`packages/design-system/src/tokens.css`).
@@ -3482,10 +3482,10 @@ A platform-wide rebrand + a runtime appearance switcher, all from the ONE token 
   (no brand tint / no green-black blend). Light `#f5f5f5` ground / white cards; dark `#171717` ground /
   `#262626` cards / subtle neutral-800 borders / `#101010` sidebar. Typeface **Nunito Sans**; radii pinned
   sm 8 / md 16. Constitution amended → **v1.10.0** (Jade retired).
-- **Runtime appearance switcher** — Light / Dark / Follow-System, default System, persisted, live OS
+- **Runtime appearance switcher** - Light / Dark / Follow-System, default System, persisted, live OS
   tracking. Web: `@effy/web-kit` `ui-store` tri-state + 3-way `ConsoleUserMenu` (consoles); `next-themes`
   + a header `AppearanceControl` island (customer-web). Mobile: `AppearanceMode` + `EffyTheme(mode)`.
-- **All SIX surfaces share the theme** — the generator emits `compose/` (customer), `compose-shop/`,
+- **All SIX surfaces share the theme** - the generator emits `compose/` (customer), `compose-shop/`,
   **`compose-driver/`** (driver-mobile wired in, no longer a template exception), all srcDir'd + diff-guarded
   together by `tokens:check`. **WCAG AA machine-enforced** by `scripts/check-tokens.mjs`; **no-Jade** sweep
   `scripts/check-no-jade.sh`.
@@ -3495,12 +3495,12 @@ A platform-wide rebrand + a runtime appearance switcher, all from the ONE token 
   Account switcher UI, Android/iOS device builds, customer-web E2E, and the commit.
   Spec/artifacts: [specs/017-platform-theme-tokens/](specs/017-platform-theme-tokens/).
 
-**015-mobile-app-shell** — Mobile App Shell & Navigation (Customer + Shop). ✅ **BUILT + live-validated on
+**015-mobile-app-shell** - Mobile App Shell & Navigation (Customer + Shop). ✅ **BUILT + live-validated on
 device (Android + iOS); not yet committed.**
 A **mobile-only** slice (no backend/infra/DB): a production **navigation shell** for **both** KMP apps,
-replacing the interim single-destination navigators (013/014). One shared, audience-neutral package —
+replacing the interim single-destination navigators (013/014). One shared, audience-neutral package -
 **`packages/mobile-kit`** (the mobile analogue of `@effy/web-kit`, `srcDir`'d into both apps, neutral
-package `com.effyshopping.mobile.kit`): `ui/WindowSize` (adaptive sizing — **the customer app's first
+package `com.effyshopping.mobile.kit`): `ui/WindowSize` (adaptive sizing - **the customer app's first
 adaptive layer**), `nav/NavKey` (`@Serializable` route marker + polymorphic serializers), `nav/TabBackStacks`
 (**developer-owned per-tab back stacks**, saveable across config change + process death) and
 `shell/AdaptiveNavShell` (bottom bar on compact ↔ **navigation rail on expanded**).
@@ -3508,19 +3508,19 @@ adaptive layer**), `nav/NavKey` (`@Serializable` route marker + polymorphic seri
   "coming soon"), rail on tablet / bar on phone, identity as sectioned rows (no card), sign-out in Account.
   Old `AppNavigator`/`AppRoute`/app-local `WindowSize` deleted.
 - **Customer (guest-first)**: adaptive shell, 4 tabs (Home · Search · Orders · Account); Home/Search
-  **public**; Orders/Account visible but **gated** — tapping raises **deferred sign-in** and returns to the
+  **public**; Orders/Account visible but **gated** - tapping raises **deferred sign-in** and returns to the
   intended tab (**return-to-intent**). The 013 auth/account sub-graph is **reused unchanged** inside the
   Account tab (its existing `AppNavigator` drives that tab); sign-out → guest shell, public content intact.
 - **⚠ Mechanism deviation (recorded)**: the operator asked for **Jetpack Navigation 3**, but the shell is
-  built on **stable Material 3** (`NavigationBar`/`NavigationRail`) + a hand-rolled back stack — the R1
+  built on **stable Material 3** (`NavigationBar`/`NavigationRail`) + a hand-rolled back stack - the R1
   escape-hatch, chosen so the shell is **fully build-and-test-verified on Android AND iOS** without the
   Nav3 iOS spike (Nav3/adaptive artifacts are alpha/**beta** with an unverified iOS runtime). Routes are
   already `@Serializable` `AppNavKey`s → a later Nav3 migration is a presentation-layer change. The two
   `SessionGate`/`PendingIntentStore` primitives were built then dropped (each app's exhaustive
-  `when(session)` gate + a `rememberSaveable` return-to-intent are simpler + more type-safe) — **no dead code**.
-- **Adaptive is size-driven, not OS-driven** (`widthClassFor`: <600dp bar, ≥600dp rail) — so an Android
+  `when(session)` gate + a `rememberSaveable` return-to-intent are simpler + more type-safe) - **no dead code**.
+- **Adaptive is size-driven, not OS-driven** (`widthClassFor`: <600dp bar, ≥600dp rail) - so an Android
   phone shows a bottom bar and an iPad shows a rail *for the same app* (by design; the confirmed clarification).
-- Status: **BUILT + verified** — both apps compile + unit tests green on Android (mobile-kit: WindowSize 3 /
+- Status: **BUILT + verified** - both apps compile + unit tests green on Android (mobile-kit: WindowSize 3 /
   NavKeySerialization 2 / TabBackStacks 5), **iOS frameworks link**, `mobile-guard` clean; both apps run on
   device (Android bar + iPad rail confirmed). **Deferred (documented in tasks)**: 4 extra `commonTest` units
   (behavior is compile-verified + live-validated); the Phase-0 Nav3 iOS **spikes** (moot for the stable-M3
@@ -3528,82 +3528,82 @@ adaptive layer**), `nav/NavKey` (`@Serializable` route marker + polymorphic seri
   registers updated for both mobile surfaces. Spec/artifacts:
   [specs/015-mobile-app-shell/](specs/015-mobile-app-shell/) (incl. `SPIKES.md`).
 
-**014-shop-mobile-foundation** — Shop Mobile Foundation (Bootstrap). ✅ **SIGNED OFF (partial by design);
+**014-shop-mobile-foundation** - Shop Mobile Foundation (Bootstrap). ✅ **SIGNED OFF (partial by design);
 committed.**
 The platform's **fifth client surface**: `apps/shop-mobile` (KMP + Compose, Clean Architecture + MVVM),
-the shop-operator app. "013 for the shop audience" — the tech spine is ported from `apps/customer-mobile`
-with the shop deltas: **strictly passwordless EMAIL_OTP** (no password/sign-up/recovery — the audience's
+the shop-operator app. "013 for the shop audience" - the tech spine is ported from `apps/customer-mobile`
+with the shop deltas: **strictly passwordless EMAIL_OTP** (no password/sign-up/recovery - the audience's
 rules made structural in the `AuthDriver` interface), a **single access-token bearer** to `/shop/v1/*`
-(not customer's two-token protocol, D2s), and **RBAC done right** — role-aware UI is a courtesy, the
+(not customer's two-token protocol, D2s), and **RBAC done right** - role-aware UI is a courtesy, the
 **backend manager gate** (`GET /shop/v1/manager-ping`) decides (role AND status AND active-shop scope),
 uniform + fail-closed.
 - **New Cognito client**: a dedicated **`shop_mobile`** app client on the existing shop pool
-  (`infra/envs/dev/auth-shop.tf`) — EMAIL_OTP only (no SRP), 30-day refresh (shared workplace device,
+  (`infra/envs/dev/auth-shop.tf`) - EMAIL_OTP only (no SRP), 30-day refresh (shared workplace device,
   D6s), added to the shop edge authorizer's audience. Additive; the pool is untouched.
 - **Tablet-first (FR-003a)**: the primary device is a **large-screen tablet in landscape**; layout is
-  **window-size-driven** (`AdaptiveContent` over Material 3 breakpoints — never an `isTablet` boolean),
+  **window-size-driven** (`AdaptiveContent` over Material 3 breakpoints - never an `isTablet` boolean),
   the pattern every later shop-mobile UI slice extends.
 - **Shared-infra generalizations (Principle II)**: the Compose-theme generator now emits a **per-app
   package** (`packages/design-system/compose-shop`); the mobile secret-guard covers **both** apps. During
   the slice a clean-architecture pass added a **formal use-case layer to both mobile apps** and removed the
-  service-locator container seam (ViewModels take explicit collaborators) — 013 was refactored in lockstep
+  service-locator container seam (ViewModels take explicit collaborators) - 013 was refactored in lockstep
   for parity.
 - **Partial by design (like 007)**: the manager gate's **positive** half (a manager at an active shop →
   Granted) + inactive-shop/disabled denials need **009** shop data. **Deferred** (with owning slices):
   telemetry → `mobile-telemetry`; iOS HIG chrome → `iOS native shell`.
-- Status: **signed off + committed** — both apps build/run on Android **and** iOS; shop 9 unit tests +
+- Status: **signed off + committed** - both apps build/run on Android **and** iOS; shop 9 unit tests +
   customer 10 green; guards + drift + `terraform validate` clean.
   Spec/artifacts: [specs/014-shop-mobile-foundation/](specs/014-shop-mobile-foundation/); parity register:
   [docs/audiences/shop-capabilities.md](docs/audiences/shop-capabilities.md).
 
-**013-customer-mobile-foundation** — Customer Mobile Foundation. **Built (the pattern 014 ports).** The
-first KMP mobile surface: `apps/customer-mobile` — Amplify-native auth behind a `commonMain` `AuthDriver`
+**013-customer-mobile-foundation** - Customer Mobile Foundation. **Built (the pattern 014 ports).** The
+first KMP mobile surface: `apps/customer-mobile` - Amplify-native auth behind a `commonMain` `AuthDriver`
 (Android Amplify + a Swift `IosAuthBridge`), the two-token protocol, three credential routes. Constitution
 amended to **v1.8.0** (mobile presentation is **MVVM**, not MVI).
 
-**012-customer-profile-management** — Customer Profile Management. **Code-complete + verified;
+**012-customer-profile-management** - Customer Profile Management. **Code-complete + verified;
 operator run pending (2 blocking spikes).**
 Completes the customer account page: identity (name · email · **initials avatar**), name editing,
-**change-or-set password**, and **sign out** — which the storefront did not have at all, despite the
+**change-or-set password**, and **sign out** - which the storefront did not have at all, despite the
 parity register claiming it did (now corrected).
 - **The slice exists for one requirement.** Cognito's `ChangePassword` docs: *"The user's previous
   password is required **if the user has a password**. If the user has no password… **you can omit this
   parameter**."* So **any bearer of a valid access token can silently plant a permanent password on a
-  passwordless account** — turning a borrowed phone or a stolen token into durable, credentialed access
+  passwordless account** - turning a borrowed phone or a stolen token into durable, credentialed access
   that an OTP-only customer would never notice. **FR-017** closes it: setting a *first* password requires
   a **freshly emailed code**, verified **server-side in the same request that writes the password**, so
   there is no stored "grant" to steal. Changing an *existing* password requires the current one.
 - **Two spec defects found during planning, fixed in the spec (not papered over)**: **FR-024** was
-  *unbuildable* (Cognito's revocation is all-or-nothing — "revoke all but this device" does not exist), so
+  *unbuildable* (Cognito's revocation is all-or-nothing - "revoke all but this device" does not exist), so
   it was made **stronger**: a password change signs out **everywhere, including this device**. **FR-022**
-  was *bypassable* via "Forgot password?", which also left `has_password` permanently wrong — so recovery
+  was *bypassable* via "Forgot password?", which also left `has_password` permanently wrong - so recovery
   moved behind the backend (**FR-022b**).
-- **`has_password` is a platform-owned column** — **Cognito cannot be asked** whether a user has a
+- **`has_password` is a platform-owned column** - **Cognito cannot be asked** whether a user has a
   password (no API field; `UserStatus` doesn't distinguish). It is seeded at registration from a
   client-declared route, which is safe because **lying in either direction grants no capability the
   inbox-holder didn't already have**. It is a UX hint, never an authorization input.
 - **The Cognito calls need NO IAM.** `ChangePassword` / `GlobalSignOut` / the attribute-verification pair
-  are **token-authorized** — the Lambda relays the *customer's own* authority. The only new permission in
+  are **token-authorized** - the Lambda relays the *customer's own* authority. The only new permission in
   the slice is `ses:SendEmail`.
 - **Sign-out is a route handler + plain HTML form**, not a Server Action: `aws-amplify/auth/server` has
   **no `signOut`**, and importing the client one broke the quarantine guard (which was right). The header
-  became a **server component** (`<details>` + `<form>`) — sign-out now costs **zero client JS**, works
+  became a **server component** (`<details>` + `<form>`) - sign-out now costs **zero client JS**, works
   with JS disabled, and the guest bundle **fell 159.6 → 149.9 KB**. The correct architecture was cheaper.
 - **Password policy → 12 chars, no composition rules** (a documented deviation from NIST's 15, valid *only*
   while breach screening + rate limiting hold) + **k-anonymity breach screening**, **fail-closed**,
   backend-only so it cannot be skipped by a hostile client.
-- Status: **code-complete** — `pnpm typecheck` (11/11) + `pnpm -r test` (**286 tests**) + `turbo build` +
+- Status: **code-complete** - `pnpm typecheck` (11/11) + `pnpm -r test` (**286 tests**) + `turbo build` +
   **70 Playwright E2E** all green; both gates green (**149.9/160 KB** budget; quarantine clean **and proven
   by deliberately breaking it**); `terraform validate` + `fmt` clean; secret/PII sweep clean.
-  **⚠ Open (operator)**: **T001/T002 — the two BLOCKING spikes** (does `ChangePassword`-without-previous
-  actually work on our pool? and what does "Forgot password?" do *today* for a passwordless customer — that
-  path is **live right now** and its behavior is unknown); **T059** (`make apply` — password policy;
+  **⚠ Open (operator)**: **T001/T002 - the two BLOCKING spikes** (does `ChangePassword`-without-previous
+  actually work on our pool? and what does "Forgot password?" do *today* for a passwordless customer - that
+  path is **live right now** and its behavior is unknown); **T059** (`make apply` - password policy;
   *abort if the pool would be replaced*), **T060** (migration + `db-up`), **T061** (`edge-deploy`), **T062**
-  (**SES must send — without it, set-password does not work at all**; 010 dependency), **T069** (live SC
+  (**SES must send - without it, set-password does not work at all**; 010 dependency), **T069** (live SC
   sign-off incl. the adversarial SC-004/SC-005 proofs).
   Spec/plan/artifacts: [specs/012-customer-profile-management/](specs/012-customer-profile-management/).
 
-**011-customer-storefront-web** — Customer Storefront (Bootstrap). **Code-complete + verified;
+**011-customer-storefront-web** - Customer Storefront (Bootstrap). **Code-complete + verified;
 operator run pending.**
 The platform's **fourth client surface and its FIRST PUBLIC one**: `apps/customer-web`
 (`@effy/customer-web`, **Next.js 16.2.6** App Router on :3000). Every surface before it sits behind a
@@ -3613,54 +3613,54 @@ serves a person who has no account until they choose to make one.
   **customer** pool gains **email+password · email OTP · Google**, with **open self-registration**;
   **driver/shop/admin remain strictly passwordless EMAIL_OTP and admin-provisioned** ("no passwords"
   narrows to the platform's *internal* audiences, rather than being silently dropped). Linking a
-  federated identity **requires a provider-asserted verified email** — linking on an unverified one is
+  federated identity **requires a provider-asserted verified email** - linking on an unverified one is
   an account-takeover primitive, and that is written into the constitution as a prohibition.
 - **SSR-first, guest-first**: `cacheComponents: true` (Next 16's Cache Components) makes PPR the
   rendering model, so public pages prerender into a **static shell** and the personalized header is a
-  **server-rendered Suspense island** — personalization costs neither the cache nor the crawler. "Is
+  **server-rendered Suspense island** - personalization costs neither the cache nor the crawler. "Is
   this page still cacheable?" is now a **build error**, not a Lighthouse score three months late.
 - **The Amplify quarantine (FR-006)**: `aws-amplify` lives **only** in `app/(auth)/`. Amplify's own
-  docs put `Amplify.configure()` in the root layout — for a storefront that is exactly wrong (it lands
+  docs put `Amplify.configure()` in the root layout - for a storefront that is exactly wrong (it lands
   in the shared chunk every page loads). Guests read session state **server-side** and download **zero
-  bytes** of auth SDK — verified, not asserted.
-- **Backend**: a new `apis/edge-api/customer` (customer authorizer) — `GET`/`PATCH /customer/v1/me`,
+  bytes** of auth SDK - verified, not asserted.
+- **Backend**: a new `apis/edge-api/customer` (customer authorizer) - `GET`/`PATCH /customer/v1/me`,
   record-backed identity + idempotent JIT upsert + the **barred-customer refusal** (a valid credential
   never overrides the record). Plus the **pre-sign-up account-linking Lambda**: without it, Google
   sign-in silently creates a *second* account and **there is no retroactive merge**.
-- **Data**: one migration (`20260714120000_customer.sql`) — `public.customer`, keyed on `cognito_sub`
+- **Data**: one migration (`20260714120000_customer.sql`) - `public.customer`, keyed on `cognito_sub`
   (which **survives federated linking**, so one person keeps one record across all three routes).
 - **The routing law (FR-028), binding on every later customer slice**: commerce (product · catalog ·
   search · cart · order · payment) → **hot path** (`core-api`); customer profile/account → **cold
   path**. Proven live against `core-api`'s `GET /v1/customer/ping`.
 - **⚠ Two corrections made during implementation, both recorded in research**: (1) the **120 KB bundle
-  budget was unreachable** — Next 16 + React 19's framework floor is ~136 KB with *zero* app code; the
+  budget was unreachable** - Next 16 + React 19's framework floor is ~136 KB with *zero* app code; the
   enforced budget is **160 KB** against a measured **148.5 KB**, and it still catches Amplify (proven
   by deliberately leaking it: 162.7 KB → build fails). (2) The **quarantine guard was initially wrong**
-  — dependency-cruiser matches *direct* imports by default, so it reported clean while Amplify was on
+  - dependency-cruiser matches *direct* imports by default, so it reported clean while Amplify was on
   the home page via a component. Fixed with `reachable: true`; the lesson (*break a guard the way it
   will actually break*) is in research D11.
-- Status: **code-complete** — workspace `pnpm typecheck` + `pnpm -r test` (**248 tests**) + `turbo
+- Status: **code-complete** - workspace `pnpm typecheck` + `pnpm -r test` (**248 tests**) + `turbo
   build` green; **27 Playwright E2E** green (raw-HTML SSR, SEO, no-cloaking, auth-outage, deferred
   sign-in, open-redirect refusals); both gates green; `terraform validate` + `fmt` clean on all six
   roots; shellcheck clean.
-  **Open (operator)**: **T050** (register the Google OAuth client — out-of-code), **T051** (`make apply
-  ENV=dev`; *abort if any pool would be replaced*), **⚠ T052/T053** (the two **spikes** —
+  **Open (operator)**: **T050** (register the Google OAuth client - out-of-code), **T051** (`make apply
+  ENV=dev`; *abort if any pool would be replaced*), **⚠ T052/T053** (the two **spikes** -
   `AliasExistsException` on first Google sign-in, and whether a never-had-a-password customer can set
   one; **both can change the design**), **T081** (commit the migration + `make db-up ENV=dev`),
   **T082** (`make edge-deploy SERVICE=customer ENV=dev`), **T090** (live SC sign-off).
   Spec/plan/artifacts: [specs/011-customer-storefront-web/](specs/011-customer-storefront-web/).
   Parity register: [docs/audiences/customer-capabilities.md](docs/audiences/customer-capabilities.md).
 
-**010-domain-dns-foundation** — Platform Domain & Per-Environment Namespaces. **Code-complete;
+**010-domain-dns-foundation** - Platform Domain & Per-Environment Namespaces. **Code-complete;
 operator run pending.**
 Makes the platform authoritative for **`effyshopping.com`**, gives each environment a **delegated
 child namespace**, moves the shared API onto **`edge-api.dev.effyshopping.com`**, and switches all four
-Cognito pools to **branded sign-in email** (`no-reply@dev.effyshopping.com`). **Terraform only — zero
+Cognito pools to **branded sign-in email** (`no-reply@dev.effyshopping.com`). **Terraform only - zero
 application code**, and the first slice since 002 with no SQL.
 - **New root `infra/global/`** owns the parent zone. It is deliberately **not an environment**: env
   roots are destroyable (`make destroy ENV=dev` was used in the region relocation), and the apex must
   not be collateral. Each env root creates its own child zone **and its own `NS` delegation in the
-  parent** — so destroy removes both together and no dangling delegation can be claimed.
+  parent** - so destroy removes both together and no dangling delegation can be claimed.
 - **Two new modules**: `dns-env-zone` (child zone + delegation + wildcard ACM cert, DNS-validated)
   and `ses-domain-identity` (SESv2 identity + DKIM/SPF/DMARC). Adding qa/staging is `env = "qa"`.
 - **Additive cutover**: the raw `execute-api` URL stays alive (`disable_execute_api_endpoint` must
@@ -3669,31 +3669,31 @@ application code**, and the first slice since 002 with no SQL.
   address with zero code edits.
 - **Why the email half matters**: EMAIL_OTP is the **only** credential the platform issues, on all
   four pools. The built-in Cognito sender caps at ~50/day from a generic AWS address. Two alarms ship
-  with it — an SES reputation breach *pauses sending*, which means **nobody can sign in at all**.
+  with it - an SES reputation breach *pauses sending*, which means **nobody can sign in at all**.
 - **⚠ Ordering is load-bearing**: `make global-apply` → **repoint GoDaddy** → `dig` to confirm →
   `make apply ENV=dev` → `make mail-verify` → flip `ses_sender_enabled = true` → apply again. ACM
   validation and SES DKIM both need *public resolution*, so an early apply blocks 45 min and fails.
   Cognito additionally **rejects an unverified SES identity**, which is why the pool switch is its
   own stage.
-- Status: **code-complete** — `terraform validate` green on all roots, `fmt` clean, shellcheck clean.
+- Status: **code-complete** - `terraform validate` green on all roots, `fmt` clean, shellcheck clean.
   **Open (operator)**: T016–T018 (global apply, GoDaddy repoint, dev apply), T022/T025 (custom domain
   + re-read the two `.env` files), T026/T029/T032 (SES production access, pool switch, live mail),
   T033/T034 (plan-only proofs), T040/T041 (sign-off + commit).
   Spec/plan/artifacts: [specs/010-domain-dns-foundation/](specs/010-domain-dns-foundation/).
 
-**009-shop-management** — Back-Office Shop Management. **Code-complete + verified; operator run pending.**
+**009-shop-management** - Back-Office Shop Management. **Code-complete + verified; operator run pending.**
 The platform's shop-management capability in the **back-office** console: create shops, govern their
-lifecycle (active/suspended/disabled), and manage the people at each shop — provisioning shop users
+lifecycle (active/suspended/disabled), and manage the people at each shop - provisioning shop users
 as passwordless **shop-pool** Cognito accounts + the platform record, kept consistent. It makes shop
 and shop-user existence **product data** and so **completes 007's deferred live sign-off** (SC-005b,
 SC-012 → this slice's SC-007/SC-008).
 - **Backend (cold path)**: a new `shops/` slice in **`apis/edge-api/admin`** (back-office authorizer)
-  — `/admin/v1/shops...` (list/detail/audit + create/update/status/delete + roster create/update).
+  - `/admin/v1/shops...` (list/detail/audit + create/update/status/delete + roster create/update).
   Server-side Cognito Admin provisioning of shop-pool users follows 006's Cognito-first→DB idempotent
   pattern (IAM scoped to the shop pool ARN; an authorized provisioning write, **not** cross-pool
-  auth — Principle IV holds, research R3). Two authz gates from the `admin.staff` record: read = any
+  auth - Principle IV holds, research R3). Two authz gates from the `admin.staff` record: read = any
   active staff (incl. `csa`); mutate = `admin`/`manager` (A1).
-- **Data**: one forward-only migration (`20260710060000_shop_management.sql`) — `public.shop` gains a
+- **Data**: one forward-only migration (`20260710060000_shop_management.sql`) - `public.shop` gains a
   3-value `status` (replacing 007's `is_active`) + `contact_phone`/`notes`; new general
   **`admin.audit_log`**. The **007 shop manager gate was reconciled** to `status = 'active'` in
   lockstep with its tests (research R2).
@@ -3701,15 +3701,15 @@ SC-012 → this slice's SC-007/SC-008).
   primitives the design-system lacked (`table`/`dialog`/`alert-dialog`/`select`/`badge`) + a generic
   `DataTable` in `@effy/web-kit/console` were added **to the packages** (Principle II); management
   DTOs added to `@effy/shared-types`; `api-client` gained `post`/`patch`/`delete`.
-- Status: **code-complete** — full workspace `pnpm typecheck` + `pnpm -r test` (**184 tests**:
+- Status: **code-complete** - full workspace `pnpm typecheck` + `pnpm -r test` (**184 tests**:
   edge-shared 26, edge-admin 31 [+24 new `shops`], edge-shop 39, web-kit 38, back-office 21,
   shop-web 29) + `turbo build` all green; secret/PII sweep clean. **Open (operator)**: **T067**
-  (`make apply ENV=dev` — Cognito IAM + `SHOP_USER_POOL_ID`), **T068** (commit migration + `make
+  (`make apply ENV=dev` - Cognito IAM + `SHOP_USER_POOL_ID`), **T068** (commit migration + `make
   db-up ENV=dev`), **T069** (`make edge-deploy SERVICE=admin` + `SERVICE=shop ENV=dev`), **T070**
   (live SC-001…SC-015 incl. 007 sign-off closure), **T071** (parity-doc + sign-off).
   Spec/plan/artifacts: [specs/009-shop-management/](specs/009-shop-management/).
 
-**007-shop-web** — Shop Web Foundation (Bootstrap). **Code-complete + verified; operator run pending.**
+**007-shop-web** - Shop Web Foundation (Bootstrap). **Code-complete + verified; operator run pending.**
 The platform's **second web surface**: `apps/shop-web` (`@effy/shop-web`, Vite + React 19 SPA on
 :5174), the shop operator console. Same stack as the back-office console, **shop** Cognito pool,
 and the shop audience's **first RBAC model**.
@@ -3718,19 +3718,19 @@ and the shop audience's **first RBAC model**.
   The claim is the *origin* of role assignment; the platform record is *authoritative for the access
   decision*.
 - **Shared-foundation extraction** (the slice's core work, Principle II): the reusable half of the
-  back-office console moved into packages — **`@effy/design-system/ui`** (the platform's one set of
+  back-office console moved into packages - **`@effy/design-system/ui`** (the platform's one set of
   13 shadcn primitives + `use-mobile`) and a new **`@effy/web-kit`** (`.` = config · Amplify ·
   EMAIL_OTP flow · session guard · query client · telemetry · client store; `./console` = the SPA
   chrome: `ConsoleShell` / sidebar / header / user menu / `NavList` / `OtpSignInCard` / `ErrorState`,
   all generic over the surface's role union). `back-office` was refactored onto both and stayed
-  **20/20 green**. **`@effy/api-client` needed no change at all** — the cleanest evidence the
+  **20/20 green**. **`@effy/api-client` needed no change at all** - the cleanest evidence the
   foundation was already audience-neutral (SC-009).
-- **Data**: the platform's **first `public`-schema tables** — `shop`, `shop_staff`, `shop_role`,
+- **Data**: the platform's **first `public`-schema tables** - `shop`, `shop_staff`, `shop_role`,
   `shop_staff_role` (migration `20260710050004`). `shop_staff.email` and `.shop_id` are nullable
   by design; **status and shop assignment are platform-owned and never written from token data**.
   **No shop-creation path ships** (FR-019, revised 2026-07-10): no interface, no command, no seed
-  file. `public.shop` is created empty and stays empty until **back-office shop management** — the
-  **next slice** — fills it, so no shop row ever exists that the product did not create.
+  file. `public.shop` is created empty and stays empty until **back-office shop management** - the
+  **next slice** - fills it, so no shop row ever exists that the product did not create.
 - **Backend** (`apis/edge-api/shop`, restructured to nested domains `staff/` + `status/`):
   `GET /shop/v1/me` (record-backed identity read + idempotent JIT upsert) and
   `GET /shop/v1/manager-ping` (**gate = role AND status AND shop scope**, one SQL predicate,
@@ -3739,62 +3739,62 @@ and the shop audience's **first RBAC model**.
   single register binding `shop-web` ↔ `shop-mobile`; the mobile column is **outstanding by design**
   (building it is its own slice).
 - Spec/plan/artifacts: [specs/007-shop-web/](specs/007-shop-web/).
-- **Verification**: `scripts/` holds the three checks that cannot honestly be unit-tested —
+- **Verification**: `scripts/` holds the three checks that cannot honestly be unit-tested -
   `make shop-verify-isolation` (SC-004, gateway authorizers), `make shop-verify-gate` (SC-005/005a,
   a SQL join), `make shop-token-claims` (research R6).
-- Status: **code-complete** — `pnpm typecheck` + `pnpm test` green across the workspace (**159
+- Status: **code-complete** - `pnpm typecheck` + `pnpm test` green across the workspace (**159
   tests**: edge-shared 26, edge-admin 7, edge-shop 39, web-kit 38, back-office 20, shop-web 29);
   `terraform validate` + `fmt` clean; shellcheck clean; secret/PII sweep clean. **Open (operator)**:
-  **T009** (`make apply ENV=dev` — 2 Cognito groups + the `:5174` CORS origin; *abort if the pool
+  **T009** (`make apply ENV=dev` - 2 Cognito groups + the `:5174` CORS origin; *abort if the pool
   would be replaced*), **T012** (commit the migration, then `make db-up ENV=dev`), **T034**
   (provision three shop accounts in Cognito + sign in), **T041** (`make edge-deploy SERVICE=shop
-  ENV=dev`), **T045** (`make shop-verify-isolation` — expect `200 200 401 401`), **T054**/**T060**
-  (`make shop-verify-gate` — the gate's negative half), **T068** (`make shop-token-claims` → settle
+  ENV=dev`), **T045** (`make shop-verify-isolation` - expect `200 200 401 401`), **T054**/**T060**
+  (`make shop-verify-gate` - the gate's negative half), **T068** (`make shop-token-claims` → settle
   research R6), **T070** (partial SC sign-off).
   Runbook: [quickstart](specs/007-shop-web/quickstart.md).
 - **Sign-off is partial by design.** **SC-005b** (a manager *served* at an active shop; refused once
   it is deactivated) and **SC-012** (a *disabled* operator refused) need shop data only the
   back-office shop-management slice can create. All three gate terms are implemented + unit-tested
   here; the role and shop-scope terms are additionally proven **live** (an unassigned
-  `shop_manager` is refused despite a valid claim — FR-021 in one line).
+  `shop_manager` is refused despite a valid claim - FR-021 in one line).
 - **Raised, not fixed**: `/admin/v1/me` (005) resolves email as `claim("username") ?? sub` and may be
   storing UUIDs in `admin.staff.email`. Recorded at the tail of
   [specs/005-back-office-web/plan.md](specs/005-back-office-web/plan.md); 007 deliberately does not
   inherit the pattern (research R6).
 
-**006-first-admin-bootstrap** — First Admin Bootstrap (Operator Break-Glass). **Code-complete +
+**006-first-admin-bootstrap** - First Admin Bootstrap (Operator Break-Glass). **Code-complete +
 verified; operator run pending.**
 An **operator-run Go CLI** (+ `make create-first-admin EMAIL=… NAME=… ENV=dev`) that establishes the
-**first back-office super-admin** out-of-band — **no API, no UI** (breaks the chicken-and-egg: the
+**first back-office super-admin** out-of-band - **no API, no UI** (breaks the chicken-and-egg: the
 console needs an admin, and privileged audiences forbid self-signup). It does two consistent writes:
 `AdminCreateUser` **with no password** (→ `CONFIRMED`, `SUPPRESS` invite, `email_verified`) +
 `AdminAddUserToGroup('admin')` in the back-office pool (001), and an idempotent upsert of
 `admin.staff`(active)/`admin.staff_role('admin')` keyed on the returned **`sub`** (the 005 gate's
 join key). Idempotent / break-glass. Adds one migration (`admin.staff.name`). Lives in
-`apis/core-api` (`cmd/create-first-admin` + `internal/adminbootstrap`) — **reuses** its already-wired
+`apis/core-api` (`cmd/create-first-admin` + `internal/adminbootstrap`) - **reuses** its already-wired
 Cognito SDK + pgx, **zero new deps**.
 - Spec/plan/artifacts: [specs/006-first-admin-bootstrap/](specs/006-first-admin-bootstrap/).
-- Status: **code-complete** — build/vet/gofmt clean, `make core-test` green (adminbootstrap unit
+- Status: **code-complete** - build/vet/gofmt clean, `make core-test` green (adminbootstrap unit
   tests + the 004 suite), hygiene clean, no new API/UI surface. **Open (operator)**: **T009** (`make
   db-up ENV=dev` + `make create-first-admin …` → sign in), **T013** (re-run/break-glass/bad-input),
   **T017** (SC-001…SC-006 sign-off + commit). *Not committed yet.* `db-up` needs the migration
   committed first (003 commit-guard).
 
-**004-backend-bootstrap — A3 cold-path decomposition** (**implemented + live in dev**). The cost-optimized path is now a family of **independently deployable domain services
+**004-backend-bootstrap - A3 cold-path decomposition** (**implemented + live in dev**). The cost-optimized path is now a family of **independently deployable domain services
 behind ONE shared HTTP API**, and the backends live under **`apis/`**:
-- `apis/core-api` (hot path — Go, local Docker only) + `apis/edge-api/{shared,admin,shop}`. The
+- `apis/core-api` (hot path - Go, local Docker only) + `apis/edge-api/{shared,admin,shop}`. The
   shared library graduated to **`@effy/edge-shared`** (Principle II single-source); `admin`
   (back-office pool) and `shop` (shop pool) each **attach to a Terraform-owned shared HTTP API**
   (`infra/envs/dev/edge-gateway.tf`) via `provider.httpApi.id` and reference the four per-pool JWT
   authorizers **by id** from SSM (`/effy/<env>/edge/{http_api_id,api_endpoint,authorizer/*}`). Path
   scheme **`/<service>/v1/...`** (e.g. `/admin/v1/me`, `/shop/v2/status`). Adding a service = a new
-  `apis/edge-api/<name>/` that attaches to the gateway — deploy-independent.
+  `apis/edge-api/<name>/` that attaches to the gateway - deploy-independent.
 - Spec + plan revised **in place** (amendment **A3**, research **Part F**, `contracts/shared-gateway.contract.md`);
-  tasks **Phase 9 (T049–T059)**. Status: **deployed to dev** — gateway applied, `admin`+`shop`
+  tasks **Phase 9 (T049–T059)**. Status: **deployed to dev** - gateway applied, `admin`+`shop`
   live, old `effy-edge-api` stack removed. `turbo` **14/14**, core-api Go build+tests, `terraform
-  validate`, hygiene sweep — all green. Committed (`aacd7c5`).
+  validate`, hygiene sweep - all green. Committed (`aacd7c5`).
 
-**005-back-office-web** — Back-Office Web Foundation (Bootstrap). **Phases 1–8 + Amendment D1
+**005-back-office-web** - Back-Office Web Foundation (Bootstrap). **Phases 1–8 + Amendment D1
 (dashboard shell) + Amendment D2 (neutral theme) implemented; reconciled to A3.
 Live SC sign-off (T046) pending; not yet committed.**
 The platform's **first web surface**: the internal `back-office` admin console (Vite + React 19
@@ -3802,53 +3802,53 @@ SPA) + the **first shared web packages** (`@effy/design-system`, `@effy/shared-t
 `@effy/api-client`). Passwordless **EMAIL_OTP** (Amplify v6) → session-guarded shell → record-backed
 identity read → **backend-authoritative** admin gate decided from the DB record (status + role).
 Adds the platform's **own** back-office staff/RBAC system of record (`admin.staff`/`role`/`staff_role`
-— the first real tables + first `db-up`) so RBAC does not rely solely on Cognito.
+- the first real tables + first `db-up`) so RBAC does not rely solely on Cognito.
 - Constitution amended: **v1.3.1** (Node 22) + **v1.4.0** (TanStack Store locked; Zustand removed).
 - Post-A3: its `edge-api` work lives in **`apis/edge-api/admin/`**; the console calls
   **`/admin/v1/me`** + **`/admin/v1/admin-ping`** against the shared gateway
   (`VITE_API_BASE_URL` = `/effy/dev/edge/api_endpoint`).
-- **Amendment D1 — default dashboard shell** (spec FR-023 / US1 / SC-013): the authenticated
+- **Amendment D1 - default dashboard shell** (spec FR-023 / US1 / SC-013): the authenticated
   shell is a shadcn **`sidebar-07`** dashboard layout; sidebar tokens in `@effy/design-system`,
-  collapse bit in `ui-store.sidebarOpen` (controlled — no cookie). **Presentation-only** (no
+  collapse bit in `ui-store.sidebarOpen` (controlled - no cookie). **Presentation-only** (no
   backend/data/auth change). Built + verified; no operator/cloud step.
   **⚠ Relocated by 007**: the chrome no longer lives in `apps/back-office/src/components/layout/`
   and the primitives no longer live in `components/ui/`. `routes/app.tsx` now renders
   **`<ConsoleShell>` from `@effy/web-kit/console`**, fed this surface's brand + nav config; the
   primitives are **`@effy/design-system/ui`**. Only `components/layout/nav.ts` remains app-local.
-- **T058 done** — the shell (SC-013/SC-006) is **visually verified** via a seeded-session
+- **T058 done** - the shell (SC-013/SC-006) is **visually verified** via a seeded-session
   screenshot harness (light/dark × admin/manager × expanded/collapsed): dashboard layout,
   icon-rail collapse with reflow, role-aware nav (manager loses the Admin item), footer identity,
   on-brand jade in both appearances. Harness removed after capture.
-- **Amendment D2 — neutral theme** (FR-024, SC-014): **built + verified.** Surfaces rebased to
+- **Amendment D2 - neutral theme** (FR-024, SC-014): **built + verified.** Surfaces rebased to
   neutral in `@effy/design-system` `tokens.css` (shadcn `sidebar-07` neutral base); **Jade
-  `#0FB57E` kept as the single accent** — primary/ring/brand mark only (dark-on-emerald foreground
+  `#0FB57E` kept as the single accent** - primary/ring/brand mark only (dark-on-emerald foreground
   for WCAG contrast); the green sign-in-bg / sidebar / hover blends are gone, light **and** dark.
-  **No constitution amendment** (Jade is an emerald shade — Principle V holds; governance in plan
+  **No constitution amendment** (Jade is an emerald shade - Principle V holds; governance in plan
   § Amendment D2). App vitest green (+2 token guard), typecheck/build clean; **visually verified**
   via the screenshot harness (neutral surfaces + emerald accent light/dark). Presentation-only,
   design-system-scoped.
-  - **⚠ Reverted (2026-07-15)**: D2's responsive-scaling half (FR-025/SC-015 — the fluid
+  - **⚠ Reverted (2026-07-15)**: D2's responsive-scaling half (FR-025/SC-015 - the fluid
     `clamp()` root-font-size in `design-system/scale.css` + the `max-w-[1800px]` content cap in
     `ConsoleShell`) was **removed across all three web surfaces** by request. Sizing is now the
     **shadcn/Tailwind default** (16px root, full-width content) everywhere; `scale.css` and its
     export are deleted. Neutral theme + Jade accent are unaffected.
-- Open: **T046** — the LIVE SC-001…SC-013 sign-off (real OTP sign-in, live proving reads/denials,
+- Open: **T046** - the LIVE SC-001…SC-013 sign-off (real OTP sign-in, live proving reads/denials,
   disabled-staff denial) is **operator-run** and gated on the still-open cloud steps **T022/T029/T038**
-  (`make db-up ENV=dev` — migration `3407603` is committed so this is unblocked — then `make
+  (`make db-up ENV=dev` - migration `3407603` is committed so this is unblocked - then `make
   edge-deploy SERVICE=admin ENV=dev`, provisioned admin/manager/role-less accounts, an OTP inbox).
   Runbook: [quickstart](specs/005-back-office-web/quickstart.md). Everything code-verifiable is green.
 - Doc reconciliation (2026-07-08): plan/tasks/research/data-model/contracts corrected to the A3
   reality (`apis/edge-api/admin`, `/admin/v1/*` paths, gateway-owned CORS, `make edge-deploy
-  SERVICE=admin`) — closes the Governance drift the analyze pass flagged.
+  SERVICE=admin`) - closes the Governance drift the analyze pass flagged.
 
 **Previous slices** (docs in `specs/<slice>/`):
 - **001-infra-foundation** (four Cognito pools, EMAIL_OTP, state backbone, Makefile):
   **applied & verified in dev**. Open: operator OTP sign-in test (T023), sign-off (T035).
-- **002-dev-database** (`effy-dev-db` — t4g.micro/20GB gp3, all paid options off ≈$22/mo,
+- **002-dev-database** (`effy-dev-db` - t4g.micro/20GB gp3, all paid options off ≈$22/mo,
   `/effy/dev/db/*` contract): **applied; posture verified live** (12/12 cost-posture rows).
   Open: operator allowlist apply + contract connect test (T008/T009), lever preview (T014),
   sign-off (T017; billing check due early Sept 2026).
-- **003-db-migrations** (Goose workflow — `db/migrations/`, SQL-only timestamped files,
+- **003-db-migrations** (Goose workflow - `db/migrations/`, SQL-only timestamped files,
   Makefile `db-new`/`db-status`/`db-up`/`db-down`, DSN composed at invocation from the 002
   contract, forward-only with dev-only single-step down; proving migration = `admin` schema
   shell): **implemented; guards + hygiene verified; `make lint` green**. Open (operator

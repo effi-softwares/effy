@@ -50,7 +50,7 @@ test.describe("refinement is shareable and restorable (FR-017/FR-018)", () => {
     await page.getByLabel("Sort").selectOption("price_asc")
     await expect(page).toHaveURL(/sort=price_asc/)
 
-    // The control must show what the server applied, not what was requested — they differ when
+    // The control must show what the server applied, not what was requested - they differ when
     // `relevance` is asked for without a query.
     await expect(page.getByLabel("Sort")).toHaveValue("price_asc")
   })
@@ -95,7 +95,7 @@ test.describe("refinement is shareable and restorable (FR-017/FR-018)", () => {
     await page.waitForTimeout(600)
 
     await expect(page.getByText(/No results for/)).toBeVisible()
-    // Never an unexplained blank area — there is always a recovery path.
+    // Never an unexplained blank area - there is always a recovery path.
     await expect(page.getByRole("link", { name: "Browse categories" })).toBeVisible()
   })
 })

@@ -40,7 +40,7 @@ data class DropSummary(
     val window: DeliveryWindow? = null,
     /** Every bag of this drop's packages. */
     val bags: List<com.effyshopping.driver.mobile.core.scan.Bag> = emptyList(),
-    /** Rev 2 — the street line, and how a finished drop ended. */
+    /** Rev 2 - the street line, and how a finished drop ended. */
     val street: String? = null,
     val completedAtIso: String? = null,
     val proofMethod: ProofMethod? = null,
@@ -62,7 +62,7 @@ data class DeliveryRun(
     val dueLabel: String? = null,
     /** Parcels from this run's failed drops, still to go back to the hub; null when none. */
     val toReturn: ParcelsToReturn? = null,
-    /** Rev 2 — the run map. */
+    /** Rev 2 - the run map. */
     val map: com.effyshopping.driver.mobile.core.map.RunMap? = null,
     /** Where the run is, in the server's words ("Out 2 of 6"); null from an older server. */
     val stageLabel: String? = null,
@@ -79,14 +79,14 @@ data class ParcelsToReturn(
     val runId: String,
     val count: Int,
     val orders: List<String>,
-    /** Rev 2 — each parcel, for the Return to hub screen. */
+    /** Rev 2 - each parcel, for the Return to hub screen. */
     val parcels: List<ReturnParcel> = emptyList(),
 ) {
     /** The bags to bring back. */
     val bagCodes: List<String> get() = parcels.flatMap { it.bags }.map { it.code }
 }
 
-/** Rev 2 — one parcel coming back: its order ref, label code, where it was for, why. 096 — and its bags. */
+/** Rev 2 - one parcel coming back: its order ref, label code, where it was for, why. 096 - and its bags. */
 data class ReturnParcel(
     val ref: String,
     val packageCode: String,
@@ -99,7 +99,7 @@ data class ReturnParcel(
  * One physical package at a drop.
  *
  * Labelled by position and nothing else. A package is one shop's portion, so any other label would
- * name the shop — and hidden fulfilment is a product rule, not a UI choice.
+ * name the shop - and hidden fulfilment is a product rule, not a UI choice.
  */
 data class DropPackage(
     val ref: String,
@@ -154,7 +154,7 @@ data class Drop(
 
 /**
  * Everything the customer told the driver, as one block the instruction callout shows: the handover
- * preference in words, then their note exactly as typed. Null when they said nothing — and the
+ * preference in words, then their note exactly as typed. Null when they said nothing - and the
  * screens then draw no instruction area at all, never a placeholder.
  *
  * The note is customer-authored free text. It is shown through a plain `Text` and never parsed.
@@ -174,7 +174,7 @@ interface DeliveryRepository {
     /** Check every parcel from a run's failed drops back in at the hub. */
     suspend fun returnToHub(runId: String, changeId: String, handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver> = emptyList()): WriteOutcome
     /**
-     * The van is loaded: every staged drop on the run goes out for delivery together. 093 — what
+     * The van is loaded: every staged drop on the run goes out for delivery together. 093 - what
      * could not be loaded is declared in [notLoaded]; it comes off the run and is held for dispatch.
      */
     suspend fun load(runId: String, changeId: String, handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver> = emptyList(), notLoaded: List<NotLoaded> = emptyList()): WriteOutcome

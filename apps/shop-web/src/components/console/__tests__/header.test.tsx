@@ -15,7 +15,7 @@ vi.mock("@tanstack/react-router", () => ({
   useLocation: () => location,
   useParams: () => params.value,
   useSearch: () => ({}),
-  useNavigate: () => () => {},
+  useNavigate: () => () => { },
 }))
 
 const getOrder = vi.hoisted(() => vi.fn())
@@ -33,7 +33,6 @@ vi.mock("@/features/catalog/repo", async (importOriginal) => ({
 }))
 
 const { crumbsFor, useHeaderRecord } = await import("../headerRecord")
-const { HeaderChrome } = await import("../HeaderChrome")
 
 function wrap(children: ReactNode) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -108,43 +107,5 @@ describe("useHeaderRecord", () => {
     expect(screen.getByText("none")).toBeInTheDocument()
     expect(getProduct).not.toHaveBeenCalled()
     expect(getOrder).not.toHaveBeenCalled()
-  })
-})
-
-describe("HeaderChrome", () => {
-  it("carries nothing on a screen that is not an order", () => {
-    at("/orders")
-    const { container } = wrap(<HeaderChrome />)
-    expect(container).toBeEmptyDOMElement()
-    expect(screen.queryByRole("textbox")).not.toBeInTheDocument()
-  })
-
-  it("carries the order pagination on order detail only — '{n} of {total}' and two arrows", async () => {
-    at("/orders/b", { fulfillmentId: "b" })
-    listOrders.mockResolvedValue({
-      items: [{ id: "a" }, { id: "b" }, { id: "c" }],
-      total: 3,
-      page: 1,
-      pageSize: 25,
-      counts: {},
-    })
-    wrap(<HeaderChrome />)
-    expect(await screen.findByText("2 of 3")).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Previous order" })).toBeEnabled()
-    expect(screen.getByRole("button", { name: "Next order" })).toBeEnabled()
-  })
-
-  it("mutes and disables an arrow at the end of the list", async () => {
-    at("/orders/c", { fulfillmentId: "c" })
-    listOrders.mockResolvedValue({
-      items: [{ id: "a" }, { id: "b" }, { id: "c" }],
-      total: 3,
-      page: 1,
-      pageSize: 25,
-      counts: {},
-    })
-    wrap(<HeaderChrome />)
-    const next = await screen.findByRole("button", { name: "Next order" })
-    expect(next).toBeDisabled()
   })
 })

@@ -36,7 +36,7 @@ describe("product review telemetry (067)", () => {
           .filter((key): key is string => !!key && key !== "name" && key !== "}")
         expect(props.length).toBeGreaterThan(0)
         for (const key of props) {
-          // `marginSet` is a boolean — that a margin was confirmed, never what it was.
+          // `marginSet` is a boolean - that a margin was confirmed, never what it was.
           expect(key === "marginSet" || !/price|amount|margin|reason|productName|shopName|value/i.test(key), key).toBe(
             true,
           )

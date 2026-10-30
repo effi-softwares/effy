@@ -1,14 +1,14 @@
-# Service Assignment Rule — which service does a new endpoint belong to?
+# Service Assignment Rule - which service does a new endpoint belong to?
 
 Effy has **one backend**: serverless TypeScript services under `apis/edge-api/`, reached through
-**two HTTP gateways** — the **shared** gateway (customer, shop, driver, public) and the **staff**
+**two HTTP gateways** - the **shared** gateway (customer, shop, driver, public) and the **staff**
 gateway (back-office only) (constitution v3.2.0, Principle III; feature 075). Every endpoint is
 assigned to exactly **one service**, every service stack to exactly **one gateway**, and the owning
 feature's `plan.md` records both and why.
 
-> **History.** Until feature 070 the backend was two paths — an always-on Go service (the "fast"
+> **History.** Until feature 070 the backend was two paths - an always-on Go service (the "fast"
 > path) for shopper traffic and this serverless fleet (the "cold path") for everything
-> else — and this document chose between them. 070 retired the Go service. Plans from 004 to 069
+> else - and this document chose between them. 070 retired the Go service. Plans from 004 to 069
 > that record a choice between the two as their "Path:" are history, not live law.
 
 ## The rule
@@ -23,7 +23,7 @@ Ask, in order:
    | customer, shop, driver, or none (public) | **shared** |
 
    A service holds one audience where it can. An authorizer is per-route and all-or-nothing, and the
-   staff gateway has only one — so a back-office route cannot be put on the shared gateway, or the
+   staff gateway has only one - so a back-office route cannot be put on the shared gateway, or the
    other way round, even by mistake: `gateway-placement.contract.test.ts` fails.
 2. **Which domain owns the data it writes?** Put the route with the code that already owns the
    rule. A rule has exactly one implementation.
@@ -33,7 +33,7 @@ Ask, in order:
    `serverless.staff.yml` for back-office). Never a second directory, never the rule written twice.
 4. **Would it take the service past its limits?** A service is one CloudFormation stack, capped at
    500 resources (roughly five per route). A new domain, or a service nearing the cap, gets a new
-   `apis/edge-api/<service>/` — and a line in the placement table of
+   `apis/edge-api/<service>/` - and a line in the placement table of
    `gateway-placement.contract.test.ts`, which refuses a stack nobody has placed.
 
 ### Three examples
@@ -42,7 +42,7 @@ Ask, in order:
 |---|---|---|---|
 | A back-office screen to edit courier settings | `admin` (delivery configuration) | staff | staff credential; `admin` owns delivery configuration |
 | A customer route listing their delivery windows | `commerce` (checkout) | shared | customer credential; checkout owns slot rules |
-| "Mark a product unavailable", used by shops for their own shop and by staff for any shop | `inventory` — shop route in `serverless.yml`, staff route in `serverless.staff.yml` | shared **and** staff | two audiences, one stock rule: two stacks, one source |
+| "Mark a product unavailable", used by shops for their own shop and by staff for any shop | `inventory` - shop route in `serverless.yml`, staff route in `serverless.staff.yml` | shared **and** staff | two audiences, one stock rule: two stacks, one source |
 
 ## When a gateway nears its ceiling
 
@@ -51,7 +51,7 @@ be raised by a quota request; **the integration limit cannot**, so it is the one
 service on the same gateway adds no room.
 
 On 2026-10-08 the shared gateway reached both. The deployment that found out was refused half-way and
-completed only by merging two routes into one (074) — a contract changed to fit a counter. That is the
+completed only by merging two routes into one (074) - a contract changed to fit a counter. That is the
 thing this section exists to prevent.
 
 | Fullest limit | What it means | What to do |
@@ -65,10 +65,10 @@ The options, in the order to consider them:
 
 1. **Split a mixed-audience service by gateway** (rule 3 above) if one is still mixed.
 2. **Move an audience to its own gateway.** This is what 075 did for back-office. It needs a
-   **constitution amendment first** — a third gateway is not a plan-level decision — and a client that
+   **constitution amendment first** - a third gateway is not a plan-level decision - and a client that
    can change its base address (a website: easy; a released mobile app: every installed copy keeps the
    old address, so its routes must be forwarded for as long as old versions are in use).
-3. **Request a route-quota increase** — only useful where one function already serves several routes,
+3. **Request a route-quota increase** - only useful where one function already serves several routes,
    because integrations still cap at 300.
 
 Not options:
@@ -90,22 +90,22 @@ See the numbers: `make gateway-usage ENV=<env>` (deployed) · `pnpm --filter @ef
 | `commerce` | shared | customer (+ public cart preview/policy and the payment webhook) | saved items, lists, cart, promo, checkout, payment, customer order reads, customer cancel and refund request |
 | `customer` | shared | customer (+ a few public account routes) | profile, addresses, password, sessions, closure, feedback, newsletter, devices, receipt resend |
 | `shop` | shared | shop | shop console: fulfilment, pick lists, products, insights, shop-manager refund |
-| `inventory` | shared | shop | stock — a shop managing its own |
-| `inventory-staff` (same source as `inventory`) | **staff** | back-office | stock — staff managing it on a shop's behalf (`/inventory/v1/admin/…`) |
+| `inventory` | shared | shop | stock - a shop managing its own |
+| `inventory-staff` (same source as `inventory`) | **staff** | back-office | stock - staff managing it on a shop's behalf (`/inventory/v1/admin/…`) |
 
-> **098 — stock is per variant.** The per-item stock routes name a variant: `/inventory/v1/variants/{variantId}/stock[...]`
+> **098 - stock is per variant.** The per-item stock routes name a variant: `/inventory/v1/variants/{variantId}/stock[...]`
 > (shop) and `/inventory/v1/admin/shops/{shopId}/variants/{variantId}/stock[...]` (staff). The cart's per-line routes
 > are keyed by `{variantId}` (`/commerce/v1/cart/items/{variantId}`, `/commerce/v1/cart/saved/{variantId}`); saved items
 > and lists stay keyed by `{productId}`. One new shop route: `POST /shop/v1/products/{id}/variants/{variantId}/state`
-> (`shop`, shared gateway). Renames replaced routes one for one — no gateway integrations were added by them.
+> (`shop`, shared gateway). Renames replaced routes one for one - no gateway integrations were added by them.
 
-> **102 — the back-office product catalogue.** `catalog` (staff) gained 14 routes: `GET /catalog/v1/products`,
+> **102 - the back-office product catalogue.** `catalog` (staff) gained 14 routes: `GET /catalog/v1/products`,
 > `GET`/`PATCH /catalog/v1/products/{productId}`, `POST /catalog/v1/products` (Effy creates for a shop),
 > `POST …/{productId}/media`, `…/hold`, `…/release`, `…/variants/{variantId}/state`, `POST /catalog/v1/products/bulk`,
 > and `POST`/`GET /catalog/v1/imports`, `GET /catalog/v1/imports/template`, `GET /catalog/v1/imports/{importId}`,
-> `POST /catalog/v1/imports/{importId}/create` — plus the route-less `productImportWorker` (SQS). Staff 189 → 203/300.
+> `POST /catalog/v1/imports/{importId}/create` - plus the route-less `productImportWorker` (SQS). Staff 189 → 203/300.
 
-> **101 — the category-driven catalogue.** Product types are gone. `admin`'s 18 `/admin/v1/catalog/…` schema routes
+> **101 - the category-driven catalogue.** Product types are gone. `admin`'s 18 `/admin/v1/catalog/…` schema routes
 > were deleted; `catalog` (staff) gained 14 `/catalog/v1/taxonomy/…` routes (categories, move, status, picture,
 > resolved form, attachments, attribute library), `PUT /catalog/v1/products/{productId}/placements` and
 > `GET /catalog/v1/products/missing-details`, and lost the two GST bulk routes (staff −4 net). `shop` (shared)
@@ -113,13 +113,13 @@ See the numbers: `make gateway-usage ENV=<env>` (deployed) · `pnpm --filter @ef
 > `GET /shop/v1/catalog/categories/{id}/form` (+1).
 | `driver` | shared | driver | driver app |
 | `admin` | **staff** | back-office | staff, shops, delivery configuration |
-| `admin-promotions` (same source as `admin`, 095) | **staff** | back-office | promotions, display groups, skins and pictures (`/admin/v1/promotions…`, `/admin/v1/promotion-groups…`, `/admin/v1/promotion-skins…`) — split out at CloudFormation's 500-resource limit |
+| `admin-promotions` (same source as `admin`, 095) | **staff** | back-office | promotions, display groups, skins and pictures (`/admin/v1/promotions…`, `/admin/v1/promotion-groups…`, `/admin/v1/promotion-skins…`) - split out at CloudFormation's 500-resource limit |
 | `catalog` | **staff** | back-office | the catalogue taxonomy (categories, attribute library, attachments, `/catalog/v1/taxonomy/…`), extra placements, product review and margin (101 moved the taxonomy here from `admin`); every shop's products, holds, Effy-created products and imports (`/catalog/v1/products…`, `/catalog/v1/imports…`, 102) |
 | `fleet` | **staff** | back-office | drivers, wave planning, delivery slots and days |
 | `orders` | **staff** | back-office | order console, handovers, arrivals, refunds, cancellation |
 | `notifications` | shared | none (workers) | push and receipt drains |
 | `auth` | none | none (Cognito triggers) | one-time-code issuance |
-| `live` | none | none (invoked by the live channel) — all four audiences, by necessity | the live-update channel's authorizer (071). No route. Each audience's own service carries its `GET /…/v1/live` |
+| `live` | none | none (invoked by the live channel) - all four audiences, by necessity | the live-update channel's authorizer (071). No route. Each audience's own service carries its `GET /…/v1/live` |
 
 ## Rules that follow from having one backend
 
@@ -135,7 +135,7 @@ See the numbers: `make gateway-usage ENV=<env>` (deployed) · `pnpm --filter @ef
 
 ## Process
 
-A feature's `plan.md` MUST contain a line: *"Service: `<name>`, on the `<shared|staff>` gateway — because
+A feature's `plan.md` MUST contain a line: *"Service: `<name>`, on the `<shared|staff>` gateway - because
 <audience + domain>."* An
 endpoint placed without one is a Constitution Check failure (Principle III). Paths are
 `/<service>/v<major>/...`; see [versioning-policy.md](./versioning-policy.md) and

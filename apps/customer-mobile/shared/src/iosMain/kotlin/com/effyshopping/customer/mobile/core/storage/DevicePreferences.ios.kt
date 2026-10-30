@@ -5,7 +5,7 @@ import platform.Foundation.NSUserDefaults
 /**
  * iOS's store: `NSUserDefaults.standardUserDefaults`.
  *
- * No initialisation step is needed — unlike Android, the platform supplies the container itself, so
+ * No initialisation step is needed - unlike Android, the platform supplies the container itself, so
  * there is no iOS counterpart to `initDevicePreferences`.
  */
 actual fun devicePreferences(): DevicePreferences = IosDevicePreferences

@@ -91,7 +91,7 @@ SELECT e.id::text AS id,
     await tx.query(`INSERT INTO public.points_allocation (debit_entry_id, credit_entry_id, points) VALUES ($1, $2, $3)`, [entryId, lot.id, take]);
     need -= take;
   }
-  if (need > 0) throw new Error(`points: ledger short by ${need} for a ${d.kind} debit — invariant violated`);
+  if (need > 0) throw new Error(`points: ledger short by ${need} for a ${d.kind} debit - invariant violated`);
   return entryId;
 }
 

@@ -1,4 +1,4 @@
-# Data Model: 033 — Customer Saved Items
+# Data Model: 033 - Customer Saved Items
 
 **Feature**: [spec.md](spec.md) · **Plan**: [plan.md](plan.md) · **Research**: [research.md](research.md)
 
@@ -20,8 +20,8 @@ was *not* done and why.
 |---|---|
 | Up | `CREATE TABLE public.customer_saved_item` (+ comments, + indexes) |
 | Up | `DROP TABLE IF EXISTS public.customer_favorite` |
-| Up | `ALTER TABLE public.order_item` — no change. See "Order item" below. |
-| Down | `DROP TABLE IF EXISTS public.customer_saved_item` — ⚠ honestly lossy; see below |
+| Up | `ALTER TABLE public.order_item` - no change. See "Order item" below. |
+| Down | `DROP TABLE IF EXISTS public.customer_saved_item` - ⚠ honestly lossy; see below |
 
 **⚠ The `DROP` is the point of the slice, not an accident.** FR-001 requires the previous capability
 removed in its entirety including its stored data, and FR-005 requires the operator be told before it
@@ -50,7 +50,7 @@ The shopper's deliberate record of interest in a product.
 | `product_id` | `uuid NOT NULL` | → `public.product(id) ON DELETE CASCADE` |
 | `saved_price_amount` | `numeric(12,2) NOT NULL` | the product's price at the moment of saving |
 | `saved_currency` | `text NOT NULL` | matches `product.currency` at save time |
-| `saved_at` | `timestamptz NOT NULL DEFAULT now()` | list position, **and writable** — see FR-018 below |
+| `saved_at` | `timestamptz NOT NULL DEFAULT now()` | list position, **and writable** - see FR-018 below |
 | `created_at` | `timestamptz NOT NULL DEFAULT now()` | |
 | `updated_at` | `timestamptz NOT NULL DEFAULT now()` | |
 
@@ -61,7 +61,7 @@ The shopper's deliberate record of interest in a product.
 FR-009/FR-010/FR-011 demand that saving twice changes nothing and un-saving something absent is not an
 error. The PK makes a duplicate **unrepresentable**, so `INSERT … ON CONFLICT (customer_id,
 product_id) DO NOTHING` is idempotent by construction and `DELETE` is idempotent by nature. No
-application-level guard is needed and none should be added — a second mechanism is how two answers to
+application-level guard is needed and none should be added - a second mechanism is how two answers to
 one question start disagreeing.
 
 ### ⚠ `saved_at` is writable, and that is load-bearing
@@ -97,8 +97,8 @@ parameter, defaulting to `now()` when the caller does not supply one.
 | `customer_saved_item_customer_idx (customer_id, saved_at DESC)` | the list read, already ordered (FR-015) |
 | `customer_saved_item_product_idx (product_id)` | the FK, per house style |
 
-⚠ The PK's leading column is `customer_id`, so the membership read (R4) — "give me this shopper's
-whole set of product ids" — is served by the PK index alone and needs nothing further. The
+⚠ The PK's leading column is `customer_id`, so the membership read (R4) - "give me this shopper's
+whole set of product ids" - is served by the PK index alone and needs nothing further. The
 `(customer_id, saved_at DESC)` index exists for the *ordered* list read, where the sort would
 otherwise be a separate step at the cap.
 
@@ -107,7 +107,7 @@ otherwise be a separate step at the cap.
 - `customer_id` → `ON DELETE CASCADE`. A deleted customer's saved items go with them.
 - `product_id` → `ON DELETE CASCADE`. **⚠ A hard-deleted product vanishes from every list silently.**
   FR-041 requires a *withdrawn* product to remain visible and marked, which is satisfied by
-  `product.status = 'archived'` — the platform's actual withdrawal mechanism, which is a status change
+  `product.status = 'archived'` - the platform's actual withdrawal mechanism, which is a status change
   and not a delete. A true hard delete is a catalogue-integrity operation that already cascades
   through `order_item` and `cart_item`, and treating it differently here would be inconsistent. This
   is stated so the difference between *archived* (visible, marked) and *deleted* (gone) is a recorded
@@ -128,7 +128,7 @@ One value per (saved item, destination postcode), computed inside the list read 
 | `purchasable` | `status = 'active'` **and** the R2 predicate holds | can be added to the cart now |
 
 **⚠ Evaluation order is part of the model.** `archived` is tested **before** the destination test, so a
-withdrawn product reads `no_longer_sold` even for a shopper with no location — the more informative of
+withdrawn product reads `no_longer_sold` even for a shopper with no location - the more informative of
 the two true statements. `not_yet_determined` is tested before the status distinctions that would
 otherwise imply we had checked delivery.
 
@@ -145,8 +145,8 @@ otherwise imply we had checked delivery.
         WHERE r.method = o.method AND r.status = 'active'
 ```
 
-⚠ **`shop.status` is not a term**, deliberately. Nothing in the hot path reads it today — a
-`suspended` shop's products are still sold by cart and checkout — so including it here would make
+⚠ **`shop.status` is not a term**, deliberately. Nothing in the hot path reads it today - a
+`suspended` shop's products are still sold by cart and checkout - so including it here would make
 saved items *stricter* than checkout and create a new disagreement in place of the one being fixed.
 Recorded as a carry-forward (R2).
 
@@ -187,7 +187,7 @@ savedAt }] }`.
 keep the baseline they actually saved at; taking the price at merge time would silently erase the
 movement the watchlist exists to report.
 
-**Version mismatch discards; it never migrates.** There is no legacy key to read — the predecessor
+**Version mismatch discards; it never migrates.** There is no legacy key to read - the predecessor
 stored nothing client-side, because a guest was bounced to sign-in.
 
 **⚠ Mobile requires a doctrine amendment in the same commit.**
@@ -199,7 +199,7 @@ authorization or pricing decision; and it holds no more than the shopper could a
 
 ---
 
-## Order item — the FR-008 dependency
+## Order item - the FR-008 dependency
 
 FR-008 (save from a line in order history) needs a product identity on the order line, and **the
 contract does not carry one** (R12).
@@ -208,18 +208,18 @@ contract does not carry one** (R12).
 - `OrderSummary` carries no line items at all, so the Orders *list* was never the target; the order
   **detail** surface is.
 
-`public.order_item` **already stores `product_id`** — this is a *projection* gap, not a storage gap.
+`public.order_item` **already stores `product_id`** - this is a *projection* gap, not a storage gap.
 No migration is required. What is required is:
 
 1. the Go order projection selecting and emitting it,
 2. `packages/shared-types` order DTO gaining the field,
-3. a regenerated contract (`make cm-contract-gen`) — both `commerce-schema.json` and `CommerceDto.kt`,
+3. a regenerated contract (`make cm-contract-gen`) - both `commerce-schema.json` and `CommerceDto.kt`,
 4. both surfaces' mappers,
 5. a wire-contract test.
 
 ⚠ **A product on a past order may since have been archived or hard-deleted.** The order line keeps its
 own snapshot (that is what makes a receipt stable), so the *line* still renders. The save control on
-that line must therefore tolerate a product id that no longer resolves — saving it answers
+that line must therefore tolerate a product id that no longer resolves - saving it answers
 `404 not found`, and the control reports that rather than appearing to succeed.
 
 ---

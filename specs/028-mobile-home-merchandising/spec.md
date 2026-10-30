@@ -1,4 +1,4 @@
-# Feature Specification: Customer Mobile Home — Sectioned Merchandising & Search Entry
+# Feature Specification: Customer Mobile Home - Sectioned Merchandising & Search Entry
 
 **Feature Branch**: `028-mobile-home-merchandising`
 
@@ -24,12 +24,12 @@ title, a search affordance, a row of filter chips, and then every product the ho
 and de-duplicated into one list. Merchandising happens only through the chips.
 
 That composition was a **deliberate decision of feature 026** (FR-025a: the mobile screens were replaced,
-not restyled, to match a chosen source design — which put a browsable grid above the fold and removed the
+not restyled, to match a chosen source design - which put a browsable grid above the fold and removed the
 hero, the carousel and the rails that feature 025 had built).
 
 **This feature reverses that decision for the Home tab specifically, on operator direction.** The reversal is
 recorded here rather than made silently, because 026's rationale (a shopper reaches product tiles without
-scrolling past three screens of chrome) is a real cost that a sectioned home must be designed to pay back —
+scrolling past three screens of chrome) is a real cost that a sectioned home must be designed to pay back -
 see SC-002 and SC-006, which exist to hold this feature to that bar.
 
 Nothing outside the Home tab's presentation changes. Search, product detail, cart, checkout and the
@@ -41,22 +41,22 @@ navigation shell are untouched.
 
 ### User Story 1 - Search starts where the shopper is looking (Priority: P1)
 
-A shopper opens the app wanting one specific thing — "oat milk". The search entry sits at the top of Home.
+A shopper opens the app wanting one specific thing - "oat milk". The search entry sits at the top of Home.
 They tap it once: they arrive on the Search screen with the field already focused and the keyboard already
 up, type, and submit. Results appear for what they typed.
 
 **Why this priority**: Search is the highest-intent path in any store, and it is the one journey that is
 useless if it takes an extra tap or an extra screen to reach the keyboard. It is also completely independent
-of every merchandising section below it — shipping only this story already improves the app.
+of every merchandising section below it - shipping only this story already improves the app.
 
 **Independent Test**: Fully testable by launching the app, tapping the Home search entry, and confirming the
-shopper lands on Search with the keyboard raised and can run a query without a second tap — with no
+shopper lands on Search with the keyboard raised and can run a query without a second tap - with no
 merchandising section built at all.
 
 **Acceptance Scenarios**:
 
 1. **Given** the shopper is on Home, **When** they tap the search entry, **Then** the Search screen is shown
-   with its query field focused, the on-screen keyboard raised, and a text caret ready to accept input — with
+   with its query field focused, the on-screen keyboard raised, and a text caret ready to accept input - with
    no additional tap required.
 2. **Given** the shopper has typed a query on the Search screen, **When** they submit it (keyboard
    search/return action), **Then** results for that query are shown and the keyboard is dismissed so the
@@ -71,16 +71,16 @@ merchandising section built at all.
 ### User Story 2 - Home is a sequence of named sections, not one list (Priority: P2)
 
 A shopper who does not know what they want scrolls Home. Instead of one long grid, they move through a small
-number of clearly named sections — Featured, On sale, and a few of the store's own groupings — each showing a
+number of clearly named sections - Featured, On sale, and a few of the store's own groupings - each showing a
 handful of products side by side, each scrollable sideways to see more, each separated from the next by a
 consistent, small gap so the boundaries are obvious without heavy dividers.
 
 **Why this priority**: This is the substance of the request and the reason the grid is being replaced. It is
-independently testable and independently valuable — sections alone, with no banners and no category icons,
+independently testable and independently valuable - sections alone, with no banners and no category icons,
 already turn an undifferentiated list into a browsable store.
 
 **Independent Test**: Fully testable by loading Home against a store with several product groupings and
-confirming each grouping renders as its own titled, horizontally scrollable section with consistent spacing —
+confirming each grouping renders as its own titled, horizontally scrollable section with consistent spacing -
 with no banner and no category row present.
 
 **Acceptance Scenarios**:
@@ -107,7 +107,7 @@ icon with a short label. Tapping one takes them to that category's products. Sca
 kind of store this is before they read a single product name.
 
 **Why this priority**: Research on mobile storefronts is explicit that the homepage's first job is to set
-correct expectations about catalogue breadth, and that category representation — not carousels — is what
+correct expectations about catalogue breadth, and that category representation - not carousels - is what
 shoppers actually attend to. It is independently testable and shippable on top of, or without, US2.
 
 **Independent Test**: Fully testable by loading Home and confirming a scannable icon-and-label category row is
@@ -121,7 +121,7 @@ still renders legibly.
 2. **Given** the shopper taps a category shortcut, **When** navigation completes, **Then** they see products
    restricted to that category, and the scope of what they are looking at is stated on screen.
 3. **Given** a category has no icon assigned to it, **When** the row renders, **Then** a neutral fallback glyph
-   is shown and the label still identifies the category — never a blank tile or a broken image.
+   is shown and the label still identifies the category - never a blank tile or a broken image.
 4. **Given** the store has no categories at all, **When** Home loads, **Then** the category row is omitted and
    the rest of Home renders normally.
 
@@ -129,7 +129,7 @@ still renders legibly.
 
 ### User Story 4 - Promotional banners between sections (Priority: P4)
 
-Between merchandising sections the shopper meets a promotional banner — a wide, tappable panel carrying a short
+Between merchandising sections the shopper meets a promotional banner - a wide, tappable panel carrying a short
 message and, where more than one is live, swipeable to the next. Tapping it takes them to what it advertises.
 
 **Why this priority**: Banners are the lowest-attention element on a mobile storefront (research is consistent
@@ -159,14 +159,14 @@ confirming the banner renders, swipes, navigates and disappears correspondingly.
 
 An operator running a promotion in the back-office marks it as publicly advertisable and gives it a
 shopper-facing line of copy. It appears as a banner on Home. When the promotion ends, is used up, or is
-withdrawn, it stops being advertised — without an app release and without anyone remembering to take it down.
+withdrawn, it stops being advertised - without an app release and without anyone remembering to take it down.
 
 **Why this priority**: It is what makes US4 more than decoration. A banner nobody can change is a banner that
 will be wrong within a month. It is sequenced after the shopper-facing stories because the layout is testable
 against a placeholder promotion before this exists.
 
-**Independent Test**: Fully testable from the back-office alone — mark a promotion advertisable, confirm it
-appears on Home; end it, confirm it disappears on the next load — without touching the mobile app.
+**Independent Test**: Fully testable from the back-office alone - mark a promotion advertisable, confirm it
+appears on Home; end it, confirm it disappears on the next load - without touching the mobile app.
 
 **Acceptance Scenarios**:
 
@@ -177,34 +177,34 @@ appears on Home; end it, confirm it disappears on the next load — without touc
 3. **Given** an advertised promotion expires, is exhausted or is withdrawn, **When** Home is next loaded or
    refreshed, **Then** it is no longer advertised.
 4. **Given** an advertised promotion carries a condition such as a minimum spend, **When** the banner is
-   shown, **Then** the shopper learns of that condition from the banner or from where it leads — never first
+   shown, **Then** the shopper learns of that condition from the banner or from where it leads - never first
    at payment.
 
 ---
 
 ### Edge Cases
 
-- **Empty store** — the store returns no groupings, no categories and no promotions: Home MUST show a single
+- **Empty store** - the store returns no groupings, no categories and no promotions: Home MUST show a single
   honest empty state, not a stack of empty section headings.
-- **A section with one product** — it MUST render as a section, not collapse into something that looks broken,
+- **A section with one product** - it MUST render as a section, not collapse into something that looks broken,
   and MUST NOT show a "more sideways" affordance it cannot honour.
-- **Slow or failed images** — a missing product or banner image MUST NOT blank the section it sits in.
-- **Load failure** — a failed Home load MUST offer a retry; a failed *refresh* MUST leave the content already
+- **Slow or failed images** - a missing product or banner image MUST NOT blank the section it sits in.
+- **Load failure** - a failed Home load MUST offer a retry; a failed *refresh* MUST leave the content already
   on screen in place ("we couldn't check" must never read as "there is nothing here").
-- **Refresh** — pulling down MUST refresh Home's content without blanking the screen and without losing the
+- **Refresh** - pulling down MUST refresh Home's content without blanking the screen and without losing the
   shopper's place.
-- **Screen reader traversal** — a horizontally scrolling section MUST be traversable and its boundaries
+- **Screen reader traversal** - a horizontally scrolling section MUST be traversable and its boundaries
   announced, so a non-sighted shopper is not trapped in an unbounded sideways list.
-- **Reduced motion** — with the OS reduced-motion setting on, banner transitions and section entrance
+- **Reduced motion** - with the OS reduced-motion setting on, banner transitions and section entrance
   animations MUST be suppressed or reduced.
-- **Large screens / tablets and landscape** — sections MUST adapt to the wider window rather than stretching a
+- **Large screens / tablets and landscape** - sections MUST adapt to the wider window rather than stretching a
   phone layout, and MUST NOT show a single product occupying half the screen width.
-- **Very long product or category names** — MUST truncate predictably without changing a section's row height
+- **Very long product or category names** - MUST truncate predictably without changing a section's row height
   or misaligning neighbouring products.
-- **Guest vs. signed-in** — Home is public; every section MUST render for a signed-out shopper, and no section
+- **Guest vs. signed-in** - Home is public; every section MUST render for a signed-out shopper, and no section
   may require an account to be visible.
-- **Offline** — Home MUST state that it could not load rather than showing a permanently empty store.
-- **Duplicate products across sections** — the same product legitimately appearing in two sections MUST NOT be
+- **Offline** - Home MUST state that it could not load rather than showing a permanently empty store.
+- **Duplicate products across sections** - the same product legitimately appearing in two sections MUST NOT be
   treated as an error, but MUST NOT appear twice *within* one section.
 
 ## Requirements *(mandatory)*
@@ -245,7 +245,7 @@ appears on Home; end it, confirm it disappears on the next load — without touc
   focused.
 - **FR-012**: Returning from Search to Home MUST restore Home's scroll position and content without a reload.
 - **FR-012a**: Arriving at Search from Home MUST NOT clear a query the shopper ran previously in the same
-  session unless they cleared it themselves — but the field MUST be focused and selectable so a new query
+  session unless they cleared it themselves - but the field MUST be focused and selectable so a new query
   replaces it in one action.
 
 #### Sectioned content (US2)
@@ -265,7 +265,7 @@ appears on Home; end it, confirm it disappears on the next load — without touc
 - **FR-020**: A section with no items MUST be omitted entirely. A section MUST NOT render a heading above
   nothing.
 - **FR-021**: A product MUST NOT appear twice within the same section.
-- **FR-022**: Products MUST be presented with the same product tile the rest of the app uses — the same
+- **FR-022**: Products MUST be presented with the same product tile the rest of the app uses - the same
   imagery treatment, name, price, sale indication and availability rules.
 - **FR-023**: An unavailable product MUST NOT be shown in a merchandising section.
 
@@ -273,12 +273,12 @@ appears on Home; end it, confirm it disappears on the next load — without touc
 
 - **FR-024** *(amended 2026-07-31, after live verification)*: Home MUST present a **horizontally scrollable
   row of category shortcuts**, each with an icon and a short label, placed above the deeper merchandising
-  sections. The row MUST carry **the categories that actually hold products** — not a fixed level of the
+  sections. The row MUST carry **the categories that actually hold products** - not a fixed level of the
   taxonomy.
   - ⚠ **Why this changed.** It originally said "top-level categories". Against the real catalogue that
     rendered **nothing at all**: every product's primary category is a leaf, and a category's product count
     does not roll up to its ancestors, so all three top-level categories report zero. Worse, category
-    filtering everywhere is an exact primary-category match, so a top-level shortcut — even if shown —
+    filtering everywhere is an exact primary-category match, so a top-level shortcut - even if shown -
     would open a results screen with **zero products**. A shortcut that leads nowhere is worse than no
     shortcut.
   - A **rollup** (a category's products including all descendants') would make top-level shortcuts
@@ -306,12 +306,12 @@ appears on Home; end it, confirm it disappears on the next load — without touc
 - **FR-034**: Anything a banner links to MUST be **reachable elsewhere in the app without the banner**. No
   destination may exist only behind a banner.
 - **FR-034a** *(amended 2026-08-01, after the operator reported the tap behaviour as a bug)*: A banner MUST
-  lead to **the promotion it advertises**, presented in full — its wording, its code, its conditions and how
-  long is left — with the ordinary store reachable from there. It MUST NOT lead to an unscoped product list.
+  lead to **the promotion it advertises**, presented in full - its wording, its code, its conditions and how
+  long is left - with the ordinary store reachable from there. It MUST NOT lead to an unscoped product list.
 
   **Why this is an amendment and not a contradiction of FR-034.** As built, every banner targeted the
   unfiltered store, so a tap opened the Search tab by another name and carried **none of the promotion's
-  facts** — not the code, not the terms. The shopper lost the offer on the way to it. That was read as
+  facts** - not the code, not the terms. The shopper lost the offer on the way to it. That was read as
   compliance with FR-034; it was compliance with its letter and a failure of its purpose.
 
   FR-034 exists to stop **content** being reachable only through a carousel slide most shoppers never see
@@ -319,17 +319,17 @@ appears on Home; end it, confirm it disappears on the next load — without touc
   announce. It is the banner's message expanded, so no shopper who never sees the banner loses anything.
 
   **The deeper reason there was no better destination**: a promotion carries **no product or category
-  scoping** — it is a whole-cart discount with an optional minimum, so no set of qualifying products exists to
+  scoping** - it is a whole-cart discount with an optional minimum, so no set of qualifying products exists to
   filter a list to. A cart-level code is a message, not a place. Should promotions ever gain scope, a banner
   leading to the qualifying products becomes the better answer and this requirement should be revisited.
 - **FR-034b**: The destination MUST be **re-read at tap time** through the same visibility rule that put the
   banner on Home (FR-037c). A promotion that expired, was exhausted or was withdrawn while Home sat on screen
-  MUST be reported as **ended** — never presented with terms that are no longer true (FR-036), and never with
+  MUST be reported as **ended** - never presented with terms that are no longer true (FR-036), and never with
   a retry affordance, which would invite a shopper to keep trying for a discount that is not coming.
 - **FR-035**: When no promotion is live, **no banner and no placeholder** MUST be shown, and the surrounding
   sections MUST close up without leaving a gap.
 - **FR-036**: A banner MUST advertise something **true at the moment it is shown**. (The lifecycle that
-  enforces this — expiry, exhaustion, withdrawal, un-marking — is specified once in FR-037c.)
+  enforces this - expiry, exhaustion, withdrawal, un-marking - is specified once in FR-037c.)
 - **FR-037**: Banners MUST be **derived from the promotions the back-office already manages**. No separate
   merchandising content store is introduced.
 - **FR-037a**: A promotion MUST be advertised on Home **only when an operator has explicitly marked it as
@@ -337,7 +337,7 @@ appears on Home; end it, confirm it disappears on the next load — without touc
   exist that are legitimately private (a single customer's goodwill credit, a partner code) and a promotion
   becoming public by default would give every shopper a discount intended for one.
 - **FR-037b**: An advertisable promotion MUST carry the **shopper-facing wording and optional artwork** shown
-  on the banner. The promotion's internal code MUST NOT be used as the banner's headline — an operator's
+  on the banner. The promotion's internal code MUST NOT be used as the banner's headline - an operator's
   identifier is not a sentence a shopper can read.
 - **FR-037c**: A promotion that has **expired, been exhausted, been withdrawn, or been un-marked as
   advertisable** MUST stop appearing on Home without an app release, and MUST be gone the next time Home's
@@ -352,9 +352,9 @@ appears on Home; end it, confirm it disappears on the next load — without touc
   actually holds**. In particular, a section MUST NOT be titled "best sellers", "most popular" or equivalent
   unless it is genuinely ordered by what shoppers bought.
 - **FR-039**: A **sales-ranked best sellers section is deferred out of this feature** (see Out of Scope). The
-  sections in this slice are those the store can substantiate today — its featured, on-sale and category
+  sections in this slice are those the store can substantiate today - its featured, on-sale and category
   groupings.
-- **FR-040**: The set of sections MUST be **extensible** — adding a grouping later, including a sales-ranked
+- **FR-040**: The set of sections MUST be **extensible** - adding a grouping later, including a sales-ranked
   best sellers section when purchase data supports one, MUST NOT require Home's layout to be rebuilt.
 
 #### Resilience and accessibility
@@ -375,20 +375,20 @@ appears on Home; end it, confirm it disappears on the next load — without touc
 
 ### Key Entities
 
-- **Section** — a named, ordered grouping of products shown as one horizontally scrollable row on Home
+- **Section** - a named, ordered grouping of products shown as one horizontally scrollable row on Home
   (e.g. Featured, On sale, a category grouping). Has a title, a stable identity, an ordered list of products,
   and a destination for "see all". ⚠ The storefront read, the plan and the codebase all call this a **rail**;
   the two words name the same thing, and a reader looking for "section" in the code will not find it.
-- **Category shortcut** — a top-level way into the catalogue: a short label, an icon (or a fallback glyph), and
+- **Category shortcut** - a top-level way into the catalogue: a short label, an icon (or a fallback glyph), and
   the category it opens.
-- **Promotional banner** — the shopper-facing face of an existing back-office promotion: a short message,
+- **Promotional banner** - the shopper-facing face of an existing back-office promotion: a short message,
   optional artwork, a destination, and a position within the section sequence. It exists only while its
   promotion is active **and** marked publicly advertisable; it is not separately authored content and it has
   no lifetime of its own.
-- **Advertisable promotion** — an existing back-office promotion that an operator has explicitly marked for
+- **Advertisable promotion** - an existing back-office promotion that an operator has explicitly marked for
   public display, together with the shopper-facing wording shown in its place. Unmarked promotions are
   private and never appear on Home.
-- **Product tile** — the platform's existing product presentation (image, name, price, sale indication,
+- **Product tile** - the platform's existing product presentation (image, name, price, sale indication,
   availability). Unchanged by this feature; reused as-is.
 
 ## Success Criteria *(mandatory)*
@@ -398,13 +398,13 @@ appears on Home; end it, confirm it disappears on the next load — without touc
 - **SC-001**: From opening the app, a shopper can raise the keyboard and begin typing a search in **one tap**,
   and reach results for what they typed in **one further action**.
 - **SC-002**: On a standard phone, the shopper can see **at least one real product** on Home **without
-  scrolling** — the sectioned layout must not push merchandise below the fold.
+  scrolling** - the sectioned layout must not push merchandise below the fold.
 - **SC-003**: Home presents **at least three distinct named sections** when the store has enough content to
   fill them, and **zero empty sections** in every state.
 - **SC-004** *(amended 2026-07-31 alongside FR-024)*: The category row surfaces **at least 30–40% of the
   categories the store can actually sell from**, spanning genuinely different kinds of product, so a
   first-time shopper can correctly describe what the store sells after looking only at Home. The row
-  scrolls, so carrying **all** of them exceeds this floor rather than failing it — what the floor guards
+  scrolls, so carrying **all** of them exceeds this floor rather than failing it - what the floor guards
   against is representing too narrow a slice of the catalogue.
   - ⚠ Measured against **sellable** categories, not top-level ones. See FR-024: top-level categories hold
     no products directly and cannot be filtered on, so a metric counting them would have scored 0% for a
@@ -425,63 +425,63 @@ appears on Home; end it, confirm it disappears on the next load — without touc
   scrolling page body.
 - **SC-012**: With the store emptied of products, categories and promotions, Home shows **exactly one** empty
   state and **no** section headings, banners or placeholders.
-- **SC-013**: Both platform builds behave identically against the same store content — a side-by-side
+- **SC-013**: Both platform builds behave identically against the same store content - a side-by-side
   comparison of Android and iOS shows the same sections, in the same order, with the same contents.
-- **SC-014**: An operator can take a promotion from "running but not advertised" to "visible on Home" — and
-  back off Home again — **without an app release**, and the change is reflected on a shopper's device the next
+- **SC-014**: An operator can take a promotion from "running but not advertised" to "visible on Home" - and
+  back off Home again - **without an app release**, and the change is reflected on a shopper's device the next
   time Home is loaded or refreshed.
 - **SC-015**: A promotion that is **not** marked publicly advertisable appears **nowhere** on Home, verified
   against a store holding both advertised and private promotions at the same time.
-- **SC-016**: No section on Home is labelled with a claim the store cannot substantiate — verified by
+- **SC-016**: No section on Home is labelled with a claim the store cannot substantiate - verified by
   inspection of every section title against the data that composes it.
 
 ## Design References (research)
 
 Recorded here because the request asked for it, and because these are the sources the acceptance thresholds
-above were drawn from — not as implementation guidance.
+above were drawn from - not as implementation guidance.
 
-**Reference platforms** (per the platform's own design doctrine — "Uber Eats + eBay, food-first"):
+**Reference platforms** (per the platform's own design doctrine - "Uber Eats + eBay, food-first"):
 
-- **Uber Eats** — the pattern this feature is closest to: a persistent search entry at the top, a horizontally
+- **Uber Eats** - the pattern this feature is closest to: a persistent search entry at the top, a horizontally
   scrollable row of **category icons** immediately beneath it, then a vertical sequence of **named sections**
   ("New on…", "Under 25 minutes"), each a horizontally swipeable row of tiles. Merchandising is carried by the
   section names, not by a hero.
-- **eBay** — search placed prominently at the top, with category and deals entries directly below it, then
+- **eBay** - search placed prominently at the top, with category and deals entries directly below it, then
   featured events and offers. Confirms the ordering: **search → categories → merchandising**, with promotional
   content *after* the shopper has been oriented, not before.
 
 **Evidence behind the numeric thresholds**:
 
-- **SC-004 (30–40% of top-level categories)** — Baymard's mobile-homepage research finds 42% of mobile
+- **SC-004 (30–40% of top-level categories)** - Baymard's mobile-homepage research finds 42% of mobile
   homepages set the wrong expectation about what a store sells, and recommends surfacing 30–40% of top-level
   categories, chosen for contrast rather than similarity. 70% of mobile shoppers scroll the homepage
   specifically to get an overview (vs. 25% on desktop), which is why the category row is P3 and the banner is
   P4.
-- **FR-017 / SC-005 (≤50% of the viewport)** — Baymard finds that horizontally scrollable content taller than
+- **FR-017 / SC-005 (≤50% of the viewport)** - Baymard finds that horizontally scrollable content taller than
   ~50% of the vertical viewport hijacks the page scroll: almost every shopper who wants to scroll down must
   touch it, causing unintended sideways movement.
-- **FR-032 (no auto-advance) and FR-031 (swipe + indicator)** — Baymard's carousel requirements: mobile has no
+- **FR-032 (no auto-advance) and FR-031 (swipe + indicator)** - Baymard's carousel requirements: mobile has no
   hover, so a shopper cannot pause an auto-rotating carousel and may be navigated somewhere they did not
   intend; carousels must support swipe gestures and show position.
-- **FR-033 (real text, not baked into images)** — same source: image-baked text is illegible at small sizes and
+- **FR-033 (real text, not baked into images)** - same source: image-baked text is illegible at small sizes and
   invisible to assistive technology.
-- **FR-034 (no banner-only destinations)** — same source: most shoppers never see every slide, so nothing may
+- **FR-034 (no banner-only destinations)** - same source: most shoppers never see every slide, so nothing may
   be reachable only from a banner. ⚠ **FR-034a narrows what this covers**: the rule is about *content* a
-  shopper could miss, and a promotion's own detail is not content anyone can miss — it restates the banner.
+  shopper could miss, and a promotion's own detail is not content anyone can miss - it restates the banner.
   Reading FR-034 as forbidding a promotion screen is what produced the defect it now corrects, where every
   banner pointed at the unfiltered store. Uber Eats and eBay both answer an offer tap with the offer's own
   terms plus a way to act on it, never with an unscoped product list.
-- **General carousel scepticism** — carousel use among top e-commerce sites has fallen from 52% to 28% as their
+- **General carousel scepticism** - carousel use among top e-commerce sites has fallen from 52% to 28% as their
   usability costs became clear, and testing consistently shows shoppers attend to category navigation and
   search rather than carousels. This is the direct justification for the priority order in this spec: search
   (P1) and sections (P2) before category shortcuts (P3), and banners last (P4).
 
-Sources: [Baymard — 42% of Mobile Homepages Risk Setting Wrong Expectations](https://baymard.com/blog/mobile-homepage-usability),
-[Baymard — 10 UX Requirements for Homepage Carousels](https://baymard.com/blog/homepage-carousel),
-[Mobbin — Uber Eats Android homepage](https://mobbin.com/explore/screens/254b23db-8d1b-4b0b-a8f5-b939953b20c9),
-[Mobbin — Home screen design patterns](https://mobbin.com/explore/mobile/screens/home),
-[DesignRush — eBay app design](https://www.designrush.com/best-designs/apps/ebay),
-[DesignRush — Uber Eats app design](https://www.designrush.com/best-designs/apps/ubereats).
+Sources: [Baymard - 42% of Mobile Homepages Risk Setting Wrong Expectations](https://baymard.com/blog/mobile-homepage-usability),
+[Baymard - 10 UX Requirements for Homepage Carousels](https://baymard.com/blog/homepage-carousel),
+[Mobbin - Uber Eats Android homepage](https://mobbin.com/explore/screens/254b23db-8d1b-4b0b-a8f5-b939953b20c9),
+[Mobbin - Home screen design patterns](https://mobbin.com/explore/mobile/screens/home),
+[DesignRush - eBay app design](https://www.designrush.com/best-designs/apps/ebay),
+[DesignRush - Uber Eats app design](https://www.designrush.com/best-designs/apps/ubereats).
 
 ## Assumptions
 
@@ -491,13 +491,13 @@ Sources: [Baymard — 42% of Mobile Homepages Risk Setting Wrong Expectations](h
   parity, and the web storefront already has a merchandised, sectioned home. This feature brings mobile toward
   web, so it **closes** a parity gap rather than opening one; any residual difference is recorded in the
   customer parity register rather than fixed here.
-- **Sections come from the store's existing merchandising groupings** — Featured, On sale, and the store's
+- **Sections come from the store's existing merchandising groupings** - Featured, On sale, and the store's
   category groupings. No new grouping concept is invented in this spec, and no new ranking is computed.
 - **This is a two-surface slice, not a mobile-only one.** The banner decision (US5) adds a small capability to
-  the back-office promotions console — marking a promotion advertisable and giving it shopper-facing wording.
+  the back-office promotions console - marking a promotion advertisable and giving it shopper-facing wording.
   That is the smallest addition that lets a banner be both changeable and true.
 - **Category icons are platform-authored artwork**, mapped to categories by their stable key, with a neutral
-  fallback glyph for any category that has no icon — so an operator creating a new category can never produce a
+  fallback glyph for any category that has no icon - so an operator creating a new category can never produce a
   blank tile.
 - **"See all" leads to the existing search/results screen with the section's scope applied**, rather than to a
   new screen type.
@@ -525,8 +525,8 @@ Sources: [Baymard — 42% of Mobile Homepages Risk Setting Wrong Expectations](h
 
 - **A sales-ranked "best sellers" section.** Deferred deliberately: the store exposes no purchase-popularity
   ranking, and a section carrying that name without that data would be a claim the store cannot back
-  (FR-038). FR-040 keeps the door open — adding it later is a new section, not a rebuild.
-- The customer web storefront — **with one unavoidable exception**. Web reads the same banner payload, which
+  (FR-038). FR-040 keeps the door open - adding it later is a new section, not a rebuild.
+- The customer web storefront - **with one unavoidable exception**. Web reads the same banner payload, which
   today always carries a placeholder and will now be **empty whenever no promotion is advertised**. Web must
   handle the empty list; nothing else about web changes, and web does not adopt the new banner fields in this
   slice. Recorded in

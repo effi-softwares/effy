@@ -12,24 +12,24 @@ constitution at `.specify/memory/constitution.md` and the active feature's artif
 The Codex Spec Kit skills are installed in `.agents/skills/`. Invoke the appropriate skill for the
 phase being performed:
 
-- `$speckit-specify` — create or update a feature specification
-- `$speckit-clarify` — resolve specification ambiguities
-- `$speckit-plan` — create the implementation plan
-- `$speckit-tasks` — generate ordered implementation tasks
-- `$speckit-analyze` — check cross-artifact consistency
-- `$speckit-implement` — implement the approved tasks
+- `$speckit-specify` - create or update a feature specification
+- `$speckit-clarify` - resolve specification ambiguities
+- `$speckit-plan` - create the implementation plan
+- `$speckit-tasks` - generate ordered implementation tasks
+- `$speckit-analyze` - check cross-artifact consistency
+- `$speckit-implement` - implement the approved tasks
 
 Do not skip phases or silently repair an upstream artifact during a later phase. If implementation
 reveals a specification or plan gap, return to the appropriate earlier artifact first.
 
 ## Where backend code goes
 
-**Every API is written in `apis/edge-api/`** — serverless TypeScript services behind two gateways (shared: customer/shop/driver/public; staff: back-office — 075),
+**Every API is written in `apis/edge-api/`** - serverless TypeScript services behind two gateways (shared: customer/shop/driver/public; staff: back-office - 075),
 one service per audience and domain. There is no other backend. Put a new endpoint in the service
 that already owns its audience and domain, or add a new `apis/edge-api/<service>/`
 (`docs/api/path-assignment.md` decides which). Logic more than one service needs lives in the
 shared library `apis/edge-api/shared`, never copied; money logic lives only in its `payments`
-module. Every client — web and mobile — calls the gateway for its audience.
+module. Every client - web and mobile - calls the gateway for its audience.
 
 Do not add a second backend runtime, a container service, a load balancer or any always-on
 compute: the constitution (Principle III) forbids it without an amendment. An earlier Go backend

@@ -27,7 +27,7 @@ const decodeEntities = (s: string) =>
     .replace(/&#x27;/g, "'")
     .replace(/&quot;/g, '"');
 
-describe("newsletter-confirmation — the confirm link", () => {
+describe("newsletter-confirmation - the confirm link", () => {
   it("validates against its declared variables", () => {
     expect(validateVars("newsletter-confirmation", vars)).toEqual([]);
   });
@@ -57,7 +57,7 @@ describe("newsletter-confirmation — the confirm link", () => {
   });
 });
 
-describe("newsletter-confirmation — no unbacked claim", () => {
+describe("newsletter-confirmation - no unbacked claim", () => {
   it("promises no discount, incentive or reward", () => {
     const m = render("newsletter-confirmation", vars, "customer", identity);
     const body = `${m.html} ${m.text} ${m.subject}`.toLowerCase();
@@ -68,7 +68,7 @@ describe("newsletter-confirmation — no unbacked claim", () => {
   });
 });
 
-describe("newsletter-confirmation — catalogue rules", () => {
+describe("newsletter-confirmation - catalogue rules", () => {
   it("throws on send failure, so the visitor can retry", () => {
     expect(CATALOG["newsletter-confirmation"].onSendFailure).toBe("throw");
   });

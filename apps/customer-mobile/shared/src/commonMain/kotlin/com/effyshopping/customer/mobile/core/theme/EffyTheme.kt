@@ -44,7 +44,7 @@ fun EffyTheme(dark: Boolean, content: @Composable () -> Unit) {
 }
 
 /**
- * The storefront roles Material 3 has no slot for — read them here, never as literals. Each follows
+ * The storefront roles Material 3 has no slot for - read them here, never as literals. Each follows
  * the appearance.
  *
  * - [brand] Effy green: the wordmark's full stop, Sale, savings, "Delivered by Effy", paid, progress.
@@ -55,7 +55,7 @@ fun EffyTheme(dark: Boolean, content: @Composable () -> Unit) {
  * - [scrim] the backdrop behind a sheet.
  * - [promoGround] / [promoBlue] the grounds of promotional panels, which carry white type: they are the
  *  light palette's green and blue in both appearances (the dark palette's are pale, for text on dark
- *  white type would not read on them). "Promo grounds — banner artwork only, white type" (Foundations).
+ *  white type would not read on them). "Promo grounds - banner artwork only, white type" (Foundations).
  */
 object EffyRoles {
     val brand: Color @Composable @ReadOnlyComposable get() = pick(EffyColor.Light.brand, EffyColor.Dark.brand)
@@ -67,7 +67,7 @@ object EffyRoles {
     val promoGround: Color get() = EffyColor.Light.brand
     val promoBlue: Color get() = EffyColor.Light.primary
 
-    /** The launch splash's ground (#09090B, packages/brand SPLASH_GROUND) and its ink — fixed. */
+    /** The launch splash's ground (#09090B, packages/brand SPLASH_GROUND) and its ink - fixed. */
     val splashGround: Color get() = EffyColor.Light.foreground
     val splashInk: Color get() = EffyColor.Light.background
 

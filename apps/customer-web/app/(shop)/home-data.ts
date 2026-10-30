@@ -26,10 +26,10 @@ async function readHome(): Promise<StorefrontHomeDTO> {
  *
  * It exists because two suspense boundaries need the same data. The promotions hero renders at the
  * top of the page in its own boundary, so it can arrive without waiting on the category read; the
- * merchandised sections render in another. React's `cache` makes the dedupe explicit — one lookup
+ * merchandised sections render in another. React's `cache` makes the dedupe explicit - one lookup
  * per render by construction, rather than by two call sites happening to match.
  */
 export const getHome = cache(async (): Promise<StorefrontHomeDTO> => {
-  await connection() // request time only — see `atRequestTime` in lib/cache-life.ts
+  await connection() // request time only - see `atRequestTime` in lib/cache-life.ts
   return readHome()
 })

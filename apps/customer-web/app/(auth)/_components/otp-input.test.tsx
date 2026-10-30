@@ -7,7 +7,7 @@ import { OTP_LENGTH, OtpInput } from "@effy/design-system/ui"
  * The shared one-time-code field, tested here (design-system has no test runner). The default variant's
  * contract is pinned as hard as the cells variant's: it is the consoles' only credential (`OtpSignInCard`).
  */
-describe("OtpInput — the default (plain) variant, which the consoles use", () => {
+describe("OtpInput - the default (plain) variant, which the consoles use", () => {
   it("⚠ keeps `maxLength` so the console tests pass UNMODIFIED", () => {
     // The plain variant keeps `maxlength="6"` (`OtpSignInCard.test.tsx`); only the cells variant drops it.
     render(<OtpInput aria-label="One-time code" defaultValue="" />)
@@ -29,7 +29,7 @@ describe("OtpInput — the default (plain) variant, which the consoles use", () 
   })
 })
 
-describe("OtpInput — the cells variant (036 FR-002, FR-004)", () => {
+describe("OtpInput - the cells variant (036 FR-002, FR-004)", () => {
   it("⚠ is still ONE input, not six boxes", () => {
     // One field: the cells are painted behind it, and `getAllByLabelText` returns exactly one node.
     render(<OtpInput aria-label="One-time code" variant="cells" defaultValue="" />)
@@ -42,7 +42,7 @@ describe("OtpInput — the cells variant (036 FR-002, FR-004)", () => {
     expect(screen.getByLabelText("One-time code")).not.toHaveAttribute("maxlength")
   })
 
-  it("⚠ pins the field to LTR — the cell geometry is direction-physical", () => {
+  it("⚠ pins the field to LTR - the cell geometry is direction-physical", () => {
     // A numeric code is LTR content regardless of the page direction.
     render(<OtpInput aria-label="One-time code" variant="cells" defaultValue="" />)
     expect(screen.getByLabelText("One-time code")).toHaveAttribute("dir", "ltr")
@@ -63,15 +63,15 @@ describe("OtpInput — the cells variant (036 FR-002, FR-004)", () => {
   })
 })
 
-describe("OtpInput — the cells variant, rebuilt (044 US1)", () => {
+describe("OtpInput - the cells variant, rebuilt (044 US1)", () => {
   it("⚠ renders each digit in its own position, in order", () => {
-    render(<OtpInput aria-label="One-time code" variant="cells" value="123" onChange={() => {}} />)
+    render(<OtpInput aria-label="One-time code" variant="cells" value="123" onChange={() => { }} />)
     const cells = [...document.querySelectorAll('[data-slot="otp-cell"]')]
     expect(cells.map((c) => c.textContent)).toEqual(["1", "2", "3", "", "", ""])
   })
 
   it("marks exactly the filled positions as filled", () => {
-    render(<OtpInput aria-label="One-time code" variant="cells" value="1234" onChange={() => {}} />)
+    render(<OtpInput aria-label="One-time code" variant="cells" value="1234" onChange={() => { }} />)
     const filled = document.querySelectorAll('[data-slot="otp-cell"][data-filled]')
     expect(filled).toHaveLength(4)
   })
@@ -79,13 +79,13 @@ describe("OtpInput — the cells variant, rebuilt (044 US1)", () => {
   it("⚠ indicates the position the next character lands in (FR-006)", () => {
     // The native caret is transparent, so something has to say where typing will go.
     const { rerender } = render(
-      <OtpInput aria-label="One-time code" variant="cells" value="" onChange={() => {}} />,
+      <OtpInput aria-label="One-time code" variant="cells" value="" onChange={() => { }} />,
     )
     expect(document.querySelector('[data-slot="otp-cell"][data-active]')).toHaveAttribute(
       "data-index",
       "0",
     )
-    rerender(<OtpInput aria-label="One-time code" variant="cells" value="12" onChange={() => {}} />)
+    rerender(<OtpInput aria-label="One-time code" variant="cells" value="12" onChange={() => { }} />)
     expect(document.querySelector('[data-slot="otp-cell"][data-active]')).toHaveAttribute(
       "data-index",
       "2",
@@ -93,7 +93,7 @@ describe("OtpInput — the cells variant, rebuilt (044 US1)", () => {
   })
 
   it("⚠ clamps the indicator to the last position on a full code, rather than losing it", () => {
-    render(<OtpInput aria-label="One-time code" variant="cells" value="123456" onChange={() => {}} />)
+    render(<OtpInput aria-label="One-time code" variant="cells" value="123456" onChange={() => { }} />)
     expect(document.querySelector('[data-slot="otp-cell"][data-active]')).toHaveAttribute(
       "data-index",
       String(OTP_LENGTH - 1),
@@ -108,7 +108,7 @@ describe("OtpInput — the cells variant, rebuilt (044 US1)", () => {
         variant="cells"
         value="123456"
         aria-invalid
-        onChange={() => {}}
+        onChange={() => { }}
       />,
     )
     const cells = [...document.querySelectorAll('[data-slot="otp-cell"]')]
@@ -118,13 +118,13 @@ describe("OtpInput — the cells variant, rebuilt (044 US1)", () => {
 
   it("⚠ does NOT paint an over-length value as six cells", () => {
     // Six cells show six characters, so an eight-digit paste rendered as cells would look valid; the shape change is the signal.
-    render(<OtpInput aria-label="One-time code" variant="cells" value="12345678" onChange={() => {}} />)
+    render(<OtpInput aria-label="One-time code" variant="cells" value="12345678" onChange={() => { }} />)
     expect(document.querySelectorAll('[data-slot="otp-cell"]')).toHaveLength(0)
     expect(screen.getByLabelText("One-time code")).toHaveValue("12345678")
   })
 
-  it("⚠ the cell layer is scenery — hidden from assistive technology and not clickable", () => {
-    render(<OtpInput aria-label="One-time code" variant="cells" value="12" onChange={() => {}} />)
+  it("⚠ the cell layer is scenery - hidden from assistive technology and not clickable", () => {
+    render(<OtpInput aria-label="One-time code" variant="cells" value="12" onChange={() => { }} />)
     const layer = document.querySelector('[data-slot="otp-cell"]')!.parentElement!
     expect(layer).toHaveAttribute("aria-hidden")
     expect(layer.className).toContain("pointer-events-none")
@@ -138,7 +138,7 @@ describe("OtpInput — the cells variant, rebuilt (044 US1)", () => {
     expect(cells.map((c) => c.textContent)).toEqual(["9", "9", "", "", "", ""])
   })
 
-  it("⚠ renders NO cell layer on the plain variant — the consoles must be untouched (SC-011)", () => {
+  it("⚠ renders NO cell layer on the plain variant - the consoles must be untouched (SC-011)", () => {
     render(<OtpInput aria-label="One-time code" defaultValue="123" />)
     expect(document.querySelectorAll('[data-slot="otp-cell"]')).toHaveLength(0)
   })

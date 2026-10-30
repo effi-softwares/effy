@@ -11,7 +11,7 @@ How to prove this feature works end-to-end. References [contracts/](./contracts/
 
 ## A. Content exists and is honest (US1 · SC-001, SC-002)
 
-1. `pnpm --filter @effy/legal-content build` then open each web route (below) — confirm **real prose**,
+1. `pnpm --filter @effy/legal-content build` then open each web route (below) - confirm **real prose**,
    a **version + effective date**, and **no "being prepared" placeholder** anywhere.
 2. Spot-check the Privacy Policy against the built system: every data type, sub-processor, and retained
    category it names traces to research R10 / `apis/edge-api/customer/src/closure/service.ts` `RETAINED`.
@@ -22,13 +22,13 @@ How to prove this feature works end-to-end. References [contracts/](./contracts/
 ## B. Web routes render and are guest-bundle-safe (US1/US3/US4)
 
 Visit and verify each renders the correct document (light appearance, sectioned typography, no cards):
-- `/legal` (index — lists all documents)
+- `/legal` (index - lists all documents)
 - `/legal/privacy-policy`, `/legal/terms-of-service`, `/legal/refunds-returns`,
   `/legal/cookies-tracking`, `/legal/acceptable-use`, `/legal/eula`, `/legal/acknowledgements`
 - `/legal/privacy-policy/versions` (history; "first version" state at v1)
 - `/about`, `/delete-account`
 
-Then: `pnpm --filter @effy/customer-web build` and run the **guest-bundle budget** — every new public
+Then: `pnpm --filter @effy/customer-web build` and run the **guest-bundle budget** - every new public
 route above MUST be listed in `scripts/bundle-budget.mjs` and within 174 KB (they ship ~0 client JS;
 the failure mode is an *unlisted* route, not size).
 
@@ -63,10 +63,10 @@ wrong-document links.
 1. Open `docs/store-submission/`: `app-privacy-mapping.md`, `data-safety-mapping.md`,
    `submission-checklist.md`, `review-notes.md` all present.
 2. Cross-check the **same data types + sub-processors** appear in the Privacy Policy, the Apple mapping
-   and the Google mapping (SC-004) — no contradiction.
+   and the Google mapping (SC-004) - no contradiction.
 3. Confirm the Google **deletion URL equals** the URL cited in the Privacy Policy (SC-008).
 4. Confirm the checklist marks the erasure-worker claim **blocked-dependency** and the identifiers
-   **operator-action** — honest, not glossed.
+   **operator-action** - honest, not glossed.
 
 ## Automated gates (CI)
 

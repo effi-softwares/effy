@@ -20,7 +20,7 @@ object AppConfig {
     /** The Stripe publishable key (`pk_…`): a name that only tokenizes cards; the secret never leaves the backend. */
     val stripePublishableKey: String get() = BuildKonfig.STRIPE_PUBLISHABLE_KEY
 
-    // Telemetry/push (optional — empty ⇒ the capability is a no-op, FR-027)
+    // Telemetry/push (optional - empty ⇒ the capability is a no-op, FR-027)
     /** PostHog project key (phc_…). Non-secret/client-embeddable. Empty ⇒ analytics off. */
     val posthogKey: String get() = BuildKonfig.POSTHOG_KEY
     /** PostHog ingest host (us|eu). */

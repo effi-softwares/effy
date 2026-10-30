@@ -21,19 +21,19 @@ but `/speckit-plan` MUST honor them (or return here if one proves impossible).
 | 3 | Single AZ | `multi_az = false`; no standby. |
 | 4 | On-demand pricing | No reserved instances / savings plans commitments. |
 | 5 | NO Database Insights / CloudWatch extras | Database Insights **standard (free) mode only**; Performance Insights OFF; Enhanced Monitoring OFF (`monitoring_interval = 0`); no CloudWatch log exports. |
-| 6 | "no expert support" | RDS **Extended Support** never billed — run a current engine version (PostgreSQL 16 per constitution) so extended support cannot trigger; disable auto minor-version surprises only if free to do so. |
+| 6 | "no expert support" | RDS **Extended Support** never billed - run a current engine version (PostgreSQL 16 per constitution) so extended support cannot trigger; disable auto minor-version surprises only if free to do so. |
 | 7 | No backup storage | `backup_retention_period = 0` (automated backups OFF). Accepted-risk statement required (see spec Edge Cases / FR-010). |
 | 8 | No snapshot exports | No snapshot export to S3 tasks; also skip final snapshot on destroy (`skip_final_snapshot = true`) consistent with disposable dev data. |
 | 9 | NO RDS Proxy | Do not create an RDS Proxy; consumers pool client-side (pgx pool). |
-| 10 | Cheap first, grow later | Every lever above must be reversible via tfvars/config — the spec's US3 runbook requirement. |
+| 10 | Cheap first, grow later | Every lever above must be reversible via tfvars/config - the spec's US3 runbook requirement. |
 
 ## Constitution/platform constraints that still apply
 
-- Engine: **PostgreSQL 16** (locked technology standard — cost work does not change engine).
+- Engine: **PostgreSQL 16** (locked technology standard - cost work does not change engine).
 - Terraform module + env-root layout, dev-only apply, operator runs every apply (001 model).
 - Credentials in **Secrets Manager**, connection config in **SSM Parameter Store**
   (ARCHITECTURE.md: parameter store is the app↔infra contract; secrets go to secrets).
 - Standard tags via provider `default_tags` (001 `_shared` module).
-- Not publicly open to the internet at large; access allowlisted (spec FR-006) — the concrete
+- Not publicly open to the internet at large; access allowlisted (spec FR-006) - the concrete
   network design (default VPC vs minimal VPC, allowlisted ingress for the operator) is decided
   in plan under the cost mandate (beware: NAT gateways / bastions cost more than this DB).

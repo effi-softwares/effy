@@ -54,7 +54,7 @@ beforeEach(() => {
   vi.mocked(cognito.lookupDriverUser).mockResolvedValue({ sub: "sub-1", enabled: true });
 });
 
-describe("createDriver — FR-014, a work email already in use is REFUSED", () => {
+describe("createDriver - FR-014, a work email already in use is REFUSED", () => {
   it("⚠ refuses, and NAMES the existing driver so the operator can choose consciously", async () => {
     vi.mocked(repo.findByWorkEmail).mockResolvedValue({
       id: "d-existing",
@@ -74,7 +74,7 @@ describe("createDriver — FR-014, a work email already in use is REFUSED", () =
     expect((err as FleetError).message).toContain("active");
   });
 
-  it("⚠ NEVER touches the existing driver — no identity call, no insert, no audit row", async () => {
+  it("⚠ NEVER touches the existing driver - no identity call, no insert, no audit row", async () => {
     // A duplicate is refused and nothing about the existing person moves.
     vi.mocked(repo.findByWorkEmail).mockResolvedValue({
       id: "d-existing",
@@ -164,7 +164,7 @@ describe("createDriver — FR-014, a work email already in use is REFUSED", () =
   });
 });
 
-describe("updateDriver — FR-010/FR-012", () => {
+describe("updateDriver - FR-010/FR-012", () => {
   it("⚠ passes a null through to the repository so a field can be CLEARED", async () => {
     // A field once set must be clearable.
     vi.mocked(repo.updateDriver).mockResolvedValue("updated");
@@ -244,7 +244,7 @@ describe("updateDriver — FR-010/FR-012", () => {
   });
 });
 
-describe("setStatus — FR-015…FR-020", () => {
+describe("setStatus - FR-015…FR-020", () => {
   /** Standing a driver down while they hold a vehicle is refused: it would vanish from every list. */
   it("⚠ REFUSES to stand down a driver holding a vehicle, and NAMES the vehicle", async () => {
     vi.mocked(holdings.heldByDriver).mockResolvedValue({

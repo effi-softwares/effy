@@ -82,7 +82,7 @@ functions:
   # Promotions, groups and skins. Read: any active staff; mutate: admin/manager. Every mutation audits.
   promotionsListV1:
     handler: src/functions/promotions-list-v1-get.handler
-    description: List promotions (paged; state, kind, trigger, group; counts per state) — 094
+    description: List promotions (paged; state, kind, trigger, group; counts per state) - 094
     events:
       - httpApi:
           method: GET
@@ -93,7 +93,7 @@ functions:
 
   promotionsCreateV1:
     handler: src/functions/promotions-create-v1-post.handler
-    description: Create a promotion (draft unless published) — 094
+    description: Create a promotion (draft unless published) - 094
     events:
       - httpApi:
           method: POST
@@ -104,7 +104,7 @@ functions:
 
   promotionsProductsV1:
     handler: src/functions/promotions-products-v1-get.handler
-    description: Products a promotion can target, by name, SKU or brand — 094
+    description: Products a promotion can target, by name, SKU or brand - 094
     events:
       - httpApi:
           method: GET
@@ -115,7 +115,7 @@ functions:
 
   promotionsDetailV1:
     handler: src/functions/promotions-detail-v1-get.handler
-    description: A promotion in full — 094
+    description: A promotion in full - 094
     events:
       - httpApi:
           method: GET
@@ -126,7 +126,7 @@ functions:
 
   promotionsUpdateV1:
     handler: src/functions/promotions-update-v1-patch.handler
-    description: Edit a promotion; what it gives and who it is for are fixed once used — 094
+    description: Edit a promotion; what it gives and who it is for are fixed once used - 094
     events:
       - httpApi:
           method: PATCH
@@ -137,7 +137,7 @@ functions:
 
   promotionsActionsV1:
     handler: src/functions/promotions-actions-v1-post.handler
-    description: Publish, pause, resume, end or archive a promotion — 094
+    description: Publish, pause, resume, end or archive a promotion - 094
     events:
       - httpApi:
           method: POST
@@ -148,7 +148,7 @@ functions:
 
   promotionsDeleteV1:
     handler: src/functions/promotions-delete-v1-delete.handler
-    description: Delete a promotion nobody has used (used ones are archived) — 094
+    description: Delete a promotion nobody has used (used ones are archived) - 094
     events:
       - httpApi:
           method: DELETE
@@ -159,7 +159,7 @@ functions:
 
   promotionsAuditV1:
     handler: src/functions/promotions-audit-v1-get.handler
-    description: A promotion's change history — 094
+    description: A promotion's change history - 094
     events:
       - httpApi:
           method: GET
@@ -170,7 +170,7 @@ functions:
 
   promotionGroupsListV1:
     handler: src/functions/promotion-groups-list-v1-get.handler
-    description: Display groups — list (094)
+    description: Display groups - list (094)
     events:
       - httpApi:
           method: GET
@@ -181,7 +181,7 @@ functions:
 
   promotionGroupsCreateV1:
     handler: src/functions/promotion-groups-create-v1-post.handler
-    description: Display groups — create (094)
+    description: Display groups - create (094)
     events:
       - httpApi:
           method: POST
@@ -192,7 +192,7 @@ functions:
 
   promotionGroupsDetailV1:
     handler: src/functions/promotion-groups-detail-v1-get.handler
-    description: Display groups — detail (094)
+    description: Display groups - detail (094)
     events:
       - httpApi:
           method: GET
@@ -203,7 +203,7 @@ functions:
 
   promotionGroupsUpdateV1:
     handler: src/functions/promotion-groups-update-v1-patch.handler
-    description: Display groups — update (094)
+    description: Display groups - update (094)
     events:
       - httpApi:
           method: PATCH
@@ -214,7 +214,7 @@ functions:
 
   promotionGroupsDeleteV1:
     handler: src/functions/promotion-groups-delete-v1-delete.handler
-    description: Display groups — delete (094)
+    description: Display groups - delete (094)
     events:
       - httpApi:
           method: DELETE
@@ -225,7 +225,7 @@ functions:
 
   promotionGroupsMembersV1:
     handler: src/functions/promotion-groups-members-v1-put.handler
-    description: Display groups — members (094)
+    description: Display groups - members (094)
     events:
       - httpApi:
           method: PUT
@@ -236,7 +236,7 @@ functions:
 
   promotionGroupsPreviewV1:
     handler: src/functions/promotion-groups-preview-v1-get.handler
-    description: Display groups — preview (094)
+    description: Display groups - preview (094)
     events:
       - httpApi:
           method: GET
@@ -247,7 +247,7 @@ functions:
 
   promotionSkinsListV1:
     handler: src/functions/promotion-skins-list-v1-get.handler
-    description: Promotion skins — list (095)
+    description: Promotion skins - list (095)
     events:
       - httpApi:
           method: GET
@@ -258,7 +258,7 @@ functions:
 
   promotionSkinsCreateV1:
     handler: src/functions/promotion-skins-create-v1-post.handler
-    description: Promotion skins — create (095)
+    description: Promotion skins - create (095)
     events:
       - httpApi:
           method: POST
@@ -269,7 +269,7 @@ functions:
 
   promotionSkinsDetailV1:
     handler: src/functions/promotion-skins-detail-v1-get.handler
-    description: Promotion skins — read (095)
+    description: Promotion skins - read (095)
     events:
       - httpApi:
           method: GET
@@ -280,7 +280,7 @@ functions:
 
   promotionSkinsUpdateV1:
     handler: src/functions/promotion-skins-update-v1-put.handler
-    description: Promotion skins — update (095)
+    description: Promotion skins - update (095)
     events:
       - httpApi:
           method: PUT
@@ -291,7 +291,7 @@ functions:
 
   promotionSkinsDuplicateV1:
     handler: src/functions/promotion-skins-duplicate-v1-post.handler
-    description: Promotion skins — duplicate (095)
+    description: Promotion skins - duplicate (095)
     events:
       - httpApi:
           method: POST
@@ -302,7 +302,7 @@ functions:
 
   promotionSkinsDeleteV1:
     handler: src/functions/promotion-skins-delete-v1-delete.handler
-    description: Promotion skins — delete (095)
+    description: Promotion skins - delete (095)
     events:
       - httpApi:
           method: DELETE
@@ -313,7 +313,7 @@ functions:
 
   promotionsImagesUploadsV1:
     handler: src/functions/promotions-images-uploads-v1-post.handler
-    description: Promotion pictures — upload address (095)
+    description: Promotion pictures - upload address (095)
     events:
       - httpApi:
           method: POST
@@ -324,7 +324,7 @@ functions:
 
   promotionsImagesCreateV1:
     handler: src/functions/promotions-images-create-v1-post.handler
-    description: Promotion pictures — record (095)
+    description: Promotion pictures - record (095)
     events:
       - httpApi:
           method: POST
@@ -335,7 +335,7 @@ functions:
 
   promotionsImagesUpdateV1:
     handler: src/functions/promotions-images-update-v1-patch.handler
-    description: Promotion pictures — update (095)
+    description: Promotion pictures - update (095)
     events:
       - httpApi:
           method: PATCH
@@ -346,7 +346,7 @@ functions:
 
   promotionsImagesDeleteV1:
     handler: src/functions/promotions-images-delete-v1-delete.handler
-    description: Promotion pictures — remove (095)
+    description: Promotion pictures - remove (095)
     events:
       - httpApi:
           method: DELETE
@@ -357,7 +357,7 @@ functions:
 
   promotionsCustomersListV1:
     handler: src/functions/promotions-customers-list-v1-get.handler
-    description: Promotions — customers-list (094)
+    description: Promotions - customers-list (094)
     events:
       - httpApi:
           method: GET
@@ -368,7 +368,7 @@ functions:
 
   promotionsCustomersAddV1:
     handler: src/functions/promotions-customers-add-v1-post.handler
-    description: Promotions — customers-add (094)
+    description: Promotions - customers-add (094)
     events:
       - httpApi:
           method: POST
@@ -379,7 +379,7 @@ functions:
 
   promotionsCustomersRemoveV1:
     handler: src/functions/promotions-customers-remove-v1-delete.handler
-    description: Promotions — customers-remove (094)
+    description: Promotions - customers-remove (094)
     events:
       - httpApi:
           method: DELETE
@@ -390,7 +390,7 @@ functions:
 
   promotionsCodesGenerateV1:
     handler: src/functions/promotions-codes-generate-v1-post.handler
-    description: Promotions — codes-generate (094)
+    description: Promotions - codes-generate (094)
     events:
       - httpApi:
           method: POST
@@ -401,7 +401,7 @@ functions:
 
   promotionsCodesListV1:
     handler: src/functions/promotions-codes-list-v1-get.handler
-    description: Promotions — codes-list (094)
+    description: Promotions - codes-list (094)
     events:
       - httpApi:
           method: GET
@@ -412,7 +412,7 @@ functions:
 
   promotionsCodesExportV1:
     handler: src/functions/promotions-codes-export-v1-get.handler
-    description: Promotions — codes-export (094)
+    description: Promotions - codes-export (094)
     events:
       - httpApi:
           method: GET
@@ -423,7 +423,7 @@ functions:
 
   promotionsPerformanceV1:
     handler: src/functions/promotions-performance-v1-get.handler
-    description: Promotions — performance (094)
+    description: Promotions - performance (094)
     events:
       - httpApi:
           method: GET

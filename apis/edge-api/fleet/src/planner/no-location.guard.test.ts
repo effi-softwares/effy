@@ -70,8 +70,8 @@ describe("no location data (SC-012)", () => {
       expect(
         hits,
         `Location data was cut from this slice deliberately (D20/D22). If distance is genuinely ` +
-          `needed, that is a spec change and a research decision to reopen — not a tie-break to add ` +
-          `quietly. Files:\n  ${hits.join("\n  ")}\n`,
+        `needed, that is a spec change and a research decision to reopen - not a tie-break to add ` +
+        `quietly. Files:\n  ${hits.join("\n  ")}\n`,
       ).toEqual([]);
     },
   );

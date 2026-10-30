@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils"
  * A page that is not there (reference: Help & info · 404).
  *
  * Never a dead end. Whoever lands here was looking for something: the page says so plainly and
- * then offers the three ways on — a search, the aisles, and what is on sale — inside the ordinary
+ * then offers the three ways on - a search, the aisles, and what is on sale - inside the ordinary
  * storefront, with the header and cart they already had.
  *
  * The search is a plain GET form, so it works before any script has loaded.

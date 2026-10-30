@@ -127,7 +127,7 @@ export async function addImage(promotionId: string, body: Record<string, unknown
     if ((e as { name?: string }).name === "NoSuchKey") throw new PromoError(422, "not_uploaded", "The picture hasn't finished uploading.", [{ field: "storageKey", message: "not uploaded" }]);
     throw e;
   }
-  if (Math.min(width, height) < 320) throw new PromoError(422, "picture_too_small", "That picture is too small — at least 320 pixels on its shorter side.", [{ field: "storageKey", message: "too small" }]);
+  if (Math.min(width, height) < 320) throw new PromoError(422, "picture_too_small", "That picture is too small - at least 320 pixels on its shorter side.", [{ field: "storageKey", message: "too small" }]);
 
   const id = await withTransaction(async (tx) => {
     await lockPromotion(tx, promotionId);

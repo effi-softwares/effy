@@ -5,7 +5,7 @@ import platform.UIKit.UIView
 /**
  * The Swift-implemented in-app payment element bridge.
  *
- * Plain callbacks, no `suspend`, and no Kotlin coroutine types in the signatures — a Swift `NSObject`
+ * Plain callbacks, no `suspend`, and no Kotlin coroutine types in the signatures - a Swift `NSObject`
  * has to be able to conform to this, exactly as [IosPaymentBridge] and `IosAuthBridge` already do. The
  * `suspend` shape is reconstructed on the Kotlin side.
  *
@@ -45,7 +45,7 @@ interface IosPaymentElementBridge {
  *
  * [heightPoints] is not cosmetic. The element's height changes as the shopper selects a method (a
  * form expands beneath the row), and a Compose interop view has a fixed measured height unless it is
- * told otherwise — so without this the list is clipped and the shopper cannot reach the fields. It
+ * told otherwise - so without this the list is clipped and the shopper cannot reach the fields. It
  * arrives again on every [BridgeElementSelection].
  */
 data class BridgeElementReady(
@@ -67,7 +67,7 @@ data class BridgeElementSelection(
  */
 data class BridgePaymentResult(val outcome: String, val message: String? = null)
 
-/** Billing details Effy supplies on the shopper's behalf — the element collects none of this. */
+/** Billing details Effy supplies on the shopper's behalf - the element collects none of this. */
 data class BridgeBillingDetails(
     val name: String?,
     val email: String?,

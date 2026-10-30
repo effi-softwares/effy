@@ -37,15 +37,18 @@ export function RefundPanel({
   orderId,
   lines,
   refundableAmount,
+  initial,
 }: {
   orderId: string
   lines: RefundableLine[]
   refundableAmount: string
+  /** Lines to start with, by id and quantity (the lines ticked on the order page). */
+  initial?: Record<string, number>
 }) {
   const issue = useIssueRefund(orderId)
 
   const [kind, setKind] = useState<"item" | "goodwill">("item")
-  const [selected, setSelected] = useState<Record<string, number>>({})
+  const [selected, setSelected] = useState<Record<string, number>>(initial ?? {})
   const [reason, setReason] = useState<RefundReason>("item_not_supplied")
   const [note, setNote] = useState("")
   const [goodwillAmount, setGoodwillAmount] = useState("")
@@ -194,14 +197,14 @@ function ItemSelection({
           />
           <Label htmlFor={`line-${l.orderItemId}`} className="flex-1">
             {l.productName}
-            {l.variantLabel ? <span className="text-muted-foreground"> — {l.variantLabel}</span> : null}
+            {l.variantLabel ? <span className="text-muted-foreground"> - {l.variantLabel}</span> : null}
             <span className="ml-2 text-muted-foreground">
               {l.unitPriceAmount} each · {l.quantity} refundable
             </span>
           </Label>
           {selected[l.orderItemId] ? (
             <Input
-              aria-label={`Quantity to refund for ${l.productName}${l.variantLabel ? ` — ${l.variantLabel}` : ""}`}
+              aria-label={`Quantity to refund for ${l.productName}${l.variantLabel ? ` - ${l.variantLabel}` : ""}`}
               inputMode="numeric"
               className="w-20"
               value={String(selected[l.orderItemId])}

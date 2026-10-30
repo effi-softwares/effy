@@ -54,7 +54,7 @@ export function MarginField({
             → customers pay <span className="font-medium text-foreground tabular-nums">{preview}</span>
           </>
         ) : (
-          " — enter a margin to see what customers will pay"
+          " - enter a margin to see what customers will pay"
         )}
       </p>
     </div>

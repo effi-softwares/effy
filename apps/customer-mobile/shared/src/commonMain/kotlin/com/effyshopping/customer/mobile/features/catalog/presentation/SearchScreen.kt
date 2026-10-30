@@ -138,13 +138,13 @@ fun SearchScreen(
      *
      * Passed by the caller, never assumed. Always focusing would throw the keyboard over the
      * results every time a shopper returned to the Search tab from the bottom bar to *read* them.
-     * Focus is requested by whoever meant it — Home's search entry.
+     * Focus is requested by whoever meant it - Home's search entry.
      */
     autoFocus: Boolean = false,
     /**
      * An entry refinement, applied once on arrival.
      *
-     * Set when the shopper arrives from Home's "see all" or a category shortcut — they already know
+     * Set when the shopper arrives from Home's "see all" or a category shortcut - they already know
      * what they want, so the screen opens already showing it.
      */
     entryCategoryKey: String? = null,
@@ -166,14 +166,14 @@ fun SearchScreen(
     val vm = viewModel { SearchViewModel(container.searchProducts, container.getFacets) }
     val state by vm.state.collectAsState()
     // 033 FR-007/FR-020: One membership read for the whole grid, and one mirror every tile's heart
-    // reads — never a boolean per tile, and never a request per product.
+    // reads - never a boolean per tile, and never a request per product.
     val savedTiles = rememberSavedTiles(container, onRequireSignIn)
     val gridState = rememberLazyGridState()
     val focusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
 
     // The field's text belongs to the ViewModel; its caret and selection belong here. Selection is
-    // genuine UI state — it has no meaning to the search — so hoisting it into the ViewModel would
+    // genuine UI state - it has no meaning to the search - so hoisting it into the ViewModel would
     // put a presentation concern in the domain-facing layer for nothing.
     var field by remember { mutableStateOf(TextFieldValue(state.query, TextRange(state.query.length))) }
     // The advanced filter bottom sheet.
@@ -192,7 +192,7 @@ fun SearchScreen(
     //
     // `applySaleOnly`, never `toggleSale`. Its own doc comment spells out why: the caller here is
     // entry navigation, not a tap. Toggling would clear the filter whenever the shopper arrived at a
-    // screen that already had it on — the classic bug where a link means the opposite of itself on
+    // screen that already had it on - the classic bug where a link means the opposite of itself on
     // second use.
     //
     // Keyed on the refinements so it applies on arrival and never fights the shopper afterwards: if
@@ -228,11 +228,11 @@ fun SearchScreen(
     }
 
     // 087 (Search board): the Search tab with nothing typed and nothing applied is a start page
-    // recent searches and the aisles — not an empty results screen.
+    // recent searches and the aisles - not an empty results screen.
     val browsing = entryCategoryKey == null && !entrySaleOnly && state.query.isBlank() &&
         state.activeFilterCount == 0 && state.items.isEmpty()
     // Filters the shopper applied, as removable pills (Results board). The aisle itself is not one
-    // the title and the sub-aisle chips already say it — unless it was chosen in the filter sheet.
+    // the title and the sub-aisle chips already say it - unless it was chosen in the filter sheet.
     val pills = appliedFilterPills(state, aisleScoped = entryCategoryKey != null)
     val saleCount by produceState<Int?>(null, browsing) {
         if (browsing) value = runCatching { container.searchProducts(query = "", saleOnly = true).total }.getOrNull()
@@ -252,7 +252,7 @@ fun SearchScreen(
                     },
                     placeholder = if (entryCategoryKey != null || entrySaleOnly) "Search in $title" else "Search groceries and essentials…",
                     // The keyboard's action key gets out of the way so the results show. A
-                    // blank query keeps focus — the search has already run reactively.
+                    // blank query keeps focus - the search has already run reactively.
                     onSearch = {
                         if (field.text.isNotBlank()) {
                             record(field.text)
@@ -263,7 +263,7 @@ fun SearchScreen(
                 )
             },
         )
-        // Without this a refusal — the guest cap most of all — is silent.
+        // Without this a refusal - the guest cap most of all - is silent.
         SavedTileMessages(savedTiles)
 
         if (!browsing) {
@@ -296,7 +296,7 @@ fun SearchScreen(
                     )
                 }
                 item(key = "sort") {
-                    // The ordering the server applied — the requested one could misdescribe the list.
+                    // The ordering the server applied - the requested one could misdescribe the list.
                     ToolbarChip(
                         "Sort: ${state.sort.label}",
                         trailing = Res.drawable.lucide_chevron_down,
@@ -328,7 +328,7 @@ fun SearchScreen(
                 )
             }
 
-            // The count, and "Clear all" once something is applied — one slim line, not a 48dp row.
+            // The count, and "Clear all" once something is applied - one slim line, not a 48dp row.
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = EffySpacing.lg).heightIn(min = 32.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -379,7 +379,7 @@ fun SearchScreen(
                 EffyEmptyState(
                     title = if (state.query.isBlank()) "Nothing here yet" else "No results for “${state.query}”",
                     body = if (pills.isNotEmpty()) {
-                        "Your filters may be too narrow — try removing one."
+                        "Your filters may be too narrow - try removing one."
                     } else {
                         "Try a different search, or browse the store by aisle."
                     },
@@ -405,8 +405,8 @@ fun SearchScreen(
                         modifier = Modifier.fillMaxHeight(),
                         fillHeight = true,
                         // Save from the tile, without opening the product first. Unlike
-                        // web — which omits the control on `/search` alone, and only because the route
-                        // had 0.1 KB of a 174 KB budget left — mobile carries it on every tile
+                        // web - which omits the control on `/search` alone, and only because the route
+                        // had 0.1 KB of a 174 KB budget left - mobile carries it on every tile
                         // surface. There is no bundle to spend here, and this one screen IS search,
                         // browse, category and "see all", so omitting it would take the control off
                         // four surfaces at once.
@@ -415,7 +415,7 @@ fun SearchScreen(
                         onCartQuantityChange = { tileCart.change(product, it) },
                     )
                 }
-                // 087 (Results board) — "Loading more…" while the next page loads (there was nothing).
+                // 087 (Results board) - "Loading more…" while the next page loads (there was nothing).
                 if (state.loading && state.items.isNotEmpty()) {
                     item(key = "more", span = { GridItemSpan(maxLineSpan) }) {
                         Row(
@@ -456,7 +456,7 @@ fun SearchScreen(
 
 /**
  * The Search tab's start page (Search board): recent searches (newest first, "Clear" removes them all),
- * then "Browse the aisles" — an "On sale" row in Effy green and the top-level aisles as two-up tiles
+ * then "Browse the aisles" - an "On sale" row in Effy green and the top-level aisles as two-up tiles
  * with their product counts.
  */
 @Composable
@@ -561,7 +561,7 @@ private data class SubAisleTab(val key: String, val label: String, val count: In
 
 /**
  * Sub-aisles as scrolling tabs: the label, its count in grey, and a 2dp underline under the
- * chosen one, on a hairline. Tabs, not chips — this row says where you are; the chips below refine.
+ * chosen one, on a hairline. Tabs, not chips - this row says where you are; the chips below refine.
  */
 @Composable
 private fun SubAisleTabs(tabs: List<SubAisleTab>, selectedKey: String?, onSelect: (String) -> Unit) {
@@ -695,7 +695,7 @@ private fun appliedFilterPills(state: SearchUiState, aisleScoped: Boolean): List
     }
 }
 
-/** "Sort by" (087 — every choice is a bottom sheet; no drop-down menus). */
+/** "Sort by" (087 - every choice is a bottom sheet; no drop-down menus). */
 @Composable
 private fun SortSheet(
     current: ProductSortOption,
@@ -713,7 +713,7 @@ private fun SortSheet(
     }
 }
 
-/** A content-shaped first-load placeholder — the grid that is coming, not a bare spinner. */
+/** A content-shaped first-load placeholder - the grid that is coming, not a bare spinner. */
 @Composable
 private fun SearchSkeleton() {
     LazyVerticalGrid(

@@ -16,7 +16,7 @@ interface AnalyticsDriver {
     /** Convenience for the most common event. */
     fun screen(name: String) = capture(AnalyticsEvent.ScreenViewed(name))
 
-    /** Associate subsequent events with the authenticated subject. `sub` only — never PII. */
+    /** Associate subsequent events with the authenticated subject. `sub` only - never PII. */
     fun identify(sub: String)
 
     /** Clear identity on sign-out (no cross-account bleed). */

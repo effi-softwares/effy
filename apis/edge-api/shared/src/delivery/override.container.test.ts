@@ -120,7 +120,7 @@ const toCourier = (order: string, compensation: Parameters<typeof moveToCourier>
     expectedUpdatedAt: at, expectedAmountCents, now: NOW,
   }));
 
-d("081 — moving an order between Effy and courier delivery", () => {
+d("081 - moving an order between Effy and courier delivery", () => {
   beforeAll(async () => {
     container = await new PostgreSqlContainer("postgres:16-alpine").start();
     pool = new Pool({ connectionString: container.getConnectionUri(), max: 8 });
@@ -160,7 +160,7 @@ d("081 — moving an order between Effy and courier delivery", () => {
     await container?.stop();
   });
 
-  it("P2/P10 — to courier, via the hub, with points for the difference: one step, every part", async () => {
+  it("P2/P10 - to courier, via the hub, with points for the difference: one step, every part", async () => {
     const o = await effyOrder({ deliveryRound: "planned" });
     const preview = await previewMove(pool, o.order, "courier", NOW);
     expect(preview).toMatchObject({
@@ -204,7 +204,7 @@ d("081 — moving an order between Effy and courier delivery", () => {
     expect((await one<{ g: string }>(`SELECT grand_total_amount::text AS g FROM public."order" WHERE id = $1`, [o.order])).g).toBe("49.00");
   });
 
-  it("P2 — pickup from the supplier: collection work is withdrawn too; once a parcel has left, it goes via the hub", async () => {
+  it("P2 - pickup from the supplier: collection work is withdrawn too; once a parcel has left, it goes via the hub", async () => {
     await pool.query(`UPDATE public.delivery_settings SET courier_collection_default = 'supplier' WHERE id = 1`);
     try {
       const o = await effyOrder();
@@ -227,7 +227,7 @@ d("081 — moving an order between Effy and courier delivery", () => {
     }
   });
 
-  it("P3 — a failure at the last step leaves NOTHING changed: no points, the window kept, the drivers' work kept", async () => {
+  it("P3 - a failure at the last step leaves NOTHING changed: no points, the window kept, the drivers' work kept", async () => {
     const o = await effyOrder({ deliveryRound: "planned" });
     await pool.query(`
       CREATE FUNCTION pg_temp_fail_override() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'injected'; END $$;
@@ -244,7 +244,7 @@ d("081 — moving an order between Effy and courier delivery", () => {
     expect(Number((await one<{ n: string }>(`SELECT count(*) AS n FROM public.notification_request WHERE recipient_sub = $1`, [`ov-${n}`])).n)).toBe(0);
   });
 
-  it("P4 — free delivery as points, free delivery to the card, the difference to the card, or nothing with a note", async () => {
+  it("P4 - free delivery as points, free delivery to the card, the difference to the card, or nothing with a note", async () => {
     const a = await effyOrder();
     await toCourier(a.order, "free_delivery_points", 900, await updatedAt(a.order));
     expect((await one<{ p: number }>(`SELECT points AS p FROM public.points_entry WHERE customer_id = $1`, [a.customerId])).p).toBe(900);
@@ -269,7 +269,7 @@ d("081 — moving an order between Effy and courier delivery", () => {
     expect(await refusal(toCourier(f.order, "none", 0, await updatedAt(f.order)))).toMatch(/delivery_override_none_note_ck/);
   });
 
-  it("P5 — a dearer courier: the difference is zero, nothing is given or taken, and Effy bears it", async () => {
+  it("P5 - a dearer courier: the difference is zero, nothing is given or taken, and Effy bears it", async () => {
     await pool.query(`UPDATE public.delivery_fee_plan SET base_amount = 14.00 WHERE kind = 'courier'`);
     try {
       const o = await effyOrder();
@@ -285,7 +285,7 @@ d("081 — moving an order between Effy and courier delivery", () => {
     }
   });
 
-  it("P6 — refused while out for delivery, after a handover or a delivery, before payment, without a type, without a courier", async () => {
+  it("P6 - refused while out for delivery, after a handover or a delivery, before payment, without a type, without a courier", async () => {
     const out = await effyOrder({ deliveryRound: "in_progress" });
     expect((await previewMove(pool, out.order, "courier", NOW)).refusal?.code).toBe("out_for_delivery");
     expect(await refusal(toCourier(out.order, "points_difference", 250, await updatedAt(out.order)))).toBe("out_for_delivery");
@@ -311,7 +311,7 @@ d("081 — moving an order between Effy and courier delivery", () => {
     }
   });
 
-  it("P7 — a stale amount or a stale order is refused; a second confirmation gives nothing twice", async () => {
+  it("P7 - a stale amount or a stale order is refused; a second confirmation gives nothing twice", async () => {
     const o = await effyOrder();
     const at = await updatedAt(o.order);
     const stale = await refusal(toCourier(o.order, "points_difference", 300, at));
@@ -324,7 +324,7 @@ d("081 — moving an order between Effy and courier delivery", () => {
     expect(await deliveryMovesFor(pool, o.order)).toHaveLength(1);
   });
 
-  it("P9 — back to Effy: an open window is taken, a booking cancelled, no money moves, compensation already given stays", async () => {
+  it("P9 - back to Effy: an open window is taken, a booking cancelled, no money moves, compensation already given stays", async () => {
     const o = await effyOrder();
     await toCourier(o.order, "points_difference", 250, await updatedAt(o.order));
     // A courier booking made for one parcel, not yet handed over.
@@ -353,7 +353,7 @@ d("081 — moving an order between Effy and courier delivery", () => {
     expect(moves.map((m) => [m.to, m.compensation, m.amount])).toEqual([["courier", "points_difference", "2.50"], ["effy", "none", "0.00"]]);
   });
 
-  it("P9 — back to Effy is refused for a full window, an address Effy does not reach, or a parcel with the courier", async () => {
+  it("P9 - back to Effy is refused for a full window, an address Effy does not reach, or a parcel with the courier", async () => {
     const full = await effyOrder();
     await toCourier(full.order, "none", 0, await updatedAt(full.order), "test");
     const other = await effyOrder();
@@ -379,7 +379,7 @@ d("081 — moving an order between Effy and courier delivery", () => {
     expect((await previewMove(pool, handed.order, "effy", NOW)).refusal?.code).toBe("handed_over");
   });
 
-  it("085 — staff re-time an Effy order: a day with no time, then a time; who delivers and the money do not change", async () => {
+  it("085 - staff re-time an Effy order: a day with no time, then a time; who delivers and the money do not change", async () => {
     const o = await effyOrder();
     const at = (await previewMove(pool, o.order, "courier", NOW)).updatedAt;
     const day = await tx((c) => changeEffyWindow(c, {
@@ -405,7 +405,7 @@ d("081 — moving an order between Effy and courier delivery", () => {
     expect(await deliveryMovesFor(pool, o.order)).toEqual([]);
   });
 
-  it("097 — where the postcode does not offer delivery today, staff can neither list nor choose today; later days still work", async () => {
+  it("097 - where the postcode does not offer delivery today, staff can neither list nor choose today; later days still work", async () => {
     // A collection run that makes today's 4–6 pm window, so today is genuinely on offer.
     const run = (await one<{ id: string }>(
       `INSERT INTO public.delivery_collection_run (run_time, label, status, updated_by) VALUES ('11:00', 'Late morning', 'active', 'test') RETURNING id::text AS id`,
@@ -446,7 +446,7 @@ d("081 — moving an order between Effy and courier delivery", () => {
     }
   });
 
-  it("085 — re-timing is refused out for delivery, for a courier order, and on a stale order", async () => {
+  it("085 - re-timing is refused out for delivery, for a courier order, and on a stale order", async () => {
     const out = await effyOrder({ deliveryRound: "in_progress" });
     expect(await refusal(tx((c) => changeEffyWindow(c, {
       orderId: out.order, actorSub: STAFF, reason: "x", window: { slotId: anyTimeSlot, date: TOMORROW }, expectedUpdatedAt: new Date().toISOString(), now: NOW,
@@ -466,7 +466,7 @@ d("081 — moving an order between Effy and courier delivery", () => {
   });
 
   /** A parcel still in the van after a failed drop must be returned before staff act. */
-  it("088 — refused while a failed parcel is still with the driver; after the return, re-timing releases it", async () => {
+  it("088 - refused while a failed parcel is still with the driver; after the return, re-timing releases it", async () => {
     const o = await effyOrder({ deliveryRound: "in_progress" });
     const drop = (await one<{ id: string; round_id: string }>(
       `UPDATE public.round_stop SET status = 'skipped' WHERE order_id = $1 AND kind = 'customer_drop' RETURNING id::text AS id, round_id::text AS round_id`,

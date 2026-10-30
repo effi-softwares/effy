@@ -12,7 +12,7 @@ function pdfText(pdf: Uint8Array): string {
   const buf = Buffer.from(pdf);
   const out: string[] = [buf.toString("latin1")];
   let at = 0;
-  for (;;) {
+  for (; ;) {
     const start = buf.indexOf("stream", at, "latin1");
     if (start < 0) break;
     const body = start + (buf[start + 6] === 0x0d ? 8 : 7);
@@ -44,7 +44,7 @@ async function product(shopId: string, name: string) {
 SELECT id FROM p`, [shopId, name])).id;
 }
 
-d("096 US7 — the delivery note", () => {
+d("096 US7 - the delivery note", () => {
   beforeAll(async () => {
     container = await new PostgreSqlContainer("postgres:16-alpine").start();
     pool = new Pool({ connectionString: container.getConnectionUri() });
@@ -117,7 +117,7 @@ d("096 US7 — the delivery note", () => {
   it("a product name the PDF fonts cannot draw does not lose the document", async () => {
     const pdf = await renderDeliveryNotePdf({
       orderNumber: "EFY-DN0002", placedAt: new Date().toISOString(), deliveredAt: new Date().toISOString(), contact: "hello@effyshopping.com",
-      lines: Array.from({ length: 80 }, (_, i) => ({ name: `🍎 Apples “Pink Lady” ${i} — 1 kg bag with a rather long name that wraps onto a second line`, ordered: 2, supplied: i % 3 === 0 ? 1 : 2, status: (i % 3 === 0 ? "part" : "supplied") as "part" | "supplied" })),
+      lines: Array.from({ length: 80 }, (_, i) => ({ name: `🍎 Apples “Pink Lady” ${i} - 1 kg bag with a rather long name that wraps onto a second line`, ordered: 2, supplied: i % 3 === 0 ? 1 : 2, status: (i % 3 === 0 ? "part" : "supplied") as "part" | "supplied" })),
     });
     expect(Buffer.from(pdf.slice(0, 5)).toString()).toBe("%PDF-");
     expect(Buffer.from(pdf).toString("latin1").match(/\/Type \/Page\b/g)!.length).toBeGreaterThan(1);

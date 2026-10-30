@@ -38,7 +38,7 @@ kotlin {
     }
 
     sourceSets {
-        // 013 D15/D16 — the generated, committed, drift-guarded contract + theme live in the shared
+        // 013 D15/D16 - the generated, committed, drift-guarded contract + theme live in the shared
         // packages (single source of truth: Ts / CSS). Include them as extra source roots rather than
         // copying, so there is exactly one copy and `contract:check` / `tokens:check` guard it.
         // Block form: inside `commonMain { }` the receiver is the KotlinSourceSet, so `kotlin.srcDir`
@@ -72,7 +72,7 @@ kotlin {
             // The in-app payment element. Compose-scoped, so it lives here beside the payment screen: a
             // platform-only SDK in the Android half of the shared module, like Amplify and Firebase.
             implementation(libs.stripe.android)
-            // CIO engine — Coil's image loader only (not the data client). Avoids the platform-okhttp
+            // CIO engine - Coil's image loader only (not the data client). Avoids the platform-okhttp
             // "Unbalanced enter/exit" crash when Coil cancels an image job on LazyGrid scroll reuse.
             implementation(libs.ktor.client.cio)
             // Amplify android (Kotlin/JVM) + the Kotlin coroutines facade. iOS uses Amplify swift.
@@ -80,7 +80,7 @@ kotlin {
             implementation(libs.amplify.core.kotlin)
             // Firebase (FCM + Crashlytics) + PostHog: the Android `actual`s for CrashReporter /
             // AnalyticsDriver / PushTokenProvider. iOS keeps the NoOp defaults until its Swift bridges
-            // land (Firebase has no Kotlin/Native support — same split as Amplify).
+            // land (Firebase has no Kotlin/Native support - same split as Amplify).
             implementation(project.dependencies.platform(libs.firebase.bom))
             implementation(libs.firebase.messaging)
             implementation(libs.firebase.crashlytics)

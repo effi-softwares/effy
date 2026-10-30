@@ -12,7 +12,7 @@ delivery run until the van is loaded; no loading while collected parcels are sti
 the driver did not see is never marked collected; the collecting driver is preferred for delivering what
 they collected; missing packages at loading and check-in are declared, never assumed; dispatch sees where
 every run is and is told when a step is overdue; a pre-trip vehicle check. The driver app is still in
-development — no compatibility with installed builds is required." Research:
+development - no compatibility with installed builds is required." Research:
 [research-07-driver-task-sequencing.md](../../docs/research/logistics/research-07-driver-task-sequencing.md).
 
 ## Background
@@ -98,7 +98,7 @@ is written.
 
 Work keeps arriving during the day, and a package can be added to a shop stop while the driver is at the
 counter. When the driver collects the packages they were shown, any package they were not shown stays
-waiting at that stop. The stop stays open, and the driver is told "1 more package was added — collect it
+waiting at that stop. The stop stays open, and the driver is told "1 more package was added - collect it
 before you leave". They collect it there, or declare it not available.
 
 **Why this priority**: Without this a package can be recorded as in the van while it is still on the
@@ -125,7 +125,7 @@ have a vehicle that can carry them, and can finish before the window ends. Their
 trip: collect, hub, load, deliver, return. They don't hand their parcels over and leave while another
 driver is sent to deliver them.
 
-The preference is explained in words, like every assignment ("Collected it — continuing to delivery").
+The preference is explained in words, like every assignment ("Collected it - continuing to delivery").
 It never overrides keeping an order's packages together. If one driver is already delivering to that
 address, the order's other packages go to them. Where neither rule applies, the driver with the fewest
 packages today is chosen, as now. As soon as the check-in is done, the driver's app shows the next step of
@@ -141,7 +141,7 @@ collected them.
 **Acceptance Scenarios**:
 
 1. **Given** driver A checks in parcels for a window today and can take them, **When** delivery work for
-   that window is next planned, **Then** those parcels go to A, with the reason "collected it —
+   that window is next planned, **Then** those parcels go to A, with the reason "collected it -
    continuing to delivery".
 2. **Given** driver A is not cleared for one of the addresses, or their vehicle cannot carry a chilled
    parcel, **When** it is planned, **Then** that parcel goes to another driver by the usual rules, with
@@ -186,7 +186,7 @@ nothing else on the run is affected.
    package is off the run and held, dispatch sees it with the reason, and the rest of the run goes out.
 2. **Given** every package of a drop declared, **When** loading finishes, **Then** that drop is not on
    the run.
-3. **Given** a dispatcher views a held package, **When** they choose "Found — plan again", **Then** it
+3. **Given** a dispatcher views a held package, **When** they choose "Found - plan again", **Then** it
    is planned for a later run. **When** they choose "Lost", **Then** it is recorded as lost and leaves
    planning for good.
 4. **Given** a check-in with one collected package not in the van, **When** the driver declares it
@@ -335,7 +335,7 @@ sees the check, and after a dispatcher clears it the driver receives work.
 - **FR-019**: Hub check-in MUST account for every collected package: scanned, confirmed by hand, or
   declared missing. A package declared missing MUST be held out of delivery planning.
 - **FR-020**: Every held package MUST appear to dispatch with its reason, the driver, the run and when.
-  The actions are "Found — plan again" (returns it to planning) and "Lost" (records it and removes it
+  The actions are "Found - plan again" (returns it to planning) and "Lost" (records it and removes it
   from planning for good).
 - **FR-021**: The fallbacks "Mark all loaded" and "Check in without scanning" MUST list every package
   not yet scanned, and MUST ask the driver to confirm each one as present or missing.

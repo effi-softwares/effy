@@ -47,7 +47,7 @@ export async function DeliveryBar() {
       <Dot muted={address.coverage === "none"} />
       <span className="truncate">
         Delivering to <b className="font-semibold">{place}</b>
-        {who && <span className="max-md:hidden"> — {who}</span>}
+        {who && <span className="max-md:hidden"> - {who}</span>}
       </span>
       <span className="underline max-md:hidden">Change</span>
     </Link>
@@ -63,7 +63,7 @@ function GuestDeliveryBar() {
   )
 }
 
-/** The bar before the customer's address is known — and what a failed read falls back to. */
+/** The bar before the customer's address is known - and what a failed read falls back to. */
 export function DeliveryBarFallback() {
   return (
     <span className="flex min-w-0 items-center gap-2">

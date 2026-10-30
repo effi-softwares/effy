@@ -51,7 +51,7 @@ let driverId: string;
 let dropId: string;
 let sfId: string;
 
-d("064 — delivery exceptions", () => {
+d("064 - delivery exceptions", () => {
   beforeAll(async () => {
     container = await new PostgreSqlContainer("postgres:16-alpine").start();
     pool = new Pool({ connectionString: container.getConnectionUri() });
@@ -138,14 +138,14 @@ d("064 — delivery exceptions", () => {
     expect(e.resolvedAt).toBeNull();
   });
 
-  describe("⚠ FR-020 — where the package is", () => {
-    it("reports `with_driver` while the parcel is still in the van (⚠ 088 — this said at_hub)", async () => {
+  describe("⚠ FR-020 - where the package is", () => {
+    it("reports `with_driver` while the parcel is still in the van (⚠ 088 - this said at_hub)", async () => {
       await addFailure();
       const { exceptions } = await listExceptions();
       expect(exceptions[0]!.packageLocation).toBe("with_driver");
     });
 
-    it("088 — reports `at_hub`, with when, once the parcel is returned", async () => {
+    it("088 - reports `at_hub`, with when, once the parcel is returned", async () => {
       await addFailure();
       const roundId = (await pool.query(`SELECT round_id FROM public.round_stop WHERE id = $1`, [dropId])).rows[0].round_id;
       const c = await pool.connect();
@@ -173,7 +173,7 @@ d("064 — delivery exceptions", () => {
     });
   });
 
-  describe("⚠ FR-022 — resolving", () => {
+  describe("⚠ FR-022 - resolving", () => {
     it("takes the exception off the open list but keeps the record", async () => {
       const id = (await addFailure()).rows[0]!.id;
       await resolveException(id, "staff-sub-1", null);

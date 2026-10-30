@@ -19,8 +19,8 @@ Two findings sent a change back to [spec.md](spec.md):
 **Decision**: keep `public.customer_saved_item` exactly as it is and give it a new meaning it
 already fits: **one row per saved product**. Add two tables beside it:
 
-- `public.customer_list` — one row per list, including one default list per customer.
-- `public.customer_list_entry` — one row per (list, product).
+- `public.customer_list` - one row per list, including one default list per customer.
+- `public.customer_list_entry` - one row per (list, product).
 
 **Rationale**: the spec's "Saved product" entity is, column for column, today's
 `customer_saved_item`: one row per (customer, product), carrying the remembered price and the time
@@ -28,9 +28,9 @@ of first save. Keeping it gives three requirements for free:
 
 | Requirement | Why it holds without new code |
 |---|---|
-| FR-021 / SC-005 — hearts cost no more, whatever the number of lists | `membershipSQL` is unchanged. It reads one table by primary key and never touches a list. |
-| FR-031 — one remembered price per product, from the first save | It is the existing `saved_price_amount`, written once by the existing insert. |
-| FR-033 — the limit counts distinct products | `countSavedSQL` is unchanged. |
+| FR-021 / SC-005 - hearts cost no more, whatever the number of lists | `membershipSQL` is unchanged. It reads one table by primary key and never touches a list. |
+| FR-031 - one remembered price per product, from the first save | It is the existing `saved_price_amount`, written once by the existing insert. |
+| FR-033 - the limit counts distinct products | `countSavedSQL` is unchanged. |
 
 The invariant is **a saved-product row exists if and only if the product is in at least one
 list**. Half of it is the database's: a composite foreign key from the entry to
@@ -85,7 +85,7 @@ has no name to collide with.
 | Reserved "Saved" | Go, one constant |
 
 **Rationale**: uniqueness has exactly one mechanism. A service-side "does this name exist" check
-followed by an insert admits a race (two devices, same name, same moment — a spec edge case), and
+followed by an insert admits a race (two devices, same name, same moment - a spec edge case), and
 a Go case-fold that disagrees with Postgres `lower()` would produce a name the service accepts and
 the index refuses. So the service does not check; it inserts and maps the unique violation
 (`23505` on the named constraint) to `name_taken`.
@@ -267,7 +267,7 @@ property that is a bare `string` or is called name/label/title/text/length (prov
 
 **Changed while building**: the heart's own saves are not counted by `saved_list_entry_added`
 (there is no `heart` source). Emitting it would have put the telemetry module on the heart's guest
-path for an event FR-039 does not ask for — a heart save is always to "Saved".
+path for an event FR-039 does not ask for - a heart save is always to "Saved".
 
 Names never appear in a path or query string (lists are addressed by id), nor in the page title of
 `/saved/[listId]`, and core-api's request log does not record bodies (066 R7 checked this). A sweep

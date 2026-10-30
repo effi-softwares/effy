@@ -22,7 +22,7 @@ function wrap(children: ReactNode) {
   return render(<QueryClientProvider client={qc}>{children}</QueryClientProvider>)
 }
 
-describe("StateActions — the header's lifecycle control", () => {
+describe("StateActions - the header's lifecycle control", () => {
   beforeEach(() => {
     transitionFulfillment.mockReset()
     transitionFulfillment.mockResolvedValue({ id: "f1", orderNumber: "EFY-10023", status: "picking", items: [] })
@@ -40,7 +40,7 @@ describe("StateActions — the header's lifecycle control", () => {
     expect(transitionFulfillment).toHaveBeenCalledWith("f1", { to: "ready_for_pickup" })
   })
 
-  // `from` is state the operator acted on — it must never reach the wire.
+  // `from` is state the operator acted on - it must never reach the wire.
   it("sends only the transition, never the source state", async () => {
     wrap(<StateActions detail={target("picking")} />)
     await userEvent.click(screen.getByRole("button", { name: /mark ready for pickup/i }))
@@ -80,7 +80,7 @@ describe("CantSupplyDialog (055 US6, 057 A3)", () => {
   })
 
   it("names the consequence before it acts", () => {
-    wrap(<CantSupplyDialog targets={[target("picking")]} open onOpenChange={() => {}} />)
+    wrap(<CantSupplyDialog targets={[target("picking")]} open onOpenChange={() => { }} />)
     expect(screen.getByText(/effy refunds the customer/i)).toBeInTheDocument()
     expect(screen.getByText(/can't be undone/i)).toBeInTheDocument()
     expect(transitionFulfillment).not.toHaveBeenCalled()
@@ -104,9 +104,9 @@ describe("CantSupplyDialog (055 US6, 057 A3)", () => {
     await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false))
   })
 
-  // A reason is required, here and in the database — "Other" asks for the words.
+  // A reason is required, here and in the database - "Other" asks for the words.
   it("cannot be declared as Other without saying what happened", async () => {
-    wrap(<CantSupplyDialog targets={[target("picking")]} open onOpenChange={() => {}} />)
+    wrap(<CantSupplyDialog targets={[target("picking")]} open onOpenChange={() => { }} />)
     await userEvent.click(
       within(screen.getByRole("radiogroup", { name: /why can't you supply/i })).getByRole("radio", {
         name: /something else/i,
@@ -131,7 +131,7 @@ describe("CantSupplyDialog (055 US6, 057 A3)", () => {
           { id: "c", orderNumber: "EFY-C", status: "collected" },
         ]}
         open
-        onOpenChange={() => {}}
+        onOpenChange={() => { }}
       />,
     )
     expect(screen.getByText("EFY-A")).toBeInTheDocument()

@@ -75,7 +75,7 @@ export function VehicleStatusControl({ vehicle }: { vehicle: VehicleDetail }) {
           <div className="space-y-4">
             {target === "retired" && vehicle.currentHolderDriverId ? (
               <p className="text-sm font-medium">
-                {vehicle.registrationPlate} is still out with {vehicle.currentHolderName}. Record its return first —
+                {vehicle.registrationPlate} is still out with {vehicle.currentHolderName}. Record its return first -
                 retiring it now would leave the fleet unable to say who has it.
               </p>
             ) : null}

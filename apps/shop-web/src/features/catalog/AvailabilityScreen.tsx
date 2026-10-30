@@ -56,7 +56,7 @@ const columns: EffyColumnDef<ShopAvailabilityRowDTO>[] = [
     cell: ({ row }) => (
       <span className="flex flex-col items-start gap-1 whitespace-normal">
         <StockWord row={row.original} />
-        {row.original.lastOnSale ? <span className="text-xs text-muted-foreground">Last size on sale — make the product unavailable instead</span> : null}
+        {row.original.lastOnSale ? <span className="text-xs text-muted-foreground">Last size on sale - make the product unavailable instead</span> : null}
       </span>
     ),
     meta: { label: "Status", phone: "badge" },
@@ -64,7 +64,7 @@ const columns: EffyColumnDef<ShopAvailabilityRowDTO>[] = [
   {
     id: "code",
     header: "Your code",
-    cell: ({ row }) => <span className="font-mono text-muted-foreground">{row.original.sku ?? "—"}</span>,
+    cell: ({ row }) => <span className="font-mono text-muted-foreground">{row.original.sku ?? "-"}</span>,
     meta: { label: "Your code", priority: 2 },
   },
   { id: "sale", header: "On sale", cell: ({ row }) => <SaleSwitch row={row.original} />, meta: { label: "On sale", phone: "trail" } },
@@ -155,26 +155,26 @@ function SaleSwitch({ row }: { row: ShopAvailabilityRowDTO }) {
   const toggle = useToggleSale()
   const name = row.label ? `${row.productName} · ${row.label}` : row.productName
   return (
-      // The switch is not the row: toggling it never opens the product.
-      <Label className="gap-3 font-normal" onClick={(e) => e.stopPropagation()}>
-        <span className="text-muted-foreground">{row.onSale ? "On sale" : "Off sale"}</span>
-        <Switch
-          checked={row.onSale}
-          aria-label={`${name} on sale`}
-          disabled={toggle.isPending || row.lastOnSale}
-          onCheckedChange={(on) =>
-            toggle.mutate(
-              { productId: row.productId, variantId: row.variantId, onSale: on },
-              {
-                onSuccess: () => {
-                  track({ name: "availability_toggled", onSale: on })
-                  toast(on ? `${name} is on sale again` : `${name} is off sale`)
-                },
-                onError: (err) => toast.error(productMutationError(err)),
+    // The switch is not the row: toggling it never opens the product.
+    <Label className="gap-3 font-normal" onClick={(e) => e.stopPropagation()}>
+      <span className="text-muted-foreground">{row.onSale ? "On sale" : "Off sale"}</span>
+      <Switch
+        checked={row.onSale}
+        aria-label={`${name} on sale`}
+        disabled={toggle.isPending || row.lastOnSale}
+        onCheckedChange={(on) =>
+          toggle.mutate(
+            { productId: row.productId, variantId: row.variantId, onSale: on },
+            {
+              onSuccess: () => {
+                track({ name: "availability_toggled", onSale: on })
+                toast(on ? `${name} is on sale again` : `${name} is off sale`)
               },
-            )
-          }
-        />
-      </Label>
+              onError: (err) => toast.error(productMutationError(err)),
+            },
+          )
+        }
+      />
+    </Label>
   )
 }

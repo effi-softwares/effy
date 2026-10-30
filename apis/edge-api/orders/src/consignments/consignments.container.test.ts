@@ -65,7 +65,7 @@ const refusal = (p: Promise<unknown>) =>
   p.then(() => null, (e: { code?: string; reason?: string; fields?: { field: string }[] }) => e.code ?? e.reason ?? e.fields?.map((f) => f.field).join(",") ?? String(e));
 const mel = (iso: string) => new Date(iso);
 
-d("080 — courier work in back-office", () => {
+d("080 - courier work in back-office", () => {
   beforeAll(async () => {
     container = await new PostgreSqlContainer("postgres:16-alpine").start();
     pool = new Pool({ connectionString: container.getConnectionUri() });
@@ -91,7 +91,7 @@ d("080 — courier work in back-office", () => {
     holder.announced = [];
   });
 
-  it("P8 — a hub parcel is due out at its service's next pickup; late once that has passed", async () => {
+  it("P8 - a hub parcel is due out at its service's next pickup; late once that has passed", async () => {
     const o = await courierOrder("hub");
     // Fri 9 Oct 2026, 10:00 Melbourne → due out 2 pm today.
     const morning = mel("2026-10-09T10:00:00+11:00");
@@ -109,7 +109,7 @@ d("080 — courier work in back-office", () => {
     expect((await courierParcelPage(parseListQuery({ view: "hub_due", q: "no such order" }, COURIER_LIST_SPEC), morning)).total).toBe(0);
   });
 
-  it("P8 — a parcel CHECKED IN before a pickup it then misses is late", async () => {
+  it("P8 - a parcel CHECKED IN before a pickup it then misses is late", async () => {
     const o = await courierOrder("hub");
     const driver = (await pool.query<{ id: string }>(`INSERT INTO public.driver (cognito_sub, name, work_email) VALUES ('sub-d', 'Ada', 'ada@example.test') RETURNING id::text AS id`)).rows[0]!.id;
     const wave = (await pool.query<{ id: string }>(`INSERT INTO public.dispatch_wave (kind, planned_for, trigger) VALUES ('collection', now(), 'schedule') RETURNING id::text AS id`)).rows[0]!.id;
@@ -125,7 +125,7 @@ d("080 — courier work in back-office", () => {
     expect(toPackage((await packages(o.order))[0]!, null, undefined, null, at3pm)).toMatchObject({ late: true, handoverDueOn: "2026-10-09" });
   });
 
-  it("P3/P5 — book, hand over from the hub list, in transit, delivered: the Courier tab follows it and the order completes", async () => {
+  it("P3/P5 - book, hand over from the hub list, in transit, delivered: the Courier tab follows it and the order completes", async () => {
     const o = await courierOrder("hub");
     expect(await saveConsignment(o.pkg, { serviceId: SERVICE, reference: "  ABC123 ", trackingUrl: "https://track.example.test/ABC123" }, STAFF))
       .toMatchObject({ created: true });
@@ -154,7 +154,7 @@ d("080 — courier work in back-office", () => {
     expect(await refusal(recordStep(o.pkg, { kind: "cancelled" }, STAFF))).toBe("invalid_step");
   });
 
-  it("⚠ 080 P6 — a courier problem reaches the order list (badge and filter agree) until it is resolved", async () => {
+  it("⚠ 080 P6 - a courier problem reaches the order list (badge and filter agree) until it is resolved", async () => {
     const o = await courierOrder("hub");
     await recordHandoff({ fulfillmentId: o.pkg, actorSub: STAFF, changeId: "c6" });
     const awaitingOf = async () => (await listOrders(req({}))).items.find((x) => x.id === o.order)?.awaiting;
@@ -181,7 +181,7 @@ d("080 — courier work in back-office", () => {
     expect(await listCourierParcels("supplier", mel("2026-10-09T09:00:00+11:00"))).toEqual([expect.objectContaining({ atRisk: true, pickup: { date: "2026-10-08", from: "13:00", to: "15:00" } })]);
   });
 
-  it("P7 — the mode changes through the route, with history on the order", async () => {
+  it("P7 - the mode changes through the route, with history on the order", async () => {
     const o = await courierOrder("supplier", "ready_for_pickup");
     expect(await changeCollection(o.order, { mode: "hub", note: "Courier cannot reach the shop" }, STAFF)).toEqual({ changed: true });
     expect(await changeCollection(o.order, { mode: "hub" }, STAFF)).toEqual({ changed: false });

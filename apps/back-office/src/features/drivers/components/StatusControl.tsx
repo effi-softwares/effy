@@ -95,7 +95,7 @@ export function StatusControl({ driver }: { driver: AdminDriverProfile }) {
                 <p className="font-medium">They lose access straight away.</p>
                 <p className="text-muted-foreground">
                   Work they have not started yet goes back to the pool on the next assignment round. Anything they have
-                  already picked up stays with them until someone releases it — you will find it under Stranded work.
+                  already picked up stays with them until someone releases it - you will find it under Stranded work.
                 </p>
               </div>
             ) : null}

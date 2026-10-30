@@ -46,7 +46,7 @@ export function TaxSettingsScreen() {
     onSuccess: (data) => {
       queryClient.setQueryData(KEY, data)
       setRefusal(null)
-      toast.success(data.invoicesEnabled ? "Saved — tax invoices are on" : "Saved")
+      toast.success(data.invoicesEnabled ? "Saved - tax invoices are on" : "Saved")
     },
     onError: (err) => {
       if (isDomainError(err) && err.status === 422) return setRefusal("That ABN isn't valid. Check the 11 digits.")
@@ -156,7 +156,7 @@ export function TaxSettingsScreen() {
                 "Every live product has a GST status."
               ) : (
                 <>
-                  {unclassified} live product{unclassified === 1 ? " has" : "s have"} no GST status —{" "}
+                  {unclassified} live product{unclassified === 1 ? " has" : "s have"} no GST status -{" "}
                   <Link to="/product-review" className="text-primary underline underline-offset-4">
                     set them in Product review
                   </Link>

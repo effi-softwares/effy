@@ -43,7 +43,7 @@ describe("account linking", () => {
       expect(a.linkProvider).not.toHaveBeenCalled()
     })
 
-    it("refuses anything that is not the exact string 'true' — no truthiness games", async () => {
+    it("refuses anything that is not the exact string 'true' - no truthiness games", async () => {
       for (const v of ["TRUE", "1", "yes", "", " true "]) {
         const a = admin()
         const r = await linkFederatedIdentity({ ...base, emailVerified: v }, a)
@@ -70,7 +70,7 @@ describe("account linking", () => {
   })
 
   describe("links a VERIFIED identity into the NATIVE profile", () => {
-    it("links to the existing native profile when one exists — one person, one sub", async () => {
+    it("links to the existing native profile when one exists - one person, one sub", async () => {
       const a = admin({
         findNativeUserByEmail: vi.fn().mockResolvedValue("existing-native-uuid"),
       })

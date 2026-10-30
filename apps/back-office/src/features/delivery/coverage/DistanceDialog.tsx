@@ -42,9 +42,9 @@ export function DistanceDialog({ postcode, onClose }: { postcode: CoveragePostco
         <DialogHeader>
           <DialogTitle>Distance to {postcode.postcode}</DialogTitle>
           <DialogDescription>
-            {postcode.places.slice(0, 3).join(", ")} — currently {postcode.distanceKm} km,{" "}
+            {postcode.places.slice(0, 3).join(", ")} - currently {postcode.distanceKm} km,{" "}
             {postcode.distanceSource === "manual" ? "entered by hand" : "worked out from its location"}.
-            {postcode.needsReview ? " The hub has moved since it was entered — check it is still right." : ""}
+            {postcode.needsReview ? " The hub has moved since it was entered - check it is still right." : ""}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-2">

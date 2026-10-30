@@ -92,7 +92,7 @@ describe("getOrCreateCustomer", () => {
     })
   })
 
-  it("tolerates a customer with no name — a FEDERATED identity may supply neither", async () => {
+  it("tolerates a customer with no name - a FEDERATED identity may supply neither", async () => {
     // The platform must not invent a name it was never given.
     vi.mocked(upsertCustomer).mockResolvedValue(
       row({ given_name: null, family_name: null }),

@@ -30,7 +30,7 @@ function wrap(children: ReactNode) {
   return render(<QueryClientProvider client={qc}>{children}</QueryClientProvider>)
 }
 
-describe("080 — a courier collects this parcel from the shop", () => {
+describe("080 - a courier collects this parcel from the shop", () => {
   beforeEach(() => {
     courierHandover.mockReset()
     courierHandover.mockResolvedValue({ id: "f1", orderNumber: "EFY-1", status: "collected" })

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import { labelScanningText } from "./shopText"
 
-describe("091 — label scanning on the shop page", () => {
+describe("091 - label scanning on the shop page", () => {
   it("states scanned, not scanned and the share", () => {
     expect(labelScanningText({ scanned: 8, notScanned: 2, sinceDays: 30 })).toBe(
       "8 scanned · 2 not scanned (20%) · last 30 days",

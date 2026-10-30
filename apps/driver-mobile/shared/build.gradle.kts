@@ -67,7 +67,7 @@ kotlin {
             implementation(libs.mlkit.barcode.scanning)
             implementation(libs.androidx.core.ktx)
             implementation(libs.compose.uiToolingPreview)
-            // Photo proof — the camera ActivityResult launcher (rememberLauncherForActivityResult).
+            // Photo proof - the camera ActivityResult launcher (rememberLauncherForActivityResult).
             implementation(libs.androidx.activity.compose)
             implementation(libs.ktor.client.android)
             // CIO holds the live channel's WebSocket. Not the data client's engine, and not OkHttp.
@@ -120,7 +120,7 @@ kotlin {
     }
 }
 
-// BuildKonfig — compile-time config from the root project's resolved contract
+// BuildKonfig - compile-time config from the root project's resolved contract
 @Suppress("UNCHECKED_CAST")
 val effyConfig = rootProject.extra["effyConfig"] as Map<String, String>
 

@@ -28,10 +28,10 @@ import {
  * Send a mutation and adopt the platform's answer.
  *
  * Swallows failures on purpose, and the two cases are different:
- *  - **401** — a guest. Nothing to do; the mirror is already correct for them.
- *  - **anything else** — offline, or the platform refused. The mirror keeps what the shopper did, and the
+ *  - **401** - a guest. Nothing to do; the mirror is already correct for them.
+ *  - **anything else** - offline, or the platform refused. The mirror keeps what the shopper did, and the
  *  next `refreshCart` reconciles it against the platform. The change itself is not retried on web:
- *  unlike mobile there is no persisted queue here, deliberately — a browser tab is a shorter-lived thing
+ *  unlike mobile there is no persisted queue here, deliberately - a browser tab is a shorter-lived thing
  *  than an app, and a queue in `localStorage` would cost this storefront bundle bytes for a case the
  *  next cart open already repairs.
  */
@@ -71,9 +71,9 @@ export function setItemQuantity(variantId: string, quantity: number): void {
 
   const fire = () => {
     pendingSends.delete(variantId)
-    // Minted here, not per click: one shopper action, one id — a retry of it must reuse the id.
+    // Minted here, not per click: one shopper action, one id - a retry of it must reuse the id.
     const changeId = newChangeId()
-    // The value sent is the one the shopper clicked, captured above — not re-read from the mirror at fire
+    // The value sent is the one the shopper clicked, captured above - not re-read from the mirror at fire
     // time. Re-reading looks equivalent and is not: a platform response adopted between the click and the
     // timer would rewrite what gets sent, and an adopted cart that no longer holds this line would turn
     // "set it to 4" into a delete the shopper never asked for. This matches mobile, where the queued change
@@ -89,7 +89,7 @@ export function setItemQuantity(variantId: string, quantity: number): void {
 /**
  * Send every debounced change now rather than waiting out its timer.
  *
- * It fires them; it does not cancel them. Called when the shopper leaves the cart — a change they made a
+ * It fires them; it does not cancel them. Called when the shopper leaves the cart - a change they made a
  * quarter of a second before navigating away must not be dropped because a timer never got to run.
  */
 export function flushPendingCartSends(): void {
@@ -118,7 +118,7 @@ export function clearAll(): void {
  *
  * Unlike the other actions there is NO local half. The mirror cannot move a line between the two lists
  * on its own without inventing what the saved list looks like, so this waits for the platform's answer and
- * adopts it. A guest has no saved list at all — a half-working local imitation would be worse than
+ * adopts it. A guest has no saved list at all - a half-working local imitation would be worse than
  * the button not being there, which is why the UI hides it for them.
  */
 export async function setAsideItem(variantId: string): Promise<boolean> {
@@ -191,7 +191,7 @@ export async function mergeCartAfterSignIn(): Promise<boolean> {
   const lines = readCart().lines
   try {
     if (lines.length === 0) {
-      // Nothing of our own to contribute — but the account cart must still be adopted, or a shopper signing
+      // Nothing of our own to contribute - but the account cart must still be adopted, or a shopper signing
       // in on a fresh browser sees an empty cart while the platform holds theirs.
       return adopt(await cartApi.get())
     }

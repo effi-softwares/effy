@@ -1,4 +1,4 @@
-# Research — 096 Parcel Labels, Scanning & Order Documents
+# Research - 096 Parcel Labels, Scanning & Order Documents
 
 Industry background is in [research-08](../../docs/research/logistics/research-08-labels-scanning-documents.md).
 This file records the design decisions. Each one gives the **Decision**, the **Rationale**, and the
@@ -6,7 +6,7 @@ This file records the design decisions. Each one gives the **Decision**, the **R
 
 ---
 
-## R1 — A parcel is a row under the package; bag 1 reuses the package code
+## R1 - A parcel is a row under the package; bag 1 reuses the package code
 
 **Decision.** Add a new table `public.package_parcel`, with one row per physical bag. **Every package always
 has at least one parcel.**
@@ -30,7 +30,7 @@ from the tail.
 - *A separate code space for parcels.* Codes would no longer read as one family, and the scan rule would
   need two parsers.
 
-## R2 — One code space, enforced by one unique index
+## R2 - One code space, enforced by one unique index
 
 **Decision.**
 - `package_parcel.parcel_code` is `UNIQUE` with the 089 CHECK, so it holds every package code (through
@@ -48,7 +48,7 @@ generator's check keeps collisions rare.
 
 **Alternatives.** A registry table of every code. That would be a third place holding the same fact.
 
-## R3 — Temperature zones, and the rule a declaration must pass
+## R3 - Temperature zones, and the rule a declaration must pass
 
 **Decision.**
 - `package_parcel.zone` is one of `ambient | chilled | frozen`.
@@ -62,7 +62,7 @@ generator's check keeps collisions rare.
 **Rationale.** 065's line snapshot is the fact the driver manifest already uses. Reading the product's live
 attribute would let a shop's later edit change a sold order.
 
-## R4 — Declaring, voiding and the ready gate (shop)
+## R4 - Declaring, voiding and the ready gate (shop)
 
 **Decision.**
 - `PUT …/parcels` with a `changeId` sets the counts. Parcels are matched per zone in sequence order:
@@ -85,7 +85,7 @@ attribute would let a shop's later edit change a sold order.
 **Rationale.** A label that has been printed must stay true. Voiding bag 4 of 4 makes the others "of 3"
 when reprinted, as the spec says. An unprinted bag can simply be renumbered.
 
-## R5 — Hand-overs become per parcel, in the existing table
+## R5 - Hand-overs become per parcel, in the existing table
 
 **Decision.** The migration evolves `package_hold` and `package_handover` in place rather than adding
 parallel tables.
@@ -108,7 +108,7 @@ is derived from them.
 would be two sources for one fact, a pattern this repository has shipped defects through. 090's tables are
 not yet migrated in dev (FEATURE-HISTORY), so evolving them costs nothing.
 
-## R6 — Every step accounts for every live parcel; the server enforces it
+## R6 - Every step accounts for every live parcel; the server enforces it
 
 **Decision.** Each driver step request carries:
 - `parcels[] {parcelId | parcelCode, method}`;
@@ -146,7 +146,7 @@ buggy client recreates the original fault.
 
 **Alternatives.** Keeping completeness client-only. That fails SC-003 for any client but ours.
 
-## R7 — Reads: an append-only event per attempt, deduplicated by the client's id
+## R7 - Reads: an append-only event per attempt, deduplicated by the client's id
 
 **Decision.** Add a new table `public.label_read`. Each row holds:
 - `id`, and `client_read_id uuid UNIQUE` (deduplication);
@@ -178,7 +178,7 @@ The shop's pack-scan route and back-office's lookup and hub routes record their 
 idempotent (FR-062). Keeping both outcomes turns "the client said X, the server says Y" into data rather
 than a silent overwrite.
 
-## R8 — The hub station: hub staff check in parcels through the same core as drivers
+## R8 - The hub station: hub staff check in parcels through the same core as drivers
 
 **Decision.** Check-in becomes **per parcel** and can be done by anyone permitted:
 
@@ -202,7 +202,7 @@ delivered, voided, cancelled, and pickup-from-shop courier parcels (`courier_col
 **Rationale.** One rule, one implementation (Principle III). Check-in by hub staff is the industry norm
 (Shipsy in-scan, Amazon station). The driver's phone stops being the hub's only scanner.
 
-## R9 — The label is one SVG document; every output is made from it
+## R9 - The label is one SVG document; every output is made from it
 
 **Decision.** `labels.ts` is rewritten as a **pure function from a label document to an SVG string** sized
 in printer dots for a chosen dpi (203 or 300), at 100% scale. The output paths are:
@@ -232,7 +232,7 @@ Rules carried into the renderer:
 - *Native ZPL text and barcode commands.* This is a second layout language for one design.
 - *A PDF* through the browser. This still passes through the print dialog's scaling.
 
-## R10 — Text fits by measured width, from a pinned metrics table
+## R10 - Text fits by measured width, from a pinned metrics table
 
 **Decision.**
 - Labels set text in **Helvetica / Arial**, which are metric-compatible.
@@ -245,11 +245,11 @@ Rules carried into the renderer:
 **Rationale.** It is deterministic and testable in vitest without a DOM. jsdom has no `measureText`, and a
 DOM-dependent fit would differ between test and print.
 
-## R11 — Direct printing through Zebra Browser Print's local service
+## R11 - Direct printing through Zebra Browser Print's local service
 
 **Decision.** Direct printing is optional per browser and supports **Zebra (ZPL) printers** through
 **Zebra Browser Print**, Zebra's free local helper. shop-web talks to its local endpoint
-(`https://localhost:9101` — `/available`, `/default`, `/write`) with `fetch`; no vendor script is bundled.
+(`https://localhost:9101` - `/available`, `/default`, `/write`) with `fetch`; no vendor script is bundled.
 
 Settings → Printing lists the printers it finds and remembers the chosen one per browser. If the helper is
 missing or fails, printing falls back to the browser print (FR-014), and the shop is told why.
@@ -266,7 +266,7 @@ missing or fails, printing falls back to the browser print (FR-014), and the sho
 printing adds Brother's web SDK in a later task. Nothing else changes, because the label is the same SVG.
 Recorded in quickstart as a hardware check.
 
-## R12 — One scan rule, in TypeScript as well as Kotlin, held to shared fixtures
+## R12 - One scan rule, in TypeScript as well as Kotlin, held to shared fixtures
 
 **Decision.** Add `packages/shared-types/src/scan-rule.ts`, a pure `judgeRead(raw, method, context)`
 returning the outcome and its words.
@@ -280,7 +280,7 @@ returning the outcome and its words.
 **Rationale.** FR-052 requires the same outcomes everywhere. Two hand-written rules held to one fixture
 file is this repository's established pattern for the TS/Kotlin pair (089, 085).
 
-## R13 — Web scanning: keyboard-wedge detection, then camera through a BarcodeDetector polyfill
+## R13 - Web scanning: keyboard-wedge detection, then camera through a BarcodeDetector polyfill
 
 **Decision.** Add a new module `@effy/web-kit/scanner`, used by both shop-web and back-office.
 
@@ -302,7 +302,7 @@ file is this repository's established pattern for the TS/Kotlin pair (089, 085).
 - Safari ships `BarcodeDetector` disabled, so a fallback is required.
 - A polyfill with the standard API means one code path.
 
-## R14 — Delivery note: one server document, digital only
+## R14 - Delivery note: one server document, digital only
 
 **Decision.**
 - The commerce route `GET /commerce/v1/orders/{id}/delivery-note` returns a `DeliveryNoteDTO`:
@@ -319,7 +319,7 @@ file is this repository's established pattern for the TS/Kotlin pair (089, 085).
 **Rationale.** It is digital by operator decision (spec Clarifications). Merging lines by product keeps
 hidden fulfilment.
 
-## R15 — Tax invoice: issued on first request, numbered, a frozen snapshot, never altered
+## R15 - Tax invoice: issued on first request, numbered, a frozen snapshot, never altered
 
 **Decision.** Add a new table `public.tax_document` with these columns:
 - `id`, `kind` (`invoice | adjustment`), `order_id`, `refund_id` (adjustments only);
@@ -358,7 +358,7 @@ GST is calculated as follows:
 - *Per-line GST rounding.* It is allowed, but it diverges from the total. Whole-invoice rounding is the
   common practice.
 
-## R16 — PDFs are rendered in the backend with `pdf-lib`
+## R16 - PDFs are rendered in the backend with `pdf-lib`
 
 **Decision.** Add a new shared module `@effy/edge-shared/documents/pdf.ts` using **`pdf-lib`**. It is pure
 JavaScript and needs no native binaries. It embeds Helvetica, a standard PDF font with no font file.
@@ -377,7 +377,7 @@ layouts.
 - *Headless Chrome in Lambda.* It is about 50 MB and slow to start.
 - *Printable HTML only.* The app has no print-to-PDF path that matches the web's.
 
-## R17 — GST status on products: shop sets it, back-office reviews
+## R17 - GST status on products: shop sets it, back-office reviews
 
 **Decision.**
 - `product.gst_status` is `taxable | gst_free`, nullable until classified.
@@ -395,7 +395,7 @@ layouts.
 
 **Rationale.** This is the operator's decision (spec Clarifications), using the existing review machinery.
 
-## R18 — Business tax details: set by the operator, failing loudly
+## R18 - Business tax details: set by the operator, failing loudly
 
 **Decision.** Add a singleton `public.business_tax` with:
 - `legal_name`, `abn` (11 digits, validated against the **ABN checksum**), `fee_treatment`;
@@ -411,7 +411,7 @@ not available yet". A metric alarm fires when a customer asks during that time (
 **Rationale.** These are real-world identifiers, supplied by the operator (constitution, *Real-World
 Identifiers*). There are no defaults and no placeholders.
 
-## R19 — Services and gateways
+## R19 - Services and gateways
 
 | Service | Gateway | Adds |
 |---|---|---|
@@ -421,14 +421,14 @@ Identifiers*). There are no defaults and no placeholders.
 | `fleet` | staff | hub expected and hub check-in (+2), hand-over report (+1). Exceptions gain parcel holds. |
 | `orders` | staff | scan lookup (+1), tax settings get/put (+2). Order detail lists parcels and their hand-overs. |
 | `catalog` | staff | GST missing and GST bulk (+2). Review shows `gst_status`. |
-| `notifications` | — | The delivered message links the delivery note (no route). |
+| `notifications` | - | The delivered message links the delivery note (no route). |
 
 That is shared +7 and staff +8. 093 left both gateways at 54% of 300. `gateway-capacity.contract.test.ts`
 confirms the totals.
 
 **`admin` gains nothing.** It is the stack that reached CloudFormation's 500-resource limit in 095.
 
-## R20 — Live updates
+## R20 - Live updates
 
 Each route below announces after commit using the existing helpers (071):
 - parcel declaration, void and print: `announceMoves` to the shop's `orders`, because the order moved;
@@ -439,7 +439,7 @@ Each route below announces after commit using the existing helpers (071):
 `change-map.guard.test.ts` covers the new routes. The customer receives nothing new: documents are read on
 demand.
 
-## R21 — What the label is fed (shop label DTO)
+## R21 - What the label is fed (shop label DTO)
 
 `ShopPackageLabelDTO` is replaced by `ShopParcelLabelDTO[]` on the order detail. Each entry has:
 - `parcelId`, `code`, `seq`, `of`, `zone`, `voided`, `printed {count, firstAt, lastAt, lastBy}`, and
@@ -453,13 +453,13 @@ carries (spec Clarifications reverse 089's exclusion of them).
 
 **Rationale.** The data already reaches the shop. Nothing new is exposed.
 
-## R22 — Retention
+## R22 - Retention
 
 Reads, hand-overs, prints and tax documents follow the order records' retention. Tax documents are kept
 for at least five years. Nothing is purged by this feature. A retention job is out of scope, and none
 exists for orders today.
 
-## R23 — Hardware (operator, not blocking)
+## R23 - Hardware (operator, not blocking)
 
 Not yet known. The defaults the build assumes:
 - 203 or 300 dpi direct-thermal printers at 4×6 / A6 or 62 mm;

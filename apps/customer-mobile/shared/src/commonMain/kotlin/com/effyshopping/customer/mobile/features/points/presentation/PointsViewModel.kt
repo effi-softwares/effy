@@ -15,7 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 /**
- * Effy points — `ViewModel → UseCase → Repository` (Principle VI).
+ * Effy points - `ViewModel → UseCase → Repository` (Principle VI).
  *
  * Three states, not two, as the payment-methods screen draws them: loading, a balance (which may be
  * zero), and "we could not ask". A failed read rendered as "0 points" is a false statement about the

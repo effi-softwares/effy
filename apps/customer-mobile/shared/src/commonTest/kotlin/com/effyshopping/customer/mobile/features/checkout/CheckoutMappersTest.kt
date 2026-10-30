@@ -118,7 +118,7 @@ class CheckoutMappersTest {
         assertEquals(OrderStage.Delivered, order(null, stage = DtoOrderStage.Delivered).toReceipt().stage)
     }
 
-    /** Absence is normal — a pre-052 order, or a failed post-commit capture. */
+    /** Absence is normal - a pre-052 order, or a failed post-commit capture. */
     @Test
     fun anUncapturedPaymentMethodMapsToNullRatherThanABlank() {
         assertNull(order(billing = null, method = null).toReceipt().paymentMethod)
@@ -134,7 +134,7 @@ class CheckoutMappersTest {
     }
 
     /**
-     * FR-007 / research R4: the arrival is a date range. Nothing mapped here may carry a time — the
+     * FR-007 / research R4: the arrival is a date range. Nothing mapped here may carry a time - the
      * platform has no delivery window and must not appear to promise one.
      */
     @Test
@@ -170,7 +170,7 @@ class CheckoutMappersTest {
      *
      * This is the exact shape that lost `brand`, `badges` and `productId` on this surface: the
      * backend sent the field and the domain model simply did not ask for it. Nothing failed, nothing
-     * logged — the control just never appeared, and the reason was invisible from the screen.
+     * logged - the control just never appeared, and the reason was invisible from the screen.
      */
     @Test
     fun cancellableSurvivesTheMapper() {
@@ -180,7 +180,7 @@ class CheckoutMappersTest {
 
     /**
      * And it is never derived from the stage. A client computing this from `stage` would be a second
-     * implementation of a rule the server owns — the `summarizeFulfillment` mistake 052 deleted. A
+     * implementation of a rule the server owns - the `summarizeFulfillment` mistake 052 deleted. A
      * `confirmed` order that a shop has already begun is not cancellable, and only the server knows.
      */
     @Test
@@ -250,7 +250,7 @@ class CheckoutMappersTest {
         assertEquals(true, receipt.fullyRefunded)
     }
 
-    /** Each wire state maps to exactly one domain state — none may silently become another. */
+    /** Each wire state maps to exactly one domain state - none may silently become another. */
     @Test
     fun everyWireRefundStateMapsToItsOwnDomainState() {
         val pairs = mapOf(
@@ -271,7 +271,7 @@ class CheckoutMappersTest {
      * The line's own ID must survive the mapper.
      *
      * This is the third time this exact shape has bitten this surface: `brand`, `badges` and
-     * `productId` were all sent by the backend and dropped by the domain model. Nothing fails — the
+     * `productId` were all sent by the backend and dropped by the domain model. Nothing fails - the
      * feature just silently does nothing, and the reason is invisible from the screen. Here it would
      * mean every item a shopper named in a refund request was quietly discarded by the server's join.
      */

@@ -26,7 +26,7 @@ function withoutComments(sql: string): string {
   return sql.replace(/--[^\n]*/g, "").replace(/\/\*[\s\S]*?\*\//g, "");
 }
 
-describe("FR-031 — no coordinates on a shop or a vehicle", () => {
+describe("FR-031 - no coordinates on a shop or a vehicle", () => {
   const sql = withoutComments(allMigrationSql());
 
   for (const table of FORBIDDEN_TABLES) {

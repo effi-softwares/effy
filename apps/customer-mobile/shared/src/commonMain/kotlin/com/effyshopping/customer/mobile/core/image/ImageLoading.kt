@@ -22,7 +22,7 @@ private val imageHttpClient: HttpClient by lazy { HttpClient(imageHttpEngine()) 
  * scroll (`LayoutNode.onDeactivate` → `AsyncImagePainter.restart` → the job is cancelled). On Android the
  * default Ktor `Android` engine (HttpURLConnection → the platform `com.android.okhttp`) throws
  * `IllegalStateException: Unbalanced enter/exit` from `AsyncTimeout` inside that cancellation completion
- * handler — and coroutines escalates an exception thrown from a completion handler to a fatal
+ * handler - and coroutines escalates an exception thrown from a completion handler to a fatal
  * `CompletionHandlerException`, crashing the app the first time you scroll past a product image. CIO (pure
  * Kotlin/coroutines, no okhttp) cancels without the bug. iOS (Darwin) never had the issue and is unchanged.
  *

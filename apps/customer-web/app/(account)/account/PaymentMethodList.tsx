@@ -31,13 +31,13 @@ export function PaymentMethodList({
       const res = await fetch(`/api/payment-methods/${id}`, { method: "DELETE" })
       // Is success from the shopper's point of view: the card is gone either way.
       if (!res.ok && res.status !== 404) {
-        setError("We couldn't remove that card. Your cards are unchanged — try again in a moment.")
+        setError("We couldn't remove that card. Your cards are unchanged - try again in a moment.")
         return
       }
       capture({ name: "card_removed", props: { from: "account" } })
       setCards((prev) => prev.filter((c) => c.id !== id))
     } catch {
-      setError("We couldn't reach the server. Your cards are unchanged — try again in a moment.")
+      setError("We couldn't reach the server. Your cards are unchanged - try again in a moment.")
     } finally {
       setRemoving(null)
     }
@@ -46,7 +46,7 @@ export function PaymentMethodList({
   if (loadFailed) {
     return (
       <p role="alert" className="text-sm text-muted-foreground">
-        We couldn&apos;t load your saved cards just now. This doesn&apos;t affect your saved cards —
+        We couldn&apos;t load your saved cards just now. This doesn&apos;t affect your saved cards -
         refresh the page to try again.
       </p>
     )
@@ -57,7 +57,7 @@ export function PaymentMethodList({
     return (
       <p className="text-sm text-muted-foreground">
         You haven&apos;t saved any cards yet. When you pay, you can choose to save your card for next
-        time — it will appear here.
+        time - it will appear here.
       </p>
     )
   }
@@ -116,7 +116,7 @@ export function PaymentMethodList({
 
       <p className="flex items-center gap-2 text-xs text-muted-foreground">
         <CreditCard className="size-4 shrink-0" aria-hidden="true" />
-        Effy never sees or stores your card number — only the last four digits, so you can tell your
+        Effy never sees or stores your card number - only the last four digits, so you can tell your
         cards apart.
       </p>
     </div>

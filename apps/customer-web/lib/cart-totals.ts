@@ -29,7 +29,7 @@ export interface CartTotals {
   itemSubtotal: string
 }
 
-/** Σ(unit×qty). Delivery is not included — it is quoted once for the order at checkout. */
+/** Σ(unit×qty). Delivery is not included - it is quoted once for the order at checkout. */
 export function computeCartTotals(lines: readonly PricedLine[]): CartTotals {
   const subtotal = lines.reduce((c, l) => c + parseCents(l.unitPriceAmount) * l.quantity, 0)
   return { itemSubtotal: formatCents(subtotal) }

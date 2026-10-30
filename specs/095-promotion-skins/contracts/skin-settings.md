@@ -42,13 +42,13 @@ type SkinSettings =
 
 ## Functions (pure, shared-types)
 
-- `validateSkin(settings) → FieldIssue[]` — shape, bounds, colour format, layout-forced values.
-- `skinContrast(settings) → { pair, ratio, required, ok }[]` — research R2; pairs over a picture use the tint blended
+- `validateSkin(settings) → FieldIssue[]` - shape, bounds, colour format, layout-forced values.
+- `skinContrast(settings) → { pair, ratio, required, ok }[]` - research R2; pairs over a picture use the tint blended
   over black and over white.
-- `LAYOUT_FITS`, `LAYOUT_RATIO`, `LAYOUT_SHOWS_PICTURE` — data-model "Layout facts".
-- `skinGeometry(layout, size)` — px/dp for text sizes, paddings, radius, line limits; the fixture source for both
+- `LAYOUT_FITS`, `LAYOUT_RATIO`, `LAYOUT_SHOWS_PICTURE` - data-model "Layout facts".
+- `skinGeometry(layout, size)` - px/dp for text sizes, paddings, radius, line limits; the fixture source for both
   renderers.
-- `buttonWords(settings, promotion)` — resolves `"auto"`.
+- `buttonWords(settings, promotion)` - resolves `"auto"`.
 
 ## Fixtures
 

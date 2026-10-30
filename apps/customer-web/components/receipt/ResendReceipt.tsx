@@ -36,7 +36,7 @@ export function ResendReceipt({ orderId }: { orderId: string }) {
         name: "receipt_resend_refused",
         props: { reason: res.status === 429 ? "rate_limited" : res.status === 404 || res.status === 409 ? "unavailable" : "failed" },
       })
-      // The proxy relays the server's problem detail under `error`, not `detail` — see
+      // The proxy relays the server's problem detail under `error`, not `detail` - see
       // `lib/api/proxy.ts` `relayError`. Reading `detail` here would silently always fall through to
       // the generic copy and throw away the server's own, better-informed wording.
       const body = (await res.json().catch(() => null)) as { error?: string } | null
@@ -56,7 +56,7 @@ export function ResendReceipt({ orderId }: { orderId: string }) {
   if (state.kind === "sent") {
     return (
       <p className="inline-flex h-9 items-center text-sm text-muted-foreground" aria-live="polite">
-        Sent — check your inbox.
+        Sent - check your inbox.
       </p>
     )
   }

@@ -36,7 +36,7 @@ describe("variant selection (098)", () => {
   })
 
   it("a value only reachable by moving the other choice is offered by what it would lead to", () => {
-    // With 1 kg chosen, Brown exists only as 500 g Brown — sold out.
+    // With 1 kg chosen, Brown exists only as 500 g Brown - sold out.
     expect(valueState(variants, ["s1", "tw"], 1, "tb")).toBe("sold_out")
   })
 

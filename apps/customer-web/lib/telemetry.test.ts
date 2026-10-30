@@ -21,7 +21,7 @@ import posthog from "posthog-js"
  * `lib/telemetry` keeps module-level state (`started`, and the lazily-loaded SDK handle), so each
  * test loads a fresh copy. Without this, a test that grants consent leaves the module initialised
  * for every test after it, and the "nothing loaded without consent" assertions below would pass
- * for the wrong reason — or fail depending on declaration order, which is worse.
+ * for the wrong reason - or fail depending on declaration order, which is worse.
  */
 async function freshTelemetry() {
   vi.resetModules()
@@ -82,7 +82,7 @@ describe("telemetry consent gate", () => {
    *
    * This is the regression that motivated the change: `lib/telemetry.ts` documented "for a guest
    * who never consents, the analytics SDK never loads at all" while statically importing it, so
-   * every guest downloaded ~68 KB regardless. Denying consent must leave nothing loaded — and
+   * every guest downloaded ~68 KB regardless. Denying consent must leave nothing loaded - and
    * therefore nothing to opt out of.
    */
   it("loads no SDK at all when consent is denied", async () => {
@@ -91,7 +91,7 @@ describe("telemetry consent gate", () => {
     await settle()
     expect(posthog.init).not.toHaveBeenCalled()
     expect(analytics()).toBeNull()
-    // Nothing was ever started, so there is nothing to opt out OF — which is the desired end
+    // Nothing was ever started, so there is nothing to opt out OF - which is the desired end
     // state. Asserting opt_out_capturing here would be asserting that we loaded the SDK in
     // order to switch it off.
     expect(posthog.opt_out_capturing).not.toHaveBeenCalled()

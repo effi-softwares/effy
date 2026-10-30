@@ -24,7 +24,7 @@ import java.util.concurrent.Executors
 /**
  * A live CameraX viewfinder.
  *
- * **It reports `false` — and draws nothing — when the camera permission has not been granted.**
+ * **It reports `false` - and draws nothing - when the camera permission has not been granted.**
  * The caller then renders its stand-in and the shutter hands off to the system camera, which
  * prompts for permission itself. Rendering a black rectangle while silently failing is the worse
  * outcome: the driver sees a broken screen with nothing telling them why.

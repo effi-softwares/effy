@@ -39,7 +39,7 @@ function readEnvKeysUsedBySource(): Set<string> {
   return keys;
 }
 
-describe("receipt drain deployment contract — serverless.yml declares what the code reads", () => {
+describe("receipt drain deployment contract - serverless.yml declares what the code reads", () => {
   const declared = readServerlessEnvKeys();
 
   /** From email-kit's own export, self-checked against the mail path's source. */
@@ -61,7 +61,7 @@ describe("receipt drain deployment contract — serverless.yml declares what the
   });
 });
 
-describe("receipt drain deployment contract — the function and its permissions exist", () => {
+describe("receipt drain deployment contract - the function and its permissions exist", () => {
   const yaml = readServerlessText();
 
   it("registers the scheduled receipt drain", () => {

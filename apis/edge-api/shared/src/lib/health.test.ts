@@ -25,7 +25,7 @@ describe("livenessHandler", () => {
   });
 
   // Liveness answers even when its dependencies are broken.
-  it("does NOT touch the database — that is what makes it a liveness probe", async () => {
+  it("does NOT touch the database - that is what makes it a liveness probe", async () => {
     pingDatabase.mockRejectedValue(new Error("database is on fire"));
 
     const res = await livenessHandler("shop")(event, context);
@@ -50,7 +50,7 @@ describe("readinessHandler", () => {
     expect(pingDatabase).toHaveBeenCalledOnce();
   });
 
-  it("is 503 — not 500 — when the database is unreachable", async () => {
+  it("is 503 - not 500 - when the database is unreachable", async () => {
     pingDatabase.mockRejectedValue(new Error("ECONNREFUSED"));
 
     const res = await readinessHandler("shop")(event, context);

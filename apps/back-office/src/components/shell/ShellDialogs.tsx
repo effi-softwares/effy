@@ -91,7 +91,7 @@ export function StaffRecordDialog({ open, onOpenChange }: { open: boolean; onOpe
               {roleLabel(me.data.roles) ? (
                 <Badge variant="brand">{roleLabel(me.data.roles)}</Badge>
               ) : (
-                "No role — you can sign in but not act"
+                "No role - you can sign in but not act"
               )}
             </Row>
             <Row k="Status">

@@ -1,4 +1,4 @@
-# Effy Driver App — Review (2026-10-15)
+# Effy Driver App - Review (2026-10-15)
 
 Scope: `apps/driver-mobile` (KMP + Compose, Android + iOS) and the backend it calls,
 `apis/edge-api/driver`. Work items from this review are in
@@ -113,7 +113,7 @@ disabled during a shift keeps working until they restart it.
 - **Four steps per drop.** Start (`out_for_delivery`) → On my way (`en_route`) → Arrived → proof.
   "Out for delivery" per drop has no meaning; loading the van happens once per round.
 - **Placeholder framework.** `core/placeholder/`, four `PlaceholderData.kt` files and
-  `PlaceholderRegisterGuardTest` exist only to render "—" for ETA, distance, bay and geotag.
+  `PlaceholderRegisterGuardTest` exist only to render "-" for ETA, distance, bay and geotag.
 - **Activity feed.** Its badge and on-phone "seen" store duplicate live updates, and the backend
   always returns `read: false`.
 - **Day stats and shift timer.** Day stats download the whole history to count today. Both are nice
@@ -123,7 +123,7 @@ disabled during a shift keeps working until they restart it.
 
 ## Missing for a simple driver app
 
-1. Push for: work assigned, round changed or withdrawn, round opens soon — on Android and iOS.
+1. Push for: work assigned, round changed or withdrawn, round opens soon - on Android and iOS.
 2. A customer phone number (or a masked call) on the drop.
 3. A return-to-hub step for failed parcels.
 4. Saving the proof photo on the phone and sending it later, so a drop can be completed with no signal.

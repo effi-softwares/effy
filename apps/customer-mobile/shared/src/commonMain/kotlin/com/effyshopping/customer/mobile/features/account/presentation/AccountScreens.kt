@@ -278,7 +278,7 @@ fun AccountRoutes(container: AppContainer, route: CustomerNavKey, session: Sessi
         CustomerNavKey.Security -> SecurityScreen(container, vm, customer)
         CustomerNavKey.Privacy -> PrivacyScreen(container)
         CustomerNavKey.DeleteAccount -> DeleteAccountScreen(container)
-        // `setFirst` now travels ON the route rather than as two separate routes — a data class the
+        // `setFirst` now travels ON the route rather than as two separate routes - a data class the
         // compiler checks, instead of two objects that had to be kept in step with the screen.
         // Two journeys, chosen only by the platform-owned `hasPassword`, never by how the
         // shopper signed in. A Google-linked customer is an ordinary native user and can hold one.
@@ -316,7 +316,7 @@ private fun AccountScreen(container: AppContainer, vm: AccountViewModel, custome
             }
         }
     }
-    // 087 (Account board) — the points card at the top. A failed read shows the card without numbers
+    // 087 (Account board) - the points card at the top. A failed read shows the card without numbers
     // rather than an error: points are a shortcut here, the Points page owns the failure.
     val points by produceState<PointsBalance?>(null, customer.id) {
         value = runCatching { container.getPoints().first }.getOrNull()
@@ -354,7 +354,7 @@ private fun AccountScreen(container: AppContainer, vm: AccountViewModel, custome
                 EffyChevron()
             }
 
-            // Effy points — a way of paying, said in blue (the storefront's points colour).
+            // Effy points - a way of paying, said in blue (the storefront's points colour).
             EffyCard(onClick = { nav.push(CustomerNavKey.Points) }, selected = false) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(modifier = Modifier.weight(1f)) {
@@ -380,7 +380,7 @@ private fun AccountScreen(container: AppContainer, vm: AccountViewModel, custome
                 }
             }
 
-            // Three shortcuts (FR-004/FR-005 — each with a visible label).
+            // Three shortcuts (FR-004/FR-005 - each with a visible label).
             Row(horizontalArrangement = Arrangement.spacedBy(EffySpacing.md)) {
                 AccountShortcut("Saved", Res.drawable.lucide_heart, { nav.push(CustomerNavKey.Saved) }, Modifier.weight(1f))
                 AccountShortcut("Orders", Res.drawable.lucide_package, { nav.push(CustomerNavKey.Orders) }, Modifier.weight(1f))
@@ -430,7 +430,7 @@ private fun AccountScreen(container: AppContainer, vm: AccountViewModel, custome
     }
 }
 
-/** An account shortcut — a bordered square with an icon over a visible label (Account board). */
+/** An account shortcut - a bordered square with an icon over a visible label (Account board). */
 @Composable
 private fun AccountShortcut(label: String, icon: DrawableResource, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val interactions = remember { MutableInteractionSource() }
@@ -482,7 +482,7 @@ private fun SecurityScreen(container: AppContainer, vm: AccountViewModel, custom
                     supporting = if (customer.hasPassword) {
                         customer.passwordSetAtIso?.let { "Last changed ${it.take(10)}" } ?: "Set"
                     } else {
-                        "Not set — add one for another way to sign in"
+                        "Not set - add one for another way to sign in"
                     },
                     trailingText = if (customer.hasPassword) "Change" else "Add",
                     onClick = { nav.push(CustomerNavKey.Password(setFirst = !customer.hasPassword)) },
@@ -578,14 +578,14 @@ private fun PrivacyScreen(container: AppContainer) {
 
             // Debug-only observability test panel (DEBUG_TOOLS=true only, never in prod).
             if (AppConfig.debugTools) {
-                EffyGroup(caption = "Developer — observability test") {
+                EffyGroup(caption = "Developer - observability test") {
                     EffyNavRow("Fire test analytics event", onClick = { container.analyticsDriver.capture(AnalyticsEvent.ScreenViewed("debug_test")) }, showChevron = false)
                     EffyNavRow("Log non-fatal error", onClick = { container.crashReporter.logNonFatal(RuntimeException("Effy test non-fatal (050)")) }, showChevron = false)
                     EffyNavRow("Force crash", onClick = { throw RuntimeException("Effy test crash (050)") }, showChevron = false, divider = false)
                 }
             }
 
-            // The last item on the screen. Black, with its own icon and words — no red.
+            // The last item on the screen. Black, with its own icon and words - no red.
             EffyGroup {
                 EffyNavRow(
                     "Delete account",

@@ -44,14 +44,14 @@ Add an entry to `CATALOG` in `src/catalog.ts`:
 
 | Field | Meaning |
 |---|---|
-| id (`"order-ready"`) | Lowercase words joined by `-`. Permanent once sent — delivery records keep it. A message that changes meaning gets a new id. |
+| id (`"order-ready"`) | Lowercase words joined by `-`. Permanent once sent - delivery records keep it. A message that changes meaning gets a new id. |
 | `vars` | The values the email needs: `"string"`, `"number"`, `"boolean"`, or a list of rows `{ of: { name: "string", … } }`. Format money and dates before passing them. |
 | `subject`, `preheader` | Built from the vars and the audience (`p.productName`). The preheader is the inbox preview line; it must not repeat the subject. |
 | `audiences` | Who may receive it: `CUSTOMER_ONLY` or `ALL_AUDIENCES`. |
 | `sentBy` | `"platform"` (we send it) or `"cognito"` (Cognito sends it; see below). |
 | `onSendFailure` | `"throw"` when an unsent email must stop the request (a sign-in code); `"swallow"` when the change already happened and the failure is only logged. |
 
-### 2. Write the HTML part — `src/templates/order-ready.mjml`
+### 2. Write the HTML part - `src/templates/order-ready.mjml`
 
 Copy a similar template (e.g. `order-delivered.mjml`) and change the content:
 
@@ -83,11 +83,11 @@ Copy a similar template (e.g. `order-delivered.mjml`) and change the content:
 
 - Keep `<mj-title>` and `<mj-preview>` the same as `subject` and `preheader` in the catalogue.
 - Exactly one heading: `mj-class="h1"` with `css-class="e-ink e-h1"`.
-- Style text only with the recipes below — never write a colour, font or font size.
+- Style text only with the recipes below - never write a colour, font or font size.
 - Every value is HTML-escaped. Never use `{{{ }}}`.
 - No HTML comments.
 
-### 3. Write the plain-text part — `src/text/order-ready.txt.hbs`
+### 3. Write the plain-text part - `src/text/order-ready.txt.hbs`
 
 Hand-written, no markup, at least 80 characters. Values are not escaped here, so links work:
 
@@ -104,7 +104,7 @@ View your order: {{orderUrl}}
 Questions? Reply to this email or write to {{effySupportEmail}}.
 ```
 
-### 4. Add example data — `src/fixtures/order-ready.json`
+### 4. Add example data - `src/fixtures/order-ready.json`
 
 Used by the preview and the tests, never by a real send:
 
@@ -124,7 +124,7 @@ make email-preview   # open packages/email-kit/dist/preview/index.html
 
 Commit the source files **and** the regenerated `dist/` files together.
 
-### 6. Add a test — `test/order-ready.test.ts`
+### 6. Add a test - `test/order-ready.test.ts`
 
 Copy `test/order-delivered.test.ts`: render the fixture, check the values appear in both parts and
 that nothing the email must never say is there. Run `pnpm --filter @effy/email-kit test`.
@@ -173,7 +173,7 @@ forgotten `email-gen` is caught by the tests.
 
 ## Building blocks
 
-**Components** — `<mj-include path="../components/<name>.mjml" />`:
+**Components** - `<mj-include path="../components/<name>.mjml" />`:
 
 | Component | What it is |
 |---|---|
@@ -183,7 +183,7 @@ forgotten `email-gen` is caught by the tests.
 | `line-items.mjml` | A receipt's item rows (`items`) |
 | `rows.mjml` | A receipt's totals |
 
-**Text recipes** — `mj-class="…"`:
+**Text recipes** - `mj-class="…"`:
 
 | Recipe | Use for | Also add |
 |---|---|---|
@@ -192,7 +192,7 @@ forgotten `email-gen` is caught by the tests.
 | `muted` | Secondary text | `css-class="e-muted"` |
 | `small` | Fine print | `css-class="e-muted"` |
 | `code` | A one-time code | `css-class="e-ink e-bg-code"` |
-| `wordmark` | The header's product name | — |
+| `wordmark` | The header's product name | - |
 
 The `css-class` values are what dark mode recolours, so keep them. Buttons take
 `css-class="e-btn-bg e-btn-fg"`.
@@ -227,7 +227,7 @@ trigger only renders them (`apis/edge-api/auth/src/functions/custom-message.ts`)
 
 - Write `{####}` where the code goes; Cognito fills it in. Declare no `code` variable.
 - Keep the HTML under ~20,000 characters (Cognito's limit).
-- Never pass them to `sendEmail` — it refuses.
+- Never pass them to `sendEmail` - it refuses.
 
 ## Where things live
 
@@ -243,8 +243,8 @@ packages/email-kit/
 │   ├── text/<id>.txt.hbs     plain-text parts
 │   ├── fixtures/<id>.json    example data
 │   ├── components/*.mjml     shared blocks
-│   └── generated/theme.mjml  generated — do not edit
-├── dist/                     generated — do not edit, but commit
+│   └── generated/theme.mjml  generated - do not edit
+├── dist/                     generated - do not edit, but commit
 ├── scripts/                  gen-email, check-email, preview
 └── test/
 ```

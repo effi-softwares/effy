@@ -35,7 +35,7 @@ class SavedStoreTest {
     private fun signedInToggle(repo: SavedRepository, store: SavedStore) =
         ToggleSaved(repo, store, isSignedIn = { true }, now = { FIXED_NOW })
 
-    /** A guest toggle — no platform call at all; the device is the record until sign-in. */
+    /** A guest toggle - no platform call at all; the device is the record until sign-in. */
     private fun guestToggle(repo: SavedRepository, store: SavedStore) =
         ToggleSaved(repo, store, isSignedIn = { false }, now = { FIXED_NOW })
 
@@ -262,7 +262,7 @@ class SavedStoreTest {
 
         LoadSavedMembership(repo, store)()
 
-        // ⚠ ONE request answers for every product on screen (FR-020) — and it is what makes the heart
+        // ⚠ ONE request answers for every product on screen (FR-020) - and it is what makes the heart
         // tell the truth on first render instead of assuming unsaved and un-saving on the second tap.
         assertTrue(store.isSaved("p1"))
         assertTrue(store.isSaved("p2"))
@@ -301,7 +301,7 @@ class SavedStoreTest {
         // A new store over the same disk is what a relaunch looks like.
         val relaunched = SavedStore(disk)
 
-        assertTrue(relaunched.isSaved("p1"), "⚠ FR-025 — 030 shipped a store whose persist was a no-op")
+        assertTrue(relaunched.isSaved("p1"), "⚠ FR-025 - 030 shipped a store whose persist was a no-op")
     }
 
     @Test
@@ -309,7 +309,7 @@ class SavedStoreTest {
         val disk = FakeDisk()
         guestToggle(FakeRepo(), SavedStore(disk))("p1", saved = true)
 
-        // ⚠ null, NOT "0". A zero baseline would report the item as having fallen from nothing — a
+        // ⚠ null, NOT "0". A zero baseline would report the item as having fallen from nothing - a
         // fabricated fact. The platform falls back to the product's real current price instead.
         assertEquals(null, disk.items[0].savedPriceAmount)
     }

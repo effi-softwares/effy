@@ -33,7 +33,7 @@ export async function renderWithAlphaPolicy(svg, size, alpha) {
     if (ct !== 2) {
       throw new Error(
         `raster: alpha=strip produced PNG colour-type ${ct}, expected 2 (RGB). ` +
-          `An iOS app icon with ANY alpha channel — even fully opaque — is rejected at submission.`,
+        `An iOS app icon with ANY alpha channel - even fully opaque - is rejected at submission.`,
       )
     }
     return out

@@ -40,5 +40,5 @@ export interface ProductListParams {
   order?: ProductOrder
 }
 
-/** "Dairy, Eggs & Fridge › Yoghurt" — the one way a category path is written. */
+/** "Dairy, Eggs & Fridge › Yoghurt" - the one way a category path is written. */
 export { pathText } from "@effy/web-kit/product-form"

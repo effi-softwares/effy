@@ -34,7 +34,7 @@ export const handler = async (
   if (!email) {
     scope.log.error(
       { sub },
-      "me: token carries no `email` claim — refusing to fabricate one (see 005's defect)",
+      "me: token carries no `email` claim - refusing to fabricate one (see 005's defect)",
     )
     return problem(
       401,
@@ -66,7 +66,7 @@ export const handler = async (
       // One uniform refusal: it does not disclose barred or closing.
       scope.log.warn(
         { sub, reason: err instanceof CustomerClosingError ? "closing" : "barred" },
-        "me: refused — a valid token was presented for an unusable account",
+        "me: refused - a valid token was presented for an unusable account",
       )
       return problem(
         403,

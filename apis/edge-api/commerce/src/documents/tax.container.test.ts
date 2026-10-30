@@ -34,7 +34,7 @@ let container: StartedPostgreSqlContainer;
 let pool: Pool;
 const one = async <T,>(sql: string, p: unknown[] = []) => (await pool.query(sql, p as never[])).rows[0] as T;
 
-d("096 US8 — the customer's tax documents", () => {
+d("096 US8 - the customer's tax documents", () => {
   beforeAll(async () => {
     container = await new PostgreSqlContainer("postgres:16-alpine").start();
     pool = new Pool({ connectionString: container.getConnectionUri() });

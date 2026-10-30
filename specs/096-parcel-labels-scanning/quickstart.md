@@ -1,4 +1,4 @@
-# Quickstart — 096 walk on dev
+# Quickstart - 096 walk on dev
 
 ## Prerequisites
 

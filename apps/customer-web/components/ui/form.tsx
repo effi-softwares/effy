@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils"
  *
  * Field borders are a hairline by design (the identity's one recorded contrast deviation), so two
  * things are binding on every use: the field has a visible `<Label>`, and focus shows the blue ring
- * plus its halo. An error is a black border with a soft halo — there is no red — and must come with
+ * plus its halo. An error is a black border with a soft halo - there is no red - and must come with
  * words beside it.
  *
  * Text is 16px on phones so iOS does not zoom the page on focus, 14px from `md`.

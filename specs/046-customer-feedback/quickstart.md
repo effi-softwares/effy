@@ -1,6 +1,6 @@
 # Quickstart: Customer Feedback (046)
 
-Validation guide — how to prove the slice works end to end. Implementation detail lives in `tasks.md`
+Validation guide - how to prove the slice works end to end. Implementation detail lives in `tasks.md`
 and the code; this is the run/verify script. Contracts: [feedback-api](contracts/feedback-api.contract.md),
 [feedback-email](contracts/feedback-email.contract.md). Data: [data-model.md](data-model.md).
 
@@ -25,10 +25,10 @@ make email-check                     # both new templates: drift/size/text/contr
 # customer-mobile: :shared:testAndroidHostTest + :shared:iosSimulatorArm64Test + assembleDebug
 ```
 
-## US1 — a shopper sends feedback and is thanked
+## US1 - a shopper sends feedback and is thanked
 
 1. **Guest, web**: open `/feedback` (and confirm the checkout header's "Give us feedback" link lands
-   there — SC-004). Pick a category, type a message, enter an email, submit → success confirmation
+   there - SC-004). Pick a category, type a message, enter an email, submit → success confirmation
    with a `FB-XXXXXX` reference; a `feedback-received` email arrives (SC-001/003).
 2. **Signed-in, web**: open `/feedback` → name/email pre-filled from profile; submit → the stored row
    has `customer_id` set and `email_verified=true`.
@@ -42,7 +42,7 @@ make email-check                     # both new templates: drift/size/text/contr
 7. **Inert text** (SC-009): submit `<script>alert(1)</script>` → later shown as literal text in the
    console and in the email.
 
-## US2 — staff read, search, triage
+## US2 - staff read, search, triage
 
 1. Sign in to back office; open **Feedback** in the nav (visible to csa too). List loads newest-first
    with category/status/rating/submitter/preview/time.
@@ -53,7 +53,7 @@ make email-check                     # both new templates: drift/size/text/contr
 5. Add an internal note → saved with author + time; confirm it appears in **no** email and on **no**
    submitter-facing surface (SC-007).
 
-## US3 — staff reply, submitter emailed
+## US3 - staff reply, submitter emailed
 
 1. As **admin/manager**, open a submission with an email → compose a reply → send → submitter receives
    a `feedback-reply` email containing the staff message + a reference to their original (SC-006); the
@@ -66,7 +66,7 @@ make email-check                     # both new templates: drift/size/text/contr
 
 ## Non-functional checks
 
-- **No PII in logs** (SC-008): grep the submission + reply Lambda logs — no `submitter_email` value
+- **No PII in logs** (SC-008): grep the submission + reply Lambda logs - no `submitter_email` value
   appears; only operational facts (the newsletter posture).
 - **Emails render** in a light and a dark client, both have a plain-text part, neither fetches a
   third-party asset (SC / `make email-check` already proves the last two mechanically).
@@ -80,4 +80,4 @@ make email-check                     # both new templates: drift/size/text/contr
 3. Live SC walk (US1–US3 above) across web, mobile, and the console; the send-failure and rate-limit
    negative proofs; the PII-log sweep.
 4. ⚠ Note the known carry-forward: PostHog is not yet initialised on customer-web (039), so the web
-   `feedback_submitted` event is wired but a no-op until that lands — record, don't hide.
+   `feedback_submitted` event is wired but a no-op until that lands - record, don't hide.

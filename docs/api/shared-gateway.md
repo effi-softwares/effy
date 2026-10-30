@@ -1,6 +1,6 @@
-# Contract — The gateways (Terraform-owned)
+# Contract - The gateways (Terraform-owned)
 
-**Features**: 004 (A3 — one HTTP API, services attach by id) · **075** (a second one, for back-office)
+**Features**: 004 (A3 - one HTTP API, services attach by id) · **075** (a second one, for back-office)
 **Owner**: Terraform (`infra/envs/<env>/edge-gateway.tf`, `staff-gateway.tf`)
 **Consumers**: every `apis/edge-api/<service>/serverless*.yml`.
 
@@ -9,7 +9,7 @@ There is **one backend** and **two HTTP gateways** in front of it (constitution 
 | | Shared gateway | Staff gateway |
 |---|---|---|
 | Used by | customer, shop, driver, public | back-office only |
-| Address | `https://<api_subdomain>.<env zone>` — `edge-api.dev.effyshopping.com` | `https://<staff_api_subdomain>.<env zone>` — `staff-api.dev.effyshopping.com` |
+| Address | `https://<api_subdomain>.<env zone>` - `edge-api.dev.effyshopping.com` | `https://<staff_api_subdomain>.<env zone>` - `staff-api.dev.effyshopping.com` |
 | Authorizers | customer, shop, driver | **back-office only** |
 | Allowed browser origins | shop console, storefront, their localhost ports | back-office console, `http://localhost:5173` |
 | Stacks | `storefront` `commerce` `customer` `shop` `inventory` `driver` `notifications` | `admin` `fleet` `orders` `catalog` `inventory-staff` |
@@ -37,13 +37,13 @@ Which gateway and which service a new route belongs to: [path-assignment.md](./p
 | `/effy/<env>/staff/authorizer/back-office_id` | the staff gateway's one JWT authorizer | every authenticated back-office route |
 
 ⚠ `/effy/<env>/edge/authorizer/back-office_id` **no longer exists** once an environment's move is
-complete. A stack that still reads it fails at deploy — loudly, which is the point.
+complete. A stack that still reads it fails at deploy - loudly, which is the point.
 
 On both gateways:
 
 - Each authorizer is `JWT`, identity source `$request.header.Authorization`, issuer
   `https://cognito-idp.<region>.amazonaws.com/<pool_id>`, audience = that pool's app clients.
-- **CORS** and the **5xx alarm** live in Terraform — a service that attaches to an external API cannot
+- **CORS** and the **5xx alarm** live in Terraform - a service that attaches to an external API cannot
   configure them. A new console origin is a Terraform change.
 - `$default` auto-deploy stage, so paths carry no stage segment. Services never manage the stage.
 - A regional TLS 1.2 custom domain on the environment's wildcard certificate, one empty-path mapping.
@@ -68,7 +68,7 @@ functions:
 
 - No API, stage, CORS or authorizer is declared in a service.
 - Route keys are unique per gateway; disjoint `/<service>/` prefixes guarantee it.
-- **A service whose routes belong on both gateways is two stacks from one directory** —
+- **A service whose routes belong on both gateways is two stacks from one directory** -
   `inventory/serverless.yml` (shop routes, shared) and `inventory/serverless.staff.yml`
   (`/inventory/v1/admin/…`, staff). Same `src/`, nothing copied. Deployed as
   `SERVICE=inventory` and `SERVICE=inventory-staff`.
@@ -80,7 +80,7 @@ functions:
 | Caller | At the staff gateway | At the shared gateway |
 |---|---|---|
 | no token, on an authenticated route | 401 | 401 |
-| customer / shop / driver token | **401** — no authorizer there accepts it | served on its own audience's routes, 401 on the others |
+| customer / shop / driver token | **401** - no authorizer there accepts it | served on its own audience's routes, 401 on the others |
 | back-office token | accepted; the staff record then decides (403 if not permitted) | **401** on every route |
 
 Verified against the live gateways by `make shop-verify-isolation` (it cannot be unit-tested), and held
@@ -97,7 +97,7 @@ in the tree by `gateway-placement.contract.test.ts`.
 ## Invariants
 
 - **Ordering**: `terraform apply` (both gateways, authorizers, parameters) precedes any service deploy
-  — `${ssm:…}` resolves at deploy time. Then stacks deploy independently, in any order.
+  - `${ssm:…}` resolves at deploy time. Then stacks deploy independently, in any order.
 - **Deploy independence**: a deploy or `remove` touches only that stack's routes on its gateway.
 - **Moving a stack between gateways** is a redeploy with the other gateway's two parameters: its routes
   are created there and removed here in one deployment. To do it without an outage, see 075's

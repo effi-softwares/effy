@@ -8,14 +8,14 @@
 
 Turn the customer `/search` experience on **both** customer surfaces (customer-web, customer-mobile)
 into a proper **faceted filtering** experience: category, brand, price, offers, and catalogue-driven
-product characteristics — with **result counts per option**, **dynamic facets** (zero-result options
+product characteristics - with **result counts per option**, **dynamic facets** (zero-result options
 suppressed), removable chips + clear-all, and per-device presentation (mobile **bottom sheet**, web
 **drawer** below `lg` / persistent **side panel** at `lg+`).
 
 Technical approach: this is a **presentation + read-path** slice over data the catalogue already
-serves. The hot path (`core-api` storefront) gains **one new read** — a **facets endpoint** that
+serves. The hot path (`core-api` storefront) gains **one new read** - a **facets endpoint** that
 returns the available facets, their options, and per-option counts for a given query + applied
-filters — and the existing product search read is **extended** to accept **multi-value** brand and
+filters - and the existing product search read is **extended** to accept **multi-value** brand and
 attribute facets (OR-within-facet). No new tables; the counting is done in raw SQL with a **bounded,
 concurrently-fanned set of aggregate queries** (029's two-wave pattern), plus **one index migration**
 to keep counts inside the latency budget. The web filter UI is **code-split** so it does not enter the
@@ -31,7 +31,7 @@ filter bottom sheet built on the `ModalBottomSheet` the app already uses elsewhe
 `@effy/design-system/ui` (`drawer`, `sheet`, `checkbox`, `collapsible`, `radio-group`,
 `responsive-modal`); Compose Material 3 `ModalBottomSheet`; shared contract in `@effy/shared-types`.
 
-**Storage**: PostgreSQL — existing tables `public.product`, `public.category`,
+**Storage**: PostgreSQL - existing tables `public.product`, `public.category`,
 `public.attribute_definition`, `public.attribute_allowed_value`, `public.product_attribute_value`
 (016 catalogue, EAV). No new tables; one forward-only **index** migration.
 
@@ -47,7 +47,7 @@ filter bottom sheet built on the `ModalBottomSheet` the app already uses elsewhe
 active products** (SC-002); deep paging with no degradation (SC-008, keyset already in place); a
 **single** result refresh per settled interaction (SC-007, debounced).
 
-**Constraints**: customer-web `/search` guest bundle **≤ 174 KB** (currently ~173.9 KB — the filter UI
+**Constraints**: customer-web `/search` guest bundle **≤ 174 KB** (currently ~173.9 KB - the filter UI
 MUST be code-split); Sydney RDS round-trip ~135 ms, so facet counting MUST be a **bounded** number of
 queries run **concurrently**, never N serial round-trips (029 lesson); monochrome design, no new hue,
 no card layouts; web↔mobile parity (FR-021).
@@ -69,13 +69,13 @@ extending it is the minimal, correct choice.
 
 | Principle | Gate | Verdict |
 |---|---|---|
-| I — Spec-Driven | Gaps fixed at the earliest artifact | ✅ The infeasible "availability at my address" facet was **removed from the spec** during planning (delivery zones withdrawn), not silently dropped in code (spec FR-005 + Assumptions). |
-| II — Monorepo & shared packages | Contracts + tokens shared, never copy-pasted | ✅ The facet + multi-value query contract lands in `@effy/shared-types` (single source; Kotlin generated from it); web UI reuses `@effy/design-system/ui` primitives; no new per-surface copies. |
-| III — Dual-path | Path stated + justified | ✅ Hot path only (above). |
-| IV — Auth (4-pool) | No cross-pool/token change | ✅ Public unauthenticated reads; no pool or token involvement. |
-| V — Design | Monochrome, no new hue, no-card, native mobile, eBay/Uber-Eats reference | ✅ Filters are lists/sections (checkbox lists, range, chips), not cards; monochrome ramp only; mobile bottom sheet + 48 dp targets; facets modelled on eBay item-specifics + grocery dietary filters. |
-| VI — Architecture spine | 3-layer slice, raw SQL, no ORM, keyset, unidirectional state | ✅ core-api handler→service→repository; raw SQL aggregate counts; keyset paging unchanged; mobile MVVM (ViewModel→UseCase→Repository); web keeps URL-as-state + fetch (existing `/search` pattern). |
-| VII — Observability | Telemetry stated | ✅ Events declared below; web emission honours the standing PostHog-init gap (declared, not silently no-op'd). |
+| I - Spec-Driven | Gaps fixed at the earliest artifact | ✅ The infeasible "availability at my address" facet was **removed from the spec** during planning (delivery zones withdrawn), not silently dropped in code (spec FR-005 + Assumptions). |
+| II - Monorepo & shared packages | Contracts + tokens shared, never copy-pasted | ✅ The facet + multi-value query contract lands in `@effy/shared-types` (single source; Kotlin generated from it); web UI reuses `@effy/design-system/ui` primitives; no new per-surface copies. |
+| III - Dual-path | Path stated + justified | ✅ Hot path only (above). |
+| IV - Auth (4-pool) | No cross-pool/token change | ✅ Public unauthenticated reads; no pool or token involvement. |
+| V - Design | Monochrome, no new hue, no-card, native mobile, eBay/Uber-Eats reference | ✅ Filters are lists/sections (checkbox lists, range, chips), not cards; monochrome ramp only; mobile bottom sheet + 48 dp targets; facets modelled on eBay item-specifics + grocery dietary filters. |
+| VI - Architecture spine | 3-layer slice, raw SQL, no ORM, keyset, unidirectional state | ✅ core-api handler→service→repository; raw SQL aggregate counts; keyset paging unchanged; mobile MVVM (ViewModel→UseCase→Repository); web keeps URL-as-state + fetch (existing `/search` pattern). |
+| VII - Observability | Telemetry stated | ✅ Events declared below; web emission honours the standing PostHog-init gap (declared, not silently no-op'd). |
 | Tech Standards (locked) | No ORM / migration-tool / stack swaps | ✅ Goose migration, raw SQL, no new frameworks; reuses vendored primitives. |
 | Real-World Identifiers | No inferred identifiers | ✅ None in scope. |
 
@@ -87,9 +87,9 @@ N-bounded aggregate counting are reasoned in [research.md](research.md), not pri
 Events (shared taxonomy): `search_filter_applied` (facet, value(s)), `search_filter_removed`,
 `search_filters_cleared`, `search_facet_panel_opened` (surface: sheet/drawer/panel). Metrics
 (core-api `/metrics`): a histogram `storefront_facets_query_seconds` and
-`storefront_search_query_seconds` (labels: has_query, filter_count bucket — low cardinality). ⚠ Web
+`storefront_search_query_seconds` (labels: has_query, filter_count bucket - low cardinality). ⚠ Web
 emission rides the **existing** dynamic-import `capture()` convention; PostHog is still not initialised
-on customer-web (recurring platform gap), so web events are wired but inert until that is fixed — this
+on customer-web (recurring platform gap), so web events are wired but inert until that is fixed - this
 is **declared here**, not hidden. Mobile telemetry stays deferred consistent with prior mobile slices.
 
 ## Project Structure
@@ -99,9 +99,9 @@ is **declared here**, not hidden. Mobile telemetry stays deferred consistent wit
 ```text
 specs/043-customer-search-filters/
 ├── plan.md              # This file
-├── research.md          # Phase 0 — decisions (counting strategy, multi-value contract, bundle, filterability)
-├── data-model.md        # Phase 1 — facet model over existing catalogue tables + index migration
-├── quickstart.md        # Phase 1 — runnable validation guide
+├── research.md          # Phase 0 - decisions (counting strategy, multi-value contract, bundle, filterability)
+├── data-model.md        # Phase 1 - facet model over existing catalogue tables + index migration
+├── quickstart.md        # Phase 1 - runnable validation guide
 ├── contracts/
 │   ├── storefront-facets.contract.md   # GET /v1/storefront/facets request/response
 │   └── search-query.contract.md        # extended /v1/storefront/products params (multi-value)
@@ -113,7 +113,7 @@ specs/043-customer-search-filters/
 ```text
 apis/core-api/internal/features/storefront/
 ├── search.go            # EXTEND: brands[]; attributes map[string][]string (OR within facet)
-├── facets.go            # NEW: FacetSet build — bounded concurrent aggregate counts
+├── facets.go            # NEW: FacetSet build - bounded concurrent aggregate counts
 ├── facets_test.go       # NEW
 ├── handler.go           # EXTEND getProducts parsing; NEW getFacets handler
 ├── service.go           # EXTEND Search; NEW Facets(query)
@@ -130,7 +130,7 @@ packages/shared-types/src/
 apps/customer-web/app/(shop)/
 ├── _components/SearchExperience.tsx     # EXTEND: filter state (URL) + chips + counts
 └── _components/filters/                 # NEW, code-split: FilterPanel, FacetSection, FilterDrawer, PriceRange
-apps/customer-web/scripts/bundle-budget.mjs   # (gate — verify /search stays ≤ 174 KB)
+apps/customer-web/scripts/bundle-budget.mjs   # (gate - verify /search stays ≤ 174 KB)
 
 apps/customer-mobile/shared/src/commonMain/kotlin/com/effyshopping/customer/mobile/features/catalog/
 ├── domain/Catalog.kt · CatalogUseCases.kt     # EXTEND: FacetSet, GetFacets use case, ProductQuery multi-value
@@ -139,7 +139,7 @@ apps/customer-mobile/shared/src/commonMain/kotlin/com/effyshopping/customer/mobi
 ```
 
 **Structure Decision**: Extend the existing three-layer storefront slice on the hot path and the
-existing `/search` client on each surface — no new service, module, or table. The only genuinely new
+existing `/search` client on each surface - no new service, module, or table. The only genuinely new
 files are the facet-count layer (`facets.go` + queries), the web code-split `filters/` folder, the
 mobile `FilterSheet.kt`, and one index migration.
 
@@ -150,12 +150,12 @@ mobile `FilterSheet.kt`, and one index migration.
    correct), fanned out with goroutines and a shared decoded filter set (029 two-wave pattern). The
    **grid** query (`/products`) and the **facets** query (`/facets`) are separate calls: paging
    (`loadMore`) re-hits only `/products`, never recomputing counts. Rejected: one giant CTE (unreadable,
-   worse plans), a search engine (Elasticsearch/ParadeDB — violates the locked PostgreSQL standard for
+   worse plans), a search engine (Elasticsearch/ParadeDB - violates the locked PostgreSQL standard for
    a 50k-row catalogue).
 
 2. **Multi-value contract change, pinned in the type.** `attributes: Record<string,string[]>` and a new
    `brands: string[]`; wire form is repeated params (`attr.diet=vegan&attr.diet=gf&brand=X&brand=Y`).
-   The handler already enumerates `URL.Query()` — it changes from `vals[0]` to all values. A Go↔Kotlin
+   The handler already enumerates `URL.Query()` - it changes from `vals[0]` to all values. A Go↔Kotlin
    wire-contract test pins it (027/028 lesson: fakes that speak one language at both ends miss this).
 
 3. **Filterability is derived, no new schema for it.** `attribute_definition` rows with

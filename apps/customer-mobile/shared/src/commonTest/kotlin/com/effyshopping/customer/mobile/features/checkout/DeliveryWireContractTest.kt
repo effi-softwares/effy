@@ -21,7 +21,7 @@ class DeliveryWireContractTest {
 
     companion object {
         // Read by the backend's wire.contract.test.ts, byte for byte.
-        // A serviced address answers `effyWindows` (or `courier` — see CourierWireTest) and
+        // A serviced address answers `effyWindows` (or `courier` - see CourierWireTest) and
         // nothing else. The delivery charge is the order's, one per window.
         const val DELIVERY_QUOTE_WIRE =
             """{"postcode":"3121","serviced":true,"coverage":"effy","expiresAt":"2026-08-24T12:20:00+10:00","freeDeliveryRemainingAmount":"26.00","effyWindows":{"days":[{"date":"2026-08-24","section":"same_day","windows":[{"slotId":"33333333-3333-3333-3333-333333333333","date":"2026-08-24","startAt":"2026-08-24T17:00:00+10:00","endAt":"2026-08-24T19:00:00+10:00","cutoffAt":"2026-08-24T13:00:00+10:00","surchargeAmount":"5.00","fee":{"lines":[{"kind":"delivery","amount":"6.00"},{"kind":"window_surcharge","amount":"5.00"}],"totalAmount":"11.00"}}],"closedReason":null,"anyTime":null},{"date":"2026-08-25","section":"standard","windows":[],"closedReason":"full","anyTime":null}],"unavailable":null,"asap":null}}"""
@@ -59,7 +59,7 @@ class DeliveryWireContractTest {
             listOf(DeliveryFeeLineKind.Delivery to "6.00", DeliveryFeeLineKind.WindowSurcharge to "5.00"),
             window.fee.lines.map { it.kind to it.amount },
         )
-        // A full day is said to be full, with no windows — never how full.
+        // A full day is said to be full, with no windows - never how full.
         assertTrue(later.windows.isEmpty())
         assertEquals(com.effyshopping.customer.mobile.commerce.contract.EffyDayClosedReason.Full, later.closedReason)
     }
@@ -85,7 +85,7 @@ class DeliveryWireContractTest {
     }
 
     /**
-     * ⚠ 083 — A SERVER THAT STILL SENDS THE REMOVED FIELDS IS STILL READ. The old slot/day/package
+     * ⚠ 083 - A SERVER THAT STILL SENDS THE REMOVED FIELDS IS STILL READ. The old slot/day/package
      * fields are gone from the contract; `ignoreUnknownKeys` means a response that carries them (a
      * deploy out of step) decodes, and they are simply not looked at.
      */

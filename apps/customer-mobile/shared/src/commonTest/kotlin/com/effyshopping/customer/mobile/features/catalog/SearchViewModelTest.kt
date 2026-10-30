@@ -142,7 +142,7 @@ class SearchViewModelTest {
         advanceUntilIdle()
 
         assertEquals(ProductSortOption.PRICE_ASC, repo.lastSort)
-        // Restarted from the first page — carrying a cursor across an ordering change is a 400.
+        // Restarted from the first page - carrying a cursor across an ordering change is a 400.
         assertEquals(listOf("a", "b"), vm.state.value.items.map { it.id })
     }
 

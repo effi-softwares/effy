@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest"
 
 import type { HandoverReportDTO } from "@effy/shared-types"
 
-/** Every loading shape has gone — a skeleton writes the page's real titles, so a title alone does not mean loaded. */
+/** Every loading shape has gone - a skeleton writes the page's real titles, so a title alone does not mean loaded. */
 const loaded = () => waitFor(() => expect(screen.queryAllByRole("status", { busy: true })).toHaveLength(0))
 
 const getHandoverReport = vi.hoisted(() => vi.fn())
@@ -28,7 +28,7 @@ const report: HandoverReportDTO = {
 }
 
 describe("Hand-over report (096 US6)", () => {
-  it("shows the mix, the rate as a row, and each table — no metric cards", async () => {
+  it("shows the mix, the rate as a row, and each table - no metric cards", async () => {
     getHandoverReport.mockResolvedValue(report)
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     const wrapper = ({ children }: { children: ReactNode }) => (

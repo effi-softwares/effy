@@ -19,7 +19,7 @@ export interface DocumentVersion {
   version: string // v1, v2, …
   effectiveDate: string // ISO date (yyyy-mm-dd)
   status: "current" | "superseded"
-  /** The raw Markdown body (constrained subset — see markdown.ts) with identifiers already substituted. */
+  /** The raw Markdown body (constrained subset - see markdown.ts) with identifiers already substituted. */
   body: string
 }
 

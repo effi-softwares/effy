@@ -51,7 +51,7 @@ class HttpDriverRepository(
         driverApi.post("driver/v1/duty") { setBody(DutyRequest(onDuty = onDuty, changeID = changeId)) }
             .ensureSuccess()
         // The duty response carries only the new status; re-read the record so the UI shows the full,
-        // fresh driver (identity is always displayed from the record — Principle IV).
+        // fresh driver (identity is always displayed from the record - Principle IV).
         driverApi.get("driver/v1/me").ensureSuccess().body<DriverMeDTO>().toDomain()
     }
 

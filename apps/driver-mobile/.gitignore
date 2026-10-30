@@ -18,10 +18,10 @@ captures
 **/xcshareddata/WorkspaceSettings.xcsettings
 node_modules/
 
-# 049 — build-time config & secrets NEVER committed (secrets.properties.example IS committed).
+# 049 - build-time config & secrets NEVER committed (secrets.properties.example IS committed).
 secrets.properties
 
-# Release signing — the key and its passwords are never committed (keystore.properties.example is).
+# Release signing - the key and its passwords are never committed (keystore.properties.example is).
 keystore.properties
 *.jks
 *.keystore

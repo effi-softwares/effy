@@ -95,7 +95,7 @@ fun CartScreen(
     container: AppContainer,
     onCheckout: () -> Unit,
     onBrowse: () -> Unit = {},
-    /** 087 (Cart board) — the "On sale now" rail. */
+    /** 087 (Cart board) - the "On sale now" rail. */
     onProductClick: (String) -> Unit = {},
     onSeeAllSale: () -> Unit = {},
 ) {
@@ -110,7 +110,7 @@ fun CartScreen(
     // Re-price on open: a cart restored from disk must show today's prices.
     LaunchedEffect(Unit) { container.syncCart() }
 
-    /** Remove with undo — removing the wrong line is a one-tap mistake. */
+    /** Remove with undo - removing the wrong line is a one-tap mistake. */
     fun onRemoved(line: GuestCartLine) {
         scope.launch {
             val result = snackbarHost.showSnackbar("Removed ${line.name}", actionLabel = "Undo", duration = SnackbarDuration.Short)
@@ -140,7 +140,7 @@ fun CartScreen(
 
     val currency = cart.currency.ifBlank { lines.first().currency }
 
-    // 087 (Cart board) — the shopper's points and what is on sale. Each read failing draws nothing:
+    // 087 (Cart board) - the shopper's points and what is on sale. Each read failing draws nothing:
     // neither may break the cart.
     val tileCart = rememberTileCart(container)
     val points by produceState<PointsBalance?>(null, signedIn) {
@@ -150,7 +150,7 @@ fun CartScreen(
         value = runCatching { container.searchProducts(query = "", saleOnly = true).items.take(10) }.getOrDefault(emptyList())
     }
 
-    // Emptying the cart is not recoverable, so it is confirmed — in a sheet (087: no dialogs).
+    // Emptying the cart is not recoverable, so it is confirmed - in a sheet (087: no dialogs).
     var confirmingClear by remember { mutableStateOf(false) }
     if (confirmingClear) {
         EffyConfirmSheet(
@@ -209,7 +209,7 @@ fun CartScreen(
                             verticalArrangement = Arrangement.spacedBy(EffySpacing.s),
                         ) {
                             Text("Order summary", style = MaterialTheme.typography.titleLarge)
-                            // Promotional code — signed-in only.
+                            // Promotional code - signed-in only.
                             if (signedIn) {
                                 PromoField(
                                     applied = cart.discount,
@@ -240,7 +240,7 @@ fun CartScreen(
                             if (!signedIn) {
                                 EffyNotice("You’ll sign in at checkout. Your cart is kept.", icon = Res.drawable.lucide_info)
                             }
-                            // 087 (Cart board) — the points the shopper holds, said before checkout.
+                            // 087 (Cart board) - the points the shopper holds, said before checkout.
                             // Only when they have some; a guest has none to read.
                             points?.let { p ->
                                 EffyNotice(
@@ -250,11 +250,11 @@ fun CartScreen(
                             }
                         }
                     }
-                    // 087 (Cart board) — "On sale now": a rail of what is on sale, each with its "+".
+                    // 087 (Cart board) - "On sale now": a rail of what is on sale, each with its "+".
                     if (onSale.isNotEmpty()) {
                         item(key = "sale") {
                             Column(Modifier.padding(bottom = EffySpacing.xl), verticalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
-                                // The list already has its gutter — so not EffySectionHeader, which adds one.
+                                // The list already has its gutter - so not EffySectionHeader, which adds one.
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text("On sale now", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
                                     EffyTextLink("See all", onClick = onSeeAllSale, modifier = Modifier.heightIn(min = EffyMinTouchTarget))
@@ -312,7 +312,7 @@ private fun PromoField(
     var busy by remember { mutableStateOf(false) }
 
     if (applied != null) {
-        EffyNotice("${applied.code} applied — ${applied.label}", icon = Res.drawable.lucide_tag, positive = true)
+        EffyNotice("${applied.code} applied - ${applied.label}", icon = Res.drawable.lucide_tag, positive = true)
         EffyTextLink("Remove code", enabled = !busy, onClick = {
             busy = true
             scope.launch { onRemove(); busy = false }
@@ -345,7 +345,7 @@ private fun PromoField(
     }
 }
 
-/** One cart line — picture, name, each-price, line total, stepper and Remove (Cart board). */
+/** One cart line - picture, name, each-price, line total, stepper and Remove (Cart board). */
 @Composable
 private fun CartRow(line: GuestCartLine, container: AppContainer, onRemoved: (GuestCartLine) -> Unit) {
     Row(
@@ -374,7 +374,7 @@ private fun CartRow(line: GuestCartLine, container: AppContainer, onRemoved: (Gu
                 Text(money(lineTotal(line), line.currency), style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold, fontFeatureSettings = "tnum"))
             }
             // An unavailable line stays visible, flagged, excluded from every total.
-            if (!line.available) EffyInlineError("Unavailable — not included in your total")
+            if (!line.available) EffyInlineError("Unavailable - not included in your total")
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (line.available) {
                     EffyQuantityStepper(quantity = line.quantity, onChange = { container.setCartQuantity(line.variantId, it) })

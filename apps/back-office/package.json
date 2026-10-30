@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Effy back-office web console — internal admin SPA (Vite + React 19 + TanStack).",
+  "description": "Effy back-office web console - internal admin SPA (Vite + React 19 + TanStack).",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

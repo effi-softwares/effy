@@ -16,7 +16,7 @@ import { CopyCodeButton } from "../../_components/CopyCodeButton"
  * Uncached, and that is the one caching decision on this page worth arguing about.
  *
  * Every other public storefront read here is shared across all customers and therefore cacheable. So
- * is this one — but its content is a live claim that a promotion is still available, and it can stop
+ * is this one - but its content is a live claim that a promotion is still available, and it can stop
  * being true at any moment because other shoppers are redeeming it. A cached "still available" sends
  * someone to the cart with a code that will be refused. The read is a single indexed row; the server
  * sends no cache headers for the same reason.
@@ -28,7 +28,7 @@ async function fetchPromotion(id: string): Promise<PromotionDTO | null> {
       uncached(),
     )
   } catch (err) {
-    // Is both "no such promotion" and "no longer advertised" — the server refuses to distinguish
+    // Is both "no such promotion" and "no longer advertised" - the server refuses to distinguish
     // them, so that nobody can enumerate the operator's private codes by id.
     if ((err as { status?: number }).status === 404) return null
     throw err // a real outage bubbles to the error boundary
@@ -57,7 +57,7 @@ export async function generateMetadata({
  * destination. Sectioned detail rows, never cards.
  */
 export default function PromotionPage({ params }: { params: Promise<{ id: string }> }) {
-  // Do not await params here — reading it outside <Suspense> makes the whole route blocking under
+  // Do not await params here - reading it outside <Suspense> makes the whole route blocking under
   // cacheComponents. Pass the promise in and await it inside the boundary.
   return (
     <Suspense fallback={<PromotionSkeleton />}>
@@ -71,7 +71,7 @@ async function PromotionDetail({ params }: { params: Promise<{ id: string }> }) 
   const promotion = await fetchPromotion(id)
   // 404, not an error page. A promotion that expired or was fully claimed between the home page
   // being rendered and this link being followed is a normal outcome, and `not-found` is the honest
-  // response — it says "this isn't here" rather than "something broke, try again", which would invite
+  // response - it says "this isn't here" rather than "something broke, try again", which would invite
   // a retry that can never succeed.
   if (!promotion) notFound()
 
@@ -84,7 +84,7 @@ async function PromotionDetail({ params }: { params: Promise<{ id: string }> }) 
 
       {promotion.imageUrl && (
         // The same 2:1 the artwork is authored and validated at, so the picture an operator approved
-        // is the picture that renders — nothing is cropped, at either end. No scrim: nothing is drawn
+        // is the picture that renders - nothing is cropped, at either end. No scrim: nothing is drawn
         // over it here, so there is nothing to protect the type from.
         <div className="relative mb-6 aspect-2/1 w-full overflow-hidden rounded-xl">
           <CatalogImage

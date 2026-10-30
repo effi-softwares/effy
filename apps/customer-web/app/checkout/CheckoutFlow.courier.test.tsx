@@ -114,15 +114,15 @@ async function switchTo(user: ReturnType<typeof userEvent.setup>, name: RegExp) 
   await user.click(screen.getByRole("radio", { name }))
 }
 
-describe("079 — a courier delivers: the estimate, the fee, and nothing to choose", () => {
+describe("079 - a courier delivers: the estimate, the fee, and nothing to choose", () => {
   it("shows Courier delivery with the estimate said as an estimate, and no picker of any kind", async () => {
     render(<CheckoutFlow initialAddresses={[{ ...FAR, isDefault: true }]} />)
     const section = await screen.findByTestId("courier-delivery")
     expect(within(section).getByRole("heading", { name: "Courier delivery" })).toBeInTheDocument()
     expect(section).toHaveTextContent("Delivered by a courier partner.")
-    expect(section).toHaveTextContent("Usually arrives in 2–4 business days — an estimate, not a guaranteed date.")
+    expect(section).toHaveTextContent("Usually arrives in 2–4 business days - an estimate, not a guaranteed date.")
     expect(section).toHaveTextContent("$9.00")
-    // Nothing to choose: no window, no day, no method — and no same-day / standard words at all.
+    // Nothing to choose: no window, no day, no method - and no same-day / standard words at all.
     expect(within(section).queryByRole("radio")).not.toBeInTheDocument()
     expect(within(section).queryByRole("tab")).not.toBeInTheDocument()
     expect(section.textContent).not.toMatch(/same-day|standard|window|today|tomorrow/i)
@@ -130,7 +130,7 @@ describe("079 — a courier delivers: the estimate, the fee, and nothing to choo
     await waitFor(() => expect(payButton()).toBeEnabled())
   })
 
-  it("sends the type it showed and the total it showed — and no window, slot, day or method", async () => {
+  it("sends the type it showed and the total it showed - and no window, slot, day or method", async () => {
     const user = userEvent.setup()
     render(<CheckoutFlow initialAddresses={[{ ...FAR, isDefault: true }]} />)
     await screen.findByTestId("courier-delivery")
@@ -167,7 +167,7 @@ describe("079 — a courier delivers: the estimate, the fee, and nothing to choo
   })
 })
 
-describe("079 — changing the address re-decides everything (US4)", () => {
+describe("079 - changing the address re-decides everything (US4)", () => {
   it("⚠ Effy → courier → Effy: the window is gone, the fee follows the address, and nothing is pre-selected on the way back", async () => {
     const user = userEvent.setup()
     render(<CheckoutFlow initialAddresses={[HOME, FAR]} />)
@@ -248,7 +248,7 @@ describe("079 — changing the address re-decides everything (US4)", () => {
   })
 })
 
-describe("079 — the server says who delivers has changed", () => {
+describe("079 - the server says who delivers has changed", () => {
   it("⚠ nothing is charged: back to the options, told plainly, and the section re-drawn from a fresh quote", async () => {
     const user = userEvent.setup()
     intentReplies = [() => jsonRes({ error: "refused", code: "delivery_type_changed" }, false, 409), ACCEPTED]

@@ -35,13 +35,13 @@ const REFUND_STATUS_TEXT: Record<string, string> = {
 function choiceText(c: DeliveryMoveChoiceDTO): string {
   switch (c.kind) {
     case "points_difference":
-      return `Points for the difference — ${c.points ?? 0} points ($${c.amount})`
+      return `Points for the difference - ${c.points ?? 0} points ($${c.amount})`
     case "free_delivery_points":
-      return `Free delivery, as points — ${c.points ?? 0} points ($${c.amount})`
+      return `Free delivery, as points - ${c.points ?? 0} points ($${c.amount})`
     case "free_delivery_refund":
-      return `Free delivery, back to the card — $${c.amount}`
+      return `Free delivery, back to the card - $${c.amount}`
     case "refund_difference":
-      return `Refund the difference to the card — $${c.amount}`
+      return `Refund the difference to the card - $${c.amount}`
     case "none":
       return "Nothing"
   }
@@ -132,14 +132,14 @@ function SendByCourierForm({ orderId, onClose }: { orderId: string; onClose: () 
             <dd className="tabular-nums">
               ${p.differenceAmount}
               {p.differenceAmount === "0.00" ? (
-                <span className="text-muted-foreground"> — the courier costs as much or more; Effy bears it</span>
+                <span className="text-muted-foreground"> - the courier costs as much or more; Effy bears it</span>
               ) : null}
             </dd>
             {p.courier ? (
               <>
                 <dt className="text-muted-foreground">Courier</dt>
                 <dd>
-                  {p.courier.courierName} · {p.courier.serviceName} —{" "}
+                  {p.courier.courierName} · {p.courier.serviceName} -{" "}
                   {COLLECTION_LABEL[p.courier.collection].toLowerCase()}
                 </dd>
                 <dt className="text-muted-foreground">Customer will be told</dt>
@@ -149,7 +149,7 @@ function SendByCourierForm({ orderId, onClose }: { orderId: string; onClose: () 
           </dl>
 
           <div className="space-y-2">
-            <Label htmlFor="move-reason">Why (staff only — the customer never sees this)</Label>
+            <Label htmlFor="move-reason">Why (staff only - the customer never sees this)</Label>
             <Textarea id="move-reason" value={reason} maxLength={500} onChange={(e) => setReason(e.target.value)} />
           </div>
 

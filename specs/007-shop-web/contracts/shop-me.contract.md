@@ -1,4 +1,4 @@
-# Contract — `GET /shop/v1/me` (edge-api, NEW)
+# Contract - `GET /shop/v1/me` (edge-api, NEW)
 
 **Feature**: 007 (FR-005, FR-020) · **Service**: `apis/edge-api/shop` (cold path) · **Status**: to
 build this slice.
@@ -7,7 +7,7 @@ The shop-identity read: the console's record-backed identity read **and** the JI
 records/refreshes the operator in the platform's own system of record. Twin of `/admin/v1/me` (005).
 
 Unlike `/shop/v1/manager-ping` (which gates), `/me` **admits any authenticated shop-pool caller,
-including role-less and shop-unassigned operators** — its job is to *record* them. Privilege gating
+including role-less and shop-unassigned operators** - its job is to *record* them. Privilege gating
 happens on `/shop/v1/manager-ping`.
 
 ## Request
@@ -19,7 +19,7 @@ Authorization: Bearer <shop-pool ACCESS token>
 
 Behind the **shop** JWT authorizer, referenced by id from SSM
 (`/effy/<env>/edge/authorizer/shop_id`; Terraform-owned at the shared gateway). A token minted for
-any other pool never reaches the handler (Principle IV — see
+any other pool never reaches the handler (Principle IV - see
 [cross-pool-isolation.contract.md](./cross-pool-isolation.contract.md)).
 
 ## Behavior (records, then returns)
@@ -27,7 +27,7 @@ any other pool never reaches the handler (Principle IV — see
 1. Extract `subject` from the token. Resolve email as
    `claim("email") ?? emailShaped(claim("username")) ?? null` (research R6).
 2. Extract `cognito:groups`, filter to known shop roles (`shop_manager`, `shop_staff`).
-3. `staff.recordAndLoad(subject, email, roles)` — one transaction: idempotent upsert on
+3. `staff.recordAndLoad(subject, email, roles)` - one transaction: idempotent upsert on
    `cognito_sub`, role reconcile, `last_seen_at` refresh. **A stored non-null email is never
    overwritten with null.** `status` and `shop_id` are **never** written from token data.
 4. Return the platform record, joined to the assigned shop.
@@ -51,17 +51,17 @@ identity provider; the backend meets them here).
 - `roles` reflect the **platform record** (reconciled from the token this slice). Maps to
   `ShopStaffRecord` in `@effy/shared-types`.
 - `status` is platform-owned.
-- `shop` is `null` for an operator with no assignment — an **expected** state, rendered by the
+- `shop` is `null` for an operator with no assignment - an **expected** state, rendered by the
   console as a clear "no shop assigned" message, never an error (FR-007).
 - `email` may be `null` until the operator provisioning step supplies it (research R6).
-- A **role-less** operator returns `roles: []`, `status: "active"` — recorded, admitted to nothing
+- A **role-less** operator returns `roles: []`, `status: "active"` - recorded, admitted to nothing
   privileged.
 
 ## Errors (shared contract, `docs/api/error-envelope.md`)
 
 | Status | When | Console renders |
 |---|---|---|
-| `401` | missing / expired / tampered / **other-pool** token — rejected at the authorizer, never reaches the handler | session recovery, then sign-in |
+| `401` | missing / expired / tampered / **other-pool** token - rejected at the authorizer, never reaches the handler | session recovery, then sign-in |
 | `503` `unavailable` | DB unreachable (cold start, allowlist) | degraded state + Retry (FR-011) |
 
 No internal detail, SQL, stack trace, or credential ever appears in a response body.

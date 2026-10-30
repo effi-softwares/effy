@@ -6,7 +6,7 @@ package com.effyshopping.customer.mobile.features.catalog
  */
 internal const val PROMO_SKIN_FIXTURE = """
 {
-  "_comment": "095 — shared by packages/shared-types (TypeScript, the source) and customer-mobile (Kotlin: PromoSkinRules). Regenerate from promotion-skins.ts, then copy into PromoSkinFixture.kt; promotion-skins.test.ts fails when either is stale.",
+  "_comment": "095 - shared by packages/shared-types (TypeScript, the source) and customer-mobile (Kotlin: PromoSkinRules). Regenerate from promotion-skins.ts, then copy into PromoSkinFixture.kt; promotion-skins.test.ts fails when either is stale.",
   "constants": {
     "textPx": {
       "xs": 12,

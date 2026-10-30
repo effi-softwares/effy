@@ -22,7 +22,7 @@ const fixtures = JSON.parse(readFileSync(resolve(here, "effy-windows.fixtures.js
 interface Case { name: string; now: string; input: EffyWindowsDTO; expect: EffyWindowsView }
 const cases = fixtures.cases as unknown as Case[];
 
-describe("effyWindowsView — the delivery-window picker, as words", () => {
+describe("effyWindowsView - the delivery-window picker, as words", () => {
   it.each(cases)("$name", (c) => {
     expect(effyWindowsView(c.input, new Date(c.now))).toEqual(c.expect);
   });
@@ -35,7 +35,7 @@ describe("effyWindowsView — the delivery-window picker, as words", () => {
   });
 });
 
-describe("085 — a day with no time, and as soon as possible", () => {
+describe("085 - a day with no time, and as soon as possible", () => {
   const c = cases.find((x) => x.name.startsWith("085"))!;
   const view = effyWindowsView(c.input, new Date(c.now));
 
@@ -44,7 +44,7 @@ describe("085 — a day with no time, and as soon as possible", () => {
     expect(view.today!.anyTime).toBeNull();
   });
 
-  it("a day whose windows are all taken can still be chosen without a time — and the reverse", () => {
+  it("a day whose windows are all taken can still be chosen without a time - and the reverse", () => {
     const [, saturday, monday] = view.later;
     expect(saturday!.windows).toHaveLength(0);
     expect(saturday!.anyTime).toEqual({ slotId: "anytime", date: "2026-10-10" });

@@ -7,7 +7,7 @@
 # amplify-customer-web.tf). The consoles carry no secret: every VITE_* value is public-safe.
 
 locals {
-  # two addresses since 075 — one per gateway, one backend behind both.
+  # two addresses since 075 - one per gateway, one backend behind both.
   # shop-web → the shared gateway: /shop/v1/*, /inventory/v1/* (its own stock routes).
   # back-office → the staff gateway: /admin, /orders, /fleet, /catalog, /inventory/v1/admin.
   # Paths did not change in the move; only back-office's base address did.
@@ -45,7 +45,7 @@ locals {
     },
   ]
 
-  # ── Per-console VITE_* env (build-time, inlined by Vite, all public-safe — contracts/config.contract.md)
+  # ── Per-console VITE_* env (build-time, inlined by Vite, all public-safe - contracts/config.contract.md)
   # Principle IV: shop-web must take the shop pool, back-office the admin pool. A swap makes sign-in
   # succeed and every backend call 401 from the mismatched authorizer.
   # PostHog is shared across the consoles; the project key is public-safe (build-inlined), same
@@ -91,7 +91,7 @@ module "amplify_shop_web" {
 
   deploy_branch = var.amplify_deploy_branch
   app_root      = "apps/shop-web"
-  platform      = "WEB" # static SPA — NO service role (research D2)
+  platform      = "WEB" # static SPA - NO service role (research D2)
   framework     = "Web"
   stage         = "DEVELOPMENT"
 
@@ -134,7 +134,7 @@ module "amplify_back_office" {
 # amplify-customer-web.tf already lets events.amazonaws.com publish). Amplify keeps the last good build live.
 resource "aws_cloudwatch_event_rule" "consoles_build_failed" {
   name        = "${module.shared.name_prefix}-consoles-build-failed"
-  description = "Amplify deployment FAILED for a shop-web or back-office console build — the pipeline is broken; the last good version is still live."
+  description = "Amplify deployment FAILED for a shop-web or back-office console build - the pipeline is broken; the last good version is still live."
 
   event_pattern = jsonencode({
     source        = ["aws.amplify"]

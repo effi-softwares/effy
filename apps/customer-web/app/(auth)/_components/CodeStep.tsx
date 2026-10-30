@@ -47,11 +47,11 @@ export function CodeStep({
   onSubmit: (code: string) => Promise<CodeOutcome>
   onResend: () => Promise<void>
   onChangeEmail: () => void
-  /** Which journey this step belongs to — telemetry only. */
+  /** Which journey this step belongs to - telemetry only. */
   flow: "sign_in" | "sign_up" | "reset"
   /** Sign-up confirmation and reset use Cognito's managed flow, with real mismatch/expiry/limit exceptions; the caller supplies the message. Not so on sign-in. */
   distinguishableRefusals?: boolean
-  /** Extra fields submitted alongside the code — password reset sets the new password here. */
+  /** Extra fields submitted alongside the code - password reset sets the new password here. */
   children?: React.ReactNode
 }) {
   const [code, setCode] = React.useState("")
@@ -79,7 +79,7 @@ export function CodeStep({
       setError(null)
       setExhausted(false)
       // Point at the newest email: codes can arrive out of order and the older one no longer works.
-      setResendNote("New code sent. Use the most recent email — the older code no longer works.")
+      setResendNote("New code sent. Use the most recent email - the older code no longer works.")
     },
   })
 
@@ -120,7 +120,7 @@ export function CodeStep({
             attempt: attempts + 1,
             outcome: outcome === "exhausted" ? "attempts_spent"
               : outcome === "stale" ? "session_timed_out"
-              : "not_accepted",
+                : "not_accepted",
           },
         })
         setAttempts((n) => n + 1)

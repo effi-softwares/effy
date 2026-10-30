@@ -103,7 +103,7 @@ describe("groupByPackage", () => {
 
 /* The mirror */
 
-describe("the cart mirror — persistence and adoption", () => {
+describe("the cart mirror - persistence and adoption", () => {
   const dto = (over: Partial<CartDTO> = {}): CartDTO => ({
     revision: 1,
     lines: [],
@@ -143,7 +143,7 @@ describe("the cart mirror — persistence and adoption", () => {
     resetCart()
   })
 
-  it("survives a reload — the defect this slice exists to fix", () => {
+  it("survives a reload - the defect this slice exists to fix", () => {
     addToCart(line("a", 2))
     // A fresh read with the module's cache defeated, exactly as a new page load would do.
     const raw = window.localStorage.getItem("effy:cart:v3")

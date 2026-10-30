@@ -48,7 +48,7 @@ describe("overrideAmounts (081 P1)", () => {
   });
 });
 
-describe("customerCompensationOf — what the customer is told they received", () => {
+describe("customerCompensationOf - what the customer is told they received", () => {
   it("points, a refund, or nothing", () => {
     expect(customerCompensationOf({ compensation: "points_difference", amount_cents: 250, points: 250 })).toEqual({ kind: "points", amount: "2.50", points: 250 });
     expect(customerCompensationOf({ compensation: "free_delivery_refund", amount_cents: 900, points: null })).toEqual({ kind: "refund", amount: "9.00" });

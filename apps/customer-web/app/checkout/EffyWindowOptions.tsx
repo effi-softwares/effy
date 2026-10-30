@@ -47,7 +47,7 @@ export function EffyWindowOptions({
   const view = effyWindowsView(windows, now)
   const { today, later } = view
 
-  // A day the shopper tapped that cannot be bought without a time — nothing is chosen yet.
+  // A day the shopper tapped that cannot be bought without a time - nothing is chosen yet.
   const [pendingDay, setPendingDay] = useState<string | null>(null)
   // "Need a specific time?" opened under a day that can be bought without one.
   const [timeOpen, setTimeOpen] = useState(false)
@@ -225,7 +225,7 @@ export function EffyWindowOptions({
               <label className={optionClass(isAsap(chosen))}>
                 <input type="radio" name={whenName} value="asap" checked={isAsap(chosen)} onChange={pickAsap} className="sr-only" />
                 <span className="font-medium">{view.asap.title}</span>
-                {/* The business's own estimate, as it wrote it — an estimate, never a day. */}
+                {/* The business's own estimate, as it wrote it - an estimate, never a day. */}
                 <span className="text-xs text-muted-foreground">{view.asap.estimate}</span>
               </label>
             ) : null}

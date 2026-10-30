@@ -157,7 +157,7 @@ export function createReceiptSender(opts: ReceiptSenderOptions) {
     identity = identityFromEnv();
   } catch (err) {
     if (!(err instanceof MailConfigError)) throw err;
-    logger.warn({ err }, "receipts: mail is not configured — leaving every dispatch pending");
+    logger.warn({ err }, "receipts: mail is not configured - leaving every dispatch pending");
   }
 
   return {

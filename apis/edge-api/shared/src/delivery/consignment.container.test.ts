@@ -66,7 +66,7 @@ async function courierOrder(mode: "hub" | "supplier", shops: string[], status = 
   return { order, packages };
 }
 
-d("080 — courier consignments", () => {
+d("080 - courier consignments", () => {
   beforeAll(async () => {
     container = await new PostgreSqlContainer("postgres:16-alpine").start();
     pool = new Pool({ connectionString: container.getConnectionUri() });
@@ -92,7 +92,7 @@ d("080 — courier consignments", () => {
     await container?.stop();
   });
 
-  it("P3/P5 — via the hub: a handover nobody booked makes the consignment; delivered completes the order", async () => {
+  it("P3/P5 - via the hub: a handover nobody booked makes the consignment; delivered completes the order", async () => {
     const { order, packages } = await courierOrder("hub", [shopA]);
     const pkg = packages[0]!;
 
@@ -157,13 +157,13 @@ d("080 — courier consignments", () => {
     expect(both.get(a)?.collection).toBe("supplier");
   });
 
-  it("P6 — a problem is a Problem until resolved; resolving puts it back where it was", async () => {
+  it("P6 - a problem is a Problem until resolved; resolving puts it back where it was", async () => {
     const { packages } = await courierOrder("hub", [shopA]);
     const pkg = packages[0]!;
     await tx((c) => handOver(c, { packageId: pkg, actor: STAFF }));
     await tx((c) => recordConsignmentStep(c, { packageId: pkg, kind: "in_transit", actor: STAFF }));
     await tx((c) => recordConsignmentStep(c, { packageId: pkg, kind: "lost", actor: STAFF, note: "Courier cannot find it" }));
-    expect((await packageStatuses(pool, [pkg])).get(pkg)).toMatchObject({ status: "problem", detail: "With the courier — lost" });
+    expect((await packageStatuses(pool, [pkg])).get(pkg)).toMatchObject({ status: "problem", detail: "With the courier - lost" });
     expect(await refusal(tx((c) => recordConsignmentStep(c, { packageId: pkg, kind: "in_transit", actor: STAFF })))).toBe("invalid_step");
     await tx((c) => recordConsignmentStep(c, { packageId: pkg, kind: "resolved", actor: STAFF, note: "Found at depot" }));
     expect((await consignmentsFor(pool, [pkg])).get(pkg)?.state).toBe("in_transit");
@@ -186,7 +186,7 @@ d("080 — courier consignments", () => {
     expect((await consignmentsFor(pool, [pkg])).get(pkg)?.reference).toBe("SECOND");
   });
 
-  it("P7 — the mode changes until something leaves, with history; a supplier booking is cancelled by moving to the hub", async () => {
+  it("P7 - the mode changes until something leaves, with history; a supplier booking is cancelled by moving to the hub", async () => {
     const { order, packages } = await courierOrder("supplier", [shopA], "ready_for_pickup");
     await tx((c) => bookConsignment(c, { packageId: packages[0]!, serviceId: supplierService, actor: STAFF, now: new Date() }));
     expect(await tx((c) => changeCourierCollection(c, { orderId: order, to: "hub", actorSub: "sub-staff", note: "Courier cannot reach the shop" })))
@@ -200,7 +200,7 @@ d("080 — courier consignments", () => {
     expect(await refusal(tx((c) => changeCourierCollection(c, { orderId: order, to: "supplier", actorSub: "sub-staff" })))).toBe("collection_locked");
   });
 
-  it("P14 — the history tables cannot be rewritten by the role checkout runs as", async () => {
+  it("P14 - the history tables cannot be rewritten by the role checkout runs as", async () => {
     const c = await pool.connect();
     try {
       await c.query(`SET ROLE effy_shopper`);

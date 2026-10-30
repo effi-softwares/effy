@@ -41,27 +41,27 @@ for REL in $APPS; do
     KEYS="$(awk '/val requiredKeys/{f=1} f{print} /\)/{if(f)f=0}' "$GRADLE" \
             | grep -oE '"[A-Z0-9_]+"' | tr -d '"' || true)"
     # STRIPE_PUBLISHABLE_KEY is the one allowed `_KEY`-named value: a Stripe publishable key (pk_…) is
-    # designed to ship in clients and authorizes nothing (the sk_… secret stays in the backend — 019 R3).
+    # designed to ship in clients and authorizes nothing (the sk_… secret stays in the backend - 019 R3).
     BAD="$(printf '%s\n' "$KEYS" | grep -iE 'SECRET|_KEY$|^KEY|PASSWORD|TOKEN|CREDENTIAL' \
             | grep -vxE 'STRIPE_PUBLISHABLE_KEY' || true)"
     if [ -n "$BAD" ]; then
       echo "✗ mobile-guard [$REL]: a required build-config key is SECRET-SHAPED (FR-042):"
       printf '%s\n' "$BAD" | sed 's/^/    /'
       echo "    A mobile binary is published; nothing credentialed may ship in it. Pool/client IDs are"
-      echo "    NAMES, not keys — but anything matching SECRET/KEY/PASSWORD/TOKEN/CREDENTIAL is refused."
+      echo "    NAMES, not keys - but anything matching SECRET/KEY/PASSWORD/TOKEN/CREDENTIAL is refused."
       FAIL=1
     fi
   fi
 done
 
 # The customer app never regrows these "unfinished app" tells:
-# NavGlyph / AdaptiveNavShell — the lettered "H/S/O/A" navigation icons (deleted from mobile-kit)
-# "← Back" — an improvised text-link back control instead of a real header
-# ♥ / ♡ in a Text(...) — glyph-as-icon buttons
+# NavGlyph / AdaptiveNavShell - the lettered "H/S/O/A" navigation icons (deleted from mobile-kit)
+# "← Back" - an improvised text-link back control instead of a real header
+# ♥ / ♡ in a Text(...) - glyph-as-icon buttons
 CUSTOMER_APP="$ROOT/apps/customer-mobile"
 RETIRED_CUSTOMER_PATTERN='NavGlyph|AdaptiveNavShell|Text\("← Back"\)|Text\("♥|Text\("♡'
 # Comment lines are filtered out. The first version of this guard did not, and it failed on the
-# code comment that explains why the lettered glyphs were removed — a guard that forbids naming the
+# code comment that explains why the lettered glyphs were removed - a guard that forbids naming the
 # thing it forbids makes the codebase harder to explain, and trains people to delete the explanation
 # rather than the defect. Matching only non-comment lines keeps it aimed at usage.
 RETIRED_CUSTOMER_HITS="$(grep -rInE "$RETIRED_CUSTOMER_PATTERN" \
@@ -78,11 +78,11 @@ fi
 
 # Affordances the source UI kit has that Effy must not. A grep over the real tree, because `commonTest` has
 # no filesystem on Native and could only check a hand-kept list.
-# size pickers — the kit's fixed S/M/L row; sizes and flavours are the product's own variants
+# size pickers - the kit's fixed S/M/L row; sizes and flavours are the product's own variants
 # (`VariantChips`)
-# ratings/reviews — no such capability; invented stars would be a lie on every tile
-# Facebook sign-in — not an Effy credential route
-# card-entry fields — the payment provider's element owns these; card data never lands in this app
+# ratings/reviews - no such capability; invented stars would be a lie on every tile
+# Facebook sign-in - not an Effy credential route
+# card-entry fields - the payment provider's element owns these; card data never lands in this app
 EXCLUDED_PATTERN='out of 5|Write a review|Facebook|Card number|CVV|Cardholder'
 EXCLUDED_HITS="$(grep -rInE "$EXCLUDED_PATTERN" \
   --include='*.kt' --include='*.swift' \
@@ -107,7 +107,7 @@ if [ -f "$NAV_KEY_FILE" ]; then
     | awk '{print $NF}' | sort -u)"
   for route in $ROUTES; do
     # Reachable = named outside core/nav (a push, a resetTo, a tab list, an entry<> is not enough
-    # entries are the destination, not the way in — so entry declarations are excluded below).
+    # entries are the destination, not the way in - so entry declarations are excluded below).
     HITS="$(grep -rIn "CustomerNavKey\.$route\b" \
       --include='*.kt' \
       --exclude-dir=build --exclude-dir='.gradle' \
@@ -122,7 +122,7 @@ if [ -f "$NAV_KEY_FILE" ]; then
   done
 fi
 if [ -n "$UNREACHABLE" ]; then
-  echo "✗ mobile-guard [apps/customer-mobile]: destination declared but UNREACHABLE — nothing"
+  echo "✗ mobile-guard [apps/customer-mobile]: destination declared but UNREACHABLE - nothing"
   echo "  navigates to it, so the screen cannot be opened by any shopper:"
   echo "$UNREACHABLE" | sed '/^$/d; s/^/    CustomerNavKey./'
   echo "  Either give it an entry point, or delete the route and its screen."
@@ -159,7 +159,7 @@ if [ -f "$NAV_KEYS" ] && [ -f "$SHELL_FILE" ]; then
   done
 fi
 if [ -n "$UNRENDERABLE" ]; then
-  echo "✗ mobile-guard [apps/customer-mobile]: route declared but the shell CANNOT RENDER it —"
+  echo "✗ mobile-guard [apps/customer-mobile]: route declared but the shell CANNOT RENDER it -"
   echo "  NavDisplay will throw 'Unknown screen' the moment a shopper taps it:"
   echo "$UNRENDERABLE" | sed '/^$/d; s/^/    CustomerNavKey./'
   echo "  Add an entry<CustomerNavKey.X> { … } block in CustomerShell's NavDisplay."
@@ -167,9 +167,9 @@ if [ -n "$UNRENDERABLE" ]; then
 fi
 
 # The storefront frame:
-# · no centred dialog or drop-down menu anywhere — every overlay is the kit's bottom sheet;
+# · no centred dialog or drop-down menu anywhere - every overlay is the kit's bottom sheet;
 # · no raw Material control that the kit replaces;
-# · no colour literal in a screen — colours come from the generated storefront theme;
+# · no colour literal in a screen - colours come from the generated storefront theme;
 # · the only Effy address a customer sees is hello@effyshopping.com (the generated legal documents are
 # excluded: authored prose, which still names an unapproved address, an open item);
 # · the cart and checkout never say how many packages (suppliers) fill an order.

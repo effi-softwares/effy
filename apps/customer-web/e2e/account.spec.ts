@@ -31,7 +31,7 @@ test.describe("sign-out refuses the obvious abuses", () => {
   test.use({ storageState: { cookies: [], origins: [] } })
 
   // A GET sign-out is triggerable by any `<img src="https://effy/sign-out">` on any page anywhere
-  // on the internet — a drive-by CSRF logout. The route exports POST only, so Next answers 405.
+  // on the internet - a drive-by CSRF logout. The route exports POST only, so Next answers 405.
   test("a GET to /sign-out does not end a session", async ({ request }) => {
     const res = await request.get("/sign-out", { failOnStatusCode: false })
     expect(res.status()).toBe(405)
@@ -53,7 +53,7 @@ test.describe("sign-out refuses the obvious abuses", () => {
   })
 
   // Sign-out is a plain HTML form (see components/header/AccountMenu.tsx). It therefore works with
-  // JavaScript disabled — a good property for the control that ends a session, and a free consequence
+  // JavaScript disabled - a good property for the control that ends a session, and a free consequence
   // of keeping the auth SDK off the guest path.
   test("sign-out works with JavaScript disabled", async ({ browser }) => {
     const context = await browser.newContext({ javaScriptEnabled: false })

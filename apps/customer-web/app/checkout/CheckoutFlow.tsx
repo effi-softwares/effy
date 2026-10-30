@@ -74,14 +74,14 @@ type Step = "review" | "paying"
 export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDTO[] }) {
   const router = useRouter()
   const guestLines = useCart()
-  // The mirror is what the UI reads, and nothing here empties it — the cart is cleared only when an
+  // The mirror is what the UI reads, and nothing here empties it - the cart is cleared only when an
   // order is actually paid for. The estimate and the "has items" gate read it live; the amount is
   // never taken from it, because the platform computes every figure that is charged.
   const estimate = useMemo(() => computeCartTotals(guestLines), [guestLines])
   const currency = guestLines[0]?.currency ?? "AUD"
 
   const [addresses, setAddresses] = useState<AddressDTO[]>(initialAddresses)
-  // Pre-select the shipping address: the default, else — when none is default — the first of
+  // Pre-select the shipping address: the default, else - when none is default - the first of
   // the default-first list, a deterministic most-recent choice.
   const [selectedId, setSelectedId] = useState<string | null>(
     initialAddresses.find((a) => a.isDefault)?.id ?? initialAddresses[0]?.id ?? null,
@@ -104,14 +104,14 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
   const [intent, setIntent] = useState<CreateCheckoutIntentResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  // The delivery quote for the chosen address — serviceability + the standard fee, shown before
+  // The delivery quote for the chosen address - serviceability + the standard fee, shown before
   // pay (no drip). The server owns the fee; this display never sends one. Re-fetched when the shipping
   // address changes.
   const [quote, setQuote] = useState<DeliveryQuoteDTO | null>(null)
   const [quoting, setQuoting] = useState(false)
-  // The one window for the order. Never chosen for the shopper — a window is a promise about
+  // The one window for the order. Never chosen for the shopper - a window is a promise about
   // when someone will be home; kept across steps and a failed payment while it is
-  // still offered; dropped when the address changes — nothing chosen for one address is
+  // still offered; dropped when the address changes - nothing chosen for one address is
   // silently carried to another.
   const [chosenWindow, setChosenWindow] = useState<DeliveryChoice | null>(null)
   // Where the order is going, as far as delivery cares: the address and its postcode. Who
@@ -121,7 +121,7 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
   useEffect(() => {
     setChosenWindow(null)
   }, [selectedId, selectedPostcode])
-  // Bumped to ask for a fresh quote for the same address — after a refused slot or day.
+  // Bumped to ask for a fresh quote for the same address - after a refused slot or day.
   const [quoteEpoch, setQuoteEpoch] = useState(0)
 
   useEffect(() => {
@@ -155,7 +155,7 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
   // shopper chooses again. Skipped while there is no quote, so a refresh cannot wipe it.
   //
   // "Standard" is the default: the first quote for a destination starts with it chosen when
-  // it is offered. Once per destination — a re-quote after a refused choice never falls back to it.
+  // it is offered. Once per destination - a re-quote after a refused choice never falls back to it.
   const defaultedFor = useRef<string | null>(null)
   useEffect(() => {
     if (!quote) return
@@ -188,7 +188,7 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
 
   // One fee for the order, as the server priced it: the courier's, or the chosen window's.
   // Lines and a total; no distance, weight or plan ever reaches here. Null until a window is
-  // chosen — there is nothing to show yet.
+  // chosen - there is nothing to show yet.
   const deliveryFee = useMemo(() => chosenFee(quote, chosenWindow), [quote, chosenWindow])
   const deliveryCents = deliveryFee ? parseCents(deliveryFee.totalAmount) : 0
   // What promotions take off: the goods (from the server cart) and this option's delivery offer.
@@ -225,13 +225,13 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
     setAddresses((prev) => (prev.some((a) => a.id === created.id) ? prev : [...prev, created]))
   }
 
-  // Switch the shipping address (a per-order choice — never the saved default, FR-006). Invalidate the
+  // Switch the shipping address (a per-order choice - never the saved default, FR-006). Invalidate the
   // captured quote so delivery/amount re-price for the new destination on the next continue.
   function selectShipping(id: string) {
     if (id === selectedId) return
     setSelectedId(id)
     // The draft is replaced by the new address's saved instructions, even if the shopper
-    // had typed something. A note is about a place — "use the side gate" carried to a different
+    // had typed something. A note is about a place - "use the side gate" carried to a different
     // building is worse than an empty field.
     setInstructions(draftFrom(addresses.find((a) => a.id === id)?.defaultDeliveryInstructions))
     setSaveInstructions(false)
@@ -288,7 +288,7 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
   /**
    * Place the order.
    *
-   * Delivery is back, but standard-only for US1 — there is no per-package method choice yet, so the
+   * Delivery is back, but standard-only for US1 - there is no per-package method choice yet, so the
    * shopper picks an address and pays. The server computes + captures the delivery fee at intent from the
    * destination zone + package weights; the grand total it returns already includes it. A
    * not-serviceable address is refused server-side (ErrNotServiceable) and blocked here (canContinue).
@@ -305,7 +305,7 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
     setBusy(true)
     setError(null)
     try {
-      // Send `billingAddressId` only when the customer diverged — the toggle is off and the chosen
+      // Send `billingAddressId` only when the customer diverged - the toggle is off and the chosen
       // billing differs from shipping. Same-as / equal → omit it so the server stores null.
       const body: Record<string, unknown> = { addressId: selectedId }
       if (!billingSameAsShipping && billingId && billingId !== selectedId) {
@@ -352,7 +352,7 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
       // plainly, and shown what is on offer now.
       // Who delivers is not what this page showed (the address's coverage changed, or the last
       // window went and courier is offered instead). Nothing was written or charged. The fresh quote
-      // re-draws the delivery section — a different one — and nothing chosen for the old one is kept.
+      // re-draws the delivery section - a different one - and nothing chosen for the old one is kept.
       if (res.status === 409 && data.code === "delivery_type_changed") {
         capture({ name: "checkout_delivery_type_changed", props: {} })
         setChosenWindow(null)
@@ -396,7 +396,7 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
       const pointsMessage = pointsRefusal(data.code)
       if (pointsMessage) {
         // A changed balance is re-read (the quote carries it); a too-large number is left for the
-        // shopper to lower — the page's estimate cannot see a promo discount the server applied.
+        // shopper to lower - the page's estimate cannot see a promo discount the server applied.
         if (data.code === "points_balance_changed") setChosenPoints(null)
         else setChosenPoints(split.pointsUsed)
         setError(pointsMessage)
@@ -451,13 +451,13 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
   useEffect(() => setCheckoutStep(step === "paying" ? 2 : 1), [step])
 
   if (step === "paying" && intent) {
-    // The payment step carries the amount and nothing else — no basket recap, no address, no
+    // The payment step carries the amount and nothing else - no basket recap, no address, no
     // delivery row. The `OrderSummary` strip that used to sit above the form is gone with it,
     // along with `PaymentForm`; the amount now lives in the step's own pay rail.
     return (
       <Elements stripe={getStripe()} options={paymentElementsOptions(intent.clientSecret)}>
         {/* `renewHold` re-runs the intent when the same-day place has lapsed. The server either
-            holds it again (same order, same payment) or refuses — and a refusal returns here. */}
+            holds it again (same order, same payment) or refuses - and a refusal returns here. */}
         <PaymentStep intent={intent} onBack={() => setStep("review")} renewHold={placeOrder} />
       </Elements>
     )
@@ -649,7 +649,7 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
                 ) : serviced ? (
                   <span className="tabular-nums">{formatMoney(formatCents(deliveryCents), currency)}</span>
                 ) : (
-                  <span className="text-muted-foreground">—</span>
+                  <span className="text-muted-foreground">-</span>
                 )}
               </dd>
             </div>
@@ -706,7 +706,7 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
 
 /** Who delivers changed under the shopper. Says what to do, and that nothing was taken. */
 export const DELIVERY_TYPE_CHANGED_MESSAGE =
-  "How this order is delivered has changed. Please check the delivery option below — you haven't been charged."
+  "How this order is delivered has changed. Please check the delivery option below - you haven't been charged."
 
 /** The three reasons the server refuses a checkout over the delivery choice, in our own words. */
 function deliveryRefusal(
@@ -731,7 +731,7 @@ function deliveryRefusal(
 function pointsRefusal(code: string | undefined): string | null {
   switch (code) {
     case "points_balance_changed":
-      return "Your points balance has changed. We’ve updated how many you can use — please check and continue."
+      return "Your points balance has changed. We’ve updated how many you can use - please check and continue."
     case "points_exceed_total":
       return "That’s more points than this order costs after any discount. Use fewer points and continue."
     case "points_card_remainder_too_small":

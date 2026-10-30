@@ -17,7 +17,7 @@ export function gatewayUsageHandler(reader: GatewayReader) {
 
     const shared = process.env.SHARED_HTTP_API_ID
     const staff = process.env.STAFF_HTTP_API_ID
-    if (!shared || !staff) throw new Error("SHARED_HTTP_API_ID and STAFF_HTTP_API_ID must both be configured — the gateway usage check cannot run")
+    if (!shared || !staff) throw new Error("SHARED_HTTP_API_ID and STAFF_HTTP_API_ID must both be configured - the gateway usage check cannot run")
 
     const readings = await measure(reader, { shared, staff })
     for (const r of readings) {

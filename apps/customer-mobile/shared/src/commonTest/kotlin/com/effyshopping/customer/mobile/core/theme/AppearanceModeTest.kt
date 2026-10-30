@@ -25,7 +25,7 @@ class AppearanceModeTest {
     }
 
     @Test
-    fun `signing out leaves the appearance alone — it is a device setting`() {
+    fun `signing out leaves the appearance alone - it is a device setting`() {
         val prefs = InMemoryDevicePreferences()
         prefs.putString(PreferenceKeys.APPEARANCE_MODE, "dark")
         prefs.clearGuestData()

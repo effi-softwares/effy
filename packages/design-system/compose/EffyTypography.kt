@@ -1,4 +1,4 @@
-// GENERATED FROM packages/design-system/src/tokens.css — DO NOT EDIT.
+// GENERATED FROM packages/design-system/src/tokens.css - DO NOT EDIT.
 // Regenerate: pnpm --filter @effy/design-system tokens:gen
 package com.effyshopping.customer.mobile.design
 
@@ -25,7 +25,7 @@ fun effyFontFamily(): FontFamily = FontFamily(
     Font(Res.font.geist_bold, FontWeight.Bold),
 )
 
-/** Geist Mono — one-time codes and order numbers, read out digit by digit. */
+/** Geist Mono - one-time codes and order numbers, read out digit by digit. */
 @Composable
 fun effyMonoFontFamily(): FontFamily = FontFamily(Font(Res.font.geist_mono_medium, FontWeight.Medium))
 

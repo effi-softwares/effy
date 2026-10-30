@@ -54,7 +54,7 @@ export function loadDraft(
     if ("attributes" in parsed) return null;
     const saved = parsed.variantSet;
     // A draft saved before 105 may hold a Pack size option (no attribute): drop such an option, and with it the
-    // variants it made — the shop picks its options again from the category.
+    // variants it made - the shop picks its options again from the category.
     const stale =
       !!saved &&
       Array.isArray(saved.options) &&
@@ -89,11 +89,11 @@ export function saveDraft(
       draftKey(shopId, subject),
       JSON.stringify(draft),
     );
-  } catch {}
+  } catch { }
 }
 
 export function clearDraft(shopId: string, subject: string): void {
   try {
     window.localStorage.removeItem(draftKey(shopId, subject));
-  } catch {}
+  } catch { }
 }

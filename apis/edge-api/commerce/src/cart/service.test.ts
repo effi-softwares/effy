@@ -127,7 +127,7 @@ const WORDS: PromotionWords = {
   deliveryTypes: ["effy", "courier"], audience: "everyone", minSubtotalCents: 0, minQuantity: null, daysOfWeek: null,
   minuteFrom: null, minuteTo: null, maxUsesPerCustomer: null,
 };
-/** SPRING20 — 20% off the cart, optionally with a minimum (cents). */
+/** SPRING20 - 20% off the cart, optionally with a minimum (cents). */
 const spring20 = (minSubtotalCents = 0) => ({
   code: "SPRING20" as string | null,
   candidate: { id: "promo-1", kind: "cart" as const, valueType: "percent" as const, percentOff: 20, minSubtotalCents },
@@ -184,7 +184,7 @@ describe("reading the cart", () => {
     expect(cart.notices).toContainEqual({ productId: B, variantId: B, kind: "unavailable", detail: "Sourdough is unavailable right now" });
   });
 
-  it("says OUT OF STOCK when the shelf is empty — a different sentence from 'unavailable'", async () => {
+  it("says OUT OF STOCK when the shelf is empty - a different sentence from 'unavailable'", async () => {
     const w = world({ [A]: { ...milk, tracked: true, onHand: 0 } });
     w.seedAtAdd(A, "4.50", 1);
     const cart = await w.svc.get(CUSTOMER);
@@ -269,7 +269,7 @@ describe("add", () => {
 });
 
 describe("set quantity, remove, clear", () => {
-  it("sets an absolute quantity — repeating it changes nothing", async () => {
+  it("sets an absolute quantity - repeating it changes nothing", async () => {
     const w = world({ [A]: milk });
     await w.svc.add(CUSTOMER, A, "c1", 1);
     await w.svc.setQty(CUSTOMER, A, "", 3);
@@ -401,7 +401,7 @@ describe("reorder", () => {
   });
 });
 
-describe("promotions (094 — priced by the shared engine)", () => {
+describe("promotions (094 - priced by the shared engine)", () => {
   it("applies a valid code and the discount reaches the lines and the total", async () => {
     const w = world({ [A]: { ...milk, price: "50.00" } });
     w.promos.set("promo-1", spring20());
@@ -448,7 +448,7 @@ describe("promotions (094 — priced by the shared engine)", () => {
     expect(cart.promotions?.map((x) => x.code)).toEqual([null]);
   });
 
-  it("prices the PAYABLE lines only — an unavailable line earns nothing", async () => {
+  it("prices the PAYABLE lines only - an unavailable line earns nothing", async () => {
     const w = world({ [A]: { ...milk, price: "50.00" }, [B]: { ...bread, price: "50.00", status: "unavailable" } });
     w.promos.set("promo-1", spring20());
     w.seedAtAdd(A, null);
@@ -472,7 +472,7 @@ describe("the minimum order value", () => {
     expect((await w.svc.get(CUSTOMER)).checkout).toMatchObject({ allowed: true, minimumSubtotalAmount: "25.00" });
   });
 
-  it("is judged AFTER the discount — the amount actually charged", () => {
+  it("is judged AFTER the discount - the amount actually charged", () => {
     const p = { ...defaultCartPolicy(), minimumSubtotalCents: 2500 };
     expect(checkoutState(1, 1, 2499, p).blockedReason).toBe("below_minimum");
     expect(checkoutState(1, 1, 2500, p).allowed).toBe(true);
@@ -515,7 +515,7 @@ describe("dedupe / payableCents", () => {
   it("sums duplicates, clamps to the ceiling, drops junk, keeps first-seen order", () => {
     const { ids, qty } = dedupe(
       [{ variantId: B, quantity: 2 }, { variantId: A, quantity: 60 }, { variantId: B, quantity: 3 }, { variantId: A, quantity: 60 },
-       { variantId: "junk", quantity: 1 }, { variantId: C, quantity: 0 }, { variantId: C, quantity: 1.5 }],
+      { variantId: "junk", quantity: 1 }, { variantId: C, quantity: 0 }, { variantId: C, quantity: 1.5 }],
       99,
     );
     expect(ids).toEqual([B, A]);

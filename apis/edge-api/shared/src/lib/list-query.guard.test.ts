@@ -13,7 +13,7 @@ import { EDGE_API_DIR, functionsOf, listStacks } from "./serverless-stacks";
 
 /**
  * Every console list route (contracts/list-contract.md). Method GET. Not here, on purpose: a customer's points
- * history — a keyset ledger the customer app reads too, paged once in `@effy/edge-shared/points` (`history`).
+ * history - a keyset ledger the customer app reads too, paged once in `@effy/edge-shared/points` (`history`).
  */
 const LIST_ROUTES = [
   "/orders/v1/orders",

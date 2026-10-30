@@ -39,7 +39,7 @@ export async function putTaxSettings(sub: string, body: Record<string, unknown>)
     throw new TaxSettingsRefusal(422, "invalid", "the legal name must be 2–200 characters");
   }
   const abn = typeof body.abn === "string" && body.abn.trim() !== "" ? body.abn.replace(/\s+/g, "") : null;
-  if (abn !== null && !isValidAbn(abn)) throw new TaxSettingsRefusal(422, "abn_invalid", "that is not a valid ABN — check the 11 digits");
+  if (abn !== null && !isValidAbn(abn)) throw new TaxSettingsRefusal(422, "abn_invalid", "that is not a valid ABN - check the 11 digits");
   const feeTreatment = body.feeTreatment === null || body.feeTreatment === undefined ? null : body.feeTreatment;
   if (feeTreatment !== null && !isGstStatus(feeTreatment)) throw new TaxSettingsRefusal(422, "invalid", "fee treatment must be taxable or GST-free");
   const enable = body.invoicesEnabled === true;

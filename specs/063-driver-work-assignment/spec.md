@@ -6,7 +6,7 @@
 
 **Status**: Draft
 
-**Input**: User description: "Driver Work Assignment & Wave Planning — the engine that turns paid orders into a driver's day, and the back-office view that supervises it."
+**Input**: User description: "Driver Work Assignment & Wave Planning - the engine that turns paid orders into a driver's day, and the back-office view that supervises it."
 
 ## Why This Exists
 
@@ -74,7 +74,7 @@ The driver classifies nothing. Which packages are same-day and which are standar
 the shopper checked out; the check-in only reveals it.
 
 **Why this priority**: Without check-in, a collection round has no ending and packages have no
-recorded location. It is also the precondition for any same-day delivery work — nothing can go out
+recorded location. It is also the precondition for any same-day delivery work - nothing can go out
 from the hub until something is known to have arrived there.
 
 **Independent Test**: Complete a collection round, check the packages in at the hub, and confirm each
@@ -129,7 +129,7 @@ pass.
 The screen is built around what needs attention, not around what is going fine.
 
 **Why this priority**: The engine earns its place by making the common case automatic and the
-exceptional case visible. At this volume a dispatcher with a good screen could cope alone — which is
+exceptional case visible. At this volume a dispatcher with a good screen could cope alone - which is
 precisely why the override path must exist and be trusted. It follows the automatic path because
 there is nothing to supervise until that path runs.
 
@@ -162,7 +162,7 @@ it, re-plan, and confirm the locked decision survives.
 - **A driver goes off duty holding planned work.** The work must return to the pool and be visible,
   not vanish with the session. Work they have physically collected is a different case and must not
   be silently taken from them while it is in their vehicle.
-- **A package becomes ready after its wave has already been planned** — settled by FR-004a: it joins
+- **A package becomes ready after its wave has already been planned** - settled by FR-004a: it joins
   the round if that shop's stop is still outstanding, otherwise it waits.
 - **A package is added to a round the driver has already started**, and the driver is part-way through
   a shop's pick-up.
@@ -171,7 +171,7 @@ it, re-plan, and confirm the locked decision survives.
   driver must not be told two different things.
 - **A collection run's time passes with work still uncollected.**
 - **The day has no collection runs configured**, or none remaining today.
-- **A driver is cleared for every area** — they must be eligible everywhere, including areas created
+- **A driver is cleared for every area** - they must be eligible everywhere, including areas created
   after their clearance was granted.
 - **A package's destination area has no cleared delivery driver at all**, so it can be collected but
   never delivered. This must be visible before the collection round runs, not discovered at the hub.
@@ -213,7 +213,7 @@ it, re-plan, and confirm the locked decision survives.
 - **FR-007**: The platform MUST decide assignment on the server. No client may choose its own work.
 - **FR-008**: Assignment MUST be push: work appears for the driver. There MUST be no offer, no
   accept, and no decline.
-- **FR-009**: A driver MUST be eligible for a piece of work only if ALL of the following hold — they
+- **FR-009**: A driver MUST be eligible for a piece of work only if ALL of the following hold - they
   are employed and not stood down; they are on duty; they are cleared for that function, that
   method and that area; their licence is valid; and they hold a vehicle.
 - **FR-010**: Eligibility conditions MUST be filters, not scores. A driver who fails any one of them
@@ -293,14 +293,14 @@ it, re-plan, and confirm the locked decision survives.
 
 - **Wave**: One planning pass tied to a point in the collection schedule. Records when it ran, what
   it considered, and what it decided.
-- **Round**: A body of work given to one driver in one go — either a collection round (a set of shops
+- **Round**: A body of work given to one driver in one go - either a collection round (a set of shops
   to visit) or a delivery round (a set of customer stops). Has a state and an order.
-- **Task / Stop**: One unit of work within a round — collect from this shop, or deliver to this
+- **Task / Stop**: One unit of work within a round - collect from this shop, or deliver to this
   destination. Carries its own state and its position in the round's order.
 - **Assignment**: The link between a round and the driver who holds it, including whether a person
   set it and must not have it overwritten.
 - **Hub check-in**: The record that collected packages arrived at the hub, and when, and with whom.
-- **Exclusion reason**: Why a given driver was not eligible for a given piece of work — the thing that
+- **Exclusion reason**: Why a given driver was not eligible for a given piece of work - the thing that
   makes an unassigned package explainable instead of mysterious.
 
 ## Success Criteria *(mandatory)*
@@ -316,14 +316,14 @@ it, re-plan, and confirm the locked decision survives.
 - **SC-004**: Running the planning pass twice in succession produces no duplicated work, no package in
   two rounds, and no change to work already under way.
 - **SC-005**: A driver is never given work they are not cleared for, not licensed for, or cannot carry
-  — verified by attempting each case, including by a dispatcher acting deliberately.
+  - verified by attempting each case, including by a dispatcher acting deliberately.
 - **SC-006**: An assignment a dispatcher has locked survives every subsequent planning pass unchanged.
 - **SC-007**: The order of a driver's task list can be explained from the stated rule alone, and the
   same set of work always produces the same order.
 - **SC-007a**: Given two eligible drivers carrying different amounts of work, the next package goes to
-  the one carrying less — demonstrable by running the case.
+  the one carrying less - demonstrable by running the case.
 - **SC-013**: A package made ready while its collection round is under way, at a shop the driver has
-  not yet reached, is collected on that same round rather than waiting for the next one — and the
+  not yet reached, is collected on that same round rather than waiting for the next one - and the
   driver is shown that it was added.
 - **SC-008**: A dispatcher can find, and act on, everything needing attention for the day without
   reading through work that is proceeding normally.
@@ -367,7 +367,7 @@ it, re-plan, and confirm the locked decision survives.
 
 - Proof of delivery and custody events (next slice).
 - Multi-hub operation.
-- Driver rosters and shift scheduling — a driver clocks on ad hoc.
+- Driver rosters and shift scheduling - a driver clocks on ad hoc.
 - Offer / accept / decline mechanics.
 - Any route optimisation, distance matrix, or geographic calculation.
 - Any capture or use of driver location.

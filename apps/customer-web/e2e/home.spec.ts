@@ -4,9 +4,9 @@ import { expect, test } from "@playwright/test"
  * The merchandised landing page.
  *
  * Why the home page needs its own E2E file. Most of this page is async Server Components, which
- * Vitest cannot render at all (see the note at the top of `vitest.config.ts`). The composition — what
+ * Vitest cannot render at all (see the note at the top of `vitest.config.ts`). The composition - what
  * order the sections appear in, whether an empty one leaves a hole, whether the hero is in the bytes
- * a crawler receives — is only observable here.
+ * a crawler receives - is only observable here.
  *
  * Each User Story phase appends to this file. It starts with the one assertion that must hold at every
  * point in the section-by-section build, including before any section exists.
@@ -14,8 +14,8 @@ import { expect, test } from "@playwright/test"
 
 test.describe("home page structure (SC-009)", () => {
   /**
-   * The invariant that survives every phase. The page carries exactly one `h1` — the screen-reader-only
-   * page title — and every section heads itself at `h2`. Six sections land here one at a time, each
+   * The invariant that survives every phase. The page carries exactly one `h1` - the screen-reader-only
+   * page title - and every section heads itself at `h2`. Six sections land here one at a time, each
    * with a heading; the first one that reaches for `h1` breaks the document outline for every assistive
    * technology, and nothing else in the build would notice.
    */
@@ -28,7 +28,7 @@ test.describe("home page structure (SC-009)", () => {
 
 test.describe("hero is in the served page, not gated on the catalogue (US1, FR-012/FR-040)", () => {
   /**
-   * Fetches the raw bytes, deliberately — not a rendered page. The hero's entire requirement is that
+   * Fetches the raw bytes, deliberately - not a rendered page. The hero's entire requirement is that
    * it is present *before* anything streams, for a crawler that runs no JavaScript and for the first
    * paint. Asserting it in a browser would pass even if it arrived inside the Suspense boundary, which
    * is precisely the failure this is here to catch.
@@ -55,8 +55,8 @@ test.describe("hero is in the served page, not gated on the catalogue (US1, FR-0
   })
 
   /**
-   * `/on sale/i` would match two links — the hero's "See what's on sale" and the header nav's "On
-   * sale" — which is a strict-mode violation, not a rendering fault. The full phrase disambiguates
+   * `/on sale/i` would match two links - the hero's "See what's on sale" and the header nav's "On
+   * sale" - which is a strict-mode violation, not a rendering fault. The full phrase disambiguates
    * without adding a test id to production markup.
    */
   test("renders the headline and both actions visibly, over the artwork", async ({ page }) => {
@@ -69,11 +69,11 @@ test.describe("hero is in the served page, not gated on the catalogue (US1, FR-0
 
   /**
    * The hero artwork is the LCP element on the platform's only public landing page. The hazard this
-   * guards is `loading="lazy"` on it — the single most common cause of a poor Largest Contentful
+   * guards is `loading="lazy"` on it - the single most common cause of a poor Largest Contentful
    * Paint, and something nothing else in the build would notice.
    *
    * It does not assert a `<link rel=preload>`: Next emits none for this image, even with `priority`,
-   * because it is `unoptimized`. See the note in quickstart § US1 — three below-the-fold promo banners
+   * because it is `unoptimized`. See the note in quickstart § US1 - three below-the-fold promo banners
    * are preloaded while the hero is not, which is a real prioritisation inversion but a pre-existing
    * `PromoCarousel` behaviour rather than something this feature introduced.
    */
@@ -92,7 +92,7 @@ test.describe("hero is in the served page, not gated on the catalogue (US1, FR-0
  * actually take the taps.
  *
  * Requires a seeded catalogue. With none, the strip correctly renders nothing and these skip
- * rather than fail — a green suite against an empty store would be a lie about coverage.
+ * rather than fail - a green suite against an empty store would be a lie about coverage.
  */
 test.describe("category shortcuts (US2, SC-002)", () => {
   /** The strip streams inside the page's `<Suspense>`, so wait for it; only a timeout means "no categories here". */
@@ -117,7 +117,7 @@ test.describe("category shortcuts (US2, SC-002)", () => {
 
     // `waitForURL`, not `expect(page).toHaveURL`, and with a generous budget: the destination is a
     // dynamic search page that queries the backend, and under four parallel workers it routinely takes
-    // longer than the 5s default assertion timeout. That is load, not a defect — but it fails
+    // longer than the 5s default assertion timeout. That is load, not a defect - but it fails
     // identically, which is how a green suite starts getting ignored.
     await page.waitForURL(new RegExp(href!.replace(/[?&=]/g, "\\$&")), { timeout: 30_000 })
     await expect(page.locator("h1")).toHaveCount(1)
@@ -133,20 +133,20 @@ test.describe("category shortcuts (US2, SC-002)", () => {
   /**
    * A shortcut to an unstocked category opens an empty listing, because category filtering is
    * exact-match everywhere on this platform. This is the live-data half of that rule: the strip must
-   * never link to a category the server reports as holding nothing — which on the current seed means
+   * never link to a category the server reports as holding nothing - which on the current seed means
    * every top-level parent, since `productCount` does not roll up.
    */
   test("never links to a category with no products", async ({ page, request }) => {
     test.skip(!(await categoryStripReady(page)), "no stocked categories in this environment")
 
-    // Deliberately every category link on the page, not just the strip's — the rails' "view all"
+    // Deliberately every category link on the page, not just the strip's - the rails' "view all"
     // actions point at the same facet and would open the same empty listing if a rail ever went stale.
     const links = await page.locator('a[href^="/search?category="]').all()
 
     const stocked = new Set(
       ((await (
         await request.get(
-          // The same backend address the app under test was built with — never a second literal.
+          // The same backend address the app under test was built with - never a second literal.
           `${(process.env.NEXT_PUBLIC_EDGE_API_BASE_URL ?? "").replace(/\/$/, "")}/storefront/v1/categories`,
         )
       ).json()) as {
@@ -175,7 +175,7 @@ test.describe("category shortcuts (US2, SC-002)", () => {
 test.describe("merchandised rails (US3, SC-003)", () => {
   /**
    * The rails stream, like the category strip. Waiting on the locator the test then counts is the
-   * only sound form — an earlier version waited on an unrelated locator, so on mobile the count ran
+   * only sound form - an earlier version waited on an unrelated locator, so on mobile the count ran
    * against a half-streamed page and reported 2. The flake looked exactly like a missing rail.
    *
    * `^view all$` deliberately excludes "View all categories", which is the strip's action, not a rail's.
@@ -189,7 +189,7 @@ test.describe("merchandised rails (US3, SC-003)", () => {
     await railActions(page)
       .first()
       .waitFor({ state: "visible", timeout: 15_000 })
-      .catch(() => {})
+      .catch(() => { })
     return railActions(page).count()
   }
 
@@ -217,7 +217,7 @@ test.describe("merchandised rails (US3, SC-003)", () => {
 
   /**
    * FR-004 as a shopper would notice it failing: a heading with nothing under it. Every `h2` on the
-   * merchandised page must be followed by actual content — an empty rail should not exist at all
+   * merchandised page must be followed by actual content - an empty rail should not exist at all
    * rather than exist and be blank.
    */
   test("shows no section heading above an empty section", async ({ page }) => {
@@ -240,7 +240,7 @@ test.describe("offer panels (US4)", () => {
   async function offersReady(page: import("@playwright/test").Page): Promise<number> {
     await page.goto("/")
     const heading = page.getByRole("heading", { name: /^offers$/i })
-    await heading.waitFor({ state: "visible", timeout: 15_000 }).catch(() => {})
+    await heading.waitFor({ state: "visible", timeout: 15_000 }).catch(() => { })
     return heading.count()
   }
 
@@ -255,7 +255,7 @@ test.describe("offer panels (US4)", () => {
     expect(hrefs.length).toBeGreaterThan(0)
     for (const href of hrefs) {
       expect(href, "an offer panel with no destination").toBeTruthy()
-      expect(href, "an offer panel pointing at the unfiltered store — 029's defect").not.toBe("/search")
+      expect(href, "an offer panel pointing at the unfiltered store - 029's defect").not.toBe("/search")
       expect(href).toMatch(/^\/promotions\//)
     }
   })

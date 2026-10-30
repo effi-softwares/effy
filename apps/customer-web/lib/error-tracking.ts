@@ -17,13 +17,13 @@ let loading: Promise<void> | null = null
 
 async function ensure(): Promise<void> {
   if (errPh || loading || typeof window === "undefined") return
-  if (!telemetryEnabled()) return // kill switch — no SDK loads
+  if (!telemetryEnabled()) return // kill switch - no SDK loads
   const { key, host, ingestPath } = posthogConfig()
   if (!key) return
 
   loading = import("posthog-js")
     .then(({ default: posthog }) => {
-      // A dedicated named instance for exceptions only — no pageviews, no autocapture, no replay, and
+      // A dedicated named instance for exceptions only - no pageviews, no autocapture, no replay, and
       // memory-only persistence (an error reporter has no reason to write to the visitor's disk).
       const instance = posthog.init(
         key,

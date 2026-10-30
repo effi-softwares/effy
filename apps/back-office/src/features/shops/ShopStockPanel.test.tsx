@@ -86,7 +86,7 @@ describe("the restock list's view (103)", () => {
 })
 
 describe("the write tier (FR-025, FR-028)", () => {
-  it("offers no settings control to a csa — reading stays open, writing does not", async () => {
+  it("offers no settings control to a csa - reading stays open, writing does not", async () => {
     renderPanel(false)
     await screen.findByText("Milk")
     expect(screen.queryByLabelText(/^threshold$/i)).not.toBeInTheDocument()

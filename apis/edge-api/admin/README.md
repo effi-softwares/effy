@@ -1,7 +1,7 @@
-# `@effy/edge-admin` — admin service (004 A3)
+# `@effy/edge-admin` - admin service (004 A3)
 
 An independently deployable Serverless service that **attaches to the Terraform-owned shared HTTP
-API** (`provider.httpApi.id` from SSM — see [docs/api/shared-gateway.md](../../../docs/api/shared-gateway.md)).
+API** (`provider.httpApi.id` from SSM - see [docs/api/shared-gateway.md](../../../docs/api/shared-gateway.md)).
 Routes live under `/admin/`; cross-cutting code comes from `@effy/edge-shared`.
 
 ## Layout (layered, per ARCHITECTURE.md)
@@ -20,5 +20,5 @@ src/
 3. Add its per-function alarms. `pnpm --filter @effy/edge-admin test`.
 
 ## Deploy (operator)
-`make edge-deploy SERVICE=admin ENV=dev` — attaches to the staff gateway (075); touches only this
+`make edge-deploy SERVICE=admin ENV=dev` - attaches to the staff gateway (075); touches only this
 service's routes (deploy independence). The gateway (Terraform) must exist first.

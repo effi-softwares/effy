@@ -8,7 +8,7 @@ promises intact while its presentation is rewritten.
 
 ---
 
-## 1. The guest-path budget rule (web) — machine-enforced
+## 1. The guest-path budget rule (web) - machine-enforced
 
 **Rule**: client code reachable from `app/(shop)/` MUST be dependency-free.
 
@@ -35,14 +35,14 @@ both consoles. This constraint is scoped to the public path, not platform-wide.
 
 ### Enforcement
 
-1. **Budget gate** — `apps/customer-web/scripts/bundle-budget.mjs`, `GUEST_LIMIT = 160 KB`, fails the
+1. **Budget gate** - `apps/customer-web/scripts/bundle-budget.mjs`, `GUEST_LIMIT = 160 KB`, fails the
    build. `GUEST_PAGES` MUST be extended to include `/search` and `/product/[id]` so the gate covers
    what this feature changes.
-2. **Reachability guard** — a `dependency-cruiser` rule forbidding the prohibited packages from being
+2. **Reachability guard** - a `dependency-cruiser` rule forbidding the prohibited packages from being
    reachable from `app/(shop)/`, using **`reachable: true`**.
 
 > The `reachable: true` detail is not incidental. 011's research D11 records that the Amplify
-> quarantine guard was initially wrong because dependency-cruiser matches *direct* imports by default —
+> quarantine guard was initially wrong because dependency-cruiser matches *direct* imports by default -
 > it reported clean while Amplify sat on the home page via a component. This guard must be proven by
 > deliberately breaking it, the same way that one eventually was.
 
@@ -62,7 +62,7 @@ Inherited from 011 and non-negotiable here:
   `aws-amplify`. Either converts every public page from a cached static shell to a per-request
   render. Both are machine-guarded.
 - Request-time personalization stays inside `<Suspense>` islands. The delivery affordance is such an
-  island — it reads device-local storage on the client, so it costs the shell nothing.
+  island - it reads device-local storage on the client, so it costs the shell nothing.
 - Refinements are **query parameters, never path segments** (FR-017), preserving the existing crawl
   and cache policy.
 
@@ -74,7 +74,7 @@ No surface introduced or changed by this feature may name, number, or make infer
 location (FR-006).
 
 Concretely:
-- Serviceability returns a boolean — no zone id, no zone name (zone names are geographic).
+- Serviceability returns a boolean - no zone id, no zone name (zone names are geographic).
 - Multi-package carts keep **positional** labelling only ("Package 1"), and a single-package cart
   shows no package framing at all (FR-043).
 - Related products are drawn from a category, never from "the same shop".
@@ -112,7 +112,7 @@ SC-014).
 Applies to every screen this feature touches:
 
 - Every interactive element has an accessible name (FR-045).
-- Dynamic changes — result count, applied refinements, add confirmation, errors — are announced via a
+- Dynamic changes - result count, applied refinements, add confirmation, errors - are announced via a
   live region (FR-045).
 - Web is fully keyboard-operable with a visible focus indicator and no focus trap (FR-046).
 - Status, badge, refinement, and availability meanings survive grayscale (FR-047).
@@ -129,7 +129,7 @@ No improvised or hardcoded value on either surface.
 
 **Cards are permitted in exactly three places** (Principle V, justified in `research.md` R11): the
 product tile (the existing recorded exception), the category tile (an extension of it), and the promo
-slide (a full-bleed merchandising surface, not a container tiling content). Everything else — product
+slide (a full-bleed merchandising surface, not a container tiling content). Everything else - product
 specifics, cart lines, order lines, delivery options, addresses, account rows, empty and error
-states — is rows, lists, tables, or sectioned pages. **No metric or summary cards anywhere, and none
+states - is rows, lists, tables, or sectioned pages. **No metric or summary cards anywhere, and none
 at the top of any page.**

@@ -1,4 +1,4 @@
-# Implementation Plan: Courier Fulfilment — Via the Hub or Pickup from the Supplier
+# Implementation Plan: Courier Fulfilment - Via the Hub or Pickup from the Supplier
 
 **Branch**: `dev` (feature directory `080-courier-fulfilment`) | **Date**: 2026-10-09 | **Spec**: [spec.md](spec.md)
 
@@ -15,7 +15,7 @@ delivery model v2 programme (epic E6). Manual booking only.
 Seven decisions ([research.md](research.md)):
 
 1. **Courier services are a back-office list with one default** (R1); 079's single estimate text is
-   retired from the console. No service is seeded — courier names are the operator's to enter.
+   retired from the console. No service is seeded - courier names are the operator's to enter.
 2. **The mode lives on the order** (`hub` | `supplier`), from a platform default (R2).
 3. **The consignment holds the booking and the journey; "handed over" and "delivered" stay in 053's
    records** (R3). One shared writer does both in one transaction, so status, arrival and completion
@@ -26,7 +26,7 @@ Seven decisions ([research.md](research.md)):
 7. **No new service.** +7 staff routes, +1 shared route; one scheduled function and one alarm.
 
 ⚠ **Before the operator can use it**: add at least one courier service. If courier delivery is already
-switched on in dev, it reads "not ready" until then — invisible while the model switch is off.
+switched on in dev, it reads "not ready" until then - invisible while the model switch is off.
 
 ## Technical Context
 
@@ -34,7 +34,7 @@ switched on in dev, it reads "not ready" until then — invisible while the mode
 shop-web, customer-web); Kotlin 2.4 / CMP (customer, shop and driver apps); Terraform (one alarm).
 **Primary Dependencies**: none added. Labels use the existing media bucket under `courier-label/` with
 presigned URLs (064's pattern).
-**Storage**: one additive migration — 4 tables, 4 columns, 1 function ([data-model.md](data-model.md)).
+**Storage**: one additive migration - 4 tables, 4 columns, 1 function ([data-model.md](data-model.md)).
 **Testing**: Vitest units (calendar), container tests (orders, shop, fleet, commerce, shared, driver),
 guards, component tests, Kotlin host tests ([quickstart.md](quickstart.md) P1–P15).
 **Target Platform**: `admin`, `orders`, `fleet` (staff gateway); `shop`, `driver`, `commerce` (shared);

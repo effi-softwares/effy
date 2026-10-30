@@ -16,7 +16,7 @@ export function verdictNote(verdict: SavedVerdict): string {
   }
 }
 
-/** Only a purchasable item may be added to a cart — everything else needs the shopper to act first. */
+/** Only a purchasable item may be added to a cart - everything else needs the shopper to act first. */
 export function isPurchasable(verdict: SavedVerdict): boolean {
   return verdict === "purchasable"
 }

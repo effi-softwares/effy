@@ -35,7 +35,7 @@ export const BLOCKED_REASONS = `(
             WHERE bvh.driver_id = d.id AND bvh.ended_at IS NULL
          ) THEN 'no_vehicle' END,
     -- ⚠ The reason names the VEHICLE's problem, not the driver's. The remedy is to renew a
-    -- registration or book an inspection — not to do anything to the person.
+    -- registration or book an inspection - not to do anything to the person.
     CASE WHEN EXISTS (
            SELECT 1
              FROM public.vehicle_holding bvh

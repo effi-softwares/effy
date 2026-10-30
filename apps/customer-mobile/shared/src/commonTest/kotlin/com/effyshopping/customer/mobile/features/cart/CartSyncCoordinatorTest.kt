@@ -31,7 +31,7 @@ import kotlin.test.assertTrue
  *
  * Before this, the mirror was durable but private: nothing a shopper did was ever sent, so signing in on a
  * second phone showed an empty cart. These tests pin the behaviour that fixes it, and the three ways it
- * could go wrong instead — sending a guest's changes, applying an out-of-order response, and losing the
+ * could go wrong instead - sending a guest's changes, applying an out-of-order response, and losing the
  * local cart when the merge fails.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -97,7 +97,7 @@ class CartSyncCoordinatorTest {
 
         AddToCart(store, sync)(line("p1", 1))
 
-        // The mirror moved before any coroutine ran — the tap does not wait on the network.
+        // The mirror moved before any coroutine ran - the tap does not wait on the network.
         assertEquals(1, store.state.value.itemCount)
 
         advanceUntilIdle()
@@ -250,7 +250,7 @@ class CartSyncCoordinatorTest {
         assertEquals(1, store.state.value.itemCount, "and the shopper still sees what they did")
     }
 
-    // Retrying a refusal only repeats it, so it must stop — and the shopper must be told.
+    // Retrying a refusal only repeats it, so it must stop - and the shopper must be told.
     @Test
     fun a_definitive_refusal_stops_retrying_and_is_reported() = runTest {
         val repo = FakeRepo()

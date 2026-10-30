@@ -51,8 +51,8 @@ export function CallbackHandler() {
         capture({ name: "account_linked", props: { provider: "google" } })
         // The federated route needs the same cart merge as the native ones.
         void mergeCartAfterSignIn()
-    // And the saved list, as email sign-in does.
-    void mergeSavedAfterSignIn()
+        // And the saved list, as email sign-in does.
+        void mergeSavedAfterSignIn()
 
         // Ensure the platform record (`GET /customer/v1/me`): the name step's PATCH answers 403 without one.
         void ensureCustomerRecord()
@@ -82,7 +82,7 @@ export function CallbackHandler() {
 
         sessionStorage.removeItem(RETRY_FLAG)
         setError(
-          "Google sign-in was cancelled or something went wrong. Nothing has changed — try again or use your email.",
+          "Google sign-in was cancelled or something went wrong. Nothing has changed - try again or use your email.",
         )
       }
     })

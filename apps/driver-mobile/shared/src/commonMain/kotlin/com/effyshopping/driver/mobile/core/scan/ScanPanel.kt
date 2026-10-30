@@ -93,13 +93,13 @@ import com.effyshopping.driver.mobile.resources.lucide_search
 import com.effyshopping.driver.mobile.resources.lucide_truck
 import kotlinx.coroutines.delay
 
-/** Who takes a package from the hub — the coloured line under a row (Effy green, Courier blue). */
+/** Who takes a package from the hub - the coloured line under a row (Effy green, Courier blue). */
 enum class RouteTone { Effy, Courier, None }
 
 /** How a hub sort is drawn: load now (blue), shelve (dark), courier bay (outline). */
 enum class ScanSwatch { Blue, Dark, Outline }
 
-/** A group of packages counted together — a hub sort or a drop being loaded. */
+/** A group of packages counted together - a hub sort or a drop being loaded. */
 data class ScanGroup(
     val key: String,
     val title: String,
@@ -109,7 +109,7 @@ data class ScanGroup(
     val number: Int? = null,
 )
 
-/** The hub's big instruction after a scan (redesign S2): "PUT IT IN — LOAD NOW". */
+/** The hub's big instruction after a scan (redesign S2): "PUT IT IN - LOAD NOW". */
 data class ScanSort(val word: String, val sub: String, val swatch: ScanSwatch)
 
 /** One package the step expects. */
@@ -144,7 +144,7 @@ internal sealed interface ScanBanner {
  * bar that counts three seconds with Undo, then completes.
  *
  * One rule: every read goes through [ScanSession], offline. A package for another stop or drop is
- * a hard stop — a low tone, a long buzz, and it is not counted.
+ * a hard stop - a low tone, a long buzz, and it is not counted.
  */
 @Composable
 fun ScanPanel(
@@ -156,7 +156,7 @@ fun ScanPanel(
     listTitle: (scanned: Int, total: Int) -> String,
     /** The idle banner's second line ("Brunswick store · 4 packages"). */
     idleSub: String?,
-    /** The auto-complete bar's words: "collecting" → "All 4 scanned — collecting…". */
+    /** The auto-complete bar's words: "collecting" → "All 4 scanned - collecting…". */
     completeVerb: String,
     working: Boolean,
     onBack: () -> Unit,
@@ -356,7 +356,7 @@ fun ScanPanel(
 
 /**
  * Always dark, whatever the appearance: it frames a live picture (as the photo camera). So its chrome
- * reads the dark palette directly, and its result banners the light one — fixed, but still tokens.
+ * reads the dark palette directly, and its result banners the light one - fixed, but still tokens.
  */
 private val CameraGround = EffyColor.Dark.muted
 private val CameraChip = EffyColor.Dark.background
@@ -498,16 +498,16 @@ internal data class BannerLook(
 )
 
 /**
- * A plain function on purpose — not inline in [CameraBanner]. Written as two `when`s inside the
+ * A plain function on purpose - not inline in [CameraBanner]. Written as two `when`s inside the
  * composable, Kotlin/Native (iOS) threw `NoWhenBranchMatchedException` on an exhaustive `when` the
- * moment a package counted, and the app aborted (sigabrt) at the door — Android was fine. The same
+ * moment a package counted, and the app aborted (sigabrt) at the door - Android was fine. The same
  * `when` outside Compose is correct on iOS (`ScanBannerWhenIosTest`); `DoorScanTypedCodeIosTest` drives
  * the screen that crashed. Keep the decision here.
  */
 internal fun bannerLook(b: ScanBanner?, idleSub: String?): BannerLook = when (b) {
     is ScanBanner.Counted -> BannerLook(EffyColor.Light.brand, EffyColor.Light.brandForeground, Res.drawable.lucide_circle_check, b.item?.bannerTitle ?: b.code, b.item?.bannerSub)
     is ScanBanner.Already -> BannerLook(GreyBanner, BannerInk, Res.drawable.lucide_rotate_ccw, "Already scanned", b.item?.bannerTitle)
-    is ScanBanner.WrongPlace -> BannerLook(PaperBanner, BannerInk, Res.drawable.lucide_circle_alert, "This is for ${b.where}", "Don't hand it over — put it back")
+    is ScanBanner.WrongPlace -> BannerLook(PaperBanner, BannerInk, Res.drawable.lucide_circle_alert, "This is for ${b.where}", "Don't hand it over - put it back")
     is ScanBanner.NotYours -> BannerLook(PaperBanner, BannerInk, Res.drawable.lucide_circle_x, "Not on any of your runs", "Don't take it. Call dispatch if they insist.")
     ScanBanner.NotACode -> BannerLook(PaperBanner, BannerInk, Res.drawable.lucide_circle_alert, "That isn't a package code", "The code is the six large characters on the label.")
     null -> BannerLook(CameraChip, Bracket, Res.drawable.lucide_search, "Point at a package label", idleSub)
@@ -646,7 +646,7 @@ private fun AutoCompleteBar(count: Int, verb: String, working: Boolean, onUndo: 
         Modifier.fillMaxWidth().background(EffyRoles.brandMuted)
             .navigationBarsPadding()
             .padding(horizontal = DriverSize.gutter, vertical = 14.dp)
-            .semantics { liveRegion = LiveRegionMode.Polite; contentDescription = "All $count scanned — $verb." },
+            .semantics { liveRegion = LiveRegionMode.Polite; contentDescription = "All $count scanned - $verb." },
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -654,7 +654,7 @@ private fun AutoCompleteBar(count: Int, verb: String, working: Boolean, onUndo: 
                 DriverIcon(Res.drawable.lucide_check, size = 20.dp, tint = EffyRoles.brandForeground)
             }
             Column(Modifier.weight(1f)) {
-                Text("All $count scanned — $verb…", color = EffyRoles.brand, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                Text("All $count scanned - $verb…", color = EffyRoles.brand, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
                 Text(
                     if (working || left == 0) "Sending now" else "Sending in $left ${if (left == 1) "second" else "seconds"}",
                     style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,

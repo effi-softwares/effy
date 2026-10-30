@@ -32,7 +32,7 @@ export default defineConfig({
       manifest: {
         name: "Effy Shop Console",
         short_name: "Effy Shop",
-        description: "Effy shop operator console — orders, picking, catalog and stock.",
+        description: "Effy shop operator console - orders, picking, catalog and stock.",
         display: "standalone",
         orientation: "any",
         start_url: "/",

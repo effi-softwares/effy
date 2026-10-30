@@ -10,25 +10,25 @@ import type { BillingDetailsDTO } from "@effy/shared-types"
 
 export type ConfirmOutcome =
   | { kind: "succeeded" }
-  /** The provider took the payment but has not settled it yet — not a success and not a failure. */
+  /** The provider took the payment but has not settled it yet - not a success and not a failure. */
   | { kind: "processing" }
   /** The shopper's bank wants them to approve it; the provider handles the redirect. */
   | { kind: "requires_action" }
   | {
-      kind: "failed"
-      message: string
-      /** The provider's `decline_code`, where given, so the caller can choose the words. */
-      declineCode?: string
-    }
+    kind: "failed"
+    message: string
+    /** The provider's `decline_code`, where given, so the caller can choose the words. */
+    declineCode?: string
+  }
 
 /**
  * Every message below is ours. A provider's raw decline string is written for a developer reading a
  * dashboard, not for a shopper deciding whether to try another card. The provider's own message
  * is preferred where it exists, because it is localised and specific ("your card was declined"), and the
- * fallback is a sentence a shopper can act on — never "something went wrong".
+ * fallback is a sentence a shopper can act on - never "something went wrong".
  */
 const GENERIC_FAILURE =
-  "We couldn't take that payment. Nothing has been charged — try again, or use a different payment method."
+  "We couldn't take that payment. Nothing has been charged - try again, or use a different payment method."
 
 export async function confirmCardPayment(input: {
   stripe: Stripe
@@ -40,7 +40,7 @@ export async function confirmCardPayment(input: {
    * Whether the shopper ticked "save this card".
    *
    * This is the only thing that decides whether a card is kept. The server deliberately does
-   * not set `setup_future_usage` on the intent — doing so would keep a card the shopper declined, and it
+   * not set `setup_future_usage` on the intent - doing so would keep a card the shopper declined, and it
    * is a documented integration error besides. `allow_redisplay` is set explicitly
    * alongside, because without a customer session the provider does not infer it from a checkbox it
    * never rendered.
@@ -54,19 +54,19 @@ export async function confirmCardPayment(input: {
       card: cardNumberElement,
       ...(billingDetails
         ? {
-            billing_details: {
-              name: billingDetails.name ?? undefined,
-              email: billingDetails.email ?? undefined,
-              address: {
-                line1: billingDetails.address.line1,
-                line2: billingDetails.address.line2 ?? undefined,
-                city: billingDetails.address.city,
-                state: billingDetails.address.state,
-                postal_code: billingDetails.address.postalCode,
-                country: billingDetails.address.country,
-              },
+          billing_details: {
+            name: billingDetails.name ?? undefined,
+            email: billingDetails.email ?? undefined,
+            address: {
+              line1: billingDetails.address.line1,
+              line2: billingDetails.address.line2 ?? undefined,
+              city: billingDetails.address.city,
+              state: billingDetails.address.state,
+              postal_code: billingDetails.address.postalCode,
+              country: billingDetails.address.country,
             },
-          }
+          },
+        }
         : {}),
       ...(saveCard ? { allow_redisplay: "always" as const } : {}),
     },
@@ -83,7 +83,7 @@ export async function confirmCardPayment(input: {
   return outcomeFor(paymentIntent?.status)
 }
 
-/** Confirm with a card the shopper has already kept — nothing is typed, so nothing is collected. */
+/** Confirm with a card the shopper has already kept - nothing is typed, so nothing is collected. */
 export async function confirmSavedCard(input: {
   stripe: Stripe
   clientSecret: string
@@ -124,7 +124,7 @@ function outcomeFor(status: string | undefined): ConfirmOutcome {
  * Confirm a payment the shopper authorised in a wallet sheet.
  *
  * A different call from the card route, and it has to be. The wallet's own sheet has already
- * collected the payment method, so there is no element to hand over — `confirmPayment` reads what the
+ * collected the payment method, so there is no element to hand over - `confirmPayment` reads what the
  * Express Checkout Element captured from the shared Elements group. Passing a card element here would
  * confirm the wrong thing.
  *
@@ -146,21 +146,21 @@ export async function confirmWalletPayment(input: {
       return_url: input.returnUrl,
       ...(input.billingDetails
         ? {
-            payment_method_data: {
-              billing_details: {
-                name: input.billingDetails.name ?? undefined,
-                email: input.billingDetails.email ?? undefined,
-                address: {
-                  line1: input.billingDetails.address.line1,
-                  line2: input.billingDetails.address.line2 ?? undefined,
-                  city: input.billingDetails.address.city,
-                  state: input.billingDetails.address.state,
-                  postal_code: input.billingDetails.address.postalCode,
-                  country: input.billingDetails.address.country,
-                },
+          payment_method_data: {
+            billing_details: {
+              name: input.billingDetails.name ?? undefined,
+              email: input.billingDetails.email ?? undefined,
+              address: {
+                line1: input.billingDetails.address.line1,
+                line2: input.billingDetails.address.line2 ?? undefined,
+                city: input.billingDetails.address.city,
+                state: input.billingDetails.address.state,
+                postal_code: input.billingDetails.address.postalCode,
+                country: input.billingDetails.address.country,
               },
             },
-          }
+          },
+        }
         : {}),
     },
     redirect: "if_required",
@@ -177,11 +177,11 @@ export async function confirmWalletPayment(input: {
 }
 
 /**
- * Confirm a pay-over-time payment — Klarna, Zip, Afterpay.
+ * Confirm a pay-over-time payment - Klarna, Zip, Afterpay.
  *
  * Always a redirect. Every bnpl provider takes the shopper to its own site to assess and approve
  * them, so `return_url` is not optional here the way it is for a card: without it the shopper leaves
- * Effy and has no route back. `redirect: "if_required"` still applies — it means "redirect only when
+ * Effy and has no route back. `redirect: "if_required"` still applies - it means "redirect only when
  * the method needs it", and these always do.
  *
  * NO `setup_future_usage`. Afterpay and Zip do not support it at all, and Klarna's support excludes
@@ -202,21 +202,21 @@ export async function confirmPayOverTime(input: {
       return_url: input.returnUrl,
       ...(input.billingDetails
         ? {
-            payment_method_data: {
-              billing_details: {
-                name: input.billingDetails.name ?? undefined,
-                email: input.billingDetails.email ?? undefined,
-                address: {
-                  line1: input.billingDetails.address.line1,
-                  line2: input.billingDetails.address.line2 ?? undefined,
-                  city: input.billingDetails.address.city,
-                  state: input.billingDetails.address.state,
-                  postal_code: input.billingDetails.address.postalCode,
-                  country: input.billingDetails.address.country,
-                },
+          payment_method_data: {
+            billing_details: {
+              name: input.billingDetails.name ?? undefined,
+              email: input.billingDetails.email ?? undefined,
+              address: {
+                line1: input.billingDetails.address.line1,
+                line2: input.billingDetails.address.line2 ?? undefined,
+                city: input.billingDetails.address.city,
+                state: input.billingDetails.address.state,
+                postal_code: input.billingDetails.address.postalCode,
+                country: input.billingDetails.address.country,
               },
             },
-          }
+          },
+        }
         : {}),
     },
     redirect: "if_required",

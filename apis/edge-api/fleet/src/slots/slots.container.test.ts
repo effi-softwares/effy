@@ -132,7 +132,7 @@ beforeEach(async () => {
   await pool.query(`DELETE FROM admin.audit_log`);
 });
 
-d("069 — same-day delivery slots", () => {
+d("069 - same-day delivery slots", () => {
   it("creates a slot, lists it, and records who created it", async () => {
     const slot = await createSlot(EVENING, ACTOR, scope);
     expect(slot).toMatchObject({ ...EVENING, status: "active", bookedToday: 0, overCapacityToday: 0 });
@@ -160,7 +160,7 @@ d("069 — same-day delivery slots", () => {
     expect(changes).toContainEqual({ from: 4, to: null });
   });
 
-  it("085 — THE Any time window: its hours and limit change, it is never switched off, and none can be made", async () => {
+  it("085 - THE Any time window: its hours and limit change, it is never switched off, and none can be made", async () => {
     // The suite empties the table; the migration is what creates the window.
     const id = (await pool.query<{ id: string }>(
       `INSERT INTO public.delivery_slot (start_time, end_time, cutoff_time, capacity, any_time, updated_by)
@@ -194,7 +194,7 @@ d("069 — same-day delivery slots", () => {
     expect(await listSlots()).toHaveLength(1);
   });
 
-  it("⚠ 'booked today' counts confirmed bookings and LIVE holds — and nothing else", async () => {
+  it("⚠ 'booked today' counts confirmed bookings and LIVE holds - and nothing else", async () => {
     const slot = await createSlot({ ...EVENING, capacity: 9 }, ACTOR, scope);
     await order({ slotId: slot.id, state: "confirmed" });
     await order({ slotId: slot.id, state: "held" });
@@ -204,7 +204,7 @@ d("069 — same-day delivery slots", () => {
     expect((await listSlots())[0]!.bookedToday).toBe(2);
   });
 
-  it("078 — how full each window is on today and each Effy delivery day after it (P15)", async () => {
+  it("078 - how full each window is on today and each Effy delivery day after it (P15)", async () => {
     const days = effyDays(new Date(), 3, [], new Set(), true).map((x) => x.date);
     const evening = await createSlot(EVENING, ACTOR, scope);
     const late = await createSlot({ startTime: "19:00", endTime: "21:00", cutoffTime: "17:00" }, ACTOR, scope);
@@ -227,7 +227,7 @@ d("069 — same-day delivery slots", () => {
     expect(grid.items[1]!.load).toEqual(days.map((date) => ({ date, booked: 0, overCapacity: 0 })));
   });
 
-  it("078 — the grid's days are the customer's days: a closed date is skipped, the look-ahead is the setting", async () => {
+  it("078 - the grid's days are the customer's days: a closed date is skipped, the look-ahead is the setting", async () => {
     await pool.query(`INSERT INTO public.delivery_settings (id, hub_latitude, hub_longitude, effy_lookahead_days, updated_by) VALUES (1, -37.8, 144.9, 2, 'seed')`);
     const plain = effyDays(new Date(), 3, [], new Set(), true).map((x) => x.date);
     await pool.query(`INSERT INTO public.delivery_non_delivery_date (day, created_by) VALUES ($1::date, 'seed')`, [plain[1]]);
@@ -268,7 +268,7 @@ d("069 — same-day delivery slots", () => {
     expect(await audits("delivery_slot.disabled")).toHaveLength(1);
   });
 
-  it("validates the RESULT of a patch, not the patch — one field can break a slot", async () => {
+  it("validates the RESULT of a patch, not the patch - one field can break a slot", async () => {
     const slot = await createSlot(EVENING, ACTOR, scope);
 
     const pastEnd = await refusal(updateSlot(slot.id, { startTime: "19:30" }, ACTOR, scope));
@@ -288,7 +288,7 @@ d("069 — same-day delivery slots", () => {
   });
 });
 
-d("069 — the delivery calendar", () => {
+d("069 - the delivery calendar", () => {
   const SETTINGS = { effyLookaheadDays: 5, noDeliveryWeekdays: [7, 6], slotHoldMin: 15, hubTurnaroundMin: 45 };
 
   async function hub() {
@@ -353,7 +353,7 @@ d("069 — the delivery calendar", () => {
     expect(await audits("delivery_days.date_removed")).toHaveLength(1);
   });
 
-  it("078 — the days offered after today are a setting of 1–14, and a save that does not mention it keeps it", async () => {
+  it("078 - the days offered after today are a setting of 1–14, and a save that does not mention it keeps it", async () => {
     await hub();
     expect((await putDeliveryDays({ ...SETTINGS, effyLookaheadDays: 5 }, ACTOR, scope)).effyLookaheadDays).toBe(5);
     expect((await putDeliveryDays(SETTINGS, ACTOR, scope)).effyLookaheadDays).toBe(5);
@@ -364,7 +364,7 @@ d("069 — the delivery calendar", () => {
     expect((await getDeliveryDays()).effyLookaheadDays).toBe(5);
   });
 
-  it("078 — closing a date counts everyone promised that day, a window as much as a carrier day", async () => {
+  it("078 - closing a date counts everyone promised that day, a window as much as a carrier day", async () => {
     const day = (await one<{ day: string }>(`SELECT ((now() AT TIME ZONE 'Australia/Melbourne')::date + 2)::text AS day`)).day;
     const slot = await createSlot(EVENING, ACTOR, scope);
     await order({ standardDay: day });

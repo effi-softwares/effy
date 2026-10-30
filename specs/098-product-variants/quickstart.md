@@ -1,4 +1,4 @@
-# Quickstart — 098 Product Variants (validation walk)
+# Quickstart - 098 Product Variants (validation walk)
 
 ## Machine checks (Claude runs)
 
@@ -14,8 +14,8 @@ scripts/mobile-guard.sh && pnpm --filter @effy/design-system test
 
 ## Operator steps (the user runs; dev only)
 
-1. `psql "$DSN" -f db/reset/098_purge_catalogue_dev.sql` — read the list it prints, confirm.
-2. `make db-up ENV=dev` — 098's migration (refuses if step 1 was skipped).
+1. `psql "$DSN" -f db/reset/098_purge_catalogue_dev.sql` - read the list it prints, confirm.
+2. `make db-up ENV=dev` - 098's migration (refuses if step 1 was skipped).
 3. `psql "$DSN" -f db/seeds/084_storefront_catalogue_dev.sql` (aisles) then
    `psql "$DSN" -f db/seeds/098_variant_catalogue_dev.sql` (products with variants).
 4. Deploy per plan.md "Deploy order".
@@ -33,7 +33,7 @@ scripts/mobile-guard.sh && pnpm --filter @effy/design-system test
 | 7 | Switch sizes | price, unit price, image, URL follow | US2-7,8 |
 | 8 | Add 2 × 1 kg and 1 × 500 g; pay | two cart lines with labels; order lines keep labels | US2-9,10 |
 | 9 | Shop stock screen | only the 1 kg count fell; history names the order | US3-3 |
-| 10 | Shop order + pick list + label + driver manifest + receipt + delivery note | "Basmati Rice — 1 kg" everywhere, barcode on pick line | US5 |
+| 10 | Shop order + pick list + label + driver manifest + receipt + delivery note | "Basmati Rice - 1 kg" everywhere, barcode on pick line | US5 |
 | 11 | Search the 500 g barcode | product opens on 500 g | US2-12 |
 | 12 | Live product: add 2 kg, change 500 g price; deactivate 5 kg | deactivation immediate; others pending until approved | US6 |
 | 13 | Customer app: repeat 5–8 | same variants, labels, prices, unit prices | SC-008 |

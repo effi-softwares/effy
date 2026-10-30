@@ -1,12 +1,12 @@
 # Contract: Back-Office Driver Provisioning (`/admin/v1/drivers`)
 
 Minimal `drivers/` domain added to `apis/edge-api/admin` (back-office authorizer). The **minimal adjunct**
-so US1 has an account to sign in as — a full driver-management console is out of scope (spec). Follows the
+so US1 has an account to sign in as - a full driver-management console is out of scope (spec). Follows the
 009 shop-user pattern: **Cognito-first → record**, idempotent, RBAC from the `admin.staff` record.
 
 DTOs in `@effy/shared-types`. RBAC: **read** = any active staff (incl. `csa`); **mutate** =
 `admin`/`manager` only. IAM: scoped `cognito-idp` Admin actions on the **driver pool ARN** only (an
-authorized provisioning write, not cross-pool auth — Principle IV holds, 009 R3).
+authorized provisioning write, not cross-pool auth - Principle IV holds, 009 R3).
 
 ## Routes
 

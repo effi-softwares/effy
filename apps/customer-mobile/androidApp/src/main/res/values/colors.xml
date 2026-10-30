@@ -3,7 +3,7 @@
      without a change of colour. Hand-maintained; it MUST equal SPLASH_GROUND in
      packages/brand/src/compositions.mjs, which the iOS launch colour is generated from.
 
-     ⚠ Asset-local — NOT a design token and NOT a UI accent; the app's own theme is untouched.
+     ⚠ Asset-local - NOT a design token and NOT a UI accent; the app's own theme is untouched.
      ⚠ values-night/ carries the SAME value: the tile has no appearance variant. -->
 <resources>
     <color name="splash_background">#09090B</color>

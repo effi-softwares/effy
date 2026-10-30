@@ -1,7 +1,7 @@
 package com.effyshopping.driver.mobile.features.manifest.domain
 
 /**
- * The driver's item manifest — what is in a package, and how each item must be carried.
+ * The driver's item manifest - what is in a package, and how each item must be carried.
  *
  * One domain, two consumers. The shop pickup and the customer drop both show a package's items.
  * They share these types and the views beside them so the class label, the icon and the ordering
@@ -16,7 +16,7 @@ enum class TemperatureClass(val label: String) {
 
 data class ManifestLine(
     val name: String,
-    /** The quantity in the bag — what the shop gathered, not what was ordered. */
+    /** The quantity in the bag - what the shop gathered, not what was ordered. */
     val qty: Int,
     val orderedQty: Int,
     /** False when the shop supplied none of this line. Shown as "Not included", never hidden. */
@@ -35,7 +35,7 @@ data class ClassSummary(val frozen: Int, val chilled: Int, val normal: Int) {
     val hasCold: Boolean get() = frozen > 0 || chilled > 0
 
     /**
-     * The classes actually present, cold first — a class with nothing in it is left out rather than
+     * The classes actually present, cold first - a class with nothing in it is left out rather than
      * shown as zero.
      */
     val present: List<Pair<TemperatureClass, Int>>

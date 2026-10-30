@@ -1,6 +1,6 @@
 import type { ListPage } from "./list"
 /**
- * Availability (099): every size a shop sells, its stock and whether it is on sale — one quick screen
+ * Availability (099): every size a shop sells, its stock and whether it is on sale - one quick screen
  * to take a size off sale in one tap. Read only: the switch is the existing variant state route
  * (`POST /shop/v1/products/{id}/variants/{variantId}/state`), immediate and never reviewed.
  */
@@ -34,7 +34,7 @@ export interface ShopAvailabilityRowDTO {
   sku: string | null
   gtin: string | null
   onSale: boolean
-  /** The product's only size on sale: switching it off is refused — make the product unavailable instead. */
+  /** The product's only size on sale: switching it off is refused - make the product unavailable instead. */
   lastOnSale: boolean
   stock: ProductStockDTO
   imageUrl: string | null

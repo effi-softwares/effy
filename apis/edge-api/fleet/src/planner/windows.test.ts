@@ -27,7 +27,7 @@ describe("groupByWindow", () => {
     expect(groups[2]!.windowStart).toBeNull();
   });
 
-  it("keeps readiness order inside a group — what waited longest is still placed first", () => {
+  it("keeps readiness order inside a group - what waited longest is still placed first", () => {
     const groups = groupByWindow([pkg("first", EARLY), pkg("second", EARLY), pkg("third", EARLY)]);
     expect(groups[0]!.packages.map((p) => p.packageId)).toEqual(["first", "second", "third"]);
   });
@@ -40,7 +40,7 @@ describe("groupByWindow", () => {
 describe("deadlineFor", () => {
   const group = groupByWindow([pkg("a", EARLY)])[0]!;
 
-  it("⚠ is the window's END while the window can still be met — not the end of the day", () => {
+  it("⚠ is the window's END while the window can still be met - not the end of the day", () => {
     expect(deadlineFor(group, at("2026-10-08T05:30:00Z"), END_OF_DAY)).toEqual(EARLY.windowEnd);
     expect(deadlineFor(group, at("2026-10-08T07:59:59Z"), END_OF_DAY)).toEqual(EARLY.windowEnd);
   });

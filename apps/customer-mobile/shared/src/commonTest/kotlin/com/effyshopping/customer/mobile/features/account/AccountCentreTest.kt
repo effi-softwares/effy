@@ -22,7 +22,7 @@ import kotlin.test.assertTrue
 // No commas in backticked test names. Kotlin/Native forbids them in a declaration name while the
 // JVM accepts them, so a comma here compiles green on `testAndroidHostTest` and fails the iOS test
 // target outright. Feature 033 found that its whole commonTest suite had never compiled for iOS for
-// exactly this reason — and this file reproduced it on the first try. Use a dash.
+// exactly this reason - and this file reproduced it on the first try. Use a dash.
 
 /**
  * The account centre's decisions, asserted where they are decided rather than where they are
@@ -48,7 +48,7 @@ class AccountCentreTest {
     // Security is composed from the credentials actually held
 
     /**
-     * A shopper with no password must be offered set and never change, and vice versa — never both.
+     * A shopper with no password must be offered set and never change, and vice versa - never both.
      * Effy's customer pool has three credential routes, so a fixed row list is wrong for a large
      * share of customers. This is the presentation half of the defect 012 found in Cognito itself.
      */
@@ -62,7 +62,7 @@ class AccountCentreTest {
         assertEquals(PasswordJourney.CHANGE, customer(hasPassword = true).passwordJourney)
     }
 
-    /** The journey is derived only from the record — never from how the shopper signed in. */
+    /** The journey is derived only from the record - never from how the shopper signed in. */
     @Test
     fun `the journey is derived from the record - so a Google shopper can still hold a password`() {
         val googleShopperWithPassword = customer(hasPassword = true)
@@ -99,7 +99,7 @@ class AccountCentreTest {
     )
 
     /**
-     * Every blocker must say when it clears. This requirement has been wrong twice — first blocking
+     * Every blocker must say when it clears. This requirement has been wrong twice - first blocking
      * forever on any unfulfilled order, then bounding it at 30 days, which on a weekly-re-buy grocery
      * platform still meant the most active shoppers could never delete.
      */
@@ -182,7 +182,7 @@ class AccountCentreTest {
     /**
      * Signing out must leave nothing behind, and the offline cart queue is the part that was missed.
      *
-     * The stores' own `reset` writes an empty envelope back, which is functionally clear — but the
+     * The stores' own `reset` writes an empty envelope back, which is functionally clear - but the
      * queue was covered by neither reset, so a change made just before signing out could still be
      * drained afterwards, on a shared device, into the next person's session.
      */
@@ -205,7 +205,7 @@ class AccountCentreTest {
     /**
      * The "clear data on this device" control is shown only when this reports true. Signing out
      * already clears everything, so offering the button to a just-signed-out shopper implied the app
-     * had not tidied up after them — the opposite of what happened.
+     * had not tidied up after them - the opposite of what happened.
      */
     @Test
     fun `a device with nothing on it reports nothing to clear`() {
@@ -229,7 +229,7 @@ class AccountCentreTest {
 
     // Retained-data disclosure
 
-    /** Every retained category must carry its reason — sc-010 checks the claims, so they must exist. */
+    /** Every retained category must carry its reason - sc-010 checks the claims, so they must exist. */
     @Test
     fun `a retained category always carries a reason`() {
         val c = RetainedCategory("Completed orders", "Required for tax and accounting records.")

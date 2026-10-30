@@ -48,7 +48,7 @@ const FILES = sourceFiles(SRC).map((path) => ({
   source: readFileSync(path, "utf8"),
 }));
 
-describe("FR-050 — no driver PII in logs or metrics", () => {
+describe("FR-050 - no driver PII in logs or metrics", () => {
   it("has source files to check", () => {
     // The file list must be non-empty, or the guard silently stops guarding.
     expect(FILES.length).toBeGreaterThan(10);
@@ -85,7 +85,7 @@ describe("FR-050 — no driver PII in logs or metrics", () => {
     }
   });
 
-  it("⚠ keeps metric labels low-cardinality — no driver id as a label (Principle VII)", () => {
+  it("⚠ keeps metric labels low-cardinality - no driver id as a label (Principle VII)", () => {
     // No per-driver metric series: an identifier with no retention policy.
     const metricLines = FILES.flatMap(({ path, source }) =>
       [...source.matchAll(/"fleet\.[a-z_]+"/g)].map(() => ({ path, source })),

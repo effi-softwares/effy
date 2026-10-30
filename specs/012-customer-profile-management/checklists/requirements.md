@@ -13,7 +13,7 @@
 
 ## Requirement Completeness
 
-- [x] No [NEEDS CLARIFICATION] markers remain — both resolved in Clarifications (session 2026-07-14)
+- [x] No [NEEDS CLARIFICATION] markers remain - both resolved in Clarifications (session 2026-07-14)
 - [x] Requirements are testable and unambiguous
 - [x] Success criteria are measurable
 - [x] Success criteria are technology-agnostic (no implementation details)
@@ -31,7 +31,7 @@
 
 ## Notes
 
-### Validation pass 1 — issues found and fixed
+### Validation pass 1 - issues found and fixed
 
 1. **Tech leaked into the spec.** The first draft named the identity service and the client SDK
    directly (they are named all over the source research). Rewritten: the spec now says "the
@@ -44,7 +44,7 @@
    *adversarially demonstrable* ("a person holding a valid session but without access to the
    account's email **cannot**…") rather than "the system is secure".
 
-### Validation pass 2 — clarifications resolved
+### Validation pass 2 - clarifications resolved
 
 Both [NEEDS CLARIFICATION] markers sat on FR-022 and both were genuine product-owner calls rather
 than gaps in the analysis. Answered on 2026-07-14 and folded into **FR-022 / FR-022a**:
@@ -60,7 +60,7 @@ All checklist items pass. Ready for `/speckit-plan`.
 
 ### Carried into planning (not spec defects)
 
-- **FR-013 requires new state the platform does not currently hold** — whether an account has a
+- **FR-013 requires new state the platform does not currently hold** - whether an account has a
   password. Research established that the identity service *cannot be asked* this question, so the
   platform must record it itself. That is a data-model change, and the plan must carry it.
 - **FR-008 / FR-012 (name change reflected everywhere) is not free.** The storefront's header

@@ -25,7 +25,7 @@ const ITEM = "44444444-4444-4444-8444-444444444444";
 const FULFILMENT = "55555555-5555-4555-8555-555555555555";
 const PRODUCT = "66666666-6666-4666-8666-666666666666";
 
-describe.skipIf(!RUN)("refund reads — against real PostgreSQL and the real migrations", () => {
+describe.skipIf(!RUN)("refund reads - against real PostgreSQL and the real migrations", () => {
   let container: StartedPostgreSqlContainer;
   let pool: Pool;
 
@@ -117,7 +117,7 @@ SELECT p.id FROM p`, [PRODUCT, SHOP]);
       expect(await proposedRefunds(ORDER)).toHaveLength(0);
     });
 
-    it("survives a PARTIAL refund — only the remainder is still a decision", async () => {
+    it("survives a PARTIAL refund - only the remainder is still a decision", async () => {
       await recordShortfall(3);
       const { rows } = await pool.query<{ id: string }>(
         `INSERT INTO public.refund (order_id, kind, amount, reason, status, idempotency_key,
@@ -277,7 +277,7 @@ SELECT p.id FROM p`, [PRODUCT, SHOP]);
     });
 
     // It moves no money; a person decides the refund.
-    it("moves no money — it only asks for a decision", async () => {
+    it("moves no money - it only asks for a decision", async () => {
       await markUnfulfillable();
       const o = await getOrder(ORDER);
 

@@ -20,7 +20,7 @@ const STALE: Record<DispatchAction, string> = {
 
 export function dispatchActionError(err: unknown, action: DispatchAction): string {
   if (!isDomainError(err)) {
-    return "Something went wrong. Nothing was changed — try again."
+    return "Something went wrong. Nothing was changed - try again."
   }
 
   if (err.status === 403) return FORBIDDEN[action]

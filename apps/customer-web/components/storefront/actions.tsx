@@ -46,7 +46,7 @@ export function ActionLink({
 }
 
 /**
- * The `<button>` counterpart to {@link ActionLink} — for CTAs that act rather than navigate (submit,
+ * The `<button>` counterpart to {@link ActionLink} - for CTAs that act rather than navigate (submit,
  * onClick). `type` is not defaulted: a bare `<button>` inside a `<form>` submits, and several call
  * sites rely on that, so the caller's `type` (or the native default) wins.
  */

@@ -1,7 +1,7 @@
 import type { ListPage } from "./list";
 /**
- * Shop-facing product contracts (products, media, sections), served by the shop service. The taxonomy —
- * categories, the attribute library and each leaf's form — is in taxonomy.ts (101). Enum unions mirror the
+ * Shop-facing product contracts (products, media, sections), served by the shop service. The taxonomy -
+ * categories, the attribute library and each leaf's form - is in taxonomy.ts (101). Enum unions mirror the
  * SQL check sets.
  */
 import type { GstStatus } from "./documents";

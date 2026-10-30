@@ -15,8 +15,8 @@ plugins {
 // DEV release signing (shareable dev APK)
 //
 // A release APK must be signed to install on a real phone. This reads a git-ignored
-// `keystore.properties` (or environment variables of the same name, which win — so CI can inject its
-// own). It is a DEV keystore for internal test builds only — never the production upload key.
+// `keystore.properties` (or environment variables of the same name, which win - so CI can inject its
+// own). It is a DEV keystore for internal test builds only - never the production upload key.
 // Absent config → the release build stays unsigned (and won't install), rather than failing the build,
 // so other release tasks (lint, tests) still run without a keystore present. Create one: `make cm-keystore`.
 val keystorePropsFile = rootProject.file("keystore.properties")

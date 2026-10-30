@@ -42,7 +42,7 @@ export const handler: ScheduledHandler = async () => {
 
     const sender = createReceiptSender({ siteUrl });
     if (!sender.mailerConfigured) {
-      log.warn("mail not configured — skipping receipt drain; rows remain pending");
+      log.warn("mail not configured - skipping receipt drain; rows remain pending");
       return;
     }
 

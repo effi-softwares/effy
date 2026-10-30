@@ -45,7 +45,7 @@ class SessionManagerTest {
         SessionManager(auth, GetDriverIdentity(drivers), this, onSignedOut = cleared)
 
     /**
-     * Rev 2 — back-office gave the driver another van mid-shift. Its driver edit tells the driver
+     * Rev 2 - back-office gave the driver another van mid-shift. Its driver edit tells the driver
      * "work"; the record is re-read on it, so Today and Account stop showing the old van.
      */
     @Test fun work_changed_re_reads_the_driver_record() = runTest {
@@ -61,7 +61,7 @@ class SessionManagerTest {
         assertEquals("EFY-002", (m.state.value as SessionState.SignedIn).driver.vehicle.plate)
     }
 
-    /** A failed re-read changes nothing — "could not check" is never "signed out". */
+    /** A failed re-read changes nothing - "could not check" is never "signed out". */
     @Test fun a_failed_re_read_keeps_the_record() = runTest {
         val work = kotlinx.coroutines.flow.MutableSharedFlow<Unit>()
         val drivers = FakeDrivers()
@@ -74,7 +74,7 @@ class SessionManagerTest {
         assertEquals("d1", (m.state.value as SessionState.SignedIn).driver.id)
     }
 
-    /** Backlog C3 — opening in a loading dock: tokens cannot refresh, the device is still signed in. */
+    /** Backlog C3 - opening in a loading dock: tokens cannot refresh, the device is still signed in. */
     @Test fun offline_with_a_kept_record_opens_signed_in_offline() = runTest {
         val m = manager(FakeAuth(session = null, holds = true), FakeDrivers(fail = AppError.Network, kept = ada))
         m.bootstrap()
@@ -96,7 +96,7 @@ class SessionManagerTest {
         assertEquals(SessionState.SignedOut, m.state.value)
     }
 
-    /** Backlog C4 — a driver disabled mid-shift is refused on their next request, and nothing is kept. */
+    /** Backlog C4 - a driver disabled mid-shift is refused on their next request, and nothing is kept. */
     @Test fun a_rejected_request_mid_shift_ends_in_refused() = runTest {
         var cleared = false
         val drivers = FakeDrivers()

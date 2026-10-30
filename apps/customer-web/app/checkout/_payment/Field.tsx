@@ -6,19 +6,19 @@ import { cn } from "@/lib/utils"
  * The field shell the card inputs sit inside.
  *
  * Why this exists rather than a payment element. The provider's own card form has a fixed layout
- * its label positions, field grouping and row order are its own — so styling it can only ever produce a
+ * its label positions, field grouping and row order are its own - so styling it can only ever produce a
  * resemblance to Effy, not the thing itself. Mounting the three PCI-scoped inputs
  * into our shell means the label, the pill, the focus treatment, the error copy and the spacing are all
  * ordinary Effy markup, and the provider owns exactly the three boxes it must.
  *
  * The classes below are copied from `packages/design-system/src/ui/input.tsx` on purpose, not
- * approximated. h-11, `rounded-full`, `px-4`, `border-input` — the platform's one input shape. A field
+ * approximated. h-11, `rounded-full`, `px-4`, `border-input` - the platform's one input shape. A field
  * on the payment step that is 2px shorter than a field on the address form is exactly the kind of drift
  * that makes a page feel bought-in rather than built.
  *
  * No focus halo. `input.tsx` records the decision in full: shadcn's default is a soft ring outside the
  * field; the platform's focus indicator is the border changing to `--ring` (3.95:1 light / 4.18:1 dark,
- * over WCAG 1.4.11's 3:1). Removing the halo is a style change, not an accessibility regression — and
+ * over WCAG 1.4.11's 3:1). Removing the halo is a style change, not an accessibility regression - and
  * re-introducing one here would make this the only field on the platform that glows.
  */
 export function Field({

@@ -94,7 +94,7 @@ package:
 functions:
   healthz:
     handler: src/functions/healthz-get.handler
-    description: Liveness — is the notifications service deployed and executing? Touches nothing. Public.
+    description: Liveness - is the notifications service deployed and executing? Touches nothing. Public.
     events:
       - httpApi:
           method: GET

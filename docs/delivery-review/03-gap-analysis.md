@@ -1,4 +1,4 @@
-# 03 — Gap analysis: Effy's delivery system vs the industry
+# 03 - Gap analysis: Effy's delivery system vs the industry
 
 Date: 2026-10-18 · Inputs: [01-system-index.md](01-system-index.md) (and `maps/`),
 [02-industry-research.md](02-industry-research.md).
@@ -76,7 +76,7 @@ Then simplify. Defer location, real-time ETA, carrier APIs, shifts and analytics
 ### 1.4 Consoles and customer
 | ID | Defect |
 |---|---|
-| **W23** | DutyPanel always reads "Idle — nothing is assigned" (hard-coded, `DutyPanel.tsx:87`) |
+| **W23** | DutyPanel always reads "Idle - nothing is assigned" (hard-coded, `DutyPanel.tsx:87`) |
 | **W24** | Reassign lists only drivers who already hold a round today; idle on-duty drivers can't be chosen |
 | **W25** | The reorder control shows "Stop 1, Stop 2…" with no address or order |
 | **W26** | Shop-web Shipments says "Effy driver" on courier orders |
@@ -170,7 +170,7 @@ Ranked by how much a customer, driver or ops person feels it. "TS" means table s
 | **R8** | Stale docs, marked superseded rather than deleted: `docs/driver-app-review.md`, `docs/logistics-engine-architecture.md`, `docs/research/logistics/audit-00-current-system.md`, both console guides' removed sections | They contradict the code |
 | **R9** | The `order_ready` customer push in its current form (W12) | Replaced by M1's single, order-level messages |
 
-**Keep — these are right and should not be "simplified away":** one coverage function; one fee sum; one
+**Keep - these are right and should not be "simplified away":** one coverage function; one fee sum; one
 window rule; the hold at intent; stale-quote 409s; delivery-type history; append-only override log;
 idempotent `change_id` writes; offline queue; scan-or-tick per hand-over; Effy⇄courier emergency move; no
 polling (live channel). The hub-and-spoke shape and window-based selling match the market; don't chase

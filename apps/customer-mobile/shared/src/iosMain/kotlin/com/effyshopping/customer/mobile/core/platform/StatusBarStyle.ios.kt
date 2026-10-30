@@ -9,7 +9,7 @@ import platform.UIKit.UIWindow
 /**
  * iOS draws the status bar to match the interface style, so the key window's style is set to the app's
  * appearance (dark → light status-bar text). That also makes keyboards and the payment sheet match the
- * app. The app's own colours never read it — they come from EffyTheme.
+ * app. The app's own colours never read it - they come from EffyTheme.
  */
 @Composable
 actual fun StatusBarIcons(lightIcons: Boolean) {

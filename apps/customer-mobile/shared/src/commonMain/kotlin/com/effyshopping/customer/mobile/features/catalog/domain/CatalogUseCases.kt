@@ -1,7 +1,7 @@
 package com.effyshopping.customer.mobile.features.catalog.domain
 
 /**
- * Catalog use cases. Thin domain operations the ViewModel depends on — the repository is never
+ * Catalog use cases. Thin domain operations the ViewModel depends on - the repository is never
  * reached directly from presentation (Principle VI).
  */
 

@@ -7,7 +7,7 @@ import { proxyToEdge } from "@/lib/api/proxy"
  * order: for one still pending it reports `paid: false` and changes nothing, and for one already paid
  * it reports `paid: true` without applying anything twice.
  *
- * Uses it as the honest answer to "has this order already been paid for?" — asking the platform
+ * Uses it as the honest answer to "has this order already been paid for?" - asking the platform
  * rather than trusting a flag the client is holding.
  */
 export async function POST(req: Request) {

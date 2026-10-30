@@ -9,7 +9,7 @@ import { NOT_FOUND } from "../lib/problems";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** An order's activity — every record about it in one log, in the activity drawer (104). Any active staff. */
+/** An order's activity - every record about it in one log, in the activity drawer (104). Any active staff. */
 export const handler = async (event: AuthedEvent, context: Context): Promise<APIGatewayProxyStructuredResultV2> => {
   const guard = await requireStaff(event, context);
   if (!guard.ok) return guard.response;

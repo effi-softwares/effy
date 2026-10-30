@@ -10,18 +10,18 @@ import { formatMoney } from "@/lib/money"
 /**
  * The delivery section when a courier delivers the order: who, roughly when, and what it costs.
  *
- * There is nothing to choose, and so nothing to click. No window, no day, no method — a courier
+ * There is nothing to choose, and so nothing to click. No window, no day, no method - a courier
  * order has none of them, and a disabled picker would only suggest one was meant to be there.
  *
  * Every word is shared-types' (`courierLines`, `DELIVERY_TYPE_WORDS`): the order page, the receipt,
  * the email and the customer app print the same two sentences. The estimate is the business's, and it
- * is always said AS an estimate — "2–4 business days" on its own reads like a promise.
+ * is always said AS an estimate - "2–4 business days" on its own reads like a promise.
  *
  * `no_window`: this address IS one Effy delivers to, and no window is left. The shopper is told
- * that first, then offered this — they were expecting a time to pick, and silence about where the
+ * that first, then offered this - they were expecting a time to pick, and silence about where the
  * picker went would read as a fault.
  *
- * Text in a section — no card, no icon tile (Principle V).
+ * Text in a section - no card, no icon tile (Principle V).
  */
 export function CourierDelivery({ courier, currency }: { courier: CourierQuoteDTO; currency: string }) {
   const [partner, estimate] = courierLines(courier.estimate)

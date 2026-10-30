@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { expiresAtFor, lastUsableDate, lastUsableDateOf } from "./expiry";
 
-describe("074 — when points expire (R2)", () => {
+describe("074 - when points expire (R2)", () => {
   it("is usable through the same date the period later, stopping at Melbourne midnight", () => {
     // 10:42 AEDT on 8 Oct 2026.
     const credited = new Date("2026-10-07T23:42:00Z");

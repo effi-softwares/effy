@@ -11,7 +11,7 @@ GET /v1/storefront/serviceability?postcode=3000
 ```
 
 **Public and unauthenticated.** It returns nothing an account would gate (FR-001b), and a guest must
-be able to ask it before any cart exists — that is the entire point of the capability.
+be able to ask it before any cart exists - that is the entire point of the capability.
 
 ### Request
 
@@ -21,13 +21,13 @@ be able to ask it before any cart exists — that is the entire point of the cap
 
 ### Responses
 
-**200** — the question was answerable:
+**200** - the question was answerable:
 
 ```json
 { "postcode": "3000", "serviced": true }
 ```
 
-**400** — the input was not a postcode:
+**400** - the input was not a postcode:
 
 ```json
 { "error": "invalid_postcode" }
@@ -35,10 +35,10 @@ be able to ask it before any cart exists — that is the entire point of the cap
 
 **This distinction is load-bearing.** "That isn't a postcode" and "we don't deliver there" are
 different answers and the UI says different things. A malformed input MUST NOT return
-`serviced: false` — that would tell a shopper Effy refuses to deliver to a place they never
+`serviced: false` - that would tell a shopper Effy refuses to deliver to a place they never
 successfully named.
 
-**5xx** — the read failed. The client MUST render "we couldn't check right now" and MUST NOT collapse
+**5xx** - the read failed. The client MUST render "we couldn't check right now" and MUST NOT collapse
 this to `serviced: false` (see `data-model.md` §4).
 
 ## What the response deliberately does NOT contain
@@ -65,7 +65,7 @@ SELECT zone_id::text FROM public.delivery_zone_postcode WHERE postcode = $1
 `public.delivery_zone_postcode.postcode` is `UNIQUE`, and the table comment states the rule this
 depends on: *"A postcode in no row = no zone = undeliverable."*
 
-**One predicate, two callers.** This is a structural guarantee, not a tested coincidence — the
+**One predicate, two callers.** This is a structural guarantee, not a tested coincidence - the
 alternative, two implementations kept in step by tests, drifts the first time one is edited alone.
 
 ### Required test (SC-002a)
@@ -81,7 +81,7 @@ policy, not of shopping, and the response contains nothing shopper-specific.
 
 ## Telemetry
 
-- **Metric**: one counter, labelled `serviced` only (two values). **`postcode` MUST NOT be a label** —
+- **Metric**: one counter, labelled `serviced` only (two values). **`postcode` MUST NOT be a label** -
   unbounded cardinality would degrade the metrics backend, and it is location data about an
   individual (Principle VII).
 - **Product analytics**: the client emits `delivery_location_set` with `serviced: bool` and

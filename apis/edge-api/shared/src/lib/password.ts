@@ -40,7 +40,7 @@ export async function isPasswordBreached(password: string): Promise<boolean> {
   } catch (err) {
     // Fail closed: a password is optional on Effy, so an outage costs "come back later" while failing open
     // would accept a breached password.
-    logger.error({ err }, "breach screening unavailable — refusing the password (fail-closed)");
+    logger.error({ err }, "breach screening unavailable - refusing the password (fail-closed)");
     throw new BreachCheckUnavailableError(err);
   }
 

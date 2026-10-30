@@ -79,7 +79,7 @@ describe("what the shopper is told", () => {
 
   // The 409's own sentence: their ask is already with us.
   it("says a duplicate is already with us, in the server's words", async () => {
-    respond(409, { error: "you've already told us about this order — we're looking into it" })
+    respond(409, { error: "you've already told us about this order - we're looking into it" })
     render(<RequestRefund orderId="o1" items={ITEMS} />)
     await open()
     await userEvent.type(screen.getByLabelText(/details/i), "Again")

@@ -3,15 +3,15 @@
 Two new entries in the `@effy/email-kit` catalogue (`packages/email-kit/src/catalog.ts`), each with an
 MJML template + a `.txt.hbs` plain-text part, generated to committed artifacts and covered by
 `make email-check`. Both are `sentBy: "platform"`, `audiences: ["customer"]`, `category:
-"transactional"`. Sender/reply-to use the approved mailboxes already in `email-kit` config — **no new
+"transactional"`. Sender/reply-to use the approved mailboxes already in `email-kit` config - **no new
 real-world identifier** (constitution: Real-World Identifiers).
 
-## `feedback-received` — acknowledgement (on submission)
+## `feedback-received` - acknowledgement (on submission)
 
 ```ts
 "feedback-received": {
   vars: { referenceCode: "string", category: "string" },   // category = human label, pre-formatted
-  subject: (v, p) => `We got your feedback — ${p.productName}`,
+  subject: (v, p) => `We got your feedback - ${p.productName}`,
   preheader: () => "Thanks for taking the time. Here's your reference.",
   audiences: ["customer"],
   sentBy: "platform",
@@ -22,7 +22,7 @@ real-world identifier** (constitution: Real-World Identifiers).
 Content: a short thank-you, the `referenceCode` for their records, and the `category` they chose. No
 code, no PII beyond what they gave, no internal data (FR-038). No third-party asset (guard-enforced).
 
-## `feedback-reply` — staff reply
+## `feedback-reply` - staff reply
 
 ```ts
 "feedback-reply": {
@@ -53,13 +53,13 @@ exposes staff personal contact details (FR-032) or internal notes (FR-038).
   **not** apply; the ~102 KB Gmail-clip budget does.
 - ⚠ 039 caveat: the shared render path HTML-escapes the plain-text part. Neither template carries a
   URL query parameter (the reference code is opaque alphanumeric), so the `token&#x3D;` escaping trap
-  does not arise here — but any future link var must be re-checked.
+  does not arise here - but any future link var must be re-checked.
 
 ## Failure-policy rationale (why one of each)
 
 `feedback-received` **swallows**: the write already happened irreversibly and the shopper's on-screen
-confirmation already said "received" — a thrown failure would contradict a true fact (the
+confirmation already said "received" - a thrown failure would contradict a true fact (the
 `account-password-changed` pattern). `feedback-reply` **throws**: nothing irreversible has happened
-yet, and the whole point of the action is that the shopper receives it — a swallowed failure would
+yet, and the whole point of the action is that the shopper receives it - a swallowed failure would
 mark the submission `replied` while the shopper got nothing (the `newsletter-confirmation` pattern).
 This is precisely the per-message discriminator `email-kit` exists to carry.

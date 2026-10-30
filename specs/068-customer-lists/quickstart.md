@@ -19,13 +19,13 @@ Contract: [contracts/customer-lists.md](contracts/customer-lists.md) · Data:
 | `@effy/shared-types` tests | 34 | 34 |
 | `@effy/customer-web` tests | 489 (58 files) | 536 (62 files) |
 | `go test -short ./...` non-ok packages | 0 | 0 |
-| `go test ./internal/features/saveditems/` (containers) | ⚠ **RED at HEAD**: `relation "public.delivery_pricing_rule" does not exist` — the test seed still inserted into a table delivery-zone withdrawal removed | green, 95 tests, against the real 068 migration |
+| `go test ./internal/features/saveditems/` (containers) | ⚠ **RED at HEAD**: `relation "public.delivery_pricing_rule" does not exist` - the test seed still inserted into a table delivery-zone withdrawal removed | green, 95 tests, against the real 068 migration |
 | customer-mobile `:shared:testAndroidHostTest` | 331 | 352; iOS simulator test target compiles |
 | customer-web `size` `/` | 173.7 KB | 173.8 KB |
 | customer-web `size` `/search` | 173.7 KB | 173.4 KB (not byte-identical: chunks regrouped; research R7) |
 | customer-web `size` `/product/[id]` | 171.3 KB | 171.4 KB |
 | `cm-contract-check` | green | regenerates byte-stable; ⚠ reads red until the regenerated files are committed |
-| `@effy/design-system` guards | — | green (364 files) |
+| `@effy/design-system` guards | - | green (364 files) |
 
 ⚠ **Headroom on `/` is 0.3 KB, not the 2.1–5.5 KB `bundle-budget.mjs` records and the plan
 assumed.** `SaveControl` is on `/`. Everything the heart gains must fit in that.
@@ -139,7 +139,7 @@ Then push customer-web (042 deploys it), and build the mobile app.
 
 - **Names in logs (SC-011)**: create a list named `zz-sentinel-068`, walk B to E, then search the
   core-api log group for the string. Zero hits.
-- **Bundle (SC-012)**: `pnpm --filter @effy/customer-web size` — every route within budget; the
+- **Bundle (SC-012)**: `pnpm --filter @effy/customer-web size` - every route within budget; the
   measured values are in the baseline table. `/` has 0.2 KB left.
 - **Wording**: `git grep -i wishlist -- apps/customer-web apps/customer-mobile` returns nothing
   shopper-facing.

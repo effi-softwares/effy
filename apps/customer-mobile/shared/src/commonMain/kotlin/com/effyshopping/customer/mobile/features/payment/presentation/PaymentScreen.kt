@@ -38,7 +38,7 @@ import com.effyshopping.customer.mobile.core.presentation.EffyAppBar
 import com.effyshopping.customer.mobile.core.presentation.EffyPrimaryButton
 
 /**
- * The payment screen — the mobile counterpart of the web payment step.
+ * The payment screen - the mobile counterpart of the web payment step.
  *
  * It carries no order content. No basket lines, no delivery address, no delivery-speed row.
  * The shopper confirmed all of that on the checkout screen; repeating it here invites a second review
@@ -72,7 +72,7 @@ fun PaymentScreen(
 
     Column(modifier = modifier.fillMaxSize()) {
         // The back arrow is not passed: `EffyAppBar` reads it from the stack position, so this
-        // screen gets one because it sits above checkout — and correctly loses it if it ever becomes a
+        // screen gets one because it sits above checkout - and correctly loses it if it ever becomes a
         // stack root. Backing out here abandons an unpaid order, which is a supported outcome: nothing
         // has been charged, and paying again creates a fresh intent for the same order.
         EffyAppBar(title = "Payment")
@@ -98,7 +98,7 @@ private fun PaymentContent(
 ) {
     val elementState by element.state.collectAsStateWithLifecycle()
 
-    // 087 (Payment board): the total in a card, the provider's element, the mandate — and Effy's own
+    // 087 (Payment board): the total in a card, the provider's element, the mandate - and Effy's own
     // pay control pinned at the bottom above the home indicator.
     Column(modifier = modifier.fillMaxSize()) {
         Column(
@@ -122,10 +122,10 @@ private fun PaymentContent(
                 )
             }
 
-            // The provider's method list — the only pixels it owns on this screen
+            // The provider's method list - the only pixels it owns on this screen
             PaymentElementContent(element, Modifier.fillMaxWidth())
 
-            // A shopper who cannot pay must be told why — with an icon, never red.
+            // A shopper who cannot pay must be told why - with an icon, never red.
             elementState.error?.let { EffyInlineError(it) }
             state.error?.let { EffyInlineError(it) }
 

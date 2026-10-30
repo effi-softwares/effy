@@ -7,7 +7,7 @@ import com.effyshopping.customer.mobile.features.checkout.domain.CheckoutIntent
  *
  * Why this is not a navigation argument. Every [com.effyshopping.customer.mobile.core.nav.CustomerNavKey]
  * is `@Serializable` and persisted across process death, and this object holds a payment client secret.
- * Putting it in a route would write that secret to device storage and resurrect it days later — so the
+ * Putting it in a route would write that secret to device storage and resurrect it days later - so the
  * route is a bare marker and the intent travels here, in memory only.
  *
  * And that is deliberate, not a limitation. A process killed mid-payment should land the shopper back

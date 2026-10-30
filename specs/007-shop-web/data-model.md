@@ -1,9 +1,9 @@
-# Phase 1 — Data Model: Shop Web Foundation (Bootstrap)
+# Phase 1 - Data Model: Shop Web Foundation (Bootstrap)
 
 **Feature**: 007-shop-web · **Date**: 2026-07-09 · **Source**: [spec.md](./spec.md) Key Entities,
 [research.md](./research.md) R3/R6
 
-Four new tables in the **`public`** (customer-operational) schema — the platform's first records
+Four new tables in the **`public`** (customer-operational) schema - the platform's first records
 there. Introduced through the 003 forward-only Goose workflow. Mirrors the shape of
 `admin.staff` / `admin.role` / `admin.staff_role` (005), extended with the shop scope.
 
@@ -13,7 +13,7 @@ there. Introduced through the 003 forward-only Goose workflow. Mirrors the shape
 
 ```
                        ┌──────────────────┐
-                       │  public.shop    │   the fulfillment node (minimal — FR-019)
+                       │  public.shop    │   the fulfillment node (minimal - FR-019)
                        │  id, code, name  │
                        │  is_active       │
                        └────────┬─────────┘
@@ -21,7 +21,7 @@ there. Introduced through the 003 forward-only Goose workflow. Mirrors the shape
                                 │
    Cognito shop pool            ▼
    (origin of roles) ──► ┌──────────────────────┐
-     cognito:groups      │ public.shop_staff   │   the platform's own record — authoritative
+     cognito:groups      │ public.shop_staff   │   the platform's own record - authoritative
                          │ cognito_sub UNIQUE   │   for the ACCESS DECISION
                          │ email, name          │
                          │ status ∈ active|     │
@@ -38,7 +38,7 @@ there. Introduced through the 003 forward-only Goose workflow. Mirrors the shape
 
 **The authorization decision is the conjunction of three terms**, and each lives in a different
 place: `role` (reconciled from the identity provider), `status` (platform-owned), `shop scope`
-(platform-owned). No single term suffices — FR-021, SC-005a.
+(platform-owned). No single term suffices - FR-021, SC-005a.
 
 ---
 
@@ -57,12 +57,12 @@ address, hours, capacity, delivery zones, or inventory. Customers never see it.
 | `updated_at` | `timestamptz` | NOT NULL, default `now()` | |
 
 **Lifecycle**: created by the platform's **back-office shop-management capability** (the next
-slice). This slice ships **no way to create a shop** — no interface, no command, no seed file
-(FR-019) — so no shop row can exist that the product did not create. Until then the table is
+slice). This slice ships **no way to create a shop** - no interface, no command, no seed file
+(FR-019) - so no shop row can exist that the product did not create. Until then the table is
 legitimately empty, and every operator is unassigned.
 
 **Validation**: `code` is unique across shops; deactivation is `is_active = false`, never a delete
-(staff reference it — see `ON DELETE RESTRICT` below).
+(staff reference it - see `ON DELETE RESTRICT` below).
 
 ---
 
@@ -77,7 +77,7 @@ The platform's own record of a shop operator, keyed on the verified identity sub
 | `cognito_sub` | `text` | NOT NULL, **UNIQUE** | the join key; the identity provider's stable subject |
 | `email` | `text` | **NULL allowed** | operator-authoritative at provisioning; refreshed from the token only when it carries a real email claim, and **never overwritten with NULL** (research R6) |
 | `name` | `text` | NULL allowed | display name, operator-set |
-| `status` | `text` | NOT NULL, default `'active'`, CHECK ∈ `('active','disabled')` | **platform-owned** — a disabled operator is refused with a valid token (SC-012) |
+| `status` | `text` | NOT NULL, default `'active'`, CHECK ∈ `('active','disabled')` | **platform-owned** - a disabled operator is refused with a valid token (SC-012) |
 | `shop_id` | `uuid` | NULL, FK → `public.shop(id)` **ON DELETE RESTRICT** | **platform-owned**; NULL = unassigned, an expected state |
 | `created_at` | `timestamptz` | NOT NULL, default `now()` | |
 | `updated_at` | `timestamptz` | NOT NULL, default `now()` | |
@@ -85,7 +85,7 @@ The platform's own record of a shop operator, keyed on the verified identity sub
 
 **Why `shop_id` is nullable**: the JIT upsert meets an operator on first contact and cannot know
 their shop. The record is created unassigned, and the operator assigns it
-(from the back-office console, next slice). The spec requires exactly this — "authenticated but
+(from the back-office console, next slice). The spec requires exactly this - "authenticated but
 assigned to no shop" is an expected state, not an error, and it is the *only* state that exists
 until shop management ships.
 
@@ -107,7 +107,7 @@ arrive additively when one exists.
       roles removed in IdP    ────────────────►│ roles = {}                   ← record persists (audit)
 ```
 
-The record is **never deleted** on role removal — it persists for audit and grants nothing.
+The record is **never deleted** on role removal - it persists for audit and grants nothing.
 
 ---
 
@@ -138,11 +138,11 @@ back-office role (research R2).
 | `staff_id` | `uuid` | NOT NULL, FK → `public.shop_staff(id)` **ON DELETE CASCADE** |
 | `role_key` | `text` | NOT NULL, FK → `public.shop_role(key)` |
 | `granted_at` | `timestamptz` | NOT NULL, default `now()` |
-| — | | PRIMARY KEY `(staff_id, role_key)` |
+| - | | PRIMARY KEY `(staff_id, role_key)` |
 
-**Reconciliation** (every `/shop/v1/me` call, inside one transaction — FR-006a):
+**Reconciliation** (every `/shop/v1/me` call, inside one transaction - FR-006a):
 
-1. Upsert `shop_staff` on `cognito_sub` (`ON CONFLICT DO UPDATE`) — sets `last_seen_at`,
+1. Upsert `shop_staff` on `cognito_sub` (`ON CONFLICT DO UPDATE`) - sets `last_seen_at`,
    `updated_at`, and `email` when the token supplies one.
 2. Delete role rows not in the token's claim: `DELETE ... WHERE staff_id = $1 AND role_key <> ALL($2)`.
 3. Insert the claim's roles: `INSERT ... ON CONFLICT DO NOTHING`.
@@ -188,8 +188,8 @@ SELECT EXISTS (
 
 | Index | Rationale |
 |---|---|
-| `shop_staff (cognito_sub)` | implicit via UNIQUE — the hot lookup on every authenticated request |
-| `shop (code)` | implicit via UNIQUE — the operator's provisioning handle |
+| `shop_staff (cognito_sub)` | implicit via UNIQUE - the hot lookup on every authenticated request |
+| `shop (code)` | implicit via UNIQUE - the operator's provisioning handle |
 | `shop_staff (shop_id)` | FK lookup; supports "who works at this shop" for later slices |
 | `shop_staff_role (role_key)` | FK lookup |
 
@@ -231,7 +231,7 @@ role value maps to nothing rather than throwing.
 
 | Spec requirement | Where it lands |
 |---|---|
-| FR-019 (minimal shop record; no creation path ships here) | `public.shop` — schema only; rows come from back-office shop management |
+| FR-019 (minimal shop record; no creation path ships here) | `public.shop` - schema only; rows come from back-office shop management |
 | FR-020 (own record: identity, email, roles, shop, status; ≤1 shop; idempotent) | `public.shop_staff` + reconcile transaction |
 | FR-021 (role AND status AND shop scope) | the authorization query above |
 | FR-022 (forward-only workflow, customer-operational area) | one Goose migration in `db/migrations/` |

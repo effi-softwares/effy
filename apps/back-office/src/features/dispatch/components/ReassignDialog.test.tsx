@@ -42,7 +42,7 @@ function open() {
   )
 }
 
-describe("ReassignDialog — FR-029 and FR-034", () => {
+describe("ReassignDialog - FR-029 and FR-034", () => {
   beforeEach(() => {
     reassign.mockReset()
     reassign.mockResolvedValue(undefined)
@@ -110,7 +110,7 @@ describe("ReassignDialog — FR-029 and FR-034", () => {
 
     await screen.findByRole("alert")
     await settle()
-    // This console's words, from REASON_TEXT — not the server's prose.
+    // This console's words, from REASON_TEXT - not the server's prose.
     expect(screen.getByText("Licence expired")).toBeInTheDocument()
     expect(screen.getByText("Holding no vehicle")).toBeInTheDocument()
   })

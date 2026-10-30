@@ -5,12 +5,12 @@ import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
 
 /**
- * iOS observability bridges — the same pattern as [core.auth.IosAuthBridge]: Swift implements a
+ * iOS observability bridges - the same pattern as [core.auth.IosAuthBridge]: Swift implements a
  * plain protocol (Kotlin/Native cannot call the Firebase/PostHog iOS SDKs), and these Kotlin wrappers
  * adapt it back into the common [CrashReporter] / [AnalyticsDriver] contracts. Injected at the iOS
  * entry point (MainViewController). See iosApp/SwiftCrashBridge.swift + SwiftAnalyticsBridge.swift.
  *
- * Bridge signatures use only primitives (String / Boolean) — props travel as a JSON object string
+ * Bridge signatures use only primitives (String / Boolean) - props travel as a JSON object string
  * so there is no Kotlin-collection↔Swift-dictionary interop to get wrong.
  */
 

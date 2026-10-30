@@ -43,7 +43,7 @@ fun AnalyticsConsentBanner(
     onDecline: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // 087 (Patterns board): a floating card at the bottom with two equal buttons — declining must be
+    // 087 (Patterns board): a floating card at the bottom with two equal buttons - declining must be
     // as easy as accepting (the old layout made "Allow" full-width and "No thanks" a small text link).
     // It slides up on arrival (fades under reduced motion).
     var shown by remember { mutableStateOf(false) }
@@ -58,7 +58,7 @@ fun AnalyticsConsentBanner(
                 Text("Help improve Effy", style = MaterialTheme.typography.titleSmall)
                 Text(
                     "We use privacy-friendly analytics to make the app better. No personal data is " +
-                        "collected — you can change this any time in Account.",
+                        "collected - you can change this any time in Account.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 4.dp),
@@ -76,12 +76,12 @@ fun AnalyticsConsentBanner(
 }
 
 /**
- * A persistent opt-in/out toggle for the Account screen — the customer's way back after a
+ * A persistent opt-in/out toggle for the Account screen - the customer's way back after a
  * decline, and the standing control. Reads/writes the same [ConsentState].
  */
 @Composable
 fun analyticsConsentSubtitle(state: ConsentState): String = when (state) {
-    ConsentState.GRANTED -> "On — anonymous usage data is shared"
+    ConsentState.GRANTED -> "On - anonymous usage data is shared"
     ConsentState.DENIED -> "Off"
     ConsentState.UNKNOWN -> "Off"
 }

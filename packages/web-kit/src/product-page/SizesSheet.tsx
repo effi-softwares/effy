@@ -26,7 +26,7 @@ const COLUMNS: readonly SheetField[] = ["price", "sku", "gtin", "weight"];
 
 /**
  * Every size in one table: what it costs, its codes and weight, its stock and whether it is on sale. With `editing`
- * the price, codes and weight are typed straight into the cells — Tab moves across, Enter down — and a changed cell
+ * the price, codes and weight are typed straight into the cells - Tab moves across, Enter down - and a changed cell
  * is tinted until it is saved; without it the sheet only reads.
  */
 export function SizesSheet({
@@ -131,16 +131,16 @@ export function SizesSheet({
                   priceLabel,
                 )}
                 <TableCell numeric className="font-semibold">
-                  {s.customerPrice ? money(s.customerPrice) : <span className="font-normal text-muted-foreground">—</span>}
+                  {s.customerPrice ? money(s.customerPrice) : <span className="font-normal text-muted-foreground">-</span>}
                   {editing && typed !== undefined && typed !== editing.initial[s.id]?.price ? (
                     <span className="mt-0.5 block text-xs font-normal text-muted-foreground">set by Effy on review</span>
                   ) : null}
                 </TableCell>
                 <TableCell numeric className="text-muted-foreground">
-                  {s.unitPrice ? unitPriceText(s.unitPrice) : "—"}
+                  {s.unitPrice ? unitPriceText(s.unitPrice) : "-"}
                 </TableCell>
-                {cell(s, row, "sku", s.sku ?? "—", codeLabel, true)}
-                {cell(s, row, "gtin", s.gtin ?? "—", "Barcode", true)}
+                {cell(s, row, "sku", s.sku ?? "-", codeLabel, true)}
+                {cell(s, row, "gtin", s.gtin ?? "-", "Barcode", true)}
                 {cell(s, row, "weight", weightText(s.weightGrams), "Packed weight in grams")}
                 <TableCell numeric className="whitespace-nowrap">
                   {s.stock.tracked ? (

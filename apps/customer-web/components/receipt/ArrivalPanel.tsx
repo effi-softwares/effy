@@ -21,7 +21,7 @@ export function ArrivalPanel({
   arrivals: ArrivalEstimateDTO[]
   delivery?: OrderDeliveryDTO | null
 }) {
-  // A courier order: who carries it and an estimate — never a window, never a promised day
+  // A courier order: who carries it and an estimate - never a window, never a promised day
   if (delivery?.type === "courier" && delivery.courierEstimate) {
     const [partner, estimate] = courierLines(delivery.courierEstimate)
     return (
@@ -79,7 +79,7 @@ export function ArrivalPanel({
           {arrivals.map((a, i) => (
             <Arrival key={`${a.method}-${i}`} arrival={a} multiple={arrivals.length > 1} index={i} label={label} anyTime={anyTime} />
           ))}
-          <p className="text-sm text-muted-foreground">Updates here as your order moves — no need to refresh.</p>
+          <p className="text-sm text-muted-foreground">Updates here as your order moves - no need to refresh.</p>
           <MovedNote delivery={delivery} />
         </div>
       ) : null}

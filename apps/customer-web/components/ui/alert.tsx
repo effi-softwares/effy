@@ -4,9 +4,9 @@ import type { LucideIcon } from "lucide-react"
 import { clsx } from "clsx"
 
 const variants = {
-  default: { box: "border-border bg-card", icon: "" , Icon: Info },
+  default: { box: "border-border bg-card", icon: "", Icon: Info },
   // There is no red on the storefront. A destructive alert is a black border, a heavier title and
-  // an alert glyph — the icon and the wording carry the meaning a hue would have.
+  // an alert glyph - the icon and the wording carry the meaning a hue would have.
   destructive: { box: "border-destructive bg-card", icon: "", Icon: CircleAlert },
   success: { box: "border-transparent bg-brand-muted", icon: "text-brand", Icon: CircleCheck },
   info: { box: "border-transparent bg-primary-muted", icon: "text-primary", Icon: Info },

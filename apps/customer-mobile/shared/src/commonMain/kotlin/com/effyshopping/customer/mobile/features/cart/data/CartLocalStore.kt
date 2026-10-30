@@ -23,7 +23,7 @@ class CartLocalStore(private val prefs: DevicePreferences) {
     data class Loaded(val cart: CartSnapshot, val queue: List<PendingChange>)
 
     /**
-     * Read the persisted cart. Returns null when there is nothing usable — no blob, an unknown version, or
+     * Read the persisted cart. Returns null when there is nothing usable - no blob, an unknown version, or
      * anything that fails to parse. The caller starts empty in every one of those cases.
      */
     fun load(): Loaded? {
@@ -43,7 +43,7 @@ class CartLocalStore(private val prefs: DevicePreferences) {
         // session, and the next change tries again.
     }
 
-    /** Forget everything — used on sign-out, where the device must not keep an account's cart. */
+    /** Forget everything - used on sign-out, where the device must not keep an account's cart. */
     fun clear() {
         runCatching {
             prefs.putString(PreferenceKeys.CART_MIRROR, "")
@@ -74,7 +74,7 @@ class CartLocalStore(private val prefs: DevicePreferences) {
 
         /**
          * `ignoreUnknownKeys` is deliberate on top of the version check. The version catches a shape we
-         * changed; this catches a field a newer build wrote that this one has never heard of — which
+         * changed; this catches a field a newer build wrote that this one has never heard of - which
          * happens on a downgrade, and should cost a field, not the cart.
          */
         private val json = Json {

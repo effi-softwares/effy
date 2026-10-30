@@ -45,7 +45,7 @@ export function refundProblem(scope: RequestScope, err: unknown, what: string): 
   if (err instanceof LineOverRefundedError) return validationFailed(scope, "those units have already been refunded");
   // Possible only when a point is worth more than a cent and little card money is left.
   if (err instanceof RefundNotSplittableError) {
-    return validationFailed(scope, "this amount can't be split exactly between card and points — try a slightly different amount");
+    return validationFailed(scope, "this amount can't be split exactly between card and points - try a slightly different amount");
   }
   scope.log.error({ err }, `refunds: ${what} failed`);
   return internal(scope);

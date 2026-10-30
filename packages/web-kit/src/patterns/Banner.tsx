@@ -31,8 +31,8 @@ const QUIET: Record<BannerTone, string> = {
 
 /**
  * The one highlighted alert, in both consoles: something that needs a person now (a new order) or says where a record
- * stands (a change with Effy, a hold). A solid fill carrying a white label in both appearances — blue for information,
- * rose for a problem — a round icon, a title and its line, and its own actions: on the right, or under the text when
+ * stands (a change with Effy, a hold). A solid fill carrying a white label in both appearances - blue for information,
+ * rose for a problem - a round icon, a title and its line, and its own actions: on the right, or under the text when
  * the banner says more than one line. Quieter notes in a page are `Callout`.
  */
 export function Banner({
@@ -137,7 +137,7 @@ const SHOWN = 2;
 /**
  * Several banners as one stack: the first in front, the next one or two showing underneath in their own colour so the
  * stack reads as a stack, a counter with previous / next, and a card that comes forward when clicked. Every card stays
- * in the stack and moves to its new depth when the front one changes — the front slides back as the next rises — so
+ * in the stack and moves to its new depth when the front one changes - the front slides back as the next rises - so
  * changing cards is seen, not swapped. Order them most pressing first. One item is a plain `Banner`.
  */
 export function BannerStack({

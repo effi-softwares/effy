@@ -46,7 +46,7 @@ data class CollectionRun(
     val dueLabel: String? = null,
     /** Every package's hub instruction, for the hub scan; empty from an older server. */
     val hubSort: List<HubSort> = emptyList(),
-    /** Rev 2 — the run map. */
+    /** Rev 2 - the run map. */
     val map: com.effyshopping.driver.mobile.core.map.RunMap? = null,
 ) {
     val allCollected: Boolean get() = stops.isNotEmpty() && stops.all { it.status == StopStatus.COLLECTED || it.status == StopStatus.SHORT }
@@ -55,12 +55,12 @@ data class CollectionRun(
 data class CollectionPackage(
     val ref: String,
     val destinationSuburb: String,
-    /** This package's own lines — not the stop's. */
+    /** This package's own lines - not the stop's. */
     val items: List<ManifestLine>,
     val summary: ClassSummary,
     /** A courier takes it from the hub; otherwise Effy delivers it. */
     val goesToCourier: Boolean,
-    /** The package's own id — what a collect names when it says which package was left behind. */
+    /** The package's own id - what a collect names when it says which package was left behind. */
     val packageId: String,
     /** The code on this package's label: bag 1's. */
     val packageCode: String,
@@ -91,12 +91,12 @@ data class ShopStop(
 )
 
 /**
- * The split returned by hub check-in: parcels Effy delivers — grouped by the day and window
- * each is for — and parcels a courier takes from the hub. The driver classifies nothing.
+ * The split returned by hub check-in: parcels Effy delivers - grouped by the day and window
+ * each is for - and parcels a courier takes from the hub. The driver classifies nothing.
  */
 data class HubSplit(
     val scannedTotal: Int,
-    /** How many go to a courier — never called "standard" on screen. */
+    /** How many go to a courier - never called "standard" on screen. */
     val toCourier: Int,
     /** Effy's parcels, by day and window. */
     val effy: List<EffyGroup>,
@@ -136,7 +136,7 @@ data class Collected(val outcome: WriteOutcome, val remaining: Int = 0)
 interface CollectionRepository {
     suspend fun getRun(runId: String): CollectionRun
     suspend fun getStop(runId: String, stopId: String): ShopStop
-    /** [outcomes] — every package the driver was shown, each collected or not. 093: only these are settled. */
+    /** [outcomes] - every package the driver was shown, each collected or not. 093: only these are settled. */
     suspend fun collect(
         runId: String,
         stopId: String,

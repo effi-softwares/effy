@@ -41,7 +41,7 @@ const TITLE: Record<BulkAction, (n: number) => string> = {
 const DESCRIPTION: Record<BulkAction, string> = {
   hold: "They come off sale straight away and their shops cannot put them back. Each shop is told, with your reason.",
   release: "Each goes back to the state it was in when it was held, and its shop is told.",
-  margin: "Customers pay the shop's price plus this margin, on every size. Shops are not told — the margin is Effy's.",
+  margin: "Customers pay the shop's price plus this margin, on every size. Shops are not told - the margin is Effy's.",
 }
 
 /**
@@ -116,7 +116,7 @@ export function BulkDialog({
               placeholder="e.g. The maker has recalled this batch."
             />
             <p className="mt-0.5 block text-sm text-muted-foreground">
-              Each shop sees this, from Effy — not from you by name.
+              Each shop sees this, from Effy - not from you by name.
             </p>
           </div>
         ) : null}

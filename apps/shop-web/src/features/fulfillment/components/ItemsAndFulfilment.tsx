@@ -2,7 +2,7 @@ import { useState } from "react"
 import { CircleAlert, CircleCheck, Package, Snowflake, Thermometer, type LucideIcon } from "lucide-react"
 
 import { STORAGE_CLASSES, STORAGE_CLASS_WORDS, type StorageClass } from "@effy/shared-types"
-import { Button, Card, Progress, toast } from "@effy/design-system/ui"
+import { Button, Progress } from "@effy/design-system/ui"
 import { ScanField } from "@effy/web-kit/scanner"
 
 import {
@@ -18,22 +18,23 @@ import {
 } from "../orderConsole"
 import { useSetPicks } from "../queries"
 import { AdjustLineDialog } from "./AdjustLineDialog"
-import { FulfilDialog } from "./FulfilDialog"
 import { RefundedBox, TotalRow } from "./OrderTotals"
 import { LineRow } from "./PickLine"
 import { Shipments } from "./Shipments"
 
+/**
+ * The pick list, in walking order (099): tick a line as it goes in the bag, scan a barcode to tick it, or adjust a
+ * line that is short. Marking it ready is the page's (the action bar's Mark ready opens the hand-over check).
+ */
 export function ItemsAndFulfilment({ detail }: { detail: OrderDetail }) {
   const picks = useSetPicks(detail.id)
   const [adjusting, setAdjusting] = useState<{ line: OrderLine; preset?: Exclude<PickMode, "none"> } | null>(null)
-  const [fulfilOpen, setFulfilOpen] = useState(false)
   const [scan, setScan] = useState<{ ok: boolean; text: string; lineId?: string } | null>(null)
 
   const editable = canPick(detail.status)
   const modes = detail.lines.map((l) => pickModeOf(l))
   const allPicked = detail.lines.length > 0 && modes.every((m) => m === "full")
   const pickedFull = modes.filter((m) => m === "full").length
-  const pickedAny = modes.some((m) => m === "full" || m === "part")
   const busy = picks.isPending
 
   function toggleLine(l: OrderLine) {
@@ -58,7 +59,7 @@ export function ItemsAndFulfilment({ detail }: { detail: OrderDetail }) {
     const code = raw.trim()
     const l = detail.lines.find((x) => x.gtin === code || x.variantCode === code || x.sku === code)
     if (!l) {
-      setScan({ ok: false, text: "That item isn't on this order — check the shelf." })
+      setScan({ ok: false, text: "That item isn't on this order - check the shelf." })
       return
     }
     setScan({ ok: true, text: `${l.name}${l.variantLabel ? ` · ${l.variantLabel}` : ""}`, lineId: l.orderItemId })
@@ -70,23 +71,14 @@ export function ItemsAndFulfilment({ detail }: { detail: OrderDetail }) {
     }
   }
 
-  function fulfil() {
-    if (!pickedAny) {
-      toast("Tick at least one item first")
-      return
-    }
-    setFulfilOpen(true)
-  }
-
   const m = detail.money
   const pct = detail.lines.length > 0 ? (pickedFull / detail.lines.length) * 100 : 0
 
   return (
-    <section className="min-w-0">
-      <Card className="gap-0 overflow-hidden py-0">
+    <div className="min-w-0">
+      <div className="overflow-hidden rounded-lg border">
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b px-5 py-4 max-md:px-4">
           <div className="grid min-w-0 flex-1 gap-2">
-            <h2 className="leading-6 font-semibold">Items and fulfilment</h2>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
               <Progress aria-hidden="true" className="max-w-65" height={8} value={pct} />
               <p className="text-sm text-muted-foreground">
@@ -167,19 +159,6 @@ export function ItemsAndFulfilment({ detail }: { detail: OrderDetail }) {
           {detail.refunds.length > 0 ? <RefundedBox detail={detail} /> : null}
         </div>
 
-        {editable ? (
-          <div className="flex flex-wrap items-center justify-between gap-2 border-t bg-muted/40 px-5 py-3 max-md:px-4">
-            <p className="min-w-0 flex-1 text-sm text-muted-foreground text-pretty">
-              {pickedAny
-                ? "Marks everything ticked above ready for an Effy driver to collect."
-                : "Tick the items you have picked, or use Adjust for part-picked and unavailable lines."}
-            </p>
-            <Button variant={pickedAny ? "default" : "secondary"} onClick={fulfil} aria-disabled={!pickedAny}>
-              {pickedAny ? `Fulfil ${pickedFull} ${pickedFull === 1 ? "item" : "items"}` : "Fulfil picked items"}
-            </Button>
-          </div>
-        ) : null}
-
         <Shipments detail={detail} />
 
         <AdjustLineDialog
@@ -205,9 +184,8 @@ export function ItemsAndFulfilment({ detail }: { detail: OrderDetail }) {
             )
           }}
         />
-        <FulfilDialog detail={detail} open={fulfilOpen} onOpenChange={setFulfilOpen} />
-      </Card>
-    </section>
+      </div>
+    </div>
   )
 }
 

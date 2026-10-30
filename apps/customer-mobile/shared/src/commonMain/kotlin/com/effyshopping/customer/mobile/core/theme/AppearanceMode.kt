@@ -3,7 +3,7 @@ package com.effyshopping.customer.mobile.core.theme
 /**
  * The shopper's appearance choice (087 / constitution v3.4.0): follow the phone, or always light, or
  * always dark. Chosen in Account → Appearance and remembered on this device (a device setting, not
- * personal data — clearing shopping data leaves it alone).
+ * personal data - clearing shopping data leaves it alone).
  */
 enum class AppearanceMode(val storageValue: String, val label: String) {
     System("system", "Match my phone"),

@@ -27,7 +27,7 @@ function allFunctions(): { name: string; block: string }[] {
   return out;
 }
 
-describe("fleet deployment contract — serverless.yml declares what the service needs", () => {
+describe("fleet deployment contract - serverless.yml declares what the service needs", () => {
   it("declares every env var src/shared/config.ts reads", () => {
     // Against the module's own exported key list.
     for (const key of FLEET_ENV_KEYS) {
@@ -76,14 +76,14 @@ describe("fleet deployment contract — serverless.yml declares what the service
   });
 
   // The dispatch routes must exist.
-// The file must parse as YAML (CloudFormation tags accepted as opaque).
+  // The file must parse as YAML (CloudFormation tags accepted as opaque).
   it("is valid YAML that parses into functions (063)", async () => {
     const { parse } = await import("yaml");
     const doc = parse(yaml, { logLevel: "error" }) as { functions?: Record<string, unknown> };
     expect(doc, "serverless.yml did not parse").toBeTruthy();
     expect(
       Object.keys(doc.functions ?? {}).length,
-      "no functions parsed — the document is valid YAML but not a serverless service",
+      "no functions parsed - the document is valid YAML but not a serverless service",
     ).toBeGreaterThan(5);
   });
 
@@ -104,7 +104,7 @@ describe("fleet deployment contract — serverless.yml declares what the service
 
   it("declares the wave planner as a scheduled function, not a route (063)", () => {
     const planner = allFunctions().find((f) => f.name === "planWavesScheduled");
-    expect(planner, "the wave planner must exist — nothing assigns work without it").toBeDefined();
+    expect(planner, "the wave planner must exist - nothing assigns work without it").toBeDefined();
     expect(planner!.block).toContain("schedule:");
     expect(planner!.block).not.toContain("httpApi:");
   });
@@ -126,7 +126,7 @@ describe("fleet deployment contract — serverless.yml declares what the service
   });
 
   /** No grant on the old `driver-proof/` prefix. */
-  it("holds no S3 grant at all — proof media went with the work model", () => {
+  it("holds no S3 grant at all - proof media went with the work model", () => {
     expect(yaml).not.toContain("driver-proof");
     expect(yaml).not.toContain("s3:GetObject");
     expect(yaml).not.toContain("s3:PutObject");
@@ -157,16 +157,16 @@ describe("fleet deployment contract — serverless.yml declares what the service
       if (typeof fn.description === "string") {
         expect(
           fn.description.length,
-          `${name}: Lambda Description is capped at 256 characters — this is ${fn.description.length}. ` +
-            `Put the reasoning in a YAML comment above it instead; CloudFormation will refuse the ` +
-            `stack without telling you which property is wrong.`,
+          `${name}: Lambda Description is capped at 256 characters - this is ${fn.description.length}. ` +
+          `Put the reasoning in a YAML comment above it instead; CloudFormation will refuse the ` +
+          `stack without telling you which property is wrong.`,
         ).toBeLessThanOrEqual(256);
       }
       const fullName = `${service}-dev-${name}`;
       expect(
         fullName.length,
         `${name}: the deployed function name "${fullName}" is ${fullName.length} characters; Lambda ` +
-          `caps FunctionName at 64.`,
+        `caps FunctionName at 64.`,
       ).toBeLessThanOrEqual(64);
       if (fn.timeout !== undefined) {
         expect(Number(fn.timeout), `${name}: Lambda timeout must be 1-900 seconds`).toBeGreaterThan(0);

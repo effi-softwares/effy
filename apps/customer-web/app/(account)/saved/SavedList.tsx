@@ -212,7 +212,7 @@ export function SavedList({ initial, listId = DEFAULT_LIST_ID }: { initial: Save
             <>
               These weren&apos;t added:{" "}
               {bulk.skipped
-                .map((s) => `${items.find((i) => i.id === s.productId)?.name ?? s.productId} — ${skipReason(s.reason)}`)
+                .map((s) => `${items.find((i) => i.id === s.productId)?.name ?? s.productId} - ${skipReason(s.reason)}`)
                 .join(" · ")}
               .
             </>

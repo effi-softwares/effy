@@ -8,7 +8,7 @@ function stop(p: Partial<OrderableStop> & { id: string }): OrderableStop {
 
 const ids = (s: readonly OrderableStop[]) => s.map((x) => x.id);
 
-describe("orderRoundStops — the sort key (FR-018)", () => {
+describe("orderRoundStops - the sort key (FR-018)", () => {
   it("puts what is actionable before what is finished with", () => {
     const out = orderRoundStops([
       stop({ id: "done", status: "done" }),
@@ -72,7 +72,7 @@ describe("orderRoundStops — the sort key (FR-018)", () => {
   });
 
   // The rule is worthless if it is not reproducible.
-  it("is total and deterministic — equal inputs always give equal order", () => {
+  it("is total and deterministic - equal inputs always give equal order", () => {
     const input = [
       stop({ id: "c" }),
       stop({ id: "a" }),

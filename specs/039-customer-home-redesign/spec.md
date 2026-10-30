@@ -1,4 +1,4 @@
-# Feature Specification: Customer Web Home — Merchandised Landing Redesign
+# Feature Specification: Customer Web Home - Merchandised Landing Redesign
 
 **Feature Branch**: `039-customer-home-redesign`
 
@@ -13,7 +13,7 @@
 The customer storefront home page (the platform's flagship public surface, first built in 025 and
 extended by 028/029) is today a short page: a type-led hero, a promo carousel, a few product rails and
 a category mosaic. The operator wants a **richer, longer merchandised landing page** in the register of
-a modern grocery storefront — more like the reference the operator supplied — while staying **strictly
+a modern grocery storefront - more like the reference the operator supplied - while staying **strictly
 on Effy's monochrome design language** (no brand hue; constitution v1.11.0, Principle V).
 
 This is a **presentation slice**. It reuses the storefront data the platform already serves and adds
@@ -31,8 +31,8 @@ one reviewable section.
 
 ### User Story 1 - A welcoming, image-led hero (Priority: P1)
 
-A first-time visitor lands on the home page and immediately understands what Effy is — a single-brand
-grocery and everyday-essentials delivery service — from a prominent hero band: a headline, a short
+A first-time visitor lands on the home page and immediately understands what Effy is - a single-brand
+grocery and everyday-essentials delivery service - from a prominent hero band: a headline, a short
 supporting line, a primary "shop now" action and a secondary action, sitting beside a hero image, with
 a small honest value strip (selection / quality / delivery) directly beneath.
 
@@ -41,7 +41,7 @@ redesign. It is the highest-visibility section and the operator's lead request.
 
 **Independent Test**: Load the home page as a guest; confirm the hero renders with headline, supporting
 copy, both actions (primary navigates to browse, secondary to a sensible destination), the value strip,
-and — where the hero image asset is present — the image; where it is absent, a neutral on-brand
+and - where the hero image asset is present - the image; where it is absent, a neutral on-brand
 placeholder in its place with no broken-image frame. Confirm it is legible in both light and dark
 appearance and on a narrow (phone) viewport.
 
@@ -93,8 +93,8 @@ tile rather than a broken frame.
 
 ### User Story 3 - Discover products through merchandised sections (Priority: P1)
 
-A shopper scrolls a sequence of named product sections — on-sale items, featured items, and
-category-specific rows — each a horizontal or grid row of the existing product cards with a "view all"
+A shopper scrolls a sequence of named product sections - on-sale items, featured items, and
+category-specific rows - each a horizontal or grid row of the existing product cards with a "view all"
 into the corresponding listing. Multiple such sections appear down the page (interleaved with the
 promotional and app sections below), giving the page its "long merchandised landing" character.
 
@@ -124,8 +124,8 @@ cannot be loaded, and to an "on its way" message when the catalogue is empty.
 
 ### User Story 4 - Promotional offer panels (Priority: P2)
 
-A shopper sees a visually strong promotions block adapting the reference's composition — one large
-feature panel beside two smaller stacked panels — each panel showing an advertised promotion's artwork
+A shopper sees a visually strong promotions block adapting the reference's composition - one large
+feature panel beside two smaller stacked panels - each panel showing an advertised promotion's artwork
 and message, and tapping a panel opens that promotion in full (its code, terms and how long is left).
 A second, similar offers block appears lower on the page.
 
@@ -184,7 +184,7 @@ invented store URLs exist anywhere in the section.
 A visitor who wants to hear from Effy enters their email address in a newsletter section and submits it.
 The system records the interest, sends a confirmation/opt-in email, and gives clear feedback for
 success, invalid input and failure. An address already on the list gets the **same** success feedback as
-a new one, deliberately. The copy is honest — it does **not** promise a discount unless a real promotion
+a new one, deliberately. The copy is honest - it does **not** promise a discount unless a real promotion
 backs it.
 
 **Why this priority**: It is the only section requiring new backend work (endpoint, storage, email) and
@@ -201,7 +201,7 @@ or other unbacked claim appears.
 1. **Given** a valid, not-yet-subscribed email, **When** the visitor submits, **Then** the system
    records the subscription intent, sends a confirmation email, and shows a success state.
 2. **Given** an email already subscribed, **When** the visitor submits, **Then** the system shows the
-   **same** surface a new subscription shows — byte-for-byte indistinguishable — disclosing neither that
+   **same** surface a new subscription shows - byte-for-byte indistinguishable - disclosing neither that
    the address is already on the list nor that it has an Effy account, and creating no duplicate record
    and sending no second email within the cooldown.
 3. **Given** an invalid email, **When** the visitor submits, **Then** the form shows inline validation
@@ -219,7 +219,7 @@ or other unbacked claim appears.
   space and no layout shift occurs when the asset arrives.
 - **Monochrome vs. supplied colourful artwork**: the hero and promotional artwork are photographic
   content, not design tokens. Text over any artwork is guaranteed legible by a scrim/controlled zone;
-  the UI chrome (type, buttons, chips, borders, backgrounds) stays entirely on the neutral ramp — no new
+  the UI chrome (type, buttons, chips, borders, backgrounds) stays entirely on the neutral ramp - no new
   colour enters the design system.
 - **Partial data**: any section whose data is empty (no categories, no on-sale items, no advertised
   promotions) hides itself; the page remains coherent with any subset present.
@@ -241,12 +241,12 @@ or other unbacked claim appears.
 
 - **FR-001**: The home page MUST present, in this top-to-bottom order: hero (+ value strip), category
   shortcuts, and a sequence of merchandised product sections interleaved with promotional-offer blocks,
-  an app-awareness section, and a newsletter section — a longer, richer landing than the current page.
+  an app-awareness section, and a newsletter section - a longer, richer landing than the current page.
 - **FR-002**: The feature MUST NOT change the header/top navigation/information strip, the product-card
   design, or the footer.
 - **FR-003**: The feature MUST NOT add any new catalogue/browsing capability; all product, category and
   promotion content MUST come from data the platform already serves. (The newsletter is the sole new
-  capability — FR-030+.)
+  capability - FR-030+.)
 - **FR-004**: Every section MUST hide itself when it has no data to show, and the page MUST remain
   coherent with any subset of sections present.
 
@@ -254,20 +254,20 @@ or other unbacked claim appears.
 
 - **FR-005**: All UI chrome MUST use only the existing monochrome neutral ramp and the two existing
   semantic colours; the feature MUST introduce no new colour **token** and MUST pass the platform's
-  colour guards. **The hero's three value panels are the single, recorded exception** — see FR-005a.
+  colour guards. **The hero's three value panels are the single, recorded exception** - see FR-005a.
 - **FR-005a** *(added 2026-08-07, operator direction)*: The hero's three value panels MAY use the
   reference storefront's three fills. The exception is bounded, and every bound is a requirement:
-  - The values MUST be **component-local** and MUST NOT become design tokens — `tokens.css` unchanged,
+  - The values MUST be **component-local** and MUST NOT become design tokens - `tokens.css` unchanged,
     no Compose theme regenerated, `tokens:check` passing unchanged, the other five surfaces unmoved.
   - They MUST NOT be named for a role (no "brand orange"), so they cannot be adopted elsewhere by
     a later feature reading them as a palette.
   - Each panel's text colour MUST be chosen for **WCAG AA (≥ 4.5:1)** against its own fill. ⚠ The
-    reference's own panels do not meet this — measured against white text, its orange is **3.15:1** and
-    its green **2.59:1** — so the fills are reproduced exactly and the *foreground* is adapted per panel.
+    reference's own panels do not meet this - measured against white text, its orange is **3.15:1** and
+    its green **2.59:1** - so the fills are reproduced exactly and the *foreground* is adapted per panel.
   - No other chrome on the page may take colour from them.
 
-  ⚠ **This narrows FR-005, it does not repeal it.** Everything else on the page — type, buttons, rules,
-  backgrounds, the newsletter form, the offer panels — stays entirely on the monochrome ramp, and
+  ⚠ **This narrows FR-005, it does not repeal it.** Everything else on the page - type, buttons, rules,
+  backgrounds, the newsletter form, the offer panels - stays entirely on the monochrome ramp, and
   SC-004 is amended in step to exempt these three fills and nothing else. Precedent: 024 took
   operator-requested brand colours for the mobile splash grounds on exactly these terms (asset-local,
   no token, no theme change).
@@ -283,7 +283,7 @@ or other unbacked claim appears.
 - **FR-010**: The hero MUST show a headline, a short supporting line, a primary action (shop/browse) and
   a secondary action, plus a value strip whose claims are all true of the platform as built.
 - **FR-011**: The hero MUST consume a hero image from a known static location and MUST render a neutral
-  placeholder — never a broken image — when the asset is absent.
+  placeholder - never a broken image - when the asset is absent.
 - **FR-012**: The hero MUST be part of the immediately served page (not gated on catalogue data).
 
 **Categories (US2)**
@@ -304,7 +304,7 @@ or other unbacked claim appears.
 - **FR-017**: The promotions block MUST adapt the reference composition (one large panel beside two
   stacked panels), driven by advertised offer promotions, with each panel legible over its artwork and
   tapping through to that promotion's full detail.
-- **FR-018**: The promotions block MUST NOT show placeholder or empty panels — it renders only panels it
+- **FR-018**: The promotions block MUST NOT show placeholder or empty panels - it renders only panels it
   has data for. (Its omission when no offer promotions are advertised follows from FR-004, which is not
   restated here.)
 - **FR-019**: A tapped promotion that has since expired/exhausted MUST resolve to a clear "offer has
@@ -347,7 +347,7 @@ or other unbacked claim appears.
   the plan read as per-route API Gateway throttling. **That is not buildable where it was placed**: HTTP
   API throttling is a *stage* `route_settings` property, the stage (`aws_apigatewayv2_stage.default`) is
   Terraform-owned in `infra/envs/dev/edge-gateway.tf`, and the service attaches with an external
-  `httpApi.id` — so no `serverless.yml` change can set it. Rather than grow a presentation slice into an
+  `httpApi.id` - so no `serverless.yml` change can set it. Rather than grow a presentation slice into an
   infrastructure one, the requirement is restated as the **outcome** it actually cares about, which the
   per-address cooldown in the subscriber record delivers in one SQL statement. A gateway throttle
   remains available if this low-value target is ever actually abused (research R4).
@@ -368,10 +368,10 @@ or other unbacked claim appears.
 
 - **Newsletter subscriber**: represents a person's interest in receiving Effy updates. Key attributes
   (implementation-agnostic): the email address, a confirmation/opt-in status (pending vs confirmed),
-  and the time of subscription. It is deliberately **separate** from a customer account — a subscriber
+  and the time of subscription. It is deliberately **separate** from a customer account - a subscriber
   need not be, and may never become, a registered customer, and the two MUST NOT be conflated.
 - **Existing storefront content** (reused, not defined here): categories, product cards, merchandising
-  rails and advertised promotional banners — all already served by the platform.
+  rails and advertised promotional banners - all already served by the platform.
 
 ## Success Criteria *(mandatory)*
 
@@ -384,12 +384,12 @@ or other unbacked claim appears.
   shortcuts, and the full category set in one more.
 - **SC-003**: The home page presents at least three distinct merchandised product sections when the
   catalogue is seeded, each using the unchanged product card.
-- **SC-004**: 100% of the page's UI chrome resolves to the monochrome ramp / existing semantic colours —
+- **SC-004**: 100% of the page's UI chrome resolves to the monochrome ramp / existing semantic colours -
   the platform's colour guards pass with zero new tokens. **The sole exception is the hero's three value
   panel fills (FR-005a)**, which are component-local values, not tokens; `tokens:check` therefore passes
   **unchanged**, which is the mechanical proof the exception did not leak into the design system.
-- **SC-005**: The page renders correctly with any subset of sections' data present or absent — verified
-  across at least: full data, no promotions, no categories, empty catalogue, catalogue error — with no
+- **SC-005**: The page renders correctly with any subset of sections' data present or absent - verified
+  across at least: full data, no promotions, no categories, empty catalogue, catalogue error - with no
   empty rows and a self-explaining state in every degraded case.
 - **SC-006**: The page is legible and correct in both light and dark appearance across desktop, tablet
   and phone widths.
@@ -399,7 +399,7 @@ or other unbacked claim appears.
   **indistinguishable** from a new one; and a submitted email never reveals whether an Effy account or a
   newsletter subscription exists for it.
 - **SC-009**: Every interactive element on the page meets the platform's touch-target minimum (44 × 44 CSS
-  px on web — see plan § Numeric thresholds), the page
+  px on web - see plan § Numeric thresholds), the page
   has exactly one top-level heading with a correct heading order, and no section conveys meaning by
   colour alone.
 - **SC-010**: Each section is delivered and reviewable independently, in order, without the unbuilt
@@ -410,7 +410,7 @@ or other unbacked claim appears.
 - **Reference is compositional only**: the supplied "organic grocery" reference and hero art inform
   *layout and composition*, not palette. Effy stays monochrome; the reference's green/orange/yellow
   branding is not adopted. The supplied hero image is treated as a **photographic content asset** placed
-  in the app's static files — it is not a design token and does not affect the colour guards; text over
+  in the app's static files - it is not a design token and does not affect the colour guards; text over
   it is protected by a scrim/controlled zone, and it must read acceptably in both appearances.
 - **Hero art is operator-supplied**: the operator provides the hero image; until it is placed, the hero
   renders a neutral placeholder. One hero image is assumed (no rotating hero carousel) unless the
@@ -435,7 +435,7 @@ or other unbacked claim appears.
 ## Dependencies
 
 - The existing storefront read capabilities (home rails + advertised banners, and the category list) and
-  the existing product card, header and footer — all reused unchanged.
+  the existing product card, header and footer - all reused unchanged.
 - The platform's monochrome design-system tokens and shared storefront vocabulary.
 - The platform's email delivery + templating system (037/038) for the newsletter confirmation email.
 - The operator to supply the final hero image asset (and later, real app-store URLs when the apps ship).

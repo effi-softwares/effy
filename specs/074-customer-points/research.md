@@ -7,7 +7,7 @@ state.
 
 ---
 
-## R1 — The ledger: append-only entries, consumption by allocation, the balance derived
+## R1 - The ledger: append-only entries, consumption by allocation, the balance derived
 
 **Decision.** Three append-only tables, and a fourth row per customer that exists only to be locked:
 
@@ -26,38 +26,38 @@ at, except_order)`, and read nowhere else (the `round_opens_at` discipline from 
 - FR-003 forbids editing history. A mutable `remaining_points` column on the credit row would be an
   edit. Allocations keep both the history and the FIFO bookkeeping append-only.
 - FR-004 / SC-001: a stored balance column can disagree with the rows; a derived one cannot. 055
-  made the same call for refunds (`COUNTS_AGAINST_CEILING` — "counted from the rows, never stored").
+  made the same call for refunds (`COUNTS_AGAINST_CEILING` - "counted from the rows, never stored").
 - A per-customer lock row, not the `customer` row: the customer row is written by profile edits,
   device registration and closure, and those must not queue behind a checkout.
 
 **Alternatives rejected.**
-- *Running balance column* — fast reads, but two sources for one fact; this repo has shipped defects
+- *Running balance column* - fast reads, but two sources for one fact; this repo has shipped defects
   through exactly that shape.
-- *Mutable lot `remaining` column* — simpler FIFO, but violates FR-003 and loses the audit of which
+- *Mutable lot `remaining` column* - simpler FIFO, but violates FR-003 and loses the audit of which
   debit took which points.
 
 ---
 
-## R2 — Expiry is derived; a daily sweep only writes the history line
+## R2 - Expiry is derived; a daily sweep only writes the history line
 
 **Decision.** A lot stops counting the instant `expires_at` passes, because `points_usable` filters
 on it. A scheduled sweep (daily) writes an `expired` debit entry, with allocations, for each lot that
-has expired with points remaining — **only so the history shows it** (Story 4, scenario 1).
+has expired with points remaining - **only so the history shows it** (Story 4, scenario 1).
 
 `expires_at` = **00:00 Australia/Melbourne on the day after** (credit date in Melbourne + the expiry
 period in months). Points credited on 8 Oct 2026 with a 12-month period are usable through 8 Oct
 2027 and stop at midnight starting 9 Oct 2027.
 
 **Rationale.** A sweep that is late, fails or is never deployed can then never make an expired point
-spendable — the same "a lapsed hold is not swept, it simply stops counting" rule 069 used for slot
+spendable - the same "a lapsed hold is not swept, it simply stops counting" rule 069 used for slot
 holds. Midnight in the operating timezone matches how a customer reads "expires 8 Oct 2027".
 
-**Alternative rejected.** *Expiry only by sweep* — a missed run lets a customer spend expired points
+**Alternative rejected.** *Expiry only by sweep* - a missed run lets a customer spend expired points
 and then the ledger has to claw them back.
 
 ---
 
-## R3 — Points are HELD at the payment-intent call and SPENT inside the paid transaction
+## R3 - Points are HELD at the payment-intent call and SPENT inside the paid transaction
 
 **Decision.** Mirrors 069's slot hold exactly:
 
@@ -72,7 +72,7 @@ and then the ledger has to claw them back.
 
 **The late payer.** If payment lands after the hold lapsed and the points were meanwhile spent or
 debited, the paid step spends what is still usable, records the gap on the order
-(`points_shortfall_amount`), emits `PointsHoldShortfall` (alarmed), and **the order stands** — the
+(`points_shortfall_amount`), emits `PointsHoldShortfall` (alarmed), and **the order stands** - the
 customer was shown and charged a card amount on the understanding the points would cover the rest
 (spec edge case: "Effy absorbs the shortfall"). The balance never goes negative.
 
@@ -85,10 +85,10 @@ is a shortfall Effy absorbs, not an oversold window, so erring long is cheaper.
 
 ---
 
-## R4 — Amount authority: the order total does not change; the card pays total − points
+## R4 - Amount authority: the order total does not change; the card pays total − points
 
 **Decision.**
-- `order.grand_total_amount` keeps its meaning — goods − discount + delivery. Points are a **means of
+- `order.grand_total_amount` keeps its meaning - goods − discount + delivery. Points are a **means of
   payment** (FR-018), so prices, promotions, delivery fee and GST are untouched.
 - New order columns record the points side: `points_used`, `points_cents_per_point` (snapshot of the
   setting), `points_value_amount` (= points × cents per point).
@@ -98,23 +98,23 @@ is a shortfall Effy absorbs, not an oversold window, so erring long is cheaper.
   usable → `409 points_balance_changed` with the current usable figure; more than the order total →
   `422 points_exceed_total`.
 - **Card minimum.** The provider cannot charge less than **A$0.50**. A card remainder strictly between
-  0 and 50 cents is refused with `422 points_card_remainder_too_small` carrying `maxPoints` — the most
-  points that leave a chargeable card amount — and the client offers "Use N points". Never a surcharge.
+  0 and 50 cents is refused with `422 points_card_remainder_too_small` carrying `maxPoints` - the most
+  points that leave a chargeable card amount - and the client offers "Use N points". Never a surcharge.
 - **Points-only orders** (card amount = 0): no payment intent is created. Checkout writes `payment`
   with `provider = 'points'`, `amount = 0`, `stripe_payment_intent_id = NULL`, and runs
   `finalizeSucceeded` directly in the same request. The response carries `paidWithPoints: true` and no
   client secret; clients go straight to the confirmation screen. `payment.provider` has no CHECK and
-  the intent column is nullable — no schema change.
+  the intent column is nullable - no schema change.
 
 **Rationale.** 070 FR-014: the amount is decided in one place. Keeping the grand total intact keeps
 every receipt, refund line price and insight report correct without a second "total before points".
 
-**Alternative rejected.** *Points as a discount line* — FR-018 forbids it, and it would reduce the GST
+**Alternative rejected.** *Points as a discount line* - FR-018 forbids it, and it would reduce the GST
 base on the tax invoice, which is wrong for a means of payment.
 
 ---
 
-## R5 — Refunds split by cumulative proportion; points return when the card part is accepted
+## R5 - Refunds split by cumulative proportion; points return when the card part is accepted
 
 **Decision.**
 - A refund's `amount` stays the **total value** returned (line-derived or goodwill, as 055). Two new
@@ -133,14 +133,14 @@ base on the tax invoice, which is wrong for a means of payment.
   ```
   When the last cent is refunded, T = G, so points returned = points used and card returned = card
   paid exactly (FR-019, SC-005). Rounding favours card by under one point's value on intermediate
-  refunds — never above the card paid, which a clamp asserts.
+  refunds - never above the card paid, which a clamp asserts.
 - **Only the card part goes to the provider.** A refund with a card part of 0 is never submitted: it
   is inserted as `succeeded` with `settled_at = now()`.
 - **When points come back.** The `returned` credit entry is written in the same transaction as the
   refund reaching `submitted` (or being inserted `succeeded` when card-free), and is unique per refund.
   `markSubmitted` therefore becomes a small transaction; the reconciler goes through the same function,
   so a stalled refund that later lands returns its points exactly once. A **refused** refund returns no
-  points (nothing was returned at all); a refund the bank later **fails** keeps its returned points —
+  points (nothing was returned at all); a refund the bank later **fails** keeps its returned points -
   the failure concerns card money staff must resolve, and points are independent of it.
 - Returned points are a new lot with a **fresh full expiry** (FR-020).
 - Refunds issued in the provider's dashboard (`recordUnattributedRefund`) are card-only by definition.
@@ -150,7 +150,7 @@ carry over unchanged; points are added beside the card, never in place of it.
 
 ---
 
-## R6 — Service placement
+## R6 - Service placement
 
 | Capability | Service | Because |
 |---|---|---|
@@ -158,14 +158,14 @@ carry over unchanged; points are added beside the card, never in place of it.
 | Customer balance + history reads | `customer` | Customer audience, account domain. |
 | Points at checkout (quote, intent, points-only placement) | `commerce` | Owns checkout and payment. |
 | Back-office customer lookup, credit, debit, settings | `orders` | Back-office audience; the order console and refunds are where customer care already happens. |
-| Expiry sweep + expiry warnings (scheduled) | `customer` | Account domain; no route, a schedule — as `commerce` runs `refund-reconcile-scheduled`. |
+| Expiry sweep + expiry warnings (scheduled) | `customer` | Account domain; no route, a schedule - as `commerce` runs `refund-reconcile-scheduled`. |
 | Ledger reconciliation (scheduled, hourly) | `customer` | Same. |
 
-No new service. `orders` gains 7 routes (≈35 resources) — well under the 500 cap.
+No new service. `orders` gains 7 routes (≈35 resources) - well under the 500 cap.
 
 ---
 
-## R7 — Live updates: a new kind, `points`, and a fourth customer builder
+## R7 - Live updates: a new kind, `points`, and a fourth customer builder
 
 **Decision.** Add `points` to `LIVE_KINDS` (`packages/shared-types/src/live.ts`) and to the Kotlin
 mirror (`packages/mobile-kit/common/live/LiveKind.kt`). Widen the customer variant of `LiveChange` to
@@ -179,7 +179,7 @@ only the word `points`; no shop is involved in any points rule.
 
 ---
 
-## R8 — Notifications: two new types, email and push through the existing path
+## R8 - Notifications: two new types, email and push through the existing path
 
 **Decision.**
 - `notification_request.type` CHECK gains `points_credited` and `points_expiring`.
@@ -191,25 +191,25 @@ only the word `points`; no shop is involved in any points rule.
   the address is snapshotted at enqueue, as 052/053 do.
 - Debits, spending and returns are **not** messaged (FR-011): a refund already sends `order-refunded`,
   which gains a line saying how much came back as points.
-- Dedupe: `points_credited:<sub>:<entryId>`; `points_expiring:<sub>:<expiryDate>` — one warning per
+- Dedupe: `points_credited:<sub>:<entryId>`; `points_expiring:<sub>:<expiryDate>` - one warning per
   customer per expiry date (SC-007), however many lots expire that day.
 
 ---
 
-## R9 — Roles and the agent limit come from the staff record
+## R9 - Roles and the agent limit come from the staff record
 
 **Decision.** Reuse `orders/src/lib/guard.ts`: `requireStaff` (any active staff incl. csa) for reads;
 credit is open to csa **with** the limit; debit and settings writes use `requireWriter`
-(admin/manager) — settings additionally require `admin` via `hasStaffRole`. Every decision is from
+(admin/manager) - settings additionally require `admin` via `hasStaffRole`. Every decision is from
 `admin.staff`, never the token claim (Principle IV). The limit is per credit (spec Assumption).
 
 ---
 
-## R10 — Account closure: warn now, forfeit when closure becomes final
+## R10 - Account closure: warn now, forfeit when closure becomes final
 
 **Decision.** `GET /customer/v1/closure` gains `pointsHeld` so web and mobile can warn before the
 customer confirms (FR-024, first half). The forfeiture itself is `points.forfeit(customerId)` in the
-shared module, **called where a closure becomes final** — which today is the not-yet-built erasure
+shared module, **called where a closure becomes final** - which today is the not-yet-built erasure
 worker (`docs/next-implementation-candidates.md` item 3). Until that worker exists, a closed account's
 points simply cannot be used (the customer cannot sign in) and a restored account finds them intact.
 
@@ -220,20 +220,20 @@ un-forfeit entry and a second question about expiry. Waiting for finality avoids
 
 ---
 
-## R11 — Reason vocabulary
+## R11 - Reason vocabulary
 
 | Kind | Reason codes (Effy's words → customer's words) |
 |---|---|
 | staff credit | `late_delivery` "Sorry your order was late" · `missing_item` "For an item that didn't arrive" · `quality_issue` "For an item that wasn't right" · `goodwill` "A thank-you from Effy" · `correction` "Balance correction" · `other` (note required; customer sees "From Effy") |
-| staff debit | `credited_in_error` · `correction` · `other` (note required) — customer sees "Balance correction" |
-| automatic credit | `courier_override_compensation` (080) "Your delivery changed" — the list is closed; a new flow adds a code |
+| staff debit | `credited_in_error` · `correction` · `other` (note required) - customer sees "Balance correction" |
+| automatic credit | `courier_override_compensation` (080) "Your delivery changed" - the list is closed; a new flow adds a code |
 | spent / returned / expired / forfeited | fixed words: "Used on order EFY-…", "Returned from order EFY-…", "Expired", "Account closed" |
 
 The staff note is **internal**; the customer never sees it.
 
 ---
 
-## R12 — Legal and tax
+## R12 - Legal and tax
 
 - Points are **promotional credit given free**, not a purchased gift card, so the 3-year minimum
   expiry for gift cards (Australian Consumer Law, from 2019) is assumed not to apply. Points terms are
@@ -243,7 +243,7 @@ The staff note is **internal**; the customer never sees it.
 
 ---
 
-## R13 — Telemetry
+## R13 - Telemetry
 
 | Kind | Name | Notes |
 |---|---|---|

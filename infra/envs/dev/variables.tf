@@ -1,5 +1,5 @@
 variable "env" {
-  description = "Environment name — feeds naming, tags, and the SSM path prefix."
+  description = "Environment name - feeds naming, tags, and the SSM path prefix."
   type        = string
 
   validation {
@@ -14,12 +14,12 @@ variable "aws_region" {
 }
 
 variable "aws_account_id" {
-  description = "Target AWS account id (12 digits) — pinned via provider allowed_account_ids (research.md D8)."
+  description = "Target AWS account id (12 digits) - pinned via provider allowed_account_ids (research.md D8)."
   type        = string
 
   validation {
     condition     = can(regex("^[0-9]{12}$", var.aws_account_id))
-    error_message = "aws_account_id must be the 12-digit AWS account id — set the real value in this env's .tfvars."
+    error_message = "aws_account_id must be the 12-digit AWS account id - set the real value in this env's .tfvars."
   }
 }
 
@@ -54,7 +54,7 @@ variable "customer_google_enabled" {
 
     ⚠ TURNING THIS ON REQUIRES `customer_pre_sign_up_lambda_arn` IN THE SAME CHANGE. Federation
     without the linking trigger gives a customer who already has an account a SECOND one the first
-    time they use Google — and there is NO retroactive merge (AdminLinkProviderForUser requires the
+    time they use Google - and there is NO retroactive merge (AdminLinkProviderForUser requires the
     federated user not to exist yet). The only fix at that point is deleting an account.
   EOT
   type        = bool
@@ -62,7 +62,7 @@ variable "customer_google_enabled" {
 }
 
 variable "customer_pre_sign_up_lambda_arn" {
-  description = "ARN of the Cognito pre-sign-up ACCOUNT-LINKING trigger (011, apis/edge-api/customer). Null until `make edge-deploy SERVICE=customer` has run once — the Lambda must EXIST before the pool can reference it, so the first apply leaves it null and a second apply wires it. Without the trigger, Google sign-in silently creates a DUPLICATE account for a customer who already has one, and there is no retroactive merge (FR-011)."
+  description = "ARN of the Cognito pre-sign-up ACCOUNT-LINKING trigger (011, apis/edge-api/customer). Null until `make edge-deploy SERVICE=customer` has run once - the Lambda must EXIST before the pool can reference it, so the first apply leaves it null and a second apply wires it. Without the trigger, Google sign-in silently creates a DUPLICATE account for a customer who already has one, and there is no retroactive merge (FR-011)."
   type        = string
   default     = null
 }
@@ -92,7 +92,7 @@ variable "custom_auth_lambda_arns" {
 
 variable "custom_message_lambda_arn" {
   description = <<-EOT
-    The 038 CustomMessage trigger ARN, shared by ALL FOUR pools — brands Cognito's own sign-up,
+    The 038 CustomMessage trigger ARN, shared by ALL FOUR pools - brands Cognito's own sign-up,
     password-reset, email-verification and MFA messages.
 
     ⚠ TWO-STAGE, same shape as custom_auth_lambda_arns:
@@ -111,7 +111,7 @@ variable "mail_postal_address" {
   description = <<-EOT
     Operator-supplied postal address for the email footer (constitution: Real-World Identifiers).
 
-    ⚠ Optional at runtime for transactional mail (CAN-SPAM-exempt) — empty omits the footer line
+    ⚠ Optional at runtime for transactional mail (CAN-SPAM-exempt) - empty omits the footer line
     rather than shipping a guessed address. It MUST NOT be a placeholder if given; the validation
     below refuses obvious ones. Lifecycle mail (none in this slice) must enforce presence separately.
   EOT
@@ -139,7 +139,7 @@ variable "auth_urls" {
   default = {}
 }
 
-# --- Database (002-dev-database) — defaults are the cost floor; each is a grow-later lever ---
+# --- Database (002-dev-database) - defaults are the cost floor; each is a grow-later lever ---
 
 variable "db_instance_class" {
   description = "RDS instance size lever."
@@ -210,7 +210,7 @@ variable "root_domain" {
 }
 
 variable "api_subdomain" {
-  description = "Single label for the backend gateway under this env's namespace → edge-api.dev.effyshopping.com. MUST stay one label — the wildcard certificate matches exactly one (010 research R3). (Named `edge-api` rather than `api` from when a second backend had its own name; that backend was retired by 070.)"
+  description = "Single label for the backend gateway under this env's namespace → edge-api.dev.effyshopping.com. MUST stay one label - the wildcard certificate matches exactly one (010 research R3). (Named `edge-api` rather than `api` from when a second backend had its own name; that backend was retired by 070.)"
   type        = string
   default     = "edge-api"
 }
@@ -222,12 +222,12 @@ variable "staff_api_subdomain" {
 
   validation {
     condition     = can(regex("^[a-z0-9]([a-z0-9-]*[a-z0-9])?$", var.staff_api_subdomain))
-    error_message = "staff_api_subdomain must be ONE lowercase DNS label (letters, digits, hyphens) — the wildcard certificate matches exactly one."
+    error_message = "staff_api_subdomain must be ONE lowercase DNS label (letters, digits, hyphens) - the wildcard certificate matches exactly one."
   }
 
   validation {
     condition     = var.staff_api_subdomain != var.api_subdomain
-    error_message = "staff_api_subdomain must differ from api_subdomain — they are two gateways on two hostnames."
+    error_message = "staff_api_subdomain must differ from api_subdomain - they are two gateways on two hostnames."
   }
 }
 
@@ -239,11 +239,11 @@ variable "dmarc_rua" {
 
 variable "alert_email" {
   description = <<-EOT
-    Address every operator alarm notifies (037 FR-037). OPERATOR-SUPPLIED — empty means the topic is
+    Address every operator alarm notifies (037 FR-037). OPERATOR-SUPPLIED - empty means the topic is
     created with no subscriber, which is the correct state until someone chooses an address.
 
     ⚠ AWS sends a confirmation link on first apply, and the subscription notifies NOBODY until a
-    human clicks it — while `terraform apply` reports success either way.
+    human clicks it - while `terraform apply` reports success either way.
   EOT
   type        = string
   default     = ""
@@ -257,27 +257,27 @@ variable "alert_email" {
   # session. Scoped to the whole domain, so a sibling address on it is refused too.
   validation {
     condition     = !can(regex("(?i)phantm\\.com$", var.alert_email))
-    error_message = "PROHIBITED: no phantm.com address (or any subdomain of it) may be used in this project — constitution v1.12.0, Real-World Identifiers. Approved Effy mailboxes: workspace-admin@effyshopping.com (operational), hello@effyshopping.com (customer-facing). Anything else: ask the operator."
+    error_message = "PROHIBITED: no phantm.com address (or any subdomain of it) may be used in this project - constitution v1.12.0, Real-World Identifiers. Approved Effy mailboxes: workspace-admin@effyshopping.com (operational), hello@effyshopping.com (customer-facing). Anything else: ask the operator."
   }
 }
 
 variable "ses_suppressed_reasons" {
   description = <<-EOT
-    Which outcomes add an address to — and block it from — the ACCOUNT-WIDE suppression list, for
+    Which outcomes add an address to - and block it from - the ACCOUNT-WIDE suppression list, for
     mail sent through this environment's configuration set (037 FR-041).
 
     ⚠ [] IN NON-PRODUCTION, and not for convenience: the account-level list is account-wide and
     region-wide, so a mistyped address in dev would otherwise make that real person unreachable in
     PRODUCTION, with no warning and no visible relationship between the two events.
 
-    Production keeps the default ["BOUNCE","COMPLAINT"] — there, suppression is protection.
+    Production keeps the default ["BOUNCE","COMPLAINT"] - there, suppression is protection.
   EOT
   type        = list(string)
   default     = ["BOUNCE", "COMPLAINT"]
 }
 
 variable "ses_sender_enabled" {
-  description = "Flip to true ONLY after the SES domain identity reports VERIFIED (`make mail-verify ENV=dev`). Cognito REJECTS a source_arn whose identity is unverified, and verification is asynchronous — it completes minutes after the apply that creates the DKIM records returns. false = the four pools stay on the Cognito built-in sender; true = they send as no-reply@<env>.<root_domain>. This flag is the gate made explicit (010 tasks T028a)."
+  description = "Flip to true ONLY after the SES domain identity reports VERIFIED (`make mail-verify ENV=dev`). Cognito REJECTS a source_arn whose identity is unverified, and verification is asynchronous - it completes minutes after the apply that creates the DKIM records returns. false = the four pools stay on the Cognito built-in sender; true = they send as no-reply@<env>.<root_domain>. This flag is the gate made explicit (010 tasks T028a)."
   type        = bool
   default     = false
 }
@@ -299,7 +299,7 @@ variable "amplify_deploy_branch" {
 }
 
 variable "stripe_publishable_key_ssm" {
-  description = "SSM path holding the (public, browser-safe) Stripe publishable key for this env. Operator-supplied (constitution: Real-World Identifiers). Its presence is required — a missing key fails the plan loudly rather than shipping a guess."
+  description = "SSM path holding the (public, browser-safe) Stripe publishable key for this env. Operator-supplied (constitution: Real-World Identifiers). Its presence is required - a missing key fails the plan loudly rather than shipping a guess."
   type        = string
   default     = "/effy/dev/stripe/publishable_key"
 }
@@ -310,7 +310,7 @@ variable "amplify_domain_enabled" {
 
     false → STAGE A: the Amplify app + dev branch are created and build on the Amplify default
             hostname (…​.amplifyapp.com). Verify the first build there.
-    true  → STAGE B (cutover): attach dev.effyshopping.com (apex + www) and — in the SAME apply —
+    true  → STAGE B (cutover): attach dev.effyshopping.com (apex + www) and - in the SAME apply -
             remove the old apex alias records that pointed the apex at the edge API gateway (037).
             ⚠ Highest-risk apply; confirm resolution + a valid cert live afterwards.
   EOT
@@ -357,7 +357,7 @@ variable "amplify_consoles_domain_enabled" {
     false → STAGE A: both Amplify apps + the dev branch are created and build on the Amplify default
             hostname (…​.amplifyapp.com). Verify the first builds there.
     true  → STAGE B: attach shop.<zone> and back-office.<zone> (Amplify creates + verifies the Route53
-            records + us-east-1 certs). No apex/email cutover — these are fresh subdomains (research D4).
+            records + us-east-1 certs). No apex/email cutover - these are fresh subdomains (research D4).
   EOT
   type        = bool
   default     = false
@@ -383,7 +383,7 @@ variable "posthog_project_key" {
 }
 
 variable "telemetry_enabled" {
-  description = "Platform-wide analytics kill switch (FR-026). Scope is analytics ONLY — crash reporting and push are unaffected."
+  description = "Platform-wide analytics kill switch (FR-026). Scope is analytics ONLY - crash reporting and push are unaffected."
   type        = bool
   default     = true
 }
@@ -407,12 +407,12 @@ variable "firebase_api_key" {
 
   validation {
     condition     = length(trimspace(var.firebase_api_key)) > 0
-    error_message = "firebase_api_key must be supplied — see the Firebase console. An empty value produces a console whose notifications silently never arrive."
+    error_message = "firebase_api_key must be supplied - see the Firebase console. An empty value produces a console whose notifications silently never arrive."
   }
 }
 
 # there is no `firebase_project_id`, deliberately. 050 already declares `fcm_project_id`, and it
-# is the same Firebase project — the console's web app and the worker's service account live in one
+# is the same Firebase project - the console's web app and the worker's service account live in one
 # project by definition. A second variable naming the same fact is how the two drift, one gets
 # updated and the other does not, and the console ends up talking to a project the worker never
 # sends from. The env map below reads `var.fcm_project_id`.
@@ -423,7 +423,7 @@ variable "firebase_app_id" {
 
   validation {
     condition     = length(trimspace(var.firebase_app_id)) > 0
-    error_message = "firebase_app_id must be supplied — see the Firebase console."
+    error_message = "firebase_app_id must be supplied - see the Firebase console."
   }
 }
 
@@ -433,7 +433,7 @@ variable "firebase_messaging_sender_id" {
 
   validation {
     condition     = length(trimspace(var.firebase_messaging_sender_id)) > 0
-    error_message = "firebase_messaging_sender_id must be supplied — see the Firebase console."
+    error_message = "firebase_messaging_sender_id must be supplied - see the Firebase console."
   }
 }
 
@@ -444,14 +444,14 @@ variable "firebase_vapid_public_key" {
   validation {
     # Shape-checked, not just presence-checked, because this is the one value whose absence and
     # whose wrongness look identical from the outside: getToken simply never resolves. A vapid
-    # public key is a base64url-encoded uncompressed P-256 point — 87 or 88 characters, no padding.
+    # public key is a base64url-encoded uncompressed P-256 point - 87 or 88 characters, no padding.
     condition     = can(regex("^[A-Za-z0-9_-]{80,100}$", trimspace(var.firebase_vapid_public_key)))
     error_message = "firebase_vapid_public_key must be the base64url PUBLIC key from Firebase → Cloud Messaging → Web Push certificates (~87 chars, characters A-Z a-z 0-9 _ -). ⚠ Do NOT paste the private key."
   }
 }
 
 variable "delivery_override_daily_alarm" {
-  description = "081 — alarm when more than this many orders are moved from Effy delivery to courier in one day. Moves are emergencies; a count above this says something is wrong."
+  description = "081 - alarm when more than this many orders are moved from Effy delivery to courier in one day. Moves are emergencies; a count above this says something is wrong."
   type        = number
   default     = 5
 

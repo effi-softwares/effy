@@ -3,12 +3,12 @@ package com.effyshopping.customer.mobile.features.cart.domain
 import kotlinx.serialization.Serializable
 
 /**
- * The whole cart as the app holds it — the shape the mirror persists and the UI renders.
+ * The whole cart as the app holds it - the shape the mirror persists and the UI renders.
  *
  * [revision] is the only reason this type carries a number nobody displays. The platform advances it on
  * every mutation, and the mirror adopts a response only when its revision is greater than the one it
- * holds. That single comparison is what stops an out-of-order reply — a slow response to an old tap
- * landing after a fast response to a new one — from resurrecting a stale cart.
+ * holds. That single comparison is what stops an out-of-order reply - a slow response to an old tap
+ * landing after a fast response to a new one - from resurrecting a stale cart.
  *
  * A guest's snapshot has revision 0 and is reconciled against `POST /v1/cart/preview` instead of a server
  * cart, because a guest has none.
@@ -21,7 +21,7 @@ data class CartSnapshot(
     val savedLines: List<GuestCartLine> = emptyList(),
     val itemSubtotalAmount: String = "0.00",
     val discountAmount: String = "0.00",
-    /** Always "0.00" in the cart — delivery is priced at the delivery step, once an address exists. */
+    /** Always "0.00" in the cart - delivery is priced at the delivery step, once an address exists. */
     val grandTotalAmount: String = "0.00",
     val currency: String = "AUD",
     val notices: List<CartNotice> = emptyList(),
@@ -32,12 +32,12 @@ data class CartSnapshot(
     val promotionsNotApplied: List<CartPromotionNotApplied> = emptyList(),
     val checkout: CartCheckout = CartCheckout(),
     val limits: CartLimits = CartLimits(),
-    /** How many changes are still on their way to the platform. Not persisted — derived from the queue. */
+    /** How many changes are still on their way to the platform. Not persisted - derived from the queue. */
     val pending: Int = 0,
     /** Set when a change was definitively refused and the shopper has not been told yet. */
     val failure: String? = null,
 ) {
-    /** The badge count — the sum of payable quantities, read locally so it never waits on a network. */
+    /** The badge count - the sum of payable quantities, read locally so it never waits on a network. */
     val itemCount: Int get() = lines.sumOf { it.quantity }
 
     /**
@@ -69,7 +69,7 @@ enum class CartNoticeKind {
     QuantityClamped,
     CartFull,
     PromoNoLongerApplies,
-    /** A kind this build does not know — a newer platform. Rendered as nothing rather than crashing. */
+    /** A kind this build does not know - a newer platform. Rendered as nothing rather than crashing. */
     Unknown,
 }
 
@@ -99,7 +99,7 @@ data class CartDiscount(
 )
 
 /**
- * Whether the shopper may proceed, and why not when they may not — so the cart says it up front instead
+ * Whether the shopper may proceed, and why not when they may not - so the cart says it up front instead
  * of letting them walk into a refusal at payment.
  */
 @Serializable

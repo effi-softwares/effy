@@ -18,7 +18,7 @@ import kotlinx.serialization.modules.subclass
 @Serializable
 sealed interface CustomerNavKey : NavKey {
 
-    // Tab roots — the four primary destinations. Always show the bar.
+    // Tab roots - the four primary destinations. Always show the bar.
 
     @Serializable data object Home : CustomerNavKey
     @Serializable data object Search : CustomerNavKey
@@ -27,7 +27,7 @@ sealed interface CustomerNavKey : NavKey {
 
     // Commerce
 
-    /** [variantId]: the size to open on — a filtered result's matching size (101 FR-031); null = the default. */
+    /** [variantId]: the size to open on - a filtered result's matching size (101 FR-031); null = the default. */
     @Serializable
     data class Product(val productId: String, val variantId: String? = null) : CustomerNavKey
 
@@ -62,7 +62,7 @@ sealed interface CustomerNavKey : NavKey {
     @Serializable data object Checkout : CustomerNavKey
 
     /**
-     * Paying — Effy's own payment screen around the provider's in-app element.
+     * Paying - Effy's own payment screen around the provider's in-app element.
      *
      * It carries no arguments on purpose. Every route here is `@Serializable` and persisted across
      * process death, and the thing this screen needs is a payment intent holding a client secret.
@@ -87,7 +87,7 @@ sealed interface CustomerNavKey : NavKey {
      * The password step of sign-in.
      *
      * A separate destination, not a mode flag on [SignIn]. The whole point of the step form is that
-     * choosing "use a password" moves you somewhere — with a back arrow that returns you, and with the
+     * choosing "use a password" moves you somewhere - with a back arrow that returns you, and with the
      * address already known so it is never asked twice.
      */
     @Serializable
@@ -95,12 +95,12 @@ sealed interface CustomerNavKey : NavKey {
 
     @Serializable data object SignUp : CustomerNavKey
 
-    /** The password step of sign-up. Asks for the password only — the email is known. */
+    /** The password step of sign-up. Asks for the password only - the email is known. */
     @Serializable
     data class SignUpPassword(val email: String) : CustomerNavKey
 
     /**
-     * "What should we call you?" — the last step of registration, on every route.
+     * "What should we call you?" - the last step of registration, on every route.
      *
      * Reached only once the account exists and the shopper is signed in. It completes a profile; it
      * does not gate access. Abandoning it must never lock anyone out.
@@ -133,13 +133,13 @@ sealed interface CustomerNavKey : NavKey {
     @Serializable data object HelpCenter : CustomerNavKey
     @Serializable data object CustomerService : CustomerNavKey
 
-    /** Give feedback — reachable from the Account tab, guest or signed-in. */
+    /** Give feedback - reachable from the Account tab, guest or signed-in. */
     @Serializable data object Feedback : CustomerNavKey
 
     @Serializable data object MyDetails : CustomerNavKey
 
     // The account centre's new destinations
-    /** How you sign in — composed from the credentials the account actually holds. */
+    /** How you sign in - composed from the credentials the account actually holds. */
     @Serializable data object Security : CustomerNavKey
     /** Privacy & data. Hosts the deletion control, as its last item. */
     @Serializable data object Privacy : CustomerNavKey
@@ -151,7 +151,7 @@ sealed interface CustomerNavKey : NavKey {
      *
      * A separate route from [Recovery], deliberately. Recovery is the public, signed-out journey and
      * has to ask for an email address because it does not know who is asking. This one is reached by a
-     * signed-in shopper who simply cannot remember their current password — the platform already knows
+     * signed-in shopper who simply cannot remember their current password - the platform already knows
      * their address, so asking for it would be a question with a known answer, and typing the wrong one
      * would fail confusingly.
      */
@@ -161,7 +161,7 @@ sealed interface CustomerNavKey : NavKey {
     data class Password(val setFirst: Boolean) : CustomerNavKey
 
     // Legal & informational documents
-    /** The `/legal` index — lists every document. */
+    /** The `/legal` index - lists every document. */
     @Serializable data object LegalIndex : CustomerNavKey
 
     /**
@@ -172,7 +172,7 @@ sealed interface CustomerNavKey : NavKey {
     @Serializable data class LegalDocument(val slug: String) : CustomerNavKey
 }
 
-/** What an emailed code is for — so the verify screen knows which flow to complete. */
+/** What an emailed code is for - so the verify screen knows which flow to complete. */
 @Serializable
 enum class OtpPurpose { SIGN_IN, SIGN_UP, RECOVERY }
 
@@ -180,7 +180,7 @@ enum class OtpPurpose { SIGN_IN, SIGN_UP, RECOVERY }
 val CUSTOMER_TAB_ROOTS: List<CustomerNavKey> = listOf(
     CustomerNavKey.Home,
     CustomerNavKey.Search,
-    // 087 FR-006/FR-007 — the cart is a TAB (operator direction: "cart button should be in bottom
+    // 087 FR-006/FR-007 - the cart is a TAB (operator direction: "cart button should be in bottom
     // nav"). Its key is unchanged, so saved stacks and the serializer are unaffected; it is simply a
     // tab root now instead of a pushed route, and every way into it selects this tab.
     CustomerNavKey.Cart,

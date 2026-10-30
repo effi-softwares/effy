@@ -43,7 +43,7 @@ describe("connect", () => {
   });
 });
 
-describe("subscribe — own channel", () => {
+describe("subscribe - own channel", () => {
   it("a shop operator hears their own shop, this epoch and the next", async () => {
     expect((await authorize(subscribe(`/shop/${SHOP}/${EPOCH}`), deps("shop"))).isAuthorized).toBe(true);
     expect((await authorize(subscribe(`/shop/${SHOP}/${EPOCH + 1}`), deps("shop"))).isAuthorized).toBe(true);
@@ -66,7 +66,7 @@ describe("subscribe — own channel", () => {
   });
 });
 
-describe("subscribe — refusals", () => {
+describe("subscribe - refusals", () => {
   it("another shop's channel", async () => {
     expect(await authorize(subscribe(`/shop/${OTHER_SHOP}/${EPOCH}`), deps("shop"))).toMatchObject({
       isAuthorized: false,
@@ -102,7 +102,7 @@ describe("subscribe — refusals", () => {
   ])("a %s token in another audience's namespace (%s)", async (audience, channel) => {
     const d = deps(audience);
     expect(await authorize(subscribe(channel), d)).toMatchObject({ isAuthorized: false, outcome: "wrong_audience" });
-    // Refused on the namespace alone — no record is read to decide it.
+    // Refused on the namespace alone - no record is read to decide it.
     expect(d.shopScope).not.toHaveBeenCalled();
   });
 
@@ -154,7 +154,7 @@ describe("subscribe — refusals", () => {
 });
 
 describe("publish and anything else", () => {
-  it("a client may never publish — refused before the token is read", async () => {
+  it("a client may never publish - refused before the token is read", async () => {
     const d = deps("back-office");
     expect(await authorize({ operation: "EVENT_PUBLISH", token: "t", channel: `/ops/all/${EPOCH}` }, d)).toMatchObject({
       isAuthorized: false,

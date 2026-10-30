@@ -30,7 +30,7 @@ class OrderDocumentsViewModel(
         data object Loading : State
         data class Ready(val note: DeliveryNote, val downloading: Boolean = false, val message: String? = null) : State
         data object NotYet : State
-        /** Not loaded — said once, in the section; the rest of the order still shows. */
+        /** Not loaded - said once, in the section; the rest of the order still shows. */
         data object Unavailable : State
     }
 
@@ -48,7 +48,7 @@ class OrderDocumentsViewModel(
     private val _tax = MutableStateFlow<Tax>(Tax.Idle)
     val tax: StateFlow<Tax> = _tax.asStateFlow()
 
-    /** Ask for the tax invoice — this issues it on the server, once. */
+    /** Ask for the tax invoice - this issues it on the server, once. */
     fun getTaxInvoice() {
         if (_tax.value is Tax.Loading || _tax.value is Tax.Ready) return
         _tax.value = Tax.Loading

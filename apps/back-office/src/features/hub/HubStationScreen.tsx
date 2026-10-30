@@ -73,7 +73,7 @@ export function HubStationScreen() {
             <ol className="space-y-1 text-sm text-muted-foreground" aria-label="Earlier scans">
               {recent.slice(1).map((r) => (
                 <li key={r.clientReadId}>
-                  <span className="font-mono">{r.code ?? "—"}</span> · {r.words}
+                  <span className="font-mono">{r.code ?? "-"}</span> · {r.words}
                   {r.sort ? ` · ${r.sort.label}` : ""}
                 </li>
               ))}

@@ -21,7 +21,7 @@ const identity: MailIdentity = {
 const received = loadFixture("feedback-received.json");
 const reply = loadFixture("feedback-reply.json");
 
-describe("feedback-received — acknowledgement", () => {
+describe("feedback-received - acknowledgement", () => {
   it("validates against its declared variables", () => {
     expect(validateVars("feedback-received", received)).toEqual([]);
   });
@@ -46,7 +46,7 @@ describe("feedback-received — acknowledgement", () => {
   });
 });
 
-describe("feedback-reply — staff reply", () => {
+describe("feedback-reply - staff reply", () => {
   it("validates against its declared variables", () => {
     expect(validateVars("feedback-reply", reply)).toEqual([]);
   });

@@ -3,7 +3,7 @@
 Staff gateway +7 routes (146 → 153 of 300); shared gateway +1 (158 → 159). Types live in
 `@effy/shared-types` and are regenerated into the Kotlin contracts (customer, shop, driver).
 
-## Admin — courier services (`delivery-admin.ts`, staff)
+## Admin - courier services (`delivery-admin.ts`, staff)
 
 ```ts
 interface CourierServiceDTO {
@@ -21,10 +21,10 @@ interface CourierServiceDTO {
 `POST …/courier-services` (create) · `PUT …/courier-services/{id}` (edit, retire, make default).
 `collectionDefault` is set through `PUT /admin/v1/delivery/coverage/courier` (existing, gains the field).
 Refusals: `422 invalid_service` (field errors), `409 default_service_required`, `409 service_in_use`
-(none — retiring keeps history). `CourierBlocker` gains `"no_service"`; `"no_estimate"` is no longer
+(none - retiring keeps history). `CourierBlocker` gains `"no_service"`; `"no_estimate"` is no longer
 returned. Mutate = admin/manager; audited; announces `delivery`.
 
-## Orders — consignments (`order-admin.ts`, staff)
+## Orders - consignments (`order-admin.ts`, staff)
 
 ```ts
 interface ConsignmentDTO {
@@ -38,13 +38,13 @@ interface ConsignmentDTO {
 // AdminOrderPackageDTO gains: consignment: ConsignmentDTO | null; dueOut: string | null; late: boolean
 // AdminOrderDetailDTO gains:  courierCollection: "hub" | "supplier" | null; courierCollectionHistory[]
 ```
-- `PUT /orders/v1/fulfillments/{id}/consignment` — book or edit `{serviceId, reference?, trackingUrl?,
+- `PUT /orders/v1/fulfillments/{id}/consignment` - book or edit `{serviceId, reference?, trackingUrl?,
   labelKey?, pickup?}`. 409 `not_courier`, `consignment_handed_over` (service/collection locked).
-- `POST …/consignment/events` — `{kind, note?}`: `handed_over` (writes the handoff), `in_transit`,
+- `POST …/consignment/events` - `{kind, note?}`: `handed_over` (writes the handoff), `in_transit`,
   `delivered` (writes the arrival), problems, `resolved`, `cancelled`. 409 `invalid_step`.
-- `POST …/consignment/label` — presigned PUT for a PDF/PNG ≤ 5 MB → `{labelKey, uploadUrl}`.
-- `PUT /orders/v1/orders/{id}/courier-collection` — `{mode, note}`. 409 `collection_locked`.
-- `GET /orders/v1/handovers?view=hub_due|hub_late|supplier|with_courier|problems` — the Courier tab.
+- `POST …/consignment/label` - presigned PUT for a PDF/PNG ≤ 5 MB → `{labelKey, uploadUrl}`.
+- `PUT /orders/v1/orders/{id}/courier-collection` - `{mode, note}`. 409 `collection_locked`.
+- `GET /orders/v1/handovers?view=hub_due|hub_late|supplier|with_courier|problems` - the Courier tab.
   Rows: order, package, service, dueOut / pickup, state, late.
 - `OrderAwaiting` gains `"courier_problem"`.
 
@@ -59,7 +59,7 @@ courierPickup?: {
 }
 ```
 Present only on packages of supplier-mode courier orders. `POST /shop/v1/fulfillments/{id}/courier-handover`
-— manager or staff; 409 `not_booked` (no consignment yet), `already_handed_over` (idempotent replay
+- manager or staff; 409 `not_booked` (no consignment yet), `already_handed_over` (idempotent replay
 returns 200). ⚠ No fee, estimate, tracking link or other package.
 
 ## Customer (`order.ts`, `delivery-type.ts`)

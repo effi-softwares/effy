@@ -38,7 +38,7 @@ function declaredRouteRoots(): Set<string> {
   return roots
 }
 
-describe("⚠ P3 — no shop notification opens a 404", () => {
+describe("⚠ P3 - no shop notification opens a 404", () => {
   it("found the copy catalogue and parsed destinations from it", () => {
     const all = declaredDestinations()
     expect(all.length).toBeGreaterThanOrEqual(10)

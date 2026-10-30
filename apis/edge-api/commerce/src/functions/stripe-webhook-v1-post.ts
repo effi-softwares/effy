@@ -23,10 +23,10 @@ export const handler = publicRoute(async ({ event, scope }) => {
   } catch (err) {
     if (err instanceof ConnectionLimitError) throw err; // → retryable 503; the provider sends it again
     if (err instanceof WebhookSignatureError) {
-      scope.log.warn("checkout: webhook rejected — signature did not verify");
+      scope.log.warn("checkout: webhook rejected - signature did not verify");
       return status(400, scope.requestId);
     }
-    scope.log.error({ err }, "checkout: webhook handling failed — nothing recorded, the provider will retry");
+    scope.log.error({ err }, "checkout: webhook handling failed - nothing recorded, the provider will retry");
     return status(500, scope.requestId);
   }
 });

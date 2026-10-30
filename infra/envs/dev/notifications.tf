@@ -2,12 +2,12 @@
 # container and the non-secret project id, and publishes the secret's ARN to SSM so the worker's
 # serverless.yml can scope its read grant (as otp-store.tf does). The worker's IAM is in its serverless.yml.
 
-# The FCM service-account JSON (HTTP v1 auth for the sender). Secret — seeded by the operator, never by
+# The FCM service-account JSON (HTTP v1 auth for the sender). Secret - seeded by the operator, never by
 # Terraform (Real-World Identifiers): Terraform creates the empty container; `quickstart.md §A1` puts
 # the value. Same posture as the OTP HMAC secret.
 resource "aws_secretsmanager_secret" "fcm_service_account" {
   name        = "${module.shared.name_prefix}-fcm-service-account"
-  description = "050 — FCM service-account JSON for the notifications worker's HTTP v1 sender. Seeded by the operator, never by Terraform. Read only by the notifications worker."
+  description = "050 - FCM service-account JSON for the notifications worker's HTTP v1 sender. Seeded by the operator, never by Terraform. Read only by the notifications worker."
 
   # Dev convenience only: lets `make destroy ENV=dev` reclaim the name.
   recovery_window_in_days = 0
@@ -20,7 +20,7 @@ resource "aws_ssm_parameter" "fcm_service_account_arn" {
   tier  = "Standard"
 }
 
-# The Firebase project id (non-secret) — the sender targets this project.
+# The Firebase project id (non-secret) - the sender targets this project.
 # count guard: SSM rejects an empty String, and this is unset until backend push is wired. Absent
 # param ⇒ the worker no-ops (fail-open, FR-027); set var.fcm_project_id to create it.
 resource "aws_ssm_parameter" "fcm_project_id" {
@@ -36,7 +36,7 @@ resource "aws_ssm_parameter" "fcm_project_id" {
 # is a plain alarm on the emitted metric routed to the existing alerts SNS topic (alerts.tf).
 resource "aws_cloudwatch_metric_alarm" "notification_send_failed" {
   alarm_name          = "${module.shared.name_prefix}-notification-send-failed"
-  alarm_description   = "050 — push notifications are failing to send. Check FCM credentials, the worker log, and device-token health."
+  alarm_description   = "050 - push notifications are failing to send. Check FCM credentials, the worker log, and device-token health."
   namespace           = "Effy/Notifications"
   metric_name         = "NotificationSendFailed"
   statistic           = "Sum"
@@ -54,7 +54,7 @@ resource "aws_cloudwatch_metric_alarm" "notification_send_failed" {
 # does not.
 resource "aws_cloudwatch_metric_alarm" "receipt_send_failed" {
   alarm_name          = "${module.shared.name_prefix}-receipt-send-failed"
-  alarm_description   = "052 — order receipts are failing to send. Check the SES identity + configuration set grant, MAIL_* config, and public.receipt_dispatch.last_error."
+  alarm_description   = "052 - order receipts are failing to send. Check the SES identity + configuration set grant, MAIL_* config, and public.receipt_dispatch.last_error."
   namespace           = "Effy/Notifications"
   metric_name         = "ReceiptSendFailed"
   statistic           = "Sum"
@@ -71,7 +71,7 @@ resource "aws_cloudwatch_metric_alarm" "receipt_send_failed" {
 # (ready, out for delivery, delivered). Threshold as the receipt alarm (3).
 resource "aws_cloudwatch_metric_alarm" "notification_email_send_failed" {
   alarm_name          = "${module.shared.name_prefix}-notification-email-send-failed"
-  alarm_description   = "053 — order-arrival emails are failing to send. Check the SES identity + configuration set grant, MAIL_* config, and public.notification_request.last_error WHERE channel='email'."
+  alarm_description   = "053 - order-arrival emails are failing to send. Check the SES identity + configuration set grant, MAIL_* config, and public.notification_request.last_error WHERE channel='email'."
   namespace           = "Effy/Notifications"
   metric_name         = "NotificationEmailSendFailed"
   statistic           = "Sum"

@@ -21,7 +21,7 @@ beforeEach(() => {
   post.mockResolvedValue(undefined)
 })
 
-describe("subscribeToNewsletter — re-validates on the server (FR-030)", () => {
+describe("subscribeToNewsletter - re-validates on the server (FR-030)", () => {
   /**
    * The form's `type="email" required` is a convenience, not a control. Anything can POST to a
    * Server Action, so an empty or absent value must be refused here without reaching the backend.
@@ -45,7 +45,7 @@ describe("subscribeToNewsletter — re-validates on the server (FR-030)", () => 
   })
 })
 
-describe("subscribeToNewsletter — failure is distinguished correctly (FR-033)", () => {
+describe("subscribeToNewsletter - failure is distinguished correctly (FR-033)", () => {
   it("reports success when the backend accepts", async () => {
     expect(await subscribeToNewsletter(null, form("person@example.com"))).toEqual({ status: "ok" })
   })
@@ -53,7 +53,7 @@ describe("subscribeToNewsletter — failure is distinguished correctly (FR-033)"
   /**
    * The distinction that matters. A 400 means the address was refused; anything else means WE
    * failed. Collapsing them would tell a visitor their address is wrong when the service is simply
-   * down — and they would sit there retyping a perfectly good address.
+   * down - and they would sit there retyping a perfectly good address.
    */
   it("reports `invalid` for a 400 from the backend", async () => {
     post.mockRejectedValue({ status: 400 })
@@ -74,7 +74,7 @@ describe("subscribeToNewsletter — failure is distinguished correctly (FR-033)"
 
   /**
    * Never rethrow. An uncaught Server Action error replaces the page with an error boundary, which
-   * would discard everything the visitor typed — the exact opposite of FR-033's "preserve the
+   * would discard everything the visitor typed - the exact opposite of FR-033's "preserve the
    * visitor's input on failure".
    */
   it("never throws, whatever the backend does", async () => {
@@ -84,10 +84,10 @@ describe("subscribeToNewsletter — failure is distinguished correctly (FR-033)"
   })
 })
 
-describe("subscribeToNewsletter — the address never leaks (FR-042)", () => {
+describe("subscribeToNewsletter - the address never leaks (FR-042)", () => {
   /**
    * A newsletter subscriber is not even an account holder, so their email is not "the auth subject
-   * id" that Principle VII permits — it is plain PII. This pins that the action returns only a status
+   * id" that Principle VII permits - it is plain PII. This pins that the action returns only a status
    * and carries nothing else back into the page.
    */
   it("returns a status and nothing else", async () => {

@@ -548,7 +548,7 @@
     },
     "CartLineDTO": {
       "additionalProperties": false,
-      "description": "A cart line, or a set-aside line — the same shape; re-priced against the catalog on every read.",
+      "description": "A cart line, or a set-aside line - the same shape; re-priced against the catalog on every read.",
       "properties": {
         "ageRestricted": {
           "description": "Sold to adults only: show the 18+ label.",
@@ -909,7 +909,7 @@
     },
     "CreateAddressRequest": {
       "additionalProperties": false,
-      "description": "POST /v1/addresses — the first address created becomes the default.",
+      "description": "POST /v1/addresses - the first address created becomes the default.",
       "properties": {
         "city": {
           "type": "string"
@@ -1403,7 +1403,7 @@
     },
     "DeliveryNoteDTO": {
       "additionalProperties": false,
-      "description": "`GET /commerce/v1/orders/{id}/delivery-note` — what was supplied, line by line.",
+      "description": "`GET /commerce/v1/orders/{id}/delivery-note` - what was supplied, line by line.",
       "properties": {
         "contact": {
           "description": "Always `DOCUMENT_CONTACT`.",
@@ -1841,7 +1841,7 @@
     },
     "ListPaymentMethodsResponse": {
       "additionalProperties": false,
-      "description": "GET /v1/payment-methods — the shopper's kept cards.",
+      "description": "GET /v1/payment-methods - the shopper's kept cards.",
       "properties": {
         "paymentMethods": {
           "description": "Empty means no kept cards and nothing else; a provider outage is an error, never `[]`.",
@@ -4507,7 +4507,7 @@
           "type": "string"
         },
         "imageUrl": {
-          "description": "The variant's own picture, or null — show the product's gallery.",
+          "description": "The variant's own picture, or null - show the product's gallery.",
           "type": [
             "string",
             "null"
@@ -4815,7 +4815,7 @@
     },
     "UpdateAddressRequest": {
       "additionalProperties": false,
-      "description": "PATCH /v1/addresses/{id} — partial update / set default.",
+      "description": "PATCH /v1/addresses/{id} - partial update / set default.",
       "properties": {
         "city": {
           "type": "string"

@@ -18,7 +18,7 @@ describe("ErrorState", () => {
     expect(onRetry).toHaveBeenCalledOnce();
   });
 
-  it("does not offer a retry for a denial — a 403 is a correct answer", () => {
+  it("does not offer a retry for a denial - a 403 is a correct answer", () => {
     render(<ErrorState error={domainError("forbidden", 403)} onRetry={vi.fn()} />);
     expect(screen.getByText(/access denied/i)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /retry/i })).not.toBeInTheDocument();

@@ -49,7 +49,7 @@ beforeEach(() => {
   sendEmail.mockResolvedValue(undefined)
 })
 
-describe("list — shapes rows into DTOs with a truncated preview", () => {
+describe("list - shapes rows into DTOs with a truncated preview", () => {
   it("maps guest vs customer and truncates a long message", async () => {
     repo.list.mockResolvedValue({
       rows: [row({ message: "x".repeat(200), customer_id: null }), row({ customer_id: "c1" })],
@@ -71,7 +71,7 @@ describe("list — shapes rows into DTOs with a truncated preview", () => {
   })
 })
 
-describe("detail — full context + replies + notes; 404 when absent", () => {
+describe("detail - full context + replies + notes; 404 when absent", () => {
   it("includes the raw full message and canReply based on the email", async () => {
     repo.getByReference.mockResolvedValue(row())
     repo.listReplies.mockResolvedValue([
@@ -97,7 +97,7 @@ describe("detail — full context + replies + notes; 404 when absent", () => {
   })
 })
 
-describe("changeStatus — rejects a non-settable status; `replied` is not settable", () => {
+describe("changeStatus - rejects a non-settable status; `replied` is not settable", () => {
   it("accepts an allowed status", async () => {
     repo.updateStatus.mockResolvedValue(true)
     await changeStatus("FB-ABC123", "resolved")
@@ -117,7 +117,7 @@ describe("changeStatus — rejects a non-settable status; `replied` is not setta
   })
 })
 
-describe("addNote — validates length; attributes to the actor", () => {
+describe("addNote - validates length; attributes to the actor", () => {
   it("rejects an empty or oversized note", async () => {
     await expect(addNote("FB-ABC123", "   ", actor)).rejects.toMatchObject({ kind: "validation" })
     await expect(addNote("FB-ABC123", "x".repeat(2001), actor)).rejects.toMatchObject({ kind: "validation" })
@@ -131,7 +131,7 @@ describe("addNote — validates length; attributes to the actor", () => {
   })
 })
 
-describe("reply — email FIRST, write ONLY on success (FR-029/030)", () => {
+describe("reply - email FIRST, write ONLY on success (FR-029/030)", () => {
   it("sends, then writes the reply and flips status to replied", async () => {
     repo.getByReference.mockResolvedValue(row())
     repo.insertReplyAndMarkReplied.mockResolvedValue(true)
@@ -149,7 +149,7 @@ describe("reply — email FIRST, write ONLY on success (FR-029/030)", () => {
     )
   })
 
-  it("refuses with conflict when there is no submitter email — and sends nothing", async () => {
+  it("refuses with conflict when there is no submitter email - and sends nothing", async () => {
     repo.getByReference.mockResolvedValue(row({ submitter_email: null }))
     await expect(reply("FB-ABC123", "hi", actor)).rejects.toMatchObject({ kind: "conflict" })
     expect(sendEmail).not.toHaveBeenCalled()

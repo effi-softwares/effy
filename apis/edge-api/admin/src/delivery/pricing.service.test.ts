@@ -55,14 +55,14 @@ beforeEach(() => {
   repo.readPlan.mockResolvedValue({ id: "plan-1" });
 });
 
-describe("normalise — value errors are refused at save, each named (077 research R12)", () => {
+describe("normalise - value errors are refused at save, each named (077 research R12)", () => {
   it("accepts a whole plan and normalises its amounts", () => {
     expect(normalise(valid)).toMatchObject({
       kind: "effy", name: "Spring 2026", distanceBands: [{ upperKm: "10.00", addAmount: "0.00" }, { upperKm: null, addAmount: "4.00" }],
     });
   });
 
-  it("a half-built draft is NOT a value error — missing bands come back as gaps, later", () => {
+  it("a half-built draft is NOT a value error - missing bands come back as gaps, later", () => {
     expect(fieldsOf(() => normalise({ ...valid, distanceBands: [], weightBands: [] }))).toEqual([]);
   });
 
@@ -107,7 +107,7 @@ describe("saving", () => {
     expect(announce).not.toHaveBeenCalled();
   });
 
-  it("085 — refuses a surcharge on the Any time window: an order with no time pays the plain fee", async () => {
+  it("085 - refuses a surcharge on the Any time window: an order with no time pays the plain fee", async () => {
     repo.anyTimeSlotIds.mockResolvedValue(new Set([SLOT]));
     await expect(createPlan(valid, SUB)).rejects.toMatchObject({
       code: "invalid_plan", extra: { fields: [{ field: "slotPremiums.0.slotId", message: "the Any time window takes no surcharge" }] },
@@ -120,7 +120,7 @@ describe("saving", () => {
   });
 });
 
-describe("stepsOf — the simulator says how a fee was built, in words", () => {
+describe("stepsOf - the simulator says how a fee was built, in words", () => {
   const plan: Plan = {
     id: "p", name: "P", kind: "effy", isActive: false, activatedAt: null, baseCents: 300,
     distanceBands: [{ upperKm: 10, addCents: 0 }, { upperKm: null, addCents: 400 }],
@@ -134,8 +134,8 @@ describe("stepsOf — the simulator says how a fee was built, in words", () => {
   it("every part, its band, and the total", () => {
     expect(run(25, 9000, 5000, 300)).toEqual([
       { label: "Base", detail: "every delivery starts here", amount: "3.00" },
-      { label: "Distance", detail: "25 km — the last band, with no upper limit", amount: "4.00" },
-      { label: "Weight", detail: "9 kg — the band up to 20 kg", amount: "2.00" },
+      { label: "Distance", detail: "25 km - the last band, with no upper limit", amount: "4.00" },
+      { label: "Weight", detail: "9 kg - the band up to 20 kg", amount: "2.00" },
       { label: "Window surcharge", detail: "what the chosen window adds", amount: "3.00" },
       { label: "Total", detail: "what the customer pays for delivery", amount: "12.00" },
     ]);
@@ -154,7 +154,7 @@ describe("stepsOf — the simulator says how a fee was built, in words", () => {
   });
 });
 
-describe("103 — the set of fee plans is capped", () => {
+describe("103 - the set of fee plans is capped", () => {
   it("refuses a new plan once the set is full, and writes nothing", async () => {
     repo.isFull.mockResolvedValueOnce(true);
     await expect(createPlan(valid, SUB)).rejects.toMatchObject({ status: 409, code: "limit_reached" });

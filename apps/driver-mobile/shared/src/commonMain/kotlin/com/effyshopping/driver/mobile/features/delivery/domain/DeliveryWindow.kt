@@ -9,7 +9,7 @@ import kotlin.time.Instant
  * [label] is the window in words, in Melbourne time ("5 pm – 7 pm"), exactly as the server wrote it.
  * This app never formats a time: it has no timezone database, and a second wording is how the
  * driver's screen and the customer's receipt end up disagreeing about the same promise. The instants
- * are here for one purpose — telling whether the window is open, still to come, or missed.
+ * are here for one purpose - telling whether the window is open, still to come, or missed.
  */
 data class DeliveryWindow(
     val startEpochMillis: Long,
@@ -19,7 +19,7 @@ data class DeliveryWindow(
     companion object {
         /**
          * From the wire: the server's label and the two ISO instants. Null unless all three are
-         * present and readable — half a window is not a promise, and an order placed before 069 has
+         * present and readable - half a window is not a promise, and an order placed before 069 has
          * none, in which case the screens show no window at all.
          */
         @OptIn(ExperimentalTime::class)

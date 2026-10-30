@@ -65,7 +65,7 @@ import org.jetbrains.compose.resources.DrawableResource
 
 /**
  * A category's glyph (101): the icon key staff chose in back-office, one of `CATEGORY_ICONS` in
- * `packages/shared-types/src/category-icons.ts`, as its Lucide drawable — the same glyph the website shows.
+ * `packages/shared-types/src/category-icons.ts`, as its Lucide drawable - the same glyph the website shows.
  * `CategoryIconsTest` pins this map to `category-icons.fixtures.json`. A key this build does not know (an
  * icon added later) and a category with none show the neutral box.
  */

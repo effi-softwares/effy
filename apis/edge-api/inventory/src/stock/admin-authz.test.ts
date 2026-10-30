@@ -36,7 +36,7 @@ beforeEach(() => {
 });
 
 describe("the back-office tier split (054 FR-025, FR-028)", () => {
-  it("lets ANY active staff READ — including csa, because triage is CSA work", async () => {
+  it("lets ANY active staff READ - including csa, because triage is CSA work", async () => {
     isActiveStaff.mockResolvedValue(true);
     const g = await backOfficeGate(event, ctx, "read");
 

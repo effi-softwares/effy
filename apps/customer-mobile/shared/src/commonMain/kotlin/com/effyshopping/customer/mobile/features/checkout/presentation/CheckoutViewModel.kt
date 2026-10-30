@@ -33,7 +33,7 @@ import kotlinx.coroutines.launch
 /** Which selection an open add-address sheet fills once saved. */
 enum class AddressTarget { SHIPPING, BILLING }
 
-/** The open add-address sheet at checkout — reuses the 022 [AddressForm] + shared validation. */
+/** The open add-address sheet at checkout - reuses the 022 [AddressForm] + shared validation. */
 data class CheckoutAddressSheet(
     val target: AddressTarget,
     val form: AddressForm = AddressForm(),
@@ -72,7 +72,7 @@ sealed interface CheckoutUiState {
         val quote: DeliveryQuote? = null,
         val quoting: Boolean = false,
         /**
-         * When — the one window for the order. Never chosen for the shopper: a
+         * When - the one window for the order. Never chosen for the shopper: a
          * window is a promise about when someone will be home. Lives here so it survives the hand-off
          * to payment and a failed payment while it is still offered; dropped when the address changes.
          */
@@ -102,7 +102,7 @@ sealed interface CheckoutUiState {
         /** The points control is shown only when the quote says the shopper has points. */
         val points get() = quote?.points?.takeIf { serviced }
 
-        /** What the selected address has saved — to tell "using my default" from "changed for this order". */
+        /** What the selected address has saved - to tell "using my default" from "changed for this order". */
         val savedInstructions: InstructionsDraft
             get() = InstructionsDraft.from(addresses.firstOrNull { it.id == selectedId }?.defaultInstructions)
 
@@ -164,7 +164,7 @@ class CheckoutViewModel(
             // The checkout-entry cart snapshot is gone. Under 019's Option B the device cart was
             // the source of truth, so checkout had to push it to the server before quoting. The platform
             // is authoritative now, which means checkout reads the same cart every other
-            // surface reads — and keeping a snapshot here would give checkout a second source of truth,
+            // surface reads - and keeping a snapshot here would give checkout a second source of truth,
             // which is precisely the 2026-07-23 bug family under a new name.
             val addresses = runCatching { listAddresses() }.getOrDefault(emptyList())
             // Pre-select the default; deterministic to the first saved address when none is default.
@@ -179,12 +179,12 @@ class CheckoutViewModel(
         }
     }
 
-    /** Switch the shipping address. Per-order only — never changes the saved default. */
+    /** Switch the shipping address. Per-order only - never changes the saved default. */
     fun select(id: String) {
         val s = ready() ?: return
         if (s.selectedId == id) return
         // A new address re-prices delivery, and a window belongs to the address it was quoted
-        // for — nothing chosen for one address is carried to another.
+        // for - nothing chosen for one address is carried to another.
         _state.value = s.copy(
             selectedId = id,
             quote = null,
@@ -192,7 +192,7 @@ class CheckoutViewModel(
             asap = false,
             error = null,
             // Replaced by the new address's saved instructions, even over something the
-            // shopper typed. A note is about a place — "use the side gate" carried to another building
+            // shopper typed. A note is about a place - "use the side gate" carried to another building
             // is worse than an empty field.
             instructions = InstructionsDraft.from(s.addresses.firstOrNull { it.id == id }?.defaultInstructions),
             saveInstructions = false,
@@ -272,7 +272,7 @@ class CheckoutViewModel(
         viewModelScope.launch {
             val q = runCatching { quoteDelivery(addressId) }.getOrNull()
             val cur = ready() ?: return@launch
-            if (cur.selectedId != addressId) return@launch // moved on — ignore this answer
+            if (cur.selectedId != addressId) return@launch // moved on - ignore this answer
             _state.value = cur.withQuote(q)
         }
     }
@@ -295,7 +295,7 @@ class CheckoutViewModel(
         _state.value = s.copy(billingSelectedId = id, error = null)
     }
 
-    // Add a new address inline — reuses the 022 form + edge create
+    // Add a new address inline - reuses the 022 form + edge create
 
     fun openAddAddress(target: AddressTarget) {
         val s = ready() ?: return
@@ -387,7 +387,7 @@ class CheckoutViewModel(
             // This creates the intent and stops. It used to create it and present the provider's modal
             // sheet and confirm the order, because the sheet was something the app asked for rather than
             // something it drew. The in-app element is drawn by Effy's own payment screen, so the intent
-            // has to exist before that screen does — and the confirmation belongs to the pay button on it.
+            // has to exist before that screen does - and the confirmation belongs to the pay button on it.
             val intent = try {
                 try {
                     createIntent(order)
@@ -406,7 +406,7 @@ class CheckoutViewModel(
                 _state.value = cur.copy(
                     paying = false,
                     error = when (refused.reason) {
-                        PointsRefusal.BalanceChanged -> "Your points balance has changed. We’ve updated it — check and pay again."
+                        PointsRefusal.BalanceChanged -> "Your points balance has changed. We’ve updated it - check and pay again."
                         PointsRefusal.PaymentInProgress -> "A payment for this order is already in progress. Check your orders before trying again."
                         else -> "We couldn’t apply your points to this order. Try again, or switch points off."
                     },
@@ -432,7 +432,7 @@ class CheckoutViewModel(
                 // exists. The choice is not replaced: the shopper is told, shown what is on offer
                 // now, and chooses again.
                 val cur = ready() ?: return@launch
-                // The window is dropped whenever the refusal is about it, and never replaced — and
+                // The window is dropped whenever the refusal is about it, and never replaced - and
                 // when who delivers has changed: nothing chosen for the old answer is kept.
                 val cleared = if (refused.reason == DeliveryChoiceRefusal.SlotRequired) cur else cur.copy(window = null, asap = false)
                 _state.value = cleared.withQuote(refused.quote ?: cur.quote).copy(
@@ -472,7 +472,7 @@ class CheckoutViewModel(
                 _state.value = (ready() ?: return@launch).copy(paying = false, placedWithPoints = intent.orderId)
                 return@launch
             }
-            // In memory only, never in the route — the intent carries a payment client secret.
+            // In memory only, never in the route - the intent carries a payment client secret.
             handoff.offer(intent)
             _state.value = (ready() ?: return@launch).copy(paying = false, handedOffToPayment = true)
         }

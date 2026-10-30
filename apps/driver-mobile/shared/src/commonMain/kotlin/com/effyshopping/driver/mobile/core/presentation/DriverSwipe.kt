@@ -53,7 +53,7 @@ private val Thumb = 56.dp
 private val Inset = 4.dp
 
 /**
- * Swipe to confirm (canvas `SwipeConfirm`) — for the acts that commit physical facts about packages
+ * Swipe to confirm (canvas `SwipeConfirm`) - for the acts that commit physical facts about packages
  * (collect a stop, check in at the hub). A blue track and thumb; on commit the thumb settles at the end
  * and turns green with a tick.
  *

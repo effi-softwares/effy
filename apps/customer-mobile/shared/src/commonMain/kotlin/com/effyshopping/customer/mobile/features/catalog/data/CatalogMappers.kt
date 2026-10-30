@@ -71,7 +71,7 @@ internal fun ProductBadgeDTO.toDomain(): ProductBadge = when (this) {
  *
  * A tolerant reader (versioning-policy rule 4). The generator flattens the TS discriminated union
  * into a `kind` enum plus optional fields, so a `category` with no `categoryKey` is representable on
- * the wire and meaningless here — it maps to `null`, and the banner renders non-tappable.
+ * the wire and meaningless here - it maps to `null`, and the banner renders non-tappable.
  *
  * Returning `null` rather than throwing is deliberate: a malformed target must cost the shopper one
  * tap, not the whole storefront.

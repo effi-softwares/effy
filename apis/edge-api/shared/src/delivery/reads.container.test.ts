@@ -23,7 +23,7 @@ let pool: Pool;
 let shopA: string;
 let shopB: string;
 
-d("070 — delivery reads against the real schema", () => {
+d("070 - delivery reads against the real schema", () => {
   beforeAll(async () => {
     container = await new PostgreSqlContainer("postgres:16-alpine").start();
     pool = new Pool({ connectionString: container.getConnectionUri() });
@@ -85,7 +85,7 @@ d("070 — delivery reads against the real schema", () => {
     await expect(loadActivePlan(pool, "courier")).rejects.toBeInstanceOf(NoActivePlanError);
   });
 
-  it("coverage: on the list yes — whatever its group's status — not on the list no; names the group", async () => {
+  it("coverage: on the list yes - whatever its group's status - not on the list no; names the group", async () => {
     expect(await coverageForPostcode(pool, "3121")).toMatchObject({ kind: "effy", groupId: ZONE, distanceKm: 3.4 });
     // In a removed group: listed, and ungrouped.
     expect(await coverageForPostcode(pool, "3550")).toMatchObject({ kind: "effy", groupId: null });
@@ -158,7 +158,7 @@ d("070 — delivery reads against the real schema", () => {
     }
   });
 
-  it("no active plan fails loud — never free delivery", async () => {
+  it("no active plan fails loud - never free delivery", async () => {
     await pool.query(`UPDATE public.delivery_fee_plan SET is_active = false`);
     await expect(loadActivePlan(pool)).rejects.toBeInstanceOf(NoActivePlanError);
     await expect(quote(pool, null, "3121", [{ shopId: shopA, grams: 1500 }], new Date(), 5000)).rejects.toBeInstanceOf(NoActivePlanError);

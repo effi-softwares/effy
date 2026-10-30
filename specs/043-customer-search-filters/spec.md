@@ -6,11 +6,11 @@
 
 **Status**: Draft
 
-**Input**: User description: "In the customer mobile app and web app we need to have good search filters. Both apps have a /search page; the web app has a simple filter. We want an advanced filter section in both apps, supporting multiple types of filters. Research major e-commerce sites (eBay, Walmart, Amazon) to identify their filters, decide which to implement here, then implement in both web and mobile. Backend must be very optimized and fast; research search/filter best practices. On mobile, use a bottom sheet opened from a filter icon holding all filters; on web small screens use a drawer like mobile, and on large screens use a left column (as now) or dialogs — design the best professional, easy-to-use experience."
+**Input**: User description: "In the customer mobile app and web app we need to have good search filters. Both apps have a /search page; the web app has a simple filter. We want an advanced filter section in both apps, supporting multiple types of filters. Research major e-commerce sites (eBay, Walmart, Amazon) to identify their filters, decide which to implement here, then implement in both web and mobile. Backend must be very optimized and fast; research search/filter best practices. On mobile, use a bottom sheet opened from a filter icon holding all filters; on web small screens use a drawer like mobile, and on large screens use a left column (as now) or dialogs - design the best professional, easy-to-use experience."
 
 ## Overview
 
-Today a shopper can search the Effy catalogue and refine it only by **price range** and an **on-sale** toggle, with a **sort** control and a **result count**. That is a fraction of what a shopper on Amazon, eBay, Walmart, or a grocery app like Uber Eats expects. This feature turns the `/search` experience on both customer surfaces (web and mobile) into a proper **faceted filtering** experience: a shopper can narrow a large result set by several attributes at once — category, brand, price, offers, and product characteristics (e.g. dietary or size attributes the catalogue already captures) — and always understands how many results each choice will yield before committing to it.
+Today a shopper can search the Effy catalogue and refine it only by **price range** and an **on-sale** toggle, with a **sort** control and a **result count**. That is a fraction of what a shopper on Amazon, eBay, Walmart, or a grocery app like Uber Eats expects. This feature turns the `/search` experience on both customer surfaces (web and mobile) into a proper **faceted filtering** experience: a shopper can narrow a large result set by several attributes at once - category, brand, price, offers, and product characteristics (e.g. dietary or size attributes the catalogue already captures) - and always understands how many results each choice will yield before committing to it.
 
 The filter set is presented in a way that fits each device: a **bottom sheet** on mobile (opened from a filter icon), a **drawer** on small web screens, and a **persistent side panel** on large web screens.
 
@@ -20,21 +20,21 @@ Surveying the major marketplaces (Amazon, eBay, Walmart) and the grocery/food re
 
 | Facet | Seen on | Applicable to Effy? | Decision |
 |---|---|---|---|
-| Category / department | All | Yes — the catalogue has a hierarchical taxonomy | **Include** |
+| Category / department | All | Yes - the catalogue has a hierarchical taxonomy | **Include** |
 | Price range | All | Yes | **Include** (upgrade the existing control) |
-| Brand | Amazon, eBay, Walmart | Yes — brand is a first-class product field | **Include** |
-| Deals / on sale | All | Yes — products carry a compare-at price | **Include** (keep existing toggle) |
-| Product characteristics / "item specifics" (e.g. dietary, size, weight, flavour) | eBay item-specifics, Amazon dept. filters, grocery dietary tags | Yes — the catalogue captures configurable attributes per product type | **Include** (dynamic, catalogue-driven) |
-| Availability / "deliverable to me" / in stock | Amazon, Walmart (in-store/pickup), Uber Eats (open now) | **No** — delivery zones were withdrawn from the platform; every address is implicitly deliverable, and search already shows only purchasable (`active`) products | **Exclude** (would be a no-op; see Assumptions) |
+| Brand | Amazon, eBay, Walmart | Yes - brand is a first-class product field | **Include** |
+| Deals / on sale | All | Yes - products carry a compare-at price | **Include** (keep existing toggle) |
+| Product characteristics / "item specifics" (e.g. dietary, size, weight, flavour) | eBay item-specifics, Amazon dept. filters, grocery dietary tags | Yes - the catalogue captures configurable attributes per product type | **Include** (dynamic, catalogue-driven) |
+| Availability / "deliverable to me" / in stock | Amazon, Walmart (in-store/pickup), Uber Eats (open now) | **No** - delivery zones were withdrawn from the platform; every address is implicitly deliverable, and search already shows only purchasable (`active`) products | **Exclude** (would be a no-op; see Assumptions) |
 | Customer rating (stars) | Amazon, eBay, Walmart | **No rating/review data exists on the platform** | **Exclude** (out of scope; see Assumptions) |
-| Seller / store | eBay, Amazon marketplace | No — Effy is single-brand; shops are hidden | **Exclude** (contradicts the product model) |
+| Seller / store | eBay, Amazon marketplace | No - Effy is single-brand; shops are hidden | **Exclude** (contradicts the product model) |
 | Shipping speed / Prime | Amazon | Not modelled yet | **Exclude** (deferred) |
 
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Narrow results with an advanced filter panel (Priority: P1)
 
-A shopper searches or browses into a large result set and wants to cut it down. They open an advanced filter panel — a bottom sheet on mobile (from a filter icon in the results header), a drawer on a small web screen, or the side panel on a large web screen — choose several refinements at once (for example: a category, one or more brands, a price range, an on-sale toggle, and a product characteristic such as "gluten-free"), apply them, and see the results narrow to only products matching **all** chosen facets. Selecting more than one option **within** a facet (e.g. two brands) widens that facet to match **either** option.
+A shopper searches or browses into a large result set and wants to cut it down. They open an advanced filter panel - a bottom sheet on mobile (from a filter icon in the results header), a drawer on a small web screen, or the side panel on a large web screen - choose several refinements at once (for example: a category, one or more brands, a price range, an on-sale toggle, and a product characteristic such as "gluten-free"), apply them, and see the results narrow to only products matching **all** chosen facets. Selecting more than one option **within** a facet (e.g. two brands) widens that facet to match **either** option.
 
 **Why this priority**: This is the core of the feature and the MVP. Without a way to apply multiple filter types together, none of the rest matters. It is independently valuable: even with no counts or fancy chips, a shopper who can filter by brand + category + price + characteristic has a dramatically better experience than the price-and-sale-only refinement they have today.
 
@@ -55,7 +55,7 @@ A shopper searches or browses into a large result set and wants to cut it down. 
 
 As a shopper considers a filter option, they see **how many products** that option would leave in the current result set, and options that would leave **zero** results are hidden or shown as unavailable. The set of facets and options offered adapts to the current query and already-applied filters, so a shopper is never led into an empty result set.
 
-**Why this priority**: Result counts and dynamic facets are the single biggest UX differentiator of good faceted search (per the reference research) and prevent the "dead-end zero results" frustration. It builds on US1 but is separable — US1 can ship first with a static filter list, and counts layered on after.
+**Why this priority**: Result counts and dynamic facets are the single biggest UX differentiator of good faceted search (per the reference research) and prevent the "dead-end zero results" frustration. It builds on US1 but is separable - US1 can ship first with a static filter list, and counts layered on after.
 
 **Independent Test**: With a known catalogue, open the panel and confirm each option displays a count that matches the number of results applying it would yield, that a zero-result option is not offered as a live choice, and that after applying one filter the remaining options' counts update to reflect the narrowed set.
 
@@ -103,10 +103,10 @@ Applying or changing a filter updates the results quickly and without a jarring 
 
 ### Edge Cases
 
-- **No results after filtering**: the page shows a clear empty state that names the likely cause ("your filters may be too narrow") and offers to remove the last filter or clear all — never a blank grid.
+- **No results after filtering**: the page shows a clear empty state that names the likely cause ("your filters may be too narrow") and offers to remove the last filter or clear all - never a blank grid.
 - **A filter option becomes stale**: an option that was available when the panel opened but is exhausted or removed from the catalogue by the time it is applied must resolve to a valid (possibly empty-but-explained) state, never an error.
 - **Conflicting price bounds**: a minimum greater than the maximum is prevented or corrected rather than returning a confusing empty set.
-- **Very large facets**: a facet with hundreds of options (e.g. brand) must remain usable — the panel must not attempt to render every option at once.
+- **Very large facets**: a facet with hundreds of options (e.g. brand) must remain usable - the panel must not attempt to render every option at once.
 - **Filters combined with a text query and a sort**: filters, the free-text query, and the chosen ordering all compose; changing the ordering must not drop the filters, and vice versa.
 - **Deep-linked/shared filter that no longer matches anything**: opening a shared refined address whose result set is now empty shows the explained empty state, not an error.
 - **Accessibility**: the filter panel, counts, and applied-filter changes are operable and announced for keyboard and screen-reader users on both surfaces; touch targets on mobile meet the platform minimum.
@@ -146,7 +146,7 @@ Applying or changing a filter updates the results quickly and without a jarring 
 - **FR-018**: On mobile, the filters MUST be presented in a **bottom sheet** opened from a filter icon/button in the results header, containing all available facets, with explicit "Apply" and "Clear all" actions.
 - **FR-019**: On small web screens, the filters MUST be presented in a **drawer** consistent with the mobile bottom-sheet experience; on large web screens, the filters MUST be presented in a **persistent side panel** (the current left-column pattern) without requiring the shopper to open anything.
 - **FR-020**: The filter presentation MUST follow the platform's monochrome design language and layout doctrine (no new brand colour; no card-style containers where a list/section is the better pattern) and MUST feel native on mobile (fat-finger touch targets, appropriate motion).
-- **FR-021**: The advanced filter experience MUST be at **parity** between the customer web and customer mobile surfaces — the same facets, semantics, counts behaviour, and applied-filter controls on both, adapted to each device's presentation.
+- **FR-021**: The advanced filter experience MUST be at **parity** between the customer web and customer mobile surfaces - the same facets, semantics, counts behaviour, and applied-filter controls on both, adapted to each device's presentation.
 
 **Empty & error states**
 
@@ -161,7 +161,7 @@ Applying or changing a filter updates the results quickly and without a jarring 
 
 ### Key Entities *(include if feature involves data)*
 
-- **Filterable facet**: a dimension a shopper can refine by — category, brand, price, offers, or a catalogue-configured product characteristic. Each facet has a type that determines its control (single choice, multiple choice, numeric range, or toggle) and, where applicable, a set of options.
+- **Filterable facet**: a dimension a shopper can refine by - category, brand, price, offers, or a catalogue-configured product characteristic. Each facet has a type that determines its control (single choice, multiple choice, numeric range, or toggle) and, where applicable, a set of options.
 - **Facet option**: a selectable value within a facet (a specific brand, a specific characteristic value, a category), carrying a **result count** for the current context and an availability state.
 - **Applied filter set**: the collection of a shopper's current selections across facets, plus the free-text query and ordering, which together define the current result set and are reflected in chips and (on web) the page address.
 - **Product characteristic (catalogue attribute)**: a back-office-defined, per-product-type attribute (single-select, multi-select, numeric, or boolean) whose values on products make it a filterable facet; the source of the dynamic characteristic filters.

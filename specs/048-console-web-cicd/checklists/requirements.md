@@ -33,14 +33,14 @@
 
 - **Content Quality note**: the spec necessarily *names* platform-locked facts (Amplify Hosting, Vite
   SPA, Cognito pools, the edge gateway, subdomain names) in the Context/Assumptions sections because
-  they are decision-locked constraints this slice consumes — not choices being made here. The
+  they are decision-locked constraints this slice consumes - not choices being made here. The
   requirements themselves stay outcome-focused (auto-deploy on merge, served at a branded HTTPS
   address, SPA deep links work, only-own-surface built, not indexed, correct backend/pool, prod by
   configuration).
-- **Two operator decisions resolved before finalising**: (1) subdomain names — `shop.dev…` /
-  `back-office.dev…`, prod on the reserved apex's children (operator-chosen); (2) access posture —
+- **Two operator decisions resolved before finalising**: (1) subdomain names - `shop.dev…` /
+  `back-office.dev…`, prod on the reserved apex's children (operator-chosen); (2) access posture -
   Cognito-only + `noindex` taken as the default, with an Amplify basic-auth gate deferred as optional
   configuration. Both are recorded in Assumptions; neither leaves a blocking ambiguity for `/plan`.
-- Ready for `/speckit-plan`. `/speckit-clarify` is optional — the only genuinely open technical
+- Ready for `/speckit-plan`. `/speckit-clarify` is optional - the only genuinely open technical
   question (FR-019: whether Cognito EMAIL_OTP needs the new subdomains registered) is a
   planning/research item, not a spec ambiguity, and is flagged as "confirm, don't assume".

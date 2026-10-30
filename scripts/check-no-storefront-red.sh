@@ -4,7 +4,7 @@
 # apps/customer-web (tests excluded):
 # - Tailwind's red-family utilities (red, rose, pink, orange, amber, yellow)
 # - a `dark:` variant
-# - an arbitrary hex colour utility (`bg-[#e01010]`) — a colour outside the token set, whatever its hue
+# - an arbitrary hex colour utility (`bg-[#e01010]`) - a colour outside the token set, whatever its hue
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -15,7 +15,7 @@ hits="$(grep -rnE '\b(bg|text|border|ring|fill|stroke|outline|decoration|from|vi
   --exclude='*.test.ts' --exclude='*.test.tsx' 2>/dev/null || true)"
 
 if [ -n "$hits" ]; then
-  echo "check-no-storefront-red: FAILED — a red-family utility, a dark: variant or an arbitrary hex colour on the storefront:" >&2
+  echo "check-no-storefront-red: FAILED - a red-family utility, a dark: variant or an arbitrary hex colour on the storefront:" >&2
   echo "$hits" >&2
   exit 1
 fi
@@ -32,8 +32,8 @@ for line in sys.stdin:
         print(line.rstrip())
 ' || true)"
 if [ -n "$mobile_red" ]; then
-  echo "check-no-storefront-red: FAILED — a red-dominant colour literal in the customer mobile app:" >&2
+  echo "check-no-storefront-red: FAILED - a red-dominant colour literal in the customer mobile app:" >&2
   echo "$mobile_red" >&2
   exit 1
 fi
-echo "check-no-storefront-red: OK — no red-family utility, dark: variant or arbitrary hex colour in apps/customer-web; no red in the customer mobile app."
+echo "check-no-storefront-red: OK - no red-family utility, dark: variant or arbitrary hex colour in apps/customer-web; no red in the customer mobile app."

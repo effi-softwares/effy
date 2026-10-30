@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Effy media worker (086-catalogue-image-delivery) — makes the smaller WebP copies of every catalogue and promotion picture when it is uploaded, and records which exist. NO HTTP route: it is fed by the bucket's upload notifications through a queue, and attaches to neither gateway.",
+  "description": "Effy media worker (086-catalogue-image-delivery) - makes the smaller WebP copies of every catalogue and promotion picture when it is uploaded, and records which exist. NO HTTP route: it is fed by the bucket's upload notifications through a queue, and attaches to neither gateway.",
   "scripts": { "lint": "tsc --noEmit", "typecheck": "tsc --noEmit", "test": "vitest run" },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1088.0",

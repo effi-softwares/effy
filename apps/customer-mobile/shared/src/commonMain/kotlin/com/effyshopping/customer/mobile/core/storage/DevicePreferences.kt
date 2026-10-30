@@ -27,7 +27,7 @@ interface DevicePreferences {
      * Forget a key entirely.
      *
      * Remove, not "write an empty value". A guest asking to delete their data is owed the data
-     * being gone, not blanked — and a key left behind with an empty string is a value the next
+     * being gone, not blanked - and a key left behind with an empty string is a value the next
      * reader has to remember to treat as absent.
      */
     fun remove(key: String)
@@ -66,7 +66,7 @@ object PreferenceKeys {
 /** The platform store (Android `SharedPreferences`, iOS `NSUserDefaults`), as an `expect fun` returning an interface. */
 expect fun devicePreferences(): DevicePreferences
 
-/** An in-memory implementation for tests and previews — nothing survives the process. */
+/** An in-memory implementation for tests and previews - nothing survives the process. */
 class InMemoryDevicePreferences : DevicePreferences {
     private val values = mutableMapOf<String, String>()
 
@@ -106,7 +106,7 @@ fun DevicePreferences.clearGuestData() {
  *
  * This is what keeps the "Clear data on this device" control from appearing when it would do
  * nothing. Signing out already clears all of the above, so a just-signed-out shopper was being shown
- * a button whose only possible effect was to clear an empty store — which reads as "the app did not
+ * a button whose only possible effect was to clear an empty store - which reads as "the app did not
  * tidy up after me", the opposite of what actually happened.
  */
 fun DevicePreferences.hasDeviceShoppingData(): Boolean =

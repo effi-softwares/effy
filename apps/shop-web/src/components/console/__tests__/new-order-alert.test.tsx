@@ -16,7 +16,7 @@ vi.mock("@/features/fulfillment/repo", async (importOriginal) => ({
 }))
 
 const playChime = vi.hoisted(() => vi.fn())
-vi.mock("@/lib/chime", () => ({ playChime, unlockAudio: vi.fn(), unlockOnFirstGesture: () => () => {} }))
+vi.mock("@/lib/chime", () => ({ playChime, unlockAudio: vi.fn(), unlockOnFirstGesture: () => () => { } }))
 
 const { NewOrderAlert } = await import("../NewOrderAlert")
 
@@ -44,7 +44,7 @@ describe("the new-order alert", () => {
     expect(navigate).toHaveBeenCalledWith({ to: "/orders/$fulfillmentId", params: { fulfillmentId: "new" } })
   })
 
-  it("asks only for the server's own list — never on a timer of its own", async () => {
+  it("asks only for the server's own list - never on a timer of its own", async () => {
     listOrders.mockResolvedValue(orderList([orderRow({ status: "pending" })]))
     wrap(<NewOrderAlert />)
     await screen.findByRole("alert")

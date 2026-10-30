@@ -198,7 +198,7 @@ export const CATALOG = {
       shopUrl: "string",
     },
     subject: (v, p) => `${v.points} of your ${p.productName} points expire on ${v.expiresOn}`,
-    preheader: (v) => `Use them before then — they're worth $${v.valueAmount}.`,
+    preheader: (v) => `Use them before then - they're worth $${v.valueAmount}.`,
     audiences: CUSTOMER_ONLY,
     sentBy: "platform",
     onSendFailure: "swallow",
@@ -215,7 +215,7 @@ export const CATALOG = {
 
   "feedback-received": {
     vars: { referenceCode: "string", category: "string" },
-    subject: (_v, p) => `We got your feedback — ${p.productName}`,
+    subject: (_v, p) => `We got your feedback - ${p.productName}`,
     preheader: () => "Thanks for taking the time. Here's your reference.",
     audiences: CUSTOMER_ONLY,
     sentBy: "platform",

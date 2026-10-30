@@ -8,7 +8,7 @@
 # username_configuration force replacement.)
 
 locals {
-  # The customer pool's writable attributes — shared by both app clients (web + mobile, 013) so a
+  # The customer pool's writable attributes - shared by both app clients (web + mobile, 013) so a
   # customer can register identically on either surface. `email` must stay in the list or SignUp
   # breaks (Cognito refuses attributes a client cannot write); `name` is here for FR-009a.
   customer_writable_attributes = [
@@ -33,7 +33,7 @@ module "customer_pool" {
 
   # Makes the password / PASSWORD_SRP challenge usable (adds ALLOW_USER_SRP_AUTH to the app
   # client). SRP means the password never travels over the wire. The three internal pools leave
-  # this at its default of false and therefore remain strictly passwordless — asserted on every
+  # this at its default of false and therefore remain strictly passwordless - asserted on every
   # run by `make verify-pool-credentials`.
   enable_password_auth = true
 
@@ -65,17 +65,17 @@ module "customer_pool" {
   } : null
 
   # Carried separately so its sensitivity does not taint every plan attribute computed from
-  # `google` — see the note on the module's `google` variable. An unreadable plan is a security
+  # `google` - see the note on the module's `google` variable. An unreadable plan is a security
   # loss, not a win: this module's safety story is "read the plan, abort if a pool would be
   # replaced", and you cannot audit a diff that redacts what is changing.
   google_client_secret = var.customer_google_enabled ? data.aws_ssm_parameter.google_client_secret[0].value : null
 
   # `email` is in this list deliberately (see the local). `SignUp` passes it (it is the username
-  # attribute) and Cognito refuses any attribute the client cannot write — excluding it blocks the
+  # attribute) and Cognito refuses any attribute the client cannot write - excluding it blocks the
   # email-swap takeover and blocks registration. Shared with the mobile client so both register alike.
   writable_attributes = local.customer_writable_attributes
 
-  # security — the email-swap takeover, locked. A signed-in customer who can silently rewrite
+  # security - the email-swap takeover, locked. A signed-in customer who can silently rewrite
   # their own email to a victim's address owns that account. Cognito's purpose-built lock: the change
   # is accepted, but a code goes to the new address and the sign-in identity does not move until it
   # is confirmed. The attacker never holds the victim's inbox, so the swap never completes.
@@ -84,12 +84,12 @@ module "customer_pool" {
   # the account-linking trigger.
   #
   # Null while Google is parked, and that is correct: the trigger exists only to link a federated
-  # identity into the native profile. With no federation there is nothing to link — the password and
+  # identity into the native profile. With no federation there is nothing to link - the password and
   # email-OTP routes both land on the same native profile by construction, because Cognito keys them
   # on the same username (the email). One person, one `sub`, no trigger required.
   #
   # it becomes mandatory the moment google is un-parked. Two-stage by necessity: the Lambda must
-  # exist before the pool can reference it — apply, `make edge-deploy SERVICE=customer`, set this to
+  # exist before the pool can reference it - apply, `make edge-deploy SERVICE=customer`, set this to
   # the deployed ARN, apply again. Enabling federation without it gives an existing customer a
   # second account the first time they use Google, and there is no retroactive merge.
   pre_sign_up_lambda_arn = var.customer_pre_sign_up_lambda_arn
@@ -120,14 +120,14 @@ resource "aws_cognito_user_pool_client" "customer_mobile" {
   user_pool_id = module.customer_pool.user_pool_id
 
   # Identical credential model to the web client (constitution v1.7.0, customer pool):
-  # ALLOW_USER_AUTH — EMAIL_OTP + choice-based sign-in
-  # ALLOW_USER_SRP_AUTH — password over SRP (the password never travels on the wire)
-  # ALLOW_REFRESH_TOKEN_AUTH — sessions
+  # ALLOW_USER_AUTH - EMAIL_OTP + choice-based sign-in
+  # ALLOW_USER_SRP_AUTH - password over SRP (the password never travels on the wire)
+  # ALLOW_REFRESH_TOKEN_AUTH - sessions
   # Plain ALLOW_USER_PASSWORD_AUTH is deliberately not offered (it would put the password on the wire).
   # Adds ALLOW_CUSTOM_AUTH (the platform's 6-digit code) and retains ALLOW_USER_AUTH
   # passwordless SignUp needs it, so unlike the internal pools this client cannot drop it. See the
   # module block above for the consequence.
-  # Derived from the ARNs — see the module block above. ALLOW_USER_AUTH and ALLOW_USER_SRP_AUTH
+  # Derived from the ARNs - see the module block above. ALLOW_USER_AUTH and ALLOW_USER_SRP_AUTH
   # are unconditional here: this audience keeps both its other credential routes.
   explicit_auth_flows = concat(
     var.custom_auth_lambda_arns != null ? ["ALLOW_CUSTOM_AUTH"] : [],
@@ -135,7 +135,7 @@ resource "aws_cognito_user_pool_client" "customer_mobile" {
   )
 
   # Public client: Pkce, no client secret. A secret in a published mobile binary is a leaked secret
-  # — and Amplify's config has no field for one anyway.
+  # - and Amplify's config has no field for one anyway.
   generate_secret = false
 
   # Don't leak whether an email is registered.
@@ -147,7 +147,7 @@ resource "aws_cognito_user_pool_client" "customer_mobile" {
   # Google is parked, same as web. Un-parking adds it here and to the web client in the same change.
   supported_identity_providers = ["COGNITO"]
 
-  # 60-minute access/ID tokens (the platform default), but a 90-DAY refresh — the one setting that
+  # 60-minute access/ID tokens (the platform default), but a 90-DAY refresh - the one setting that
   # differs from web, and the whole reason mobile has its own client. There is NO Cognito
   # inactivity window: this is 90 days from sign-in. Rotation stays off pending spike S4.
   access_token_validity  = 60
@@ -167,7 +167,7 @@ resource "aws_cognito_user_pool_client" "customer_mobile" {
   logout_urls   = ["effy-customer://signed-out"]
 }
 
-# App↔infra contract: /effy/<env>/auth/customer/mobile_app_client_id — the mobile app reads this
+# App↔infra contract: /effy/<env>/auth/customer/mobile_app_client_id - the mobile app reads this
 # (not the web `app_client_id`) into its COGNITO_APP_CLIENT_ID build config.
 resource "aws_ssm_parameter" "customer_mobile_app_client_id" {
   name        = "/effy/${var.env}/auth/customer/mobile_app_client_id"
@@ -202,13 +202,13 @@ module "customer_ssm" {
 
 # The storefront's Amplify OAuth config needs the hosted-domain host.
 #
-# Only exists when Google does — the domain IS the federation mechanism. The storefront treats an
+# Only exists when Google does - the domain IS the federation mechanism. The storefront treats an
 # absent domain as "federation is not offered" and simply does not render the Google button, so a
 # missing parameter is a supported state, not a broken one.
 resource "aws_ssm_parameter" "customer_auth_domain" {
   count       = var.customer_google_enabled ? 1 : 0
   name        = "/effy/${var.env}/auth/customer/domain"
-  description = "Cognito hosted domain for the customer pool — required for Google federation (011)."
+  description = "Cognito hosted domain for the customer pool - required for Google federation (011)."
   type        = "String"
   value       = module.customer_pool.auth_domain_fqdn
 }
@@ -224,7 +224,7 @@ output "customer_app_client_id" {
 }
 
 output "customer_mobile_app_client_id" {
-  description = "Customer MOBILE public app client id (013) — 90-day refresh; the value for the app's COGNITO_APP_CLIENT_ID."
+  description = "Customer MOBILE public app client id (013) - 90-day refresh; the value for the app's COGNITO_APP_CLIENT_ID."
   value       = aws_cognito_user_pool_client.customer_mobile.id
 }
 
@@ -239,6 +239,6 @@ output "customer_user_pool_endpoint" {
 }
 
 output "customer_auth_domain" {
-  description = "Cognito hosted domain — the storefront's Amplify oauth.domain, and the host the Google OAuth client must authorize (redirect: https://<this>/oauth2/idpresponse). NULL while Google is parked."
+  description = "Cognito hosted domain - the storefront's Amplify oauth.domain, and the host the Google OAuth client must authorize (redirect: https://<this>/oauth2/idpresponse). NULL while Google is parked."
   value       = module.customer_pool.auth_domain_fqdn
 }

@@ -92,7 +92,7 @@ describe("ses event consumer", () => {
     expect(recordOutcome).toHaveBeenCalledTimes(1)
   })
 
-  it("⚠ never throws on unparseable input — a throw retries forever and kills the consumer", async () => {
+  it("⚠ never throws on unparseable input - a throw retries forever and kills the consumer", async () => {
     await expect(handler(snsEvent("{ not json"), CONTEXT)).resolves.toBeUndefined()
     expect(recordOutcome).not.toHaveBeenCalled()
   })
@@ -104,12 +104,12 @@ describe("ses event consumer", () => {
     expect(recordOutcome).not.toHaveBeenCalled()
   })
 
-  it("emits the hard-bounce metric — the alarm that sees ONE person", async () => {
+  it("emits the hard-bounce metric - the alarm that sees ONE person", async () => {
     await handler(snsEvent(HARD_BOUNCE), CONTEXT)
     expect(emitted).toContain("mail_hard_bounce")
   })
 
-  it("⚠ emits NO metric for a duplicate — a redelivery must not double-count", async () => {
+  it("⚠ emits NO metric for a duplicate - a redelivery must not double-count", async () => {
     recordOutcome.mockResolvedValue({ recorded: false, state: "undeliverable" })
     await handler(snsEvent(HARD_BOUNCE), CONTEXT)
     expect(emitted).toEqual([])

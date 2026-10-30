@@ -191,7 +191,7 @@ function Unavailable({ shortfalls }: { shortfalls: { productName: string; quanti
       title={`${one ? "This item was" : "These items were"} out of stock and won't be included:`}
     >
       {shortfalls.map((s) => `${s.productName} × ${s.quantity}`).join(" · ")}. You won&apos;t be charged for{" "}
-      {one ? "it" : "them"} — we&apos;ll refund {one ? "it" : "them"} to your original payment method.{" "}
+      {one ? "it" : "them"} - we&apos;ll refund {one ? "it" : "them"} to your original payment method.{" "}
       <Link href="/help" className="underline underline-offset-2">
         Get help
       </Link>{" "}

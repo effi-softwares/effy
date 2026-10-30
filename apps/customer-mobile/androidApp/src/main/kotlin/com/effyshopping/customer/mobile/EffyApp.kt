@@ -12,7 +12,7 @@ import com.effyshopping.customer.mobile.core.push.FirebasePushTokenProvider
 import com.effyshopping.customer.mobile.core.storage.initDevicePreferences
 
 /**
- * The Android application. Configures Amplify once (from the in-code config string — no
+ * The Android application. Configures Amplify once (from the in-code config string - no
  * `amplifyconfiguration.json`, D12) and owns the single [AppContainer] (Principle VI) so it survives
  * activity recreation rather than leaking a new coroutine scope per rotation.
  */
@@ -41,7 +41,7 @@ class EffyApp : Application() {
         try {
             AmplifyBootstrap.configure(applicationContext)
         } catch (e: Exception) {
-            // A config failure must not crash the app — the guest experience still works, and the
+            // A config failure must not crash the app - the guest experience still works, and the
             // driver's currentSession returns null, landing on Guest. Never log tokens.
             Log.e("EffyApp", "Amplify configuration failed: ${e.message}")
         }

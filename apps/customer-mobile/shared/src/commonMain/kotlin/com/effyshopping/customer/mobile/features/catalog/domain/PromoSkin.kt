@@ -101,7 +101,7 @@ data class SkinPicture(
 
 data class SkinGeometry(val minHeight: Int, val pictureRatio: Double, val wordsWidth: Double, val decorations: Boolean)
 
-/** The rules both renderers share — see the file comment. */
+/** The rules both renderers share - see the file comment. */
 object PromoSkinRules {
     const val AUTO = "auto"
 
@@ -133,7 +133,7 @@ object PromoSkinRules {
     /** The geometry at a size the layout fits; null when it does not (or for classic). */
     fun geometry(layout: SkinLayout, size: SkinSize): SkinGeometry? = GEOMETRY[layout]?.get(size)
 
-    /** The largest size the layout fits — what to draw at when the given size does not fit. */
+    /** The largest size the layout fits - what to draw at when the given size does not fit. */
     fun defaultSize(layout: SkinLayout): SkinSize = SkinSize.entries.firstOrNull { GEOMETRY[layout]?.containsKey(it) == true } ?: SkinSize.MEDIUM
 
     fun buttonWords(settings: SkinSettings, hasCode: Boolean): String? = when {

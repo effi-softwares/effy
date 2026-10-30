@@ -26,7 +26,7 @@ describe("publicImageUrl (086 contracts/public-media.md)", () => {
     expect(publicImageUrl(key)).toBe(`${BASE}/${key}`);
   });
 
-  it("is the same on every call — nothing varies by time or request", () => {
+  it("is the same on every call - nothing varies by time or request", () => {
     expect(publicImageUrl("products/o/a.jpg")).toBe(publicImageUrl("products/o/a.jpg"));
   });
 

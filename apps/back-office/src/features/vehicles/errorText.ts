@@ -30,7 +30,7 @@ export function vehicleActionError(err: unknown, action: VehicleAction): string 
         return err.detail
       }
       if (action === "update")
-        return "Someone else changed this vehicle while you were editing. Reload the page and reapply your change — saving now would quietly undo theirs."
+        return "Someone else changed this vehicle while you were editing. Reload the page and reapply your change - saving now would quietly undo theirs."
       return "That has already changed. Reload and try again."
     }
 

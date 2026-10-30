@@ -9,7 +9,7 @@ const ROLE_SETS: readonly (readonly BackOfficeRole[])[] = [["admin"], ["manager"
 const leafPaths = (groups: readonly NavGroup[]) =>
   groups.flatMap((g) => g.items.flatMap((i) => (i.subs ?? [i]).map((l) => l.to)))
 
-describe("back-office sidebar — who sees what", () => {
+describe("back-office sidebar - who sees what", () => {
   it("shows every operational page to every role, csa included", () => {
     for (const roles of ROLE_SETS) {
       const paths = leafPaths(visibleGroups(NAV_GROUPS, roles))
@@ -59,7 +59,7 @@ describe("back-office sidebar — who sees what", () => {
   })
 })
 
-describe("back-office sidebar — which page is lit", () => {
+describe("back-office sidebar - which page is lit", () => {
   const key = (pathname: string, tab?: string) => activeKey(NAV_GROUPS, { pathname, tab })
 
   it("lights Overview only on the root", () => {

@@ -19,13 +19,13 @@ import { ToastRegion } from "./ToastRegion"
 
 /**
  * The storefront frame (reference: Shared components · Storefront header / footer): the black
- * delivery bar, the masthead, the aisle row, the page, the footer, and — on phones — the bottom bar.
+ * delivery bar, the masthead, the aisle row, the page, the footer, and - on phones - the bottom bar.
  *
  * One container. Every row here uses `container`, as does every page, so left and right edges line
  * up on every screen.
  *
- * The static shell. Nothing in this component reads the request. Everything per-customer — the
- * delivery bar, the account trigger, the phone menu — and everything fetched — the aisles — is its
+ * The static shell. Nothing in this component reads the request. Everything per-customer - the
+ * delivery bar, the account trigger, the phone menu - and everything fetched - the aisles - is its
  * own Suspense island with a fallback of the same height, so the shell is cacheable and nothing
  * shifts when an island arrives.
  *
@@ -109,7 +109,7 @@ export function StorefrontChrome({
   )
 }
 
-/** The desktop search field with its aisle chooser — the aisle list is fetched, so this is an island. */
+/** The desktop search field with its aisle chooser - the aisle list is fetched, so this is an island. */
 async function SearchWithAisles({ className }: { className?: string }) {
   const aisles = topLevel(await getCategoriesSafe()).map((c) => ({ key: c.key, name: c.name }))
   return <HeaderSearch className={className} aisles={aisles} />

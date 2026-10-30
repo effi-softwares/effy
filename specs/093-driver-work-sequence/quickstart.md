@@ -29,7 +29,7 @@ The container tests (`*.container.test.ts`) need Docker running.
 3. **US3.** Check in parcels for today's window. Within 5 minutes Today shows the delivery run with you as
    the driver, and back-office's note says "collected it, continuing to delivery".
 4. **Gate: load.** Before loading, open a drop. Its actions are disabled with "Load the van first". Load,
-   declaring one package "damaged". The package is listed on Exceptions → Held. Choose "Found — plan
+   declaring one package "damaged". The package is listed on Exceptions → Held. Choose "Found - plan
    again", and it appears on a later run.
 5. **Cross-run gate.** With a failed parcel not returned, try to load a new run. You get "Return the
    parcels from your last run first". Waive it in back-office, and the load succeeds.

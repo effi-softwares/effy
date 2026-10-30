@@ -6,23 +6,23 @@
 
 **Status**: Draft
 
-**Input**: User description: "Customer Mobile Redesign — give the customer mobile app the new storefront
+**Input**: User description: "Customer Mobile Redesign - give the customer mobile app the new storefront
 identity designed on the Claude Design canvas, iOS-first, modern and professional like eBay / Uber, while
 keeping the app's current behaviour and navigation largely as it is. Every screen on the canvas, plus
 foundations, states, micro-animations and page transitions. Cart becomes a tab; no dark top ribbon;
-borderless headers; no centred dialogs — bottom sheets for everything with pinned actions; full pages
+borderless headers; no centred dialogs - bottom sheets for everything with pinned actions; full pages
 stacked for content; keep every existing animation and add more; fat-finger friendly; the storefront's
 colours, not monochrome. Also fix the defects and fill the data gaps found during the design analysis."
 
 **Design reference** (the source of truth for appearance, layout, motion and screen states):
 
-- Claude Design canvas **"Effy Customer Mobile Redesign"** — https://claude.ai/artifact/WSJRR99YaDrAU6LJaChbQv
-  — 40 boards: Foundations, Micro-animations, Page transitions, Product card, App bar, Tab bar, States and
+- Claude Design canvas **"Effy Customer Mobile Redesign"** - https://claude.ai/artifact/WSJRR99YaDrAU6LJaChbQv
+  - 40 boards: Foundations, Micro-animations, Page transitions, Product card, App bar, Tab bar, States and
   feedback; and the screens listed under User Story 3.
-- Effy design system — https://claude.ai/artifact/2XxzgKFopY2b9ot1fyjuRD — the same identity the
+- Effy design system - https://claude.ai/artifact/2XxzgKFopY2b9ot1fyjuRD - the same identity the
   customer website adopted in 084 (the "storefront identity" in constitution Principle V).
-- Customer website (084) — `docs/reference-screens/Effy Storefront Redesign/` and
-  `specs/084-customer-storefront-redesign/screen-index.md` — for wording and behaviour parity.
+- Customer website (084) - `docs/reference-screens/Effy Storefront Redesign/` and
+  `specs/084-customer-storefront-redesign/screen-index.md` - for wording and behaviour parity.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -33,7 +33,7 @@ website: white pages, the "effy." wordmark with its green full stop, the Geist t
 action, green for savings, Sale, "Delivered by Effy" and paid. There is no dark band across the top. A
 tab's main page has a large bold title on the left (the wordmark on Home) with the notifications bell on
 the right, and no line under the header; Home and Search show a light-blue search field under the title.
-Along the bottom is a roomy five-tab bar — Home, Search, Cart, Orders, Account — with large icons, clear
+Along the bottom is a roomy five-tab bar - Home, Search, Cart, Orders, Account - with large icons, clear
 labels, the current tab in blue with a blue indicator, and the number of items in the cart on the Cart tab.
 Opening anything (a product, an order, a settings page) slides a full page in on top, with a "Back"
 control and a centred title, and hides the tab bar; going back slides it away and the tab bar returns.
@@ -55,7 +55,7 @@ compare against the App bar, Tab bar and Foundations boards, and look for any ol
 4. **Given** a pushed page on iOS, **When** the shopper swipes from the left edge, **Then** the page
    follows the finger and returns to the page below (Android: the system back gesture does the same).
 5. **Given** the header, **When** any page shows, **Then** it carries only the title or wordmark, Back,
-   and the notifications bell — no cart, search or other buttons.
+   and the notifications bell - no cart, search or other buttons.
 6. **Given** a tab the shopper had navigated into, **When** they switch away and back, **Then** they
    return to where they were in that tab (each tab keeps its own history, as today); tapping the current
    tab again returns it to its main page.
@@ -101,12 +101,12 @@ pinned actions; play each animation on the Micro-animations and Page transitions
 Every screen of the app matches its board on the canvas, with large comfortable touch targets, 16-point
 body text and rows about 60 points tall, and primary actions pinned at the bottom of the screen.
 
-Screens: **Discover and shop** — Onboarding, Home, Search tab, Results / aisle, Filters sheet, Product,
-Add to a list sheet, Offer. **Cart, checkout and orders** — Cart tab, Checkout (Delivered by Effy),
-Checkout (Courier delivery), Payment, Order confirmed, Orders tab, Order details. **Account** — Account
+Screens: **Discover and shop** - Onboarding, Home, Search tab, Results / aisle, Filters sheet, Product,
+Add to a list sheet, Offer. **Cart, checkout and orders** - Cart tab, Checkout (Delivered by Effy),
+Checkout (Courier delivery), Payment, Order confirmed, Orders tab, Order details. **Account** - Account
 tab, Personal info, Address book, Address sheet, Saved items and lists, Effy points, Payment methods,
-Security, Privacy & data, Delete account, Notifications. **Sign in, help and legal** — Sign in (email),
-Enter your code, Password sign-in, Join (your name), Help, Give feedback, Legal. **States** — loading,
+Security, Privacy & data, Delete account, Notifications. **Sign in, help and legal** - Sign in (email),
+Enter your code, Password sign-in, Join (your name), Help, Give feedback, Legal. **States** - loading,
 empty, error, offline, snackbar, consent banner.
 
 **Why this priority**: This is the feature's substance; the operator asked for every screen.
@@ -130,7 +130,7 @@ wording and states; measure touch targets.
 5. **Given** a screen with no content (empty cart, no orders, no saved items, no notifications),
    **When** it shows, **Then** it shows the board's empty state with one clear next action.
 6. **Given** a failure (offline, server error), **When** it happens, **Then** the screen shows the error
-   state with a retry, in black with an icon — never red.
+   state with a retry, in black with an icon - never red.
 7. **Given** the system text size is increased, **When** any screen shows, **Then** text grows, nothing
    is clipped, and pinned actions remain reachable.
 
@@ -147,7 +147,7 @@ The shopper no longer meets the faults found during the design review.
 **Acceptance Scenarios**:
 
 1. **Given** a placed order, **When** the shopper opens its receipt, **Then** every amount, date and
-   name shows its value — no raw placeholder text appears anywhere.
+   name shows its value - no raw placeholder text appears anywhere.
 2. **Given** the Effy points page or the Payment methods page, **When** it is open, **Then** it has a
    Back control like every other pushed page.
 3. **Given** the Help page, **When** it shows a contact address, **Then** it is hello@effyshopping.com.
@@ -157,7 +157,7 @@ The shopper no longer meets the faults found during the design review.
    in at checkout; a guest still is.
 6. **Given** the sign-in screen, **When** the shopper chooses "Continue with Google", **Then** they sign
    in with Google and land in the same single Effy profile as their email sign-in (linked only on a
-   Google-verified email), or the option is not shown — never a button that does nothing.
+   Google-verified email), or the option is not shown - never a button that does nothing.
 
 ---
 
@@ -178,7 +178,7 @@ sub-aisles; search a few times and reopen Search; receive a notification and ope
 
 1. **Given** orders at different stages, **When** the Orders tab loads, **Then** each row shows its stage
    in the one package-status wording, its arrival as it was sold (a window, a day, "as soon as possible"
-   with the business's estimate, or a courier estimate — never a promise the order was not sold), and up
+   with the business's estimate, or a courier estimate - never a promise the order was not sold), and up
    to four item pictures with "+N" for the rest.
 2. **Given** an aisle with sub-aisles, **When** it opens, **Then** a row of sub-aisle choices shows above
    the products and choosing one narrows the list; an aisle without sub-aisles shows no row.
@@ -228,14 +228,14 @@ sub-aisles; search a few times and reopen Search; receive a notification and ope
 
 **Navigation and frame**
 
-- **FR-006**: The bottom bar MUST have five tabs in this order — Home, Search, Cart, Orders, Account —
+- **FR-006**: The bottom bar MUST have five tabs in this order - Home, Search, Cart, Orders, Account -
   with the sizes on the Tab bar board (large icons, labels, a row at least 58 points tall above the home
   indicator), the current tab in blue with an indicator, and a cart item-count badge on Cart.
 - **FR-007**: Cart MUST be reachable only as a tab (it leaves every header); every other route into the
   cart today (after "added to cart", from a product) MUST switch to the Cart tab.
 - **FR-008**: Apart from FR-006 and FR-007, navigation MUST stay as it is: the same pages, the same
   per-tab histories, the same deep links, the same guest-first browsing with sign-in when needed.
-- **FR-009**: The status-bar area MUST be the page's own white ground — no dark band.
+- **FR-009**: The status-bar area MUST be the page's own white ground - no dark band.
 - **FR-010**: A tab's main page MUST show a large bold title (the wordmark on Home) on the left and the
   notifications bell on the right, with no border; it MUST collapse to a compact centred title as the
   page scrolls. Home and Search MUST show the light-blue search field under the title.
@@ -317,7 +317,7 @@ sub-aisles; search a few times and reopen Search; receive a notification and ope
 - **Order summary (as listed)**: an order's number, stage, arrival as sold, total, and up to four item
   pictures with a count of the rest.
 - **Sub-aisle**: an aisle inside an aisle, with its name and position.
-- **Customer notification** (deferred — not built in this feature).
+- **Customer notification** (deferred - not built in this feature).
 
 ## Success Criteria *(mandatory)*
 

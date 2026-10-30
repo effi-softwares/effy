@@ -78,12 +78,12 @@ export const handler: ScheduledHandler = async () => {
   try {
     const sender = await createSender();
     if (!sender.configured) {
-      log.warn("fcm not configured — push rows remain pending; email still drains");
+      log.warn("fcm not configured - push rows remain pending; email still drains");
     }
 
     const emailSender = createEmailSender({ siteUrl: process.env.WEB_SITE_URL ?? "" });
     if (!emailSender.mailerConfigured) {
-      log.warn("mail not configured — email rows will retry");
+      log.warn("mail not configured - email rows will retry");
     }
 
     const deps = repositoryDeps(

@@ -51,7 +51,7 @@ import com.effyshopping.mobile.kit.ui.OtpInput
 
 /**
  * Sign in (canvas `Auth`, `Auth-Code`, `Auth-Error`): work email, then a six-digit code. No password,
- * no self sign-up — driver accounts are set up by a manager.
+ * no self sign-up - driver accounts are set up by a manager.
  */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
@@ -91,7 +91,7 @@ fun SignInScreen(
                 )
                 Text(
                     if (code) "We sent a 6-digit code to ${state.maskedDestination ?: "your work email"}. It works for a few minutes."
-                    else "Use your work email. We'll email you a 6-digit code — there's no password.",
+                    else "Use your work email. We'll email you a 6-digit code - there's no password.",
                     style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
@@ -110,7 +110,7 @@ fun SignInScreen(
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 )
             }
-            // The uniform escape hatch: shown to everyone, always — never conditional on
+            // The uniform escape hatch: shown to everyone, always - never conditional on
             // whether the address exists, which would make this line an account-enumeration oracle.
             Text(
                 "Code not arriving? Email hello@effyshopping.com",
@@ -159,7 +159,7 @@ private fun CodeStage(
         AuthFieldError.InvalidCode -> "That code isn't right. Check it and try again."
         AuthFieldError.ExpiredCode -> "That code has expired. Send another code."
         // A locked-out driver is told what can still work, not to "try again".
-        AuthFieldError.LockedOut -> "Too many attempts. For your security this code is locked — send another, or call dispatch if it keeps happening."
+        AuthFieldError.LockedOut -> "Too many attempts. For your security this code is locked - send another, or call dispatch if it keeps happening."
         else -> null
     }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {

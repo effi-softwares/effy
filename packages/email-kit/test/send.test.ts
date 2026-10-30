@@ -10,7 +10,7 @@ vi.mock("@aws-sdk/client-sesv2", () => ({
     send = send;
   },
   SendEmailCommand: class {
-    constructor(readonly input: unknown) {}
+    constructor(readonly input: unknown) { }
   },
 }));
 
@@ -51,7 +51,7 @@ afterEach(() => {
 });
 
 describe("MAIL_ENV_KEYS", () => {
-  it("⚠ names EXACTLY the environment variables the mail path reads — self-check, so it cannot drift", async () => {
+  it("⚠ names EXACTLY the environment variables the mail path reads - self-check, so it cannot drift", async () => {
     const { MAIL_ENV_KEYS } = await import("../src/config.js");
     const here = dirname(fileURLToPath(import.meta.url));
     const read = new Set<string>();
@@ -126,7 +126,7 @@ describe("sendEmail", () => {
   });
 
   describe("logging", () => {
-    it("⚠ logs exactly the safe fields — never the recipient, the code, or the body", async () => {
+    it("⚠ logs exactly the safe fields - never the recipient, the code, or the body", async () => {
       const logger = { info: vi.fn(), error: vi.fn() };
       const { sendEmail } = await loadSend();
       await sendEmail(
@@ -143,7 +143,7 @@ describe("sendEmail", () => {
       expect(logged).not.toContain("victim@example.com");
     });
 
-    it("⚠ logs only the error NAME on failure — an SES message can echo the address back", async () => {
+    it("⚠ logs only the error NAME on failure - an SES message can echo the address back", async () => {
       const logger = { info: vi.fn(), error: vi.fn() };
       send.mockRejectedValueOnce(new Error("delivery to victim@example.com refused"));
       const { sendEmail } = await loadSend();
@@ -168,7 +168,7 @@ describe("sendEmail", () => {
     ).resolves.toBeDefined();
   });
 
-  it("throws when the sender is unset — sending from a wrong address is worse than not sending", async () => {
+  it("throws when the sender is unset - sending from a wrong address is worse than not sending", async () => {
     delete process.env.MAIL_SENDER;
     const { sendEmail } = await loadSend();
     await expect(

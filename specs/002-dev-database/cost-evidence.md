@@ -2,7 +2,7 @@
 
 **Recorded**: 2026-07-05 (plan-time half of SC-001). Region: ap-southeast-1, on-demand.
 
-> ⚠️ **Superseded by the 2026-07-12 region relocation — figures below are NOT re-verified.**
+> ⚠️ **Superseded by the 2026-07-12 region relocation - figures below are NOT re-verified.**
 > This evidence was priced against **ap-southeast-1 (Singapore)**. `dev` now runs in
 > **ap-southeast-2 (Sydney)**, where RDS and gp3 rates differ. The numbers are left unedited on
 > purpose: they are a dated record of what was checked, and silently overwriting them with guessed
@@ -11,7 +11,7 @@
 > **The $25/mo ceiling (SC-001) is therefore unproven in Sydney.** Re-price the same posture
 > (db.t4g.micro · 20 GB gp3 · single-AZ · no backups · 1 managed secret) against
 > [the AWS Pricing Calculator](https://calculator.aws) for `ap-southeast-2` and record the result
-> below as a new dated section before claiming SC-001. The shape of the estimate is unchanged —
+> below as a new dated section before claiming SC-001. The shape of the estimate is unchanged -
 > only the rates move.
 
 ## Itemized steady-state estimate
@@ -20,7 +20,7 @@
 |---|---|---|
 | RDS db.t4g.micro (PostgreSQL, single-AZ, on-demand) | ≈ $0.026/hr × 730 h | ≈ **$19.00** |
 | gp3 storage, 20 GB | ≈ $0.126/GB-mo × 20 | ≈ **$2.53** |
-| Secrets Manager — 1 RDS-managed master secret | flat | **$0.40** |
+| Secrets Manager - 1 RDS-managed master secret | flat | **$0.40** |
 | KMS (default keys), basic CloudWatch metrics, SSM Standard params | included/free | $0.00 |
 | Optional add-ons (PI, advanced Insights, Enhanced Monitoring, backups, snapshot exports, proxy, Extended Support, reserved commitments) | all OFF (see below) | **$0.00** |
 | **Total** | | **≈ $21.93 ≤ $25 ceiling** (~12% headroom) |
@@ -29,10 +29,10 @@
 > PostgreSQL, ap-southeast-1, db.t4g.micro, 20 GB gp3, single-AZ, no backup storage) and
 > attach/link the estimate here at sign-off (T017).
 
-## Static posture assertion (T010 — plan-time, 2026-07-05)
+## Static posture assertion (T010 - plan-time, 2026-07-05)
 
 Verified in the `make plan ENV=dev` output (9 adds: instance, SG, subnet group, parameter
-group, 5 SSM params — nothing else) against every row of
+group, 5 SSM params - nothing else) against every row of
 [contracts/cost-posture.contract.md](./contracts/cost-posture.contract.md):
 
 | Contract row | Plan evidence | Status |
@@ -54,7 +54,7 @@ Bonus posture: `storage_encrypted = true`, `manage_master_user_password = true` 
 password in state), `publicly_accessible = true` **dev-only** with `db_allowed_cidrs = []`
 default (nobody) + forced TLS.
 
-## Lever completeness audit (T013 — 2026-07-05)
+## Lever completeness audit (T013 - 2026-07-05)
 
 Every cost-floor decision has a documented reversal path; no dead ends:
 
@@ -66,7 +66,7 @@ Every cost-floor decision has a documented reversal path; no dead ends:
   `monitoring_interval` (Enhanced Monitoring), `apply_force_ssl`, `apply_immediately`,
   `engine_version`. Exposing them per-env is a two-line change; recorded in the module
   contract. ✓ acceptable.
-- **Additive levers (new resources, not flips — by design)**: CloudWatch log exports
+- **Additive levers (new resources, not flips - by design)**: CloudWatch log exports
   (module edit), RDS Proxy (own resource, future slice if ever needed), snapshot exports.
   Documented in [cost-posture.contract.md](./contracts/cost-posture.contract.md) as
   promotion decisions. ✓ acceptable.
@@ -75,6 +75,6 @@ Every cost-floor decision has a documented reversal path; no dead ends:
 
 - **What**: Cost Explorer → filter tag `Project=effy`, service = RDS (+ Secrets Manager) →
   line items must be only instance-hours + gp3 storage + 1 secret; total ≤ $25.
-- **When**: after the first full calendar month of running — **early September 2026**
+- **When**: after the first full calendar month of running - **early September 2026**
   (August is the first full cycle for a 2026-07-05 apply).
 - **Owner**: operator. Record the actual figure here when done.

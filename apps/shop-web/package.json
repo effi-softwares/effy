@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Effy shop web — the shop operator console PWA (Vite + React 19 + TanStack).",
+  "description": "Effy shop web - the shop operator console PWA (Vite + React 19 + TanStack).",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

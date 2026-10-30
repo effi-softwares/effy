@@ -7,14 +7,14 @@
 ## Summary
 
 Make the checkout header's existing "Give us feedback" link real, end to end. A public feedback form
-on the customer web storefront (`/feedback`) and a matching customer-mobile screen let any shopper —
-guest or signed-in — send categorised feedback with an optional rating and reply email; a stored
+on the customer web storefront (`/feedback`) and a matching customer-mobile screen let any shopper -
+guest or signed-in - send categorised feedback with an optional rating and reply email; a stored
 submission is acknowledged on screen and, when an email was given, with a thank-you email. Back-office
 staff get a feedback console to list, search, filter, and triage submissions, add internal notes,
-change status, and reply — where a reply is delivered to the submitter as an email.
+change status, and reply - where a reply is delivered to the submitter as an email.
 
 **Technical approach**: a **cold-path** slice on both sides (the user's explicit instruction and the
-correct path under Principle III — low-frequency traffic whose real work is asynchronous email).
+correct path under Principle III - low-frequency traffic whose real work is asynchronous email).
 Public submission adds a `feedback/` domain to **`apis/edge-api/customer`** (the newsletter precedent:
 DB access, `ses:SendEmail`, a public-route precedent already present). Staff reading/replying adds a
 `feedback/` domain to **`apis/edge-api/admin`** behind the back-office authorizer with RBAC decided
@@ -27,7 +27,7 @@ shared `DataTable`/dialog primitives; mobile follows Clean Architecture + MVVM.
 ## Technical Context
 
 **Language/Version**: TypeScript on Node 22 (both edge services + web); React 19 (customer-web Next 16
-SSR, back-office Vite SPA); Kotlin Multiplatform + Compose (customer-mobile). No Go — the hot path is
+SSR, back-office Vite SPA); Kotlin Multiplatform + Compose (customer-mobile). No Go - the hot path is
 not used.
 
 **Primary Dependencies**: `@effy/edge-shared` (pg `query`, logger, handler helpers), `@effy/email-kit`
@@ -45,14 +45,14 @@ the storefront form path.
 **Target Platform**: AWS Lambda (arm64) behind the shared HTTP API for both edge services; the public
 customer web storefront; the internal back-office SPA; iOS + Android for customer-mobile.
 
-**Project Type**: Web + mobile + API — six-ish touchpoints (two edge services, three clients, one
+**Project Type**: Web + mobile + API - six-ish touchpoints (two edge services, three clients, one
 shared email/types layer) forming one vertical slice.
 
 **Performance Goals**: submission and admin list/detail complete well within the cold-path budget;
 console list/search stays responsive at high submission volume via keyset/offset pagination and an
 index supporting the default newest-first order and text search.
 
-**Constraints**: customer-web guest bundle gate is **174 KB** — the `/feedback` client island must be
+**Constraints**: customer-web guest bundle gate is **174 KB** - the `/feedback` client island must be
 minimal (one form). No PII (submitter email) in logs or telemetry beyond the auth subject id. Reply
 and thank-you emails must render in light/dark, ship a plain-text part, and carry no third-party asset
 requests (existing `make email-check` guards). Real-world sender/reply identity uses only the approved
@@ -66,12 +66,12 @@ surfaces.
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-- **I. Spec-Driven Development** ✅ — spec.md written and validated first; this plan cites it. No code
+- **I. Spec-Driven Development** ✅ - spec.md written and validated first; this plan cites it. No code
   before artifacts.
-- **II. Monorepo with Shared Contracts** ✅ — DTOs in `@effy/shared-types`; email in `@effy/email-kit`;
+- **II. Monorepo with Shared Contracts** ✅ - DTOs in `@effy/shared-types`; email in `@effy/email-kit`;
   the storefront's email validation reuses the shared `EMAIL_SHAPE`/`EMAIL_MAX_LENGTH` (044) so the
   form refuses exactly what the service refuses. No per-surface copies.
-- **III. Dual-Path Backend Discipline** ✅ — **cold path on both sides**, justified below. Hot path is
+- **III. Dual-Path Backend Discipline** ✅ - **cold path on both sides**, justified below. Hot path is
   explicitly NOT used.
   - *Public submission* → `edge-api/customer`: low frequency, asynchronous email work, and the service
     already carries DB access + `ses:SendEmail` + the `MAIL_*` env + a public-route precedent
@@ -79,22 +79,22 @@ surfaces.
     engaged.
   - *Staff reading/replying* → `edge-api/admin`: the doctrine's internal-console CRUD, mirroring
     deliverability/shops/promotions.
-- **IV. Auth Isolation** ✅ — the authenticated submit route uses the **customer** authorizer; the
+- **IV. Auth Isolation** ✅ - the authenticated submit route uses the **customer** authorizer; the
   console uses the **back-office** authorizer. RBAC is decided from the `admin.staff` record (read =
   any active staff incl. csa; reply = admin/manager), never from the token claim alone. No token
   crosses pools; no cross-pool brokering. A guest submit route is public with no authorizer.
-- **V. Native-Feel, Consistent Design** ✅ — monochrome design system throughout; **no card layouts**
+- **V. Native-Feel, Consistent Design** ✅ - monochrome design system throughout; **no card layouts**
   (the console is a `DataTable` list + a sectioned detail page; the storefront form is a sectioned
   page). Emails derive from the monochrome tokens via `email-kit`. Reference platforms: eBay/Uber Eats
-  "contact/feedback" patterns — a simple categorised form, an admin queue.
-- **VI. Layered Architecture & Explicit Wiring** ✅ — three-layer slices (handler → service →
+  "contact/feedback" patterns - a simple categorised form, an admin queue.
+- **VI. Layered Architecture & Explicit Wiring** ✅ - three-layer slices (handler → service →
   repository) with raw SQL and explicit mapping; mobile is MVVM (ViewModel → immutable UI state);
   web treats the server-state cache as source of truth; no DI framework.
-- **VII. Observability & Telemetry** ✅ — telemetry declared in Phase 1 (product events, metrics, one
+- **VII. Observability & Telemetry** ✅ - telemetry declared in Phase 1 (product events, metrics, one
   alarm on thank-you/reply send failure). No submitter PII in logs (logged without the address, per
-  newsletter). ⚠ Known carry-forward: PostHog is not yet initialised on customer-web (039) — events
+  newsletter). ⚠ Known carry-forward: PostHog is not yet initialised on customer-web (039) - events
   are declared and wired, and this limitation is recorded, not hidden.
-- **Real-World Identifiers** ✅ — no new outward identifier. The reply/thank-you sender + reply-to use
+- **Real-World Identifiers** ✅ - no new outward identifier. The reply/thank-you sender + reply-to use
   the approved `hello@effyshopping.com` / `workspace-admin@effyshopping.com` mailboxes already in
   `email-kit` config. No identifier is inferred from session/env.
 
@@ -161,10 +161,10 @@ apps/customer-mobile/shared/src/commonMain/kotlin/com/effyshopping/customer/mobi
 ```
 
 **Structure Decision**: One vertical slice across the existing surfaces, each following its
-surface's established layout. No new package or deployable is created — every touchpoint extends a
+surface's established layout. No new package or deployable is created - every touchpoint extends a
 directory that already exists (`edge-api/customer`, `edge-api/admin`, `shared-types`, `email-kit`,
 `customer-web`, `back-office`, `customer-mobile`). Two submit handlers (authenticated + public) are a
-deliberate consequence of API Gateway's per-route authorizer model — see research D2.
+deliberate consequence of API Gateway's per-route authorizer model - see research D2.
 
 ## Complexity Tracking
 

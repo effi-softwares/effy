@@ -24,7 +24,7 @@ const MAX_QTY = 99
 
 /**
  * The package a line falls into when the storefront read carries no opaque `packageKey` yet. It
- * puts everything into one anonymous package — a single-package cart, which degrades gracefully.
+ * puts everything into one anonymous package - a single-package cart, which degrades gracefully.
  * It is not a shop id; the authoritative per-shop split happens server-side at the
  * checkout quote.
  */
@@ -33,7 +33,7 @@ export const DEFAULT_PACKAGE_KEY = "pkg_default"
 export interface GuestCartLine {
   /** The line's identity: the size being bought. */
   variantId: string
-  /** The product it is a size of — for the link back to its page. */
+  /** The product it is a size of - for the link back to its page. */
   productId: string
   name: string
   /** The size's words ("1 kg"), null for a product sold one way. */
@@ -66,7 +66,7 @@ export interface GuestCartLine {
   priceChangedFrom?: string | null
 }
 
-/** An anonymous package section for the cart split — the items, and an opaque key. Never a shop. */
+/** An anonymous package section for the cart split - the items, and an opaque key. Never a shop. */
 export interface CartPackage {
   packageKey: string
   lines: GuestCartLine[]
@@ -103,7 +103,7 @@ export function removeLine(lines: readonly GuestCartLine[], variantId: string): 
   return lines.filter((l) => l.variantId !== variantId)
 }
 
-/** Total item count (sum of quantities) — the cart badge. */
+/** Total item count (sum of quantities) - the cart badge. */
 export function cartCount(lines: readonly GuestCartLine[]): number {
   return lines.reduce((n, l) => n + l.quantity, 0)
 }
@@ -118,8 +118,8 @@ export function linePayload(lines: readonly GuestCartLine[]): { variantId: strin
 
 /**
  * Group cart lines into anonymous packages by `packageKey`, in first-appearance order.
- * The label the UI shows is a positional "Package N" — never the key, and never a shop. A cart whose
- * lines all share one key returns a single package (single-shop degrades gracefully — FR-007/SC-011).
+ * The label the UI shows is a positional "Package N" - never the key, and never a shop. A cart whose
+ * lines all share one key returns a single package (single-shop degrades gracefully - FR-007/SC-011).
  */
 export function groupByPackage(lines: readonly GuestCartLine[]): CartPackage[] {
   const order: string[] = []
@@ -137,7 +137,7 @@ export function groupByPackage(lines: readonly GuestCartLine[]): CartPackage[] {
 
 /* The mirror */
 
-/** The whole cart as the app holds it — the shape persisted and rendered. */
+/** The whole cart as the app holds it - the shape persisted and rendered. */
 export interface CartMirror {
   /** Monotonic, from the platform. The mirror adopts a response only when this is not older. */
   revision: number
@@ -188,7 +188,7 @@ let cache: CartMirror = EMPTY_MIRROR
 let cacheRaw = ""
 
 /**
- * Read the mirror. Every failure mode — no blob, an unknown version, unparseable JSON — yields the empty
+ * Read the mirror. Every failure mode - no blob, an unknown version, unparseable JSON - yields the empty
  * mirror rather than throwing: losing a cart is bad, but a render crash is worse, and a half-parsed cart
  * is worst because the shopper would trust it.
  */
@@ -213,7 +213,7 @@ function write(next: CartMirror): void {
   try {
     window.localStorage.setItem(KEY, cacheRaw)
   } catch {
-    /* storage disabled — cart is best-effort */
+    /* storage disabled - cart is best-effort */
   }
   listeners.forEach((l) => l())
 }
@@ -241,8 +241,8 @@ function recompute(cart: CartMirror): CartMirror {
           : payable.length === 0
             ? "no_payable_items"
             : // A local edit cannot re-judge the minimum: it is the platform's number, and the platform
-              // re-answers on the next response. Leave whatever it last said.
-              cart.checkout.blockedReason === "below_minimum"
+            // re-answers on the next response. Leave whatever it last said.
+            cart.checkout.blockedReason === "below_minimum"
               ? "below_minimum"
               : null,
     },
@@ -292,7 +292,7 @@ export function clearCart(): void {
 /* Reconciliation with the platform */
 
 /**
- * Take the platform's cart — but only when it is not older than what we hold. Returns false when an
+ * Take the platform's cart - but only when it is not older than what we hold. Returns false when an
  * out-of-order response was correctly ignored, which is the entire reason `revision` exists.
  */
 export function adopt(dto: CartDTO): boolean {
@@ -303,7 +303,7 @@ export function adopt(dto: CartDTO): boolean {
 
 /**
  * Take a re-priced guest cart. A guest has no server cart, so `/v1/cart/preview` answers with revision 0
- * and `adopt`'s forward-only rule would reject it against any non-zero mirror — and then FR-004 would
+ * and `adopt`'s forward-only rule would reject it against any non-zero mirror - and then FR-004 would
  * silently fail for every guest. The platform's prices still win; the mirror keeps its own revision.
  */
 export function adoptPreview(dto: CartDTO): void {
@@ -350,7 +350,7 @@ function fromDTO(dto: CartDTO): CartMirror {
 }
 
 /**
- * The current mirror, without a hook — for code that runs in an effect or an event handler rather than
+ * The current mirror, without a hook - for code that runs in an effect or an event handler rather than
  * during render (the sync coordinator). The store's read is synchronous, so this is not a second source of
  * truth; it is the same one, reached without React.
  */
@@ -370,7 +370,7 @@ export function useCart(): GuestCartLine[] {
   return useCartMirror().lines
 }
 
-/** Reactive cart count (the badge) — local, so it never waits on a network round trip. */
+/** Reactive cart count (the badge) - local, so it never waits on a network round trip. */
 export function useCartCount(): number {
   return cartCount(useCartMirror().lines)
 }

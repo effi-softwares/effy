@@ -53,7 +53,7 @@ const live = {
 } as unknown as ProductDetail
 
 describe("reviewChip", () => {
-  it("says nothing for a draft or a live product — the lifecycle chip already does", () => {
+  it("says nothing for a draft or a live product - the lifecycle chip already does", () => {
     expect(reviewChip("draft")).toBeNull()
     expect(reviewChip("live")).toBeNull()
     expect(reviewChip(undefined)).toBeNull()
@@ -163,7 +163,7 @@ describe("visibilityAction (067)", () => {
     expect(visibilityAction("draft", "sent_back")).toMatchObject({ kind: "submit", label: "Submit again" })
   })
   it("says it is NOT on sale until approved", () => {
-    expect(visibilityAction("draft", "draft")?.confirmBody).toMatch(/when it is approved — not before/)
+    expect(visibilityAction("draft", "draft")?.confirmBody).toMatch(/when it is approved - not before/)
   })
   // Taking a product off sale and putting it back is the shop's own call.
   it("leaves an approved product's on/off sale moves immediate", () => {

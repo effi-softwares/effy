@@ -15,7 +15,7 @@ object PackageToken {
 
     fun isCode(value: String): Boolean = value.length == LENGTH && value.all { it in ALPHABET }
 
-    /** Surrounding whitespace — what a keyboard-style scanner sends — is ignored; nothing else is forgiven. */
+    /** Surrounding whitespace - what a keyboard-style scanner sends - is ignored; nothing else is forgiven. */
     fun parse(read: String): String? {
         val s = read.trim()
         if (!s.startsWith(PREFIX)) return null

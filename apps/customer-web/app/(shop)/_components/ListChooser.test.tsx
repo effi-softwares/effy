@@ -32,13 +32,13 @@ function platform(answers: Record<string, unknown>) {
 const LISTS = `GET /api/lists?productId=${PRODUCT}`
 const IDS = "GET /api/saved/ids"
 
-describe("068 — the list chooser", () => {
+describe("068 - the list chooser", () => {
   beforeEach(() => window.localStorage.clear())
   afterEach(() => vi.unstubAllGlobals())
 
   it("shows every list, Saved first, each ticked or not", async () => {
     platform({ [LISTS]: ok([saved, weekly]) })
-    render(<ListChooser productId={PRODUCT} onClosed={() => {}} />)
+    render(<ListChooser productId={PRODUCT} onClosed={() => { }} />)
 
     const boxes = await screen.findAllByRole("checkbox")
     expect(boxes).toHaveLength(2)
@@ -56,7 +56,7 @@ describe("068 — the list chooser", () => {
       },
       [IDS]: ok({ productIds: [PRODUCT], count: 1, namedProductIds: [PRODUCT] }),
     })
-    render(<ListChooser productId={PRODUCT} onClosed={() => {}} />)
+    render(<ListChooser productId={PRODUCT} onClosed={() => { }} />)
 
     await userEvent.click(await screen.findByRole("checkbox", { name: /^Weekly Items/ }))
 
@@ -70,7 +70,7 @@ describe("068 — the list chooser", () => {
       [`DELETE /api/lists/${WEEKLY}/entries/${PRODUCT}`]: ok(undefined, 204),
       [IDS]: ok({ productIds: [PRODUCT], count: 1, namedProductIds: [] }),
     })
-    render(<ListChooser productId={PRODUCT} onClosed={() => {}} />)
+    render(<ListChooser productId={PRODUCT} onClosed={() => { }} />)
 
     await userEvent.click(await screen.findByRole("checkbox", { name: /^Weekly Items/ }))
 
@@ -84,7 +84,7 @@ describe("068 — the list chooser", () => {
       "POST /api/lists": ok({ ...weekly, name: "Daily Items", containsProduct: undefined }, 201),
       [IDS]: ok({ productIds: [PRODUCT], count: 1, namedProductIds: [PRODUCT] }),
     })
-    render(<ListChooser productId={PRODUCT} onClosed={() => {}} />)
+    render(<ListChooser productId={PRODUCT} onClosed={() => { }} />)
 
     await userEvent.type(await screen.findByLabelText("New list"), "Daily Items")
     await userEvent.click(screen.getByRole("button", { name: "Create" }))
@@ -100,7 +100,7 @@ describe("068 — the list chooser", () => {
     ["list_limit", 400, "You've reached the maximum number of lists. Delete one to make another."],
   ])("says why a create was refused: %s", async (reason, status, sentence) => {
     platform({ [LISTS]: ok([saved]), "POST /api/lists": refused(status, reason) })
-    render(<ListChooser productId={PRODUCT} onClosed={() => {}} />)
+    render(<ListChooser productId={PRODUCT} onClosed={() => { }} />)
 
     await userEvent.type(await screen.findByLabelText("New list"), "Weekly Items")
     await userEvent.click(screen.getByRole("button", { name: "Create" }))
@@ -111,7 +111,7 @@ describe("068 — the list chooser", () => {
 
   it("counts the name in characters as the platform does, and stops an over-long one", async () => {
     platform({ [LISTS]: ok([saved]) })
-    render(<ListChooser productId={PRODUCT} onClosed={() => {}} />)
+    render(<ListChooser productId={PRODUCT} onClosed={() => { }} />)
 
     const field = await screen.findByLabelText("New list")
     expect(screen.getByRole("button", { name: "Create" })).toBeDisabled() // nothing typed
@@ -127,7 +127,7 @@ describe("068 — the list chooser", () => {
   it("renders a name that looks like markup as the characters typed", async () => {
     const hostile = `<img src=x onerror="alert(1)"><a href="javascript:alert(1)">x</a>`
     platform({ [LISTS]: ok([saved, { ...weekly, name: hostile }]) })
-    const { container } = render(<ListChooser productId={PRODUCT} onClosed={() => {}} />)
+    const { container } = render(<ListChooser productId={PRODUCT} onClosed={() => { }} />)
 
     expect(await screen.findByText(hostile)).toBeInTheDocument()
     expect(container.querySelector("img")).toBeNull()
@@ -137,7 +137,7 @@ describe("068 — the list chooser", () => {
   /** Named lists need an account; the guest's save is not lost. */
   it("tells a guest that lists need an account and offers sign-in", async () => {
     platform({ [LISTS]: refused(401) })
-    render(<ListChooser productId={PRODUCT} onClosed={() => {}} />)
+    render(<ListChooser productId={PRODUCT} onClosed={() => { }} />)
 
     expect(await screen.findByText(/need an account/)).toBeInTheDocument()
     expect(screen.getByText(/saved on this device/)).toBeInTheDocument()
@@ -154,7 +154,7 @@ describe("068 — the list chooser", () => {
         return refused(404, "list_not_found")
       },
     })
-    render(<ListChooser productId={PRODUCT} onClosed={() => {}} />)
+    render(<ListChooser productId={PRODUCT} onClosed={() => { }} />)
 
     await userEvent.click(await screen.findByRole("checkbox", { name: /^Weekly Items/ }))
 

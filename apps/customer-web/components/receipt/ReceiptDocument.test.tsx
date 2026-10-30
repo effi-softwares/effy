@@ -6,7 +6,7 @@ import type { OrderDTO } from "@effy/shared-types"
 import { ReceiptDocument } from "./ReceiptDocument"
 
 /**
- * 052 US1. The document is a pure, synchronous component precisely so it can be tested — the pages
+ * 052 US1. The document is a pure, synchronous component precisely so it can be tested - the pages
  * that host it are async Server Components, which Vitest cannot render.
  */
 function order(over: Partial<OrderDTO> = {}): OrderDTO {
@@ -21,7 +21,7 @@ function order(over: Partial<OrderDTO> = {}): OrderDTO {
         productId: "p1",
         variantId: "p1-v",
         variantLabel: null,
-      ageRestricted: false,
+        ageRestricted: false,
         productName: "Barilla Spaghetti No.5 500g",
         unitPriceAmount: "3.60",
         quantity: 1,
@@ -32,7 +32,7 @@ function order(over: Partial<OrderDTO> = {}): OrderDTO {
         productId: "p2",
         variantId: "p2-v",
         variantLabel: null,
-      ageRestricted: false,
+        ageRestricted: false,
         productName: "Quilton 3 Ply Toilet Tissue 12 Pack",
         unitPriceAmount: "9.50",
         quantity: 2,
@@ -76,7 +76,7 @@ function money(text: string): number {
   return Number(text.replace(/[^0-9.-]/g, ""))
 }
 
-describe("ReceiptDocument — the lines add up (FR-004, SC-002)", () => {
+describe("ReceiptDocument - the lines add up (FR-004, SC-002)", () => {
   it("sums the line totals to the items subtotal, and reconciles to the total charged", () => {
     render(<ReceiptDocument order={order()} />)
 
@@ -102,7 +102,7 @@ describe("ReceiptDocument — the lines add up (FR-004, SC-002)", () => {
               productId: "p1",
               variantId: "p1-v",
               variantLabel: null,
-      ageRestricted: false,
+              ageRestricted: false,
               productName: "Milk",
               unitPriceAmount: "3.10",
               quantity: 2,
@@ -141,7 +141,7 @@ describe("ReceiptDocument — the lines add up (FR-004, SC-002)", () => {
   })
 })
 
-describe("ReceiptDocument — 077 delivery lines", () => {
+describe("ReceiptDocument - 077 delivery lines", () => {
   it("shows the lines the order was sold with, and they reconcile to the total", () => {
     render(
       <ReceiptDocument
@@ -162,7 +162,7 @@ describe("ReceiptDocument — 077 delivery lines", () => {
     expect(22.6 + 6 + 3 + 3).toBeCloseTo(total, 2)
   })
 
-  it("a free delivery is shown as what was waived — not omitted as if nothing were known", () => {
+  it("a free delivery is shown as what was waived - not omitted as if nothing were known", () => {
     render(
       <ReceiptDocument
         order={order({
@@ -178,7 +178,7 @@ describe("ReceiptDocument — 077 delivery lines", () => {
   })
 })
 
-describe("ReceiptDocument — what a line must show (FR-003)", () => {
+describe("ReceiptDocument - what a line must show (FR-003)", () => {
   /** The unit price has been on the wire since 019 and NO surface rendered it. */
   it("shows the unit price beside every line, not just the line total", () => {
     render(<ReceiptDocument order={order()} />)
@@ -195,10 +195,10 @@ describe("ReceiptDocument — what a line must show (FR-003)", () => {
   })
 })
 
-describe("ReceiptDocument — degrading on a pre-052 order (FR-006)", () => {
+describe("ReceiptDocument - degrading on a pre-052 order (FR-006)", () => {
   /**
    * A pre-052 order, or one whose post-commit capture failed, carries no payment method. The line must
-   * be absent — not blank, and not a dash that could be read as "unknown".
+   * be absent - not blank, and not a dash that could be read as "unknown".
    */
   it("omits the payment line entirely when nothing was captured", () => {
     render(<ReceiptDocument order={order({ paymentMethod: null })} />)
@@ -234,7 +234,7 @@ describe("ReceiptDocument — degrading on a pre-052 order (FR-006)", () => {
  * SC-011. Effy is one brand with hidden fulfilment: nothing on this document may disclose that an
  * order was split, into how many parts, or which nodes handled it.
  */
-describe("ReceiptDocument — discloses no fulfilment structure (FR-009, SC-011)", () => {
+describe("ReceiptDocument - discloses no fulfilment structure (FR-009, SC-011)", () => {
   it("renders no shop identity, count, distance or ring even when the order has portions", () => {
     const { container } = render(
       <ReceiptDocument
@@ -248,7 +248,7 @@ describe("ReceiptDocument — discloses no fulfilment structure (FR-009, SC-011)
     )
     const text = container.textContent ?? ""
 
-    // Word boundaries, not substrings — and that distinction is itself the finding. A bare
+    // Word boundaries, not substrings - and that distinction is itself the finding. A bare
     // `toContain("shop")` fails on the seller's own address, `hello@effyshopping.com`, which is
     // supposed to be there. The rule is "no shop IDENTITY", not "the letters s-h-o-p".
     for (const banned of [/\bshops?\b/i, /\brings?\b/i, /\bdistance\b/i, /\bnodes?\b/i, /\bwarehouse\b/i]) {
@@ -259,7 +259,7 @@ describe("ReceiptDocument — discloses no fulfilment structure (FR-009, SC-011)
   })
 })
 
-describe("ReceiptDocument — points (074 FR-018)", () => {
+describe("ReceiptDocument - points (074 FR-018)", () => {
   it("shows points as a way of paying beside the card, and leaves the total unchanged", () => {
     render(
       <ReceiptDocument

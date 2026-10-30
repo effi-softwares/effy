@@ -9,7 +9,7 @@ const reader = (counts: Record<string, { routes: number; integrations: number }>
   countIntegrations: async (id) => counts[id]!.integrations,
 })
 
-describe("gateway usage — how full each gateway is", () => {
+describe("gateway usage - how full each gateway is", () => {
   it("gives four readings: each gateway, each limit", async () => {
     const readings = await measure(reader({ a: { routes: 158, integrations: 150 }, b: { routes: 144, integrations: 144 } }), { shared: "a", staff: "b" })
     expect(readings).toEqual([
@@ -20,7 +20,7 @@ describe("gateway usage — how full each gateway is", () => {
     ])
   })
 
-  it("⚠ rounds UP — one route from full never reads as under a threshold", () => {
+  it("⚠ rounds UP - one route from full never reads as under a threshold", () => {
     expect(percentOf(299)).toBe(100)
     expect(percentOf(300)).toBe(100)
     expect(percentOf(269)).toBe(90)
@@ -29,13 +29,13 @@ describe("gateway usage — how full each gateway is", () => {
     expect(percentOf(GATEWAY_CEILING + 5)).toBe(100)
   })
 
-  it("a reader that fails makes the whole measurement fail — never a partial answer", async () => {
+  it("a reader that fails makes the whole measurement fail - never a partial answer", async () => {
     const broken: GatewayReader = { countRoutes: async () => 10, countIntegrations: async () => Promise.reject(new Error("AccessDenied")) }
     await expect(measure(broken, { shared: "a", staff: "b" })).rejects.toThrow("AccessDenied")
   })
 })
 
-describe("gatewayUsage — the scheduled function", () => {
+describe("gatewayUsage - the scheduled function", () => {
   const write = vi.spyOn(process.stdout, "write").mockImplementation(() => true)
   afterEach(() => {
     write.mockClear()
@@ -73,7 +73,7 @@ describe("gatewayUsage — the scheduled function", () => {
     }
   })
 
-  it("⚠ throws when it cannot read — silence would read as a healthy gateway", async () => {
+  it("⚠ throws when it cannot read - silence would read as a healthy gateway", async () => {
     process.env.SHARED_HTTP_API_ID = "a"
     process.env.STAFF_HTTP_API_ID = "b"
     const broken: GatewayReader = { countRoutes: async () => Promise.reject(new Error("AccessDenied")), countIntegrations: async () => 1 }

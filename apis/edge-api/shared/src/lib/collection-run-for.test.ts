@@ -10,7 +10,7 @@ const stamp = (d: Date | null) =>
   d === null
     ? null
     : new Intl.DateTimeFormat("en-CA", { timeZone: "Australia/Melbourne", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false })
-        .format(d).replace(", ", " ");
+      .format(d).replace(", ", " ");
 
 describe("collectionRunFor (082 P1)", () => {
   it("the LATEST run that reaches the hub in time for the window, on the window's day", () => {
@@ -45,13 +45,13 @@ describe("collectionRunFor (082 P1)", () => {
     expect(stamp(collectionRunFor(new Date("2027-04-04T08:00:00+10:00"), RUNS, TURNAROUND))).toBe("2027-04-03 18:00");
   });
 
-  it("no runs, or none within reach: null — the caller falls back to the next run", () => {
+  it("no runs, or none within reach: null - the caller falls back to the next run", () => {
     expect(collectionRunFor(aedt("2026-10-15T16:00:00"), [], TURNAROUND)).toBeNull();
     expect(collectionRunFor(aedt("2026-10-15T08:00:00"), RUNS, TURNAROUND, { noWeekdays: [1, 2, 3, 4, 5, 6, 7] })).toBeNull();
   });
 });
 
-describe("dueRun — the one rule the planner collects by and shops are told (099)", () => {
+describe("dueRun - the one rule the planner collects by and shops are told (099)", () => {
   const runs = [
     { hour: 9, minute: 0 },
     { hour: 12, minute: 30 },

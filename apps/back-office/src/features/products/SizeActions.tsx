@@ -45,9 +45,9 @@ export function SizeActions({ product, variant }: { product: BackOfficeProductDT
           disabled={setState.isPending || last || heldOff}
           title={
             heldOff
-              ? "The product is held — release it before a size goes back on sale"
+              ? "The product is held - release it before a size goes back on sale"
               : last
-                ? "The last size on sale — hold the product instead"
+                ? "The last size on sale - hold the product instead"
                 : undefined
           }
           onCheckedChange={(on) => {
@@ -93,7 +93,7 @@ function CountDialog({
     <AlertDialog open onOpenChange={(o) => (!o && !setCount.isPending ? onClose() : null)}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Set the count{variant.label ? ` — ${variant.label}` : ""}</AlertDialogTitle>
+          <AlertDialogTitle>Set the count{variant.label ? ` - ${variant.label}` : ""}</AlertDialogTitle>
           <AlertDialogDescription>
             On {product.shop.name}'s behalf. It is recorded as changed by Effy, and the shop sees it at once.
           </AlertDialogDescription>

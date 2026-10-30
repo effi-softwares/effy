@@ -122,7 +122,7 @@ class CheckoutViewModelTest {
 
     private fun ready(vm: CheckoutViewModel) = vm.state.value as? CheckoutUiState.Ready
 
-    /** The address fake behind the most recent [vm] — for asserting what was (not) written back. */
+    /** The address fake behind the most recent [vm] - for asserting what was (not) written back. */
     private var lastAddresses: FakeAddresses? = null
 
     // Address selection
@@ -133,7 +133,7 @@ class CheckoutViewModelTest {
         assertEquals("b", ready(vm)?.selectedId)
     }
 
-    // Deterministic when nothing is marked default — a shopper must not get a different address
+    // Deterministic when nothing is marked default - a shopper must not get a different address
     // depending on read order.
     @Test
     fun `with no default it falls back to the first saved address`() = runTest {
@@ -175,7 +175,7 @@ class CheckoutViewModelTest {
         assertNull(ready(vm)?.effectiveBillingId)
     }
 
-    // A billing address equal to shipping is sent as null, not as a duplicate snapshot — "same as
+    // A billing address equal to shipping is sent as null, not as a duplicate snapshot - "same as
     // shipping" is the absence of a divergent billing address, not a copy of one.
     @Test
     fun `billing equal to shipping sends nothing`() = runTest {
@@ -218,7 +218,7 @@ class CheckoutViewModelTest {
 
     /**
      * The one-shot must disarm, or backing out of payment re-fires it and bounces the shopper straight
-     * back in — with no way out but the app switcher.
+     * back in - with no way out but the app switcher.
      */
     @Test
     fun `the handoff signal is consumed once`() = runTest {
@@ -598,7 +598,7 @@ class CheckoutViewModelTest {
         assertTrue(lastAddresses!!.savedInstructions.isEmpty())
     }
 
-    /** ⚠ FR-014 — an override is for THIS order; the address keeps what it had. */
+    /** ⚠ FR-014 - an override is for THIS order; the address keeps what it had. */
     @Test
     fun `editing for one order does not write to the address`() = runTest {
         val checkout = FakeCheckout()
@@ -622,7 +622,7 @@ class CheckoutViewModelTest {
         assertFalse(ready(vm)!!.saveInstructions)
     }
 
-    /** ⚠ FR-015 — a note is about a place. Typed text does not follow the shopper to another address. */
+    /** ⚠ FR-015 - a note is about a place. Typed text does not follow the shopper to another address. */
     @Test
     fun `switching address replaces the draft and resets the save choice`() = runTest {
         val vm = vm(listOf(home(), addr("b")))

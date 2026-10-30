@@ -163,7 +163,7 @@ function Editor({ current }: { current: AdminSkinDTO | null }) {
                       icon: Trash2,
                       destructive: true,
                       disabled: inUse,
-                      hint: "In use — choose another skin where it is used first",
+                      hint: "In use - choose another skin where it is used first",
                       onSelect: () => setDeleting(true),
                     },
                   ]}
@@ -189,7 +189,7 @@ function Editor({ current }: { current: AdminSkinDTO | null }) {
                   id="skin-name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Winter — photo"
+                  placeholder="Winter - photo"
                   className="max-w-md"
                 />
                 <p className="mt-0.5 block text-sm text-muted-foreground">

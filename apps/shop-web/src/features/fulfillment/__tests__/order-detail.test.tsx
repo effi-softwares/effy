@@ -44,7 +44,7 @@ describe("the shop console offers no action the platform cannot perform", () => 
   for (const { label, pattern } of FORBIDDEN) {
     it(`offers no ${label} control`, () => {
       const offenders = files.filter((f) => pattern.test(code(f)))
-      expect(offenders, `${label} is not something Effy's model supports — see this file's docblock`).toEqual([])
+      expect(offenders, `${label} is not something Effy's model supports - see this file's docblock`).toEqual([])
     })
   }
 

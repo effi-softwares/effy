@@ -30,7 +30,7 @@ beforeEach(() => {
   sendEmail.mockResolvedValue(undefined)
 })
 
-describe("subscribe — validation happens before any work (FR-030)", () => {
+describe("subscribe - validation happens before any work (FR-030)", () => {
   for (const bad of ["", "   ", "nope", "no@domain", "@example.com", "a@b", "a b@c.com"]) {
     it(`rejects ${JSON.stringify(bad)} with no DB call and no email`, async () => {
       expect(await subscribe(bad, config)).toEqual({ status: "invalid" })
@@ -65,7 +65,7 @@ describe("subscribe — validation happens before any work (FR-030)", () => {
   })
 })
 
-describe("subscribe — the happy path", () => {
+describe("subscribe - the happy path", () => {
   it("records the subscription and sends the confirmation", async () => {
     expect(await subscribe("person@example.com", config)).toEqual({ status: "ok" })
 
@@ -106,7 +106,7 @@ describe("subscribe — the happy path", () => {
 })
 
 /** The cooldown is the only rate limit. */
-describe("subscribe — abuse resistance (FR-035)", () => {
+describe("subscribe - abuse resistance (FR-035)", () => {
   it("sends NOTHING when the repo says the cooldown has not elapsed", async () => {
     upsertSubscriber.mockResolvedValue({ sendDue: false })
 
@@ -126,7 +126,7 @@ describe("subscribe — abuse resistance (FR-035)", () => {
   })
 
   /** It caps email per address; thousands of distinct addresses still get one each (that needs WAF). */
-  it("does not cap distinct addresses — recorded, not fixed", async () => {
+  it("does not cap distinct addresses - recorded, not fixed", async () => {
     for (let i = 0; i < 5; i++) await subscribe(`person${i}@example.com`, config)
 
     expect(sendEmail).toHaveBeenCalledTimes(5)
@@ -134,7 +134,7 @@ describe("subscribe — abuse resistance (FR-035)", () => {
 })
 
 /** No answer may reveal whether an address is subscribed. */
-describe("subscribe — non-enumeration (FR-032)", () => {
+describe("subscribe - non-enumeration (FR-032)", () => {
   it("returns a byte-identical result for a new, a pending and a confirmed address", async () => {
     upsertSubscriber.mockResolvedValueOnce({ sendDue: true })
     const fresh = await subscribe("new@example.com", config)
@@ -150,7 +150,7 @@ describe("subscribe — non-enumeration (FR-032)", () => {
     expect(fresh).toEqual({ status: "ok" })
   })
 
-  it("never returns an `already` status — there is no such arm", async () => {
+  it("never returns an `already` status - there is no such arm", async () => {
     upsertSubscriber.mockResolvedValue({ sendDue: false })
 
     const result = await subscribe("person@example.com", config)
@@ -159,7 +159,7 @@ describe("subscribe — non-enumeration (FR-032)", () => {
   })
 })
 
-describe("subscribe — failure is retryable, not silent", () => {
+describe("subscribe - failure is retryable, not silent", () => {
   /** `onSendFailure: "throw"`, so a failed send reaches the service. */
   it("reports `error` when the confirmation email cannot be sent", async () => {
     sendEmail.mockRejectedValue(new Error("SES is down"))
@@ -187,7 +187,7 @@ describe("subscribe — failure is retryable, not silent", () => {
   })
 })
 
-describe("confirm — single-use, TTL-bounded, and never disclosing", () => {
+describe("confirm - single-use, TTL-bounded, and never disclosing", () => {
   it("confirms a valid token", async () => {
     expect(await confirm("a-real-token", config)).toEqual({ status: "confirmed" })
   })
@@ -228,7 +228,7 @@ describe("confirm — single-use, TTL-bounded, and never disclosing", () => {
   })
 })
 
-describe("expiresInWords — the email says a duration, not a timestamp", () => {
+describe("expiresInWords - the email says a duration, not a timestamp", () => {
   it("renders whole days as days, and a single day as hours", () => {
     expect(expiresInWords(24)).toBe("24 hours")
     expect(expiresInWords(48)).toBe("2 days")

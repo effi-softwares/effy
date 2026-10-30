@@ -20,7 +20,7 @@ const event = (sub: string): AuthedEvent =>
 const scope = preamble(event("x"), { callbackWaitsForEmptyEventLoop: true } as unknown as Context);
 const lookup = async (sub: string) => (await pool.query<CustomerRow>(CUSTOMER_BY_SUB, [sub])).rows[0];
 
-d("070 — customer gate against the real schema", () => {
+d("070 - customer gate against the real schema", () => {
   beforeAll(async () => {
     container = await new PostgreSqlContainer("postgres:16-alpine").start();
     pool = new Pool({ connectionString: container.getConnectionUri() });

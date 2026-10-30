@@ -9,7 +9,7 @@ interface CrashReporter {
     /** Start reporting. Called off the main thread after first frame (performance, R11). */
     fun init()
 
-    /** Associate reports with the signed-in subject; pass null on sign-out. `sub` only — never PII. */
+    /** Associate reports with the signed-in subject; pass null on sign-out. `sub` only - never PII. */
     fun setSubject(sub: String?)
 
     /** Record a handled (non-fatal) error. `keys` are low-cardinality, non-PII breadcrumbs. */

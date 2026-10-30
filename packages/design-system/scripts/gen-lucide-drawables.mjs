@@ -17,7 +17,7 @@ export const ICONS = [
   "camera", "circle-x", "door-open", "ellipsis", "external-link", "flashlight", "flashlight-off", "hand",
   "inbox", "navigation", "pause", "pen-line", "phone", "refresh-ccw", "rotate-ccw", "scan-line",
   "warehouse", "power", "search-x",
-  // 101 — every category icon key (shared-types CATEGORY_ICONS) has a drawable. These were converted from
+  // 101 - every category icon key (shared-types CATEGORY_ICONS) has a drawable. These were converted from
   // lucide-react's own icon data (same shapes), by the same `convert`.
   "bath", "bed", "beer", "bike", "cable", "candy", "car", "cooking-pot", "drill", "dumbbell", "egg", "flower-2",
   "footprints", "gamepad-2", "hammer", "headphones", "heart-pulse", "lamp", "laptop", "notebook", "paintbrush",

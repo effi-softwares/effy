@@ -16,11 +16,11 @@ one `single_select`/`multi_select`/`boolean` attribute with values on products.
 ```bash
 # Facets for a bare store
 curl -s "$CORE/v1/storefront/facets" | jq '.facets[].key'
-# Facets narrowed by one brand — sibling brands still have counts (OR-within rule)
+# Facets narrowed by one brand - sibling brands still have counts (OR-within rule)
 curl -s "$CORE/v1/storefront/facets?brand=Acme" | jq '.facets[] | select(.key=="brand")'
-# Multi-value products query — union of two brands
+# Multi-value products query - union of two brands
 curl -s "$CORE/v1/storefront/products?brand=Acme&brand=Beta&limit=5" | jq '.total'
-# Intersection — brand AND a dietary attribute
+# Intersection - brand AND a dietary attribute
 curl -s "$CORE/v1/storefront/products?brand=Acme&attr.diet=vegan&limit=5" | jq '.total'
 ```
 
@@ -30,7 +30,7 @@ options are absent (FR-009). Invalid `minPrice=abc` → `400 invalid_price`.
 
 ## 2. Count correctness & performance (SC-002, SC-008)
 
-- `go test ./internal/features/storefront/...` — facet count tests (per-option counts equal an
+- `go test ./internal/features/storefront/...` - facet count tests (per-option counts equal an
   independent count; own-selection-excluded rule).
 - On a ≥ 50k-product set, `EXPLAIN (ANALYZE, BUFFERS)` the brand and attribute-value aggregate queries;
   confirm `product_active_brand_idx` and `product_attribute_value_def_product_idx` are used (no seq
@@ -64,13 +64,13 @@ options are absent (FR-009). Invalid `minPrice=abc` → `400 invalid_price`.
 ## 5. Cross-language contract
 
 - `go test` wire-contract + the Kotlin `...WireContractTest.kt` share a byte-identical `FacetSetDTO`
-  literal and the multi-value param encoding — break one side to confirm the test fails (028 pattern).
+  literal and the multi-value param encoding - break one side to confirm the test fails (028 pattern).
 
 ## 6. Parity & telemetry
 
 - `docs/audiences/customer-capabilities.md` §043 records the facet set + controls at parity across
   web and mobile (FR-021 / SC-004).
-- Telemetry events fire on the shared `capture()` path (web) — note they are inert until PostHog is
+- Telemetry events fire on the shared `capture()` path (web) - note they are inert until PostHog is
   initialised on customer-web (declared gap). Mobile telemetry deferred.
 
 ## Definition of done (maps to Success Criteria)

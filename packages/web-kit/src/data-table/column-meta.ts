@@ -15,8 +15,8 @@ import {
 
 /**
  * What a column says about itself, declared once with the column (103). Everything a screen used to do by
- * hand on each cell — hiding below a breakpoint, aligning figures, placing the cell in the phone layout,
- * naming its server sort — is derived from this.
+ * hand on each cell - hiding below a breakpoint, aligning figures, placing the cell in the phone layout,
+ * naming its server sort - is derived from this.
  */
 export interface EffyColumnMeta {
   /** The header text and the column menu's name for it. */

@@ -22,7 +22,7 @@ const cases = JSON.parse(
   readFileSync(fileURLToPath(new URL("./delivery-instructions.fixtures.json", import.meta.url)), "utf8"),
 ) as Case[];
 
-describe("066 — delivery instructions, the shared fixture", () => {
+describe("066 - delivery instructions, the shared fixture", () => {
   it("is not empty (this suite would otherwise pass vacuously)", () => {
     expect(cases.length).toBeGreaterThan(15);
   });
@@ -34,7 +34,7 @@ describe("066 — delivery instructions, the shared fixture", () => {
   }
 });
 
-describe("066 — delivery instructions", () => {
+describe("066 - delivery instructions", () => {
   it("undefined is no instructions, like null", () => {
     expect(normaliseDeliveryInstructions(undefined)).toEqual({ ok: true, value: { handover: null, note: null } });
   });

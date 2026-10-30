@@ -38,7 +38,7 @@ import {
 import { vehicleDetailQuery, vehicleKeys } from "./queries"
 import { vehicleStatusTone } from "./VehiclesListScreen"
 
-const dash = <span className="text-muted-foreground">—</span>
+const dash = <span className="text-muted-foreground">-</span>
 
 function inDays(iso: string | null): string | null {
   if (!iso) return null
@@ -159,7 +159,7 @@ export function VehicleDetailScreen({ vehicleId }: { vehicleId: string }) {
             ) : v.currentHolderDriverId ? (
               <p className="text-sm">Out with {v.currentHolderName}.</p>
             ) : (
-              <p className="text-sm text-muted-foreground">Available — nobody has this vehicle.</p>
+              <p className="text-sm text-muted-foreground">Available - nobody has this vehicle.</p>
             )}
           </Panel>
           <Panel title="Compliance" icon={<ShieldCheck aria-hidden="true" />}>
@@ -196,7 +196,7 @@ export function VehicleDetailScreen({ vehicleId }: { vehicleId: string }) {
             <Panel title="Status">
               <div className="space-y-3">
                 <p className="mt-0.5 block text-sm text-muted-foreground">
-                  Off the road is temporary — in the workshop, or awaiting repair. Retired is for good.
+                  Off the road is temporary - in the workshop, or awaiting repair. Retired is for good.
                 </p>
                 <VehicleStatusControl vehicle={v} />
               </div>
@@ -208,7 +208,7 @@ export function VehicleDetailScreen({ vehicleId }: { vehicleId: string }) {
         app="back-office"
         log="bo-vehicle"
         title="Vehicle activity"
-        description={`${v.registrationPlate} — who had it and when, changes to it, and cleared checks.`}
+        description={`${v.registrationPlate} - who had it and when, changes to it, and cleared checks.`}
         api={api}
         path={`/fleet/v1/vehicles/${v.id}/activity`}
         queryKey={vehicleKeys.detail(v.id)}

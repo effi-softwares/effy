@@ -1,6 +1,6 @@
-# The JS/TS workspace's CI. Before 011 the repo had NO web CI at all — only `infra.yml`
+# The JS/TS workspace's CI. Before 011 the repo had NO web CI at all - only `infra.yml`
 # (Terraform). That mattered more than it sounds: the customer storefront's headline promises
-# (FR-005 "budgets MUST be enforced automatically — a change that breaches one MUST fail the
+# (FR-005 "budgets MUST be enforced automatically - a change that breaches one MUST fail the
 # build", FR-006 "guests download zero auth JS") are only real if a machine checks them on
 # every change. A budget that lives in a README is a budget nobody keeps.
 #
@@ -44,7 +44,7 @@ jobs:
       - run: pnpm -r test
       - run: pnpm exec turbo build
       # ⚠ Retired-brand sweeps. These MUST be an explicit CI step: `check-no-jade.sh` existed from
-      # 017 but was referenced by NOTHING — no package script, no Makefile target, no workflow — so
+      # 017 but was referenced by NOTHING - no package script, no Makefile target, no workflow - so
       # the rule it enforced had never actually gated a build. Note that adding them to the root
       # `pnpm test` would NOT work either: that is `turbo run test`, which only runs per-package
       # scripts. Constitution Principle V (v1.11.0) / 026 FR-011.
@@ -52,15 +52,15 @@ jobs:
         run: |
           bash scripts/check-no-jade.sh
           bash scripts/check-no-emerald.sh
-      # 071 — no screen refreshes its data on a timer. An explicit step for the same reason as the
+      # 071 - no screen refreshes its data on a timer. An explicit step for the same reason as the
       # sweeps above: a guard nothing runs is a rule nothing enforces.
       - name: "Gate: no data refresh timers (071 FR-009)"
         run: bash scripts/check-no-refresh-timers.sh
-      # 079 — a shop is told who takes the package away ("Effy driver" / "Courier"), never the
+      # 079 - a shop is told who takes the package away ("Effy driver" / "Courier"), never the
       # customer's words for the delivery. A restored label compiles and renders; only this fails.
       - name: "Gate: no customer delivery words on shop screens (079 FR-028)"
         run: bash scripts/check-shop-delivery-words.sh
-      # 082 — drivers and dispatch read "Effy delivery" / "Delivery" / "Collection" / "Courier", never
+      # 082 - drivers and dispatch read "Effy delivery" / "Delivery" / "Collection" / "Courier", never
       # the customer's words. A restored label compiles and renders; only this fails.
       - name: "Gate: no customer delivery words on driver or dispatch screens (082 FR-012)"
         run: bash scripts/check-driver-delivery-words.sh
@@ -82,9 +82,9 @@ jobs:
         run: pnpm install --frozen-lockfile
         working-directory: .
 
-      # GATE 1 — the Amplify quarantine (FR-006). Fails if any GUEST route can reach
+      # GATE 1 - the Amplify quarantine (FR-006). Fails if any GUEST route can reach
       # `aws-amplify`. This is one careless import away at all times, produces no error, and
-      # nothing about the page would look wrong — it would simply be slower, forever.
+      # nothing about the page would look wrong - it would simply be slower, forever.
       - name: "Gate: auth SDK is quarantined from guest routes"
         run: pnpm depcruise
 
@@ -94,9 +94,9 @@ jobs:
           NEXT_PUBLIC_SITE_URL: http://localhost:3000
           NEXT_PUBLIC_EDGE_API_BASE_URL: http://localhost:4000
 
-      # GATE 2 — the bundle budget (FR-005 / SC-003). Next 16 no longer reports First Load JS at
+      # GATE 2 - the bundle budget (FR-005 / SC-003). Next 16 no longer reports First Load JS at
       # all ("inaccurate in server-driven architectures using RSC"), so we compute it ourselves
-      # from the prerendered HTML Next actually serves — see scripts/bundle-budget.mjs for why a
+      # from the prerendered HTML Next actually serves - see scripts/bundle-budget.mjs for why a
       # glob over the chunks directory is NOT a budget.
       - name: "Gate: guest bundle budget (<= 174 KB gz)"
         run: pnpm size

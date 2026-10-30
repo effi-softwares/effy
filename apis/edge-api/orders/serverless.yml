@@ -82,7 +82,7 @@ package:
 functions:
   healthz:
     handler: src/functions/healthz-get.handler
-    description: Liveness — is the orders service deployed and executing? Touches nothing. Public.
+    description: Liveness - is the orders service deployed and executing? Touches nothing. Public.
     events:
       - httpApi:
           method: GET
@@ -90,7 +90,7 @@ functions:
 
   readyz:
     handler: src/functions/readyz-get.handler
-    description: Readiness — can the orders service serve? Probes the DB under a 2s budget. Public.
+    description: Readiness - can the orders service serve? Probes the DB under a 2s budget. Public.
     events:
       - httpApi:
           method: GET
@@ -98,7 +98,7 @@ functions:
 
   ordersListV1:
     handler: src/functions/orders-v1-get.handler
-    description: Back-office order list/search — by reference or customer, filterable by status and by what the order is awaiting (053 US1). Read = any active staff incl. csa.
+    description: Back-office order list/search - by reference or customer, filterable by status and by what the order is awaiting (053 US1). Read = any active staff incl. csa.
     events:
       - httpApi:
           method: GET
@@ -109,7 +109,7 @@ functions:
 
   orderViewsV1:
     handler: src/functions/order-views-v1-get.handler
-    description: Back-office order list — the count on each saved view, under the list's search and delivery filters. Read = any active staff incl. csa.
+    description: Back-office order list - the count on each saved view, under the list's search and delivery filters. Read = any active staff incl. csa.
     events:
       - httpApi:
           method: GET
@@ -120,7 +120,7 @@ functions:
 
   ordersTodayV1:
     handler: src/functions/orders-today-v1-get.handler
-    description: Back-office Overview — orders placed today (Melbourne) by who delivers them, and refunded today. Read = any active staff incl. csa.
+    description: Back-office Overview - orders placed today (Melbourne) by who delivers them, and refunded today. Read = any active staff incl. csa.
     events:
       - httpApi:
           method: GET
@@ -131,7 +131,7 @@ functions:
 
   orderDetailV1:
     handler: src/functions/order-v1-get.handler
-    description: Back-office order detail — progress, packages, items, payment and destination (053 US1; its history is /activity, 104). Read = any active staff incl. csa.
+    description: Back-office order detail - progress, packages, items, payment and destination (053 US1; its history is /activity, 104). Read = any active staff incl. csa.
     events:
       - httpApi:
           method: GET
@@ -142,7 +142,7 @@ functions:
 
   orderActivityV1:
     handler: src/functions/order-activity-v1-get.handler
-    description: Back-office — an order's activity — packing, hand-overs, delivery, courier and refunds in one log, searched, paged and exported (104). Read = any active staff incl. csa.
+    description: Back-office - an order's activity - packing, hand-overs, delivery, courier and refunds in one log, searched, paged and exported (104). Read = any active staff incl. csa.
     events:
       - httpApi:
           method: GET
@@ -153,7 +153,7 @@ functions:
 
   refundProposalDismissV1:
     handler: src/functions/refund-proposal-dismiss-v1-post.handler
-    description: Back-office — dismiss a proposed refund a shortfall implied (055 FR-004b). No money moves; write = admin|manager, the same gate as issuing.
+    description: Back-office - dismiss a proposed refund a shortfall implied (055 FR-004b). No money moves; write = admin|manager, the same gate as issuing.
     events:
       - httpApi:
           method: POST
@@ -166,7 +166,7 @@ functions:
 
   orderRefundV1:
     handler: src/functions/order-refund-v1-post.handler
-    description: Back-office — issue a refund (item-derived or goodwill). Recorded under the ceiling lock, then submitted. Write = admin|manager.
+    description: Back-office - issue a refund (item-derived or goodwill). Recorded under the ceiling lock, then submitted. Write = admin|manager.
     timeout: 25
     events:
       - httpApi:
@@ -178,7 +178,7 @@ functions:
 
   orderCancelV1:
     handler: src/functions/order-cancel-v1-post.handler
-    description: Back-office — cancel an order that has not left the shop and refund what remains. Write = admin|manager.
+    description: Back-office - cancel an order that has not left the shop and refund what remains. Write = admin|manager.
     timeout: 25
     events:
       - httpApi:
@@ -190,7 +190,7 @@ functions:
 
   refundRequestDeclineV1:
     handler: src/functions/refund-request-decline-v1-post.handler
-    description: Back-office — decline a customer's refund request. No money moves; write = admin|manager, the same gate as issuing.
+    description: Back-office - decline a customer's refund request. No money moves; write = admin|manager, the same gate as issuing.
     events:
       - httpApi:
           method: POST
@@ -312,7 +312,7 @@ functions:
 
   orderDeliveryWindowV1:
     handler: src/functions/order-delivery-window-v1-post.handler
-    description: Give an Effy order another window or day — or a day with no time — under checkout's window rule; no money moves (085). Write = admin/manager.
+    description: Give an Effy order another window or day - or a day with no time - under checkout's window rule; no money moves (085). Write = admin/manager.
     events:
       - httpApi:
           method: POST
@@ -347,7 +347,7 @@ functions:
 
   customersV1:
     handler: src/functions/customers-v1-get.handler
-    description: Back-office — find a customer by order number or email (074). Read = any active staff incl. csa.
+    description: Back-office - find a customer by order number or email (074). Read = any active staff incl. csa.
     events:
       - httpApi:
           method: GET
@@ -358,7 +358,7 @@ functions:
 
   customerDetailV1:
     handler: src/functions/customer-v1-get.handler
-    description: Back-office — a customer, their points and recent orders (074). Read = any active staff.
+    description: Back-office - a customer, their points and recent orders (074). Read = any active staff.
     events:
       - httpApi:
           method: GET
@@ -369,7 +369,7 @@ functions:
 
   customerPointsHistoryV1:
     handler: src/functions/customer-points-history-v1-get.handler
-    description: Back-office — a customer's points activity with reasons, notes and authors, searched, paged and exported (074, 104). Read = any active staff.
+    description: Back-office - a customer's points activity with reasons, notes and authors, searched, paged and exported (074, 104). Read = any active staff.
     events:
       - httpApi:
           method: GET
@@ -380,7 +380,7 @@ functions:
 
   customerPointsCreditV1:
     handler: src/functions/customer-points-credit-v1-post.handler
-    description: Back-office — credit points with a reason (074 US1). Any active staff; a csa is held to the per-credit limit.
+    description: Back-office - credit points with a reason (074 US1). Any active staff; a csa is held to the per-credit limit.
     events:
       - httpApi:
           method: POST
@@ -391,7 +391,7 @@ functions:
 
   customerPointsDebitV1:
     handler: src/functions/customer-points-debit-v1-post.handler
-    description: Back-office — debit points to correct a balance (074 US5). Write = admin|manager.
+    description: Back-office - debit points to correct a balance (074 US5). Write = admin|manager.
     events:
       - httpApi:
           method: POST
@@ -402,7 +402,7 @@ functions:
 
   pointsSettingsActivityV1:
     handler: src/functions/points-settings-activity-v1-get.handler
-    description: Back-office — every change to the points rules, searched, paged and exported (074 US6, 104). Read = any active staff.
+    description: Back-office - every change to the points rules, searched, paged and exported (074 US6, 104). Read = any active staff.
     events:
       - httpApi:
           method: GET
@@ -413,7 +413,7 @@ functions:
 
   pointsSettingsV1:
     handler: src/functions/points-settings-v1-get.handler
-    description: Back-office — the points rules (074 US6; their changes are /activity, 104). Read = any active staff.
+    description: Back-office - the points rules (074 US6; their changes are /activity, 104). Read = any active staff.
     events:
       - httpApi:
           method: GET
@@ -424,7 +424,7 @@ functions:
 
   pointsSettingsUpdateV1:
     handler: src/functions/points-settings-v1-put.handler
-    description: Back-office — change the points rules (074 US6). Admin only; every change audited.
+    description: Back-office - change the points rules (074 US6). Admin only; every change audited.
     events:
       - httpApi:
           method: PUT
@@ -436,6 +436,6 @@ functions:
   # Late courier parcels by place
   courierLateSweep:
     handler: src/functions/courier-late-sweep.handler
-    description: Counts courier parcels late at the hub, at a supplier, or with the courier (080) — emits CourierParcelsLate {where}.
+    description: Counts courier parcels late at the hub, at a supplier, or with the courier (080) - emits CourierParcelsLate {where}.
     events:
       - schedule: rate(30 minutes)

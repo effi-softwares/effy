@@ -1,4 +1,4 @@
-# Feature Specification: Shop Floor Signals — Collection, Pick Order, Availability and Quality
+# Feature Specification: Shop Floor Signals - Collection, Pick Order, Availability and Quality
 
 **Feature Branch**: `099-shop-floor-signals`
 
@@ -6,7 +6,7 @@
 
 **Status**: Signed off by the operator, 2026-10-24
 
-**Input**: User description: "Shop console: collection, pick order, availability and quality. The redesigned shop console (docs/shop-web-redesign-brief.md §11, canvas docs/reference-screens/Effy Shop Console Redesign) marks four things "Needs backend". (1) Next collection: shop staff see when the next Effy collection run reaches their shop, which of their orders go on it (ready vs still picking), and whether a driver is on the way — on Today, the Orders queue and an order's page ("Ready by 12:30 · collected on the 12:30 run · driver on the way"); a courier pickup shows its own time. (2) Pick in walking order: an order's lines are grouped Ambient · Chilled · Frozen with cold items last, using each item's temperature class. (3) Availability: one quick screen listing every size the shop sells with its stock count and an on-sale switch, so staff can take a size off sale in one tap (off sale stays immediate, no review). (4) Quality on Insights: found rate, can't-supply rate and average time from paid to ready, for the selected range. A shop still never sees delivery money, windows or other shops; it is told only "Effy driver" or "Courier"."
+**Input**: User description: "Shop console: collection, pick order, availability and quality. The redesigned shop console (docs/shop-web-redesign-brief.md §11, canvas docs/reference-screens/Effy Shop Console Redesign) marks four things "Needs backend". (1) Next collection: shop staff see when the next Effy collection run reaches their shop, which of their orders go on it (ready vs still picking), and whether a driver is on the way - on Today, the Orders queue and an order's page ("Ready by 12:30 · collected on the 12:30 run · driver on the way"); a courier pickup shows its own time. (2) Pick in walking order: an order's lines are grouped Ambient · Chilled · Frozen with cold items last, using each item's temperature class. (3) Availability: one quick screen listing every size the shop sells with its stock count and an on-sale switch, so staff can take a size off sale in one tap (off sale stays immediate, no review). (4) Quality on Insights: found rate, can't-supply rate and average time from paid to ready, for the selected range. A shop still never sees delivery money, windows or other shops; it is told only "Effy driver" or "Courier"."
 
 ## Context
 
@@ -29,8 +29,8 @@ run"). An order a courier collects from the shop keeps showing the courier's own
 **Why this priority**: Missing a run makes an order late for the customer and costs a driver a wasted
 stop. It is the question staff ask most often, and today the console cannot answer it.
 
-**Independent Test**: With a collection schedule configured and two paid Effy-driver orders at a shop —
-one ready, one being picked — open Today: it shows the next run's time, "1 ready · 1 still picking",
+**Independent Test**: With a collection schedule configured and two paid Effy-driver orders at a shop -
+one ready, one being picked - open Today: it shows the next run's time, "1 ready · 1 still picking",
 and each order's page names that run.
 
 **Acceptance Scenarios**:
@@ -78,7 +78,7 @@ three group headings in that order, and ticking, adjusting and scanning work exa
 ### User Story 3 - Take a size off sale in one tap (Priority: P2)
 
 When the shelf runs out, staff need to stop customers ordering it at once. Catalog gains an
-**Availability** view: every size the shop sells, one row each — product, size, stock on hand (or "Not
+**Availability** view: every size the shop sells, one row each - product, size, stock on hand (or "Not
 counted"), and an on-sale switch. It opens on the sizes that need a look (out of stock or running low). Switching a size off takes it off sale immediately, without Effy's
 review, exactly as the product page already does. Staff can search it and switch between Needs a look, Out of stock, Low
 stock, Off sale and Everything.
@@ -96,7 +96,7 @@ the product page agrees, and the customer storefront no longer offers it.
 2. **Given** a size on sale, **When** the worker switches it off, **Then** it is off sale immediately
    and stays off until someone switches it back on.
 3. **Given** the last size on sale of a product, **When** the worker tries to switch it off, **Then**
-   the switch is refused with the reason ("The last size on sale — make the product unavailable
+   the switch is refused with the reason ("The last size on sale - make the product unavailable
    instead") and a way to the product.
 4. **Given** a draft, in-review or archived product, **When** Availability is shown, **Then** it is
    not listed (it is not on sale to change).
@@ -124,7 +124,7 @@ can't supply, and known ready times, Insights shows 90%, 20% and the right avera
 
 1. **Given** a range with fulfilled orders, **When** Insights is shown, **Then** the three figures
    appear in the figures strip with their comparison to the previous period.
-2. **Given** a range with no orders, **When** Insights is shown, **Then** each figure reads "—" with
+2. **Given** a range with no orders, **When** Insights is shown, **Then** each figure reads "-" with
    "No orders in this window yet", never 0% or 100%.
 3. **Given** an order the customer cancelled, **When** the figures are worked out, **Then** it counts
    in none of them (the shop was not asked to supply it).
@@ -134,7 +134,7 @@ can't supply, and known ready times, Insights shows 90%, 20% and the right avera
 ### Edge Cases
 
 - A shop with no collection schedule configured: the panel says "No collection runs are set up for
-  your shop yet — Effy will add them", not a time.
+  your shop yet - Effy will add them", not a time.
 - An order paid after the last run that can reach it today: it names the next working day's run.
 - A run reassigned to another driver, or unassigned again: the "on the way" line follows the current
   state.
@@ -147,7 +147,7 @@ can't supply, and known ready times, Insights shows 90%, 20% and the right avera
 - Switching a size off while a customer is checking out: the platform's existing off-sale rule
   applies; this feature adds no new rule.
 - A shop with one product sold in one size: that size's switch is refused as "the last size on sale".
-- Quality figures for "today" early in the morning: they show "—" until something has happened.
+- Quality figures for "today" early in the morning: they show "-" until something has happened.
 - Staff role: every figure and the Availability switches are available to both shop roles, as the
   product page's switch already is.
 
@@ -172,7 +172,7 @@ can't supply, and known ready times, Insights shows 90%, 20% and the right avera
 - **FR-007**: The collection facts MUST update on screen when they change (an order becomes ready, a
   driver sets off, a run is collected) without the page being refreshed and without the console asking
   on a timer.
-- **FR-008**: The shop MUST be told only "Effy driver" or "Courier" about who collects — never a
+- **FR-008**: The shop MUST be told only "Effy driver" or "Courier" about who collects - never a
   delivery window, a delivery speed, a delivery fee, another shop or a customer's delivery time.
 
 **Pick order**
@@ -211,7 +211,7 @@ can't supply, and known ready times, Insights shows 90%, 20% and the right avera
   over orders that became ready in the range.
 - **FR-022**: Orders the customer cancelled MUST be left out of all three figures.
 - **FR-023**: Each figure MUST be compared with the previous period in the way the existing figures
-  are, with its direction in words or a glyph, never by colour alone; an empty range MUST read "—".
+  are, with its direction in words or a glyph, never by colour alone; an empty range MUST read "-".
 - **FR-024**: The figures MUST cover this shop's own items only, never another shop's.
 
 ### Key Entities

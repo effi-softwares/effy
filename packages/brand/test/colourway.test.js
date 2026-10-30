@@ -33,7 +33,7 @@ const contrast = (a, b) => {
   return (hi + 0.05) / (lo + 0.05)
 }
 
-describe("one identity — every surface carries the same icon (the driver app's variant aside, 092)", () => {
+describe("one identity - every surface carries the same icon (the driver app's variant aside, 092)", () => {
   test("there are exactly two colourways: the tile, and the driver app's blue full stop", () => {
     assert.deepEqual(Object.keys(COLOURWAYS), ["tile", "driver"])
     // The driver variant changes the full stop only: same ground, same letter.
@@ -95,7 +95,7 @@ describe("the wordmark's two appearances", () => {
   })
 })
 
-describe("rule C3 — retired palettes never appear", () => {
+describe("rule C3 - retired palettes never appear", () => {
   test("no colourway carries a retired value", () => {
     // Colourways only: the RETIRED_* arrays name these values in the same module.
     const all = JSON.stringify(COLOURWAYS).toLowerCase()
@@ -134,7 +134,7 @@ describe("colourway substitution", () => {
     assert.notEqual(SLOTS.letter, SLOTS.dot)
   })
 
-  test("substitution cannot cascade — no slot consumes another's output", () => {
+  test("substitution cannot cascade - no slot consumes another's output", () => {
     const swap = { letter: SLOTS.dot, dot: SLOTS.letter }
     assert.equal(applyColourway(applyColourway(MARK, swap), swap), MARK)
   })
@@ -147,7 +147,7 @@ describe("mono derivation", () => {
     assert.equal(m.dot, "#09090b")
   })
 
-  test("carries no ground — mono targets are layers and inherit the composition's", () => {
+  test("carries no ground - mono targets are layers and inherit the composition's", () => {
     assert.equal(mono("#09090b").ground, undefined)
   })
 
@@ -157,7 +157,7 @@ describe("mono derivation", () => {
   })
 })
 
-describe("rule C4 — mark colours are not design tokens", () => {
+describe("rule C4 - mark colours are not design tokens", () => {
   test("this package does not depend on @effy/design-system", () => {
     const pkg = JSON.parse(readFileSync(resolve(PKG, "package.json"), "utf8"))
     const deps = { ...pkg.dependencies, ...pkg.devDependencies, ...pkg.peerDependencies }

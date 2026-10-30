@@ -72,7 +72,7 @@ interface Row {
   order_number: string | null;
   expires_at: Date | null;
   created_at: Date;
-  /** The same instant as Postgres writes it — the cursor's value (a JS Date keeps only milliseconds). */
+  /** The same instant as Postgres writes it - the cursor's value (a JS Date keeps only milliseconds). */
   created_at_text: string;
 }
 

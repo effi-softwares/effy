@@ -1,4 +1,4 @@
-# Sign-off: 075 — A Second Front Door for Back-Office
+# Sign-off: 075 - A Second Front Door for Back-Office
 
 **Status (2026-10-08)**: **moved in dev and cleaned up.** The operator ran steps 1–6; verified from the
 live environment afterwards: shared gateway **158 / 300 (53%)**, staff gateway **144 / 300 (48%)**,
@@ -14,7 +14,7 @@ committed.
 - **A staff gateway in Terraform** (`infra/envs/dev/staff-gateway.tf`): its own HTTP API, hostname
   (`staff-api.<zone>`), one authorizer (back-office), back-office-only CORS, four parameters under
   `/effy/<env>/staff/`, its own 5xx alarm.
-- **Five stacks attach to it**: `admin`, `fleet`, `orders`, `catalog`, and `inventory-staff` — a new
+- **Five stacks attach to it**: `admin`, `fleet`, `orders`, `catalog`, and `inventory-staff` - a new
   second stack file in the `inventory` directory holding the six back-office stock routes. No handler
   moved; no path changed.
 - **The shared gateway loses its back-office authorizer and origin** at the end of the move.
@@ -34,8 +34,8 @@ committed.
 
 | | Before (tree and dev) | After (tree; dev once moved) |
 |---|---|---|
-| shared | 300 / 300 routes, 300 / 300 integrations — 100% | 158 / 158 — **53%** |
-| staff | — | 144 / 144 — **48%** |
+| shared | 300 / 300 routes, 300 / 300 integrations - 100% | 158 / 158 - **53%** |
+| staff | - | 144 / 144 - **48%** |
 
 Staff is 144, not the 142 planned: `inventory-staff` has its own two health routes. SC-001 (≤ 60%) holds.
 
@@ -59,13 +59,13 @@ Container tests were not re-run: nothing in this feature touches SQL or a reposi
 
 | Guard | Broken by | Result |
 |---|---|---|
-| G1 capacity | one extra route in `customer/serverless.yml` on the pre-move tree | failed: "the shared gateway would hold 301 routes of 300" — it would have caught 074 |
+| G1 capacity | one extra route in `customer/serverless.yml` on the pre-move tree | failed: "the shared gateway would hold 301 routes of 300" - it would have caught 074 |
 | G4 staff routes use only the staff authorizer | one `orders` route pointed at `/edge/authorizer/customer_id` | failed, naming the route |
 | G3 no back-office authorizer on shared | one `shop` route pointed at `/edge/authorizer/back-office_id` | failed, twice (also "Terraform does not publish it") |
 | G5 inventory split complete | one function deleted from `serverless.staff.yml` | failed: "declared by 0 of the two inventory stacks" |
 
 **Not broken by mutation**: G2 (placement table), G6 (stack discovery in the alarm and live
-contracts), G7 (usage function) — covered by passing tests only.
+contracts), G7 (usage function) - covered by passing tests only.
 
 ## What each step's plan should show (compare with the real output)
 
@@ -82,7 +82,7 @@ or a replacement: stop and send me the plan.
 ## Findings while building
 
 - ⚠ **`make dns-verify` would have passed while proving nothing.** It probed `/admin/healthz` on the
-  shared gateway and on its raw URL and checked the two agree. After the move both answer 404 — and
+  shared gateway and on its raw URL and checked the two agree. After the move both answer 404 - and
   still agree. It now probes a service that lives on each gateway.
 - ⚠ **The default cutover value is unsafe for dev mid-move**, so `dev.tfvars` now sets `"prepare"`.
   Without it, an ordinary `make apply` on this tree would have pointed the back-office website at a
@@ -100,11 +100,11 @@ or a replacement: stop and send me the plan.
 | Task | What differs |
 |---|---|
 | T002 | No YAML library: the existing guards read stack files with regular expressions, and the reader follows them. It throws on an `httpApi` event it cannot parse rather than skipping it. |
-| T014 | `inventory` has no scheduled or queue function, so nothing "stays" — the guard asserts the staff stack has none. |
+| T014 | `inventory` has no scheduled or queue function, so nothing "stays" - the guard asserts the staff stack has none. |
 | T019 | The stacks were not packaged: `serverless package` resolves the `/staff/` parameters, which do not exist until step 1 is applied. |
 | T027 | Predictions are read from the Terraform source, not from a plan run. |
 | T037 | Four usage alarms (each on the higher of a gateway's two limits), plus the background one. |
-| — | `dev.tfvars` sets `staff_gateway_cutover = "prepare"` now (see Findings). |
+| - | `dev.tfvars` sets `staff_gateway_cutover = "prepare"` now (see Findings). |
 
 ## After the move (2026-10-08)
 

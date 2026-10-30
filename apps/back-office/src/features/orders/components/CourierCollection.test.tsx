@@ -20,7 +20,7 @@ function renderIt(mode: "hub" | "supplier" | null, canChange = true) {
 
 beforeEach(() => vi.clearAllMocks())
 
-describe("080 US3 — how a courier order's parcels reach the courier", () => {
+describe("080 US3 - how a courier order's parcels reach the courier", () => {
   it("nothing for an order Effy delivers", () => {
     renderIt(null)
     expect(screen.queryByTestId("courier-collection")).not.toBeInTheDocument()

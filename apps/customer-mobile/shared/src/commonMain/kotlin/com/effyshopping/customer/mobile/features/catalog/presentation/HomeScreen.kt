@@ -124,19 +124,19 @@ fun HomeScreen(
     onRequireSignIn: (() -> Unit)? = null,
     /** 087 (Main board): "All products" beside "Shop by aisle". */
     onAllProducts: () -> Unit = {},
-    /** The "Your Effy" shortcuts — the order in progress and the points balance. */
+    /** The "Your Effy" shortcuts - the order in progress and the points balance. */
     onOpenOrder: (String) -> Unit = {},
     onPoints: () -> Unit = {},
 ) {
     val vm = viewModel { HomeViewModel(container.getHome, container.getCategories) }
     val state by vm.state.collectAsState()
     // 033 FR-007/FR-020: One membership read for the whole screen, however many rails it renders, and
-    // one mirror every heart on it reads — so two rails carrying the same product cannot disagree.
+    // one mirror every heart on it reads - so two rails carrying the same product cannot disagree.
     val savedTiles = rememberSavedTiles(container, onRequireSignIn)
     val tileCart = rememberTileCart(container)
     // The large title collapses as the page scrolls (App bar board, back=false).
     val collapse = rememberEffyCollapse()
-    // 087 (Main board, "Your Effy") — signed-in only: the latest order still in progress, and points.
+    // 087 (Main board, "Your Effy") - signed-in only: the latest order still in progress, and points.
     // Both are best-effort reads; a failure simply leaves the card out (Home must never fail on them).
     val session by container.session.state.collectAsState()
     val signedIn = session is SessionState.Authenticated
@@ -160,7 +160,7 @@ fun HomeScreen(
                 EffySearchField(value = "", placeholder = "Search the store…", onEntryClick = onSearch)
             },
         )
-        // Without this a refusal — the guest cap most of all — is silent, and a heart that flips
+        // Without this a refusal - the guest cap most of all - is silent, and a heart that flips
         // itself back looks like a bug rather than a limit.
         SavedTileMessages(savedTiles)
 
@@ -184,13 +184,13 @@ fun HomeScreen(
                         icon = Res.drawable.lucide_shopping_basket,
                     )
                 } else {
-                    // Pull-to-refresh — a store whose stock and prices move needs a way
+                    // Pull-to-refresh - a store whose stock and prices move needs a way
                     // to say "show me that again" that is not "kill the app".
                     //
                     // Fixed two things here that must not regress: `isRefreshing` was
                     // hard-coded `false`, so the indicator never appeared and the gesture looked
                     // like nothing had happened; and it called `load`, which blanks the screen to
-                    // a spinner — the shopper asked for a newer version of what they were looking
+                    // a spinner - the shopper asked for a newer version of what they were looking
                     // at and got it taken away. The shared wrapper owns the flag, and `refresh`
                     // leaves the content in place.
                     EffyPullToRefresh(
@@ -237,7 +237,7 @@ private fun HomeBlockList(
             verticalArrangement = Arrangement.spacedBy(HomeSectionGap),
             contentPadding = PaddingValues(top = EffySpacing.s, bottom = EffySpacing.xxxl),
         ) {
-            // 087 (Main board): "Your Effy" sits under the hero — or first, when there is no hero.
+            // 087 (Main board): "Your Effy" sits under the hero - or first, when there is no hero.
             val heroFirst = blocks.firstOrNull() is HomeBlock.Offers
             if (yourEffy != null && !heroFirst) item(key = "your-effy") { YourEffyRow(yourEffy, onOpenOrder, onPoints) }
             items(blocks, key = { it.blockKey() }) { block ->
@@ -263,7 +263,7 @@ private fun HomeBlockList(
 }
 
 /**
- * The hero (Main board) — the store's current offers as a flat green panel at the top of Home, one per
+ * The hero (Main board) - the store's current offers as a flat green panel at the top of Home, one per
  * page, swiped by hand (it never auto-advances: a shopper cannot pause a rotating carousel, Baymard).
  * One offer shows no dots. A bounded, named group for a screen reader.
  */
@@ -327,7 +327,7 @@ private fun HeroDots(count: Int, current: Int) {
 }
 
 /**
- * Promotions placed between sections — on the Main board an "Offers" row of coloured cards
+ * Promotions placed between sections - on the Main board an "Offers" row of coloured cards
  * that scrolls sideways, alternating Effy blue and Effy green.
  */
 @Composable
@@ -371,7 +371,7 @@ private fun bannerIcon(banner: Banner) = offerIcon("${banner.title} ${banner.sub
 /** What "Your Effy" shows: the order in progress and the points balance, either or both. */
 internal data class YourEffy(val order: OrderSummary?, val points: PointsBalance?)
 
-/** "Your Effy" (Main board) — two small cards: the order on its way, and the points to spend. */
+/** "Your Effy" (Main board) - two small cards: the order on its way, and the points to spend. */
 @Composable
 private fun YourEffyRow(data: YourEffy, onOpenOrder: (String) -> Unit, onPoints: () -> Unit) {
     Row(
@@ -423,7 +423,7 @@ private fun CategoryRow(items: List<CategoryShortcut>, onCategoryClick: (Categor
     LazyRow(
         modifier = Modifier
             .fillMaxWidth()
-            // One bounded, named group — see SectionBlock for why isTraversalGroup is the
+            // One bounded, named group - see SectionBlock for why isTraversalGroup is the
             // load-bearing half of this.
             .semantics {
                 isTraversalGroup = true
@@ -482,7 +482,7 @@ private fun SectionBlock(
         ) {
             items(rail.products, key = { it.id }) { product ->
                 // The heart on a rail tile. Its own `toggleable` consumes the tap, so it
-                // does not also fire the tile's navigation — a shopper saving from a rail must not be
+                // does not also fire the tile's navigation - a shopper saving from a rail must not be
                 // thrown onto the product page for their trouble.
                 EffyRailTile(
                     product,

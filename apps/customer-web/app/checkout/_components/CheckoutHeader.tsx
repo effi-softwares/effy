@@ -7,13 +7,13 @@ import { Lock } from "lucide-react"
 import { CheckoutSteps } from "./CheckoutSteps"
 
 /**
- * A minimal, distraction-free checkout header — deliberately not the storefront's `StorefrontChrome`.
+ * A minimal, distraction-free checkout header - deliberately not the storefront's `StorefrontChrome`.
  *
  * A payment page wants the opposite of a storefront: no search, no category nav, no footer links
  * every one of those is an exit from the payment funnel. All this keeps is the Effy mark, so the
  * shopper can see they have not left the site, and a quiet invitation to share feedback on checkout.
  *
- * `showFeedbackPrompt` is false when the same shell wraps the feedback page itself — a link
+ * `showFeedbackPrompt` is false when the same shell wraps the feedback page itself - a link
  * inviting "give us feedback" on the feedback page would be self-referential.
  */
 export function CheckoutHeader({ showFeedbackPrompt = true }: { showFeedbackPrompt?: boolean }) {

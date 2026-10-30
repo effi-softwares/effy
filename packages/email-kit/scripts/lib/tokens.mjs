@@ -66,9 +66,9 @@ function contrast(a, b) {
 
 function problems(tokens) {
   const errors = [];
-  if (tokens.light.pageGround === "#ffffff") errors.push("light pageGround is #ffffff — it inverts to pure black");
+  if (tokens.light.pageGround === "#ffffff") errors.push("light pageGround is #ffffff - it inverts to pure black");
   for (const role of ["pageGround", "canvas"]) {
-    if (tokens.dark[role] === "#000000") errors.push(`dark ${role} is #000000 — use a near-black instead`);
+    if (tokens.dark[role] === "#000000") errors.push(`dark ${role} is #000000 - use a near-black instead`);
   }
   for (const mode of ["light", "dark"]) {
     for (const role of MIDTONE_GUARDED) {

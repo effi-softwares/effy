@@ -40,7 +40,7 @@ export function ProductRail({
   products: StorefrontProductCardDTO[]
   href?: string
   linkLabel?: string
-  /** The first rail on a page — its opening cards load their pictures eagerly. One rail per page. */
+  /** The first rail on a page - its opening cards load their pictures eagerly. One rail per page. */
   priority?: boolean
   className?: string
 }) {

@@ -28,7 +28,7 @@
   also **A4 with four A6 labels per sheet**, for office printers, and a compact **62 mm roll** label.
   The A4 21-up sheet (63.5×38.1 mm) is **retired**: it cannot hold an address at a readable size.
 
-**Input**: User description: "Order Package Labels, Scanning & Printed Documents — a complete system for identifying, labelling, scanning and documenting every physical bag/box of an order. Grounded in docs/research/logistics/research-08-labels-scanning-documents.md. Audiences: shop (shop-web only — the shop mobile app is stopped), driver app, back-office (incl. a hub station), customer (documents only). Scope: (1) one label per physical bag/box, declared per temperature zone, 'Bag n of N' for this shop's portion only, void and reprint, 089 labels keep working; (2) printing done properly — reliable at every label size, optional direct thermal printing, every print recorded, Printed / Not printed, batch printing, no ready-for-pickup without every bag labelled; (3) scanning wherever a bag changes hands or is looked up — shop pack confirmation, driver per bag at every step, back-office scan-to-find and a hub station; handheld scanners, cameras and typed codes; (4) a complete scan and custody record, including refused reads, with reports; (5) an Effy-branded delivery note in the bag and an Australian-compliant tax invoice, which needs a GST status on every product. Constraints: hidden fulfilment; a shop is told only who takes a package away; no product barcodes in this feature."
+**Input**: User description: "Order Package Labels, Scanning & Printed Documents - a complete system for identifying, labelling, scanning and documenting every physical bag/box of an order. Grounded in docs/research/logistics/research-08-labels-scanning-documents.md. Audiences: shop (shop-web only - the shop mobile app is stopped), driver app, back-office (incl. a hub station), customer (documents only). Scope: (1) one label per physical bag/box, declared per temperature zone, 'Bag n of N' for this shop's portion only, void and reprint, 089 labels keep working; (2) printing done properly - reliable at every label size, optional direct thermal printing, every print recorded, Printed / Not printed, batch printing, no ready-for-pickup without every bag labelled; (3) scanning wherever a bag changes hands or is looked up - shop pack confirmation, driver per bag at every step, back-office scan-to-find and a hub station; handheld scanners, cameras and typed codes; (4) a complete scan and custody record, including refused reads, with reports; (5) an Effy-branded delivery note in the bag and an Australian-compliant tax invoice, which needs a GST status on every product. Constraints: hidden fulfilment; a shop is told only who takes a package away; no product barcodes in this feature."
 
 ## Background
 
@@ -59,7 +59,7 @@ is `docs/research/logistics/research-08-labels-scanning-documents.md`.
 - **Package**: one shop's share of one order (exists today, 089).
 - **Parcel**: one physical bag or box of a package. A package has one or more parcels.
 - **Temperature zone**: ambient, chilled or frozen.
-- **Hand-over**: a moment a parcel changes hands — shop to driver, driver to hub, hub to van, van to
+- **Hand-over**: a moment a parcel changes hands - shop to driver, driver to hub, hub to van, van to
   customer, or driver back to hub.
 - **Read**: one attempt to identify a parcel by scanning or typing its code, whatever the outcome.
 
@@ -632,11 +632,11 @@ off the label, exactly one page per label (four per A4 sheet), and every barcode
   status. It belongs to exactly one package.
 - **Package** (exists): one shop's share of one order. It now has one or more parcels. One with none
   declared stands for a single parcel carrying its own code.
-- **Label print**: one print or reprint of a parcel's label — who, when, which size, which printing
+- **Label print**: one print or reprint of a parcel's label - who, when, which size, which printing
   path.
-- **Read**: one attempt to identify a parcel or package — who, role, step, device, device time,
+- **Read**: one attempt to identify a parcel or package - who, role, step, device, device time,
   received time, what was read, how, and the outcome. Never changed.
-- **Hand-over** (exists, extended): one parcel passing from one holder to another at a step — now
+- **Hand-over** (exists, extended): one parcel passing from one holder to another at a step - now
   per parcel and including shop and hub staff.
 - **Missing-parcel declaration**: a parcel declared not present at a step, with its reason and its
   resolution (found / lost).

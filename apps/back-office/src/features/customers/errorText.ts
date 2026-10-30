@@ -3,7 +3,7 @@ import { isDomainError } from "@effy/api-client"
 const BY_CODE: Readonly<Record<string, string>> = {
   "over-agent-limit": "That's more than you can credit at once. Ask a manager to credit it.",
   "insufficient-points": "The customer doesn't have that many points to remove.",
-  "note-required": "Add a note — it's required when the reason is Other.",
+  "note-required": "Add a note - it's required when the reason is Other.",
   "order-not-found": "That order isn't this customer's.",
   "points-invalid": "Enter a whole number of points, from 1 to 1,000,000.",
   "reason-invalid": "Choose one of the listed reasons.",

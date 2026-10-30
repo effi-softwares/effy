@@ -5,7 +5,7 @@ package com.effyshopping.customer.mobile.core.platform
  *
  * A delivery happens in Melbourne wherever the phone is, so a delivery window is always said in
  * Melbourne time. The Kotlin standard library has instants but no timezone database, and this
- * app deliberately carries no date-time dependency — so the one thing that needs the database is asked
+ * app deliberately carries no date-time dependency - so the one thing that needs the database is asked
  * of the platform, which has always had it.
  *
  * Asked per instant, never cached as "+10" or "+11": the offset changes twice a year, and a

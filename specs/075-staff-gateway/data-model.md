@@ -1,6 +1,6 @@
 # Data Model: A Second Front Door for Back-Office
 
-**Feature**: 075-staff-gateway. **No database change** — no migration, no table, no column.
+**Feature**: 075-staff-gateway. **No database change** - no migration, no table, no column.
 
 The "data" of this feature is configuration: what exists in the environment, and the parameters that
 join infrastructure to the services. See [contracts/gateway.contract.md](contracts/gateway.contract.md)

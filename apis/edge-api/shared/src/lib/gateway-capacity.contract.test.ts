@@ -30,7 +30,7 @@ function usage() {
   return rows;
 }
 
-describe("gateway capacity — neither gateway is asked to hold more than it can", () => {
+describe("gateway capacity - neither gateway is asked to hold more than it can", () => {
   const rows = usage();
 
   it("prints how full each gateway would be", () => {
@@ -49,7 +49,7 @@ describe("gateway capacity — neither gateway is asked to hold more than it can
   it.each(["shared", "staff"] as const)("%s gateway: routes and integrations are within the ceiling", (gateway) => {
     const r = rows[gateway];
     const where = `the ${gateway} gateway would hold`;
-    const what = "— the deployment WILL be refused. See docs/api/path-assignment.md, \"When a gateway nears its ceiling\".";
+    const what = "- the deployment WILL be refused. See docs/api/path-assignment.md, \"When a gateway nears its ceiling\".";
     expect(r.routes, `${where} ${r.routes} routes of ${GATEWAY_CEILING} ${what}`).toBeLessThanOrEqual(GATEWAY_CEILING);
     expect(r.integrations, `${where} ${r.integrations} integrations of ${GATEWAY_CEILING} ${what}`).toBeLessThanOrEqual(GATEWAY_CEILING);
   });

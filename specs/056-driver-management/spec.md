@@ -12,7 +12,7 @@
 
 Effy's drivers are **employees**. They cannot sign themselves up, cannot edit their own record, and
 cannot be paid, rostered, disciplined or stood down by any surface that exists today. Everything about a
-driver's working life is decided in back-office — and back-office has **no driver screen at all**.
+driver's working life is decided in back-office - and back-office has **no driver screen at all**.
 
 Feature 049 built the driver app and, alongside it, a deliberately **minimal provisioning adjunct**: five
 routes (list, read, create, update, set-status) with no console, no search, no history, and no view of any
@@ -25,11 +25,11 @@ Three consequences of the gap are already live:
 1. **The driver app records exceptions for a reader who does not exist.** Every reported missing or short
    package at a shop, and every undeliverable drop with its reason and note, is written to the platform
    annotated "recorded for back-office follow-up". No surface anywhere reads either record. The
-   order-flow gap register now names failed-delivery visibility the **top remaining structural gap** —
+   order-flow gap register now names failed-delivery visibility the **top remaining structural gap** -
    a shopper whose delivery failed keeps seeing "on the way", indefinitely, and nobody at Effy is told.
 2. **Standing a driver down can strand physical goods.** Work a driver has not started is automatically
-   returned to the pool when they go off duty or are disabled. Work they have **already picked up** — the
-   packages in their van, a drop they are part-way through — is deliberately never yanked, and there is no
+   returned to the pool when they go off duty or are disabled. Work they have **already picked up** - the
+   packages in their van, a drop they are part-way through - is deliberately never yanked, and there is no
    screen on which any human can see that it is stuck, nor any control to release it.
 3. **Provisioning silently overwrites.** Creating a "new" driver with a work email that already belongs to
    someone re-uses that person's record and identity account instead of refusing, and re-enables an
@@ -44,7 +44,7 @@ name, work email, zone or status, and opens a profile that answers every questio
 asks about that person: who they are, how to reach them, where they work, what they drive, whether they
 are currently employed, and who changed any of that and when.
 
-**Why this priority**: It is the explicit request, and it is the front door — every other story in this
+**Why this priority**: It is the explicit request, and it is the front door - every other story in this
 feature is reached by first finding a driver. Today the closest thing that exists is an unpaginated,
 unsearchable list of five fields returned by an API with no screen attached to it.
 
@@ -65,7 +65,7 @@ lives only in a database somebody must query by hand.
 4. **Given** an operator viewing a profile, **When** they edit a field and save, **Then** the change takes
    effect immediately, is confirmed on screen, and is attributable to them afterwards.
 5. **Given** a driver with a zone assigned, **When** the operator **clears** the zone and saves, **Then**
-   the zone is actually removed — a field that can be set can be unset.
+   the zone is actually removed - a field that can be set can be unset.
 6. **Given** an operator without permission to change driver records, **When** they open a profile,
    **Then** they can read it in full and every editing control is absent, not merely disabled-looking.
 
@@ -75,7 +75,7 @@ lives only in a database somebody must query by hand.
 
 An operator hires a driver: they create the record, the person receives a working sign-in for the driver
 app, and they appear as available for work. Later that person leaves, or is stood down for a week, and the
-operator ends their access — safely, knowing exactly what happens to any work the driver is holding.
+operator ends their access - safely, knowing exactly what happens to any work the driver is holding.
 
 **Why this priority**: A driver record **is a credential**. The ability to revoke it promptly, and to know
 that revocation actually took effect, is the security half of the feature; the ability to add one is the
@@ -91,7 +91,7 @@ while access is gone.
    email, **Then** a driver record and a working sign-in are created together, and the driver appears in
    the register as active.
 2. **Given** a work email that already belongs to another driver, **When** the operator tries to create a
-   driver with it, **Then** the attempt is **refused** and names the existing driver — it never silently
+   driver with it, **Then** the attempt is **refused** and names the existing driver - it never silently
    edits or re-activates them.
 3. **Given** an active driver, **When** the operator suspends them, **Then** they can no longer obtain a
    working session in the driver app, they are excluded from receiving new work, and the register shows
@@ -103,7 +103,7 @@ while access is gone.
    appear in the default register view.
 6. **Given** a driver who is holding work that has already been picked up, **When** the operator tries to
    suspend or offboard them, **Then** they are warned **before** confirming, told exactly what is held
-   and which orders it belongs to, and — if they proceed — that work is surfaced as needing reassignment
+   and which orders it belongs to, and - if they proceed - that work is surfaced as needing reassignment
    rather than disappearing.
 7. **Given** any change to a driver's record, status, assignment or vehicle, **When** it is saved,
    **Then** who did it, what changed, and when is recorded and readable on the driver's profile.
@@ -113,14 +113,14 @@ while access is gone.
 ### User Story 3 - Delivery exceptions and collection issues reach a person (Priority: P2)
 
 An operator opens a driver's profile, or a fleet-wide exceptions view, and sees every undeliverable drop
-and every missing or short package the drivers have reported — with the reason, the driver's note, the
+and every missing or short package the drivers have reported - with the reason, the driver's note, the
 order it belongs to, and whether anyone has dealt with it yet. From there they can jump straight to the
 order and act on it.
 
 **Why this priority**: This closes the order-flow register's **top structural gap**. The driver app has
 been faithfully recording these exceptions since 049 and no surface has ever read them; after the standard
 delivery lifecycle was completed, a failed same-day delivery is the last remaining way an order gets
-permanently stuck. It is P2 only because it is reached through the register US1 builds — its platform
+permanently stuck. It is P2 only because it is reached through the register US1 builds - its platform
 value is the highest in this feature, and it should be pulled forward if anything is cut.
 
 **Independent Test**: Have a driver mark a drop undeliverable and report a short package at a shop; confirm
@@ -152,7 +152,7 @@ to the affected order, and can be marked as handled so they stop demanding atten
 An operator needs to answer, in seconds: who is on duty, what is each of them doing, is anything overdue,
 and is any work sitting unassigned because nobody eligible is on duty.
 
-**Why this priority**: Assignment is automatic and driverless by design — no dispatcher, no accept/decline.
+**Why this priority**: Assignment is automatic and driverless by design - no dispatcher, no accept/decline.
 That design is only safe if a human can *observe* what it decided. Today nobody can see whether a single
 driver is on duty, and the only symptom of "nobody is working" is orders quietly not moving.
 
@@ -179,8 +179,8 @@ reports any ready work that no driver has been given.
 
 ### User Story 5 - A driver's work record (Priority: P3)
 
-An operator reviewing a driver — for a performance conversation, a customer complaint, or a payroll query
-— opens their history and sees what that person actually did: which days they worked, which runs they ran,
+An operator reviewing a driver - for a performance conversation, a customer complaint, or a payroll query
+- opens their history and sees what that person actually did: which days they worked, which runs they ran,
 how many stops and drops they completed, how many failed and why, and the proof captured for a disputed
 delivery.
 
@@ -199,7 +199,7 @@ completed drop shows the proof the driver captured.
 2. **Given** a run in that history, **When** the operator opens it, **Then** they see its stops or drops
    in order with the times each state was reached.
 3. **Given** a delivery that was completed with proof, **When** an operator opens that drop, **Then**
-   they can see the proof that was captured — including any photograph or signature — and who captured it.
+   they can see the proof that was captured - including any photograph or signature - and who captured it.
 4. **Given** a driver's history, **When** an operator looks at a chosen period, **Then** they see summary
    counts for that period: days worked, runs completed, packages collected, drops delivered, drops failed.
 5. **Given** proof media containing personal surroundings, **When** it is viewed, **Then** access is
@@ -210,8 +210,8 @@ completed drop shows the proof the driver captured.
 ### User Story 6 - Fleet coverage and readiness (Priority: P3)
 
 An operator planning the day sees which delivery zones have drivers assigned to them and which do not, and
-which drivers cannot be given work — because they have no zone, are suspended, or their licence has
-expired — so gaps are found before orders start failing rather than afterwards.
+which drivers cannot be given work - because they have no zone, are suspended, or their licence has
+expired - so gaps are found before orders start failing rather than afterwards.
 
 **Why this priority**: It is preventative. A driver with no zone assigned is silently inert for assignment
 today, and nothing anywhere says so. It is P3 because every individual fact it aggregates is already
@@ -305,8 +305,8 @@ gaps, with an explanation of the consequence, and that fixing them clears the re
 - **FR-013**: Operators with management permission MUST be able to create a driver by supplying at minimum
   a name and a work email, which creates the platform record and a working driver sign-in as one
   operation; if either half fails the operator MUST be told which.
-- **FR-014**: Creating a driver with a work email already held by any driver — active, suspended or
-  offboarded — MUST be **refused**, and the refusal MUST identify the existing driver and their status.
+- **FR-014**: Creating a driver with a work email already held by any driver - active, suspended or
+  offboarded - MUST be **refused**, and the refusal MUST identify the existing driver and their status.
 - **FR-015**: A driver MUST have exactly one employment status at a time, from: **active** (employed and
   eligible for work), **suspended** (temporarily stood down; retained, no access, no work), and
   **offboarded** (no longer employed; retained for audit, permanently no access).
@@ -326,13 +326,13 @@ gaps, with an explanation of the consequence, and that fixing them clears the re
 #### Authorization and accountability
 
 - **FR-022**: Reading the driver register, profiles, duty view, exceptions and history MUST be available
-  to any active back-office staff member, including customer-service staff — answering "where is my
+  to any active back-office staff member, including customer-service staff - answering "where is my
   delivery" and "why did it fail" is their work.
-- **FR-023**: Every change — create, edit, status change, duty-session termination, stranded-work release,
-  exception resolution — MUST require management permission, and the decision MUST be made from the
+- **FR-023**: Every change - create, edit, status change, duty-session termination, stranded-work release,
+  exception resolution - MUST require management permission, and the decision MUST be made from the
   platform staff record rather than from a token claim alone.
 - **FR-024**: Every such change MUST be recorded with the operator who made it, what changed, the target
-  driver, and when — using the platform's existing back-office audit record. Driver changes are currently
+  driver, and when - using the platform's existing back-office audit record. Driver changes are currently
   the only privileged back-office domain that writes no audit entry.
 - **FR-025**: A driver's profile MUST show that change history, newest first, in plain language.
 - **FR-026**: Controls an operator's role does not permit MUST NOT be shown to them; the backend MUST
@@ -403,24 +403,24 @@ gaps, with an explanation of the consequence, and that fixing them clears the re
 - **Driver**: A person Effy employs to move packages. Identity (name, work email), contact details,
   emergency contact, work assignment (delivery zone, operating hub), vehicle (type, plate, registration
   expiry), licence (reference, expiry), employment status and its effective date and reason, employment
-  start date, administrative notes. The platform record — not the sign-in account — is authoritative for
+  start date, administrative notes. The platform record - not the sign-in account - is authoritative for
   whether they may work.
 - **Duty session**: A period a driver declared themselves on duty. Being on duty is what makes a driver
   eligible to receive work. At most one open session per driver.
-- **Run**: A body of work assigned to one driver on one working day, of one type — a collection round
-  (shops to hub) or a same-day delivery round (hub to customers) — with a status and a completion time.
+- **Run**: A body of work assigned to one driver on one working day, of one type - a collection round
+  (shops to hub) or a same-day delivery round (hub to customers) - with a status and a completion time.
 - **Stop / drop**: A single unit of work within a run: a package to collect from a shop, or a customer
   delivery. Carries an ordered position, a status and the times it reached each state.
 - **Delivery exception**: An undeliverable drop, carrying the reason the driver gave, their note, the
   order and the time; plus, for back-office, whether it has been resolved, by whom and with what note.
 - **Collection issue**: A missing or short package reported at a shop, carrying its kind, note, shop, and
   the affected order and item where identified; plus the same resolution fields.
-- **Proof of delivery**: The evidence captured when a drop completed — a photograph, a signature, a
-  verified delivery code, or a contactless note — held privately and viewable only through time-limited
+- **Proof of delivery**: The evidence captured when a drop completed - a photograph, a signature, a
+  verified delivery code, or a contactless note - held privately and viewable only through time-limited
   access.
 - **Stranded work**: Work still claimed by a driver who is no longer eligible to do it, which the
   automatic assignment round will not reclaim because it has already been physically picked up or started.
-- **Driver change record**: Who changed what about which driver, and when — the accountability trail for
+- **Driver change record**: Who changed what about which driver, and when - the accountability trail for
   every privileged action in this feature.
 
 ## Success Criteria *(mandatory)*
@@ -429,13 +429,13 @@ gaps, with an explanation of the consequence, and that fixing them clears the re
 
 - **SC-001**: An operator can find any driver in the fleet and open their complete profile in **under 15
   seconds**, starting from the console home, without knowing an identifier.
-- **SC-002**: An operator can onboard a new driver — record created and the person able to sign in to the
-  driver app — in **under 2 minutes**, with no step performed outside the console.
+- **SC-002**: An operator can onboard a new driver - record created and the person able to sign in to the
+  driver app - in **under 2 minutes**, with no step performed outside the console.
 - **SC-003**: **100%** of undeliverable drops and missing/short package reports created by the driver app
   are visible in back-office; none require a database query to discover. Measured by comparing every
   exception recorded over a period against what the exceptions view lists.
-- **SC-004**: A driver's access can be revoked and confirmed ineffective — they cannot obtain a working
-  session — in **under 60 seconds** from the decision.
+- **SC-004**: A driver's access can be revoked and confirmed ineffective - they cannot obtain a working
+  session - in **under 60 seconds** from the decision.
 - **SC-005**: Attempting to create a driver with a work email already in use is refused **100%** of the
   time, and never modifies the existing driver's record, status or sign-in account.
 - **SC-006**: When a driver holding picked-up work is stood down, that work is reported as stranded and
@@ -447,13 +447,13 @@ gaps, with an explanation of the consequence, and that fixing them clears the re
 - **SC-008**: An operator can answer "who is working right now and what are they doing" in **under 10
   seconds** and, when nobody is on duty while work is waiting, that situation is stated explicitly.
 - **SC-009**: A driver with no delivery zone assigned is identified as unable to receive work **before**
-  any order is affected — that is, on the register, not by an order failing to move.
-- **SC-010**: Every optional profile field, once set, can be cleared and stays cleared after a reload —
+  any order is affected - that is, on the register, not by an order failing to move.
+- **SC-010**: Every optional profile field, once set, can be cleared and stays cleared after a reload -
   verified for **100%** of optional fields.
 - **SC-011**: A back-office role without management permission cannot perform any driver mutation via any
   route, verified by attempting each mutation directly; each attempt is refused.
 - **SC-012**: Proof media is never retrievable by an unauthenticated party, and every retrieval by a
-  permitted operator is recorded — verified by attempting retrieval without a session and by inspecting
+  permitted operator is recorded - verified by attempting retrieval without a session and by inspecting
   the access record afterwards.
 - **SC-013**: The register remains usable and pages correctly with **500** driver records, with no
   repeated or skipped row across the full paging sequence.
@@ -470,11 +470,11 @@ gaps, with an explanation of the consequence, and that fixing them clears the re
   This feature makes assignment *observable* and adds the ability to *release* work back to the pool; it
   deliberately does **not** add the ability to hand a named job to a named driver, which would contradict
   that settled model. If manual dispatch is wanted it is its own decision and its own slice.
-- **Shift rostering is out of scope.** Duty is driver-initiated — a driver declares themselves on duty
+- **Shift rostering is out of scope.** Duty is driver-initiated - a driver declares themselves on duty
   from the app. Planning who is *scheduled* to work, publishing rosters, and comparing planned against
   actual hours are payroll/workforce concerns with no existing model on the platform, and are excluded.
 - **Compliance is tracked as facts, not documents.** Licence and registration are recorded as a reference
-  and an expiry date so they can be checked and warned about. **No document images or scans are stored** —
+  and an expiry date so they can be checked and warned about. **No document images or scans are stored** -
   that would create a new store of sensitive personal identity documents with its own retention and
   access-control obligations. If document capture is required later it is a separate decision.
 - **Payroll, pay rates, hours worked for payment, and any monetary treatment of a driver are excluded.**
@@ -518,7 +518,7 @@ gaps, with an explanation of the consequence, and that fixing them clears the re
 - Storage of licence or identity document images.
 - Live driver location tracking or a fleet map. Location is a point-in-time snapshot used at assignment
   time only, and this feature does not begin streaming or displaying it.
-- Customer notification and re-attempt scheduling for a failed delivery — unblocked by this feature,
+- Customer notification and re-attempt scheduling for a failed delivery - unblocked by this feature,
   delivered by its own slice.
 - Any change to the driver mobile app.
 - Multi-hub operation.

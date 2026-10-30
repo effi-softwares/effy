@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children }: { children: ReactNode }) => <a href="#">{children}</a>,
-  useNavigate: () => () => {},
+  useNavigate: () => () => { },
 }))
 
 const updateProduct = vi.hoisted(() => vi.fn())
@@ -106,7 +106,7 @@ describe("product edit and persist", () => {
     updateProduct.mockResolvedValue(DETAIL)
     getCategoryForm.mockResolvedValue(FORM)
 
-    wrap(<SizesEditDialog detail={DETAIL} open onOpenChange={() => {}} />)
+    wrap(<SizesEditDialog detail={DETAIL} open onOpenChange={() => { }} />)
 
     const price = await screen.findByLabelText(/^your price/i)
     await userEvent.clear(price)
@@ -129,7 +129,7 @@ describe("product edit and persist", () => {
     updateProduct.mockResolvedValue(DETAIL)
     getCategoryForm.mockResolvedValue(FORM)
 
-    wrap(<SizesEditDialog detail={DETAIL} open onOpenChange={() => {}} />)
+    wrap(<SizesEditDialog detail={DETAIL} open onOpenChange={() => { }} />)
 
     const price = await screen.findByLabelText(/^your price/i)
     await userEvent.clear(price)
@@ -144,7 +144,7 @@ describe("product edit and persist", () => {
   it("refuses to save an invalid price, and says why", async () => {
     getCategoryForm.mockResolvedValue(FORM)
 
-    wrap(<SizesEditDialog detail={DETAIL} open onOpenChange={() => {}} />)
+    wrap(<SizesEditDialog detail={DETAIL} open onOpenChange={() => { }} />)
 
     const price = await screen.findByLabelText(/^your price/i)
     await userEvent.clear(price)
@@ -160,12 +160,12 @@ describe("product edit and persist", () => {
     expect(updateProduct).not.toHaveBeenCalled()
   })
 
-  it("101 — says which details a save removed (one size left, a detail only differed by size)", async () => {
+  it("101 - says which details a save removed (one size left, a detail only differed by size)", async () => {
     updateProduct.mockResolvedValue({ ...DETAIL, droppedDetails: ["Allergens"] })
     getCategoryForm.mockResolvedValue(FORM)
     const onDropped = vi.fn()
 
-    wrap(<SizesEditDialog detail={DETAIL} open onOpenChange={() => {}} onDropped={onDropped} />)
+    wrap(<SizesEditDialog detail={DETAIL} open onOpenChange={() => { }} onDropped={onDropped} />)
 
     const price = await screen.findByLabelText(/^your price/i)
     await userEvent.clear(price)

@@ -1,12 +1,12 @@
 /**
- * Structured data (JSON-ld) — how search engines understand the storefront.
+ * Structured data (JSON-ld) - how search engines understand the storefront.
  *
  * Rendered as a native <script> tag from a Server Component, never via `next/script`. The Next
  * docs are explicit about this: "Since JSON-ld is structured data, not executable code, a
  * native `<script>` tag is the right choice." It costs zero client JavaScript.
  *
  * The `.replace(/</g, "\\u003c")` below is not decoration. Any string that ends up in this
- * payload could otherwise close the <script> tag and inject markup — once a catalog exists,
+ * payload could otherwise close the <script> tag and inject markup - once a catalog exists,
  * product names and descriptions come from the database and are therefore untrusted input on a
  * page served to the entire internet.
  *
@@ -61,7 +61,7 @@ const AVAILABILITY = (available: boolean) => (available ? "https://schema.org/In
 /**
  * The product. One size → a `Product` with its `Offer`. Several sizes → a
  * `ProductGroup` whose `hasVariant` lists each size as a `Product`, each with its own price,
- * availability and a link that opens the page on it (`?variant=`) — Google's documented shape for
+ * availability and a link that opens the page on it (`?variant=`) - Google's documented shape for
  * variants. Built from the page's live read, so it says what the page says.
  */
 export function productLd(
@@ -103,7 +103,7 @@ export function productLd(
       const at = `${url}?variant=${v.id}`
       return {
         "@type": "Product",
-        name: v.label ? `${content.name} — ${v.label}` : content.name,
+        name: v.label ? `${content.name} - ${v.label}` : content.name,
         ...((v.imageUrl ?? content.imageUrl) ? { image: v.imageUrl ?? content.imageUrl } : {}),
         offers: offer(v, at),
       }

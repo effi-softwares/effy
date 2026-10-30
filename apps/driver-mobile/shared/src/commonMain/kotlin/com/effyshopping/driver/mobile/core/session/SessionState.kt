@@ -11,7 +11,7 @@ sealed interface SessionState {
     data object Restoring : SessionState
     data object SignedOut : SessionState                  // show the email → code flow
     /**
-     * [offline] — opened with no signal from the record kept on the phone (backlog C3). The session
+     * [offline] - opened with no signal from the record kept on the phone (backlog C3). The session
      * could not be checked, which is not the same as signed out; it is checked again on reconnect.
      */
     data class SignedIn(val driver: Driver, val offline: Boolean = false) : SessionState

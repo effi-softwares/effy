@@ -33,7 +33,7 @@ fun ProductImage(url: String?, name: String, modifier: Modifier = Modifier) {
         contentScale = ContentScale.Crop,
     ) {
         // `collectAsState`, not `painter.state.value`. In Coil 3 `state` is a StateFlow, and
-        // reading `.value` directly subscribes to nothing — the shimmer would render once and stay,
+        // reading `.value` directly subscribes to nothing - the shimmer would render once and stay,
         // for a photograph that had already arrived. The bug would look exactly like a slow network.
         val state by painter.state.collectAsState()
 
@@ -41,7 +41,7 @@ fun ProductImage(url: String?, name: String, modifier: Modifier = Modifier) {
             is AsyncImagePainter.State.Loading -> EffyShimmer(Modifier.fillMaxSize())
             // Error falls back to the letter mark, not to the shimmer. A shimmer that never resolves
             // promises something that is not coming, and leaves the shopper waiting for a picture that
-            // has already failed. A stable mark is honest — and to the shopper it is the same thing as
+            // has already failed. A stable mark is honest - and to the shopper it is the same thing as
             // a product that simply has no photograph.
             is AsyncImagePainter.State.Error -> LetterMark(name, Modifier.fillMaxSize())
             else -> SubcomposeAsyncImageContent()
@@ -52,7 +52,7 @@ fun ProductImage(url: String?, name: String, modifier: Modifier = Modifier) {
 /**
  * A shimmering placeholder plate for an image that is still arriving.
  *
- * Delegates to `Modifier.effyShimmer` in StorefrontKit — one shimmer implementation for the whole
+ * Delegates to `Modifier.effyShimmer` in StorefrontKit - one shimmer implementation for the whole
  * app, so an image placeholder and a skeleton block can never drift into shimmering differently. It
  * also means reduced-motion handling is decided once.
  */

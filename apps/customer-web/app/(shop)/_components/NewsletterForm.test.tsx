@@ -10,7 +10,7 @@ vi.mock("../newsletter/actions", () => ({
 
 const { NEWSLETTER_MESSAGES, NewsletterForm } = await import("./NewsletterForm")
 
-describe("NewsletterForm — validation before any request (FR-030)", () => {
+describe("NewsletterForm - validation before any request (FR-030)", () => {
   it("uses the browser's own email validation, which costs nothing and needs no round trip", () => {
     render(<NewsletterForm />)
 
@@ -40,7 +40,7 @@ describe("NewsletterForm — validation before any request (FR-030)", () => {
   })
 })
 
-describe("NewsletterForm — no unbacked claim (FR-034)", () => {
+describe("NewsletterForm - no unbacked claim (FR-034)", () => {
   /**
    * The reference storefront's newsletter band promises "Get 20% Off On Your First Purchase". Effy
    * has no such promotion. An incentive claim on a signup form is a contract with the reader.
@@ -58,7 +58,7 @@ describe("NewsletterForm — no unbacked claim (FR-034)", () => {
  * Three states, never "already subscribed" (that would reveal who is on the list). Asserted against the
  * source, since driving `useActionState` in jsdom tests React's plumbing, not this component.
  */
-describe("NewsletterForm — the states it can render (FR-032/FR-033)", () => {
+describe("NewsletterForm - the states it can render (FR-032/FR-033)", () => {
   it("has wording for exactly the three statuses the contract defines", () => {
     expect(Object.keys(NEWSLETTER_MESSAGES).sort()).toEqual(["error", "invalid", "ok"])
   })
@@ -81,7 +81,7 @@ describe("NewsletterForm — the states it can render (FR-032/FR-033)", () => {
     expect(NEWSLETTER_MESSAGES.error).toMatch(/try again/i)
   })
 
-  /** The failure message must not imply the address was at fault — the service was. */
+  /** The failure message must not imply the address was at fault - the service was. */
   it("blames the failure on us, not on the visitor's address", () => {
     expect(NEWSLETTER_MESSAGES.error.toLowerCase()).toMatch(/we (couldn't|could not)/)
     expect(NEWSLETTER_MESSAGES.error.toLowerCase()).toContain("still here")
@@ -89,11 +89,11 @@ describe("NewsletterForm — the states it can render (FR-032/FR-033)", () => {
 })
 
 /**
- * These two are source assertions, deliberately — they pin structural choices that have no
+ * These two are source assertions, deliberately - they pin structural choices that have no
  * observable output in jsdom. Comments are stripped first, because the first version of this suite
  * failed on its own explanatory prose, which is a fair warning about grepping source at all.
  */
-describe("NewsletterForm — structural guarantees", () => {
+describe("NewsletterForm - structural guarantees", () => {
   const code = readFileSync(join(__dirname, "NewsletterForm.tsx"), "utf8")
     .replace(/\/\*[\s\S]*?\*\//g, "")
     .replace(/^\s*\/\/.*$/gm, "")
@@ -102,7 +102,7 @@ describe("NewsletterForm — structural guarantees", () => {
    * The requirement that forced the client boundary in the first place.
    *
    * The field must be controlled. React resets an uncontrolled form automatically once its action
-   * completes, so the first implementation — uncontrolled, cleared only on success — actually cleared
+   * completes, so the first implementation - uncontrolled, cleared only on success - actually cleared
    * it on every outcome, including the failure whose whole point is that the address survives. Nothing
    * in the source hinted at it, because the reset is React's behaviour rather than this component's.
    */

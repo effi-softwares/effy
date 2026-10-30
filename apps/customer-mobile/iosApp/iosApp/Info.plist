@@ -2,18 +2,18 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- 024 FR-018 — the home-screen label. Without this iOS falls back to CFBundleName, which is
-	     the Xcode PRODUCT_NAME ("customer-mobile") — a developer string, shown under the icon on every device.
+	<!-- 024 FR-018 - the home-screen label. Without this iOS falls back to CFBundleName, which is
+	     the Xcode PRODUCT_NAME ("customer-mobile") - a developer string, shown under the icon on every device.
 	     Mirrors the Android fix in res/values/strings.xml. -->
 	<key>CFBundleDisplayName</key>
 	<string>Effy</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
-	<!-- 024 FR-010/FR-013 — the branded launch screen, declared rather than storyboarded.
+	<!-- 024 FR-010/FR-013 - the branded launch screen, declared rather than storyboarded.
 	     ⚠ This key CONFLICTS with INFOPLIST_KEY_UILaunchScreen_Generation. That build setting is
 	     set to NO in project.pbxproj in the same change; if it is ever flipped back to YES, the
 	     launch screen behaves differently between clean and incremental builds. -->
-	<!-- 087 — the launch screen's status bar: LIGHT text on the dark splash. Read only at launch; after
+	<!-- 087 - the launch screen's status bar: LIGHT text on the dark splash. Read only at launch; after
 	     that the app's view controller decides (the intro keeps it light, then the app turns it dark). -->
 	<key>UIStatusBarStyle</key>
 	<string>UIStatusBarStyleLightContent</string>

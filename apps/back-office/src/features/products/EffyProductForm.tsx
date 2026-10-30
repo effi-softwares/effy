@@ -118,7 +118,7 @@ type Mode = { kind: "create" } | { kind: "finish"; product: BackOfficeProductDTO
 
 /**
  * Effy's product form: the shop's own editor (`@effy/web-kit/product-form`), with the shop and Effy's margin as
- * its first step. It saves as Effy's draft and goes on sale by itself once complete — there is no review to
+ * its first step. It saves as Effy's draft and goes on sale by itself once complete - there is no review to
  * submit to.
  */
 export function EffyProductForm({
@@ -199,9 +199,9 @@ export function EffyProductForm({
   const ready: ReadinessItem[] = [
     ...(mode.kind === "create"
       ? [
-          { key: "shop", label: "Shop", ok: shopId !== "", step: "shop" as const },
-          { key: "margin", label: "Effy's margin", ok: marginDto !== null, step: "shop" as const },
-        ]
+        { key: "shop", label: "Shop", ok: shopId !== "", step: "shop" as const },
+        { key: "margin", label: "Effy's margin", ok: marginDto !== null, step: "shop" as const },
+      ]
       : []),
     ...readiness(draft, ctx, { optional: ["image", "details"] }),
   ]
@@ -364,10 +364,10 @@ export function EffyProductForm({
             errors={
               tried
                 ? {
-                    name: draft.name.trim() ? undefined : "Give it a name",
-                    category: draft.primaryCategoryId ? undefined : "Choose where shoppers find it",
-                    shortDescription: draft.shortDescription.trim() ? undefined : "Write a line or two for shoppers",
-                  }
+                  name: draft.name.trim() ? undefined : "Give it a name",
+                  category: draft.primaryCategoryId ? undefined : "Choose where shoppers find it",
+                  shortDescription: draft.shortDescription.trim() ? undefined : "Write a line or two for shoppers",
+                }
                 : {}
             }
             disabled={busy}
@@ -434,11 +434,11 @@ export function EffyProductForm({
             extra={
               mode.kind === "create"
                 ? {
-                    shop: [
-                      ["Shop", shopName],
-                      ["Margin", marginDto ? marginLabel(marginDto) : null],
-                    ],
-                  }
+                  shop: [
+                    ["Shop", shopName],
+                    ["Margin", marginDto ? marginLabel(marginDto) : null],
+                  ],
+                }
                 : {}
             }
             banner={

@@ -3,13 +3,13 @@
 Feature: 048-console-web-cicd. Phase 1.
 
 **There is no database and no migration.** The "entities" here are the configuration/deployment objects
-this slice creates or extends — the Terraform resource graph and the config contract — exactly as 042.
+this slice creates or extends - the Terraform resource graph and the config contract - exactly as 042.
 State lives in Amplify, Route 53/ACM (Amplify-managed), the API-gateway CORS config, SSM, and the
 Terraform state, not in Postgres.
 
 ---
 
-## E1 — Hosted console application (×2)
+## E1 - Hosted console application (×2)
 
 The managed Amplify representation of one console. Two instances: shop-web and back-office.
 
@@ -35,7 +35,7 @@ does not touch the other app (FR-003).
 
 ---
 
-## E2 — Deployment branch binding
+## E2 - Deployment branch binding
 
 Maps a repository branch to an environment and each console's address.
 
@@ -51,7 +51,7 @@ parameters (FR-020) so prod is a second instantiation (FR-021).
 
 ---
 
-## E3 — Domain association (×2)
+## E3 - Domain association (×2)
 
 Binds a console subdomain to its hosted app, with an Amplify-managed ACM cert (`us-east-1`) and Route 53
 record (in-account zone).
@@ -66,11 +66,11 @@ record (in-account zone).
 
 **Rules**: each subdomain resolves only to its own app (FR-012); this slice does not touch the apex or
 `api.`/`core-api.` (FR-012/FR-024). Multiple apps on distinct prefixes of one in-account root is
-supported (verify at apply — D4).
+supported (verify at apply - D4).
 
 ---
 
-## E4 — Repo-root `amplify.yml` build spec (extended)
+## E4 - Repo-root `amplify.yml` build spec (extended)
 
 The single monorepo build spec. Now declares **three** `applications[]` entries; each Amplify app builds
 only the one matching its `AMPLIFY_MONOREPO_APP_ROOT`.
@@ -86,7 +86,7 @@ only the one matching its `AMPLIFY_MONOREPO_APP_ROOT`.
 
 ---
 
-## E5 — Environment configuration set (per console)
+## E5 - Environment configuration set (per console)
 
 The `VITE_*` values inlined into each console's bundle at build. All public-safe (D8).
 
@@ -98,12 +98,12 @@ The `VITE_*` values inlined into each console's bundle at build. All public-safe
 | `VITE_API_BASE_URL` | deployed edge gateway origin | same |
 | `VITE_POSTHOG_KEY` / `_HOST` | unset (optional, no-op) | unset |
 
-**Rules**: correct pool per console (Principle IV; D8); every value public-safe — **no secret** in either
+**Rules**: correct pool per console (Principle IV; D8); every value public-safe - **no secret** in either
 bundle (FR-016/FR-018/SC-008).
 
 ---
 
-## E6 — Gateway CORS allowlist (extended)
+## E6 - Gateway CORS allowlist (extended)
 
 The shared edge gateway's permitted browser origins (`edge-gateway.tf`).
 
@@ -120,7 +120,7 @@ preserved (FR-017). Prod supplies its own zone → its own console origins with 
 
 ---
 
-## E7 — Build-failure signal (shared)
+## E7 - Build-failure signal (shared)
 
 One EventBridge rule → the existing alerts SNS topic (037/042).
 

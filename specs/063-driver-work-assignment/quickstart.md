@@ -1,10 +1,10 @@
-# Quickstart — Driver Work Assignment & Wave Planning (063)
+# Quickstart - Driver Work Assignment & Wave Planning (063)
 
 How to prove this slice works. §1–§2 are machine-checkable; §3 onward need a person.
 
 ---
 
-## §1 Machine verification — no cloud, no database
+## §1 Machine verification - no cloud, no database
 
 ```bash
 pnpm -r typecheck                                   # expect 20/20
@@ -15,7 +15,7 @@ pnpm --filter @effy/back-office  test
 cd apis/core-api && go test ./internal/platform/delivery/...   # the cutoff side of the contract test
 ```
 
-⚠ **`pnpm -r test` can be green while `typecheck` fails** — vitest does not run `tsc`. 029 recorded it,
+⚠ **`pnpm -r test` can be green while `typecheck` fails** - vitest does not run `tsc`. 029 recorded it,
 059 hit it again. Run both, and check the package count.
 
 ---
@@ -30,7 +30,7 @@ CONTAINER_TESTS=1 pnpm --filter @effy/edge-fleet test
 | # | Proof | Guards |
 |---|---|---|
 | C1 | Two planning passes in a row assign nothing twice | FR-005, SC-004 |
-| C2 | Two *concurrent* passes — the partial unique index refuses the second | R6 |
+| C2 | Two *concurrent* passes - the partial unique index refuses the second | R6 |
 | C3 | A package `picked_up` can be re-assigned in a later wave (the index is partial) | R6 |
 | C4 | A driver cleared for every zone (`zone_id IS NULL`) is eligible in a zone created afterwards | FR-009 |
 | C5 | Each hard gate excludes independently, and each writes its own reason | FR-009, FR-015 |
@@ -47,7 +47,7 @@ CONTAINER_TESTS=1 pnpm --filter @effy/edge-fleet test
 | C16 | `updated_at` optimistic locking survives microsecond precision | 056's defect |
 | C17 | A driver's route refuses another driver's round identically to a non-existent one | FR-038 |
 
-### ⚠ C18 — the DST contract test, run in both languages
+### ⚠ C18 - the DST contract test, run in both languages
 
 ```bash
 cd apis/core-api && go test ./internal/platform/delivery/ -run Contract
@@ -60,7 +60,7 @@ one of which silently skipped an entire trading hour. Research R2.
 
 ---
 
-## §3 Database and deploy — operator, in this order
+## §3 Database and deploy - operator, in this order
 
 ```bash
 make db-status ENV=dev
@@ -73,12 +73,12 @@ git push origin <branch>:dev                        # Amplify rebuilds back-offi
 ⚠ **`fleet` before `driver`.** `driver` serves work that `fleet` creates; deploying the reader first
 gives a driver a route that answers an empty day, which is indistinguishable from "no work today".
 
-⚠ The migration is **purely additive** — no column is dropped, nothing existing is rewritten. Unlike
+⚠ The migration is **purely additive** - no column is dropped, nothing existing is rewritten. Unlike
 061 and 062 it is safe to apply before the code deploy.
 
 ---
 
-## §4 The walk — a person, with eyes, on a screen
+## §4 The walk - a person, with eyes, on a screen
 
 ⚠ **039 shipped four live defects with a fully green suite.** Nothing below is proven by any test above.
 
@@ -91,7 +91,7 @@ gives a driver a route that answers an empty day, which is indistinguishable fro
 | W5 | Make a zone nobody is cleared for have ready packages → it appears as unassigned **with a reason** | FR-028, SC-003 |
 | W6 | Collect a shop's packages, check them in at the hub | US2, FR-022 |
 | W7 | Check-in shows the same-day/standard split and asks the driver **nothing** | FR-023, SC-010 |
-| W8 | A standard package's driver work **ends** at check-in — it is in no delivery round | FR-024 |
+| W8 | A standard package's driver work **ends** at check-in - it is in no delivery round | FR-024 |
 | W9 | Same-day packages at the hub become a delivery round, grouped by zone | US3, SC-009 |
 | W10 | Dispatcher reassigns a round → new driver sees it, old driver does not | FR-029, FR-037 |
 | W11 | ⚠ Dispatcher **locks** a round, waits for the next wave → it is untouched | FR-032, SC-006 |
@@ -106,7 +106,7 @@ gives a driver a route that answers an empty day, which is indistinguishable fro
 
 **⚠ W16 is the walk that proves the operator's decision.** Joining a round already under way is the
 behaviour chosen over the simpler "wait for the next wave", and it is the one that can go wrong
-invisibly — a round that grows silently under a working driver is worse than one that never grows.
+invisibly - a round that grows silently under a working driver is worse than one that never grows.
 
 **⚠ W5 is the most important walk overall.** SC-003 says no package is *ever* silently unhandled, and
 that is the promise this whole slice rests on: the engine is allowed to fail to assign, and is not
@@ -114,7 +114,7 @@ allowed to fail quietly. 056's finding was a table written for a reader that nev
 
 ---
 
-## §5 Negative proofs — executed by breaking the thing
+## §5 Negative proofs - executed by breaking the thing
 
 Each is proven by making the break, watching the named guard fail, and reverting.
 

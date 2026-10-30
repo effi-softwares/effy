@@ -52,7 +52,7 @@ beforeEach(() => {
   revokeCapability.mockResolvedValue({ items: [] })
 })
 
-describe("CapabilityEditor — what a driver is cleared for", () => {
+describe("CapabilityEditor - what a driver is cleared for", () => {
   it("lists each clearance with its work and place", async () => {
     renderEditor()
     expect(await screen.findByRole("button", { name: "Revoke" })).toBeInTheDocument()
@@ -63,7 +63,7 @@ describe("CapabilityEditor — what a driver is cleared for", () => {
     expect(screen.getByRole("region", { name: "Collects" })).toHaveTextContent("Nowhere.")
   })
 
-  it("082 — there is no delivery method anywhere on the screen", async () => {
+  it("082 - there is no delivery method anywhere on the screen", async () => {
     listCapabilities.mockResolvedValue({ items: [cap({})] })
     const { container } = renderEditor()
     await screen.findByRole("button", { name: "Revoke" })
@@ -85,7 +85,7 @@ describe("CapabilityEditor — what a driver is cleared for", () => {
     expect(await screen.findByText(/Not cleared for any work/)).toBeInTheDocument()
   })
 
-  it("⚠ sends zoneId: null — explicitly — when Every zone is chosen", async () => {
+  it("⚠ sends zoneId: null - explicitly - when Every zone is chosen", async () => {
     const user = userEvent.setup()
     listCapabilities.mockResolvedValue({ items: [] })
     renderEditor()
@@ -110,7 +110,7 @@ describe("CapabilityEditor — what a driver is cleared for", () => {
     await waitFor(() => expect(revokeCapability).toHaveBeenCalledWith("d-1", "c-1"))
   })
 
-  it("⚠ hides every mutating control from a csa — absent, not disabled", async () => {
+  it("⚠ hides every mutating control from a csa - absent, not disabled", async () => {
     roles.current = ["csa"]
     renderEditor()
     await waitFor(() => expect(screen.getAllByText("Inner North").length).toBeGreaterThan(0))

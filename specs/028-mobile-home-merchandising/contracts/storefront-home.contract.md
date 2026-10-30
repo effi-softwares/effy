@@ -1,8 +1,8 @@
-# Contract: Storefront Home (hot path) — banner extension
+# Contract: Storefront Home (hot path) - banner extension
 
 **Feature**: 028-mobile-home-merchandising | **Path**: hot (`core-api`) | **Auth**: none (public)
 
-**Endpoint**: `GET /v1/storefront/home` — **existing**. This feature changes its **banner payload
+**Endpoint**: `GET /v1/storefront/home` - **existing**. This feature changes its **banner payload
 only**. No new route, no new method, no auth change, no breaking field.
 
 ---
@@ -42,15 +42,15 @@ It becomes **zero or more advertised promotions**, ordered by `position` then `c
 
 | Field | Rule |
 |---|---|
-| `key` | The promotion id. **Stable across reads** — the client uses it as a list key. |
+| `key` | The promotion id. **Stable across reads** - the client uses it as a list key. |
 | `title` | Never empty. The DB CHECK guarantees an advertised promotion has one. |
 | `subtitle` | Nullable. |
-| `imageUrl` | Presigned at read time, nullable. **Never a stored URL** — a stored URL expires. |
+| `imageUrl` | Presigned at read time, nullable. **Never a stored URL** - a stored URL expires. |
 | `href` | Retained for `customer-web`. Mobile ignores it. |
 | `code` | The code a shopper types in the cart. Nullable only in principle; in practice always present. |
 | `terms` | **Server-composed** from `minimum_subtotal_amount`. `null` when the promotion has no minimum. Both surfaces render the same sentence because only one place composes it. |
 | `target` | One of the closed `BannerTarget` set. An unrecognised value MUST render the banner non-tappable. |
-| `position` | **Integer on the wire** — `WireInt` / `@asType integer`. See the warning below. |
+| `position` | **Integer on the wire** - `WireInt` / `@asType integer`. See the warning below. |
 
 ### ⚠ `position` is the field most likely to break this feature
 
@@ -69,9 +69,9 @@ can.
 
 | Case | Response |
 |---|---|
-| No promotion is advertised | `"banners": []` — **not** a placeholder. FR-035: the client shows nothing and the sections close up. |
+| No promotion is advertised | `"banners": []` - **not** a placeholder. FR-035: the client shows nothing and the sections close up. |
 | Promotion advertised but outside its window | Excluded. |
-| Promotion advertised but exhausted | Excluded — the count comes from `promo_redemption`, never from a stored counter. |
+| Promotion advertised but exhausted | Excluded - the count comes from `promo_redemption`, never from a stored counter. |
 | Promotion advertised but `status = 'disabled'` | Excluded. |
 | Store has no products at all | `banners: []` and `rails: []`, as today. |
 
@@ -98,7 +98,7 @@ it is found at planning time rather than in production.
 The banner read adds **one query** to a Home read that currently issues up to seven (newest, on-sale,
 rail candidates, plus up to four category reads), inside a **3-second** `readTimeout`.
 
-- The outer set is bounded by the number of *advertised* promotions — realistically single digits.
+- The outer set is bounded by the number of *advertised* promotions - realistically single digits.
 - Exhaustion is a correlated subquery over `promo_redemption`, indexed by `promo_code_id`.
 - Ordering is served by the partial index `promo_code_advertised_idx`, so no sort is needed.
 
@@ -113,6 +113,6 @@ added without measuring are how that budget gets spent. Measure before adding.
 | Check | How |
 |---|---|
 | Contract shape matches the generated Kotlin | `make cm-contract-check` (fails on drift) |
-| Go composes the predicate correctly | `go test ./internal/features/storefront/...` — window, exhaustion, disabled, and opt-out cases |
-| The wire round trip actually works | **Live only** — quickstart §3. The one thing tests cannot prove. |
+| Go composes the predicate correctly | `go test ./internal/features/storefront/...` - window, exhaustion, disabled, and opt-out cases |
+| The wire round trip actually works | **Live only** - quickstart §3. The one thing tests cannot prove. |
 | Empty case returns `[]` not a stub | Go unit test + the live empty-store walk (SC-012) |

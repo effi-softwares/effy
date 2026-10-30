@@ -57,7 +57,7 @@ describe("the public picture set ↔ the bucket policy (086)", () => {
     }
   });
 
-  it("only original uploads notify the worker — never its own copies, never proof or labels", () => {
+  it("only original uploads notify the worker - never its own copies, never proof or labels", () => {
     const notification = block('resource "aws_s3_bucket_notification" "product_media"');
     const prefixes = [...notification.matchAll(/filter_prefix\s*=\s*"([^"]*)"/g)].map((m) => m[1]);
     expect(prefixes.sort()).toEqual(["categories/", "products/", "promotions/"]);

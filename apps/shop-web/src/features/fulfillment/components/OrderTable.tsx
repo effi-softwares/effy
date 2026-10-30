@@ -43,7 +43,7 @@ function columnsFor(now: number): EffyColumnDef<OrderRow>[] {
       header: "Customer",
       cell: ({ row }) => (
         <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span className="font-medium break-words">{row.original.customerName || "—"}</span>
+          <span className="font-medium break-words">{row.original.customerName || "-"}</span>
           <RowFlag row={row.original} tone={orderRowTone(row.original, now)} />
         </span>
       ),

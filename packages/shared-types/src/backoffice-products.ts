@@ -143,7 +143,7 @@ export interface BackOfficeProductDTO {
   facts: { storage: Storage; gstStatus: GstStatus; ageRestricted: boolean };
   missingRequired: string[];
   placements: { categoryId: string; path: string[] }[];
-  /** The product as Effy's form edits it — only while Effy is still finishing it (`effySettingUp`). */
+  /** The product as Effy's form edits it - only while Effy is still finishing it (`effySettingUp`). */
   effyContent: EffyProductContentDTO | null;
   createdAt: string;
   updatedAt: string;

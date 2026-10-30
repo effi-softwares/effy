@@ -31,7 +31,7 @@ beforeEach(() => {
   getSession.mockResolvedValue(null)
 })
 
-describe("submitFeedbackAction — re-validates on the server", () => {
+describe("submitFeedbackAction - re-validates on the server", () => {
   it("rejects an unknown category and a blank message without any request", async () => {
     expect(await submitFeedbackAction(null, form({ ...valid, category: "rant" }))).toEqual({
       status: "invalid",
@@ -46,7 +46,7 @@ describe("submitFeedbackAction — re-validates on the server", () => {
   })
 })
 
-describe("submitFeedbackAction — the route is chosen by the SESSION, not the body", () => {
+describe("submitFeedbackAction - the route is chosen by the SESSION, not the body", () => {
   it("posts a guest to the PUBLIC route with the body email", async () => {
     const r = await submitFeedbackAction(null, form({ ...valid, email: "guest@example.com" }))
     expect(r).toEqual({ status: "ok", referenceCode: "FB-GUEST1" })
@@ -85,7 +85,7 @@ describe("submitFeedbackAction — the route is chosen by the SESSION, not the b
   })
 })
 
-describe("submitFeedbackAction — maps HTTP failures to the shared result (never rethrows)", () => {
+describe("submitFeedbackAction - maps HTTP failures to the shared result (never rethrows)", () => {
   it("maps 400 → invalid, 429 → rate_limited, other → error", async () => {
     publicPost.mockRejectedValueOnce({ status: 400 })
     expect(await submitFeedbackAction(null, form(valid))).toEqual({ status: "invalid" })

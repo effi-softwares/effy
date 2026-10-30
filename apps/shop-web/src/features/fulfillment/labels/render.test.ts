@@ -77,7 +77,7 @@ function box(e: LabelElement): { x0: number; x1: number; y0: number; y1: number 
 function decode(widths: number[]): string {
   const byPattern = new Map(PATTERNS.map((p, v) => [p, v]))
   const values: number[] = []
-  for (let i = 0; i < widths.length; ) {
+  for (let i = 0; i < widths.length;) {
     const len = values.length > 0 && widths.length - i === 7 ? 7 : 6
     const v = byPattern.get(widths.slice(i, i + len).join(""))
     if (v === undefined) throw new Error(`no pattern at ${i}`)
@@ -162,7 +162,7 @@ describe("bag labels (096, spec US10)", () => {
     expect(band("ambient")).toMatchObject({ fill: "none" })
   })
 
-  it("long text shrinks, then wraps to two lines, then ends in an ellipsis — never clipped", () => {
+  it("long text shrinks, then wraps to two lines, then ends in an ellipsis - never clipped", () => {
     const name = fitText(LONG.recipientName, 93.6, [15, 13, 11, 9], 2, { bold: true })
     expect(name.sizePt).toBe(9)
     expect(name.lines.length).toBeLessThanOrEqual(2)
@@ -243,7 +243,7 @@ describe("bag labels (096, spec US10)", () => {
   })
 })
 
-describe("direct thermal (ZPL) — 096, R9", () => {
+describe("direct thermal (ZPL) - 096, R9", () => {
   it("thresholds to one bit per pixel, MSB first, transparent as paper", () => {
     // 9 × 1: black, white, black, transparent, black×5 → 1010 1111 | 1000 0000
     const px = (r: number, a = 255) => [r, r, r, a]

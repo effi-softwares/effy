@@ -1,7 +1,7 @@
 package com.effyshopping.customer.mobile.features.account.domain
 
 /**
- * Account closure — the domain shapes behind in-app account deletion.
+ * Account closure - the domain shapes behind in-app account deletion.
  *
  * The word is DELETE, everywhere and always. Nothing here offers to deactivate, disable, freeze or
  * pause an account, and no such state is reachable: both documented App Review rejections in this
@@ -39,7 +39,7 @@ data class ClosureBlocker(
         }
 }
 
-/** A category of data kept after erasure, and the reason — carried as data so it cannot drift. */
+/** A category of data kept after erasure, and the reason - carried as data so it cannot drift. */
 data class RetainedCategory(val category: String, val reason: String)
 
 /** Everything the shopper must see before any irreversible step. */
@@ -59,7 +59,7 @@ data class ActiveClosureRequest(val requestedAtIso: String, val eraseAfterIso: S
 
 /** The account-closure operations. Cold path, like every other account capability. */
 interface ClosureRepository {
-    /** Read-only and side-effect free — safe to call on entry and again before confirming. */
+    /** Read-only and side-effect free - safe to call on entry and again before confirming. */
     suspend fun preview(): ClosurePreview
 
     /** Email the step-up code closure costs. Returns the masked destination. */

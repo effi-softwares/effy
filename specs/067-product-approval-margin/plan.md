@@ -43,7 +43,7 @@ Kotlin `commonTest`, `shop-contract:check`, source guards.
 **Target Platform**: Lambda (new `edge-catalog`, `edge-shop`, `edge-notifications`); Fargate
 (`core-api`); shop-web, back-office; shop-mobile (Android + iOS).
 
-**Project Type**: monorepo — two backend paths, two web consoles, one mobile app.
+**Project Type**: monorepo - two backend paths, two web consoles, one mobile app.
 
 **Performance Goals**: no added query on any customer read. Review queue first page under 1 s at
 10,000 products. A stock adjustment is untouched and stays as fast as today (SC-005).
@@ -82,7 +82,7 @@ service, on the measured constraint 053, 054 and 056 each hit (Complexity Tracki
 |---|---|---|---|
 | `product_submitted_for_review` | shop-web, shop-mobile | `kind` (`new` \| `change`) | Shop adoption |
 | `product_review_decided` | back-office | `kind`, `decision` (`approved` \| `sent_back`), `marginKind` (`percent` \| `amount` \| `none`) | Reviewer throughput. ⚠ Never the margin value |
-| `ProductReviewOldestWaitingHours` | CloudWatch, from a scheduled measure in `edge-catalog` | — | Alarm when the oldest item exceeds a configurable age: an unwatched queue stops shops selling, silently |
+| `ProductReviewOldestWaitingHours` | CloudWatch, from a scheduled measure in `edge-catalog` | - | Alarm when the oldest item exceeds a configurable age: an unwatched queue stops shops selling, silently |
 
 ## Project Structure
 
@@ -107,16 +107,16 @@ db/migrations/
                                          # notification type widening
 
 packages/shared-types/src/
-├── product-review.ts                    # NEW — ReviewState, MarginInput, review item + decision DTOs
+├── product-review.ts                    # NEW - ReviewState, MarginInput, review item + decision DTOs
 ├── catalog.ts / shop.ts                 # shop ProductDetail gains reviewState, shopPrice, customerPrice, pendingChange
 └── shop-order-console.ts                # shop order money documented as shop price
 # + regenerated: contract-shop/
 
 apis/edge-api/shared/src/
-├── lib/margin.ts                        # NEW — the ONE margin calculation (+ tests)
-└── product-margin.guard.test.ts         # NEW — edge-shop never selects margin columns
+├── lib/margin.ts                        # NEW - the ONE margin calculation (+ tests)
+└── product-margin.guard.test.ts         # NEW - edge-shop never selects margin columns
 
-apis/edge-api/catalog/                   # NEW SERVICE — back-office authorizer
+apis/edge-api/catalog/                   # NEW SERVICE - back-office authorizer
 ├── serverless.yml
 └── src/review/{sql,repository,service,authz,handler-support}.ts
     src/functions/                       # queue list · item detail · approve · send-back · set-margin ·
@@ -125,7 +125,7 @@ apis/edge-api/catalog/                   # NEW SERVICE — back-office authorize
 apis/edge-api/shop/src/products/
 ├── service.ts / repository.ts           # update → pending change when approved; submit / withdraw;
                                          # status rules; DTO prices
-├── change.ts                            # NEW — propose / update / withdraw a pending change, diff
+├── change.ts                            # NEW - propose / update / withdraw a pending change, diff
 └── media.ts                             # uploads for an approved product go to the pending change
 
 apis/edge-api/shop/src/{orders,insights}/   # shop-facing money reads shop price
@@ -133,7 +133,7 @@ apis/edge-api/notifications/src/         # two new types + copy
 
 apis/core-api/internal/features/checkout/store.go   # snapshot shop price on the order line; fan-out shop subtotal
 
-apps/back-office/src/features/product-review/       # NEW — queue, item, before/after, decide, margin
+apps/back-office/src/features/product-review/       # NEW - queue, item, before/after, decide, margin
 apps/shop-web/src/features/catalog/                 # state chips, submit/withdraw, pending-change view, two prices
 apps/shop-mobile/shared/src/commonMain/.../features/catalog/   # the same
 ```
@@ -144,19 +144,19 @@ repository for shop writes, not two.
 
 ## Phase plan
 
-1. **Foundation** — migration with backfill; margin calculation + tests; contracts; the status
+1. **Foundation** - migration with backfill; margin calculation + tests; contracts; the status
    CHECK; scaffold `edge-catalog`. Proves SC-012: the catalogue and prices are identical after
    the migration.
-2. **US1 + US2 new products** — shop submit / withdraw; review queue and item; approve with margin;
+2. **US1 + US2 new products** - shop submit / withdraw; review queue and item; approve with margin;
    send back with reason.
-3. **US3 changes to live products** — shop edits become a pending change (details, attributes,
+3. **US3 changes to live products** - shop edits become a pending change (details, attributes,
    images); before/after; approve applies atomically; send back leaves the live row untouched.
-4. **US4 never waits** — prove stock and off-sale paths create no review item and disturb none.
-5. **US5 margin** — set/change on live products; "margin not set" list; price-change reopens margin.
-6. **US7 two prices on an order** — hot path snapshot; shop order view and Insights on shop prices.
-7. **US6 shop surfaces** — shop-web and shop-mobile states, prices, pending-change view.
-8. **US8 + notifications** — audit rows; two notification types; queue-age alarm.
-9. **Polish** — guards, telemetry, parity registers, quickstart walk.
+4. **US4 never waits** - prove stock and off-sale paths create no review item and disturb none.
+5. **US5 margin** - set/change on live products; "margin not set" list; price-change reopens margin.
+6. **US7 two prices on an order** - hot path snapshot; shop order view and Insights on shop prices.
+7. **US6 shop surfaces** - shop-web and shop-mobile states, prices, pending-change view.
+8. **US8 + notifications** - audit rows; two notification types; queue-age alarm.
+9. **Polish** - guards, telemetry, parity registers, quickstart walk.
 
 ## Risks
 
@@ -177,4 +177,4 @@ repository for shop writes, not two.
 
 | Choice | Why needed | Simpler alternative rejected because |
 |---|---|---|
-| A new cold-path service `edge-catalog` | `edge-admin` packages to 434/500 CloudFormation resources with `versionFunctions: false` already spent; ~9 routes ≈ 45 resources do not fit | Adding to `edge-admin` fails the deploy. Adding to `edge-shop` would put approve/margin routes in the service whose authorizer is the shop pool — one mis-wired route lets a shop approve itself. |
+| A new cold-path service `edge-catalog` | `edge-admin` packages to 434/500 CloudFormation resources with `versionFunctions: false` already spent; ~9 routes ≈ 45 resources do not fit | Adding to `edge-admin` fails the deploy. Adding to `edge-shop` would put approve/margin routes in the service whose authorizer is the shop pool - one mis-wired route lets a shop approve itself. |

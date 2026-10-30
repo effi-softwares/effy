@@ -25,7 +25,7 @@ export interface PaymentMethodDTO {
   unusableReason: string | null;
 }
 
-/** GET /v1/payment-methods — the shopper's kept cards. */
+/** GET /v1/payment-methods - the shopper's kept cards. */
 export interface ListPaymentMethodsResponse {
   /** Empty means no kept cards and nothing else; a provider outage is an error, never `[]`. */
   paymentMethods: PaymentMethodDTO[];

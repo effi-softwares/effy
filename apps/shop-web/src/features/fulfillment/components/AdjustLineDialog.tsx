@@ -125,7 +125,7 @@ export function AdjustLineDialog({
           id="adjust-note"
           rows={3}
           maxLength={500}
-          placeholder="Optional — what happened with this line"
+          placeholder="Optional - what happened with this line"
           value={note}
           onChange={(e) => setNote(e.target.value)}
         />

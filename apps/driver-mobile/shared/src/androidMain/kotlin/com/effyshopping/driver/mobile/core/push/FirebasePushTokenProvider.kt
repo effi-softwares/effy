@@ -24,7 +24,7 @@ class FirebasePushTokenProvider(private val context: Context) : PushTokenProvide
 
     /**
      * Whether notifications are enabled for the app. On API 33+ the runtime POST_NOTIFICATIONS
-     * prompt must be requested from an Activity (ActivityResult) — that Activity-level prompt is the
+     * prompt must be requested from an Activity (ActivityResult) - that Activity-level prompt is the
      * follow-up (same shape as the Stripe/payment Activity bridge); here we report current state so a
      * caller never pushes into a denied channel.
      */

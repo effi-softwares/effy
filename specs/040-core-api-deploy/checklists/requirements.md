@@ -33,8 +33,8 @@
 
 - **Deliberate tech-naming in the title and Context only.** The feature is inherently an infrastructure
   deployment slice and the operator has *locked* the runtime shape (a load balancer in front of a
-  single container instance). Those operator decisions are recorded as framing and Assumptions — the
-  same way the constitution records "Decisions locked" — while the Functional Requirements and Success
+  single container instance). Those operator decisions are recorded as framing and Assumptions - the
+  same way the constitution records "Decisions locked" - while the Functional Requirements and Success
   Criteria stay outcome-focused (reachable HTTPS address, single fixed instance, no autoscaling, health-
   gated routing, secrets not baked in, config-only promotion). This is consistent with prior
   infrastructure specs in this repo (e.g. 010-domain-dns-foundation).

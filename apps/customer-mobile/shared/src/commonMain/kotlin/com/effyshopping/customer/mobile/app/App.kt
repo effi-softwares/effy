@@ -53,14 +53,14 @@ import com.effyshopping.customer.mobile.core.presentation.EffyPrimaryButton
 
 /**
  * The app root. A top-level **session gate** picks the graph: `Restoring` splash, a `Barred`
- * refusal, or — for both a guest and a signed-in customer — the guest-first [CustomerShell] (adaptive
+ * refusal, or - for both a guest and a signed-in customer - the guest-first [CustomerShell] (adaptive
  * bottom bar / navigation rail over Home · Search · Orders · Account). `Restoring` is its own screen so
  * the guest home never flickers in before a signed-in session resolves.
  */
 @Composable
 fun App(container: AppContainer) {
-    // Register the app's Coil ImageLoader (cancellation-safe engine) once, during composition — before
-    // any AsyncImage loads — so scrolling a list of product images can't crash the app (019 scroll fix).
+    // Register the app's Coil ImageLoader (cancellation-safe engine) once, during composition - before
+    // any AsyncImage loads - so scrolling a list of product images can't crash the app (019 scroll fix).
     remember { SingletonImageLoader.setSafe { ctx -> newImageLoader(ctx) }; true }
 
     // 025 FR-037 / T073: read the device's reduced-motion preference once and publish it to every
@@ -92,7 +92,7 @@ fun App(container: AppContainer) {
         LaunchedEffect(Unit) {
             container.session.bootstrap()
             // Seed the delivery location from the account's default address on sign-in, and
-            // drop an account-derived one on sign-out. Started here rather than from a screen — in a
+            // drop an account-derived one on sign-out. Started here rather than from a screen - in a
             // screen it would never run if the shopper's first stop is another tab, and would re-run
             // on every recomposition.
         }
@@ -130,7 +130,7 @@ fun App(container: AppContainer) {
                 //
                 // Restore is an explicit act, never inferred from signing in: the refusal and the
                 // restore run through the same identity lookup, so an implicit restore would have the
-                // gate refuse the very request meant to undo the deletion — and anyone holding this
+                // gate refuse the very request meant to undo the deletion - and anyone holding this
                 // customer's token would silently un-delete their account merely by opening the app.
                 // Signing in surfaces the choice; this screen makes it.
                 SessionState.Closing -> Inset { CenteredMessage {
@@ -174,7 +174,7 @@ fun App(container: AppContainer) {
                     }
                 } }
 
-                // Guest and Authenticated both render the tab shell — the customer app is guest-first;
+                // Guest and Authenticated both render the tab shell - the customer app is guest-first;
                 // only gated tabs/actions defer to sign-in.
                 //
                 // The first-launch introduction sits in front of the shell, not inside a
@@ -201,7 +201,7 @@ fun App(container: AppContainer) {
                         }
                     } else {
                         // Deliberately not [Inset]. The introduction is a full-bleed photograph, and
-                        // insetting it here stopped the image at the safe area — leaving a bar of page
+                        // insetting it here stopped the image at the safe area - leaving a bar of page
                         // colour across the bottom that read as a rendering fault. It owns its insets
                         // instead, applying them to its text and actions and to nothing else.
                         OnboardingScreen(onDone = {
@@ -214,7 +214,7 @@ fun App(container: AppContainer) {
 
         // The launch intro, over everything, once per cold start: the native splash's "e." grows
         // into "effy." and hands over to the app once the session is known. Not saved across
-        // configuration changes on purpose — `remember`, so a rotation does not replay it, but a new
+        // configuration changes on purpose - `remember`, so a rotation does not replay it, but a new
         // process does.
         var introDone by remember { mutableStateOf(false) }
         // The status-bar icons follow the appearance (light icons on the dark theme); the intro sets

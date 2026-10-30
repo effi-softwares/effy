@@ -9,14 +9,14 @@
 **Input**: User description: "Completely redesign the customer website to match the new Effy Storefront
 Redesign screens (desktop and phone) and the new Effy Design System. Use the new design's colours,
 fonts, logo and components; the old look can be completely removed and replaced. Identify and index
-every screen, map it to the current implementation, then implement — including any backend the
+every screen, map it to the current implementation, then implement - including any backend the
 screens need."
 
 **Design reference** (the source of truth for appearance, layout and screen states):
 
-- `docs/reference-screens/Effy Storefront Redesign/` — 139 screens in 11 groups, each as a page and a picture.
-- `docs/reference-screens/Effy Design System/` — the colour, type, shape and component rules behind them.
-- [screen-index.md](screen-index.md) — every reference screen, numbered, mapped to what exists today.
+- `docs/reference-screens/Effy Storefront Redesign/` - 139 screens in 11 groups, each as a page and a picture.
+- `docs/reference-screens/Effy Design System/` - the colour, type, shape and component rules behind them.
+- [screen-index.md](screen-index.md) - every reference screen, numbered, mapped to what exists today.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -48,7 +48,7 @@ header, footer, checkout header and sign-in frame; search the site for any eleme
 4. **Given** the customer opens All aisles, the account menu, or the cart, **When** it opens,
    **Then** it appears as the reference menu, dropdown or drawer (a full-height sheet on phones).
 5. **Given** any page, **When** an error or destructive action is shown, **Then** it is black with a
-   warning icon — no red appears anywhere on the site.
+   warning icon - no red appears anywhere on the site.
 
 ---
 
@@ -59,8 +59,8 @@ offer banner and offer tiles, aisles, deals, offers, aisle rails, new arrivals, 
 viewed. A signed-in shopper also gets a row of shortcuts: their order in progress, their points,
 saved items that dropped in price, and buying their last order again. Aisle, search and sale pages
 share one listing layout with filters beside the grid (in a sheet on phones). A product is one
-page — pictures, price and saving, add to cart, save, add to list, who delivers, then description,
-item specifics, allergens and safety, nutrition, and related rails — with no tabs.
+page - pictures, price and saving, add to cart, save, add to list, who delivers, then description,
+item specifics, allergens and safety, nutrition, and related rails - with no tabs.
 
 **Why this priority**: Browsing is where every order starts and is the most-viewed part of the site.
 
@@ -69,8 +69,8 @@ add to cart on desktop and phone, comparing each screen and each state with its 
 
 **Acceptance Scenarios**:
 
-1. **Given** a guest on home, **When** the page loads, **Then** it matches "Home — guest"; signed in
-   it matches "Home — signed in" including the shortcuts row, each shortcut shown only when it has
+1. **Given** a guest on home, **When** the page loads, **Then** it matches "Home - guest"; signed in
+   it matches "Home - signed in" including the shortcuts row, each shortcut shown only when it has
    something true to say.
 2. **Given** the catalogue is loading, empty, or cannot be reached, **When** home loads, **Then** the
    loading, "shelves are still being stocked" or "couldn't load the store" state is shown.
@@ -92,8 +92,8 @@ add to cart on desktop and phone, comparing each screen and each state with its 
 ### User Story 3 - Cart, checkout and payment (Priority: P1)
 
 A shopper reviews the cart (lines, save for later, promo code, summary with the free-delivery
-progress, minimum-order notice), then checks out on one page — address, who delivers and when,
-delivery instructions, points, billing, review — then pays, and lands on a confirmation.
+progress, minimum-order notice), then checks out on one page - address, who delivers and when,
+delivery instructions, points, billing, review - then pays, and lands on a confirmation.
 Everything the checkout already promises is unchanged: one window for the whole order, an
 estimate for courier, the one refusal sentence, the fee shown being the fee charged.
 
@@ -123,7 +123,7 @@ Compare every state with its reference and the totals with the totals before the
    pay-later options the shopper can use are offered inside the reference frame; a decline, a
    payment in progress, and an extra bank check each show their reference state.
 8. **Given** a finished payment, **When** the shopper returns, **Then** the confirmation shows paid,
-   still confirming, or not completed — each matching its reference.
+   still confirming, or not completed - each matching its reference.
 
 ---
 
@@ -276,9 +276,9 @@ information page and a wrong address, comparing with the references.
 - Very long product names, addresses and customer names wrap or shorten without breaking the layout.
 - More aisles than the header row can hold: the row stays on one line and the rest are in All aisles.
 - A signed-in customer with no address, no points, no saved items and no orders: Overview and the
-  home shortcuts show their empty wording or are absent — never placeholder numbers.
+  home shortcuts show their empty wording or are absent - never placeholder numbers.
 - A guest: no points anywhere, no shortcuts row, and the delivery bar invites rather than asserts.
-- A window that fills or closes while the customer is choosing is refused and they choose again —
+- A window that fills or closes while the customer is choosing is refused and they choose again -
   never swapped for another.
 - An order from before delivery types existed shows the day or window it was sold, in its own words.
 - Search suggestions that are slow or fail never block typing or submitting the search.
@@ -306,8 +306,8 @@ information page and a wrong address, comparing with the references.
   or message may remain in the old style.
 - **FR-006**: The new look MUST apply to the customer website only; the shop console, back-office
   and the three mobile apps MUST look exactly as they do today.
-- **FR-007**: Every screen state in the reference — loading, empty, error, unavailable, blocked,
-  expired — MUST exist for the page it belongs to.
+- **FR-007**: Every screen state in the reference - loading, empty, error, unavailable, blocked,
+  expired - MUST exist for the page it belongs to.
 - **FR-008**: Overlays MUST follow the reference pattern: a centred dialog or side panel on desktop
   and a bottom or full-height sheet on phones, closable by keyboard, with focus kept inside.
 - **FR-009**: The site MUST NOT show ratings, reviews, stock counts, seller or shop names, the
@@ -342,8 +342,8 @@ information page and a wrong address, comparing with the references.
   the cart's total and item count.
 - **FR-018**: An All aisles menu MUST list every aisle and its sub-aisles (a sheet on phones).
 - **FR-019**: Search MUST offer suggestions while typing: suggested searches and matching products.
-- **FR-020**: Home for a signed-in customer MUST show shortcuts — order in progress, points and
-  their worth, saved items that dropped in price, buy again from the last order — each only when true.
+- **FR-020**: Home for a signed-in customer MUST show shortcuts - order in progress, points and
+  their worth, saved items that dropped in price, buy again from the last order - each only when true.
 - **FR-021**: Home MUST show a "Shop by brand" row leading to each brand's products.
 - **FR-022**: Aisle, search and sale pages MUST share one listing layout with filters beside the
   results on desktop and in a sheet on phones, sort, active filter chips, count and paging.
@@ -368,11 +368,11 @@ information page and a wrong address, comparing with the references.
 
 ### Key Entities
 
-- **Reference screen**: one numbered design in the screen index — its group, name, width (desktop or
+- **Reference screen**: one numbered design in the screen index - its group, name, width (desktop or
   phone), the page and state it shows, and what it maps to today.
-- **Offer**: a current promotion — title, summary, terms, optional code, optional picture, the aisles
+- **Offer**: a current promotion - title, summary, terms, optional code, optional picture, the aisles
   or products it applies to, and when it ends.
-- **Order summary**: an order as shown in a list — number, date placed, stage, who delivers, item
+- **Order summary**: an order as shown in a list - number, date placed, stage, who delivers, item
   count, a few item pictures, total.
 - **Search suggestion**: a suggested search phrase (optionally within an aisle) or a matching product.
 - **Help answer**: a question, its answer, and its topic.
@@ -419,7 +419,7 @@ information page and a wrong address, comparing with the references.
   every field has a visible label and a strong focus ring.
 - **Pay-later options and wallets** appear only where the payment provider offers them to that
   customer and device; none is drawn by Effy.
-- **Texting a code to verify a mobile number is out** (operator, 2026-10-12) — the platform
+- **Texting a code to verify a mobile number is out** (operator, 2026-10-12) - the platform
   sends codes by email only today, and texting is a new paid outward-facing channel.
 - **Help answers are written content** maintained with the site, searched on the page; they need
   the operator's review before launch like other authored prose.

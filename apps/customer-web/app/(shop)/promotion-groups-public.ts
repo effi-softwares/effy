@@ -17,7 +17,7 @@ async function readCached(keys: string): Promise<PromotionGroupsDTO> {
   return edgeApiPublic().get<PromotionGroupsDTO>(`/storefront/v1/promotion-groups?keys=${encodeURIComponent(keys)}`)
 }
 
-/** Request time only — see `atRequestTime` in lib/cache-life.ts. */
+/** Request time only - see `atRequestTime` in lib/cache-life.ts. */
 export async function readPublicGroups(keys: string): Promise<PromotionGroupsDTO> {
   await connection()
   return readCached(keys)

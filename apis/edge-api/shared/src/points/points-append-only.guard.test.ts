@@ -27,7 +27,7 @@ const LEDGER_TABLES = "points_entry|points_allocation";
 const DESTRUCTIVE = new RegExp(`\\b(UPDATE|DELETE\\s+FROM|TRUNCATE)\\s+(public\\.)?(${LEDGER_TABLES})\\b`, "i");
 const INSERT = new RegExp(`\\bINSERT\\s+INTO\\s+(public\\.)?(${LEDGER_TABLES})\\b`, "i");
 
-describe("074 — the points ledger is append-only and has one writer", () => {
+describe("074 - the points ledger is append-only and has one writer", () => {
   it("found the source tree (the guard must not pass vacuously)", () => {
     expect(files.some((f) => f.rel === "shared/src/points/ledger.ts")).toBe(true);
   });

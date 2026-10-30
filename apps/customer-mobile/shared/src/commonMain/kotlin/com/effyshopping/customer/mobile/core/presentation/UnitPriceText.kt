@@ -7,7 +7,7 @@ import androidx.compose.ui.Modifier
 import com.effyshopping.customer.mobile.features.catalog.domain.UnitPrice
 
 /**
- * The comparison price, said small and quiet beside a price — on the tile, the product page,
+ * The comparison price, said small and quiet beside a price - on the tile, the product page,
  * the cart line and the saved list. Nothing at all when the platform gave none: a guessed comparison
  * is worse than none.
  */

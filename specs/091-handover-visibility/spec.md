@@ -6,14 +6,14 @@
 
 **Status**: Draft
 
-**Input**: User description: "Driver backlog H12 — show scan versus manual for every hand-over on the order and run screens, and a per-shop 'labels that didn't scan' count, so dispatch can see which labels and drivers skip scanning."
+**Input**: User description: "Driver backlog H12 - show scan versus manual for every hand-over on the order and run screens, and a per-shop 'labels that didn't scan' count, so dispatch can see which labels and drivers skip scanning."
 
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Each package's hand-overs on the order (Priority: P1)
 
-Staff looking at an order see, for each package, every hand-over it has been through — collected,
-checked in at the hub, loaded, delivered, returned — and whether each was scanned, typed or ticked by
+Staff looking at an order see, for each package, every hand-over it has been through - collected,
+checked in at the hub, loaded, delivered, returned - and whether each was scanned, typed or ticked by
 hand, when, and by which driver.
 
 **Why this priority**: When a customer says they got the wrong bag, this is the first question.
@@ -26,7 +26,7 @@ hand, when, and by which driver.
 1. **Given** a package with recorded hand-overs, **When** staff open its order, **Then** each hand-over
    is listed in time order with its method, time and driver.
 2. **Given** a package with none recorded (before scanning, or an app that does not scan), **When** the
-   order is opened, **Then** nothing is shown for it — never "by hand" by assumption.
+   order is opened, **Then** nothing is shown for it - never "by hand" by assumption.
 
 ---
 
@@ -48,7 +48,7 @@ On a round, each stop shows how many of its hand-overs were scanned, typed and t
 ### User Story 3 - Labels that didn't scan, per shop (Priority: P2)
 
 On a shop's page, staff see, for the last 30 days, how many of that shop's package hand-overs were
-scanned and how many were not (typed or by hand) — a shop whose labels often fail to scan is printing
+scanned and how many were not (typed or by hand) - a shop whose labels often fail to scan is printing
 them badly.
 
 **Independent Test**: A shop with 8 scanned and 2 typed hand-overs in 30 days shows "8 scanned · 2 not

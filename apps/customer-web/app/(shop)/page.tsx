@@ -24,12 +24,12 @@ import { ProductRail, ProductRailSkeleton } from "./_components/ProductRail"
 import { RecentlyViewedRail } from "./_components/RecentlyViewedRail"
 
 export const metadata: Metadata = {
-  title: "Effy — groceries, delivered",
+  title: "Effy - groceries, delivered",
   description:
     "Shop fresh groceries and everyday essentials from Effy. Browse without an account; sign in only when you order.",
   alternates: { canonical: "/" },
   openGraph: {
-    title: "Effy — groceries, delivered",
+    title: "Effy - groceries, delivered",
     description:
       "Shop fresh groceries and everyday essentials from Effy, delivered to your door.",
     url: "/",
@@ -47,10 +47,10 @@ export default function HomePage() {
     <>
       <JsonLd data={organizationLd(siteUrl())} />
 
-      {/* Static shell — in the prerender, present in the raw HTML a crawler receives, and
+      {/* Static shell - in the prerender, present in the raw HTML a crawler receives, and
           Not gated on the catalogue read below.
 
-          The H1 is screen-reader-only and every section — including the hero — heads itself at H2.
+          The H1 is screen-reader-only and every section - including the hero - heads itself at H2.
           The page therefore has exactly one top-level heading no matter which sections have data
           , which is the one structural invariant that has to survive all six 039 sections
           landing one at a time.
@@ -59,9 +59,9 @@ export default function HomePage() {
           storefront should lead with what is on offer rather than a slogan, and put the promo carousel
           in the top slot; the operator's 039 direction is a hero band, and the offers now get their
           own dedicated panels further down (contract rows 3 and 6) rather than the first screen. */}
-      <h1 className="sr-only">Effy — groceries, delivered</h1>
+      <h1 className="sr-only">Effy - groceries, delivered</h1>
 
-      {/* Its own suspense boundary, at page level — not inside `HomeContent` (operator direction,
+      {/* Its own suspense boundary, at page level - not inside `HomeContent` (operator direction,
           2026-08-09). It cannot join the static shell the way `Hero` does, because it is built from
           advertised promotions, which are kept a minute at most and never prerendered. But it must
           not be behind the merchandising hole either: sharing that boundary made the page's largest element wait on the
@@ -76,7 +76,7 @@ export default function HomePage() {
 
       {/* Client island: shown only when the shopper's postcode is outside a serviced zone. */}
 
-      {/* Dynamic hole — the merchandised store, streamed from the backend. */}
+      {/* Dynamic hole - the merchandised store, streamed from the backend. */}
       <Suspense fallback={null}>
         <HomeShortcuts />
       </Suspense>
@@ -84,12 +84,12 @@ export default function HomePage() {
         <HomeContent />
       </Suspense>
 
-      {/* Contract row 7 — static shell, no request-time data, present for crawlers. It sits
+      {/* Contract row 7 - static shell, no request-time data, present for crawlers. It sits
           After the streamed merchandising hole in the document, which is where a shopper meets it, and
           still prerenders because it is outside the <Suspense> boundary. */}
       <AppPromo />
 
-      {/* Contract row 9 — static shell. The form posts to a Server Action; only its result state needs
+      {/* Contract row 9 - static shell. The form posts to a Server Action; only its result state needs
           a client boundary (see NewsletterForm's header for why FR-033 forces one). */}
 
       {/* Device-local recently-viewed (client island). */}
@@ -127,7 +127,7 @@ async function HomeContent() {
 
   // "Empty" is decided from the products, not the rail count. A server that returns four rails with
   // nothing in them is an empty store, and the previous `rails.length === 0` check called that a full
-  // one — then rendered four headings above four blank spaces.
+  // one - then rendered four headings above four blank spaces.
   if (isEmptyStore(home)) {
     return <EmptyStore />
   }
@@ -143,12 +143,12 @@ async function HomeContent() {
     <>
       {/* The page renders a composed sequence, it does not decide the order here. `composeSections`
           owns the top-to-bottom argument and the self-hiding rule so both are unit
-          testable — rendering async Server Components is exactly what Vitest cannot do.
+          testable - rendering async Server Components is exactly what Vitest cannot do.
 
           Retires `CategoryMosaic`, which used to sit at the bottom of this page. The mosaic was a
           discovery block a shopper reached after scrolling the whole storefront; the shortcut strip is
           a navigation affordance, and navigation belongs before the thing it navigates. The file is
-          deleted rather than left unused — its only call site was here. */}
+          deleted rather than left unused - its only call site was here. */}
       {sections.map((section) => (
         <div key={sectionKey(section)}>
           {section.kind === "categories" && <CategoryStrip categories={section.categories} />}
@@ -170,7 +170,7 @@ async function HomeContent() {
   )
 }
 
-/** A stable React key per section — `kind` alone repeats once several rails are on the page. */
+/** A stable React key per section - `kind` alone repeats once several rails are on the page. */
 function sectionKey(section: HomeSection): string {
   return section.kind === "rail" ? `rail:${section.key}` : section.kind
 }
@@ -206,7 +206,7 @@ function StoreUnavailable() {
       <EmptyState
         icon={CloudOff}
         title="We couldn't load the store just now"
-        description="This is on us, not you. Reloading usually sorts it — or browse all products directly."
+        description="This is on us, not you. Reloading usually sorts it - or browse all products directly."
         action={{ label: "Browse products", href: "/search" }}
       />
     </div>

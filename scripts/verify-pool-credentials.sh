@@ -24,7 +24,7 @@ echo
 
 # The SSM path uses the hyphenated audience name (`back-office`), even though the Cognito module
 # takes the underscored one (`back_office`). Both spellings are live in infra/envs/<env>/*.tf, which
-# is exactly the sort of split the 008 one-name rule exists to prevent — but the SSM keys are a
+# is exactly the sort of split the 008 one-name rule exists to prevent - but the SSM keys are a
 # published contract that other services read, so this script conforms to reality rather than
 # "correcting" it. Do not "fix" the hyphen here; you will break the lookup.
 for audience in driver shop back-office; do
@@ -33,7 +33,7 @@ for audience in driver shop back-office; do
 
   # A missing pool is a failure, not a skip: a green tick over an audience nobody inspected is the worst result.
   if [ -z "$pool_id" ] || [ "$pool_id" = "None" ]; then
-    bad "${audience}: NO POOL FOUND at /effy/${ENV}/auth/${audience}/user_pool_id — this audience was NOT verified."
+    bad "${audience}: NO POOL FOUND at /effy/${ENV}/auth/${audience}/user_pool_id - this audience was NOT verified."
     echo
     continue
   fi
@@ -41,7 +41,7 @@ for audience in driver shop back-office; do
   echo "${audience} (${pool_id})"
 
   # 1. No password may be a usable first factor. The pool-level policy always lists password (the
-  # CreateUserPool API refuses to omit it), so the pool is not where the answer lives — the APP
+  # CreateUserPool API refuses to omit it), so the pool is not where the answer lives - the APP
   # client is. A client without ALLOW_USER_SRP_AUTH / ALLOW_USER_PASSWORD_AUTH cannot run a
   # password challenge at all.
   client_id=$($AWS ssm get-parameter --name "/effy/${ENV}/auth/${audience}/app_client_id" \
@@ -75,8 +75,8 @@ for audience in driver shop back-office; do
   fi
 
   # 1c. The mobile clients were entirely unguarded until 035. This script read only
-  # .../app_client_id, so `shop_mobile` and `customer_mobile` — whose auth flows are hardcoded
-  # in the env root rather than set by the module — were never checked by anything.
+  # .../app_client_id, so `shop_mobile` and `customer_mobile` - whose auth flows are hardcoded
+  # in the env root rather than set by the module - were never checked by anything.
   mobile_client_id=$($AWS ssm get-parameter --name "/effy/${ENV}/auth/${audience}/mobile_app_client_id" \
     --query 'Parameter.Value' --output text 2>/dev/null || echo "")
 
@@ -125,13 +125,13 @@ done
 # --- The other half: the customer pool must have actually gained what 011 gave it. ------------
 #
 # A guard that only checks "nothing widened" would pass just as happily if the apply had done
-# nothing at all. So we also assert the intended change landed — otherwise a green tick here would
+# nothing at all. So we also assert the intended change landed - otherwise a green tick here would
 # be compatible with a storefront where nobody can sign in.
 cust_pool=$($AWS ssm get-parameter --name "/effy/${ENV}/auth/customer/user_pool_id" \
   --query 'Parameter.Value' --output text 2>/dev/null || true)
 
 if [ -z "$cust_pool" ] || [ "$cust_pool" = "None" ]; then
-  bad "customer: NO POOL FOUND — the audience this slice exists for was not verified."
+  bad "customer: NO POOL FOUND - the audience this slice exists for was not verified."
 else
   echo "customer (${cust_pool})  ← the ONLY audience allowed passwords / self-signup"
   cust_client=$($AWS ssm get-parameter --name "/effy/${ENV}/auth/customer/app_client_id" \
@@ -142,9 +142,9 @@ else
     --query 'UserPoolClient.ExplicitAuthFlows' --output text)
 
   if grep -q 'ALLOW_USER_SRP_AUTH' <<<"$cust_flows"; then
-    ok "password route is usable (ALLOW_USER_SRP_AUTH — SRP, so the password never goes on the wire)"
+    ok "password route is usable (ALLOW_USER_SRP_AUTH - SRP, so the password never goes on the wire)"
   else
-    bad "customer: ALLOW_USER_SRP_AUTH is MISSING — the email+password route cannot work (${cust_flows})."
+    bad "customer: ALLOW_USER_SRP_AUTH is MISSING - the email+password route cannot work (${cust_flows})."
   fi
 
   cust_signup=$($AWS cognito-idp describe-user-pool --user-pool-id "$cust_pool" \
@@ -153,7 +153,7 @@ else
   if [ "$cust_signup" = "False" ]; then
     ok "open self-registration (the platform's only self-registering audience)"
   else
-    bad "customer: SELF-SIGNUP IS CLOSED — no member of the public can create an account."
+    bad "customer: SELF-SIGNUP IS CLOSED - no member of the public can create an account."
   fi
   echo
 fi
@@ -162,7 +162,7 @@ if [ "$fail" -ne 0 ]; then
   echo "✗ FAILED."
   echo "  FR-017: password / federation / self-signup belong to the CUSTOMER POOL ONLY"
   echo "  (constitution v1.7.0). An internal audience must never gain a public-facing"
-  echo "  credential route — and the customer must never LOSE one."
+  echo "  credential route - and the customer must never LOSE one."
   exit 1
 fi
 

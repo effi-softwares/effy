@@ -67,7 +67,7 @@ test.describe("one-time-code field", () => {
     const code = page.locator("#code")
     await code.fill("12345678")
 
-    // Kept in full — not reshaped into something plausible-looking and submittable.
+    // Kept in full - not reshaped into something plausible-looking and submittable.
     await expect(code).toHaveValue("12345678")
   })
 
@@ -78,7 +78,7 @@ test.describe("one-time-code field", () => {
     await expect(code).toHaveValue("042042")
   })
 
-  test("⚠ leading zeros survive — roughly one code in ten begins with one", async ({ page }) => {
+  test("⚠ leading zeros survive - roughly one code in ten begins with one", async ({ page }) => {
     // A field that coerced to a number would drop these and lock out ~10% of sign-ins.
     await reachCodeStep(page)
     const code = page.locator("#code")
@@ -97,7 +97,7 @@ test.describe("one-time-code field", () => {
   // The affordances the step did not have
   //
   // These are the ones whose absence stranded people. Before 036 the code screen did not say where
-  // the code went, offered no way to send another, and had no countdown — while its own error copy
+  // the code went, offered no way to send another, and had no countdown - while its own error copy
   // told the shopper to "ask for a new one".
 
   test("⚠ the step NAMES the address the code went to (FR-006)", async ({ page }) => {
@@ -125,13 +125,13 @@ test.describe("one-time-code field", () => {
     //
     // Fixed two things in this test, both pre-existing:
     //
-    //  1. It located `submit-reset` — the test id of the new-password step's action, which is two
+    //  1. It located `submit-reset` - the test id of the new-password step's action, which is two
     //  steps further on. On the code step that id does not exist, so every assertion here was
     //  `element(s) not found`. The header of this file already warned that these tests "were
     //  failing or unrun"; this is one of them. The real id is `submit-reset-code`.
     //  2. `toBeDisabled` / `toBeEnabled` became `aria-disabled`. That is a deliberate contract
     //  change: a natively `disabled` action cannot take focus,
-    //  is skipped by keyboard and by screen-reader element lists, and — being inert — cannot be
+    //  is skipped by keyboard and by screen-reader element lists, and - being inert - cannot be
     //  the thing that tells the shopper what is still missing.
     await reachCodeStep(page)
     const submit = page.getByTestId("submit-reset-code")
@@ -157,7 +157,7 @@ test.describe("one-time-code field", () => {
     await code.fill("123456")
     await expect(submit).not.toHaveAttribute("aria-disabled", "true")
 
-    // Too long is also refused — not truncated into something submittable.
+    // Too long is also refused - not truncated into something submittable.
     await code.fill("12345678")
     await expect(submit).toHaveAttribute("aria-disabled", "true")
     await expect(page.getByText(/an effy code is always/i)).toBeVisible()
@@ -184,7 +184,7 @@ test.describe("one-time-code field", () => {
 
   test("⚠ an over-length paste is not painted as six cells (C-11)", async ({ page }) => {
     // Six positions can only show six characters, so rendering an 8-digit paste as cells would look
-    // like a six-digit code — visually reproducing the truncation FR-004 forbids.
+    // like a six-digit code - visually reproducing the truncation FR-004 forbids.
     await reachCodeStep(page)
     await page.locator("#code").fill("12345678")
     await expect(page.locator('[data-slot="otp-cell"]')).toHaveCount(0)
@@ -194,7 +194,7 @@ test.describe("one-time-code field", () => {
   test("⚠ nothing auto-submits on the sixth digit (C-12)", async ({ page }) => {
     await reachCodeStep(page)
     await page.locator("#code").fill("123456")
-    // Still on the code step — the countdown is only rendered there.
+    // Still on the code step - the countdown is only rendered there.
     await expect(page.getByTestId("resend-countdown")).toBeVisible()
     await expect(page.locator("#code")).toHaveValue("123456")
   })

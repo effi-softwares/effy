@@ -19,13 +19,13 @@ class MainActivity : ComponentActivity() {
     // No payment sheet is registered here. 019 built Stripe's `PaymentSheet` in onCreate so its
     // ActivityResultLauncher was registered in time, and the shared driver presented through it. Paying
     // now happens inside Effy's own payment screen, through a Compose-scoped embedded element that
-    // registers its own launchers — so the Activity has nothing to own and nothing to tear down.
+    // registers its own launchers - so the Activity has nothing to own and nothing to tear down.
 
     // The Android 13+ runtime notification permission. Registered before started (field
     // initializer). The result is intentionally ignored: a denial just means no push is shown,
     // and the FCM token still registers (token generation does not need this permission).
     private val requestNotifications =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { /* granted or not — no-op */ }
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { /* granted or not - no-op */ }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // Before super.onCreate and setContent, or the window is created with the splash theme still attached
@@ -34,7 +34,7 @@ class MainActivity : ComponentActivity() {
         // images and read as a flicker.
         installSplashScreen().setOnExitAnimationListener { it.remove() }
         // Not the no-arg `enableEdgeToEdge`. Its default `navigationBarStyle` is
-        // `SystemBarStyle.auto(DefaultLightScrim, DefaultDarkScrim)` — a 90%-white / 50%-dark scrim the
+        // `SystemBarStyle.auto(DefaultLightScrim, DefaultDarkScrim)` - a 90%-white / 50%-dark scrim the
         // framework paints over the navigation bar on API ≤ 28, and on API 29+ it sets
         // `isNavigationBarContrastEnforced = true`, which makes the system draw its own scrim in
         // 3-button mode. Either way the bar area ends up a different shade from the app, which is
@@ -42,10 +42,10 @@ class MainActivity : ComponentActivity() {
         //
         // `light`, not `auto`: the app is light only (storefront identity), so the system-bar
         // icons must stay dark on the white ground even when the device is in dark mode. With `auto`
-        // a dark-mode phone drew white status icons on a white page — invisible.
+        // a dark-mode phone drew white status icons on a white page - invisible.
         enableEdgeToEdge(
             // Light icons to start: the splash and the launch intro are dark. From then on the app sets
-            // them to its appearance (StatusBarIcons) — light icons on the dark theme, dark on the light.
+            // them to its appearance (StatusBarIcons) - light icons on the dark theme, dark on the light.
             statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
         )

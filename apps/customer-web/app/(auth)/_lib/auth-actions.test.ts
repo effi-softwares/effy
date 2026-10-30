@@ -39,7 +39,7 @@ describe("classifySignInStep (036 R9)", () => {
   })
 })
 
-describe("authErrorMessage — what the platform can honestly say (036 FR-011)", () => {
+describe("authErrorMessage - what the platform can honestly say (036 FR-011)", () => {
   const err = (name: string) => ({ name })
 
   it("⚠ says something DIFFERENT for the same exception on the two routes", () => {
@@ -73,7 +73,7 @@ describe("authErrorMessage — what the platform can honestly say (036 FR-011)",
     expect(message).not.toMatch(/something went wrong/i)
   })
 
-  it("⚠ tells the shopper to SEND another code — an action the screen now has", () => {
+  it("⚠ tells the shopper to SEND another code - an action the screen now has", () => {
     expect(authErrorMessage(err("ExpiredCodeException"), "code")).toMatch(/send another/i)
   })
 

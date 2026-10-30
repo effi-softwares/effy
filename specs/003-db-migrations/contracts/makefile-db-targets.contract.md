@@ -1,4 +1,4 @@
-# Contract: Root Makefile — `db-*` command surface
+# Contract: Root Makefile - `db-*` command surface
 
 Extends the 001 Makefile contract with the database migration targets. Same laws: every
 target wraps `AWS_PROFILE=ef`; mutating targets are **operator-run** with interactive
@@ -27,13 +27,13 @@ make db-down   ENV=<env>                   # 🧑‍💻 step back ONE (dev-only
 - DSN composed by `infra/scripts/db-dsn.sh <env>` at invocation: SSM
   `/effy/<env>/db/{endpoint,port,name,master_username}` + Secrets Manager password (ARN
   from `/effy/<env>/db/master_secret_arn`), libpq keyword format, `sslmode=require`.
-- Enters goose via the `GOOSE_DBSTRING` **process environment variable** only — never
+- Enters goose via the `GOOSE_DBSTRING` **process environment variable** only - never
   argv, never echoed (`@`-prefixed recipes), never written to any file.
 - No caching: every invocation re-reads the contract (rotation-safe by construction).
 
 ## Guarantees
 
-- **Forward-only, structurally**: the only rewind is `db-down` — single-step and
+- **Forward-only, structurally**: the only rewind is `db-down` - single-step and
   physically scoped to dev. No reset/mass-rollback target exists.
 - **Idempotent apply**: `db-up` with nothing pending exits 0 reporting no work (SC-002).
 - **Human-in-the-loop**: `db-up`/`db-down` are operator-run and prompt before touching the

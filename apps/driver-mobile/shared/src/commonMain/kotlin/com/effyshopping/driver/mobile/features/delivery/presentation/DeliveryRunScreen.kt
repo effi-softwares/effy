@@ -295,7 +295,7 @@ private fun RunBody(
 
 private fun androidx.compose.ui.text.AnnotatedString.Builder.bold(s: String) = withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(s) }
 
-/** "Van loaded" — every drop is out for delivery (redesign `06 / 01`). */
+/** "Van loaded" - every drop is out for delivery (redesign `06 / 01`). */
 @Composable
 private fun VanLoaded(packages: Int) {
     Row(
@@ -430,7 +430,7 @@ fun ReturnHubScreen(
                             if (i < rows.lastIndex) androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         }
                     }
-                    Text("Dispatch decides when they go out again — you don't need to do anything else with them.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Dispatch decides when they go out again - you don't need to do anything else with them.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -443,7 +443,7 @@ fun ReturnHubScreen(
                 DriverSwipeToConfirm(
                     if (codes) "Swipe to check in without scanning" else "Swipe to check them in",
                     onConfirm = { onReturn(emptyList()) }, enabled = !state.isWorking,
-                    note = if (codes) "Fallback — use only if the labels won't scan" else "At the hub with the parcels",
+                    note = if (codes) "Fallback - use only if the labels won't scan" else "At the hub with the parcels",
                 )
             }
         }

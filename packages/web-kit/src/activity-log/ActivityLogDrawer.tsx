@@ -48,7 +48,7 @@ export interface ActivityLogDrawerProps extends ActivityLogSource {
   app: "back-office" | "shop-web";
   log: ActivityLogId;
   title: string;
-  /** One line under the title: what the log is of ("EFY-4415 — everything that has happened to this order."). */
+  /** One line under the title: what the log is of ("EFY-4415 - everything that has happened to this order."). */
   description?: string;
   /**
    * The key root the page's live kind invalidates (071), so a change refreshes the open drawer. The drawer's own
@@ -63,9 +63,9 @@ export interface ActivityLogDrawerProps extends ActivityLogSource {
 
 /**
  * A record's activity log (104): one drawer, the same on every page of both consoles. From the right and half the
- * window wide (never narrower than a readable table; a bottom sheet on a phone) — or as wide as its left edge is
- * dragged, kept on the device — it pages through every entry the
- * log holds, newest or oldest first, searched, filtered by type, date and — where a log covers several things —
+ * window wide (never narrower than a readable table; a bottom sheet on a phone) - or as wide as its left edge is
+ * dragged, kept on the device - it pages through every entry the
+ * log holds, newest or oldest first, searched, filtered by type, date and - where a log covers several things -
  * what it was on, and exports what it shows as CSV. Its state is in the address; Back closes it.
  */
 export function ActivityLogDrawer(props: ActivityLogDrawerProps) {
@@ -92,10 +92,10 @@ export function ActivityLogDrawer(props: ActivityLogDrawerProps) {
           isMobile
             ? "data-[vaul-drawer-direction=bottom]:max-h-[92dvh]"
             : cn(
-                "overflow-hidden",
-                "data-[vaul-drawer-direction=right]:w-[max(50vw,min(42rem,calc(100vw-1rem)))]",
-                "data-[vaul-drawer-direction=right]:sm:max-w-none",
-              )
+              "overflow-hidden",
+              "data-[vaul-drawer-direction=right]:w-[max(50vw,min(42rem,calc(100vw-1rem)))]",
+              "data-[vaul-drawer-direction=right]:sm:max-w-none",
+            )
         }
       >
         {isMobile ? (
@@ -229,7 +229,7 @@ function ActivityLogBody({ app, log, api, path, queryKey, subjects, fileName }: 
         onClick={() => void exportCsv()}
         disabled={exporting || query.isPending}
         aria-label={exporting ? "Exporting…" : "Export CSV"}
-        title="Export CSV — what this log shows, every page"
+        title="Export CSV - what this log shows, every page"
       >
         {exporting ? <LoaderCircle aria-hidden="true" className="animate-spin" /> : <Download aria-hidden="true" />}
       </Button>
@@ -329,7 +329,7 @@ function activityColumns(subjectHeader: string | null): EffyColumnDef<ActivityEn
     cols.push({
       id: "on",
       header: subjectHeader,
-      cell: ({ row }) => <span className="text-muted-foreground">{row.original.subject ?? "—"}</span>,
+      cell: ({ row }) => <span className="text-muted-foreground">{row.original.subject ?? "-"}</span>,
       meta: { label: subjectHeader, priority: 2 },
     });
   }
@@ -337,7 +337,7 @@ function activityColumns(subjectHeader: string | null): EffyColumnDef<ActivityEn
     {
       id: "who",
       header: "Who",
-      cell: ({ row }) => <span className="text-muted-foreground">{row.original.actor ?? "—"}</span>,
+      cell: ({ row }) => <span className="text-muted-foreground">{row.original.actor ?? "-"}</span>,
       meta: { label: "Who" },
     },
     {

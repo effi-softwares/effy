@@ -36,12 +36,12 @@ describe("How the delivery fee was built (077 FR-037)", () => {
   it("names the plan, every step with its band, and the lines the customer was shown", () => {
     render(<FeeBreakdown breakdown={stored} />)
     expect(screen.getByText("Priced by Spring 2026 when the order was placed.")).toBeInTheDocument()
-    expect(screen.getByText("12.4 km — the band up to 20 km")).toBeInTheDocument()
-    expect(screen.getByText("6.2 kg — the band up to 15 kg")).toBeInTheDocument()
+    expect(screen.getByText("12.4 km - the band up to 20 km")).toBeInTheDocument()
+    expect(screen.getByText("6.2 kg - the band up to 15 kg")).toBeInTheDocument()
     expect(screen.getByText("a window today")).toBeInTheDocument()
-    expect(screen.getByText("the basket was $15.00")).toBeInTheDocument()
+    expect(screen.getByText("the basket was AUD 15.00")).toBeInTheDocument()
     expect(screen.getAllByText("Window surcharge")).toHaveLength(2) // the step, and the customer's line
-    expect(screen.getByText("$12.50")).toBeInTheDocument()
+    expect(screen.getByText("AUD 12.50")).toBeInTheDocument()
   })
 
   it("says when the free-delivery amount was reached", () => {
@@ -58,6 +58,6 @@ describe("How the delivery fee was built (077 FR-037)", () => {
       />,
     )
     expect(screen.getByText(/reached the free-delivery amount/)).toBeInTheDocument()
-    expect(screen.getByText("−$6.50")).toBeInTheDocument()
+    expect(screen.getByText("AUD −6.50")).toBeInTheDocument()
   })
 })

@@ -18,7 +18,7 @@ suspend fun HttpResponse.toAppException(): AppException {
     val title = problem?.title.orEmpty()
 
     val error = when (status.value) {
-        400 -> AppError.Validation(message ?: "That didn't work — check your details and try again.")
+        400 -> AppError.Validation(message ?: "That didn't work - check your details and try again.")
         401 -> if (title.contains("password", ignoreCase = true)) AppError.WrongPassword
         else AppError.Unauthenticated
         403 -> AppError.Forbidden

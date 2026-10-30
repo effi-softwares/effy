@@ -82,7 +82,7 @@ const effy = (over: Record<string, unknown> = {}) => ({
 const courier = (over: Record<string, unknown> = {}) =>
   effy({ kind: "courier", baseAmount: "9.00", distanceBands: [], todayPremiumAmount: "0.00", floorAmount: "9.00", ...over });
 
-describe.skipIf(!RUN)("077 — the pricing console, against real PostgreSQL", () => {
+describe.skipIf(!RUN)("077 - the pricing console, against real PostgreSQL", () => {
   beforeAll(async () => {
     container = await new PostgreSqlContainer("postgres:16-alpine").start();
     pool = new Pool({ connectionString: container.getConnectionUri(), max: 8 });
@@ -116,7 +116,7 @@ describe.skipIf(!RUN)("077 — the pricing console, against real PostgreSQL", ()
     holder.announced.length = 0;
   });
 
-  it("a draft is saved, complete or not, its gaps named — and an open screen is told", async () => {
+  it("a draft is saved, complete or not, its gaps named - and an open screen is told", async () => {
     const half = await svc.createPlan(effy({ distanceBands: [], weightBands: [], floorAmount: "0.00" }), SUB);
     expect(half.state).toBe("draft");
     expect(half.gaps.map((g) => [g.code, g.blocking]).sort()).toEqual([
@@ -125,7 +125,7 @@ describe.skipIf(!RUN)("077 — the pricing console, against real PostgreSQL", ()
     expect(holder.announced).toEqual([{ scope: "ops", kind: "pricing" }]);
   });
 
-  it("P7 — each gap is found, with the facts to fix it, and activation refuses every blocking one", async () => {
+  it("P7 - each gap is found, with the facts to fix it, and activation refuses every blocking one", async () => {
     const cases: [Record<string, unknown>, string][] = [
       [{ distanceBands: [] }, "distance_bands_missing"],
       [{ distanceBands: [{ upperKm: "10", addAmount: "0.00" }] }, "distance_open_band_missing"],
@@ -145,7 +145,7 @@ describe.skipIf(!RUN)("077 — the pricing console, against real PostgreSQL", ()
     expect(distance.detail).toEqual({ lowerKm: 10, lowerAmount: 3, upperKm: null, upperAmount: 1 });
   });
 
-  it("P7 — a value error is refused at save, naming the field, and nothing is written", async () => {
+  it("P7 - a value error is refused at save, naming the field, and nothing is written", async () => {
     const before = (await q(`SELECT count(*)::int AS n FROM public.delivery_fee_plan`))[0];
     expect(await refusal(svc.createPlan(effy({ smallOrderUnderAmount: "90.00", smallOrderFeeAmount: "3.00", freeOverAmount: "80.00" }), SUB))).toMatchObject({
       status: 422, code: "invalid_plan", extra: { fields: [{ field: "smallOrderUnderAmount" }] },
@@ -168,7 +168,7 @@ describe.skipIf(!RUN)("077 — the pricing console, against real PostgreSQL", ()
     expect((await svc.activatePlan(plan.id, { confirmZeroFloor: true }, SUB)).state).toBe("active");
   });
 
-  it("P8 — two managers activating at once leave exactly one plan in force, and never none", async () => {
+  it("P8 - two managers activating at once leave exactly one plan in force, and never none", async () => {
     const [a, b, c] = await Promise.all([svc.createPlan(effy(), SUB), svc.createPlan(effy(), SUB), svc.createPlan(effy(), SUB)]);
     await svc.activatePlan(a.id, {}, SUB);
 
@@ -192,18 +192,18 @@ describe.skipIf(!RUN)("077 — the pricing console, against real PostgreSQL", ()
     expect(log.map((l) => l.detail.retired).sort()).toEqual([a.id, b.id === active[0]!.id ? c.id : b.id].sort());
   });
 
-  it("P9 — a plan that has been active is a record: no edit, no delete, no return — copy it instead", async () => {
+  it("P9 - a plan that has been active is a record: no edit, no delete, no return - copy it instead", async () => {
     const plan = await svc.createPlan(effy(), SUB);
     await svc.activatePlan(plan.id, {}, SUB);
 
     const was = await q(`SELECT row_to_json(f)::text AS j FROM public.delivery_fee_plan f WHERE id = $1`, [plan.id]);
     const bands = await q(`SELECT upper_km, add_amount FROM public.delivery_distance_band WHERE plan_id = $1 ORDER BY upper_km`, [plan.id]);
     expect(await refusal(svc.replaceDraft(plan.id, effy({ baseAmount: "0.00" }), SUB))).toMatchObject({ status: 409, code: "plan_not_draft" });
-    // The refused write changed nothing — not the plan, not its bands.
+    // The refused write changed nothing - not the plan, not its bands.
     expect(await q(`SELECT row_to_json(f)::text AS j FROM public.delivery_fee_plan f WHERE id = $1`, [plan.id])).toEqual(was);
     expect(await q(`SELECT upper_km, add_amount FROM public.delivery_distance_band WHERE plan_id = $1 ORDER BY upper_km`, [plan.id])).toEqual(bands);
 
-    // Replaced, it is retired — and is not brought back.
+    // Replaced, it is retired - and is not brought back.
     const next = await svc.createPlan(effy(), SUB);
     await svc.activatePlan(next.id, {}, SUB);
     expect((await svc.listPlans("effy")).items.find((p) => p.id === plan.id)?.state).toBe("retired");
@@ -217,7 +217,7 @@ describe.skipIf(!RUN)("077 — the pricing console, against real PostgreSQL", ()
     });
   });
 
-  it("P24 — every write leaves one audit row with what it was and what it became", async () => {
+  it("P24 - every write leaves one audit row with what it was and what it became", async () => {
     const draft = await svc.createPlan(effy({ baseAmount: "1.00" }), SUB);
     await svc.replaceDraft(draft.id, effy({ name: draft.name, baseAmount: "2.50" }), SUB);
     const rows = await q<{ action: string; actor_sub: string; detail: { before: { baseAmount: string } | null; after: { baseAmount: string } } }>(
@@ -235,7 +235,7 @@ describe.skipIf(!RUN)("077 — the pricing console, against real PostgreSQL", ()
     expect(await refusal(svc.createPlan(effy({ name: "Taken" }), SUB))).toMatchObject({ status: 409, code: "duplicate_name" });
   });
 
-  it("P11 — the simulator's fee for the active plan is the fee a real basket is quoted, over a table", async () => {
+  it("P11 - the simulator's fee for the active plan is the fee a real basket is quoted, over a table", async () => {
     const plan = await svc.createPlan(
       effy({ freeOverAmount: "80.00", smallOrderUnderAmount: "20.00", smallOrderFeeAmount: "3.00", slotPremiums: [{ slotId: slotEvening, addAmount: "2.00" }] }),
       SUB,
@@ -260,7 +260,7 @@ describe.skipIf(!RUN)("077 — the pricing console, against real PostgreSQL", ()
     expect(today.steps.map((s) => s.label)).toEqual(["Base", "Distance", "Weight", "Window surcharge", "Total"]);
   });
 
-  it("P12 — simulating writes nothing anywhere, and announces nothing", async () => {
+  it("P12 - simulating writes nothing anywhere, and announces nothing", async () => {
     const counts = async () =>
       q(`SELECT relname, n_tup_ins + n_tup_upd + n_tup_del AS writes FROM pg_stat_user_tables ORDER BY relname`).then((r) => JSON.stringify(r));
     const draft = await svc.createPlan(effy({ baseAmount: "9.00" }), SUB);
@@ -284,7 +284,7 @@ describe.skipIf(!RUN)("077 — the pricing console, against real PostgreSQL", ()
     expect(await refusal(svc.simulate({ planId: c.id, postcode: "3121", grams: 1, basketAmount: "1.00", slotId: null, windowIsToday: false }))).toMatchObject({ code: "plan_kind_mismatch" });
   });
 
-  it("courier: its own table, priced by weight alone, never free on Effy's amount — and one active per kind", async () => {
+  it("courier: its own table, priced by weight alone, never free on Effy's amount - and one active per kind", async () => {
     const effyActive = (await q<{ id: string }>(`SELECT id::text AS id FROM public.delivery_fee_plan WHERE is_active AND kind = 'effy'`))[0]!.id;
     const c = await svc.createPlan(courier({ weightBands: [{ upperGrams: 5000, addAmount: "0.00" }, { upperGrams: 30000, addAmount: "4.25" }] }), SUB);
     expect(c.gaps).toEqual([]);
@@ -301,7 +301,7 @@ describe.skipIf(!RUN)("077 — the pricing console, against real PostgreSQL", ()
     expect((await sim(9000, "50.00")).note).toBe("3121 is delivered by Effy; this is what a courier would cost.");
   });
 
-  it("P19 / 080 — courier goes on only with a fee table AND a default courier service, and is offered from then", async () => {
+  it("P19 / 080 - courier goes on only with a fee table AND a default courier service, and is offered from then", async () => {
     await pool.query(`UPDATE public.delivery_fee_plan SET is_active = false WHERE kind = 'courier'`);
     expect(await refusal(coverage.setCourier({ offered: true }, SUB))).toMatchObject({ status: 409, code: "courier_plan_missing" });
     expect((await q(`SELECT courier_offered FROM public.delivery_settings WHERE id = 1`))[0]).toEqual({ courier_offered: false });
@@ -330,7 +330,7 @@ describe.skipIf(!RUN)("077 — the pricing console, against real PostgreSQL", ()
 
 /** Each plan handler's guard level matches its verb; the simulator is the one POST a csa may use. */
 /** Nothing can delete a fee plan, or change one except through `savePlan`. */
-describe("077 — P9: an activated plan is changed or deleted by nothing", () => {
+describe("077 - P9: an activated plan is changed or deleted by nothing", () => {
   const dir = dirname(fileURLToPath(import.meta.url));
   const src = ["pricing.repository.ts", "pricing.service.ts", "repository.ts", "service.ts", "coverage.repository.ts"]
     .map((f) => readFileSync(resolve(dir, f), "utf8")).join("\n");
@@ -351,7 +351,7 @@ describe("077 — P9: an activated plan is changed or deleted by nothing", () =>
   });
 });
 
-describe("077 — P23: every plan route asks for the right level", () => {
+describe("077 - P23: every plan route asks for the right level", () => {
   const dir = resolve(dirname(fileURLToPath(import.meta.url)), "../functions");
   const handlers = readdirSync(dir).filter((f) => f.startsWith("delivery-plan") && f.endsWith(".ts"));
 

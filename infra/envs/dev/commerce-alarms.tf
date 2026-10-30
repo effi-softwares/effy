@@ -19,7 +19,7 @@ locals {
       statistic   = "Sum"
       period      = 900
       threshold   = 5
-      description = "070 — a delivery quote could not be priced for an address Effy serves (no active fee plan, or a zone with no price). Shoppers at those addresses cannot check out. Check the active delivery plan in back-office."
+      description = "070 - a delivery quote could not be priced for an address Effy serves (no active fee plan, or a zone with no price). Shoppers at those addresses cannot check out. Check the active delivery plan in back-office."
     }
     no-delivery-windows-defined = {
       metric      = "EffyWindowsNoneDefined"
@@ -35,7 +35,7 @@ locals {
       statistic   = "Sum"
       period      = 900
       threshold   = 5
-      description = "070 — checkouts are being trimmed because the cart asked for more than the shop has. Stock counts are behind what is being sold: look at the products running out in the shop consoles."
+      description = "070 - checkouts are being trimmed because the cart asked for more than the shop has. Stock counts are behind what is being sold: look at the products running out in the shop consoles."
     }
     refund-failed-at-provider = {
       metric      = "RefundOutcomes"
@@ -43,7 +43,7 @@ locals {
       statistic   = "Sum"
       period      = 300
       threshold   = 1
-      description = "070 — the bank REJECTED a refund the platform had told a customer was on its way. It will not retry itself. Open the order in back-office: the refund shows as failed and needs a person."
+      description = "070 - the bank REJECTED a refund the platform had told a customer was on its way. It will not retry itself. Open the order in back-office: the refund shows as failed and needs a person."
     }
     slot-over-capacity = {
       metric      = "SlotBookings"
@@ -51,7 +51,7 @@ locals {
       statistic   = "Sum"
       period      = 300
       threshold   = 1
-      description = "070 — a customer paid for a same-day window after their hold lapsed and the window had filled. The order is honoured and the window is now over its capacity: dispatch needs to know before the wave is planned."
+      description = "070 - a customer paid for a same-day window after their hold lapsed and the window had filled. The order is honoured and the window is now over its capacity: dispatch needs to know before the wave is planned."
     }
     refund-stuck = {
       metric      = "RefundsStuck"
@@ -59,7 +59,7 @@ locals {
       statistic   = "Maximum"
       period      = 300
       threshold   = 1
-      description = "070 — a refund has been waiting more than 15 minutes for the payment provider to answer and the reconciler has not been able to resolve it. A customer may be owed money nobody is sending. Check the provider's status and the refundReconcile function's logs."
+      description = "070 - a refund has been waiting more than 15 minutes for the payment provider to answer and the reconciler has not been able to resolve it. A customer may be owed money nobody is sending. Check the provider's status and the refundReconcile function's logs."
     }
     points-hold-shortfall = {
       metric      = "PointsHoldShortfall"
@@ -91,7 +91,7 @@ locals {
       statistic   = "Sum"
       period      = 900
       threshold   = 3
-      description = "070 — payment-provider notifications are failing to process (nothing is recorded, so the provider will retry). Paid orders still land when the shopper returns to the site, but refunds rejected by a bank would go unseen. Check the stripeWebhookV1 function's logs. Above one on purpose: a single failure the provider's retry recovers must not page."
+      description = "070 - payment-provider notifications are failing to process (nothing is recorded, so the provider will retry). Paid orders still land when the shopper returns to the site, but refunds rejected by a bank would go unseen. Check the stripeWebhookV1 function's logs. Above one on purpose: a single failure the provider's retry recovers must not page."
     }
   }
 }
@@ -118,13 +118,13 @@ resource "aws_cloudwatch_metric_alarm" "commerce" {
   }
 }
 
-# one alarm over two series. A refund submission fails in two ways the code tells apart — the
+# one alarm over two series. A refund submission fails in two ways the code tells apart - the
 # provider refused it (a decision) or never answered (ambiguous; the reconciler takes it from there)
-# — and each is its own series. Either one is a customer who was told money is coming, so the alarm
+# - and each is its own series. Either one is a customer who was told money is coming, so the alarm
 # is on their sum.
 resource "aws_cloudwatch_metric_alarm" "commerce_refund_submit_failures" {
   alarm_name          = "${module.shared.name_prefix}-commerce-refund-submit-failures"
-  alarm_description   = "070 — a refund could not be submitted to the payment provider: it was refused outright, or the provider did not answer (those are retried automatically and raise the refund-stuck alarm if they stay unresolved). Open the order in back-office."
+  alarm_description   = "070 - a refund could not be submitted to the payment provider: it was refused outright, or the provider did not answer (those are retried automatically and raise the refund-stuck alarm if they stay unresolved). Open the order in back-office."
   evaluation_periods  = 1
   threshold           = 1
   comparison_operator = "GreaterThanOrEqualToThreshold"

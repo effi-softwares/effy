@@ -37,7 +37,7 @@ function rememberSearch(q: string): void {
     const next = [q, ...readRecent().filter((r) => r.toLowerCase() !== q.toLowerCase())].slice(0, RECENT_MAX)
     window.localStorage.setItem(RECENT_KEY, JSON.stringify(next))
   } catch {
-    /* storage unavailable — there is simply no history */
+    /* storage unavailable - there is simply no history */
   }
 }
 
@@ -59,7 +59,7 @@ const searchHref = (q: string, category?: string) => {
   return `/search?${p.toString()}`
 }
 
-/** The typed part in bold, the rest as offered — so the eye lands on what is new in each line. */
+/** The typed part in bold, the rest as offered - so the eye lands on what is new in each line. */
 function emphasised(text: string, typed: string): React.ReactNode {
   if (!typed || !text.toLowerCase().startsWith(typed.toLowerCase())) return text
   return (
@@ -75,16 +75,16 @@ function optionsFor(found: SuggestionsDTO | null, recent: string[], typed: strin
     p.categorySlug && p.text === p.categoryName
       ? { kind: "aisle", href: `/search?category=${encodeURIComponent(p.categorySlug)}`, label: p.text, detail: "Aisle" }
       : {
-          kind: "phrase",
-          href: searchHref(p.text, p.categorySlug),
-          query: p.categorySlug ? undefined : p.text,
-          label: (
-            <>
-              {emphasised(p.text, typed)}
-              {p.categoryName && <span className="text-muted-foreground"> in {p.categoryName}</span>}
-            </>
-          ),
-        },
+        kind: "phrase",
+        href: searchHref(p.text, p.categorySlug),
+        query: p.categorySlug ? undefined : p.text,
+        label: (
+          <>
+            {emphasised(p.text, typed)}
+            {p.categoryName && <span className="text-muted-foreground"> in {p.categoryName}</span>}
+          </>
+        ),
+      },
   )
   const products: Option[] = (found?.products ?? []).map((p) => ({
     kind: "product",
@@ -152,7 +152,7 @@ export function HeaderSearch({
         .then((res) => (res.ok ? (res.json() as Promise<SuggestionsDTO>) : null))
         .then((body) => setFound(body))
         .catch(() => {
-          /* cancelled or unavailable — the field carries on without a list */
+          /* cancelled or unavailable - the field carries on without a list */
         })
     }, DEBOUNCE_MS)
     return () => {

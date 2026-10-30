@@ -7,7 +7,7 @@ import FirebaseCrashlytics
 /// the common `CrashReporter` contract.
 ///
 /// ⚠ NO PII beyond the subject id (Principle VII). Fatal crashes are captured AUTOMATICALLY once
-/// `FirebaseApp.configure()` runs (iOSApp.swift) — this bridge adds user association + non-fatals.
+/// `FirebaseApp.configure()` runs (iOSApp.swift) - this bridge adds user association + non-fatals.
 final class SwiftCrashBridge: NSObject, IosCrashBridge {
     func setEnabled(enabled: Bool) {
         Crashlytics.crashlytics().setCrashlyticsCollectionEnabled(enabled)

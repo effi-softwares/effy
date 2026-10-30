@@ -50,8 +50,8 @@ interface Props {
 }
 
 /**
- * How shoppers will see the product, drawn as the storefront draws it — on its aisle's shelf and on its own
- * page — and changing as the form is filled in.
+ * How shoppers will see the product, drawn as the storefront draws it - on its aisle's shelf and on its own
+ * page - and changing as the form is filled in.
  */
 export function LivePreview({
   draft,
@@ -204,7 +204,7 @@ function PreviewNote({ children }: { children: string }) {
   );
 }
 
-/** A value that lights up once each time it changes — never on first showing. */
+/** A value that lights up once each time it changes - never on first showing. */
 function Flash({ watch, className, children }: { watch: string; className?: string; children: ReactNode }) {
   const first = useRef(watch);
   const changed = watch !== first.current;

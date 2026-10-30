@@ -43,8 +43,8 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.ui.unit.sp
 
 /**
- * An empty, error or "no longer yours" state — centred, always saying what happens next (the canvas's
- * Patterns: "Empty — always says what happens next"; "Error — we take the blame, and offer a retry").
+ * An empty, error or "no longer yours" state - centred, always saying what happens next (the canvas's
+ * Patterns: "Empty - always says what happens next"; "Error - we take the blame, and offer a retry").
  */
 @Composable
 fun DriverState(
@@ -55,7 +55,7 @@ fun DriverState(
     actionLabel: String? = null,
     onAction: (() -> Unit)? = null,
     actionIcon: DrawableResource? = null,
-    /** The action as the primary (blue) button — "Back to Today" on a stop that was moved. */
+    /** The action as the primary (blue) button - "Back to Today" on a stop that was moved. */
     primaryAction: Boolean = false,
 ) {
     Column(
@@ -80,7 +80,7 @@ fun DriverState(
 }
 
 /**
- * A loading placeholder bar. It shimmers — a lighter band crossing it — because a still grey bar on a grey
+ * A loading placeholder bar. It shimmers - a lighter band crossing it - because a still grey bar on a grey
  * page reads as UI that finished; with reduced motion it is a still plate. A screen's skeleton is its own
  * containers (the same card, the same row padding) with these where values will be, inside [DriverLoading].
  */
@@ -152,7 +152,7 @@ private fun SkeletonGroupRows(rows: Int, numbered: Boolean) {
 
 /**
  * A run (collection or delivery) before it reads: the from/finish line, the big window, progress, the map's
- * place, then [listLabel] over numbered rows — the shape both run screens draw.
+ * place, then [listLabel] over numbered rows - the shape both run screens draw.
  */
 @Composable
 fun DriverRunSkeleton(listLabel: String, label: String = "Loading the run") {

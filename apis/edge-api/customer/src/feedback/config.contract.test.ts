@@ -33,12 +33,12 @@ function readEnvKeysUsedBySource(): Set<string> {
   return keys
 }
 
-describe("feedback deployment contract — serverless.yml declares what the code reads", () => {
+describe("feedback deployment contract - serverless.yml declares what the code reads", () => {
   const declared = readServerlessEnvKeys()
 
   it("declares every environment variable the feedback service reads", () => {
     const used = readEnvKeysUsedBySource()
-    expect(used.size, "the service reads no env at all — did the parser break?").toBeGreaterThan(0)
+    expect(used.size, "the service reads no env at all - did the parser break?").toBeGreaterThan(0)
     const missing = [...used].filter((k) => !declared.has(k))
     expect(missing, `serverless.yml is missing: ${missing.join(", ")}`).toEqual([])
   })
@@ -55,7 +55,7 @@ describe("feedback deployment contract — serverless.yml declares what the code
   })
 })
 
-describe("feedback routes — the authed/public split is intentional and stays that way", () => {
+describe("feedback routes - the authed/public split is intentional and stays that way", () => {
   const yaml = readFileSync(resolve(serviceRoot, "serverless.yml"), "utf8")
 
   function blockFor(fn: string): string {

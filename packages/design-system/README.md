@@ -36,7 +36,7 @@ Never hardcode a colour: edit the token file and regenerate (`tokens:gen`).
 
 `pnpm --filter @effy/design-system test` runs:
 
-- `check-tokens.mjs`: the one theme — light/dark key parity, every colour a Tailwind palette value, no
+- `check-tokens.mjs`: the one theme - light/dark key parity, every colour a Tailwind palette value, no
   red or orange outside the promo palette, the radius scale, and WCAG AA on every text pair.
 - `check-component-shape.mjs`: controls and badges are never pills, containers are at least as round
   as the controls inside them.

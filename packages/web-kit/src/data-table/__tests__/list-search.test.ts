@@ -23,7 +23,7 @@ describe("defineListSearch", () => {
     expect(orders.read({})).toEqual({ q: "", sort: "placed", dir: "desc", page: 1, size: 25, filters: {} });
   });
 
-  it("keeps valid params and drops the rest — never throws", () => {
+  it("keeps valid params and drops the rest - never throws", () => {
     const v = orders.read({ q: "milk", sort: "nonsense", dir: "up", page: "-2", size: "999", view: "driver", shopId: "x", placedFrom: "2026-10-01" });
     expect(v).toEqual({ q: "milk", sort: "placed", dir: "desc", page: 1, size: 25, filters: { view: "driver", placedFrom: "2026-10-01" } });
   });

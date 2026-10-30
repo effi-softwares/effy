@@ -154,7 +154,7 @@ one named list. A client that ignores the new field still shows every heart corr
 `app/api/lists/**` mirrors the above one-to-one through `proxyToCore`, as `app/api/saved/**` does.
 A `401` from any of them means "guest".
 
-## 2. Shared DTOs — `packages/shared-types/src/saved-item.ts`
+## 2. Shared DTOs - `packages/shared-types/src/saved-item.ts`
 
 ```ts
 /** Named lists per shopper, excluding the default. Mirrors saveditems.ListLimit. */

@@ -1,11 +1,11 @@
 import { Smartphone } from "lucide-react"
 
 /**
- * Google Play and App Store marks — present but non-interactive.
+ * Google Play and App Store marks - present but non-interactive.
  *
  * There are no URLs in this file, and that is the point. The Effy apps are not published. A store
  * link would have to be invented, and an invented outward-facing identifier is exactly what the
- * constitution's real-world-identifier rule forbids — a wrong one that silently "works" reaches real
+ * constitution's real-world-identifier rule forbids - a wrong one that silently "works" reaches real
  * people before anyone notices. `StoreBadges.test.tsx` greps this module's own text for a store URL and
  * fails on any match, so the rule is mechanical rather than remembered.
  *
@@ -15,7 +15,7 @@ import { Smartphone } from "lucide-react"
  * apps are coming rather than handed a broken control.
  *
  * "Coming soon" is stated in words, not implied by dimming. Meaning never rests on colour or opacity
- * alone — a low-contrast badge with no label is indistinguishable from a broken image.
+ * alone - a low-contrast badge with no label is indistinguishable from a broken image.
  *
  * The marks are drawn monochrome, on the ramp. They are deliberately generic renderings rather than the
  * official trademarked artwork: the real badges are supplied by each store under brand rules that apply
@@ -28,10 +28,10 @@ export function StoreBadges({ tone = "outline" }: { tone?: "outline" | "dark" })
       {["App Store", "Google Play"].map((store) => (
         <li key={store}>
           {/* `role="img"`: a bare span may not carry an aria-label (axe aria-prohibited-attr), and
-              a badge IS a picture with a caption — announced once, as the label says. */}
+              a badge IS a picture with a caption - announced once, as the label says. */}
           <span
             role="img"
-            aria-label={`${store} — coming soon`}
+            aria-label={`${store} - coming soon`}
             className={
               tone === "dark"
                 ? "inline-flex h-9 items-center gap-2 rounded-md bg-foreground px-3 text-xs font-semibold text-background"

@@ -3,8 +3,8 @@ package com.effyshopping.driver.mobile.core.platform
 import androidx.compose.runtime.Composable
 
 /**
- * Request the app's core OS permissions — location, notifications, camera. Returns a
- * launch lambda; [onDone] fires once the OS prompts have been answered (whatever the outcome — priming
+ * Request the app's core OS permissions - location, notifications, camera. Returns a
+ * launch lambda; [onDone] fires once the OS prompts have been answered (whatever the outcome - priming
  * never blocks on a grant). `expect/actual` because each platform requests permissions differently.
  */
 @Composable

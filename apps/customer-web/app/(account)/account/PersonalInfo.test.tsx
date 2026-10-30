@@ -25,7 +25,7 @@ beforeEach(() => {
   vi.spyOn(window, "confirm").mockReturnValue(true)
 })
 
-describe("PersonalInfo — the screen at rest (FR-011)", () => {
+describe("PersonalInfo - the screen at rest (FR-011)", () => {
   it("shows current values as rows and NO input fields", () => {
     render(<PersonalInfo {...props} />)
 
@@ -57,7 +57,7 @@ describe("PersonalInfo — the screen at rest (FR-011)", () => {
   })
 })
 
-describe("PersonalInfo — the editor (FR-012 … FR-021)", () => {
+describe("PersonalInfo - the editor (FR-012 … FR-021)", () => {
   it("opens one field, pre-filled, and saves it", async () => {
     const user = userEvent.setup()
     render(<PersonalInfo {...props} />)

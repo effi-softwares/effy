@@ -13,7 +13,7 @@ interface CartRepository {
     suspend fun get(): CartSnapshot
 
     /**
-     * Add or increment a line — the one non-idempotent operation, which is why `changeId` is not optional
+     * Add or increment a line - the one non-idempotent operation, which is why `changeId` is not optional
      * anywhere in this port and is load-bearing here.
      */
     suspend fun add(variantId: String, quantity: Int, changeId: String): CartSnapshot
@@ -42,14 +42,14 @@ interface CartRepository {
 
     suspend fun deleteSaved(variantId: String, changeId: String): CartSnapshot
 
-    /** Apply a promotional code. The platform decides validity and worth — never this client. */
+    /** Apply a promotional code. The platform decides validity and worth - never this client. */
     suspend fun applyPromo(code: String): CartSnapshot
 
     /** Remove the applied code. */
     suspend fun removePromo(): CartSnapshot
 
     /**
-     * Re-price a set of lines without writing anything — the guest path. A guest has no account cart, but
+     * Re-price a set of lines without writing anything - the guest path. A guest has no account cart, but
      * still deserves current prices and honest availability when their cart is restored.
      */
     suspend fun preview(lines: List<PendingLine>): CartSnapshot

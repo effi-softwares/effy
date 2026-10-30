@@ -5,13 +5,13 @@ import { useEffect } from "react"
 /**
  * Closes the header account `<details>` menu on an outside click or Escape.
  *
- * The menu is a native `<details>/<summary>` disclosure (see AccountMenu) — deliberately zero-JS so
+ * The menu is a native `<details>/<summary>` disclosure (see AccountMenu) - deliberately zero-JS so
  * it opens, is keyboard-accessible, and is announced without a hydration boundary. But `<details>` has
  * one gap: the browser closes it only when the `<summary>` is clicked again, not when the user clicks
  * anywhere else on the page. This restores the expected dismiss-on-outside-click behaviour.
  *
  * It costs the guest nothing. It is rendered inside AccountMenu, which UserIsland mounts for a
- * signed-in customer only — the same place AuthSync already lives. An anonymous visitor (who sees a
+ * signed-in customer only - the same place AuthSync already lives. An anonymous visitor (who sees a
  * plain "Sign in" link, no menu) never downloads it. It imports only React, so it acquires no path to
  * the auth SDK and stays clear of the `depcruise` quarantine.
  */

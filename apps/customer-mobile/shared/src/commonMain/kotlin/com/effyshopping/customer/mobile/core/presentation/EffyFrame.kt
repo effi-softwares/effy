@@ -74,7 +74,7 @@ val LocalOpenNotifications = androidx.compose.runtime.compositionLocalOf<(() -> 
 val LocalIsIos = androidx.compose.runtime.staticCompositionLocalOf { false }
 
 /**
- * Drives the large title's collapse from the page's scroll — connect [connection] with
+ * Drives the large title's collapse from the page's scroll - connect [connection] with
  * `Modifier.nestedScroll(...)` on the scrolling content. 0 = expanded, 1 = collapsed, over 52dp.
  */
 @Stable
@@ -102,7 +102,7 @@ fun rememberEffyCollapse(): EffyCollapseState {
 }
 
 /**
- * A tab root's header — the large bold title (or the "effy." wordmark on Home) on the left, the bell
+ * A tab root's header - the large bold title (or the "effy." wordmark on Home) on the left, the bell
  * on the right, and an optional search field below (App bar board, back=false). As the page scrolls it
  * collapses into a compact centred 17sp title, the way an iOS large title does; the search field stays.
  */
@@ -172,7 +172,7 @@ fun EffyLargeTitleBar(
 }
 
 /**
- * A pushed page's header — "‹ Back" in blue on the left (the arrow alone on Android), the title centred
+ * A pushed page's header - "‹ Back" in blue on the left (the arrow alone on Android), the title centred
  * in 17sp, the bell optional on the right (App bar board, back=true). No border.
  *
  * [onBack] defaults to the navigator ([LocalNavBack]): present on a pushed page, absent at a tab root.
@@ -208,7 +208,7 @@ fun EffyAppBar(
 }
 
 /**
- * Back on its own — "‹ Back" in blue on iOS, the chevron alone on Android — in a 48dp target. The box
+ * Back on its own - "‹ Back" in blue on iOS, the chevron alone on Android - in a 48dp target. The box
  * keeps its width even when there is nothing to go back to, so a centred title never shifts.
  */
 @Composable
@@ -278,7 +278,7 @@ fun EffyPinnedBar(
 }
 
 /**
- * The wordmark — "effy" in Geist Bold with its full stop in Effy green (the web's `BrandMark`). Type,
+ * The wordmark - "effy" in Geist Bold with its full stop in Effy green (the web's `BrandMark`). Type,
  * not an image, so it scales with the text around it.
  */
 @Composable

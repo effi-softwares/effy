@@ -2,9 +2,9 @@
 # credentials are, and where the payment-provider secrets are. No secret value enters Terraform state: the
 # three secrets are operator-created and looked up by name for their ARNs:
 #
-# /effy/<env>/db/shopper — created by `make db-shopper-role ENV=<env>`
-# /effy/<env>/stripe/secret_key — operator-created
-# /effy/<env>/stripe/webhook_secret — operator-created
+# /effy/<env>/db/shopper - created by `make db-shopper-role ENV=<env>`
+# /effy/<env>/stripe/secret_key - operator-created
+# /effy/<env>/stripe/webhook_secret - operator-created
 #
 # A missing one fails this root's plan. Order:
 # make db-up → the migration creates role effy_shopper, with no password
@@ -54,7 +54,7 @@ data "aws_secretsmanager_secret" "stripe_webhook_secret" {
 
 resource "aws_ssm_parameter" "stripe_secret_key_arn" {
   name        = "/effy/${var.env}/stripe/secret_key_arn"
-  description = "ARN of the payment provider's secret key. The VALUE is never in the parameter store, an environment variable or Terraform state — services fetch it at runtime by this ARN."
+  description = "ARN of the payment provider's secret key. The VALUE is never in the parameter store, an environment variable or Terraform state - services fetch it at runtime by this ARN."
   type        = "String"
   value       = data.aws_secretsmanager_secret.stripe_secret_key.arn
   tier        = "Standard"

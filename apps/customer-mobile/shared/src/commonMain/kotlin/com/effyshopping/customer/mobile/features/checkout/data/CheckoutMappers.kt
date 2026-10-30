@@ -95,7 +95,7 @@ internal fun DeliveryQuoteDTO.toDomain(): DeliveryQuote {
         )
     }
     // Effy delivers: the windows on offer. A serviced quote with neither block is a server fault;
-    // it maps to a quote with nothing to choose, which cannot be paid for — never to a $0.00 order.
+    // it maps to a quote with nothing to choose, which cannot be paid for - never to a $0.00 order.
     return DeliveryQuote(
         serviced = true,
         freeDeliveryRemainingAmount = freeDeliveryRemainingAmount,
@@ -215,7 +215,7 @@ internal fun CreateCheckoutIntentResponse.toDomain(): CheckoutIntent = CheckoutI
     // 051. Mapping these is the whole point: the wire has carried them since the server change, and a
     // mapper that drops what the backend sends is exactly how 033 found `brand`/`badges` missing and how
     // 019's order line lost its `productId`. Without `billingDetails` here the element collects nothing
-    // and the provider refuses the payment — the failure is loud, but the cause would look like Stripe.
+    // and the provider refuses the payment - the failure is loud, but the cause would look like Stripe.
     customerSessionSecret = customerSessionSecret,
     customerId = customerID,
     billingDetails = billingDetails?.toDomain(),
@@ -277,7 +277,7 @@ private fun OrderAddressDTO.formatLine(): String = buildString {
  * The wire stage → the domain stage.
  *
  * A `when` over the generated enum with NO `else` that guesses. If a later slice adds a fifth stage,
- * this build's generated enum will not know it — and a receipt must degrade to [OrderStage.Unknown]
+ * this build's generated enum will not know it - and a receipt must degrade to [OrderStage.Unknown]
  * rather than assert a stage it cannot justify. An unrecognised value must never advance the
  * customer's view of their order.
  */
@@ -364,7 +364,7 @@ internal fun OrderDTO.toReceipt(): Receipt {
  * The wire refund → the domain refund.
  *
  * A `when` over the generated enum with NO `else` that guesses, exactly like `toDomainStage`. An
- * unrecognised state must degrade to "on its way" and never to "completed" — telling a shopper their
+ * unrecognised state must degrade to "on its way" and never to "completed" - telling a shopper their
  * money has arrived is the one claim that stops them looking for it.
  */
 private fun CustomerRefundDTO.toDomain(): CustomerRefund = CustomerRefund(

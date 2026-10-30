@@ -11,7 +11,7 @@ test.use({ storageState: { cookies: [], origins: [] } })
 
 test.describe("the public deletion resource (FR-050 / FR-050a)", () => {
   /**
-   * Google play requires this page and apple does not — which is exactly why it gets skipped, and
+   * Google play requires this page and apple does not - which is exactly why it gets skipped, and
    * why an invalid or missing deletion link is the most-reported Play rejection in this area. Google's
    * three stated criteria are that the link be functional, relevant in scope, and reference the app or
    * developer name. Each is asserted below.
@@ -28,7 +28,7 @@ test.describe("the public deletion resource (FR-050 / FR-050a)", () => {
 
   test("features the deletion path prominently, not buried in prose", async ({ page }) => {
     await page.goto("/delete-account")
-    // A visible, reachable route to actually start the deletion — "relevant in scope".
+    // A visible, reachable route to actually start the deletion - "relevant in scope".
     await expect(page.getByRole("link", { name: /delete my effy account/i })).toBeVisible()
   })
 
@@ -84,7 +84,7 @@ test.describe("guest data deletion (FR-046)", () => {
 })
 
 test.describe("the in-app legal routes (FR-052)", () => {
-  // Required by both stores, and required to be publicly reachable — not geofenced, not a PDF.
+  // Required by both stores, and required to be publicly reachable - not geofenced, not a PDF.
   for (const path of ["/legal/privacy", "/legal/terms"]) {
     test(`${path} is publicly reachable`, async ({ page }) => {
       const res = await page.goto(path)

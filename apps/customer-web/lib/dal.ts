@@ -8,7 +8,7 @@ import { edgeApi, perCustomer } from "@/lib/api/edge"
 import { getSession } from "@/lib/session"
 
 /**
- * The data access layer — the authoritative authorization boundary.
+ * The data access layer - the authoritative authorization boundary.
  *
  * Next.js's own authentication guide is unambiguous about where auth checks belong, and it is not
  * where most people put them:
@@ -27,21 +27,21 @@ import { getSession } from "@/lib/session"
  *
  * So the model is two-tier, and the split is deliberate:
  *
- *  • `proxy.ts` — optimistic. Keeps the session cookies fresh and redirects a guest early,
+ *  • `proxy.ts` - optimistic. Keeps the session cookies fresh and redirects a guest early,
  *  keeping their destination. It verifies nothing: a UX affordance, not a gate.
- *  • This file — authoritative. Verifies the session and consults the platform's own customer
+ *  • This file - authoritative. Verifies the session and consults the platform's own customer
  *  record, because a valid token is not permission: a barred customer holds a
  *  perfectly valid token and must still be refused.
  *
  * Every protected page, Server Action, and Route Handler calls `requireCustomer`. Server Actions
- * are treated as public endpoints, because that is exactly what they are — a POST anyone can craft.
+ * are treated as public endpoints, because that is exactly what they are - a POST anyone can craft.
  */
 
 // The session read itself lives in lib/session.ts; re-exported because this is where pages look for it.
 export { getSession, type Session } from "@/lib/session"
 
 /**
- * The customer, as the platform sees them — or a redirect to sign-in.
+ * The customer, as the platform sees them - or a redirect to sign-in.
  *
  * This does not trust the token beyond identity. It calls the backend, which upserts the record
  * and enforces `status`. A barred customer gets a 403 here and is signed out of the experience,

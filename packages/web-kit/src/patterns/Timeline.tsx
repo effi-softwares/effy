@@ -4,7 +4,7 @@ import { cn } from "@effy/design-system";
 
 /**
  * A vertical log: a marker on a hairline, a title and a muted line under it. `tone` colours the
- * marker — `primary` for a step that moved the record on, `done` for a finish, `problem` for a fault.
+ * marker - `primary` for a step that moved the record on, `done` for a finish, `problem` for a fault.
  */
 export function Timeline({ className, ...props }: ComponentProps<"ol">) {
   return <ol className={cn("flex flex-col", className)} {...props} />;

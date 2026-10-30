@@ -35,7 +35,7 @@ Tests are included: the spec's SC-001/SC-002 are proven by tests, and every gate
   - the `SequenceError` class and the `sequenceProblem(err, scope)` helper (409 shape per contracts/api.md);
   - `assertStopsSettled(tx, runId)`, `assertDropLoaded(tx, dropId, driverId)`, `assertNothingToHandIn(tx, driverId, runId)` (collection custody not checked in, or parcels to return, unless waived) and `assertNoDeliveriesOpen(tx, driverId, runId)` (in-transit custody, unless waived).
 
-## Phase 3: US1 — One step unlocks the next (P1) 🎯 MVP
+## Phase 3: US1 - One step unlocks the next (P1) 🎯 MVP
 
 **Independent test**: each out-of-order step, sent directly, is refused with its sentence, and nothing is written.
 
@@ -55,24 +55,24 @@ Tests are included: the spec's SC-001/SC-002 are proven by tests, and every gate
 - [X] T020 [US1] Driver app collection: show `SequenceRefusal` sentences on the collection screens and the check-in in `CollectionViewModel.kt`; keep the hub row gated on `allCollected`
 - [X] T021 [US1] Back-office: add "Allow loading anyway" with a reason dialog on round detail (`BO/dispatch/RoundDetailScreen.tsx`, `repo.ts`, `queries.ts`), shown when the round's stage is `to_load` and no waiver exists; show an existing waiver's reason
 
-## Phase 4: US2 — A package the driver did not see is never marked collected (P1)
+## Phase 4: US2 - A package the driver did not see is never marked collected (P1)
 
 **Independent test**: add a package to an open stop, then collect the shown ones; the new one stays waiting.
 
 - [X] T022 [US2] In `DRV/work/complete.ts` `collectStop`, settle only the named packages; mark the stop done only when no `assigned` row remains; return `remaining`; validate `packages` non-empty in `DRV/functions/driver-collect-v1-post.ts` (400)
 - [X] T023 [US2] Add the container test in `DRV/work/collect-remaining.container.test.ts`: two named + one unnamed → `remaining: 1`, stop open; then the third → stop done; a retry answers the same
-- [X] T024 [US2] Driver app: when the collect result has `remaining > 0`, `CollectionViewModel.kt` re-reads the stop and shows "n more package(s) were added — collect before you leave"; the stop screen stays open (`CollectionScreens.kt`)
+- [X] T024 [US2] Driver app: when the collect result has `remaining > 0`, `CollectionViewModel.kt` re-reads the stop and shows "n more package(s) were added - collect before you leave"; the stop screen stays open (`CollectionScreens.kt`)
 
-## Phase 5: US3 — Trips that join up (P1)
+## Phase 5: US3 - Trips that join up (P1)
 
 **Independent test**: driver A checks in today's parcels; A's delivery run gets them, with the "collected it" note.
 
 - [X] T025 [US3] Planner gather in `FLT/planner/sql.ts`: return `dr.driver_id AS collected_by` from the delivery gather; add `HELD_SQL` to both gathers; map it to `PlannablePackage.collectedBy` in `FLT/planner/types.ts` and `FLT/planner/repository.ts`
-- [X] T026 [US3] Collector preference in `FLT/planner/assign.ts`: for delivery, after the visiting rule, pick the collector's target when they are eligible, with the note "Auto-assigned — collected it, continuing to delivery"
+- [X] T026 [US3] Collector preference in `FLT/planner/assign.ts`: for delivery, after the visiting rule, pick the collector's target when they are eligible, with the note "Auto-assigned - collected it, continuing to delivery"
 - [X] T027 [US3] Add unit tests to `FLT/planner/assign.test.ts`: the collector is preferred over a lighter-loaded driver; an ineligible collector falls back to load balance; the visiting rule beats the collector; an in-progress delivery round never gets additions
-- [ ] T028 (deferred — the check-in result already names the next run when one exists) [US3] Driver app: after the check-in result, `CollectionViewModel.kt` / Today shows "Your delivery run will appear here shortly" until the live `work` update brings the run (`TodayScreen.kt`)
+- [ ] T028 (deferred - the check-in result already names the next run when one exists) [US3] Driver app: after the check-in result, `CollectionViewModel.kt` / Today shows "Your delivery run will appear here shortly" until the live `work` update brings the run (`TodayScreen.kt`)
 
-## Phase 6: US4 — Missing packages are declared (P2)
+## Phase 6: US4 - Missing packages are declared (P2)
 
 **Independent test**: load with one package declared and check in with one missing; both are held and listed to dispatch.
 
@@ -82,9 +82,9 @@ Tests are included: the spec's SC-001/SC-002 are proven by tests, and every gate
 - [X] T032 [US4] Fleet held packages: in `FLT/exceptions/sql.ts` + `service.ts`, list open holds in the exceptions read; add `FLT/exceptions/held.ts` to resolve (`found` | `lost`, audit, announce `dispatch`); add `FLT/functions/fleet-held-package-resolve-v1-post.ts` + `serverless.yml`
 - [X] T033 [US4] Driver app load: in `DeliveryRunScreen.kt` / `DeliveryViewModel.kt` add "Can't find a package" on the load scan and list: pick the package and a reason (and a note for Other); finishing with unscanned packages lists each one as "It's here" / "Missing"; send `notLoaded`
 - [X] T034 [US4] Driver app check-in: in `CollectionScreens.kt` / `CollectionViewModel.kt`, finishing with unscanned packages lists each one as "It's here" / "Not in the van"; send `missing`
-- [X] T035 [US4] Back-office Exceptions: add a "Held packages" table in `BO/exceptions/ExceptionsScreen.tsx` with the actions Found — plan again / Lost (confirm) (`repo.ts`, `queries.ts`, `model.ts`)
+- [X] T035 [US4] Back-office Exceptions: add a "Held packages" table in `BO/exceptions/ExceptionsScreen.tsx` with the actions Found - plan again / Lost (confirm) (`repo.ts`, `queries.ts`, `model.ts`)
 
-## Phase 7: US5 — Dispatch sees where every run is (P2)
+## Phase 7: US5 - Dispatch sees where every run is (P2)
 
 **Independent test**: walk a run through every stage; the dispatch stage matches; an unloaded run past 20 minutes is listed.
 
@@ -94,14 +94,14 @@ Tests are included: the spec's SC-001/SC-002 are proven by tests, and every gate
 - [X] T039 [US5] Back-office Dispatch: add a stage column on the day view and stage, "Worked out of order" and waiver on round detail (`BO/dispatch/*`); add an "Overdue" table on Exceptions
 - [X] T040 [US5] Tests: `FLT/exceptions/exceptions.container.test.ts` (overdue appears and clears); `BO/dispatch/model.test.ts` (stage words)
 
-## Phase 8: US6 — Pre-trip vehicle check (P3)
+## Phase 8: US6 - Pre-trip vehicle check (P3)
 
 **Independent test**: an unsafe answer means no work; clearing restores work.
 
 - [X] T041 [US6] Eligibility: add `vehicle_check_due` / `vehicle_unsafe` to `ExclusionReason` in `ESH/lib/driver-eligibility.ts`, plus candidate field `vehicleCheck`; load it in the planner and dispatch candidate SQL (`FLT/planner/sql.ts`, `FLT/dispatch/sql.ts`); ~~add both to `BLOCKED_REASONS`~~ (deferred: shown on Exceptions and as unassigned reasons) and the reason words in shared-types
 - [X] T042 [US6] Driver vehicle check: add `DRV/vehicle/{repository,service}.ts` (submit idempotent on change_id and unique per day; returns state) and `DRV/functions/driver-vehicle-check-v1-post.ts` + `serverless.yml`; add `vehicleCheck` to `/me` (`DRV/driver/service.ts`)
 - [X] T043 [US6] Fleet clear: add `FLT/vehicles/check.ts` (clear with note, audit, announce `work` + `dispatch`) and `FLT/functions/fleet-vehicle-check-clear-v1-post.ts` + `serverless.yml`; add today's checks to the exceptions read
-- [X] T044 [US6] Driver app: add `DM/features/vehiclecheck/{domain,data,presentation}` (six items: OK / Minor / Unsafe + note); shown after Go on duty when `me.vehicleCheck.state == "due"`; an unsafe result shows "Dispatch has been told — you'll get work once it's cleared"
+- [X] T044 [US6] Driver app: add `DM/features/vehiclecheck/{domain,data,presentation}` (six items: OK / Minor / Unsafe + note); shown after Go on duty when `me.vehicleCheck.state == "due"`; an unsafe result shows "Dispatch has been told - you'll get work once it's cleared"
 - [X] T045 [US6] Back-office: add a "Vehicle checks" table on Exceptions with Clear (note) in `BO/exceptions/*`
 - [X] T046 [US6] Tests: unit-test eligibility for both reasons (`ESH/lib/driver-eligibility.test.ts`); add a vehicle check submit/clear container test in `DRV/vehicle/vehicle.container.test.ts`
 

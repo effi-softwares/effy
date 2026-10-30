@@ -16,7 +16,7 @@ beforeEach(() => {
   vi.restoreAllMocks()
 })
 
-describe("⚠ FR-036 — a write is refused offline, never faked", () => {
+describe("⚠ FR-036 - a write is refused offline, never faked", () => {
   it("throws a DISTINCT error, so the UI can say 'offline' rather than 'something went wrong'", () => {
     onlineStore.setState((s) => ({ ...s, online: false }))
     expect(() => assertOnline()).toThrow(OfflineError)
@@ -40,7 +40,7 @@ describe("⚠ FR-036 — a write is refused offline, never faked", () => {
     await expect((api[method] as (p: string) => Promise<unknown>)("/shop/v1/x")).rejects.toThrow(OfflineError)
   })
 
-  it("⚠ does NOT refuse a GET — a read should fall back to the cache, not to an error page", async () => {
+  it("⚠ does NOT refuse a GET - a read should fall back to the cache, not to an error page", async () => {
     onlineStore.setState((s) => ({ ...s, online: false }))
     vi.spyOn(globalThis, "fetch").mockRejectedValue(new TypeError("Failed to fetch"))
     await expect(api.get("/shop/v1/today")).rejects.not.toBeInstanceOf(OfflineError)
@@ -72,7 +72,7 @@ describe("⚠ only a network failure means offline", () => {
   })
 })
 
-describe("FR-037 — recovery needs no manual reload", () => {
+describe("FR-037 - recovery needs no manual reload", () => {
   it("fires onReconnect only on a TRANSITION back to online", () => {
     const onReconnect = vi.fn()
     const stop = watchConnectivity(onReconnect)

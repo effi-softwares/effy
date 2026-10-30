@@ -39,7 +39,7 @@ describe("⚠ no screen is reachable only by typing its URL", () => {
 
     expect(
       unreachable.map((u) => `${u.path} (${u.file})`),
-      "screen(s) with no way in — add a nav item, or an EXEMPT entry saying how it is reached",
+      "screen(s) with no way in - add a nav item, or an EXEMPT entry saying how it is reached",
     ).toEqual([])
   })
 

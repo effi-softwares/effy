@@ -118,7 +118,7 @@ describe("the amount is the platform's, and a card is kept only by the shopper's
   const intent = readFileSync(resolve(src, "functions/checkout-intent-v1-post.ts"), "utf8");
   const code = intent.split("\n").filter((l) => !l.trimStart().startsWith("//")).join("\n");
 
-  it("the intent route reads no amount, total, price or discount from the request — except the one it only COMPARES", () => {
+  it("the intent route reads no amount, total, price or discount from the request - except the one it only COMPARES", () => {
     expect(code).toMatch(/body\?\.addressId/);
     // `shownDeliveryAmount` and `expectedDiscount` are read only to compare, never to set a charge.
     expect(code).toMatch(/body\.shownDeliveryAmount/);
@@ -126,7 +126,7 @@ describe("the amount is the platform's, and a card is kept only by the shopper's
     expect(code.replaceAll("body.shownDeliveryAmount", "").replaceAll("body.expectedDiscount", "")).not.toMatch(/body\??\.\w*(amount|total|price|discount|fee)\w*/i);
   });
 
-  it("094 — the shown promotions total is compared with the platform's and used for nothing else", () => {
+  it("094 - the shown promotions total is compared with the platform's and used for nothing else", () => {
     const service = readFileSync(resolve(src, "checkout/service.ts"), "utf8")
       .split("\n").filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join("\n");
     const uses = service.split("\n").filter((l) => /\bexpected(Discount)?\b/.test(l));
@@ -180,7 +180,7 @@ describe("stripe_event has one writer, and it is inside the transaction", () => 
 });
 
 /** The refusal's code and sentence are imported, never written here. */
-describe("076 — an address nobody delivers to", () => {
+describe("076 - an address nobody delivers to", () => {
   const scope = { instance: "/commerce/v1/checkout/intent", requestId: "req-1", log: { error: () => undefined } } as never;
 
   it.each([

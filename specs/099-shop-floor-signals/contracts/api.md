@@ -32,27 +32,27 @@ export type StorageClass = "ambient" | "chilled" | "frozen"
 export const STORAGE_CLASS_WORDS: Record<StorageClass, string> // Ambient · Chilled · Frozen
 ```
 
-## `GET /shop/v1/today` — `ShopTodayDTO` gains
+## `GET /shop/v1/today` - `ShopTodayDTO` gains
 
 ```ts
 nextCollection: ShopNextCollectionDTO | null   // null: no active collection runs
 live: (ShopLiveOrderDTO & { collection?: ShopOrderCollectionDTO })[]
 ```
 
-## `GET /shop/v1/orders` — `ShopOrderRowDTO` gains
+## `GET /shop/v1/orders` - `ShopOrderRowDTO` gains
 
 ```ts
 collection?: ShopOrderCollectionDTO   // present only for an Effy-driver portion still at the shop
 ```
 
-## `GET /shop/v1/orders/{id}` — `ShopOrderDetailDTO` gains
+## `GET /shop/v1/orders/{id}` - `ShopOrderDetailDTO` gains
 
 ```ts
 collection?: ShopOrderCollectionDTO
 lines: (ShopOrderLineDTO & { storageClass: StorageClass })[]
 ```
 
-## `GET /shop/v1/pick-lists` — each line gains `storageClass: StorageClass`
+## `GET /shop/v1/pick-lists` - each line gains `storageClass: StorageClass`
 
 ## `GET /shop/v1/availability` (new)
 
@@ -82,11 +82,11 @@ export interface ShopAvailabilityDTO {
 }
 ```
 
-Errors: 400 bad query; 401/403 as every shop route. Read only — the switch is the existing
+Errors: 400 bad query; 401/403 as every shop route. Read only - the switch is the existing
 `POST /shop/v1/products/{id}/variants/{variantId}/state` (unchanged: 409 when it is the last size on
 sale; announces `stock`).
 
-## `GET /shop/v1/insights` — `ShopInsightsDTO` gains
+## `GET /shop/v1/insights` - `ShopInsightsDTO` gains
 
 ```ts
 quality: {
@@ -96,7 +96,7 @@ quality: {
 }
 ```
 
-`null` when the window has nothing to measure (the screen shows "—").
+`null` when the window has nothing to measure (the screen shows "-").
 
 ## Live announcements (no new kinds)
 

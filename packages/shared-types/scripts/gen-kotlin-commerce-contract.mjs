@@ -47,7 +47,7 @@ kt = kt.replace(
   "",
 );
 kt = kt.replace(/^\/\/ To parse the JSON[\s\S]*?\n(?=package )/m, "");
-const banner = `// GENERATED FROM packages/shared-types/src/{storefront,cart,order,checkout,address,saved-item}.ts — DO NOT EDIT.
+const banner = `// GENERATED FROM packages/shared-types/src/{storefront,cart,order,checkout,address,saved-item}.ts - DO NOT EDIT.
 // Regenerate: pnpm --filter @effy/shared-types commerce-contract:gen
 // The wire contract lives in TypeScript ONCE (Principle II); this file is derived and diff-guarded (019).
 `;

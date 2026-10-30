@@ -9,7 +9,7 @@ CHECKs, no triggers, an index on every foreign key, `COMMENT ON` everything.
 
 | Direction | Statement |
 |---|---|
-| Up | `ALTER TABLE public.customer_saved_item` — **no column change**; `COMMENT ON` rewritten to its new meaning |
+| Up | `ALTER TABLE public.customer_saved_item` - **no column change**; `COMMENT ON` rewritten to its new meaning |
 | Up | `CREATE TABLE public.customer_list` |
 | Up | `CREATE TABLE public.customer_list_entry` |
 | Up | backfill: one default list per customer with saved items; one default entry per saved item |
@@ -47,7 +47,7 @@ is kept: dropping an index is a separate decision and the membership read still 
 |---|---|---|
 | `customer_list_name_ck` | `(is_default AND name IS NULL) OR (NOT is_default AND char_length(name) BETWEEN 1 AND 40 AND name = btrim(name))` | FR-002 length as a backstop; "the default has no name" |
 | `customer_list_default_uq` | `UNIQUE (customer_id) WHERE is_default` | exactly one default (FR-003); makes `ensureDefaultSQL` idempotent |
-| `customer_list_name_uq` | `UNIQUE (customer_id, lower(name)) WHERE NOT is_default` | FR-002 uniqueness — **the only mechanism** (research R3) |
+| `customer_list_name_uq` | `UNIQUE (customer_id, lower(name)) WHERE NOT is_default` | FR-002 uniqueness - **the only mechanism** (research R3) |
 | `customer_list_owner_uq` | `UNIQUE (id, customer_id)` | target of the entry's composite foreign key |
 
 `customer_list_name_uq` leads with `customer_id`, so it also serves the "all my lists" read and
@@ -65,7 +65,7 @@ the foreign key.
 | `customer_id` | `uuid NOT NULL` | denormalised on purpose; see the two foreign keys |
 | `added_at` | `timestamptz NOT NULL DEFAULT now()` | position in this list; **writable**, for undo (FR-024), as 033's `saved_at` was |
 
-**Primary key**: `(list_id, product_id)` — a product is in a list at most once (FR-011), and
+**Primary key**: `(list_id, product_id)` - a product is in a list at most once (FR-011), and
 adding is `ON CONFLICT DO NOTHING` (FR-016).
 
 **Foreign keys**
@@ -78,8 +78,8 @@ adding is `ON CONFLICT DO NOTHING` (FR-016).
 Deleting a list removes its entries. Deleting a saved-product row (the heart's un-save, a
 hard-deleted product, an old core-api build) removes every entry for it.
 
-**Indexes**: `customer_list_entry_list_idx (list_id, added_at DESC)` — the ordered list read;
-`customer_list_entry_saved_idx (customer_id, product_id)` — the second foreign key, the chooser's
+**Indexes**: `customer_list_entry_list_idx (list_id, added_at DESC)` - the ordered list read;
+`customer_list_entry_saved_idx (customer_id, product_id)` - the second foreign key, the chooser's
 "which lists hold this product", and `namedProductIds`.
 
 ## The invariant

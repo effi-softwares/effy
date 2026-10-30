@@ -28,10 +28,10 @@ class HttpRefundRequestRepository(private val edge: HttpClient) : RequestRefund 
         }
         when (response.status) {
             HttpStatusCode.Created, HttpStatusCode.OK -> RefundRequestResult.Received
-            // Is not a failure — their ask is already with us, and saying so is the one thing
+            // Is not a failure - their ask is already with us, and saying so is the one thing
             // that stops them raising it again through the generic inbox.
             HttpStatusCode.Conflict -> RefundRequestResult.AlreadyOpen
-            // Covers both "not yours" and "no such order" — the server refuses them identically
+            // Covers both "not yours" and "no such order" - the server refuses them identically
             // so this client cannot tell them apart either.
             HttpStatusCode.Unauthorized, HttpStatusCode.Forbidden, HttpStatusCode.NotFound ->
                 RefundRequestResult.NotAllowed

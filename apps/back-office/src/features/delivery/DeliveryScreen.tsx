@@ -121,7 +121,7 @@ function SchedulePanel({ canManage }: { canManage: boolean }) {
           </Loading>
         ) : runs.data.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            No runs yet — no delivery window today can be offered until one is added.
+            No runs yet - no delivery window today can be offered until one is added.
           </p>
         ) : (
           <ul className="divide-y divide-border rounded-md border border-border">

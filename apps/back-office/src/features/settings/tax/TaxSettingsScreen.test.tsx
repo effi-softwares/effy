@@ -37,7 +37,7 @@ beforeEach(() => {
 })
 
 describe("Settings → Tax (096 US8)", () => {
-  it("starts empty — nothing is guessed — and says how many products still need a GST status", async () => {
+  it("starts empty - nothing is guessed - and says how many products still need a GST status", async () => {
     show()
     expect(await screen.findByText(/3 live products have no GST status/)).toBeInTheDocument()
     expect(screen.getByPlaceholderText("As registered")).toHaveValue("")

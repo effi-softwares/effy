@@ -26,7 +26,7 @@ class CartStore(
 
     private val _state = MutableStateFlow(loaded?.cart ?: CartSnapshot())
 
-    /** The cart, as the UI sees it. Hydrated from disk before the first frame — FR-001. */
+    /** The cart, as the UI sees it. Hydrated from disk before the first frame - FR-001. */
     val state: StateFlow<CartSnapshot> = _state.asStateFlow()
 
     private val _queue = MutableStateFlow(loaded?.queue ?: emptyList())
@@ -63,7 +63,7 @@ class CartStore(
     // Reconciliation with the platform
 
     /**
-     * Take the platform's cart — but only when it is newer than what we hold.
+     * Take the platform's cart - but only when it is newer than what we hold.
      *
      * Returns true when adopted. A false is not an error: it is an out-of-order response being correctly
      * ignored, which is the entire reason `revision` exists.
@@ -129,7 +129,7 @@ class CartStore(
     }
 
     /**
-     * Mark a change the platform definitively refused. It stays in the queue — deliberately — because it
+     * Mark a change the platform definitively refused. It stays in the queue - deliberately - because it
      * is the only record the shopper has that something they did did not stick. It is skipped by
      * the drain, so it costs nothing to keep, and [acknowledgeFailures] clears it once seen.
      */
@@ -174,7 +174,7 @@ class CartStore(
      * checkout is worth offering. Everything else the platform owns.
      *
      * Unavailable lines are excluded from the subtotal here for the same reason the platform excludes them
-     * — a shopper must never be shown a total that includes something they cannot buy.
+     * - a shopper must never be shown a total that includes something they cannot buy.
      */
     private fun recompute(cart: CartSnapshot): CartSnapshot {
         val payable = cart.lines.filter { it.available }

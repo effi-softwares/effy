@@ -32,7 +32,7 @@ export const COVERAGE_REFUSAL_CODE = "address_not_covered";
 /** The one sentence a customer reads when nobody delivers to their address. */
 export const COVERAGE_REFUSAL_SENTENCE = "Sorry, we can't deliver to this address.";
 
-/** Australian state / territory — the closed set the place record uses. */
+/** Australian state / territory - the closed set the place record uses. */
 export type AustralianState = "ACT" | "NSW" | "NT" | "QLD" | "SA" | "TAS" | "VIC" | "WA";
 
 /**
@@ -93,7 +93,7 @@ export const DELIVERY_WINDOW_WORDS = {
   asapTitle: "Standard",
   asapHint: "We'll deliver as soon as we can.",
   /** Followed by the business's estimate: always an estimate, never a day. */
-  asapEstimatePrefix: "As soon as possible —",
+  asapEstimatePrefix: "As soon as possible -",
 } as const;
 
 /** Why a day has no window to choose. A later day is only ever "full". */

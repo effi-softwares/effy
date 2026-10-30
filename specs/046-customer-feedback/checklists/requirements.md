@@ -36,6 +36,6 @@
   user's explicit direction; one-directional replies; attachments deferred; no submitter status
   portal; optional lightweight rating). Any of these can be revisited in `/speckit-clarify` or during
   planning if the operator disagrees.
-- The one implementation-shaped phrase retained — "edge API, not the hot path" — is carried only in
+- The one implementation-shaped phrase retained - "edge API, not the hot path" - is carried only in
   Assumptions/Dependencies because it was an explicit operator instruction in the feature request and
   reflects a binding platform routing rule, not a design choice this spec is inventing.

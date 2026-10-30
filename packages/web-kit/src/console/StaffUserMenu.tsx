@@ -19,13 +19,13 @@ import { displayName, initialsOf } from "./staff-nav";
 
 /**
  * The account and appearance menu, behind the avatar in the header's right corner (2026-10-25: moved
- * out of the sidebar footer — it is used a few times a day, so it takes no rail space). Appearance
+ * out of the sidebar footer - it is used a few times a day, so it takes no rail space). Appearance
  * lives here: Light / Dark / System, as three icons. A surface adds its own entries (back-office: its
  * staff record, keyboard shortcuts) through `items`.
  */
 export interface StaffUserMenuProps {
   email: string;
-  /** "Admin", "Manager"… — the highest role held; null for none. */
+  /** "Admin", "Manager"… - the highest role held; null for none. */
   roleLabel: string | null;
   /** "Active" / "Disabled", once known. */
   statusLabel?: string | null;
@@ -58,7 +58,7 @@ export function StaffUserMenu({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="ml-1 rounded-full" aria-label={`Account and appearance — ${name}`}>
+        <Button variant="ghost" size="icon" className="ml-1 rounded-full" aria-label={`Account and appearance - ${name}`}>
           <Avatar aria-hidden="true" className="size-8">
             <AvatarFallback className="bg-primary-muted text-xs font-semibold text-primary">{initialsOf(name)}</AvatarFallback>
           </Avatar>
@@ -89,7 +89,7 @@ export function StaffUserMenu({
             <DropdownMenuSeparator />
           </>
         ) : null}
-        {/* Appearance as three icons in one row — the current one filled. Each stays a menu item (arrow
+        {/* Appearance as three icons in one row - the current one filled. Each stays a menu item (arrow
             keys reach it, Enter picks it) and keeps the menu open, so the change is seen in place. */}
         <div role="group" aria-label="Appearance" className="mx-2 my-1 grid grid-cols-3 gap-1 rounded-md bg-muted p-1">
           {MODES.map(({ value, label, Icon }) => (

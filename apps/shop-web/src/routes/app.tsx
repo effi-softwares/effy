@@ -7,7 +7,6 @@ import { useStore } from "@tanstack/react-store"
 import type { ShopRole } from "@effy/shared-types"
 import { LiveProvider, StaffShell, StaffUserMenu } from "@effy/web-kit/console"
 
-import { HeaderChrome } from "@/components/console/HeaderChrome"
 import { CommandPalette } from "@/components/console/CommandPalette"
 import { NewOrderAlert } from "@/components/console/NewOrderAlert"
 import { ScanButton } from "@/components/console/ScanButton"
@@ -86,7 +85,6 @@ function AppShell() {
         headerDetail={record}
         headerActions={
           <>
-            <HeaderChrome />
             <SoundChip />
             <ScanButton />
           </>

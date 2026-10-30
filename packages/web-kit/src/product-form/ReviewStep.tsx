@@ -77,7 +77,7 @@ export function ReviewStep({
     ...extra,
     basics: [
       ["Name", text(draft.name)],
-      ["Brand", text(draft.brand) ?? "—"],
+      ["Brand", text(draft.brand) ?? "-"],
       ["Category", form ? pathText(form.path) : null],
       ["Short description", text(draft.shortDescription)],
       ...(draft.longDescription.trim()
@@ -115,18 +115,18 @@ export function ReviewStep({
     }),
     details: form
       ? [
-          ...rows
-            .filter((r) => r.level === "required" || draft.details.some((d) => d.attributeId === r.attributeId))
-            .map((r): Row => {
-              const d = draft.details.find((x) => x.attributeId === r.attributeId);
-              if (!d || (d.value === undefined && !(d.perVariant?.length ?? 0)))
-                return [r.name, r.level === "required" ? null : "—"];
-              return [r.name, d.value ? formatAttributeValue(r, d.value) : "Differs by variant"];
-            }),
-          ["Storage", draft.facts.storage ? STORAGE_WORDS[draft.facts.storage] : null],
-          ["GST", draft.facts.gstStatus ? GST_STATUS_WORDS[draft.facts.gstStatus] : null],
-          [`${AGE_RESTRICTED_LABEL} only`, draft.facts.ageRestricted === null ? null : draft.facts.ageRestricted ? "Yes" : "No"],
-        ]
+        ...rows
+          .filter((r) => r.level === "required" || draft.details.some((d) => d.attributeId === r.attributeId))
+          .map((r): Row => {
+            const d = draft.details.find((x) => x.attributeId === r.attributeId);
+            if (!d || (d.value === undefined && !(d.perVariant?.length ?? 0)))
+              return [r.name, r.level === "required" ? null : "-"];
+            return [r.name, d.value ? formatAttributeValue(r, d.value) : "Differs by variant"];
+          }),
+        ["Storage", draft.facts.storage ? STORAGE_WORDS[draft.facts.storage] : null],
+        ["GST", draft.facts.gstStatus ? GST_STATUS_WORDS[draft.facts.gstStatus] : null],
+        [`${AGE_RESTRICTED_LABEL} only`, draft.facts.ageRestricted === null ? null : draft.facts.ageRestricted ? "Yes" : "No"],
+      ]
       : [["Category", null]],
   };
 

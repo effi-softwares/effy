@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# seed-list-volumes.sh — fill dev with enough rows to prove the console lists at volume (103, quickstart §4).
+# seed-list-volumes.sh - fill dev with enough rows to prove the console lists at volume (103, quickstart §4).
 #
 # why this exists: the lists are judged on a full table (paging past page 400, search over 100 000 orders,
 # EXPLAIN on the new indexes). Dev holds a few hundred rows, so a plan that scans everything still looks fast.
 #
 # what it writes, all tagged so `--remove` takes exactly these and nothing else:
-# • 20 000 customers — cognito_sub `seed-list-<n>`, email `seed-list-<n>@seed.invalid` (the reserved
+# • 20 000 customers - cognito_sub `seed-list-<n>`, email `seed-list-<n>@seed.invalid` (the reserved
 #   `.invalid` domain: no mail can ever be sent to it). They cannot sign in: no Cognito user exists.
-# • 100 000 paid orders — order_number `SEED-<n>`, Delivered by Effy on a day, spread over the last year,
+# • 100 000 paid orders - order_number `SEED-<n>`, Delivered by Effy on a day, spread over the last year,
 #   for those customers. No fulfilment, payment or package rows: they are list rows, not work.
-# • 20 000 products — created_by `seed-list-volumes`, drafts in the first shop and the first leaf category,
+# • 20 000 products - created_by `seed-list-volumes`, drafts in the first shop and the first leaf category,
 #   one size each. Drafts are never on sale and never reach review.
 #
 # Usage:

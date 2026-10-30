@@ -1,5 +1,5 @@
 /**
- * The Effy wordmark as vector paths, from `packages/brand/src/wordmark.svg` (viewBox 198.2 × 86) — for
+ * The Effy wordmark as vector paths, from `packages/brand/src/wordmark.svg` (viewBox 198.2 × 86) - for
  * surfaces that draw it themselves rather than load the file: the bag label (shop-web) and the printed
  * documents (delivery note, tax invoice). `brand-mark.test.ts` holds them to the brand file.
  */

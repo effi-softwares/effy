@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils"
 /**
  * The reference Card: white, a hairline border, `rounded-lg`, and shadcn's `shadow-xs`.
  *
- * Never grey-filled. A card is the white surface a discrete, choosable thing sits on — a product,
+ * Never grey-filled. A card is the white surface a discrete, choosable thing sits on - a product,
  * an address, a checkout section (constitution v3.3.0, the storefront identity).
  *
  * `padded={false}` is the reference's `padding:0;gap:0` card: rows that run edge to edge and draw

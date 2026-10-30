@@ -17,8 +17,8 @@ export interface PreviewSize {
 }
 
 /**
- * How shoppers see the product on Effy — drawn as the product form's `LivePreview` draws it, in the aisle and on its
- * own page — from the product as it is being edited, not only as it was approved: `badges` say where it stands, and a
+ * How shoppers see the product on Effy - drawn as the product form's `LivePreview` draws it, in the aisle and on its
+ * own page - from the product as it is being edited, not only as it was approved: `badges` say where it stands, and a
  * value lights up once when it changes.
  */
 export function ShopperPreview({
@@ -180,7 +180,7 @@ function lowest(sizes: readonly PreviewSize[]): string | null {
   return priced.reduce((a, b) => (amount(b.price!) < amount(a.price!) ? b : a)).price;
 }
 
-/** A value that lights up once each time it changes — never on first showing. */
+/** A value that lights up once each time it changes - never on first showing. */
 function Flash({ watch, className, children }: { watch: string; className?: string; children: ReactNode }) {
   const first = useRef(watch);
   const changed = watch !== first.current;

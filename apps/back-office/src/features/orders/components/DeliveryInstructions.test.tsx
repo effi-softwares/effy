@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest"
 
 import { DeliveryInstructions } from "./DeliveryInstructions"
 
-describe("066 — delivery instructions on the back-office order", () => {
+describe("066 - delivery instructions on the back-office order", () => {
   it("shows the preference in words and the note as the customer typed it", () => {
     render(<DeliveryInstructions instructions={{ handover: "meet_at_door", note: "Ring twice" }} />)
     expect(screen.getByRole("heading", { name: "Delivery instructions" })).toBeInTheDocument()

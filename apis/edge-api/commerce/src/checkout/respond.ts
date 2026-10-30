@@ -14,11 +14,11 @@ import {
 
 const CHOICE_DETAIL = {
   slot_required: "choose a delivery time",
-  slot_unavailable: "that delivery time is no longer available — choose another",
-  date_unavailable: "that delivery day is no longer available — choose another",
+  slot_unavailable: "that delivery time is no longer available - choose another",
+  date_unavailable: "that delivery day is no longer available - choose another",
   no_windows_available: DELIVERY_WINDOW_WORDS.noWindows,
   // The address's delivery type is not what the screen showed; the fresh quote says which it is.
-  delivery_type_changed: "how this order is delivered has changed — check the delivery option and try again",
+  delivery_type_changed: "how this order is delivered has changed - check the delivery option and try again",
 } as const;
 
 /** For a window or day no longer offered, with a fresh quote when one could be computed. */

@@ -36,7 +36,7 @@ async function pkg(orderId: string): Promise<{ id: string; package_code: string 
   )).rows[0]!;
 }
 
-d("089 — package codes", () => {
+d("089 - package codes", () => {
   beforeAll(async () => {
     container = await new PostgreSqlContainer("postgres:16-alpine").start();
     pool = new Pool({ connectionString: container.getConnectionUri() });

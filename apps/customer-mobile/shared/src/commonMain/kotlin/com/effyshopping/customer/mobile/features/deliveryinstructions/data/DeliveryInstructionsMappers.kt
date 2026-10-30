@@ -18,7 +18,7 @@ internal fun Handover.toWire(): HandoverPreference = when (this) {
     Handover.MeetAtDoor -> HandoverPreference.MeetAtDoor
 }
 
-/** Null for "said nothing" — so a screen never has to tell an empty object from an absent one. */
+/** Null for "said nothing" - so a screen never has to tell an empty object from an absent one. */
 internal fun DeliveryInstructionsDTO?.toDomain(): DeliveryInstructions? {
     if (this == null) return null
     val out = DeliveryInstructions(handover = handover?.toDomain(), note = note)
@@ -32,7 +32,7 @@ internal fun DeliveryInstructions.toWire(): DeliveryInstructionsDTO =
  * The value that clears an address's saved default.
  *
  * This app's JSON omits null fields (`explicitNulls = false`), and the address PATCH reads a
- * field's absence as "leave it alone". So `null` cannot clear anything from here — it never reaches
+ * field's absence as "leave it alone". So `null` cannot clear anything from here - it never reaches
  * the wire. An empty object does: it serialises as `{}`, which the server normalises to "no
  * instructions" and stores as such.
  */

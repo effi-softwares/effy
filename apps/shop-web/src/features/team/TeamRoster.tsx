@@ -105,7 +105,7 @@ function teamColumns(canManage: boolean): EffyColumnDef<ShopTeamMemberDTO>[] {
       cell: ({ row }) => (
         <span className="flex items-center gap-3 font-medium">
           <InitialsAvatar name={row.original.name ?? row.original.email ?? "?"} seed={row.original.staffId} className="size-8 shrink-0" />
-          {row.original.name ?? "—"}
+          {row.original.name ?? "-"}
         </span>
       ),
       meta: { label: "Name", identifying: true, phone: "primary" },
@@ -114,7 +114,7 @@ function teamColumns(canManage: boolean): EffyColumnDef<ShopTeamMemberDTO>[] {
       id: "email",
       accessorFn: (m) => m.email ?? "",
       header: "Email",
-      cell: ({ row }) => <span className="text-muted-foreground">{row.original.email ?? "—"}</span>,
+      cell: ({ row }) => <span className="text-muted-foreground">{row.original.email ?? "-"}</span>,
       meta: { label: "Email", priority: 2 },
     },
     {
@@ -134,14 +134,14 @@ function teamColumns(canManage: boolean): EffyColumnDef<ShopTeamMemberDTO>[] {
     },
     ...(canManage
       ? [
-          {
-            id: "actions",
-            header: () => <span className="sr-only">Actions</span>,
-            enableSorting: false,
-            cell: ({ row }) => <StandDownCell member={row.original} />,
-            meta: { label: "Actions", phone: "full", className: "text-right" },
-          } satisfies EffyColumnDef<ShopTeamMemberDTO>,
-        ]
+        {
+          id: "actions",
+          header: () => <span className="sr-only">Actions</span>,
+          enableSorting: false,
+          cell: ({ row }) => <StandDownCell member={row.original} />,
+          meta: { label: "Actions", phone: "full", className: "text-right" },
+        } satisfies EffyColumnDef<ShopTeamMemberDTO>,
+      ]
       : []),
   ]
 }

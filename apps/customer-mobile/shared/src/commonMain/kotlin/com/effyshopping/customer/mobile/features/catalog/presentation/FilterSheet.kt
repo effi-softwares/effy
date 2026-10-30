@@ -35,12 +35,12 @@ import com.effyshopping.mobile.design.EffySpacing
 
 /**
  * The advanced filter bottom sheet. Opened from the filter icon in the Search header; holds
- * every facet — the offers toggle, price band, a single-select category, and the multi-select brand +
+ * every facet - the offers toggle, price band, a single-select category, and the multi-select brand +
  * characteristic facets, each option showing its count. Filters apply live on each tap
  * (the ViewModel re-runs the search), so the primary action simply closes and shows the results.
  *
  * Built on [EffySheet], which owns the modal sheet, scroll, insets, title and the primary/cancel pair.
- * Standard Material 3 controls only (Checkbox/RadioButton) — no experimental layout APIs.
+ * Standard Material 3 controls only (Checkbox/RadioButton) - no experimental layout APIs.
  */
 @Composable
 fun FilterSheet(
@@ -71,11 +71,11 @@ fun FilterSheet(
         // One column with NO gap between rows: each row is already a 48dp target, and the sheet's
         // 12dp gap between every child made a list of choices read as a stack of separate controls.
         Column(modifier = Modifier.fillMaxWidth()) {
-        // Offers — a fixed toggle (not a server facet in this slice).
+        // Offers - a fixed toggle (not a server facet in this slice).
         SectionTitle("Offers")
         EffySwitchRow(label = "On sale", checked = state.saleOnly, onCheckedChange = { onToggleSale() }, horizontalPadding = 0.dp)
 
-        // Price band — corrects an inverted range before applying.
+        // Price band - corrects an inverted range before applying.
         SectionTitle("Price")
         PriceRangeRow(
             min = state.minPrice.orEmpty(),
@@ -85,7 +85,7 @@ fun FilterSheet(
             onApply = onApplyPrice,
         )
 
-        // Category — single select, with an explicit "All".
+        // Category - single select, with an explicit "All".
         if (category != null && category.options.isNotEmpty()) {
             SectionTitle(category.label)
             RadioRow(label = "All categories", selected = state.categoryKey == null) { onCategory(null) }
@@ -98,7 +98,7 @@ fun FilterSheet(
             }
         }
 
-        // Brand + characteristic facets — multi-select, OR within.
+        // Brand + characteristic facets - multi-select, OR within.
         facets.forEach { facet ->
             val range = facet.range
             if (facet.control == FacetControl.RANGE && range != null) {

@@ -1,5 +1,5 @@
 {
- "_comment": "096 — Helvetica and Helvetica-Bold advance widths (units per 1000 em) for printable ASCII and a few label glyphs, from the Adobe core-14 AFM as bundled by @pdf-lib/standard-fonts 1.x. Arial is metric-compatible. Read by labels/fit.ts.",
+ "_comment": "096 - Helvetica and Helvetica-Bold advance widths (units per 1000 em) for printable ASCII and a few label glyphs, from the Adobe core-14 AFM as bundled by @pdf-lib/standard-fonts 1.x. Arial is metric-compatible. Read by labels/fit.ts.",
  "unitsPerEm": 1000,
  "regular": {
   "0": 556,
@@ -98,7 +98,7 @@
   "}": 334,
   "~": 584,
   "·": 278,
-  "—": 1000,
+  "-": 1000,
   "–": 556,
   "°": 400,
   "é": 556,
@@ -201,7 +201,7 @@
   "}": 389,
   "~": 584,
   "·": 278,
-  "—": 1000,
+  "-": 1000,
   "–": 556,
   "°": 400,
   "é": 556,

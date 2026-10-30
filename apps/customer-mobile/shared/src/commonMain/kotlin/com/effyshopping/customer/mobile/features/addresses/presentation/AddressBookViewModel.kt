@@ -51,7 +51,7 @@ data class AddressBookUiState(
     val sheet: FormSheet? = null,
     /** The address a confirm-delete dialog is pending on. */
     val pendingDeleteId: String? = null,
-    /** True once a delete-default was blocked server-side — show the "set another default" prompt. */
+    /** True once a delete-default was blocked server-side - show the "set another default" prompt. */
     val reassignPrompt: Boolean = false,
 )
 
@@ -105,7 +105,7 @@ class AddressBookViewModel(
     }
     // `toForm`/`validate`/`toDraft` are the shared AddressFormLogic extensions (reused by Checkout, 023).
 
-    /** Dismissing the sheet mid-entry discards everything — nothing is saved. */
+    /** Dismissing the sheet mid-entry discards everything - nothing is saved. */
     fun dismissSheet() {
         _state.value = _state.value.copy(sheet = null)
     }
@@ -143,7 +143,7 @@ class AddressBookViewModel(
 
     // set-default
 
-    /** Make [id] the default. Idempotent — the backend clears the prior default atomically. */
+    /** Make [id] the default. Idempotent - the backend clears the prior default atomically. */
     fun makeDefault(id: String) {
         if (_state.value.addresses.firstOrNull { it.id == id }?.isDefault == true) return // no-op
         scope.launch {

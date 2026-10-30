@@ -18,40 +18,40 @@ import type { ShopNextCollectionDTO, ShopOrderCollectionDTO, StorageClass } from
  */
 export type ShopAttentionItemDTO =
   | {
-      kind: "awaiting_pick"
-      orders: WireInt
-      units: WireInt
-      /** The oldest waiting order's paid instant ("oldest 3 h 12 m"). */
-      since: string
-    }
+    kind: "awaiting_pick"
+    orders: WireInt
+    units: WireInt
+    /** The oldest waiting order's paid instant ("oldest 3 h 12 m"). */
+    since: string
+  }
   | {
-      kind: "out_of_stock"
-      productId: string
-      /** The size that is out; `name` already says which ("Rice — 1 kg"). */
-      variantId: string
-      name: string
-      /** Units sold in the last 7 days: demand the platform knows (it records no product views). */
-      soldLast7Days: WireInt
-      since: string
-    }
+    kind: "out_of_stock"
+    productId: string
+    /** The size that is out; `name` already says which ("Rice - 1 kg"). */
+    variantId: string
+    name: string
+    /** Units sold in the last 7 days: demand the platform knows (it records no product views). */
+    soldLast7Days: WireInt
+    since: string
+  }
   | {
-      kind: "low_stock"
-      productId: string
-      /** The size that is low. */
-      variantId: string
-      name: string
-      onHand: WireInt
-      /** Null with no recorded sales: cover cannot be derived from no demand. */
-      daysOfCover: WireInt | null
-      since: string
-    }
+    kind: "low_stock"
+    productId: string
+    /** The size that is low. */
+    variantId: string
+    name: string
+    onHand: WireInt
+    /** Null with no recorded sales: cover cannot be derived from no demand. */
+    daysOfCover: WireInt | null
+    since: string
+  }
   | {
-      kind: "refund_proposed"
-      fulfillmentId: string
-      orderNumber: string
-      amount: string
-      since: string
-    }
+    kind: "refund_proposed"
+    fulfillmentId: string
+    orderNumber: string
+    amount: string
+    since: string
+  }
 
 /** One of the five most recently paid orders; every row is a stored order. */
 export interface ShopLiveOrderDTO {

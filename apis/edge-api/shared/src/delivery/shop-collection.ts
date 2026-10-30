@@ -1,4 +1,4 @@
-// Which Effy collection run will take each of a shop's packages (099) — the fleet planner's own rule
+// Which Effy collection run will take each of a shop's packages (099) - the fleet planner's own rule
 // (`dueRun`, `nextRunInstant`), read here so the shop service is told only RUN TIMES. The window a
 // package travels for is read in this file and never leaves it: a shop is not told the customer's
 // delivery day or window (`shop/src/fulfillments/no-delivery-window.guard.test.ts`).
@@ -9,11 +9,11 @@ import { COURIER_COLLECTION_SQL } from "./consignment";
 import { heldSql } from "./held";
 import { nonDeliveryDates } from "./slots";
 
-/** The planner's schedule and settings — the same rows `fleet/src/planner` reads. */
+/** The planner's schedule and settings - the same rows `fleet/src/planner` reads. */
 const SCHEDULE = `
 SELECT EXTRACT(HOUR FROM r.run_time)::int AS hour, EXTRACT(MINUTE FROM r.run_time)::int AS minute
   FROM public.delivery_collection_run r
- -- availability-exempt: delivery_collection_run — a run's schedule status, not whether anything can be bought.
+ -- availability-exempt: delivery_collection_run - a run's schedule status, not whether anything can be bought.
  WHERE r.status = 'active'
  ORDER BY r.run_time
 `;
@@ -68,7 +68,7 @@ export interface PackageRunFacts {
 }
 
 /**
- * The run expected to collect a package: the round it is assigned to, else the planner's rule — the
+ * The run expected to collect a package: the round it is assigned to, else the planner's rule - the
  * next run, or the later run a windowed Effy parcel waits for. Null when no runs are set up.
  */
 export function runForPackage(p: PackageRunFacts, schedule: CollectionSchedule, now: Date): Date | null {
@@ -80,7 +80,7 @@ export function runForPackage(p: PackageRunFacts, schedule: CollectionSchedule, 
   return due !== null && due.getTime() > next.getTime() ? due : next;
 }
 
-/** One of the shop's packages and the run expected to collect it — no window, no day promise. */
+/** One of the shop's packages and the run expected to collect it - no window, no day promise. */
 export interface ShopPackageRun {
   id: string;
   status: string;

@@ -4,7 +4,7 @@
 **Authorizer**: `back-office` JWT (`${ssm:/effy/<env>/edge/authorizer/back-office_id}`) ·
 **Base path**: `/admin/v1/catalog` · **DTOs**: `@effy/shared-types` (`catalog.ts`)
 
-**Authz** (from the `admin.staff` record, backend-authoritative, fail-closed — the verified
+**Authz** (from the `admin.staff` record, backend-authoritative, fail-closed - the verified
 `shops/authz.ts` `guard` pattern):
 - **read** = any `admin.staff` with `status='active'` (incl. `csa`).
 - **mutate** = `status='active'` AND role ∈ {`admin`,`manager`}.
@@ -26,7 +26,7 @@ in the same transaction.
 | POST | `/admin/v1/catalog/product-types/{id}/status` | mutate | `ChangeSchemaStatusRequest` (`active`/`retired`) → `ProductTypeDTO` |
 | POST | `/admin/v1/catalog/product-types/{id}/attributes` | mutate | `AssignAttributeRequest` (`attributeId`, `isMandatory`, `displayOrder`, `groupLabel?`) → `ProductTypeDTO` |
 | PATCH | `/admin/v1/catalog/product-types/{id}/attributes/{attrId}` | mutate | update assignment → `ProductTypeDTO` |
-| DELETE | `/admin/v1/catalog/product-types/{id}/attributes/{attrId}` | mutate | → `204` (unassign; blocked 409 if the attribute is mandatory-in-use? no — unassigning only affects future creation) |
+| DELETE | `/admin/v1/catalog/product-types/{id}/attributes/{attrId}` | mutate | → `204` (unassign; blocked 409 if the attribute is mandatory-in-use? no - unassigning only affects future creation) |
 
 ## Attribute definitions
 
@@ -59,6 +59,6 @@ each function in `admin/serverless.yml` under the paths above with
 `authorizer.id: ${ssm:/effy/<env>/edge/authorizer/back-office_id}` + a per-function `Errors>0`
 CloudWatch alarm (and a `Duration p95` alarm on the list/tree reads).
 
-**Field validation** (service, hand-written — no schema lib): non-empty name; `dataType` ∈ the union;
+**Field validation** (service, hand-written - no schema lib): non-empty name; `dataType` ∈ the union;
 `validation` shape; allowed-value uniqueness; category `parentId` exists and is not self/descendant
 (no cycles).

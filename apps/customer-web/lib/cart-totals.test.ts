@@ -24,10 +24,10 @@ describe("cents helpers", () => {
 })
 
 describe("computeCartTotals", () => {
-  it("sums the item lines only — 021 drops the flat delivery fee", () => {
+  it("sums the item lines only - 021 drops the flat delivery fee", () => {
     const totals = computeCartTotals([line("5.00", 2), line("3.00", 1)])
     expect(totals.itemSubtotal).toBe("13.00")
-    // Delivery is quoted per package at checkout — the cart never carries a fee.
+    // Delivery is quoted per package at checkout - the cart never carries a fee.
     expect(totals).not.toHaveProperty("deliveryFee")
     expect(totals).not.toHaveProperty("grandTotal")
   })

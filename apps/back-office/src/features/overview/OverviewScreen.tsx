@@ -153,7 +153,7 @@ export function OverviewScreen() {
         <div className="min-w-0 space-y-6 xl:col-span-2">
           <Panel
             title="Needs attention"
-            description="Each count opens the list it comes from. They update live — nothing here refreshes on a timer."
+            description="Each count opens the list it comes from. They update live - nothing here refreshes on a timer."
             actions={
               <Badge variant="outline">
                 <span

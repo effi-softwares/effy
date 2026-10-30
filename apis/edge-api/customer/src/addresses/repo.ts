@@ -102,7 +102,7 @@ export async function update(
           postal_code    = COALESCE($10, postal_code),
           country        = COALESCE($11, country),
           is_default     = CASE WHEN $2 = true THEN true ELSE is_default END,
-          -- Keyed on PRESENCE ($13), not COALESCE — a present null must clear the saved default.
+          -- Keyed on PRESENCE ($13), not COALESCE - a present null must clear the saved default.
           default_delivery_handover = CASE WHEN $13::boolean THEN $14 ELSE default_delivery_handover END,
           default_delivery_note     = CASE WHEN $13::boolean THEN $15 ELSE default_delivery_note END,
           updated_at     = now()

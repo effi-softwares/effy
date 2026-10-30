@@ -175,7 +175,7 @@ function layoutAt(
     els.push({ kind: "rect", x: x0, y, w: W, h: weight * Math.max(k, 0.7), fill: "#000" })
   let y = g.padMm
 
-  // 1 — header
+  // 1 - header
   blocks.push("header")
   const headH = 8 * k
   els.push({ kind: "mark", x: x0, y: y + headH * 0.1, h: headH * 0.8 })
@@ -183,7 +183,7 @@ function layoutAt(
   rule(y)
   y += 0.6 * k + v(2)
 
-  // 2 — deliver to
+  // 2 - deliver to
   blocks.push("deliver-to")
   const capPt = pt(7)
   els.push({ kind: "text", x: x0, y: y + asc(capPt), text: "DELIVER TO", sizePt: capPt, bold: true, spacing: 0.12 })
@@ -226,7 +226,7 @@ function layoutAt(
   rule(y)
   y += 0.6 * k + v(2)
 
-  // 3 — temperature band
+  // 3 - temperature band
   blocks.push("zone")
   const bandH = 8 * k
   const reversed = doc.parcel.zone !== "ambient"
@@ -265,7 +265,7 @@ function layoutAt(
   )
   y += bandH + v(2.5)
 
-  // 4 — bag n of N, order, packed date
+  // 4 - bag n of N, order, packed date
   blocks.push("bag")
   const bigPt = pt(22)
   const ofPt = pt(9)
@@ -331,7 +331,7 @@ function layoutAt(
   rule(y)
   y += 0.6 * k + v(2)
 
-  // 5 — the barcode, on the dot grid
+  // 5 - the barcode, on the dot grid
   blocks.push("barcode")
   const token = packageToken(doc.parcel.code)
   const dot = 25.4 / dpi
@@ -358,7 +358,7 @@ function layoutAt(
   rule(y)
   y += 0.6 * k + v(2)
 
-  // 6 — QR and the code for reading aloud
+  // 6 - QR and the code for reading aloud
   blocks.push("code")
   els.push({ kind: "qr", x: x0, y, size: g.qrMm, token })
   const codePt = pt(16)
@@ -382,7 +382,7 @@ function layoutAt(
     sizePt: hintPt,
   })
 
-  // 7 — footer, anchored to the bottom
+  // 7 - footer, anchored to the bottom
   blocks.push("footer")
   const footPt = pt(8)
   const footY = g.heightMm - g.padMm - lineH(footPt)

@@ -34,7 +34,7 @@ pnpm --filter back-office test
 3. Back-office → Exceptions: the parcel reads **With driver**; Dispatch day shows 1 failed parcel with
    drivers. Try "Move to courier" on the order: refused, "Record its return first".
 4. At the hub, swipe **Return to hub**. The round moves to History; Today moves to the next round.
-5. Back-office: the parcel reads **At hub — returned after a failed delivery, needs a next step**;
+5. Back-office: the parcel reads **At hub - returned after a failed delivery, needs a next step**;
    Exceptions says **At hub**. Choose a new window for the order: the exception closes and the next
    planning pass puts the parcel on that window's round.
 6. Repeat 1–3, then record the return from back-office instead (Story 4): the driver's Today drops

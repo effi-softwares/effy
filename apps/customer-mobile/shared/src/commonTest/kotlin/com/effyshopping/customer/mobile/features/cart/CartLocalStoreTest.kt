@@ -14,7 +14,7 @@ import kotlin.test.assertTrue
 
 /**
  * The store that closes the defect this slice was opened for: before it, a force-quit lost the entire
- * cart. These tests care about two things — that a cart round-trips, and that a blob we cannot trust
+ * cart. These tests care about two things - that a cart round-trips, and that a blob we cannot trust
  * produces an empty cart rather than a crash or a half-parsed one.
  */
 class CartLocalStoreTest {
@@ -48,7 +48,7 @@ class CartLocalStoreTest {
         val loaded = store.load()
 
         assertTrue(loaded != null, "a saved cart must load back")
-        assertEquals(7, loaded.cart.revision, "the revision must survive — the mirror cannot reconcile without it")
+        assertEquals(7, loaded.cart.revision, "the revision must survive - the mirror cannot reconcile without it")
         assertEquals(1, loaded.cart.lines.size)
         assertEquals("p1", loaded.cart.lines[0].productId)
         assertEquals(2, loaded.cart.lines[0].quantity)
@@ -83,7 +83,7 @@ class CartLocalStoreTest {
     }
 
     // A truncated write, or preferences edited by hand on a rooted device. Losing the cart is bad; a
-    // launch crash loop is worse, and a silently half-parsed cart is worst — the shopper would trust it.
+    // launch crash loop is worse, and a silently half-parsed cart is worst - the shopper would trust it.
     @Test
     fun corrupt_json_loads_as_nothing_rather_than_crashing() {
         val prefs = InMemoryDevicePreferences()

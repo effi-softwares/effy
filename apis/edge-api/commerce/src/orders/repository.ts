@@ -258,8 +258,8 @@ FROM public.shop_fulfillment WHERE order_id = $1 ORDER BY created_at ASC`,
       rows<ShortfallRow>(
         `
 SELECT fi.shop_fulfillment_id::text AS shop_fulfillment_id,
-       -- A shortfall names what was SOLD, label included ("Basmati Rice — 1 kg").
-       CASE WHEN oi.variant_label IS NULL THEN oi.product_name ELSE oi.product_name || ' — ' || oi.variant_label END AS product_name,
+       -- A shortfall names what was SOLD, label included ("Basmati Rice - 1 kg").
+       CASE WHEN oi.variant_label IS NULL THEN oi.product_name ELSE oi.product_name || ' - ' || oi.variant_label END AS product_name,
        fi.unavailable_quantity      AS quantity
 FROM public.fulfillment_item fi
 JOIN public.shop_fulfillment sf ON sf.id = fi.shop_fulfillment_id

@@ -3,9 +3,9 @@
 Cold path. Two services. Paths follow the `/<service>/v1/...` scheme. DTOs live in
 `@effy/shared-types` (`feedback.ts`) so the clients and services share one shape (Principle II).
 
-## Customer service — `apis/edge-api/customer` (submission)
+## Customer service - `apis/edge-api/customer` (submission)
 
-### `POST /customer/v1/feedback` — authenticated (customer authorizer)
+### `POST /customer/v1/feedback` - authenticated (customer authorizer)
 
 Signed-in shopper. The verified `sub` resolves to `customer.id`; the trusted profile email is used.
 
@@ -24,7 +24,7 @@ Request body:
 Behaviour: links `customer_id`, sets `email_verified=true`, `submitter_email` = profile email. Sends
 `feedback-received` when an email is available. Rate-limited per `sub` (D5).
 
-### `POST /customer/v1/feedback/public` — public (no authorizer)
+### `POST /customer/v1/feedback/public` - public (no authorizer)
 
 Guest. Email/name are **unverified** and used only to send the acknowledgement/reply.
 
@@ -40,11 +40,11 @@ Behaviour: `customer_id` NULL, `email_verified=false`. Rate-limited per `source_
 ```jsonc
 // 201
 { "status": "ok", "referenceCode": "FB-XXXXXX" }
-// 400 — validation
+// 400 - validation
 { "status": "invalid", "field": "message" | "email" | "category" | ... }
-// 429 — rate limited (threshold NOT disclosed)
+// 429 - rate limited (threshold NOT disclosed)
 { "status": "rate_limited" }
-// 500 — stored-but-email-failed is NOT surfaced as failure on the authed/thank-you path:
+// 500 - stored-but-email-failed is NOT surfaced as failure on the authed/thank-you path:
 //        the submission persists and returns ok (FR-015). Only a store failure returns error.
 { "status": "error" }
 ```
@@ -53,12 +53,12 @@ Behaviour: `customer_id` NULL, `email_verified=false`. Rate-limited per `source_
 stored raw, never interpreted (FR-017); thank-you send failure never loses the submission (FR-015);
 uniform success shape reveals nothing about account existence (FR-010).
 
-## Admin service — `apis/edge-api/admin` (console)
+## Admin service - `apis/edge-api/admin` (console)
 
 All routes behind the **back-office authorizer**; RBAC from `admin.staff` (research D7). Fail-closed →
 503 on authz error.
 
-### `GET /admin/v1/feedback` — list/search/filter (any active staff incl. csa)
+### `GET /admin/v1/feedback` - list/search/filter (any active staff incl. csa)
 
 Query params: `q` (text over message + email), `category`, `status`, `rating`, `from`, `to` (date
 range), `cursor`/`page`, `limit`. All combinable (FR-020). Returns newest-first, paginated, with a
@@ -75,7 +75,7 @@ total/count.
 }
 ```
 
-### `GET /admin/v1/feedback/{referenceCode}` — detail (any active staff)
+### `GET /admin/v1/feedback/{referenceCode}` - detail (any active staff)
 
 Full message + all context + replies + notes.
 ```jsonc
@@ -89,19 +89,19 @@ Full message + all context + replies + notes.
 }
 ```
 
-### `POST /admin/v1/feedback/{referenceCode}/status` — (any active staff)
+### `POST /admin/v1/feedback/{referenceCode}/status` - (any active staff)
 ```jsonc
 { "status": "in_review" | "resolved" | "archived" | "spam" | "new" }
 ```
 `replied` is not directly settable (system-set on reply). Persists + reflected in list/filters.
 
-### `POST /admin/v1/feedback/{referenceCode}/notes` — (any active staff)
+### `POST /admin/v1/feedback/{referenceCode}/notes` - (any active staff)
 ```jsonc
 { "body": "string (1..MAX)" }
 ```
 Records author `sub`/name + timestamp. Never emailed, never shown to the submitter.
 
-### `POST /admin/v1/feedback/{referenceCode}/reply` — (admin | manager only)
+### `POST /admin/v1/feedback/{referenceCode}/reply` - (admin | manager only)
 ```jsonc
 { "body": "string (1..MAX)" }
 ```
@@ -112,6 +112,6 @@ success** writes the reply row + sets `status='replied'` (FR-029/030). A send fa
 ## Config contract test
 
 Each edge service adds a `config.contract.test.ts` that reads the real `serverless.yml` and asserts
-every env key the service reads (incl. `email-kit`'s `MAIL_ENV_KEYS`) is declared — the 035/038 guard
+every env key the service reads (incl. `email-kit`'s `MAIL_ENV_KEYS`) is declared - the 035/038 guard
 against the "handler reads an undeclared env var; every unit test passes because it sets the var
 itself" defect.

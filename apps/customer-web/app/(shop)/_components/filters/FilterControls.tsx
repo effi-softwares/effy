@@ -58,7 +58,7 @@ export default function FilterControls({
 
   return (
     <div>
-      {/* Offers — a fixed toggle, not a server facet in this slice (contract). */}
+      {/* Offers - a fixed toggle, not a server facet in this slice (contract). */}
       <Section title="Offers">
         <label className="flex min-h-7 cursor-pointer items-center gap-2 text-sm">
           <input
@@ -185,7 +185,7 @@ function FacetSection({
     !overflow || expanded
       ? facet.options
       : // Keep the top options and any selected option that would otherwise be hidden.
-        facet.options.filter((o, i) => i < FACET_COLLAPSE_LIMIT || selectedValues.includes(o.value))
+      facet.options.filter((o, i) => i < FACET_COLLAPSE_LIMIT || selectedValues.includes(o.value))
 
   return (
     <Section title={facet.label}>
@@ -220,7 +220,7 @@ function FacetSection({
   )
 }
 
-/** Min/max price. Corrects an inverted range (min > max) before applying — FR-004. */
+/** Min/max price. Corrects an inverted range (min > max) before applying - FR-004. */
 function PriceRange({
   min,
   max,

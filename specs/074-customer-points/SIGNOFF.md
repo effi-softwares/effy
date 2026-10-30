@@ -1,4 +1,4 @@
-# Sign-off: 074 — Customer Points (store credit)
+# Sign-off: 074 - Customer Points (store credit)
 
 **Status (2026-10-08)**: **code-complete and machine-verified. NOT deployed, NOT committed, NOT walked
 by a person.** 90/90 tasks; three carry a recorded deviation (below). The walks in
@@ -34,7 +34,7 @@ by a person.** 90/90 tasks; three carry a recorded deviation (below). The walks 
 | edge-commerce (with containers) | 295 passed |
 | edge-customer (with containers) | 220 passed |
 | edge-orders (with containers) | 95 passed |
-| edge-shop (with containers) | 476 / 478 — both failures pre-date 074 (recorded under 073) |
+| edge-shop (with containers) | 476 / 478 - both failures pre-date 074 (recorded under 073) |
 | edge-notifications | 64 passed |
 | admin · fleet · driver · storefront · catalog · inventory · live | all passed |
 | shared-types · email-kit (+ `email-check`) · legal-content | 71 · 94 · 9 passed |
@@ -78,7 +78,7 @@ was restored.
 |---|---|
 | T024–T025 | **One customer route, not two.** The first dev deploy of `customer` failed: the shared gateway was at 299/300 routes and 299/300 integrations, and AWS refused the second points route. `GET /customer/v1/points` now returns the balance and a page of history together (`?cursor=` pages it). Web and mobile read it once. |
 | T043 | No push deep link wired: the customer app routes **no** push tap today, for any type. The server sends `effy://points` and the screen exists. |
-| T048 | The quote carries `usable`, `centsPerPoint`, `cardMinimumAmount` — not `maxForThisOrder`: the total depends on the delivery choice still to be made. Web works out the maximum; mobile sends the balance and retries once with the maximum the server returns. |
+| T048 | The quote carries `usable`, `centsPerPoint`, `cardMinimumAmount` - not `maxForThisOrder`: the total depends on the delivery choice still to be made. Web works out the maximum; mobile sends the balance and retries once with the maximum the server returns. |
 | T069 | Not applicable: the `order-refunded` email template exists but nothing sends it. |
 | T006 | The shopper role gets DML through 070's default privileges; the migration **revokes** UPDATE/DELETE on the ledger tables instead of granting. |
 
@@ -96,14 +96,14 @@ gateway; that is the next piece of work, before spec 075.
   publish-blocked on the operator's identifiers and a lawyer's review, as before 074.
 - The website's points maximum ignores a promo discount (its order summary always has); with a promo
   the server refuses the excess and the page asks for fewer points.
-- Forfeiture at final closure is implemented and tested, but its caller — the account-erasure worker —
+- Forfeiture at final closure is implemented and tested, but its caller - the account-erasure worker -
   does not exist yet (`docs/next-implementation-candidates.md` item 3).
 
 ## Operator steps
 
 ```sh
 make db-up ENV=dev                                   # 20261008043114_customer_points.sql (additive)
-make edge-deploy SERVICE=notifications ENV=dev       # FIRST — it must know the two new types
+make edge-deploy SERVICE=notifications ENV=dev       # FIRST - it must know the two new types
 make edge-deploy SERVICE=commerce ENV=dev            # ┐ together: an order paid with points must never
 make edge-deploy SERVICE=orders ENV=dev              # │ meet a refund path that does not know about
 make edge-deploy SERVICE=shop ENV=dev                # ┘ points
@@ -114,7 +114,7 @@ make edge-deploy SERVICE=customer ENV=dev            # balance, history, the two
 # optional: psql "$DSN" -v customer_email='<a dev customer you own>' -f db/seeds/074_points_dev.sql
 ```
 
-⚠ `notifications` goes first: 059's rule — a producer writing a type the worker does not know yet is
+⚠ `notifications` goes first: 059's rule - a producer writing a type the worker does not know yet is
 skipped safely only because the worker checks the type, but the message is not sent until it deploys.
 
 Then walk V1–V7 in [quickstart.md](quickstart.md).

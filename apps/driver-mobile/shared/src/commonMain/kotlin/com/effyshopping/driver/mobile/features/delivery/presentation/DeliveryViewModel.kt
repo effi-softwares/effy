@@ -52,7 +52,7 @@ data class DeliveryUiState(
     /**
      * A note attached to the proof.
      *
-     * The repository has always accepted a note on every proof method — and every call site in
+     * The repository has always accepted a note on every proof method - and every call site in
      * the app passed `null`. This is a UI gap being closed, not a contract change.
      */
     val proofNote: String = "",
@@ -66,9 +66,9 @@ data class DeliveryUiState(
     val deliveredWith: ProofMethod? = null,
     /** When it was completed (or recorded as not delivered), on this phone's clock. */
     val deliveredAtEpochMillis: Long? = null,
-    /** Rev 2 — the proof note as sent ("Left at: Front door — …"), for the Delivered line. */
+    /** Rev 2 - the proof note as sent ("Left at: Front door - …"), for the Delivered line. */
     val deliveredNote: String? = null,
-    /** Rev 2 — why the last drop was not delivered, and the driver's words, for Not delivered. */
+    /** Rev 2 - why the last drop was not delivered, and the driver's words, for Not delivered. */
     val failedReason: FailureReason? = null,
     val failedNote: String? = null,
     /** A short confirmation for the snackbar ("Van loaded"); cleared once shown. */
@@ -118,9 +118,9 @@ class DeliveryViewModel(
     }
 
     /**
-     * Rev 2 — the drop on screen is re-read too: an order cancelled, a drop moved to someone else,
+     * Rev 2 - the drop on screen is re-read too: an order cancelled, a drop moved to someone else,
      * or new instructions from the customer show while the driver is at the door. Not once the driver
-     * has finished it — the Delivered / Not delivered screen describes what they did, not the record.
+     * has finished it - the Delivered / Not delivered screen describes what they did, not the record.
      */
     private suspend fun reloadDropQuietly() {
         val open = _state.value.drop ?: return
@@ -135,7 +135,7 @@ class DeliveryViewModel(
 
     /**
      * A drop was just delivered or failed: read the round again so the count of drops left, and which
-     * drop is next, do not still include it. Best-effort — the drop is closed whether or not this reads.
+     * drop is next, do not still include it. Best-effort - the drop is closed whether or not this reads.
      */
     private suspend fun refreshRunAfterClose() {
         runCatching { getRun(runId) }.onSuccess { fresh -> _state.update { it.copy(run = fresh) } }
@@ -155,10 +155,10 @@ class DeliveryViewModel(
     fun clearNotice() = _state.update { it.copy(notice = null) }
 
     /**
-     * Rev 2 — the screen is showing (again). The first time it loads with its loading state; every
+     * Rev 2 - the screen is showing (again). The first time it loads with its loading state; every
      * time after, it re-reads quietly. A fallback: the driver's own writes already re-read every
      * work screen through `WorkChanges` (the server never announces a driver's change back to them).
-     * This catches what slips past that — a write made before the app last closed, a missed signal.
+     * This catches what slips past that - a write made before the app last closed, a missed signal.
      */
     fun showRun() {
         if (_state.value.run == null) loadRun() else viewModelScope.launch { reloadRunQuietly() }
@@ -193,7 +193,7 @@ class DeliveryViewModel(
 
     /**
      * Nothing on a drop before the van is loaded. The platform refuses it too; this says so at once,
-     * with no write — a refusal arriving later from the offline queue would be a dead end at the door.
+     * with no write - a refusal arriving later from the offline queue would be a dead end at the door.
      */
     private fun refuseIfNotLoaded(dropId: String): Boolean {
         val drop = _state.value.drop?.takeIf { it.dropId == dropId } ?: return false
@@ -233,7 +233,7 @@ class DeliveryViewModel(
      *
      * It takes bytes now. Leaving a package with no evidence of where it was left is
      * the case most likely to become a dispute, so contactless carries a photograph like every other
-     * proof — the method is what records that nobody took it in hand. The backend refuses a
+     * proof - the method is what records that nobody took it in hand. The backend refuses a
      * contactless proof with no media, so a no-photo path here would simply 422 at the doorstep.
      */
     fun deliverContactless(dropId: String, bytes: ByteArray, note: String?) = deliver(dropId, ProofMethod.CONTACTLESS, bytes, note)
@@ -382,7 +382,7 @@ internal const val LOAD_FIRST = "Load the van first."
 /**
  * What a step hands over: every bag scanned or typed, and the rest of [allBags] by hand. A step
  * must account for every bag (the platform refuses one that does not); a bag the driver did not scan
- * was handed over all the same — the scan screen's fallback is the driver saying so.
+ * was handed over all the same - the scan screen's fallback is the driver saying so.
  */
 internal fun withRestByHand(
     handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver>,

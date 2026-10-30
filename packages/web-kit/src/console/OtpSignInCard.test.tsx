@@ -133,7 +133,7 @@ describe("OtpSignInCard", () => {
     expect(screen.getByLabelText(/work email/i)).toHaveValue("op@effy.test");
   });
 
-  it("never renders a password field — no Effy pool has passwords", () => {
+  it("never renders a password field - no Effy pool has passwords", () => {
     renderCard();
     expect(document.querySelector('input[type="password"]')).toBeNull();
   });

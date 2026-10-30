@@ -11,7 +11,7 @@ import { isUuid } from "../lib/ids";
 import { customerRoute, jsonBody, stringField } from "../lib/route";
 import { cartService, checkoutService, quoteDeps } from "../lib/wiring";
 
-/** A non-negative amount with exactly two decimal places — how every amount crosses the wire. */
+/** A non-negative amount with exactly two decimal places - how every amount crosses the wire. */
 const AMOUNT = /^\d{1,7}\.\d{2}$/;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 

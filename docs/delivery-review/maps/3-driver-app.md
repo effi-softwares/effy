@@ -1,4 +1,4 @@
-# Map 3 — The Effy Driver App (`apps/driver-mobile`)
+# Map 3 - The Effy Driver App (`apps/driver-mobile`)
 
 Mapped 2026-10-18, read-only, against the code on `dev` (`f9118e04`). Paths are relative to
 `apps/driver-mobile/shared/src/commonMain/kotlin/com/effyshopping/driver/mobile/` unless they start with
@@ -8,7 +8,7 @@ Mapped 2026-10-18, read-only, against the code on `dev` (`f9118e04`). Paths are 
 
 A KMP + Compose app (Android + iOS), 121 common Kotlin files (~14k lines), Clean Architecture + MVVM,
 hand-wired `app/AppContainer.kt`, Ktor to `apis/edge-api/driver` on the shared gateway. Feature 049
-(2026-08) built the operation; 060 restyled it (no FEATURE-HISTORY entry exists for 060 — only
+(2026-08) built the operation; 060 restyled it (no FEATURE-HISTORY entry exists for 060 - only
 `specs/060-driver-mobile-ui/`); the 2026-10-15 review (`docs/driver-app-review.md`) found the core loop
 broken; backlog sprints + 088 (return to hub), 089 (labels), 090 (scan foundations), 091 (scan visibility),
 092 (redesign: storefront identity, three tabs, two-tap drops, scanning screens, Bluetooth scanners) and
@@ -16,7 +16,7 @@ broken; backlog sprints + 088 (return to hub), 089 (labels), 090 (scan foundatio
 days. **Almost none of 088–093 is migrated, deployed or walked on a device** (092's `driver` is deployed
 to dev; 093 explicitly requires the app and `driver` to ship together with no compatibility). The review
 doc is therefore largely superseded; its C1–C4/H1–H4/M1–M7 items are recorded as fixed in
-`docs/driver-app-backlog.md` "Status — 2026-10-16" — I verified most of them in code (below).
+`docs/driver-app-backlog.md` "Status - 2026-10-16" - I verified most of them in code (below).
 
 ## 1. Shell, navigation and screens
 
@@ -60,7 +60,7 @@ Driver service `apis/edge-api/driver/serverless.yml` declares 26 routes. The app
 | `POST …/delivery/runs/{runId}/load` | same (090/093; offline-queued) |
 | `POST …/delivery/runs/{runId}/return` | same (088; offline-queued) |
 | `GET /driver/v1/delivery/drops/{dropId}` | same (in-memory `LastRead`) |
-| `POST …/drops/{dropId}/status` | same — now only ever `arrived` (sent silently before proof) |
+| `POST …/drops/{dropId}/status` | same - now only ever `arrived` (sent silently before proof) |
 | `POST …/drops/{dropId}/proof/presign` → S3 PUT → `POST …/proof` | same (proof outbox when offline) |
 | `POST …/drops/{dropId}/fail` | same (offline-queued) |
 | `GET /driver/v1/history`, `GET /driver/v1/history/{kind}/{id}` | `features/history/data/HttpHistoryRepository.kt` |
@@ -68,7 +68,7 @@ Driver service `apis/edge-api/driver/serverless.yml` declares 26 routes. The app
 | `GET /driver/v1/live` | `AppContainer.live` (AppSync Events descriptor) |
 
 **Not called** (kept for older builds): `POST …/stops/{stopId}/issue` (the app stopped using it because it
-named no package and marked a whole stop unavailable — comment in `HttpCollectionRepository.kt:69`),
+named no package and marked a whole stop unavailable - comment in `HttpCollectionRepository.kt:69`),
 `GET /driver/v1/activity`, `POST /driver/v1/activity/read`, `/driver/healthz`, `/driver/readyz`.
 Staff-side: `POST /fleet/v1/dispatch/rounds/{id}/waive-sequence`, `/fleet/v1/vehicle-checks/{id}/clear`,
 `/fleet/v1/dispatch/rounds/{roundId}/return` (record a return on the driver's behalf).
@@ -85,7 +85,7 @@ Staff-side: `POST /fleet/v1/dispatch/rounds/{id}/waive-sequence`, `/fleet/v1/veh
   `/me` kept on the phone with `offline = true` (backlog C3), re-checked when connectivity returns. A 401/403
   on any request triggers `onRequestRejected()` → re-bootstrap (backlog C4).
 - **Driver must**: type work email, type code. No password, no self-signup.
-- **Then**: one-time permission priming (Notifications, Camera) — `PermissionPrimingScreen.kt`. On iOS the
+- **Then**: one-time permission priming (Notifications, Camera) - `PermissionPrimingScreen.kt`. On iOS the
   requester does nothing up front (`iosMain/.../PermissionRequester.ios.kt` comment: notification/location
   pre-requests "a recorded follow-up").
 
@@ -102,7 +102,7 @@ Staff-side: `POST /fleet/v1/dispatch/rounds/{id}/waive-sequence`, `/fleet/v1/veh
   `POST /driver/v1/vehicle-check` → OK or UNSAFE; UNSAFE shows a problem alert and the driver gets no work
   until a dispatcher clears it (`/fleet/v1/vehicle-checks/{id}/clear`; the app re-reads `/me` on the next
   work change).
-- ⚠ **Off by default** (`delivery_settings.vehicle_check_required`) — turning it on before this app is
+- ⚠ **Off by default** (`delivery_settings.vehicle_check_required`) - turning it on before this app is
   installed would starve every driver of work.
 
 ### 3.4 Today (the home)
@@ -110,12 +110,12 @@ Staff-side: `POST /fleet/v1/dispatch/rounds/{id}/waive-sequence`, `/fleet/v1/veh
 - **Current run** (`CurrentRun`/`RunCard`): run head (Collection/Delivery run, "Finish by…", window,
   progress bar from `TodayProgress`), dispatch change note with "Got it" (`changedNote`), "Opens at…"
   info alert when the round is not open (072), stale-copy line, the schematic map, the next stop/drop card
-  with **Navigate** + primary (`Scan packages` at a shop, `Check in` at the hub stop, `I'm here — scan` at a
+  with **Navigate** + primary (`Scan packages` at a shop, `Check in` at the hub stop, `I'm here - scan` at a
   drop, `View …` before opening), "Up next" list.
-- **Load the van** card (093 `loadStep`) — the only step of a delivery run until loaded.
-- **Return N parcels to the hub** (088 `toReturn`) — "To the hub" (navigate to the hub's lat,lng) + "Scan in".
+- **Load the van** card (093 `loadStep`) - the only step of a delivery run until loaded.
+- **Return N parcels to the hub** (088 `toReturn`) - "To the hub" (navigate to the hub's lat,lng) + "Scan in".
 - **No work yet** + "Notifications are off" alert (only in this state).
-- **Later today** — other rounds held (072), each opens its run screen.
+- **Later today** - other rounds held (072), each opens its run screen.
 - Banners above everything (`DriverBanners`, ordered: offline → waiting to send → refused → live paused).
 
 ### 3.5 Collection run → shop stop (S1)
@@ -130,7 +130,7 @@ Staff-side: `POST /fleet/v1/dispatch/rounds/{id}/waive-sequence`, `/fleet/v1/veh
   label is a hard stop naming that shop; a label not on the driver's work is "not yours".
 - **Write**: `POST …/collect` with every package's outcome (`picked_up` / `not_available` + note) and its
   method (`scan` / `typed` / `manual`). 093: only named packages settle; a package added while the driver
-  stood there comes back as `remaining` and the VM says "1 more package was added — collect it".
+  stood there comes back as `remaining` and the VM says "1 more package was added - collect it".
 - Server gates (093 `apis/edge-api/driver/src/work/sequence.ts`): no collect with deliveries in the van
   (`finish_deliveries_first`); 072 `round_not_open`.
 
@@ -140,7 +140,7 @@ Staff-side: `POST /fleet/v1/dispatch/rounds/{id}/waive-sequence`, `/fleet/v1/veh
   Last scan checks in. Fallback "Check in without scanning" → `AccountSheet` asks It's here / Not in the
   van for each unscanned package → `missing` list → `package_hold` server-side.
 - **Write**: `POST /hub/checkin` (`runId`, packages + methods, `missing`). Answer `HubSplit`: counts by
-  window group (`effyGroups`), courier count, `nextCourierPickupLabel`, `held`. Offline: "Checked in —
+  window group (`effyGroups`), courier count, `nextCourierPickupLabel`, `held`. Offline: "Checked in -
   sending", the split is re-read under the same changeId when the queue sends it (`readSavedCheckIn`).
 - Then `CheckedIn` says when the delivery run opens ("Your delivery run opens at 3:15 pm · finish by 6 pm ·
   7 drops · it's on Today", `DriverShell.nextDeliveryRun`).
@@ -164,18 +164,18 @@ Staff-side: `POST /fleet/v1/dispatch/rounds/{id}/waive-sequence`, `/fleet/v1/veh
   - Detail: "Drop n of N", customer first name, full address, window pill, customer instructions callout
     ("Leave at the door" / "Hand it over in person" + free text), packages with item manifests and cold
     marks, **Navigate** (address → external maps), **Call {name}** (`customerPhone`, sent only for open
-    drops of the caller's round — 092 F1), **Can't deliver**, **Scan to deliver**.
-  - Not loaded yet → "Load the van first — then this drop opens." + "Go to Load the van".
+    drops of the caller's round - 092 F1), **Can't deliver**, **Scan to deliver**.
+  - Not loaded yet → "Load the van first - then this drop opens." + "Go to Load the van".
   - Scan: the drop's packages; another drop's package is a hard stop ("Drop 3 · Carlton"); fallback
     "Deliver without scanning" (recorded manual).
   - Choose ("How did you hand it over?", preselected from the customer's preference): **Left safely**
     (contactless, photo + "Where did you leave it?" chips Front door / Reception / Mailroom / Neighbour),
-    **Handed over — photo**, **Handed over — signature** (pad + "Signed by").
+    **Handed over - photo**, **Handed over - signature** (pad + "Signed by").
   - **Writes, in order**: `POST …/status {to: arrived}` silently (only if not already arrived), then presign
     → upload → `POST …/proof` (method, mediaKey, note, packages + methods). The drop is only completed if
     the image landed (064 FR-006).
   - Delivered view: method, time ("in the window"), "This run: n of N done", Next drop / Back to the run;
-    offline variant "Saved — sending when you're back online".
+    offline variant "Saved - sending when you're back online".
 - **Contact**: customer call is a direct `tel:` dial of the checkout phone (no masking/relay; 049's
   masked-contact 503 path is gone). No SMS, no in-app chat, no "notify customer I'm outside".
 - Photo: Android CameraX in-app viewfinder (`androidMain/.../CameraPreviewSurface.android.kt`) → JPEG,
@@ -208,19 +208,19 @@ Staff-side: `POST /fleet/v1/dispatch/rounds/{id}/waive-sequence`, `/fleet/v1/veh
   stops and how each ended (fixes a defect where run detail looked the id up as a stop); drop detail
   shows proof (photo/signature), method, time, note. Only `completed` rounds appear.
 - Account: name, email, vehicle, hub, duty row, Appearance (Match phone / Light / Dark inline), Usage
-  analytics switch (F3), Help (Call dispatch, Call hub desk, Driver handbook — all from BuildKonfig
+  analytics switch (F3), Help (Call dispatch, Call hub desk, Driver handbook - all from BuildKonfig
   `DISPATCH_PHONE` / `HUB_DESK_PHONE` / `HANDBOOK_URL`, empty in the local `secrets.properties`), app
   version, sign out.
 
 ## 4. Cross-cutting behaviour
 
 ### 4.1 Offline
-- **Writes**: `core/offline/OfflineQueue.kt` (persisted in multiplatform-settings) via `withReplay` — on a
+- **Writes**: `core/offline/OfflineQueue.kt` (persisted in multiplatform-settings) via `withReplay` - on a
   network failure the write is saved and answered `QUEUED`; VMs treat queued as done (backlog C1) and keep
   one changeId per action until settled (`ActionIds`). `SyncCoordinator.kt` drains FIFO on launch,
   connectivity-up (`AndroidConnectivity` / `IosConnectivity`), refresh and live reconnect; definitive
   refusals go to a "Not recorded" banner.
-- **Proof**: `core/offline/ProofOutbox.kt` + `DirectoryProofFiles` — image saved in an app-owned
+- **Proof**: `core/offline/ProofOutbox.kt` + `DirectoryProofFiles` - image saved in an app-owned
   directory, sent after the queue drains (so "arrived" lands first), deleted on success, up to N attempts.
 - **Reads**: `/me` and `/today` last copies persisted (`core/offline/LastCopies.kt`, cleared on sign-out);
   stop and drop reads only in memory (`LastRead`), delivery and collection RUN reads not cached at all
@@ -247,8 +247,8 @@ Staff-side: `POST /fleet/v1/dispatch/rounds/{id}/waive-sequence`, `/fleet/v1/veh
   proof photos. **No location permission.**
 - iOS Info.plist: only `NSCameraUsageDescription` = "uses the camera to photograph proof of delivery"
   (does not mention label scanning, which is now the main camera use). No location, no Bluetooth key
-  (not needed — scanners are HID keyboards).
-- Bluetooth ring/handheld scanners: `core/scan/HardwareScanner.kt` — a keyboard-wedge listener on every
+  (not needed - scanners are HID keyboards).
+- Bluetooth ring/handheld scanners: `core/scan/HardwareScanner.kt` - a keyboard-wedge listener on every
   scan screen; `EFY1:` + 6 chars counts as a SCAN (Enter/Tab/no suffix, Caps Lock tolerated, iOS key
   mapping). Tested by `KeyboardWedgeTest` + iOS tests.
 
@@ -258,7 +258,7 @@ Staff-side: `POST /fleet/v1/dispatch/rounds/{id}/waive-sequence`, `/fleet/v1/veh
   position for dispatch, no customer tracking/ETA, no geofenced arrival, no geotag on proof (backlog B4
   "decision needed").
 - **Navigation hand-off**: Android `geo:0,0?q=<address>` (falls back to `https://maps.google.com/?q=`)
-  — `androidMain/.../AndroidMapLauncher.kt`; iOS `http://maps.apple.com/?q=<address>` —
+  - `androidMain/.../AndroidMapLauncher.kt`; iOS `http://maps.apple.com/?q=<address>` -
   `iosMain/.../IosMapLauncher.kt`. Both are a **search/pin**, not directions mode: the driver must then
   tap "Directions"/"Start". No Waze/Google choice on iOS, no multi-stop route export.
 - **Schematic map** (`core/map/RunMapView.kt`, D25): seeded fake streets, legs, pins, van, legend;
@@ -291,18 +291,18 @@ load" states with Try again, inline problem alerts, refusal banner for queued wr
 - **Dispatch / hub desk / handbook contacts**: build-time BuildKonfig values, empty locally → every
   "Call dispatch" button is hidden in a local build; changing a number needs an app release.
 - **Hub address**: none; only a lat/lng point.
-- **`TodayViewModel.returnParcels()`** and `isReturning` — dead: Today now pushes `ReturnHubRoute`, which
+- **`TodayViewModel.returnParcels()`** and `isReturning` - dead: Today now pushes `ReturnHubRoute`, which
   uses `DeliveryViewModel.returnParcels`. `DeliveryViewModel.advance()` is unused (only `deliver()` calls
   `advanceDrop`), and `en_route` is never sent any more; `deliverContactless/WithPhoto/WithSignature`
   wrappers are test-only.
 - **Unused routes** kept: `/issue`, `/activity`, `/activity/read`.
-- **Analytics consent** defaults to ON (switch in Account) — not opt-in.
+- **Analytics consent** defaults to ON (switch in Account) - not opt-in.
 - **Masked customer contact** (049 R6) never built; raw phone number exposed instead.
 
 ## 6. Test coverage
 
 31 test files, ~185 `@Test` (FEATURE-HISTORY reports "310 host tests"; the gap is presumably iOS/Android
-duplicates or parameterised runs — not verified). `shared/src/commonTest`, `androidHostTest`, `iosTest`.
+duplicates or parameterised runs - not verified). `shared/src/commonTest`, `androidHostTest`, `iosTest`.
 - Strong: `CollectionViewModelTest` (18), `DeliveryViewModelTest` (18, incl. two-tap order online/offline,
   load, scan methods), `ScanRuleTest` (10), `KeyboardWedgeTest` (9), `OpeningTest`, `ManifestTest`,
   `DeliveryWindowTest`, `OfflineQueueTest`, `OfflineWritesTest` (incl. proof survives restart),
@@ -375,7 +375,7 @@ duplicates or parameterised runs — not verified). `shared/src/commonTest`, `an
 - **Failed attempts are weakly evidenced**: no photo, no arrival/position, no "wait N minutes / call
   first" timer, no customer contact attempt recorded. DoorDash/Flex require a call/text attempt and a
   wait timer before "customer unavailable".
-- **Customer contact**: direct dial of the real number (privacy issue — the driver keeps it in their
+- **Customer contact**: direct dial of the real number (privacy issue - the driver keeps it in their
   call log), no SMS template ("I'm outside"), no masked relay, no in-app chat. Shop contact absent too
   (dispatch phone only, and only if built in).
 - **Notifications**: iOS has none; Android only once migrations/deploys land. No in-app alert sound for
@@ -388,11 +388,11 @@ duplicates or parameterised runs — not verified). `shared/src/commonTest`, `an
 
 ### 7.3 Over-complexity / friction
 - **Many gated states the driver must reason about**: round not open, load first, finish collection
-  first, return parcels first, stops outstanding, vehicle check due/unsafe — each with its own wording. The
+  first, return parcels first, stops outstanding, vehicle check due/unsafe - each with its own wording. The
   server enforcing order (093) is good; the app still surfaces many dead-end screens ("Load the van first"
   on a drop) rather than routing the driver to the one next action.
 - **Three fallbacks per scan step** (scan, type a code, tick by hand + accounting sheet) plus Undo and
-  auto-complete — powerful, but a lot of UI per step; and the two paths at the hub already disagree (bug 2).
+  auto-complete - powerful, but a lot of UI per step; and the two paths at the hub already disagree (bug 2).
 - **Decorative schematic map** costs 455 lines (`RunMapView.kt`) plus a backend endpoint shape and
   postcode-centroid SQL, contradicts the brief's "no in-app map", and may mislead (fake streets, pins at
   suburb centroids, not the house).
@@ -402,11 +402,11 @@ duplicates or parameterised runs — not verified). `shared/src/commonTest`, `an
 
 ### 7.4 Inconsistencies between docs and code
 - `docs/driver-app-review.md` is stale (Map tab, activity feed, four-step drops, 422 handling, offline
-  sign-out — all changed); it should be marked superseded.
+  sign-out - all changed); it should be marked superseded.
 - CLAUDE.md says the driver map is "a schematic, not cartography" from 060; 092 rev 2 re-introduced a
   different schematic (D25) while the redesign brief §6 says no map.
 - FEATURE-HISTORY has no 060 entry although CLAUDE.md and code comments cite it heavily.
-- 092 entry says "Not drawn, no data: Navigate to the hub" — the app now draws "To the hub" using the
+- 092 entry says "Not drawn, no data: Navigate to the hub" - the app now draws "To the hub" using the
   hub lat/lng point (enabled only when `delivery_settings` has one).
 
 ### 7.5 Things that are solid

@@ -7,7 +7,7 @@
 
 resource "aws_route53_zone" "parent" {
   name    = var.root_domain
-  comment = "Effy platform apex — production namespace. Children are delegated per environment (010)."
+  comment = "Effy platform apex - production namespace. Children are delegated per environment (010)."
 }
 
 # =================================================================================================
@@ -21,7 +21,7 @@ resource "aws_route53_zone" "parent" {
 
 # ── Inbound: adopted, never re-created ────────────────────────────────────────────────────────
 # this record is live and load-bearing. It is the only route to the company's mailbox. It is
-# adopted via imports.tf, and its value is declared here to match what is already published — if a
+# adopted via imports.tf, and its value is declared here to match what is already published - if a
 # plan ever shows this changing or being replaced, something is wrong with the declaration, not with
 # the live record. Verify inbound before and after every apply against this zone:
 # dig +short MX effyshopping.com @8.8.8.8 → 1 smtp.google.com.
@@ -57,7 +57,7 @@ resource "aws_route53_record" "apex_txt" {
 # `records = [first, second]` would make two records, neither a complete key, and signatures would never
 # verify.
 #
-# Verify after apply — expect one record rendered as two adjacent quoted strings:
+# Verify after apply - expect one record rendered as two adjacent quoted strings:
 # dig +short TXT google._domainkey.effyshopping.com @8.8.8.8
 # and `make mail-verify ENV=dev`, which reassembles it and compares byte for byte against
 # specs/037-platform-email-delivery/operator-inputs.md.
@@ -78,7 +78,7 @@ resource "aws_route53_record" "workspace_dkim" {
   ]
 }
 
-# ── The anti-forgery policy — last ───────────────────────────────────────────────────
+# ── The anti-forgery policy - last ───────────────────────────────────────────────────
 #
 # do not apply this before the two records above are live and verified. See the header.
 #
@@ -90,7 +90,7 @@ resource "aws_route53_record" "workspace_dkim" {
 #
 # `rua` is what makes monitor mode mean anything. Without aggregate reports there is no evidence
 # that legitimate mail aligns, and therefore no basis on which to ever tighten `p`.
-# The rua address must exist — an alias on the operator's mailbox — or the reports land nowhere and
+# The rua address must exist - an alias on the operator's mailbox - or the reports land nowhere and
 # `p=none` becomes permanent by default.
 resource "aws_route53_record" "apex_dmarc" {
   zone_id = aws_route53_zone.parent.zone_id

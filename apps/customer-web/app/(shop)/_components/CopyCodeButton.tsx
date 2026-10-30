@@ -20,7 +20,7 @@ export function CopyCodeButton({ code, className }: { code: string; className?: 
     } catch {
       // The clipboard can be refused outright (insecure origin, denied permission). Saying nothing
       // is right: the code is on screen and selectable, so the shopper has lost nothing but a
-      // shortcut — and a failure toast about a convenience would read as the offer having failed.
+      // shortcut - and a failure toast about a convenience would read as the offer having failed.
     }
   }
 

@@ -35,7 +35,7 @@ const d = process.env.CONTAINER_TESTS === "1" ? describe : describe.skip;
 let container: StartedPostgreSqlContainer;
 let pool: Pool;
 
-d("096 — Require pack scanning (fleet owns the rule)", () => {
+d("096 - Require pack scanning (fleet owns the rule)", () => {
   beforeAll(async () => {
     container = await new PostgreSqlContainer("postgres:16-alpine").start();
     pool = new Pool({ connectionString: container.getConnectionUri() });

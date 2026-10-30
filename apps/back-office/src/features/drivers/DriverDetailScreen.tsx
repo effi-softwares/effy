@@ -42,7 +42,7 @@ import { canManageDrivers } from "./access"
 import { BLOCKED_LABEL, formatDate, formatDateTime, STATUS_LABEL, STATUS_MEANING } from "./model"
 import { driverDetailQuery, driverKeys } from "./queries"
 
-const dash = <span className="text-muted-foreground">—</span>
+const dash = <span className="text-muted-foreground">-</span>
 
 function statusTone(s: AdminDriverProfile["status"]) {
   return s === "active" ? "done" : s === "suspended" ? "problem" : "quiet"
@@ -289,7 +289,7 @@ export function DriverDetailScreen({ driverId }: { driverId: string }) {
         app="back-office"
         log="bo-driver"
         title="Driver activity"
-        description={`${d.name} — who changed what: profile, status, clearances, duty and work.`}
+        description={`${d.name} - who changed what: profile, status, clearances, duty and work.`}
         api={api}
         path={`/fleet/v1/drivers/${d.id}/audit`}
         queryKey={driverKeys.detail(d.id)}

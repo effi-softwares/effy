@@ -1,5 +1,5 @@
 # The dev operational database (002-dev-database) at the cost floor: db.t4g.micro,
-# 20 GB gp3, single-AZ, every separately-billed option off — ≈ US$22/mo. Every choice
+# 20 GB gp3, single-AZ, every separately-billed option off - ≈ US$22/mo. Every choice
 # here is a reversible tfvars lever (quickstart runbook). Backups are off: dev data is
 # disposable by decision; flip db_backup_retention_days before any real data appears.
 
@@ -16,7 +16,7 @@ module "db" {
   # TLS is the $0 network design. [] allowlist = nobody. qa+ must use private placement.
   publicly_accessible = var.db_publicly_accessible
   allowed_cidrs       = var.db_allowed_cidrs
-  # FR-006 escape hatch — false everywhere except dev. See variables.tf / dev.tfvars.
+  # FR-006 escape hatch - false everywhere except dev. See variables.tf / dev.tfvars.
   allow_public_ingress = var.db_allow_public_ingress
 
   multi_az                     = var.db_multi_az
@@ -26,7 +26,7 @@ module "db" {
 }
 
 # App↔infra contract additions (002 contracts/ssm-parameters.contract.md):
-# /effy/<env>/db/* — config only; the secret stays in Secrets Manager, SSM carries its ARN.
+# /effy/<env>/db/* - config only; the secret stays in Secrets Manager, SSM carries its ARN.
 resource "aws_ssm_parameter" "db" {
   for_each = {
     endpoint          = module.db.endpoint
@@ -63,6 +63,6 @@ output "db_master_secret_arn" {
 }
 
 output "db_security_group_id" {
-  description = "The DB security group — future consumer slices attach SG-to-SG rules here."
+  description = "The DB security group - future consumer slices attach SG-to-SG rules here."
   value       = module.db.security_group_id
 }

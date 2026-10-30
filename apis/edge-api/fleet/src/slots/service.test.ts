@@ -28,7 +28,7 @@ describe("slotProblems", () => {
     }
   });
 
-  it("⚠ accepts a slot with NO capacity — no limit is the default", () => {
+  it("⚠ accepts a slot with NO capacity - no limit is the default", () => {
     expect(fields({ capacity: null })).toEqual([]);
     expect(fields({ capacity: undefined })).toEqual([]);
     expect(slotProblems({ startTime: "17:00", endTime: "19:00", cutoffTime: "15:00" })).toEqual([]);
@@ -57,7 +57,7 @@ describe("daysProblems", () => {
     expect(f({ effyLookaheadDays: 14, hubTurnaroundMin: 0, noDeliveryWeekdays: [] })).toEqual([]);
   });
 
-  it("⚠ refuses closing every day of the week — a served address must always be offered a day", () => {
+  it("⚠ refuses closing every day of the week - a served address must always be offered a day", () => {
     expect(f({ noDeliveryWeekdays: [1, 2, 3, 4, 5, 6, 7] })).toEqual(["noDeliveryWeekdays"]);
   });
 
@@ -77,9 +77,9 @@ describe("daysProblems", () => {
   });
 });
 
-describe("085 — the as-soon-as-possible estimate", () => {
+describe("085 - the as-soon-as-possible estimate", () => {
   const DAYS = { effyLookaheadDays: 3, noDeliveryWeekdays: [], slotHoldMin: 10, hubTurnaroundMin: 60 }
-  it("may be left out (kept), reworded — and never emptied", () => {
+  it("may be left out (kept), reworded - and never emptied", () => {
     expect(daysProblems(DAYS)).toEqual([])
     expect(daysProblems({ ...DAYS, asapEstimate: "usually within 2–3 days" })).toEqual([])
     expect(daysProblems({ ...DAYS, asapEstimate: "" }).map((e) => e.field)).toEqual(["asapEstimate"])

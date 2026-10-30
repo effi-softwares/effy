@@ -1,7 +1,7 @@
 package com.effyshopping.driver.mobile.features.driver.domain
 
 /**
- * Driver identity + duty use cases. Over the [DriverRepository] boundary — SessionManager and the
+ * Driver identity + duty use cases. Over the [DriverRepository] boundary - SessionManager and the
  * ViewModels depend on these, not the repository directly (Principle VI).
  */
 

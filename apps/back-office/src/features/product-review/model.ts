@@ -37,7 +37,7 @@ export function previewCustomerPrice(shopPrice: string, kind: "percent" | "amoun
 }
 
 export function priceRange(prices: readonly string[]): string {
-  if (prices.length === 0) return "—"
+  if (prices.length === 0) return "-"
   const sorted = [...prices].sort((a, b) => Number(a) - Number(b))
   const lo = sorted[0]!
   const hi = sorted[sorted.length - 1]!
@@ -173,7 +173,7 @@ export function bigPriceRises(item: Pick<ReviewItemDetailDTO, "changes">): { lab
   return item.changes.flatMap((c) => {
     if (!isShopPriceChange(c.field)) return []
     const move = priceMove(c.before, c.after)
-    return move !== null && move > PRICE_RISE_TO_LOOK_AT ? [{ label: c.label.replace(/ — .*$/, ""), move }] : []
+    return move !== null && move > PRICE_RISE_TO_LOOK_AT ? [{ label: c.label.replace(/ - .*$/, ""), move }] : []
   })
 }
 
@@ -236,7 +236,7 @@ export function reviewChecks(
       label: "Recommended details",
       ok: item.missingRecommended.length === 0,
       attention: true,
-      note: `${item.missingRecommended.length} left empty — never blocks`,
+      note: `${item.missingRecommended.length} left empty - never blocks`,
       section: "details",
     },
     {

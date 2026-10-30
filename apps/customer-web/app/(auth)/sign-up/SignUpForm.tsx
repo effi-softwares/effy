@@ -201,7 +201,7 @@ export function SignUpForm() {
         onPassword ? (
           <>Signing up as {address}</>
         ) : (
-          "Start with your email — we'll do the rest in a moment."
+          "Start with your email - we'll do the rest in a moment."
         )
       }
       notice={
@@ -225,121 +225,121 @@ export function SignUpForm() {
       }
       footer={signInLink}
     >
-        {error && <ErrorNote>{error}</ErrorNote>}
+      {error && <ErrorNote>{error}</ErrorNote>}
 
-        <form
-          className="space-y-4"
-          // `noValidate`: the attributes stay; only the browser's bubble is replaced.
-          noValidate
-          onSubmit={(e) => {
-            e.preventDefault()
-            // Nothing is sent until this passes.
-            if (
-              !validation.check(
-                onPassword
-                  ? [["email", address], ["password", password]]
-                  : [["email", address]],
-              )
-            ) {
-              // On the password step the email's message would render hidden, so an invalid address sends the shopper back to the email step.
-              if (onPassword && messageFor(FIELDS.email, address)) back()
-              return
-            }
-            run(
-              async () => {
-                if (onPassword) {
-                  setRoute("password")
-                  await signUpWithPassword(address, password)
-                } else {
-                  setRoute("otp")
-                  await signUpWithOtp(address)
-                }
-                markCodeSent()
-                go("code")
-              },
-              onPassword ? "password" : "code",
+      <form
+        className="space-y-4"
+        // `noValidate`: the attributes stay; only the browser's bubble is replaced.
+        noValidate
+        onSubmit={(e) => {
+          e.preventDefault()
+          // Nothing is sent until this passes.
+          if (
+            !validation.check(
+              onPassword
+                ? [["email", address], ["password", password]]
+                : [["email", address]],
             )
-          }}
-        >
-          {/* Mounted on both steps with `autocomplete="username"`, so a password manager can pair and save. */}
-          <div className={onPassword ? "hidden" : undefined}>
-            <Field
-              label="Email"
-              id="email"
-              type="email"
-              value={email}
-              onChange={setEmail}
-              onBlur={() => validation.blur("email", email)}
-              error={validation.show("email", address)}
-              autoComplete="username"
-              required
-              readOnly={onPassword}
-            />
-          </div>
-
-          {onPassword && <EmailChip email={address} onChange={changeAddress} />}
-
-          {onPassword && (
-            <PasswordField
-              label="Create a password"
-              id="password"
-              value={password}
-              onChange={setPassword}
-              onBlur={() => validation.blur("password", password)}
-              error={validation.show("password", password)}
-              autoComplete="new-password"
-              minLength={PASSWORD_MIN_LENGTH}
-              required
-              // The rule is stated before they type and reflected while they type: a length count, not a strength meter.
-              hint={
-                password.length > 0 && password.length < PASSWORD_MIN_LENGTH
-                  ? `${password.length} of ${PASSWORD_MIN_LENGTH} characters.`
-                  : `At least ${PASSWORD_MIN_LENGTH} characters.`
+          ) {
+            // On the password step the email's message would render hidden, so an invalid address sends the shopper back to the email step.
+            if (onPassword && messageFor(FIELDS.email, address)) back()
+            return
+          }
+          run(
+            async () => {
+              if (onPassword) {
+                setRoute("password")
+                await signUpWithPassword(address, password)
+              } else {
+                setRoute("otp")
+                await signUpWithOtp(address)
               }
-            />
-          )}
-
-          {/* No "CONFIRM PASSWORD": the reveal toggle replaces it. */}
-
-          {/* Above the button, so on a phone the terms notice is not the first thing pushed out of view. */}
-          <TermsNotice />
-          <Submit
-            pending={pending}
-            label={onPassword ? "Continue" : "Email me a code"}
-            testId={onPassword ? "submit-password" : "submit-email"}
+              markCodeSent()
+              go("code")
+            },
+            onPassword ? "password" : "code",
+          )
+        }}
+      >
+        {/* Mounted on both steps with `autocomplete="username"`, so a password manager can pair and save. */}
+        <div className={onPassword ? "hidden" : undefined}>
+          <Field
+            label="Email"
+            id="email"
+            type="email"
+            value={email}
+            onChange={setEmail}
+            onBlur={() => validation.blur("email", email)}
+            error={validation.show("email", address)}
+            autoComplete="username"
+            required
+            readOnly={onPassword}
           />
+        </div>
 
-          {/* The way back from the password step is the address row's "Change", so the route toggle is on the email step only. */}
-          {!onPassword && (
-            <TextAction
-              testId="toggle-route"
-              onClick={() => {
-                setError(null)
-                // The identifier comes first: no credential step without a usable address.
-                if (!validation.check([["email", address]])) return
-                validation.reset()
-                go("password")
-              }}
-            >
-              Set a password instead
-            </TextAction>
-          )}
-        </form>
+        {onPassword && <EmailChip email={address} onChange={changeAddress} />}
 
-        {!onPassword && (
-          <>
-            <Divider />
-            <GoogleButton
-              label="Continue with Google"
-              testId="google-signup"
-              disabled={pending}
-              onUnavailable={(message) => {
-                capture({ name: "auth_google_unavailable", props: { flow: "sign_up" } })
-                setError(message)
-              }}
-            />
-          </>
+        {onPassword && (
+          <PasswordField
+            label="Create a password"
+            id="password"
+            value={password}
+            onChange={setPassword}
+            onBlur={() => validation.blur("password", password)}
+            error={validation.show("password", password)}
+            autoComplete="new-password"
+            minLength={PASSWORD_MIN_LENGTH}
+            required
+            // The rule is stated before they type and reflected while they type: a length count, not a strength meter.
+            hint={
+              password.length > 0 && password.length < PASSWORD_MIN_LENGTH
+                ? `${password.length} of ${PASSWORD_MIN_LENGTH} characters.`
+                : `At least ${PASSWORD_MIN_LENGTH} characters.`
+            }
+          />
         )}
+
+        {/* No "CONFIRM PASSWORD": the reveal toggle replaces it. */}
+
+        {/* Above the button, so on a phone the terms notice is not the first thing pushed out of view. */}
+        <TermsNotice />
+        <Submit
+          pending={pending}
+          label={onPassword ? "Continue" : "Email me a code"}
+          testId={onPassword ? "submit-password" : "submit-email"}
+        />
+
+        {/* The way back from the password step is the address row's "Change", so the route toggle is on the email step only. */}
+        {!onPassword && (
+          <TextAction
+            testId="toggle-route"
+            onClick={() => {
+              setError(null)
+              // The identifier comes first: no credential step without a usable address.
+              if (!validation.check([["email", address]])) return
+              validation.reset()
+              go("password")
+            }}
+          >
+            Set a password instead
+          </TextAction>
+        )}
+      </form>
+
+      {!onPassword && (
+        <>
+          <Divider />
+          <GoogleButton
+            label="Continue with Google"
+            testId="google-signup"
+            disabled={pending}
+            onUnavailable={(message) => {
+              capture({ name: "auth_google_unavailable", props: { flow: "sign_up" } })
+              setError(message)
+            }}
+          />
+        </>
+      )}
     </StepShell>
   )
 }

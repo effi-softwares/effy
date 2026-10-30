@@ -71,7 +71,7 @@ export function PicturesSection({ promotion, canManage }: { promotion: Promotion
       {canManage ? (
         <Panel
           title="Add a picture"
-          description={`Up to ${MAX_PICTURES} per promotion — JPEG, PNG or WebP, up to 10 MB, at least 320 pixels on the shorter side. A wide one and a square one cover every layout.`}
+          description={`Up to ${MAX_PICTURES} per promotion - JPEG, PNG or WebP, up to 10 MB, at least 320 pixels on the shorter side. A wide one and a square one cover every layout.`}
         >
           {full ? (
             <p className="mt-0.5 block text-sm text-muted-foreground">
@@ -245,7 +245,7 @@ function PictureItem({
             <AlertDialogTitle>Remove this picture?</AlertDialogTitle>
             <AlertDialogDescription>
               {image.usedIn.length
-                ? `It is chosen in ${image.usedIn.map((g) => g.name).join(",")}. Those places show the next best picture instead — or the skin's colour if none is left.`
+                ? `It is chosen in ${image.usedIn.map((g) => g.name).join(",")}. Those places show the next best picture instead - or the skin's colour if none is left.`
                 : "Skins that use it show the next best picture instead."}
             </AlertDialogDescription>
           </AlertDialogHeader>

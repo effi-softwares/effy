@@ -19,7 +19,7 @@ export const handler = customerRoute(async ({ event, scope, customer }) => {
   } catch (err) {
     if (err instanceof ConnectionLimitError) throw err;
     if (err instanceof MessageRequiredError) return validationFailed(scope, "say what went wrong");
-    if (err instanceof RequestAlreadyOpenError) return conflict(scope, "you've already told us about this order — we're looking into it");
+    if (err instanceof RequestAlreadyOpenError) return conflict(scope, "you've already told us about this order - we're looking into it");
     if (err instanceof RefundOrderNotFoundError) return notFound(scope);
     scope.log.error({ err }, "refunds: raise request failed");
     return unavailable(scope);

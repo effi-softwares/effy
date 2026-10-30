@@ -1,4 +1,4 @@
-# Specification Quality Checklist: Customer Saved Items — Watchlist, Guest Saving & Zone-Aware Purchasability
+# Specification Quality Checklist: Customer Saved Items - Watchlist, Guest Saving & Zone-Aware Purchasability
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2026-08-02
@@ -31,15 +31,15 @@
 
 ## Validation Notes
 
-**Iteration 1 — two items initially failed, both fixed in place:**
+**Iteration 1 - two items initially failed, both fixed in place:**
 
-1. **"Success criteria are technology-agnostic" — FAILED.** SC-005 originally read *"…using no more
+1. **"Success criteria are technology-agnostic" - FAILED.** SC-005 originally read *"…using no more
    than one additional membership lookup for the whole screen"*, which prescribes a solution shape
    (a bulk membership read) rather than a shopper-visible outcome. Rewritten as a first-display-time
    measurement at two screen sizes, which tests the same property without naming the mechanism.
 
-2. **"No implementation details" — FAILED.** FR-021 originally read *"the personalised portion must
-   be separable from the shared portion"* — an architectural instruction, not a requirement.
+2. **"No implementation details" - FAILED.** FR-021 originally read *"the personalised portion must
+   be separable from the shared portion"* - an architectural instruction, not a requirement.
    Rewritten to state the outcome it was protecting: storefront content must not get slower for
    shoppers who are not signed in, and content identical for every shopper must not start behaving
    as though it differs per shopper. FR-020 was likewise rewritten from "MUST NOT require a separate
@@ -48,7 +48,7 @@
 **Zero [NEEDS CLARIFICATION] markers were needed.** The four decisions that would have warranted them
 (scope model, guest saving, extent of the rewrite, notification scope) were settled with the operator
 before drafting. Ten further judgement calls are recorded in the Assumptions section with reasoning,
-rather than deferred — most consequentially: the cap values, undo restoring original list position,
+rather than deferred - most consequentially: the cap values, undo restoring original list position,
 the guest→account join being automatic-and-disclosed rather than confirmed, price rises not being
 badged, and previously saved data being discarded rather than migrated.
 

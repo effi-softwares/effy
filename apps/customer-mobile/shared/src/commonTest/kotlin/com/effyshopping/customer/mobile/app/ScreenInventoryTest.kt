@@ -41,7 +41,7 @@ class CustomerNavKeySerializationTest {
             // Adds Points (35 → 36). 101 adds CategoryBrowse (36 → 37).
             37,
             ALL_CUSTOMER_ROUTES.size,
-            "A route was added or removed — update ALL_CUSTOMER_ROUTES *and* customerNavSavedState.",
+            "A route was added or removed - update ALL_CUSTOMER_ROUTES *and* customerNavSavedState.",
         )
     }
 
@@ -60,7 +60,7 @@ class CustomerNavKeySerializationTest {
             val serializer = module.getPolymorphic(NavKey::class, route)
             assertNotNull(
                 serializer,
-                "$route is not registered in customerNavSavedState — it will restore on Android and " +
+                "$route is not registered in customerNavSavedState - it will restore on Android and " +
                     "THROW on iOS, and no Android test will ever tell you.",
             )
         }
@@ -84,8 +84,8 @@ class CustomerNavKeySerializationTest {
  * `contentKey` from `key.toString`, so that comparison is only an identity check for as long as
  * every route stringifies distinctly.
  *
- * A route that broke this — by overriding `toString`, or by being declared as a `class` rather than
- * a `data class`/`data object`, which would fall back to an identity hash — would make some screen
+ * A route that broke this - by overriding `toString`, or by being declared as a `class` rather than
+ * a `data class`/`data object`, which would fall back to an identity hash - would make some screen
  * either lose its back arrow or grow one that pops nothing, and it would do so silently.
  */
 class CustomerNavKeyContentKeyTest {
@@ -96,7 +96,7 @@ class CustomerNavKeyContentKeyTest {
         assertEquals(
             keys.size,
             keys.distinct().size,
-            "two routes share a contentKey — the back arrow would follow the wrong one: $keys",
+            "two routes share a contentKey - the back arrow would follow the wrong one: $keys",
         )
     }
 

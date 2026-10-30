@@ -36,44 +36,44 @@ feature's definition of done, as in every feature in this repo. Each proof is br
 ### Schema
 
 - [X] T004 Write the migration body in `db/migrations/<ts>_customer_points.sql` per [data-model.md](data-model.md): `points_settings` (seeded `id=1`), `points_settings_change`, `points_account`, `points_entry` (kind/sign CHECK, `expires_at` NOT NULL for credits only, note-required-for-`other` CHECK, UNIQUE `refund_id`, UNIQUE `dedupe_key`, partial UNIQUE `(order_id) WHERE kind='spent'`, indexes), `points_allocation`, `points_hold`, `points_expiry_notice`; `order` columns `points_used`, `points_cents_per_point`, `points_value_amount`, `points_shortfall_amount`; `refund` columns `card_amount`, `points_returned`, `points_value_amount` + CHECK `card_amount IS NULL OR card_amount + points_value_amount = amount`; drop/re-add `notification_request_type_check` with `points_credited`, `points_expiring` (copy the current list from `db/migrations/20261004064247_product_approval_margin.sql:200`). COMMENT ON every table/column with the 074 reason, house style.
-- [X] T005 In the same migration, create `public.points_usable(p_customer uuid, p_at timestamptz, p_except_order uuid DEFAULT NULL) RETURNS int` per data-model.md "The one function" — no `GREATEST(0, …)`; COMMENT naming it the only balance computation.
-- [X] T006 In the same migration, GRANT the shopper role ⟨done as: the shopper role already receives DML on new tables through 070's DEFAULT PRIVILEGES, so the migration REVOKEs UPDATE/DELETE on the ledger tables instead; proven by the role test in ledger.container.test.ts⟩ (`effy_shopper`, see `db/migrations/20261005032655_shopper_role.sql`) SELECT/INSERT on `points_account`, `points_entry`, `points_allocation`, `points_hold` and SELECT on `points_settings`, EXECUTE on `points_usable` — commerce runs checkout and finalize as that role. No UPDATE/DELETE on entries or allocations for any role.
+- [X] T005 In the same migration, create `public.points_usable(p_customer uuid, p_at timestamptz, p_except_order uuid DEFAULT NULL) RETURNS int` per data-model.md "The one function" - no `GREATEST(0, …)`; COMMENT naming it the only balance computation.
+- [X] T006 In the same migration, GRANT the shopper role ⟨done as: the shopper role already receives DML on new tables through 070's DEFAULT PRIVILEGES, so the migration REVOKEs UPDATE/DELETE on the ledger tables instead; proven by the role test in ledger.container.test.ts⟩ (`effy_shopper`, see `db/migrations/20261005032655_shopper_role.sql`) SELECT/INSERT on `points_account`, `points_entry`, `points_allocation`, `points_hold` and SELECT on `points_settings`, EXECUTE on `points_usable` - commerce runs checkout and finalize as that role. No UPDATE/DELETE on entries or allocations for any role.
 
-### Shared library — `@effy/edge-shared/points`
+### Shared library - `@effy/edge-shared/points`
 
 - [X] T007 [P] `EA/shared/src/points/vocabulary.ts`: entry kinds, credit/debit kind sets, reason codes per kind and customer-facing words (research R11), `isValidReason(kind, reason)`, `customerWords(entry)`; plus `vocabulary.test.ts`.
 - [X] T008 [P] `EA/shared/src/points/split.ts`: pure `splitRefund({ amountCents, cardPaidCents, pointsValueCents, centsPerPoint, refundedTotalCents, pointsReturnedSoFar })` → `{ cardCents, points }` with the cumulative rule (research R5) and a clamp asserting card ≤ card paid; plus `split.test.ts` (P1: table of partial-refund sequences that must end exactly at points used + card paid; full refund; points-only; card-only; cents-per-point > 1).
 - [X] T009 [P] `EA/shared/src/points/expiry.ts`: `expiresAtFor(creditedAt, expiryMonths)` = 00:00 Australia/Melbourne the day after (credit date + months) (R2), DST-safe; plus `expiry.test.ts` (month-end, leap day, DST change days).
 - [X] T010 `EA/shared/src/points/settings.ts`: `loadSettings(q)` (row id=1, mapped to a domain type) and `updateSettings(tx, patch, actorSub)` writing one `points_settings_change` row per changed field.
-- [X] T011 `EA/shared/src/points/ledger.ts` — the only writer: `lockAccount(tx, customerId)` (insert-if-missing then `FOR UPDATE`); `usable(q, customerId, at, exceptOrderId?)` calling `points_usable`; private `allocateFifo(tx, customerId, debitEntryId, points, at)` (lots ordered by `expires_at, created_at`, only unexpired, writes `points_allocation`, throws if it cannot cover); `credit(tx, input)` (validates kind/reason/note, positive points ≤ 1,000,000, computes `expires_at` from settings, honours `dedupeKey` idempotently, returns entry id); `debit(tx, input)` (lock, `usable` ≥ points else `InsufficientPointsError(usable)`, entry + allocations). Errors in `EA/shared/src/points/errors.ts`.
+- [X] T011 `EA/shared/src/points/ledger.ts` - the only writer: `lockAccount(tx, customerId)` (insert-if-missing then `FOR UPDATE`); `usable(q, customerId, at, exceptOrderId?)` calling `points_usable`; private `allocateFifo(tx, customerId, debitEntryId, points, at)` (lots ordered by `expires_at, created_at`, only unexpired, writes `points_allocation`, throws if it cannot cover); `credit(tx, input)` (validates kind/reason/note, positive points ≤ 1,000,000, computes `expires_at` from settings, honours `dedupeKey` idempotently, returns entry id); `debit(tx, input)` (lock, `usable` ≥ points else `InsufficientPointsError(usable)`, entry + allocations). Errors in `EA/shared/src/points/errors.ts`.
 - [X] T012 `EA/shared/src/points/announce.ts`: `announcePoints(customerSub)` → `announce([{ scope: "customer", sub, kind: "points" }, { scope: "ops", kind: "points" }])`; never throws; called after commit only.
 - [X] T013 Export the module surface from `EA/shared/src/points/index.ts` (contracts/routes.md "Shared library").
 - [X] T014 Widen `LiveChange` in `EA/shared/src/live/announce.ts`: customer `kind: "orders" | "points"`, ops kinds `+ "points"`. Update `EA/shared/src/live/customer-announce.guard.test.ts`: add `shared/src/points/announce.ts` to `ALLOWED` with the R7 rationale in a comment, and change the variant assertion to `'sub: string; kind: "orders" | "points"'`.
 - [X] T015 [P] Add `"points"` to `LIVE_KINDS` in `packages/shared-types/src/live.ts` and `POINTS` to `packages/mobile-kit/common/live/LiveKind.kt` (the drift test in `packages/shared-types/src/live.test.ts` must pass).
 - [X] T016 [P] DTOs in `packages/shared-types/src/points.ts` per contracts/routes.md: `PointsBalanceDTO`, `PointsHistoryEntryDTO`, `PointsHistoryPageDTO`, `PointsEntryKind`, staff variants (`StaffPointsHistoryEntryDTO`, `CustomerSearchResultDTO`, `CustomerDetailDTO`, `PointsCreditRequest`, `PointsDebitRequest`, `PointsSettingsDTO`), refusal codes.
-- [X] T017 [P] Guard `EA/shared/src/points/points-append-only.guard.test.ts` (P13): scan every service's non-test `.ts` for `UPDATE public.points_entry`, `DELETE FROM public.points_entry`, same for `points_allocation`, and any `INSERT INTO public.points_entry|points_allocation` outside `shared/src/points/` — pattern of `EA/orders/src/orders/refund-append-only.guard.test.ts`.
-- [X] T018 Container test `EA/shared/src/points/ledger.container.test.ts`: P2 (FIFO across three lots with different expiries), P3 (lot past `expires_at` not usable with no sweep), P5 (concurrent debit vs debit: one refused, balance never negative — use the `beforeLock` seam pattern from `EA/shared/src/payments/refunds/repository.ts`), idempotent `dedupeKey`, credit validation errors.
+- [X] T017 [P] Guard `EA/shared/src/points/points-append-only.guard.test.ts` (P13): scan every service's non-test `.ts` for `UPDATE public.points_entry`, `DELETE FROM public.points_entry`, same for `points_allocation`, and any `INSERT INTO public.points_entry|points_allocation` outside `shared/src/points/` - pattern of `EA/orders/src/orders/refund-append-only.guard.test.ts`.
+- [X] T018 Container test `EA/shared/src/points/ledger.container.test.ts`: P2 (FIFO across three lots with different expiries), P3 (lot past `expires_at` not usable with no sweep), P5 (concurrent debit vs debit: one refused, balance never negative - use the `beforeLock` seam pattern from `EA/shared/src/payments/refunds/repository.ts`), idempotent `dedupeKey`, credit validation errors.
 
 **Checkpoint**: ledger works in isolation; `pnpm --filter @effy/edge-shared test` green.
 
 ---
 
-## Phase 3: User Story 1 — Staff credit points; the customer sees them (P1) 🎯 MVP
+## Phase 3: User Story 1 - Staff credit points; the customer sees them (P1) 🎯 MVP
 
 **Goal**: back-office finds a customer and credits points with a reason; the customer sees balance and
 history on web and mobile within seconds, and gets an email + push.
 
 **Independent test**: quickstart V1, V2; P12 (credit parts).
 
-### Backend — back-office (`orders` service)
+### Backend - back-office (`orders` service)
 
 - [X] T019 [US1] Repository `EA/orders/src/customers/repository.ts`: `search(q)` (exact email case-insensitive, email prefix ≥ 3 chars, or order number; LIMIT 20, with usable points and order count), `detail(customerId)` (name, email, usable, held, next expiry, 5 recent orders), `history(customerId, cursor, limit)` with staff fields and staff display name resolved from `admin.staff`, `orderBelongsTo(customerId, orderId)`.
-- [X] T020 [US1] Service `EA/orders/src/customers/service.ts`: `credit(actor, customerId, body)` — in one transaction: lock account, load settings, CSA limit check from the staff record (`OverAgentLimitError(limit)`), order ownership (`OrderNotFound` for both absent and foreign), `points.credit`, then enqueue `points_credited` notification (`notification_request` insert with dedupe `points_credited:<sub>:<entryId>`, payload `{entityId, deepLink: "effy://points"}`, recipient email snapshotted per 052's rule); after commit `announcePoints` and `emitMetric("PointsCredited", 1, {author:"staff"})`.
-- [X] T021 [P] [US1] Handlers `EA/orders/src/functions/customers-v1-get.ts` (search), `customer-v1-get.ts` (detail), `customer-points-history-v1-get.ts`, `customer-points-credit-v1-post.ts` — reads via `requireStaff`, credit via `requireStaff` + service-side CSA rule; problem codes per contracts/routes.md mapped in `EA/orders/src/lib/problems.ts`.
+- [X] T020 [US1] Service `EA/orders/src/customers/service.ts`: `credit(actor, customerId, body)` - in one transaction: lock account, load settings, CSA limit check from the staff record (`OverAgentLimitError(limit)`), order ownership (`OrderNotFound` for both absent and foreign), `points.credit`, then enqueue `points_credited` notification (`notification_request` insert with dedupe `points_credited:<sub>:<entryId>`, payload `{entityId, deepLink: "effy://points"}`, recipient email snapshotted per 052's rule); after commit `announcePoints` and `emitMetric("PointsCredited", 1, {author:"staff"})`.
+- [X] T021 [P] [US1] Handlers `EA/orders/src/functions/customers-v1-get.ts` (search), `customer-v1-get.ts` (detail), `customer-points-history-v1-get.ts`, `customer-points-credit-v1-post.ts` - reads via `requireStaff`, credit via `requireStaff` + service-side CSA rule; problem codes per contracts/routes.md mapped in `EA/orders/src/lib/problems.ts`.
 - [X] T022 [US1] Register the four routes in `EA/orders/serverless.yml` (paths per contracts/routes.md, admin-pool authorizer, timeouts as sibling routes).
 - [X] T023 [US1] Container test `EA/orders/src/customers/customers.container.test.ts`: search by email/prefix/order number; credit as manager; CSA within and above limit (403 `over_agent_limit`); credit against another customer's order (404); reason `other` without note (422); notification row written once.
 
-### Backend — customer reads (`customer` service)
+### Backend - customer reads (`customer` service)
 
 - [X] T024 [P] [US1] Slice `EA/customer/src/points/{repo.ts,service.ts,http.ts}`: balance (`points.usable` + next expiry lot) and paged history mapped to customer DTOs (no note, no author), following `EA/customer/src/addresses/`.
 - [X] T025 [US1] Handlers `EA/customer/src/functions/customer-points-v1-get.ts`, `customer-points-history-v1-get.ts`; register `/customer/v1/points` and `/customer/v1/points/history` in `EA/customer/serverless.yml`.
@@ -88,7 +88,7 @@ history on web and mobile within seconds, and gets an email + push.
 
 - [X] T029 [US1] Route `BO/routes/customers.tsx` + nav item "Customers" in `BO/components/layout/nav.ts` (and `nav.test.ts`).
 - [X] T030 [P] [US1] `BO/features/customers/{repo.ts,queries.ts,access.ts,errorText.ts}`: TanStack Query keys `["customers", …]`, `["customer", id]`, `["customer-points", id]`; map refusal codes to sentences ("The most you can credit at once is 2,000 points").
-- [X] T031 [US1] `BO/features/customers/CustomersScreen.tsx`: search box + results table (name, email, points, orders) — no cards.
+- [X] T031 [US1] `BO/features/customers/CustomersScreen.tsx`: search box + results table (name, email, points, orders) - no cards.
 - [X] T032 [US1] `BO/features/customers/CustomerDetailScreen.tsx`: detail rows (points usable · value · held · next expiry), recent orders, history table (`components/PointsHistoryTable.tsx`, virtualised) with kind, points, words, order, staff reason/note, author.
 - [X] T033 [US1] `BO/features/customers/components/CreditPointsSheet.tsx` (TanStack Form): points, reason select (vocabulary from shared-types), note (required for "Other"), optional order picker from recent orders, live "= $5.00" value; success toast via `sonner`.
 - [X] T034 [US1] "Credit points" action on an order: `BO/features/orders/OrderDetailScreen.tsx` opens `CreditPointsSheet` pre-filled with the order and its customer.
@@ -106,25 +106,25 @@ history on web and mobile within seconds, and gets an email + push.
 - [X] T040 [P] [US1] `CM/features/points/domain/{Points.kt,PointsRepository.kt,PointsUseCases.kt}` and `CM/features/points/data/{HttpPointsRepository.kt,PointsMappers.kt}` from the Kotlin DTO mirrors (add them to `packages/shared-types/contract/`).
 - [X] T041 [US1] `CM/features/points/presentation/{PointsViewModel.kt,PointsScreen.kt}`: immutable UI state, collects `LiveClient.changes(LiveKind.POINTS)` to re-read; native list; entry from `CM/features/account/presentation/AccountScreens.kt`; nav key in `CM/core/nav/CustomerNavKey.kt`; wiring in `CM/app/AppContainer.kt`.
 - [X] T042 [P] [US1] `PointsViewModelTest.kt` in `apps/customer-mobile/shared/src/commonTest/kotlin/.../features/points/`; analytics `PointsViewed` in `CM/core/observability/AnalyticsEvent.kt`.
-- [X] T043 [US1] Push deep link `effy://points` routed to the Points screen (where `effy://order/…` is handled today in the customer app). ⟨DEVIATION: the customer app routes NO push tap today — no `effy://` handling exists for any type (grep: nothing under customer-mobile). The server now sends `effy://points` (copy.ts, `entityInLink: false`) and the Points nav key exists, so tap-routing is a one-line addition when the app gains a deep-link router; out of scope here.⟩
+- [X] T043 [US1] Push deep link `effy://points` routed to the Points screen (where `effy://order/…` is handled today in the customer app). ⟨DEVIATION: the customer app routes NO push tap today - no `effy://` handling exists for any type (grep: nothing under customer-mobile). The server now sends `effy://points` (copy.ts, `entityInLink: false`) and the Points nav key exists, so tap-routing is a one-line addition when the app gains a deep-link router; out of scope here.⟩
 
-**Checkpoint**: US1 deployable alone — staff can compensate, customers see it.
+**Checkpoint**: US1 deployable alone - staff can compensate, customers see it.
 
 ---
 
-## Phase 4: User Story 2 — Spend points at checkout (P1)
+## Phase 4: User Story 2 - Spend points at checkout (P1)
 
 **Goal**: choose points at checkout, see the split, pay the rest by card, or pay entirely with points.
 
 **Independent test**: quickstart V3, V4; P4, P6, P7, P8, P9.
 
-⚠ **Ships to production together with Phase 5 (US3)** — plan, Build order.
+⚠ **Ships to production together with Phase 5 (US3)** - plan, Build order.
 
 - [X] T044 [US2] `EA/shared/src/points/ledger.ts`: `hold(tx, {customerId, orderId, points, now})` (lock, `usable` excluding this order's own hold, replace the order's hold row, `held_until = now + hold_minutes`; `PointsBalanceChangedError(usable)`), `release(tx, orderId)`, `spendHeld(tx, orderId)` (lock, spend `min(held, usable incl. own hold)` as one `spent` entry with FIFO allocations, mark hold `spent`, return `{spent, shortfallPoints}`).
-- [X] T045 [US2] `EA/shared/src/payments/finalize.ts`: new step after 2c (slot) — `points.spendHeld`; when `shortfallPoints > 0` write `order.points_shortfall_amount`; add `pointsShortfall` and `pointsSpent` to `FinalizeOutcome`; `meterFinalize` emits `PointsSpent` and `PointsHoldShortfall`; `announcePaid` adds the customer `points` change when points were spent. Update the file-header step list. `finalizeFailed` calls `points.release`.
+- [X] T045 [US2] `EA/shared/src/payments/finalize.ts`: new step after 2c (slot) - `points.spendHeld`; when `shortfallPoints > 0` write `order.points_shortfall_amount`; add `pointsShortfall` and `pointsSpent` to `FinalizeOutcome`; `meterFinalize` emits `PointsSpent` and `PointsHoldShortfall`; `announcePaid` adds the customer `points` change when points were spent. Update the file-header step list. `finalizeFailed` calls `points.release`.
 - [X] T046 [US2] `EA/commerce/src/checkout/store.ts`: `upsertPendingOrder` writes `points_used`, `points_cents_per_point`, `points_value_amount`; `upsertPayment` stores the **card** amount; new `holdPoints(orderId, customerId, points, now)` (transaction wrapping `points.hold`) and `placePointsOnly(orderId)` (payment row `provider='points'`, amount 0, intent NULL).
 - [X] T047 [US2] `EA/commerce/src/checkout/service.ts` `createIntent`: accept `pointsToUse` (integer ≥ 0, default 0); after the grand total is known compute `pointsValueCents`; refuse `points_exceed_total` / `points_card_remainder_too_small` (0 < card < 50 cents, with `maxPoints`) before writing anything; hold points after `captureDelivery` (same "refuse before money" moment as the slot); **card amount 0** → `placePointsOnly` + `settlePaid` and return `{paidWithPoints: true, …}` with no intent; otherwise create the intent for the card amount. Response fields per contracts/routes.md. Metric `PointsBalanceRefusals {reason}`, `PointsOnlyOrders`.
-- [X] T048 [US2] ⟨DEVIATION: the quote carries `usable`, `centsPerPoint` and `cardMinimumAmount` but NOT `maxForThisOrder` — the order total depends on the delivery choice still to be made, so the client works out the maximum and the intent re-decides it⟩ Quote: `EA/commerce/src/checkout/quote.ts` / the quote handler adds the `points` block (`usable`, `centsPerPoint`, `maxForThisOrder` honouring the 50-cent rule); omitted when usable = 0.
+- [X] T048 [US2] ⟨DEVIATION: the quote carries `usable`, `centsPerPoint` and `cardMinimumAmount` but NOT `maxForThisOrder` - the order total depends on the delivery choice still to be made, so the client works out the maximum and the intent re-decides it⟩ Quote: `EA/commerce/src/checkout/quote.ts` / the quote handler adds the `points` block (`usable`, `centsPerPoint`, `maxForThisOrder` honouring the 50-cent rule); omitted when usable = 0.
 - [X] T049 [P] [US2] `EA/commerce/src/checkout/respond.ts` + `EA/commerce/src/functions/checkout-intent-v1-post.ts`: parse `pointsToUse`, map the three refusals to problems (`409 points_balance_changed {usable}`, `422 …{maxPoints}`).
 - [X] T050 [US2] Order reads: `EA/commerce/src/orders/{repository,service}.ts` add the `payment` block (points used/amount, card amount, returned so far); `EA/orders/src/orders/{repository,service}.ts` same on the back-office order detail.
 - [X] T051 [P] [US2] Types: `packages/shared-types/src/checkout.ts` (quote `points`, intent `pointsToUse`, response fields, refusal codes), `order.ts` + `order-admin.ts` (`payment` block); Kotlin mirror `packages/shared-types/contract/CommerceDto.kt`.
@@ -149,7 +149,7 @@ history on web and mobile within seconds, and gets an email + push.
 
 ---
 
-## Phase 5: User Story 3 — Refunds and cancellations return points as points (P1)
+## Phase 5: User Story 3 - Refunds and cancellations return points as points (P1)
 
 **Goal**: every refund path splits between card and points in proportion; points-only orders refund
 only points.
@@ -157,7 +157,7 @@ only points.
 **Independent test**: quickstart V5; P10, P11.
 
 - [X] T062 [US3] `EA/shared/src/payments/refunds/repository.ts` `record`: lock as today; read `order.points_value_amount`, `points_cents_per_point`, total points already returned; ceiling = card paid + points value; compute the split with `points.splitRefund`; INSERT `card_amount`, `points_returned`, `points_value_amount`; when card part = 0, INSERT with `status='succeeded', settled_at=now()` and call `points.returnForRefund` in the same transaction. Return the split in `RecordResult`.
-- [X] T063 [US3] Same file: `cancelOrder` and `recordCancellationRefund` use the same ceiling and split (whole remaining value); `REFUNDED_CENTS` keeps summing `amount` (total value) — card-only sums for the provider ceiling use `COALESCE(card_amount, amount)`.
+- [X] T063 [US3] Same file: `cancelOrder` and `recordCancellationRefund` use the same ceiling and split (whole remaining value); `REFUNDED_CENTS` keeps summing `amount` (total value) - card-only sums for the provider ceiling use `COALESCE(card_amount, amount)`.
 - [X] T064 [US3] `markSubmitted` becomes a transaction: status → `submitted` **and** `points.returnForRefund(refundId)` (no-op when `points_returned = 0`; idempotent on UNIQUE `refund_id`). The reconciler path (`service.ts` `reconcile`) calls the same function, so it returns points once.
 - [X] T065 [US3] `EA/shared/src/payments/refunds/service.ts` `issue` and `cancel`: submit **only the card part** to the gateway; skip `submit` entirely when the card part is 0; report `cardAmount` and `pointsReturned` in `IssueResult`/`CancelResult`; announce points to the customer after commit when points came back.
 - [X] T066 [US3] `EA/shared/src/points/ledger.ts` `returnForRefund(tx, {refundId, orderId, points})`: `returned` credit lot with a fresh expiry (FR-020), `author_kind='system'`, `author_flow='refund'`; emit `PointsReturned`.
@@ -170,7 +170,7 @@ only points.
 
 ---
 
-## Phase 6: User Story 4 — Expiry and warnings (P2)
+## Phase 6: User Story 4 - Expiry and warnings (P2)
 
 **Goal**: expired points stop counting, appear as "Expired", and customers are warned once beforehand.
 
@@ -184,7 +184,7 @@ only points.
 
 ---
 
-## Phase 7: User Story 5 — Staff debit points (P2)
+## Phase 7: User Story 5 - Staff debit points (P2)
 
 **Goal**: admins/managers correct a balance; history keeps both lines; never negative.
 
@@ -197,7 +197,7 @@ only points.
 
 ---
 
-## Phase 8: User Story 6 — Business settings (P3)
+## Phase 8: User Story 6 - Business settings (P3)
 
 **Goal**: admins set point value, expiry, CSA limit, warning period, hold minutes; every change audited.
 
@@ -243,7 +243,7 @@ Shared-library function → service → handler/route → container test → UI 
 - US2: web (T054–T057) and mobile (T058–T061) in parallel after T047–T051.
 - US4, US5, US6 can run in parallel with each other after Phase 2.
 
-### Parallel example — User Story 1
+### Parallel example - User Story 1
 
 ```text
 T024 customer points slice     | T030 back-office customers repo/queries
@@ -255,6 +255,6 @@ T036 back-office component tests | T039 web PointsTab test
 
 1. **MVP = Phases 1–3 (US1)**: staff can credit, customers see balance and history and are told. Deployable
    alone; immediately useful for goodwill.
-2. **Then US2 + US3 as one release**: spend at checkout and refund parity — never one without the other.
+2. **Then US2 + US3 as one release**: spend at checkout and refund parity - never one without the other.
 3. **Then US4 (expiry), US5 (debit), US6 (settings)** in any order.
 4. **Polish last**: closure warning, reconciliation + alarms, legal terms, sign-off.

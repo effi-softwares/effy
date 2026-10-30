@@ -113,7 +113,7 @@ describe("deleting an admin", () => {
     expect(f.log).toEqual(["idp.delete", "db.delete:sub-1"]);
   });
 
-  it("⚠ refuses the last active administrator, touching nothing — unless forced", async () => {
+  it("⚠ refuses the last active administrator, touching nothing - unless forced", async () => {
     const f = fakes({ last: true });
     await expect(deleteAdmin(f.idp, f.records, "jane@effy.test", false)).rejects.toBeInstanceOf(LastAdminError);
     expect(f.log).toEqual([]);

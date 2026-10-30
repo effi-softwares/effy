@@ -19,7 +19,7 @@ const identity: MailIdentity = {
 };
 
 describe("points emails", () => {
-  it("points-credited states the points, their value, why and until when — in both parts", () => {
+  it("points-credited states the points, their value, why and until when - in both parts", () => {
     const vars = loadFixture("points-credited.json");
     const out = render("points-credited", vars, "customer", identity);
     for (const part of [out.html, out.text]) {

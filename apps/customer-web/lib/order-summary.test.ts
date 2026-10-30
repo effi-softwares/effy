@@ -20,7 +20,7 @@ describe("what an order row says", () => {
   it("an order on the way says so, with its window", () => {
     const w = orderRowWords(order({ stage: "on_the_way", arrivalEstimates: [window] }), NOW)
     expect(w.badge).toBe("On the way")
-    expect(w.line).toMatch(/^On the way — today, /)
+    expect(w.line).toMatch(/^On the way - today, /)
   })
 
   it("a delivered order says when it arrived, in Melbourne time", () => {

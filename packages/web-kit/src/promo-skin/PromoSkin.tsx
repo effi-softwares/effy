@@ -184,7 +184,7 @@ function Actions({ p, props }: { p: PromoSkinPromotion; props: PromoSkinProps })
   );
 }
 
-/** Label, headline, supporting line — the words every layout but the header card draws in one block. */
+/** Label, headline, supporting line - the words every layout but the header card draws in one block. */
 function Words({ p, s, label, supporting = true, style, children }: { p: PromoSkinPromotion; s: SkinSettings; label: string | null; supporting?: boolean; style?: CSSProperties; children?: ReactNode }) {
   return (
     <div className="eps-words" style={{ alignItems: s.align === "center" ? "center" : s.align === "end" ? "flex-end" : "flex-start", textAlign: s.align === "start" ? "start" : s.align, ...style }}>

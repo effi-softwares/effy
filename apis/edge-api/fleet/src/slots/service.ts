@@ -45,7 +45,7 @@ const DUPLICATE = () =>
 /** How a day with no time and asap are sold. */
 const ANY_TIME_ALWAYS_ON = () =>
   conflict("the Any time window cannot be switched off", [
-    { field: "status", message: "customers choosing a day without a time are delivered in it — change its hours or its limit instead" },
+    { field: "status", message: "customers choosing a day without a time are delivered in it - change its hours or its limit instead" },
   ]);
 
 export function listSlots(): Promise<DeliverySlotDTO[]> {

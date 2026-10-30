@@ -12,7 +12,7 @@ finishes only then, and a returned parcel waits for staff to choose its next ste
 
 1. **"To return" is derived**; a return is a new `round_package` state `returned` plus one
    `parcel_return` row per action (R1).
-2. **Custody gets its delivery half** — and two live defects (custody and the exceptions list both
+2. **Custody gets its delivery half** - and two live defects (custody and the exceptions list both
    reading `picked_up`, which no delivery package is) are fixed by the same change (R2).
 3. **Round completion** gains "nothing to return" (R3), in A1's one place.
 4. **The driver wire is additive**: `toReturn` on Today and the run; no new item kind (R4).
@@ -25,12 +25,12 @@ finishes only then, and a returned parcel waits for staff to choose its next ste
 
 **Language/Version**: TypeScript / Node 22 Lambdas; React 19 (back-office); Kotlin 2.4 / CMP 1.11 (driver app).
 **Primary Dependencies**: none added.
-**Storage**: PostgreSQL 16 — one migration ([data-model.md](data-model.md)).
+**Storage**: PostgreSQL 16 - one migration ([data-model.md](data-model.md)).
 **Testing**: Vitest units + container tests (shared, driver, fleet), guards, back-office component tests,
 driver-mobile host tests ([quickstart.md](quickstart.md) P1–P12).
 **Target Platform**: AWS Lambda behind the shared and staff HTTP gateways; Android + iOS driver app;
 back-office web.
-**Project Type**: monorepo — backend services + mobile app + web console.
+**Project Type**: monorepo - backend services + mobile app + web console.
 **Performance Goals**: the return is one transaction over a round's packages (tens of rows).
 **Constraints**: installed driver builds must keep decoding Today (no new enum value); offline-capable
 return (the app's existing queue); no app-update mechanism.
@@ -45,7 +45,7 @@ return (the app's existing queue); no app-update mechanism.
 | III. One backend; gateways | ✅ | No new service. Shared gateway +1 route (`driver`), staff +1 (`fleet`); capacity test run. |
 | III. One implementation | ✅ | One return writer (`recordParcelReturn`); one custody definition (shared); one completion rule; one status function. |
 | IV. Auth isolation | ✅ | Driver route scoped to the caller's rounds; staff route behind the back-office authorizer. |
-| V. Design | ✅ | Driver: a hero + one swipe, existing components. Back-office: a column and an action in the existing exceptions table, two counts in the dispatch day header — no cards. |
+| V. Design | ✅ | Driver: a hero + one swipe, existing components. Back-office: a column and an action in the existing exceptions table, two counts in the dispatch day header - no cards. |
 | VI. Layering | ✅ | SQL in repositories; status stays a pure function; app: repository → use case → ViewModel. |
 | VII. Observability | ✅ | EMF `ParcelsReturned` (count, by `recorded_by`); existing logs per route. |
 | Live updates (071) | ✅ | Both routes announce after commit; `change-map.guard.test.ts` updated. |
@@ -70,7 +70,7 @@ specs/088-failed-parcel-return/
 db/migrations/2026101614xxxx_parcel_return.sql                              NEW
 packages/shared-types/src/{driver,dispatch}.ts ; contract-driver regenerated
 apis/edge-api/shared/src/lib/custody.ts                                     delivery half (R2)
-apis/edge-api/shared/src/delivery/parcel-return.ts (+ container test)       NEW — recordParcelReturn, TO_RETURN fragment
+apis/edge-api/shared/src/delivery/parcel-return.ts (+ container test)       NEW - recordParcelReturn, TO_RETURN fragment
 apis/edge-api/shared/src/delivery/override.ts                               refusal words; resolve open failures (R6)
 apis/edge-api/shared/src/status/{sql,status}.ts (+ test)                    `returned` fact (R7)
 apis/edge-api/driver/src/proof/{sql,repository}.ts                          completion rule (R3)

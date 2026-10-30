@@ -14,7 +14,7 @@ const effy: PromiseFacts = {
   arrivalDate: null,
 };
 
-describe("judgePromise — a package Effy delivers", () => {
+describe("judgePromise - a package Effy delivers", () => {
   it("is never due for a carrier handover and never at risk for want of one", () => {
     expect(judgePromise(effy)).toEqual({ handoverDueOn: null, atRisk: false, onTime: null });
     expect(judgePromise({ ...effy, today: "2026-10-20" }).atRisk).toBe(false);
@@ -28,7 +28,7 @@ describe("judgePromise — a package Effy delivers", () => {
   });
 });
 
-describe("judgePromise — 079: an order sold as a courier delivery was promised no day", () => {
+describe("judgePromise - 079: an order sold as a courier delivery was promised no day", () => {
   const courier: PromiseFacts = { ...effy, deliveredBy: "courier", promisedDate: null, windowEnd: null, placedDate: "2026-10-06", today: "2026-10-06" };
 
   it("with no pickup to ask about, is due at the carrier the day it was placed, and at risk from the next", () => {
@@ -37,7 +37,7 @@ describe("judgePromise — 079: an order sold as a courier delivery was promised
     expect(judgePromise({ ...courier, today: "2026-10-09", handoffDate: "2026-10-06" }).atRisk).toBe(false);
   });
 
-  it("080 — is due out by its service's next pickup, and late past that instant", () => {
+  it("080 - is due out by its service's next pickup, and late past that instant", () => {
     const pickup = new Date("2026-10-07T05:00:00Z");
     const f = { ...courier, courierDueOut: pickup };
     expect(judgePromise({ ...f, now: new Date("2026-10-07T04:00:00Z") })).toMatchObject({ handoverDueOn: "2026-10-07", atRisk: false });

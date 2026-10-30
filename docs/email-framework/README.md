@@ -1,4 +1,4 @@
-# Email framework — design pack
+# Email framework - design pack
 
 The plan for turning Effy's `packages/email-kit` into a standalone, open-source npm framework that any
 TypeScript project can use to author, check and send transactional email.
@@ -8,7 +8,7 @@ TypeScript project can use to author, check and send transactional email.
 
 ## Status
 
-Design only — nothing in this folder has been built. The behaviour described as "today" is what
+Design only - nothing in this folder has been built. The behaviour described as "today" is what
 `packages/email-kit` does on 2026-10-26; everything else is proposed.
 
 ## Reading order
@@ -33,7 +33,7 @@ You declare every email once in a typed **catalogue** (id, variables, subject, p
 category, failure policy). You author each email as an **MJML** file plus a hand-written **plain-text**
 file, both with **Handlebars** placeholders. A **build step** generates a theme from your design
 tokens, compiles every template into email-safe HTML, and writes one **committed, bundler-friendly
-module**. A **check step** fails the build on anything that breaks in real inboxes — unsafe CSS,
+module**. A **check step** fails the build on anything that breaks in real inboxes - unsafe CSS,
 size over Gmail's clip, poor contrast in forced dark mode, a missing text part, an undeclared
 variable, drift between what was reviewed and what ships. At runtime, a pure **render** function fills
 the placeholders (escaping every value), and a **send** function hands both parts to a pluggable

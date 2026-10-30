@@ -178,7 +178,7 @@ async function prepare(tx: Queryable, packageId: string, stage: Stage, expectedA
 
   const current = await currentAssignment(tx, packageId, stage);
   if ((current?.id ?? null) !== expectedAssignmentId) {
-    throw new AssignmentError("changed", "This changed a moment ago — showing the latest.");
+    throw new AssignmentError("changed", "This changed a moment ago - showing the latest.");
   }
   // The goods have left: collected, or out on a delivery round under way.
   const holder = await inVanWith(tx, packageId, stage);
@@ -219,7 +219,7 @@ export async function assignTo(input: {
     const { reasons, deadlineAt, windowStartAt, rounds, candidate } = await reasonsFor(tx, input.stage, pkg, input.driverId, now);
     const cannot = reasons.filter((r) => reasonSeverity(r) === "cannot");
     if (cannot.length > 0) {
-      throw new AssignmentError("cannot_take", `${candidate?.driverName ?? "That driver"} can't take it — ${cannot.map(reasonWords).join(", ").toLowerCase()}.`);
+      throw new AssignmentError("cannot_take", `${candidate?.driverName ?? "That driver"} can't take it - ${cannot.map(reasonWords).join(", ").toLowerCase()}.`);
     }
     if (reasons.length > 0 && !input.acceptConcerns) {
       throw new AssignmentError("needs_confirm", `${reasons.map(reasonWords).join(", ")}. Assign anyway?`);
@@ -232,7 +232,7 @@ export async function assignTo(input: {
 
     const who = await staffName(tx, input.actorSub);
     const note = reasons.length > 0
-      ? `Assigned by ${who} — accepted: ${reasons.map(reasonWords).join(", ").toLowerCase()}`
+      ? `Assigned by ${who} - accepted: ${reasons.map(reasonWords).join(", ").toLowerCase()}`
       : `Assigned by ${who}`;
 
     // The planner's preference: the driver's unstarted round for this run or window, else a pending stop on one under way, else a new round.
@@ -256,12 +256,14 @@ export async function assignTo(input: {
       considered: 1,
     };
     const { assigned } = await commitWave(plan, "manual", input.actorSub, null, tx);
-    if (assigned === 0) throw new AssignmentError("changed", "This changed a moment ago — showing the latest.");
+    if (assigned === 0) throw new AssignmentError("changed", "This changed a moment ago - showing the latest.");
 
     await tx.query(`DELETE FROM public.assignment_exclusion WHERE shop_fulfillment_id = $1 AND kind = $2`, [input.packageId, input.stage]);
     await recordAudit(
-      { actorSub: input.actorSub, action: "dispatch.manual_assign", targetType: "driver_round", driverId: input.driverId,
-        detail: { packageId: input.packageId, stage: input.stage, from: current?.driver_id ?? null, acceptedConcerns: reasons } },
+      {
+        actorSub: input.actorSub, action: "dispatch.manual_assign", targetType: "driver_round", driverId: input.driverId,
+        detail: { packageId: input.packageId, stage: input.stage, from: current?.driver_id ?? null, acceptedConcerns: reasons }
+      },
       tx as never,
     );
 
@@ -280,16 +282,18 @@ export async function unassign(input: {
 }): Promise<{ message: string; driverIds: string[] }> {
   return withTransaction(async (tx: Queryable) => {
     const current = await prepare(tx, input.packageId, input.stage, input.expectedAssignmentId);
-    if (!current) throw new AssignmentError("changed", "This changed a moment ago — showing the latest.");
+    if (!current) throw new AssignmentError("changed", "This changed a moment ago - showing the latest.");
     await removeAssignment(tx, current);
     await enqueueRoundChanged(tx, current.round_id, current.driver_id);
     await recordAudit(
-      { actorSub: input.actorSub, action: "dispatch.manual_unassign", targetType: "driver_round", driverId: current.driver_id,
-        detail: { packageId: input.packageId, stage: input.stage } },
+      {
+        actorSub: input.actorSub, action: "dispatch.manual_unassign", targetType: "driver_round", driverId: current.driver_id,
+        detail: { packageId: input.packageId, stage: input.stage }
+      },
       tx as never,
     );
     return {
-      message: "Unassigned — auto-assign will pick it up within 5 minutes",
+      message: "Unassigned - auto-assign will pick it up within 5 minutes",
       driverIds: [current.driver_id],
     };
   });

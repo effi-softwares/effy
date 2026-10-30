@@ -51,7 +51,7 @@ fun FeedbackScreen(viewModel: FeedbackViewModel, onBack: () -> Unit) {
 @Composable
 private fun FeedbackConfirmation(referenceCode: String) {
     EffyEmptyState(
-        title = "Thanks — we've got it",
+        title = "Thanks - we've got it",
         body = "A real person will read what you sent. If it needs a reply, we'll email you back.\n\nYour reference: $referenceCode",
     )
 }
@@ -103,7 +103,7 @@ private fun FeedbackForm(state: FeedbackUiState, viewModel: FeedbackViewModel) {
             modifier = Modifier.fillMaxWidth(),
         )
 
-        // Signed-in shoppers don't see this — the authed route uses their verified profile email.
+        // Signed-in shoppers don't see this - the authed route uses their verified profile email.
         if (!state.signedIn) {
             EffyField(
                 label = "Your email (optional)",
@@ -123,8 +123,8 @@ private fun FeedbackForm(state: FeedbackUiState, viewModel: FeedbackViewModel) {
 
         val errorMessage = when (val r = state.result) {
             is SubmitFeedbackResult.Invalid -> "Please check the highlighted fields and try again."
-            SubmitFeedbackResult.RateLimited -> "You've sent us a few messages just now — please wait a little before sending another."
-            SubmitFeedbackResult.Error -> "We couldn't send that just now. Your message is still here — try again in a moment."
+            SubmitFeedbackResult.RateLimited -> "You've sent us a few messages just now - please wait a little before sending another."
+            SubmitFeedbackResult.Error -> "We couldn't send that just now. Your message is still here - try again in a moment."
             is SubmitFeedbackResult.Ok, null -> null
         }
         if (errorMessage != null) {

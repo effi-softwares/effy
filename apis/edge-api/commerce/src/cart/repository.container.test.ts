@@ -27,7 +27,7 @@ const p: Record<string, string> = {};
 const prod: Record<string, string> = {};
 const chg = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 
-d("070 — cart repository against the real schema", () => {
+d("070 - cart repository against the real schema", () => {
   beforeAll(async () => {
     container = await new PostgreSqlContainer("postgres:16-alpine").start();
     pool = new Pool({ connectionString: container.getConnectionUri(), max: 8 });
@@ -77,7 +77,7 @@ d("070 — cart repository against the real schema", () => {
     await container?.stop();
   });
 
-  it("one cart per customer — asking again returns the same cart", async () => {
+  it("one cart per customer - asking again returns the same cart", async () => {
     expect(await repo.getOrCreateCartId(customerId)).toBe(cartId);
     expect(await repo.getOrCreateCartId(otherCustomerId)).not.toBe(cartId);
   });
@@ -172,7 +172,7 @@ d("070 — cart repository against the real schema", () => {
     expect((await repo.orderItemsForReorder(customerId, orderId))?.[0]).toMatchObject({ product_id: prod.Milk, variant_id: p.Milk, quantity: 2, status: "active", variant_state: "active" });
   });
 
-  it("098 — two sizes of one product are two lines, each at its own price", async () => {
+  it("098 - two sizes of one product are two lines, each at its own price", async () => {
     await svc.add(customerId, p.Milk!, chg(20), 2);
     await svc.add(customerId, p["Milk 2L"]!, chg(21), 1);
     const cart = await svc.get(customerId);
@@ -188,7 +188,7 @@ d("070 — cart repository against the real schema", () => {
     await pool.query(`UPDATE public.product_variant SET state = 'active' WHERE id = $1`, [p["Milk 2L"]]);
   });
 
-  it("098 — a sold-out or off-sale SIZE is refused on add; the other size of the same product is not", async () => {
+  it("098 - a sold-out or off-sale SIZE is refused on add; the other size of the same product is not", async () => {
     await pool.query(`UPDATE public.product_variant SET stock_tracked = true, stock_on_hand = 0 WHERE id = $1`, [p["Milk 2L"]]);
     await expect(svc.add(customerId, p["Milk 2L"]!, chg(30), 1)).rejects.toThrow();
     await pool.query(`UPDATE public.product_variant SET stock_tracked = false, stock_on_hand = NULL, state = 'inactive' WHERE id = $1`, [p["Milk 2L"]]);
@@ -197,7 +197,7 @@ d("070 — cart repository against the real schema", () => {
     expect((await svc.add(customerId, p.Milk!, chg(32), 1)).lines.map((l) => l.variantId)).toEqual([p.Milk]);
   });
 
-  it("098 — a promotion targets the PRODUCT: its minimum quantity counts every size together", async () => {
+  it("098 - a promotion targets the PRODUCT: its minimum quantity counts every size together", async () => {
     const promo = (await pool.query<{ id: string }>(
       `INSERT INTO public.promotion (name, kind, trigger, value_type, percent_off, applies_to, min_quantity, published_at, created_by)
        VALUES ('Milk run', 'item', 'automatic', 'percent', 10, 'products', 3, now() - interval '1 minute', 'seed') RETURNING id::text AS id`,
@@ -216,11 +216,11 @@ d("070 — cart repository against the real schema", () => {
     }
   });
 
-  it("a change id that is not a uuid is refused by the column — which is why the handlers check first", async () => {
+  it("a change id that is not a uuid is refused by the column - which is why the handlers check first", async () => {
     await expect(repo.addItem(cartId, p.Milk!, "not-a-uuid", 1, 99)).rejects.toThrow(/uuid/);
   });
 
-  it("094 — a code is matched without regard to case or spaces, and applying it discounts through the engine", async () => {
+  it("094 - a code is matched without regard to case or spaces, and applying it discounts through the engine", async () => {
     const promo = await pool.query<{ id: string }>(
       `INSERT INTO public.promotion (name, kind, trigger, value_type, percent_off, applies_to, published_at, created_by)
        VALUES ('Ten off', 'cart', 'code', 'percent', 10, 'cart', now() - interval '1 minute', 'seed') RETURNING id::text AS id`,

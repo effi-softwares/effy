@@ -4,7 +4,7 @@
  * The failure modes here are all *other people's names*, and every one of them is avoidable by
  * refusing to be clever:
  *
- *  • `str[0]` splits surrogate pairs. "👨‍👩‍👧 Smith"[0] is half an emoji — a replacement glyph,
+ *  • `str[0]` splits surrogate pairs. "👨‍👩‍👧 Smith"[0] is half an emoji - a replacement glyph,
  *  rendered to a real customer, forever. Use `Intl.Segmenter` and take the leading grapheme.
  *
  *  • A single cjk or arabic character is not an "initial". It is the whole name, or a fragment of
@@ -16,10 +16,10 @@
  *  `toLocaleUpperCase` respects the runtime locale.
  *
  *  • Never guess a letter from the email. It is the tempting fallback for a customer with no name
- *  — and it shows a stranger's initial (from an address like `shopping@…`) to someone whose name
+ *  - and it shows a stranger's initial (from an address like `shopping@…`) to someone whose name
  *  we simply do not have. A neutral glyph is honest; a wrong letter is not.
  *
- * Two initials maximum (first + last). A one-word name yields one initial — never two letters taken
+ * Two initials maximum (first + last). A one-word name yields one initial - never two letters taken
  * from the same word, which is how you get "CH" for "Cher".
  */
 
@@ -38,10 +38,10 @@ export function initialsFor(
 }
 
 /**
- * The leading grapheme of a name, uppercased — or null if it is not a letter we can use.
+ * The leading grapheme of a name, uppercased - or null if it is not a letter we can use.
  *
  * "A letter we can use" means: Latin. That is a deliberate narrowing, not Anglocentrism by
- * accident — see the header. Everything else gets the neutral glyph, which is the honest answer.
+ * accident - see the header. Everything else gets the neutral glyph, which is the honest answer.
  */
 function leadingLetter(raw: string | null | undefined): string | null {
   if (!raw) return null
@@ -53,7 +53,7 @@ function leadingLetter(raw: string | null | undefined): string | null {
   if (!grapheme) return null
 
   // Latin letters only. `\p{Script=Latin}` excludes digits, punctuation, emoji, CJK, Arabic,
-  // Devanagari, Cyrillic, Greek — everything for which a single leading character is not an
+  // Devanagari, Cyrillic, Greek - everything for which a single leading character is not an
   // "initial" in the sense a customer would recognise.
   //
   // The `u` flag is required for `\p{...}` to mean anything at all. Without it this silently
@@ -63,7 +63,7 @@ function leadingLetter(raw: string | null | undefined): string | null {
   return grapheme.toLocaleUpperCase()
 }
 
-/** The first user-perceived character — not the first UTF-16 code unit. */
+/** The first user-perceived character - not the first UTF-16 code unit. */
 function firstGrapheme(s: string): string | undefined {
   // Node 22 and every target browser have Intl.Segmenter. The fallback exists so a missing
   // Segmenter degrades to "no initial" (the neutral glyph) rather than to a mangled one.

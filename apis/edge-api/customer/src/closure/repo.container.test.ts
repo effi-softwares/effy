@@ -20,7 +20,7 @@ import { findBlockingOrders, IN_TRANSIT_BLOCK_DAYS } from "./repo"
 
 const RUN = process.env.CONTAINER_TESTS === "1"
 
-describe.skipIf(!RUN)("findBlockingOrders — against real PostgreSQL", () => {
+describe.skipIf(!RUN)("findBlockingOrders - against real PostgreSQL", () => {
   let container: StartedPostgreSqlContainer
   let pool: Pool
 
@@ -137,7 +137,7 @@ describe.skipIf(!RUN)("findBlockingOrders — against real PostgreSQL", () => {
 
     expect(
       await blockersFor(c),
-      "a collected package is with a driver or a carrier — genuinely in transit — so it must block",
+      "a collected package is with a driver or a carrier - genuinely in transit - so it must block",
     ).toHaveLength(1)
   })
 
@@ -175,7 +175,7 @@ describe.skipIf(!RUN)("findBlockingOrders — against real PostgreSQL", () => {
 
     expect(
       await blockersFor(c),
-      "nobody is carrying a portion the shop cannot supply — it must not block closure",
+      "nobody is carrying a portion the shop cannot supply - it must not block closure",
     ).toHaveLength(0)
   })
 
@@ -185,7 +185,7 @@ describe.skipIf(!RUN)("findBlockingOrders — against real PostgreSQL", () => {
 
     expect(
       await blockersFor(c),
-      "a cancelled order's portion is finished — it must not block closure",
+      "a cancelled order's portion is finished - it must not block closure",
     ).toHaveLength(0)
   })
 

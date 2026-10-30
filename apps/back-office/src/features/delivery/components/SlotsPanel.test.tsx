@@ -55,7 +55,7 @@ beforeEach(() => {
   repo.patchSlot.mockResolvedValue(slot())
 })
 
-describe("SlotsPanel — what an operator reads", () => {
+describe("SlotsPanel - what an operator reads", () => {
   it("lists each slot's window, its order-by time and how full it is today", async () => {
     renderPanel()
     const row = (await screen.findByText("17:00 – 19:00")).closest("tr")!
@@ -69,7 +69,7 @@ describe("SlotsPanel — what an operator reads", () => {
     expect(within(full).getAllByRole("cell")[3]).toHaveTextContent("3Full")
   })
 
-  it("078 — one column per day a customer can be offered, each with that day's own count (P19)", async () => {
+  it("078 - one column per day a customer can be offered, each with that day's own count (P19)", async () => {
     const days = [
       { date: "2026-10-08", isToday: true, nonDelivery: false },
       { date: "2026-10-09", isToday: false, nonDelivery: false },
@@ -114,7 +114,7 @@ describe("SlotsPanel — what an operator reads", () => {
     ).toEqual(["No limit", "0", "12", "0"])
   })
 
-  it("078 — says so in the heading when Effy does not deliver today", async () => {
+  it("078 - says so in the heading when Effy does not deliver today", async () => {
     repo.listSlotGrid.mockResolvedValue({
       days: [
         { date: "2026-10-11", isToday: true, nonDelivery: true },
@@ -134,7 +134,7 @@ describe("SlotsPanel — what an operator reads", () => {
     expect(screen.getByRole("columnheader", { name: "Booked today (no delivery)" })).toBeInTheDocument()
   })
 
-  it("⚠ shows 'No limit' in the limit column for a slot without one — never 'null', never 'Full'", async () => {
+  it("⚠ shows 'No limit' in the limit column for a slot without one - never 'null', never 'Full'", async () => {
     repo.listSlotGrid.mockResolvedValue({ days: TODAY, items: [slot({ capacity: null, bookedToday: 40 })] })
     renderPanel()
     const row = (await screen.findByText("17:00 – 19:00")).closest("tr")!
@@ -152,7 +152,7 @@ describe("SlotsPanel — what an operator reads", () => {
     expect(await screen.findByText("1 over capacity")).toBeInTheDocument()
   })
 
-  it("⚠ warns when no window is active — Effy delivery is then offered to nobody", async () => {
+  it("⚠ warns when no window is active - Effy delivery is then offered to nobody", async () => {
     repo.listSlotGrid.mockResolvedValue({ days: TODAY, items: [slot({ status: "disabled" })] })
     renderPanel()
     expect(await screen.findByRole("status")).toHaveTextContent(/Effy delivery is not being offered/i)
@@ -171,7 +171,7 @@ describe("SlotsPanel — what an operator reads", () => {
   })
 })
 
-describe("SlotsPanel — who may change a slot (FR-039)", () => {
+describe("SlotsPanel - who may change a slot (FR-039)", () => {
   it("a role that cannot manage delivery sees the slots and no control to change them", async () => {
     renderPanel(false)
     await screen.findByText("17:00 – 19:00")
@@ -180,7 +180,7 @@ describe("SlotsPanel — who may change a slot (FR-039)", () => {
     expect(screen.queryByRole("button", { name: /switch off/i })).not.toBeInTheDocument()
   })
 
-  it("there is no way to delete a slot — only to switch it off", async () => {
+  it("there is no way to delete a slot - only to switch it off", async () => {
     renderPanel()
     await screen.findByText("17:00 – 19:00")
     expect(screen.queryByRole("button", { name: /delete|remove/i })).not.toBeInTheDocument()
@@ -189,7 +189,7 @@ describe("SlotsPanel — who may change a slot (FR-039)", () => {
   })
 })
 
-describe("SlotsPanel — creating and editing", () => {
+describe("SlotsPanel - creating and editing", () => {
   async function openNew() {
     renderPanel()
     await userEvent.click(await screen.findByRole("button", { name: /new window/i }))
@@ -216,7 +216,7 @@ describe("SlotsPanel — creating and editing", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument())
   })
 
-  it("⚠ creates a slot with NO limit by default — the limit is unticked and its field is not shown", async () => {
+  it("⚠ creates a slot with NO limit by default - the limit is unticked and its field is not shown", async () => {
     const dialog = await openNew()
     expect(within(dialog).getByRole("checkbox", { name: /limit how many deliveries/i })).not.toBeChecked()
     expect(within(dialog).queryByLabelText(/deliveries it can take/i)).not.toBeInTheDocument()
@@ -235,7 +235,7 @@ describe("SlotsPanel — creating and editing", () => {
     )
   })
 
-  it("⚠ puts a named refusal ON its field, in the console's own words — never the server's", async () => {
+  it("⚠ puts a named refusal ON its field, in the console's own words - never the server's", async () => {
     repo.createSlot.mockRejectedValue(
       refusal(400, [
         { field: "endTime", message: "SERVER PROSE end" },
@@ -289,7 +289,7 @@ describe("SlotsPanel — creating and editing", () => {
     )
   })
 
-  it("⚠ removes a limit by unticking it — sent as null, not 0", async () => {
+  it("⚠ removes a limit by unticking it - sent as null, not 0", async () => {
     renderPanel()
     await screen.findByText("19:00 – 21:00")
     await userEvent.click(screen.getAllByRole("button", { name: "Edit" })[1]!)
@@ -310,7 +310,7 @@ describe("SlotsPanel — creating and editing", () => {
   })
 })
 
-describe("085 — the Any time window", () => {
+describe("085 - the Any time window", () => {
   const ANY: DeliverySlotDTO = {
     id: "any",
     startTime: "12:00",

@@ -63,14 +63,14 @@ describe("delivery console deployment contract", () => {
     }
   })
 
-  it("076 — the zone, tier and same-day-exception routes are gone, and nothing serves their paths", () => {
+  it("076 - the zone, tier and same-day-exception routes are gone, and nothing serves their paths", () => {
     for (const fn of REMOVED_BY_076) expect(yaml, `${fn} is declared again`).not.toContain(`  ${fn}:`)
     expect(yaml).not.toContain("/admin/v1/delivery/zones")
     expect(yaml).not.toContain("sameday-exceptions")
     expect(yaml).not.toContain("/admin/v1/delivery/postcode-check")
   })
 
-  it("077 — the last tier route is gone: nothing in the console speaks of distance tiers", () => {
+  it("077 - the last tier route is gone: nothing in the console speaks of distance tiers", () => {
     expect(yaml).not.toContain("  deliveryRingsListV1:")
     expect(yaml).not.toContain("/admin/v1/delivery/rings")
   })

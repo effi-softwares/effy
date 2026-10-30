@@ -32,7 +32,7 @@ export default defineConfig({
       manifest: {
         name: "Effy Back-Office",
         short_name: "Effy Back-Office",
-        description: "Effy back-office console — orders, delivery, drivers, shops and catalogue.",
+        description: "Effy back-office console - orders, delivery, drivers, shops and catalogue.",
         display: "standalone",
         orientation: "any",
         start_url: "/",

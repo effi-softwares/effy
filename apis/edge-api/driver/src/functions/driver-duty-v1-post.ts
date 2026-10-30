@@ -54,7 +54,7 @@ export const handler = async (
           "Check them in at the hub, or confirm to go off duty anyway.",
         guard.scope,
         // No address or recipient: the order reference and the shop find a parcel in a van.
-        err.held.map((h) => ({ field: h.packageId, message: `${h.orderNumber} — ${h.shopName}` })),
+        err.held.map((h) => ({ field: h.packageId, message: `${h.orderNumber} - ${h.shopName}` })),
       );
     }
     guard.scope.log.error({ err, driverId: guard.driver.id }, "duty: transition failed");

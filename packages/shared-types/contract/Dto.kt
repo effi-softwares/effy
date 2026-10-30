@@ -1,7 +1,7 @@
-// GENERATED FROM packages/shared-types/src/customer.ts (+ problem.ts) — DO NOT EDIT.
+// GENERATED FROM packages/shared-types/src/customer.ts (+ problem.ts) - DO NOT EDIT.
 // Regenerate: pnpm --filter @effy/shared-types contract:gen
 // The wire contract lives in TypeScript ONCE (Principle II); this file is derived and diff-guarded.
-// NOTE: PasswordWriteDTO is flattened by design (research D15) — the sealed domain type lives in the app.
+// NOTE: PasswordWriteDTO is flattened by design (research D15) - the sealed domain type lives in the app.
 
 package com.effyshopping.customer.mobile.contract
 

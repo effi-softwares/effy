@@ -71,7 +71,7 @@ class CartStoreTest {
         val s = store(prefs, this)
 
         s.add(line("p1", 2))
-        // Immediately — no coroutine has run yet, because a tap must not wait on anything.
+        // Immediately - no coroutine has run yet, because a tap must not wait on anything.
         assertEquals(2, s.state.value.itemCount)
         assertEquals("10.00", s.state.value.itemSubtotalAmount)
 
@@ -193,7 +193,7 @@ class CartStoreTest {
         assertEquals(CartBlockedReason.Empty, s.state.value.checkout.blockedReason)
     }
 
-    // A local edit cannot re-judge the minimum — it is the platform's number — so it must not silently
+    // A local edit cannot re-judge the minimum - it is the platform's number - so it must not silently
     // unblock checkout the platform had blocked.
     @Test
     fun a_local_edit_keeps_a_platform_below_minimum_block() = runTest {
@@ -297,7 +297,7 @@ class CartHonestyTest {
             ),
         )
 
-        assertEquals(2, s.state.value.lines.size, "the line stays — a temporary state may be waited out")
+        assertEquals(2, s.state.value.lines.size, "the line stays - a temporary state may be waited out")
         assertEquals("5.00", s.state.value.itemSubtotalAmount)
     }
 

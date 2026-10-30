@@ -46,7 +46,7 @@ describe("the restock list (054 US5, FR-029)", () => {
     expect(sql()).toContain("ORDER BY v.stock_on_hand ASC, v.id ASC");
   });
 
-  it("103 — narrows to out or low, searches name or SKU, and pages", async () => {
+  it("103 - narrows to out or low, searches name or SKU, and pages", async () => {
     await readLowStock("shop-1", req({ severity: "out", q: "milk", page: "1", pageSize: "50" }));
     expect(sql()).toContain("(CASE WHEN v.stock_on_hand <= 0 THEN 'out' ELSE 'low' END) = $2");
     expect(sql()).toContain("p.name ILIKE $3 OR v.sku ILIKE $3");
@@ -58,12 +58,12 @@ describe("the restock list (054 US5, FR-029)", () => {
     expect(sql()).toContain("WHERE v.shop_id = $1 AND v.stock_tracked");
   });
 
-  it("098 — never shows a removed variant: it is history, not a shelf", async () => {
+  it("098 - never shows a removed variant: it is history, not a shelf", async () => {
     await readLowStock("shop-1", req());
     expect(sql()).toContain("v.state <> 'removed'");
   });
 
-  it("never shows an archived product — there is nothing to restock", async () => {
+  it("never shows an archived product - there is nothing to restock", async () => {
     await readLowStock("shop-1", req());
     expect(sql()).toContain("p.status <> 'archived'");
   });

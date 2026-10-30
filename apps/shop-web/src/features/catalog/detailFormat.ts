@@ -1,7 +1,7 @@
 import type { ProductDetail, ProductMedia } from "./model"
 
 export function formatMoney(amount: string | null, currency: string): string {
-  if (!amount) return "—"
+  if (!amount) return "-"
   return `${currency} ${amount}`
 }
 
@@ -19,7 +19,7 @@ export function primaryMedia(detail: ProductDetail): ProductMedia | null {
 export function discountText(price: string | null, compareAt: string | null): string {
   const now = price == null ? NaN : Number(price)
   const was = compareAt == null ? NaN : Number(compareAt)
-  if (!Number.isFinite(now) || !Number.isFinite(was) || was <= 0 || was <= now) return "—"
+  if (!Number.isFinite(now) || !Number.isFinite(was) || was <= 0 || was <= now) return "-"
   return `${Math.round(((was - now) / was) * 100)}% off`
 }
 
@@ -28,11 +28,11 @@ export function storefrontText(status: ProductDetail["status"]): string {
     case "active":
       return "On sale"
     case "unavailable":
-      return "Unpublished — hidden from shoppers"
+      return "Unpublished - hidden from shoppers"
     case "draft":
-      return "Draft — never published"
+      return "Draft - never published"
     case "archived":
-      return "Archived — out of the working catalog"
+      return "Archived - out of the working catalog"
     default:
       return status
   }

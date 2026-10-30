@@ -33,7 +33,7 @@ data class SavedAddress(
 )
 
 /**
- * The customer's input for an add or an edit — the fields the form collects. `label` already holds the
+ * The customer's input for an add or an edit - the fields the form collects. `label` already holds the
  * chip's resolved value ("Home"/"Work"/free text, or null); mapping chips → this string is presentation.
  * Country defaults to AU (the existing model), so the form need not ask for it.
  */

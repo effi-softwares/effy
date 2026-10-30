@@ -16,7 +16,7 @@ import { adopt, adoptPreview, linePayload, readCart } from "./cart-store"
  * Bring the mirror up to date. Safe to call on every cart open and every tab focus.
  *
  * Returns true when the mirror changed. A false means either nothing was newer or the platform could not
- * be reached — and the caller does not need to care, because either way the mirror is still the best
+ * be reached - and the caller does not need to care, because either way the mirror is still the best
  * available answer and still what the UI shows.
  */
 export async function refreshCart(): Promise<boolean> {

@@ -38,7 +38,7 @@ const warnings = async (customerId: string) =>
     [customerId],
   )).rows;
 
-d("074 — expiry warnings and the ledger check", () => {
+d("074 - expiry warnings and the ledger check", () => {
   beforeAll(async () => {
     container = await new PostgreSqlContainer("postgres:16-alpine").start();
     pool = new Pool({ connectionString: container.getConnectionUri(), max: 8 });
@@ -51,7 +51,7 @@ d("074 — expiry warnings and the ledger check", () => {
     await container?.stop();
   });
 
-  it("P16 — warns once per customer per expiry date, for the points still there, by email only", async () => {
+  it("P16 - warns once per customer per expiry date, for the points still there, by email only", async () => {
     const c = await customer();
     const now = new Date();
     await transact((tx) => updateSettings(tx, { expiryMonths: 1, warningDays: 60 }, "admin"));
@@ -97,7 +97,7 @@ d("074 — expiry warnings and the ledger check", () => {
     expect((await dueToExpire(pool, later, 500)).some((l) => l.lotId === entryId)).toBe(false);
   });
 
-  it("P15 — the ledger check is clean on a real ledger and counts each kind of forgery", async () => {
+  it("P15 - the ledger check is clean on a real ledger and counts each kind of forgery", async () => {
     const c = await customer();
     const now = new Date();
     const lot = await give(c, 100, now);

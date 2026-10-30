@@ -23,7 +23,7 @@ const esc = (s: string): string =>
 
 function renderPickListPage(doc: PickListDocument): string {
   const row = (l: PickListDocument["lines"][number]) =>
-    `<tr><td style="padding:8px 0;border-bottom:1px solid #ddd">☐</td><td style="padding:8px;border-bottom:1px solid #ddd">${esc(l.variantLabel ? `${l.name} — ${l.variantLabel}` : l.name)}</td><td style="padding:8px;border-bottom:1px solid #ddd;font-family:monospace">${esc(lineCodes(l.variantCode, l.sku))}</td><td style="padding:8px 0;border-bottom:1px solid #ddd;text-align:right">${l.quantity}</td></tr>`
+    `<tr><td style="padding:8px 0;border-bottom:1px solid #ddd">☐</td><td style="padding:8px;border-bottom:1px solid #ddd">${esc(l.variantLabel ? `${l.name} - ${l.variantLabel}` : l.name)}</td><td style="padding:8px;border-bottom:1px solid #ddd;font-family:monospace">${esc(lineCodes(l.variantCode, l.sku))}</td><td style="padding:8px 0;border-bottom:1px solid #ddd;text-align:right">${l.quantity}</td></tr>`
   const groups = STORAGE_CLASSES.map((zone) => ({
     zone,
     lines: doc.lines.filter((l) => (l.storageClass ?? "ambient") === zone),
@@ -51,8 +51,8 @@ export function printPickLists(docs: readonly PickListDocument[], title = "Pick 
   if (!w) return 0
   w.document.write(
     `<!doctype html><title>${esc(title)}</title><body style="font:14px system-ui;margin:32px">` +
-      docs.map(renderPickListPage).join("") +
-      `</body>`,
+    docs.map(renderPickListPage).join("") +
+    `</body>`,
   )
   w.document.close()
   w.focus()

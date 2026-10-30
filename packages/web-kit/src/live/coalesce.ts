@@ -6,7 +6,7 @@
 export interface Coalescer {
   /** Something changed. */
   trigger(): void;
-  /** Drop anything pending — the screen is going away. */
+  /** Drop anything pending - the screen is going away. */
   cancel(): void;
 }
 

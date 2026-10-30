@@ -63,12 +63,30 @@ describe("the console's one action bar (103)", () => {
     await userEvent.click(
       within(bar).getByRole("button", { name: "Clear selection" }),
     );
-    // Closed, it slides away still showing what it held.
+    // The other selection is still open, so it has the bar back.
+    expect(bars()[0]).toHaveAttribute("data-state", "open");
+    expect(
+      screen.getByRole("region", { name: "Selected orders" }),
+    ).toHaveTextContent("1 selected");
+  });
+
+  it("slides away still showing what it held when the last selection is cleared", async () => {
+    render(
+      <ActionBarProvider>
+        <Picker name="Orders" label="Selected orders" />
+      </ActionBarProvider>,
+    );
+    await userEvent.click(screen.getByText("pick Orders"));
+    await userEvent.click(
+      within(
+        screen.getByRole("region", { name: "Selected orders" }),
+      ).getByRole("button", { name: "Clear selection" }),
+    );
     expect(bars()[0]).toHaveAttribute("data-state", "closed");
     expect(bars()[0]).toHaveTextContent("1 selected");
   });
 
-  it("carries a page's own controls in the same bar — no count, no clear — and a selection takes it after", async () => {
+  it("carries a page's own controls in the same bar - no count, no clear - and a selection takes it after", async () => {
     function Decision() {
       const bar = useActionBar({
         open: true,
@@ -98,6 +116,16 @@ describe("the console's one action bar (103)", () => {
     expect(bars()).toHaveLength(1);
     expect(screen.getByRole("region", { name: "Selected orders" })).toBe(bar);
     expect(bar).toHaveTextContent("1 selected");
+
+    // Cleared, the page's own controls come back to the same bar.
+    await userEvent.click(
+      within(bar).getByRole("button", { name: "Clear selection" }),
+    );
+    expect(screen.getByRole("region", { name: "Decision" })).toBe(bar);
+    expect(
+      within(bar).getByRole("button", { name: "Approve" }),
+    ).toBeInTheDocument();
+    expect(bar).toHaveAttribute("data-state", "open");
   });
 
   it("without a provider, a screen still gets its own bar", async () => {

@@ -6,7 +6,7 @@
 
 ## Summary
 
-One flat list of postcodes Effy delivers to, owned by Effy alone, and one answer per address —
+One flat list of postcodes Effy delivers to, owned by Effy alone, and one answer per address -
 *Delivered by Effy*, *Courier delivery*, or *cannot deliver*. Second slice of the delivery model v2
 programme (`docs/prd/2026-10-delivery-model-v2-backlog.md`, epic E2); the fee engine (E3), the windows
 (E4) and the checkout (E5) all read what this produces.
@@ -16,10 +16,10 @@ The approach, in seven decisions (reasoning in [research.md](research.md)):
 1. **Evolve the existing tables in place** (R1). `delivery_zone_postcode` already *is* a unique list of
    postcodes; `delivery_zone` becomes the optional group. A second, copied list would let the address
    screen and the live checkout disagree until three later epics land.
-2. **One SQL function decides** — `public.coverage_for_postcode` (R2). Nothing else may.
+2. **One SQL function decides** - `public.coverage_for_postcode` (R2). Nothing else may.
 3. **Distance is worked out in SQL** and stored per postcode with how it was obtained; a hub move
    recalculates the computed ones in the same transaction (R3).
-4. **Removing a group never removes postcodes** — the foreign key that cascades today becomes
+4. **Removing a group never removes postcodes** - the foreign key that cascades today becomes
    SET NULL (R4).
 5. **The live fee and same-day rules run on frozen settings** through three named bridges, each removed
    by a later epic (R5). Nobody's fee changes at release.
@@ -38,7 +38,7 @@ the driver count and asks for confirmation at zero; the planner is not changed h
 
 **Primary Dependencies**: none added.
 
-**Storage**: one forward-only migration — columns on `delivery_zone_postcode`, `delivery_zone`,
+**Storage**: one forward-only migration - columns on `delivery_zone_postcode`, `delivery_zone`,
 `delivery_settings`; one new table `courier_excluded_postcode`; four SQL functions; a backfill that
 raises rather than guesses. See [data-model.md](data-model.md).
 
@@ -71,7 +71,7 @@ field; 1 back-office screen section replacing two; 2 customer surfaces updated; 
 |---|---|---|
 | I. Spec-driven | ✅ | The spec carries no technology. One gap found while planning (R6) went **back into the spec** as an assumption. |
 | II. Shared contracts | ✅ | `CoverageKind`, the labels and the refusal sentence live once in `@effy/shared-types` and are generated into the Kotlin contract. |
-| III. One backend; which service, which gateway | ✅ | **Service: `admin`, on the staff gateway — because back-office delivery configuration.** Customer-facing changes extend `storefront`, `commerce`, `customer` on the shared gateway. No new service. |
+| III. One backend; which service, which gateway | ✅ | **Service: `admin`, on the staff gateway - because back-office delivery configuration.** Customer-facing changes extend `storefront`, `commerce`, `customer` on the shared gateway. No new service. |
 | III. A rule has one implementation | ✅ strengthened | Coverage decided by one SQL function; the distance formula moves from TypeScript to SQL and exists once. |
 | IV. Auth isolation | ✅ | Staff routes on the staff gateway behind its only authorizer; role from the `admin.staff` record. |
 | V. Design | ✅ | A table with filters and panels; no cards. Tokens only. Uber Eats / eBay reference: a serviceable-area list keyed by postcode with suburb search. |
@@ -166,7 +166,7 @@ is a deletion rather than an edit in place.
 1. **Shared words**: `CoverageKind`, labels, refusal constants, DTOs; regenerate the Kotlin contract.
 2. **Migration**: columns, FK change, functions, backfill-or-raise, grants, comments.
 3. **Shared library**: `coverage.ts`; rebuild `zone.ts` on it with the three bridges; container proofs
-   P1–P8, P15 — **P1 and P7 before anything else is touched**: they are the release-safety net.
+   P1–P8, P15 - **P1 and P7 before anything else is touched**: they are the release-safety net.
 4. **Customer-facing reads**: storefront, customer addresses, commerce quote and refusal; P16.
 5. **Admin**: repository, service, 13 handlers, serverless; remove the 11; settings recompute; P9, P13, P14.
 6. **Guards**: P10–P12.

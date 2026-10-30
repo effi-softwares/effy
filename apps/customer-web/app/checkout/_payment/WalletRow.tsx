@@ -25,7 +25,7 @@ export function WalletRow({
   disabled?: boolean
 }) {
   // Three states, not two. "Not asked yet" and "asked, nothing available" must be distinguishable,
-  // because they render differently: nothing at all vs. nothing at all — but only the second is
+  // because they render differently: nothing at all vs. nothing at all - but only the second is
   // allowed to let the card form move up. Rendering a heading before the element reports would leave
   // an orphaned "Pay quickly with" above empty space on a device with no wallet.
   const [available, setAvailable] = useState<"unknown" | "yes" | "no">("unknown")
@@ -48,7 +48,7 @@ export function WalletRow({
         }}
         onReady={({ availablePaymentMethods }) => {
           // `availablePaymentMethods` is undefined when nothing is available. A shopper on a browser
-          // with no wallet must see no heading, no gap and no apology — just the card form
+          // with no wallet must see no heading, no gap and no apology - just the card form
           // (US2 scenario 2).
           const shown = Boolean(availablePaymentMethods)
           setAvailable(shown ? "yes" : "no")
@@ -58,7 +58,7 @@ export function WalletRow({
           try {
             await onConfirm()
           } catch {
-            onError("We couldn't complete that payment. Nothing has been charged — try again, or pay by card.")
+            onError("We couldn't complete that payment. Nothing has been charged - try again, or pay by card.")
           }
         }}
         onCancel={() => {
@@ -76,7 +76,7 @@ export function WalletRow({
 
       {available === "yes" ? (
         <p className="mt-3 text-center text-xs text-muted-foreground">
-          One tap — no card details to type.
+          One tap - no card details to type.
         </p>
       ) : null}
     </div>

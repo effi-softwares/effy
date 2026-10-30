@@ -112,7 +112,7 @@ export function suggestCategories(name: string, leaves: readonly SuggestLeaf[], 
     .map((x) => x.leaf)
 }
 
-/** Leaves among the shop's taxonomy whose name, path or synonyms contain every typed word — the picker's search. */
+/** Leaves among the shop's taxonomy whose name, path or synonyms contain every typed word - the picker's search. */
 export function searchLeaves(query: string, leaves: readonly SuggestLeaf[], limit = 50): SuggestLeaf[] {
   const q = tokens(query)
   if (q.length === 0) return []

@@ -117,7 +117,7 @@ class PasswordFlowViewModel(
         onSent()
     }
 
-    /** Recovery code for resetting a forgotten one. The address is the account's — never typed. */
+    /** Recovery code for resetting a forgotten one. The address is the account's - never typed. */
     fun sendResetCode(email: String, onSent: () -> Unit) = launch {
         when (val step = startResetUseCase(email)) {
             is AuthStep.NeedsOtp -> {
@@ -144,11 +144,11 @@ class PasswordFlowViewModel(
         finish(email, newPassword)
     }
 
-    /** Leave the success screen — back to the account the shopper came from. */
+    /** Leave the success screen - back to the account the shopper came from. */
     fun leave() {
         if (_state.value.staySignedIn) navigator.pop() else {
             // Sign-in is pushed onto home. The session is gone, so backing out of it must land on a
-            // screen a guest can see — the Account tab's guest page no longer exists.
+            // screen a guest can see - the Account tab's guest page no longer exists.
             navigator.resetToRoot()
             navigator.selectTab(CustomerNavKey.Home)
             navigator.resetToRoot()
@@ -157,7 +157,7 @@ class PasswordFlowViewModel(
     }
 
     /**
-     * The write succeeded, so every session — including this one — has just been revoked.
+     * The write succeeded, so every session - including this one - has just been revoked.
      *
      * Re-authenticate with the credential the shopper just chose, so this device continues while
      * every other one stays evicted. See the file header for why both halves matter.
@@ -222,7 +222,7 @@ class PasswordFlowViewModel(
 // One layout for every password screen
 
 /**
- * Title, supporting line, fields — and the action pinned to the bottom of the screen.
+ * Title, supporting line, fields - and the action pinned to the bottom of the screen.
  *
  * Bottom-anchored, not inline after the last field. These screens are short, so an inline button
  * floats in the middle of an otherwise empty page and its position shifts between steps as the field
@@ -275,7 +275,7 @@ private fun PasswordStepScaffold(
     }
 }
 
-/** The account flows' password input — the shared one, so every field in the app matches. */
+/** The account flows' password input - the shared one, so every field in the app matches. */
 @Composable
 private fun PasswordField(
     label: String,
@@ -298,7 +298,7 @@ private fun PasswordDoneScreen(staySignedIn: Boolean, onContinue: () -> Unit) {
         "Your password is updated. We signed out your other devices, so anyone else who was signed " +
             "in will need the new password."
     } else {
-        "Your password is updated. For your security this signed you out everywhere — sign in with " +
+        "Your password is updated. For your security this signed you out everywhere - sign in with " +
             "your new password."
     }
     Scaffold(
@@ -366,7 +366,7 @@ fun ChangePasswordScreen(container: AppContainer, email: String) {
         PasswordField("Current password", current, { current = it; vm.clearError() })
 
         // An inline link, not a button. It is a way out of this screen for someone who cannot
-        // complete it — putting it on equal footing with the action would invite the wrong one.
+        // complete it - putting it on equal footing with the action would invite the wrong one.
         EffyInlineLink(
             prompt = "",
             action = "Forgot your current password?",
@@ -414,7 +414,7 @@ fun SetPasswordScreen(container: AppContainer, email: String) {
         confirm = confirm,
         onConfirm = { confirm = it },
         title = "Set a password",
-        introSupporting = "Your account doesn't have a password yet — you sign in with a code we " +
+        introSupporting = "Your account doesn't have a password yet - you sign in with a code we " +
             "email you. Adding one gives you a second way to sign in. We'll email a code to $email " +
             "to confirm it's you.",
         finalActionLabel = "Set password",
@@ -513,7 +513,7 @@ private fun CodeDrivenPasswordFlow(
             title = title,
             supporting = "Enter the $OTP_LENGTH-digit code we sent to ${state.maskedDestination ?: "your email"}.",
             actionLabel = "Continue",
-            // The code is not spent here — it travels with the new password in one request, so a
+            // The code is not spent here - it travels with the new password in one request, so a
             // session that cannot produce it never reaches the write.
             // `isCompleteOtp`, not `isNotBlank`: exactly six digits, so a longer paste leaves the
             // action inactive and visible rather than advancing with a reshaped value.
@@ -524,7 +524,7 @@ private fun CodeDrivenPasswordFlow(
             error = state.error,
         ) {
             // The shared code field, at last. This was a generic `EffyField`: no digit
-            // filter, no length gate, and — the one that actually costs the customer something — no
+            // filter, no length gate, and - the one that actually costs the customer something - no
             // `UITextContentTypeOneTimeCode`, so iOS never offered the code from Mail on a screen
             // reached precisely when someone is already locked out of their password.
             OtpInput(

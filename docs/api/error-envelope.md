@@ -23,10 +23,10 @@ each service enforces it with conformance tests. Origin: specs/004-backend-boots
 }
 ```
 
-- `type`, `title`, `status`, `instance`, `request_id` — always present.
-- `detail` — present when it adds information; **never** stack traces, SQL, dependency
+- `type`, `title`, `status`, `instance`, `request_id` - always present.
+- `detail` - present when it adds information; **never** stack traces, SQL, dependency
   hostnames, or library error strings.
-- `errors[]` — only on `validation-failed`.
+- `errors[]` - only on `validation-failed`.
 - The envelope is **version-neutral**: identical shape under `/v1`, `/v2`, and future
   versions (a v1-only client parses errors from any era).
 
@@ -35,13 +35,13 @@ each service enforces it with conformance tests. Origin: specs/004-backend-boots
 | Slug (`…/problems/<slug>`) | Status | Used when |
 |---|---|---|
 | `validation-failed` | 400 | malformed JSON, wrong types, failed field validation |
-| `unauthenticated` | 401 | missing/expired/tampered/wrong-audience credential — deliberately **one** type for all four (no oracle: the response never reveals which check failed) |
+| `unauthenticated` | 401 | missing/expired/tampered/wrong-audience credential - deliberately **one** type for all four (no oracle: the response never reveals which check failed) |
 | `forbidden` | 403 | authenticated but lacking the required group/role |
-| `no-route` | 404 | unknown path — including a **never-existed API version** (`/v3/...`) |
+| `no-route` | 404 | unknown path - including a **never-existed API version** (`/v3/...`) |
 | `method-not-allowed` | 405 | known path, wrong method |
-| `version-retired` | 410 | a retired API version (policy-bound; none exist yet) — body names the successor; response also carries `Deprecation`/`Sunset` headers |
+| `version-retired` | 410 | a retired API version (policy-bound; none exist yet) - body names the successor; response also carries `Deprecation`/`Sunset` headers |
 | `rate-limited` | 429 | reserved (no limiter this slice) |
-| `internal` | 500 | any unexpected error/panic — generic detail; the real cause is only in the service log, joined by `request_id` |
+| `internal` | 500 | any unexpected error/panic - generic detail; the real cause is only in the service log, joined by `request_id` |
 | `unavailable` | 503 | a dependency (database) is down and the request cannot be served |
 
 Adding a slug is **additive** (allowed anytime, documented in `docs/api/`); changing the
@@ -49,7 +49,7 @@ meaning or status of an existing slug is **breaking** (versioning policy applies
 
 ## Status-code semantics
 
-- 401 vs 403: 401 = "we don't know who you are (here)" — includes cross-pool tokens;
+- 401 vs 403: 401 = "we don't know who you are (here)" - includes cross-pool tokens;
   403 = "we know who you are; you may not do this".
 - 404 vs 410: 404 = never existed (typo'd path, unknown version); 410 = existed and was
   deliberately retired.

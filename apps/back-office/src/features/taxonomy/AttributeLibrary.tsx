@@ -58,14 +58,14 @@ export function AttributeLibrary({ canManage }: { canManage: boolean }) {
         header: "Unit",
         enableSorting: false,
         cell: ({ row }) =>
-          row.original.unitFamily ? `${UNIT_FAMILIES[row.original.unitFamily].label} (${row.original.units.join(", ")})` : "—",
+          row.original.unitFamily ? `${UNIT_FAMILIES[row.original.unitFamily].label} (${row.original.units.join(", ")})` : "-",
         meta: { label: "Unit", priority: 2 },
       },
       {
         id: "filter",
         header: "Filter",
         enableSorting: false,
-        cell: ({ row }) => (row.original.filterable ? "Yes" : "—"),
+        cell: ({ row }) => (row.original.filterable ? "Yes" : "-"),
         meta: { label: "Filter", priority: 2 },
       },
       {
@@ -79,7 +79,7 @@ export function AttributeLibrary({ canManage }: { canManage: boolean }) {
         id: "perSize",
         header: "Per size",
         enableSorting: false,
-        cell: ({ row }) => (row.original.variesByVariant ? "Yes" : "—"),
+        cell: ({ row }) => (row.original.variesByVariant ? "Yes" : "-"),
         meta: { label: "Per size", priority: 3 },
       },
       {
@@ -100,14 +100,14 @@ export function AttributeLibrary({ canManage }: { canManage: boolean }) {
       },
       ...(canManage
         ? [
-            {
-              id: "actions",
-              header: () => <span className="sr-only">Actions</span>,
-              enableSorting: false,
-              cell: ({ row }) => <RowActions attribute={row.original} onEdit={() => setEditing(row.original)} />,
-              meta: { label: "Actions", phone: "full" },
-            } satisfies EffyColumnDef<AttributeDTO>,
-          ]
+          {
+            id: "actions",
+            header: () => <span className="sr-only">Actions</span>,
+            enableSorting: false,
+            cell: ({ row }) => <RowActions attribute={row.original} onEdit={() => setEditing(row.original)} />,
+            meta: { label: "Actions", phone: "full" },
+          } satisfies EffyColumnDef<AttributeDTO>,
+        ]
         : []),
     ],
     [canManage],

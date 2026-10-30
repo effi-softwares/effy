@@ -3,7 +3,7 @@
 Industry background: [research-07](../../docs/research/logistics/research-07-driver-task-sequencing.md).
 These are the design decisions.
 
-## R1 — The gates live in the driver service, next to the time gate
+## R1 - The gates live in the driver service, next to the time gate
 
 **Decision**: Each gate is one function in `apis/edge-api/driver/src/work/sequence.ts`, called inside the
 write's own transaction, after the ownership check and the time gate, in the same way as `assertRoundOpen`
@@ -18,7 +18,7 @@ forgot. A gate the app enforces alone is a courtesy, as `open.ts` says.
 **Alternatives**: A database trigger. Rejected, because it can't produce the sentence or the issues, and
 the codebase keeps rules in TypeScript with raw SQL.
 
-## R2 — "Loaded" is a drop state that already exists
+## R2 - "Loaded" is a drop state that already exists
 
 **Decision**: A drop is loaded when its `round_stop.status` is past `pending`. Loading (`loadRun`) becomes
 the only writer of `out_for_delivery`. `out_for_delivery` is removed from `DropStatusRequest.to`, and
@@ -29,7 +29,7 @@ needed.
 parcel into the driver's custody. Nobody uses the app, so the per-drop start can go (operator,
 2026-10-17).
 
-## R3 — The cross-run gates come from the one custody definition
+## R3 - The cross-run gates come from the one custody definition
 
 **Decision**: Loading is refused when the driver holds custody of a collection parcel that has not been
 checked in, or of a parcel to return (`CUSTODY_BY_DRIVER`, with the collection half or `TO_RETURN_SQL`).
@@ -39,7 +39,7 @@ Collecting is refused when the driver holds a parcel in transit (`IN_TRANSIT_SQL
 **Rationale**: "What is this driver holding" is already defined once in `@effy/edge-shared/custody`.
 A second definition would drift from it, which is the 064/088 lesson.
 
-## R4 — Collect settles only what the request names (US2)
+## R4 - Collect settles only what the request names (US2)
 
 **Decision**: In `collectStop`, once `packages` is required, every `assigned` row the request does not name
 stays `assigned`. The stop is marked done only when no `assigned` row is left. The response gains
@@ -47,14 +47,14 @@ stays `assigned`. The stop is marked done only when no `assigned` row is left. T
 
 **Rationale**: "Absent means collected" was kept only for older builds (063), and none exist now.
 
-## R5 — Combined trips are a preference in the pure planner
+## R5 - Combined trips are a preference in the pure planner
 
 **Decision**: The delivery gather already joins the collection round (`dr`), so it now returns
 `dr.driver_id AS collected_by`. `PlannablePackage.collectedBy` is added. In `planWave` for delivery,
 the order is:
 1. A round already visiting this order's stop takes the package (unchanged).
 2. Otherwise, if the collector is among the eligible targets, the collector takes it, with the note
-   "Auto-assigned — collected it, continuing to delivery".
+   "Auto-assigned - collected it, continuing to delivery".
 3. Otherwise the fewest-packages rule decides (unchanged).
 
 Eligibility (clearance, vehicle, capacity, deadline, on duty) is unchanged, so a collector who cannot
@@ -72,7 +72,7 @@ two. The trip is the sequence of rounds, held together by R3's gates and by R5's
 over the existing `run_assigned` notification and the live update. The delivery round can't open before
 its window start less the lead time anyway, so the wait costs nothing.
 
-## R6 — Held packages: one table, and row deletion for a load declaration
+## R6 - Held packages: one table, and row deletion for a load declaration
 
 **Decision**: A new `public.package_hold` table records shop_fulfillment, step (`load` | `checkin`),
 reason, note, driver, round, change_id, created_at, and a resolution (`found` | `lost`, staff sub, time).
@@ -89,7 +89,7 @@ There is at most one open hold per package, enforced by a partial unique index.
 custody definition stays exact (a deleted delivery row isn't in transit; a held check-in row isn't in
 custody, because `hub_checkin` exists).
 
-## R7 — Run stage is derived by one pure function in shared-types
+## R7 - Run stage is derived by one pure function in shared-types
 
 **Decision**: `runStage(facts)` and `RUN_STAGE_WORDS` live in `@effy/shared-types/run-stage.ts`. One SQL
 fragment, `ROUND_STAGE_FACTS` in `@effy/edge-shared`, gives the counts. The driver service puts `stage`
@@ -107,7 +107,7 @@ detail. Back-office imports the words. The app shows the server's label.
 | delivery | `returning` | no drop open, parcels to return |
 | delivery | `closed` | round completed or cancelled |
 
-## R8 — Overdue exceptions are derived on read, and announced by the planner pass
+## R8 - Overdue exceptions are derived on read, and announced by the planner pass
 
 **Decision**: `delivery_settings` gains `load_overdue_min` (default 20) and `checkin_overdue_min`
 (default 30), edited on the existing Delivery days PUT. The exceptions read gains `overdue[]`:
@@ -120,13 +120,13 @@ The 5-minute planner pass announces `dispatch` when a round crossed its threshol
 **Rationale**: This is counted, not stored (027). An alarm fed by a read is silent when nobody looks, which
 is why 064's custody alarm rides the planner.
 
-## R9 — Out of order is derived
+## R9 - Out of order is derived
 
 **Decision**: A run is out of order when the order of `round_stop.completed_at` differs from the displayed
 order. That is the same precedence the driver sees (`ordered` in the driver service and the dispatch
 reorder). It is shown on round detail as "Worked out of order". Nothing is stored.
 
-## R10 — Vehicle check: one row per driver, vehicle and local day; two new eligibility reasons
+## R10 - Vehicle check: one row per driver, vehicle and local day; two new eligibility reasons
 
 **Decision**: A new `public.vehicle_check` table: driver, vehicle, local_date (Melbourne), answers jsonb
 (six items: `ok` | `minor` | `unsafe` + note), `unsafe` boolean, change_id unique, cleared_by_sub,
@@ -142,7 +142,7 @@ answer).
 **Rationale**: It uses the existing eligibility machinery, so "no work" has a reason in words for free
 (FR-026). Notes only, no photos (spec assumption).
 
-## R11 — New routes (gateway headroom 54% / 54%)
+## R11 - New routes (gateway headroom 54% / 54%)
 
 - driver (shared gateway): `POST /driver/v1/vehicle-check` (+1)
 - fleet (staff gateway): `POST /fleet/v1/dispatch/rounds/{id}/waive-sequence`,

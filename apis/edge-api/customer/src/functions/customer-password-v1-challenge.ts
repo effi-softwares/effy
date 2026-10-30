@@ -61,7 +61,7 @@ function mapError(
     )
   }
   if (err instanceof CustomerBarredError || err instanceof CustomerNotFoundError) {
-    scope.log.warn({ sub }, "password challenge: refused — barred or unknown customer")
+    scope.log.warn({ sub }, "password challenge: refused - barred or unknown customer")
     return problem(403, ProblemType.Forbidden, "Not permitted", "this account cannot be used", scope)
   }
 

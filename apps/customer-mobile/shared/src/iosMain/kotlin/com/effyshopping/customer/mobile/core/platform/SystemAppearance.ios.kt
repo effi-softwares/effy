@@ -10,7 +10,7 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import platform.UIKit.UIScreen
 import platform.UIKit.UIUserInterfaceStyle
 
-/** The screen's style — the phone's setting, untouched by the app's own window override. */
+/** The screen's style - the phone's setting, untouched by the app's own window override. */
 @Composable
 actual fun phoneInDarkMode(): Boolean {
     var dark by remember { mutableStateOf(readScreen()) }

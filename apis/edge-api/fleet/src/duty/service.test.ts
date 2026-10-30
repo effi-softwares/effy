@@ -14,7 +14,7 @@ beforeEach(() => {
   vi.mocked(recordAudit).mockResolvedValue(undefined);
 });
 
-describe("readDuty — FR-034…FR-036", () => {
+describe("readDuty - FR-034…FR-036", () => {
   it("⚠ reports waiting work even when NOBODY is on duty", async () => {
     // Nobody on duty plus the unassigned counts reads "nobody is working and 12 packages are waiting".
     vi.mocked(repo.listOnDuty).mockResolvedValue([]);
@@ -32,7 +32,7 @@ describe("readDuty — FR-034…FR-036", () => {
   });
 });
 
-describe("endDutySession — FR-037", () => {
+describe("endDutySession - FR-037", () => {
   it("404s an unknown session", async () => {
     vi.mocked(repo.endSession).mockResolvedValue("not_found");
     const err = (await endDutySession("nope", "actor-1").catch((e) => e)) as FleetError;

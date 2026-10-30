@@ -2,14 +2,14 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- 092 — the home-screen label. Without it iOS shows CFBundleName, the PRODUCT_NAME "driver-mobile". -->
+	<!-- 092 - the home-screen label. Without it iOS shows CFBundleName, the PRODUCT_NAME "driver-mobile". -->
 	<key>CFBundleDisplayName</key>
 	<string>Effy Driver</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>Effy Driver uses the camera to photograph proof of delivery.</string>
-	<!-- 092 — the branded launch screen, as the customer app's (024/087), declared rather than
+	<!-- 092 - the branded launch screen, as the customer app's (024/087), declared rather than
 	     storyboarded. ⚠ Conflicts with INFOPLIST_KEY_UILaunchScreen_Generation, which is NO in
 	     project.pbxproj in the same change. The status bar is light on the dark splash; after launch the
 	     intro keeps it light, then the app sets it to its appearance. -->

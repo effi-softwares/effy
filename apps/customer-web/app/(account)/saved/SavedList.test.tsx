@@ -53,7 +53,7 @@ function platform() {
   return calls
 }
 
-describe("068 — one list's page", () => {
+describe("068 - one list's page", () => {
   beforeEach(() => {
     window.localStorage.clear()
     window.sessionStorage.clear()
@@ -71,7 +71,7 @@ describe("068 — one list's page", () => {
     expect(await screen.findByText("2 items added to your cart.")).toBeInTheDocument()
     expect(calls.some((c) => c.key === `POST /api/lists/${WEEKLY}/add-to-cart`)).toBe(true)
     expect(calls.some((c) => c.key === "POST /api/saved/add-to-cart")).toBe(false)
-    expect(screen.getByText(/Tea —/)).toBeInTheDocument()
+    expect(screen.getByText(/Tea -/)).toBeInTheDocument()
     // Nothing leaves the list.
     expect(screen.getAllByRole("listitem").filter((li) => within(li).queryByRole("link"))).toHaveLength(3)
   })

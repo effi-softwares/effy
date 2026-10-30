@@ -5,7 +5,7 @@ package com.effyshopping.driver.mobile.core.theme
  * it. Resolved to a concrete "is dark?" at render time via [resolveDark], so `System` is the only mode
  * that consults the device setting.
  *
- * The default for a user who has never chosen is [System] — see [fromStorage].
+ * The default for a user who has never chosen is [System] - see [fromStorage].
  */
 enum class AppearanceMode {
     Light,

@@ -10,7 +10,7 @@ import { buildDocuments, emitTs, emitKotlin, TS_PATH, KT_PATH, requiredSlugs } f
 const RELEASE = process.argv.includes("--release")
 
 const fail = (msg) => {
-  console.error(`legal:check FAILED — ${msg}`)
+  console.error(`legal:check FAILED - ${msg}`)
   process.exit(1)
 }
 
@@ -27,8 +27,8 @@ const freshTs = emitTs(built)
 const freshKt = emitKotlin(built)
 const onDiskTs = existsSync(TS_PATH) ? readFileSync(TS_PATH, "utf8") : ""
 const onDiskKt = existsSync(KT_PATH) ? readFileSync(KT_PATH, "utf8") : ""
-if (freshTs !== onDiskTs) fail("drift: src/generated/documents.ts is stale — run `legal:gen` and commit.")
-if (freshKt !== onDiskKt) fail("drift: mobile LegalContent.kt is stale — run `legal:gen` and commit.")
+if (freshTs !== onDiskTs) fail("drift: src/generated/documents.ts is stale - run `legal:gen` and commit.")
+if (freshKt !== onDiskKt) fail("drift: mobile LegalContent.kt is stale - run `legal:gen` and commit.")
 
 // Unresolved placeholder (fails with --release)
 const placeholder = /\[[A-Z][A-Z0-9_]{2,}\]/g
@@ -38,11 +38,11 @@ for (const src of [freshTs, freshKt]) {
 }
 if (unresolved.size > 0) {
   const list = [...unresolved].join(", ")
-  if (RELEASE) fail(`unresolved identifiers ${list} — supply them in src/identifiers.json before release.`)
+  if (RELEASE) fail(`unresolved identifiers ${list} - supply them in src/identifiers.json before release.`)
   console.warn(
     `legal:check ⚠ PUBLISH-BLOCKED: unresolved identifiers ${list}. ` +
-      `Documents are drafts until an operator fills src/identifiers.json and a lawyer reviews. ` +
-      `(Run \`legal:check --release\` to make this a hard failure at release time.)`,
+    `Documents are drafts until an operator fills src/identifiers.json and a lawyer reviews. ` +
+    `(Run \`legal:check --release\` to make this a hard failure at release time.)`,
   )
 }
 
@@ -59,4 +59,4 @@ for (const d of built) {
   }
 }
 
-console.log(`legal:check OK — ${built.length} documents, no drift, no unresolved identifiers, links resolve.`)
+console.log(`legal:check OK - ${built.length} documents, no drift, no unresolved identifiers, links resolve.`)

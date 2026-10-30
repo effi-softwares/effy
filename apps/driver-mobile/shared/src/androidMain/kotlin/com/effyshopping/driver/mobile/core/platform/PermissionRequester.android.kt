@@ -7,7 +7,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 
 /**
- * Android core-permission request via ActivityResult. Requests camera and — on API 33+
+ * Android core-permission request via ActivityResult. Requests camera and - on API 33+
  * notifications, in one system dialog sequence. Priming never blocks on the outcome:
  * [onDone] fires whether granted or denied (the permission-denied recovery path handles refusals later).
  */

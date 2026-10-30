@@ -4,10 +4,10 @@ One forward-only Goose migration (`<ts>_customer_feedback.sql`) adds three `publ
 SQL, no ORM (Principle VI). Rows are mapped explicitly to domain models in each repository; wire shapes
 never leak past the data layer.
 
-## Shared length constants (U1 — one source of truth)
+## Shared length constants (U1 - one source of truth)
 
 The maximum lengths are defined ONCE in `packages/shared-types/src/feedback.ts` and consumed by the DB
-CHECK, the service validators, the web form, and the mobile screen (Principle II — no drift):
+CHECK, the service validators, the web form, and the mobile screen (Principle II - no drift):
 
 | Constant | Value | Applies to |
 |---|---|---|
@@ -40,19 +40,19 @@ One thing a shopper told Effy. The context half is **immutable once written** (s
 | `source` | `text` NOT NULL | CHECK ∈ (`checkout`,`general`,`other`); origin context (FR-011) |
 | `platform` | `text` NOT NULL | CHECK ∈ (`web`,`ios`,`android`) |
 | `status` | `text` NOT NULL DEFAULT `'new'` | CHECK ∈ (`new`,`in_review`,`replied`,`resolved`,`archived`,`spam`) (D3) |
-| `source_key` | `text` NULL | hash of the rate-limit source (sub or IP); NOT the raw IP (PII) — for the cooldown window only (D5) |
+| `source_key` | `text` NULL | hash of the rate-limit source (sub or IP); NOT the raw IP (PII) - for the cooldown window only (D5) |
 | `created_at` | `timestamptz` NOT NULL DEFAULT `now()` | |
 | `updated_at` | `timestamptz` NOT NULL DEFAULT `now()` | bumps on status change |
 
 **Indexes**: PK; UNIQUE(`reference_code`); an index on `created_at DESC` (default newest-first list);
 an index supporting `status`/`category` filtering; a `pg_trgm` GIN index on `message` (and/or a
 `tsvector`) for full-text search (FR-019); an index on (`source_key`, `created_at`) for the rate-limit
-window (D5). ⚠ `submitter_email` is searchable (FR-019) — a plain btree on `citext` suffices for
+window (D5). ⚠ `submitter_email` is searchable (FR-019) - a plain btree on `citext` suffices for
 exact/prefix email search.
 
 **Validation rules** (enforced in SQL where possible, in the service otherwise):
-- `message` non-empty after trim, ≤ max length (FR-006/FR-007) — CHECK.
-- `submitter_email`, when present, passes shared `EMAIL_SHAPE` + `EMAIL_MAX_LENGTH` — service layer
+- `message` non-empty after trim, ≤ max length (FR-006/FR-007) - CHECK.
+- `submitter_email`, when present, passes shared `EMAIL_SHAPE` + `EMAIL_MAX_LENGTH` - service layer
   (the shape regex is not in the DB).
 - `customer_id` and `email_verified=true` are set **only** by the authenticated submit path (D2).
 
@@ -65,10 +65,10 @@ A message Effy sent back to the submitter. Append-only; multiple per submission 
 | `id` | `uuid` PK | |
 | `submission_id` | `uuid` NOT NULL → `feedback_submission(id)` ON DELETE CASCADE | |
 | `body` | `text` NOT NULL | CHECK length 1..<MAX>; stored raw, rendered inert (FR-034) |
-| `staff_sub` | `text` NOT NULL | the replying back-office `sub` (no cross-schema FK — D4) |
+| `staff_sub` | `text` NOT NULL | the replying back-office `sub` (no cross-schema FK - D4) |
 | `staff_name` | `text` NULL | snapshot of the staff display name at send time |
 | `sent_at` | `timestamptz` NOT NULL DEFAULT `now()` | recorded only on successful send |
-| `delivery_ok` | `boolean` NOT NULL DEFAULT true | a reply row exists only when the SEND (synchronous) succeeded (FR-030). ⚠ An **asynchronous hard-bounce** arriving later is out of scope for this table (G1) — bounce visibility lives in the 037 deliverability path, which already tracks per-address delivery health; this column is a hook for a later slice to reconcile against it, not a claim that async bounces are surfaced here |
+| `delivery_ok` | `boolean` NOT NULL DEFAULT true | a reply row exists only when the SEND (synchronous) succeeded (FR-030). ⚠ An **asynchronous hard-bounce** arriving later is out of scope for this table (G1) - bounce visibility lives in the 037 deliverability path, which already tracks per-address delivery health; this column is a hook for a later slice to reconcile against it, not a claim that async bounces are surfaced here |
 
 **Index**: (`submission_id`, `sent_at`) for the per-submission history view.
 
@@ -123,7 +123,7 @@ admin.staff  ⋯ (by sub string, NOT a FK) ⋯ reply.staff_sub / note.staff_sub
   change (`status`, and the child `reply`/`note` rows) and which never do (category, message, rating,
   submitter identity as recorded, source, platform, `customer_id`, `email_verified`).
 - ⚠ **Immutability is enforced by repository discipline (C1), not by a DB constraint or trigger.**
-  The repositories expose no UPDATE path for the context columns — the only writes are the insert, the
+  The repositories expose no UPDATE path for the context columns - the only writes are the insert, the
   status change, and the append-only child rows. This is a deliberate choice consistent with the
   platform's other tables (no update-guard triggers elsewhere); if FR-040 must be mechanical later, a
   `BEFORE UPDATE` trigger rejecting changes to the frozen columns is the escalation.

@@ -237,11 +237,11 @@ export async function handOver(tx: Queryable, input: HandOverInput): Promise<Han
 
   const names = consignmentId
     ? (
-        await tx.query<{ reference: string | null; courier_name: string }>(
-          `SELECT c.reference, s.courier_name FROM public.courier_consignment c JOIN public.courier_service s ON s.id = c.courier_service_id WHERE c.id = $1`,
-          [consignmentId],
-        )
-      ).rows[0]
+      await tx.query<{ reference: string | null; courier_name: string }>(
+        `SELECT c.reference, s.courier_name FROM public.courier_consignment c JOIN public.courier_service s ON s.id = c.courier_service_id WHERE c.id = $1`,
+        [consignmentId],
+      )
+    ).rows[0]
     : undefined;
   const reference = names?.reference ?? trimmed(input.reference);
   const carrierName = names?.courier_name ?? trimmed(input.carrierName);
@@ -389,7 +389,7 @@ export async function changeCourierCollection(
   ).rows[0]!;
   if (blocked.left) throw new ConsignmentRefusal("collection_locked", "a parcel of this order has already left; it can no longer change");
   if (input.to === "supplier" && blocked.assigned) {
-    throw new ConsignmentRefusal("collection_assigned", "a driver is assigned to collect this order — unassign them first");
+    throw new ConsignmentRefusal("collection_assigned", "a driver is assigned to collect this order - unassign them first");
   }
 
   await tx.query(`UPDATE public."order" SET courier_collection = $2, updated_at = now() WHERE id = $1`, [input.orderId, input.to]);

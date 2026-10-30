@@ -92,7 +92,7 @@ import com.effyshopping.driver.mobile.resources.lucide_warehouse
 import org.jetbrains.compose.resources.DrawableResource
 
 /**
- * Today — the phase-aware home (redesign `03 Today and duty`). The header says the day and where the
+ * Today - the phase-aware home (redesign `03 Today and duty`). The header says the day and where the
  * driver works, with the duty toggle; under it the connection banners ([banners]), then the current run:
  * its progress, one card with the run's map and the next thing to do, what follows, and the rounds later.
  *
@@ -258,7 +258,7 @@ private fun RunHead(today: Today, collection: Boolean, onOpenRun: (() -> Unit)? 
     val progress = today.progress
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(verticalAlignment = Alignment.Top) {
-            // The heading opens the whole run — every stop in order (the card below opens just the next one).
+            // The heading opens the whole run - every stop in order (the card below opens just the next one).
             Row(
                 Modifier.weight(1f).then(
                     if (onOpenRun != null) Modifier.clickable(role = Role.Button, onClickLabel = "Open the run", onClick = onOpenRun) else Modifier,
@@ -333,9 +333,9 @@ private fun CurrentRun(
         )
     }
     if (today.stale) {
-        Text("Last loaded copy — changes since then won't show.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("Last loaded copy - changes since then won't show.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
-    // The run's map belongs to the run (like the heading, it opens it) — its own block, not the stop's card.
+    // The run's map belongs to the run (like the heading, it opens it) - its own block, not the stop's card.
     today.map?.let { map ->
         RunMapView(
             map = map,
@@ -403,7 +403,7 @@ private fun RunCard(
     val hubStop = active.kind == TodayItem.Kind.HUB_CHECKIN
     val position = (today.progress?.done ?: 0) + 1
     val total = today.progress?.total ?: 0
-    // The whole card opens the stop; its buttons (Navigate, Scan) keep their own actions — a child's
+    // The whole card opens the stop; its buttons (Navigate, Scan) keep their own actions - a child's
     // click is consumed before the card's. The run map is not in here: it opens the run, so it sits with
     // the run's heading above, not inside the stop's card.
     Column(
@@ -476,7 +476,7 @@ private fun RunCard(
                     !open -> DriverButton("View ${if (collection) "stop" else "drop"}", onClick = { onOpenItem(active, false) }, style = DriverButtonStyle.Secondary, tall = false, modifier = Modifier.weight(1f))
                     hubStop -> DriverButton("Check in", onClick = { onOpenItem(active, false) }, icon = Res.drawable.lucide_warehouse, tall = false, modifier = Modifier.weight(1f))
                     collection -> DriverButton("Scan packages", onClick = { onOpenItem(active, true) }, tall = false, modifier = Modifier.weight(1f))
-                    else -> DriverButton("I'm here — scan", onClick = { onOpenItem(active, true) }, tall = false, modifier = Modifier.weight(1f))
+                    else -> DriverButton("I'm here - scan", onClick = { onOpenItem(active, true) }, tall = false, modifier = Modifier.weight(1f))
                 }
             }
         }
@@ -505,7 +505,7 @@ private fun TextLink(label: String, onClick: () -> Unit) {
     )
 }
 
-/** Only parcels from failed drops are left: take them back to the hub (redesign `07 Today — return parcels`). */
+/** Only parcels from failed drops are left: take them back to the hub (redesign `07 Today - return parcels`). */
 /**
  * "Load the van": the first step of a delivery run, and the only one until it is done. The drops
  * are listed after it; none of them can be started before the van is loaded.
@@ -557,7 +557,7 @@ private fun ReturnStep(today: Today, onOpenReturn: (String, Boolean) -> Unit, on
             Text("Return $parcels to the hub", fontSize = 26.sp, lineHeight = 32.sp, fontWeight = FontWeight.SemiBold)
             Text(
                 listOfNotNull(
-                    first?.place?.let { "Not delivered at $it" + (first.reason?.let { r -> " — ${reasonWords(r)}" } ?: "") + "." },
+                    first?.place?.let { "Not delivered at $it" + (first.reason?.let { r -> " - ${reasonWords(r)}" } ?: "") + "." },
                     "Check ${if (toReturn.count == 1) "it" else "them"} back in and the run is done.",
                 ).joinToString(" "),
                 style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -634,7 +634,7 @@ private fun NotificationsOffAlert() {
     )
 }
 
-/** Loading: the shape of Today (redesign States — "Loading, the shape of Today"). */
+/** Loading: the shape of Today (redesign States - "Loading, the shape of Today"). */
 @Composable
 private fun TodaySkeleton() = DriverLoading(label = "Loading today") {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -665,7 +665,7 @@ private fun TodaySkeleton() = DriverLoading(label = "Loading today") {
     }
 }
 
-/** "Go off duty?" — names the work still held, so nobody walks away from a van of parcels unaware. */
+/** "Go off duty?" - names the work still held, so nobody walks away from a van of parcels unaware. */
 @Composable
 private fun GoOffDutySheet(today: Today?, hub: String?, onConfirm: () -> Unit, onDismiss: () -> Unit) {
     val held = today?.remainingCount ?: 0

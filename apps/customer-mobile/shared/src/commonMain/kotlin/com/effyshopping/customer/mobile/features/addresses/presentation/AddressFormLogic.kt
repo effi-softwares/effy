@@ -6,8 +6,8 @@ import com.effyshopping.customer.mobile.features.addresses.domain.SavedAddress
 
 /**
  * The add/edit form logic, extracted so both the Address Book and Checkout reuse one
- * validation + mapping (Principle II — one source of truth, never copy-pasted per surface). Pure
- * functions over [AddressForm]; no coroutines, no state — the ViewModels own the state.
+ * validation + mapping (Principle II - one source of truth, never copy-pasted per surface). Pure
+ * functions over [AddressForm]; no coroutines, no state - the ViewModels own the state.
  */
 
 /** Field-level validation. The four required fields; optional fields never block. */

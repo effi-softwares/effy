@@ -19,7 +19,7 @@ function item(over: Partial<UnassignedWorkDTO> = {}): UnassignedWorkDTO {
   }
 }
 
-describe("UnassignedPanel — the reader that makes an unassigned package explainable (FR-028)", () => {
+describe("UnassignedPanel - the reader that makes an unassigned package explainable (FR-028)", () => {
   it("names the reason, not the enum", () => {
     render(<UnassignedPanel items={[item()]} />)
     expect(screen.getByText("Not cleared for this work")).toBeInTheDocument()

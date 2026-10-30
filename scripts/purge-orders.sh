@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# purge-orders.sh — delete every order and all order-derived data from an environment's database.
+# purge-orders.sh - delete every order and all order-derived data from an environment's database.
 #
-# why this exists: dev accumulates test orders — abandoned checkouts, half-paid intents, fan-outs to
-# shops, driver runs — and there is no product surface that deletes them (deliberately: an order is a
+# why this exists: dev accumulates test orders - abandoned checkouts, half-paid intents, fan-outs to
+# shops, driver runs - and there is no product surface that deletes them (deliberately: an order is a
 # financial record and nothing in the platform may erase one). Clearing them is an operator action, so
 # it lives here rather than behind an API.
 #
@@ -11,12 +11,12 @@
 # plain `DELETE FROM "order"` fails rather than cascading. The order below is the dependency order.
 #
 # what it does not touch, on purpose:
-# • customers, carts, addresses, saved items — not order data
-# • products, shops, drivers, delivery zones/plans — reference data the orders pointed at
-# • customer.stripe_customer_id — the link to a shopper's saved cards. Clearing
+# • customers, carts, addresses, saved items - not order data
+# • products, shops, drivers, delivery zones/plans - reference data the orders pointed at
+# • customer.stripe_customer_id - the link to a shopper's saved cards. Clearing
 # it would orphan real cards at the provider while leaving them charged-to-able. Not order data.
-# • driver_duty_session — a driver being on duty is not an order
-# • anything at Stripe — PaymentIntents/charges live there and cannot be
+# • driver_duty_session - a driver being on duty is not an order
+# • anything at Stripe - PaymentIntents/charges live there and cannot be
 # deleted by this or anything else. Test-mode data is cleared from the Stripe dashboard, if ever.
 #
 # Usage:
@@ -130,7 +130,7 @@ sql_body() {
     [[ -n "$where" ]] && local_where=" WHERE $where"
     cat <<EOSQL
   IF to_regclass('public."$table"') IS NULL THEN
-    RAISE NOTICE '  (skipped) %  — table not present in this environment', '$table';
+    RAISE NOTICE '  (skipped) %  - table not present in this environment', '$table';
   ELSE
     DELETE FROM public."$table"$local_where;
     GET DIAGNOSTICS removed = ROW_COUNT;
@@ -143,7 +143,7 @@ EOSQL
 }
 
 # counted through dynamic SQL, because a plain `SELECT count(*) FROM t` fails at parse time when `t`
-# does not exist — case and COALESCE cannot rescue it. Without this the summary would break on exactly
+# does not exist - case and COALESCE cannot rescue it. Without this the summary would break on exactly
 # the environments the purge itself is careful to tolerate (one without the driver tables, say), which
 # is a script contradicting its own promise.
 counts() {
@@ -169,7 +169,7 @@ EOSQL
 
 # the list is checked, not trusted. Every foreign key that points into a table this script purges must
 # come from a table it also purges (or be on DELETE cascade / set null, which the delete handles itself).
-# Anything else would abort the delete partway down — as would two listed tables in the wrong order
+# Anything else would abort the delete partway down - as would two listed tables in the wrong order
 # so both are refused here, before any row is touched.
 preflight() {
   local names ordered
@@ -202,7 +202,7 @@ ORDER BY 1;
 EOSQL
 )"
   if [[ -n "$problems" ]]; then
-    echo "purge-orders: REFUSED — the table list does not match this database:" >&2
+    echo "purge-orders: REFUSED - the table list does not match this database:" >&2
     sed 's/^/  /' <<<"$problems" >&2
     echo "  Fix TARGETS in scripts/purge-orders.sh (children before parents). Nothing was deleted." >&2
     exit 1
@@ -216,7 +216,7 @@ counts
 
 if [[ "$DRY_RUN" == "1" ]]; then
   echo
-  echo "DRY RUN — deleting inside a transaction and rolling back. Nothing is kept."
+  echo "DRY RUN - deleting inside a transaction and rolling back. Nothing is kept."
   psql "$DSN" -v ON_ERROR_STOP=1 -q <<EOSQL
 BEGIN;
 $(sql_body)
@@ -235,7 +235,7 @@ read -r reply
 [[ "$reply" == "$ENV" ]] || { echo "purge-orders: aborted."; exit 1; }
 
 # one transaction. A partial purge leaves fulfilments pointing at orders that no longer exist, and
-# the restrict constraints mean it can fail halfway — so it either all goes or none of it does.
+# the restrict constraints mean it can fail halfway - so it either all goes or none of it does.
 psql "$DSN" -v ON_ERROR_STOP=1 -q <<EOSQL
 BEGIN;
 $(sql_body)

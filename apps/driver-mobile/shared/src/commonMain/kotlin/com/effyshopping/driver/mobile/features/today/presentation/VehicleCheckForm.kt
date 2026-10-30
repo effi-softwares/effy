@@ -23,7 +23,7 @@ import com.effyshopping.driver.mobile.features.driver.domain.VehicleCheckAnswer
 /**
  * The pre-trip check, on Today before any work: six items, each OK, a minor issue or unsafe, with a
  * note where it isn't OK. Every item must be answered. An unsafe answer means no work until dispatch
- * clears it — the driver is told that before they send.
+ * clears it - the driver is told that before they send.
  */
 @Composable
 fun VehicleCheckForm(vehicleLabel: String?, working: Boolean, onSubmit: (List<VehicleCheckAnswer>) -> Unit) {

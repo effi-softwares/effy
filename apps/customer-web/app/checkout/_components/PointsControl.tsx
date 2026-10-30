@@ -11,7 +11,7 @@ import { maxPointsFor } from "./points"
 /**
  * "Use points" at checkout.
  *
- * Shown only when the quote says the customer has points — no dead control for everyone else.
+ * Shown only when the quote says the customer has points - no dead control for everyone else.
  * The default is the most they can use; the field lets them use fewer. The split shown is
  * the one the order is settled at: the server re-decides it and refuses rather than changes it.
  */
@@ -90,7 +90,7 @@ export function PointsControl({
         </div>
       ) : null}
       <p className="mt-3 text-xs text-muted-foreground">
-        Points are a way of paying — your order total stays the same.
+        Points are a way of paying - your order total stays the same.
       </p>
     </section>
   )

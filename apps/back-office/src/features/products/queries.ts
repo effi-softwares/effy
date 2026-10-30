@@ -54,6 +54,6 @@ export const useSetVariantState = (productId: string) =>
 export const useSetStockCount = (shopId: string) =>
   useProductMutation((v: { variantId: string; body: SetStockRequest }) => setStockCount(shopId, v.variantId, v.body))
 
-/** An import being checked or created is re-read when the worker announces `products` — never on a timer. */
+/** An import being checked or created is re-read when the worker announces `products` - never on a timer. */
 export const importQuery = (importId: string) =>
   queryOptions({ queryKey: productKeys.import(importId), queryFn: () => getImport(importId) })

@@ -16,7 +16,7 @@ import { confirmSubscriber, upsertSubscriber } from "./repo"
 /** `citext` identity, the cooldown inside `on conflict … where`, and single-use confirm are database properties. */
 const RUN = process.env.CONTAINER_TESTS === "1"
 
-describe.skipIf(!RUN)("newsletter repo — against real PostgreSQL", () => {
+describe.skipIf(!RUN)("newsletter repo - against real PostgreSQL", () => {
   let container: StartedPostgreSqlContainer
   let pool: Pool
 

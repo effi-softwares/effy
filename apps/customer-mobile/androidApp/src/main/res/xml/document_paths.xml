@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 096 — the only files the app shares: order documents written under cache/documents. -->
+<!-- 096 - the only files the app shares: order documents written under cache/documents. -->
 <paths>
     <cache-path name="documents" path="documents/" />
 </paths>

@@ -12,7 +12,7 @@ import { windowKey } from "./windows";
 const RUN = process.env.CONTAINER_TESTS === "1";
 const d = RUN ? describe : describe.skip;
 
-d("077 — window surcharges belong to the plan", () => {
+d("077 - window surcharges belong to the plan", () => {
   let c3: StartedPostgreSqlContainer;
   let p3: Pool;
   let shopA: string;

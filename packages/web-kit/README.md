@@ -1,7 +1,7 @@
 # `@effy/web-kit`
 
 The audience-neutral half of an Effy web console. Every web surface **consumes** this; none
-re-implements it (constitution Principle II — "copy-paste of cross-cutting logic across surfaces is
+re-implements it (constitution Principle II - "copy-paste of cross-cutting logic across surfaces is
 prohibited").
 
 Created by feature [007-shop-web](../../specs/007-shop-web/) by extracting the reusable half of the
@@ -12,17 +12,17 @@ back-office console (005). See [research R5](../../specs/007-shop-web/research.m
 | Import | Contains | Who needs it |
 |---|---|---|
 | `@effy/web-kit` | the **runtime**: config, Amplify wiring, session/token access, the EMAIL_OTP flow, route guard, server-state client, telemetry, client store | every web surface, SPA or SSR |
-| `@effy/web-kit/console` | the **SPA chrome**: `StaffShell` (the consoles' one shell — sidebar, header, account menu), the shared nav model, `OtpSignInCard`, `ErrorState` | operator consoles only |
+| `@effy/web-kit/console` | the **SPA chrome**: `StaffShell` (the consoles' one shell - sidebar, header, account menu), the shared nav model, `OtpSignInCard`, `ErrorState` | operator consoles only |
 
 The split exists so `customer-web` (Next.js SSR, a later slice) can take the runtime without
 dragging in a sidebar it will never render.
 
 ## What lives here vs. in the app
 
-**Here** — anything identical across audiences: how a one-time code is requested and confirmed, how
+**Here** - anything identical across audiences: how a one-time code is requested and confirmed, how
 a missing config key fails, how a `DomainError` becomes a human state, how the shell collapses.
 
-**In the app** — anything audience-specific: the role union, the nav items, the feature slices
+**In the app** - anything audience-specific: the role union, the nav items, the feature slices
 (`repo.ts` → `queries.ts` → `<Screen>.tsx`), the analytics event union, and which pool the config
 points at.
 
@@ -37,5 +37,5 @@ require one.
 
 ## Consumers
 
-- `apps/back-office` — `BackOfficeRole` = `admin | manager | csa`
-- `apps/shop-web` — `ShopRole` = `shop_manager | shop_staff`
+- `apps/back-office` - `BackOfficeRole` = `admin | manager | csa`
+- `apps/shop-web` - `ShopRole` = `shop_manager | shop_staff`

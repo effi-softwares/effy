@@ -45,7 +45,7 @@ private class FakeDeliveryRepo(var drop: Drop? = null, var fail: AppError? = nul
     override suspend fun getDrop(dropId: String): Drop = fail?.let { throw AppException(it) } ?: drop!!
     var offline = false
     private val outcome get() = if (offline) WriteOutcome.QUEUED else WriteOutcome.SENT
-    /** Every write, in the order it was made — "advance:arrived", "proof", "load". */
+    /** Every write, in the order it was made - "advance:arrived", "proof", "load". */
     val calls = mutableListOf<String>()
     override suspend fun advance(dropId: String, to: String, changeId: String): WriteOutcome {
         calls += "advance:$to"
@@ -90,7 +90,7 @@ class DeliveryViewModelTest {
     }
 
     /**
-     * Rev 2 — "work changed" while the driver is at the door: the drop is re-read (new instructions,
+     * Rev 2 - "work changed" while the driver is at the door: the drop is re-read (new instructions,
      * a cancelled order). Not once they have finished it: Delivered describes what they did.
      */
     @Test fun work_changed_re_reads_the_open_drop_until_it_is_finished() = runTest {
@@ -113,7 +113,7 @@ class DeliveryViewModelTest {
     /**
      * Two taps, and the arrival is still recorded. The driver no longer says "I've arrived";
      * the ViewModel records it, silently and first, so the platform's timeline keeps an arrival before
-     * the proof — sent in that order, or saved in that order with no signal.
+     * the proof - sent in that order, or saved in that order with no signal.
      */
     @Test fun delivering_an_out_drop_records_arrival_first_then_the_proof() = runTest {
         val repo = FakeDeliveryRepo(drop = drop().copy(status = DropStatus.OUT_FOR_DELIVERY)); val v = vm(repo)
@@ -181,7 +181,7 @@ class DeliveryViewModelTest {
         assertEquals("Van loaded · 2 bags left for dispatch", v.state.value.notice)
     }
 
-    /** 090 / 092 — the van is loaded once: every staged drop goes out, a drop further on stays put. */
+    /** 090 / 092 - the van is loaded once: every staged drop goes out, a drop further on stays put. */
     @Test fun loading_the_van_sends_every_staged_drop_out() = runTest {
         val staged = DropSummary("d1", 1, "EFY-1", "Carlton", 1, DropStatus.STAGED)
         val arrived = DropSummary("d2", 2, "EFY-2", "Fitzroy", 1, DropStatus.ARRIVED)
@@ -238,7 +238,7 @@ class DeliveryViewModelTest {
         assertNull(repo.mediaMethod)
     }
 
-    /** Backlog B3 — proof with no signal is saved: the drop is delivered, the proof is sending. */
+    /** Backlog B3 - proof with no signal is saved: the drop is delivered, the proof is sending. */
     @Test fun proof_saved_offline_reads_delivered_and_sending() = runTest {
         val repo = FakeDeliveryRepo(drop = drop()).apply { offline = true }; val v = vm(repo)
         v.deliverWithPhoto("d1", byteArrayOf(1), null)
@@ -247,7 +247,7 @@ class DeliveryViewModelTest {
         assertNull(v.state.value.message)
     }
 
-    /** Backlog C1 — a step saved offline moves the drop on, rather than showing "You're offline". */
+    /** Backlog C1 - a step saved offline moves the drop on, rather than showing "You're offline". */
     @Test fun a_step_saved_offline_moves_the_drop_on() = runTest {
         val repo = FakeDeliveryRepo(drop = drop().copy(status = DropStatus.EN_ROUTE)); val v = vm(repo)
         v.loadDrop("d1")
@@ -274,7 +274,7 @@ class DeliveryViewModelTest {
             .apply { run = DeliveryRun("r1", "active", emptyList(), toReturn = toReturn) }
         val v = vm(repo)
         v.loadRun()
-        v.returnParcels()                 // refused for now — not final
+        v.returnParcels()                 // refused for now - not final
         assertNotNull(v.state.value.message)
         repo.fail = null; repo.offline = true
         v.returnParcels()                 // saved to send

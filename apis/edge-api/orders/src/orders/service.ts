@@ -4,6 +4,7 @@ import type {
   AdminOrderPackageDTO,
   AdminOrderSummaryDTO,
   AdminPaymentMethodDTO,
+  PackageMilestoneDTO,
   ArrivalSource,
   ConsignmentDTO,
   ConsignmentState,
@@ -172,6 +173,7 @@ export function toPackage(
     handoverDueOn: verdict.handoverDueOn,
     atRisk: verdict.atRisk,
     onTime: verdict.onTime,
+    milestones: [],
     fulfillmentId: row.fulfillment_id,
     packageCode: row.package_code,
     shopId: row.shop_id,
@@ -186,26 +188,41 @@ export function toPackage(
     deliveryMethod: row.method,
     handoff: row.handoff_at
       ? {
-          // Null is a complete state: no placeholder.
-          reference: row.handoff_reference,
-          carrierName: row.handoff_carrier,
-          handedOverAt: row.handoff_at.toISOString(),
-          recordedBySub: row.handoff_by!,
-          note: row.handoff_note,
-        }
+        // Null is a complete state: no placeholder.
+        reference: row.handoff_reference,
+        carrierName: row.handoff_carrier,
+        handedOverAt: row.handoff_at.toISOString(),
+        recordedBySub: row.handoff_by!,
+        note: row.handoff_note,
+      }
       : null,
     arrival: row.arrival_at
       ? {
-          arrivedAt: row.arrival_at.toISOString(),
-          source: row.arrival_source as ArrivalSource,
-          recordedBySub: row.arrival_by,
-          note: row.arrival_note,
-        }
+        arrivedAt: row.arrival_at.toISOString(),
+        source: row.arrival_source as ArrivalSource,
+        recordedBySub: row.arrival_by,
+        note: row.arrival_note,
+      }
       : null,
   };
 }
 
-function toItem(row: repo.OrderItemRow): AdminOrderItemDTO {
+/** A package's steps in the nine words' order, each it has reached. */
+export function toMilestones(row: repo.MilestoneRow | undefined): PackageMilestoneDTO[] {
+  if (!row) return [];
+  const steps: [PackageMilestoneDTO["status"], Date | null][] = [
+    ["preparing", row.placed_at],
+    ["ready", row.ready_at],
+    ["with_driver", row.collected_at],
+    ["at_hub", row.checked_in_at],
+    ["out_for_delivery", row.loaded_at],
+    ["with_carrier", row.carrier_at],
+    ["delivered", row.arrived_at],
+  ];
+  return steps.filter(([, at]) => at !== null).map(([status, at]) => ({ status, at: at!.toISOString() }));
+}
+
+async function toItem(row: repo.OrderItemRow): Promise<AdminOrderItemDTO> {
   return {
     orderItemId: row.order_item_id,
     productId: row.product_id,
@@ -218,6 +235,7 @@ function toItem(row: repo.OrderItemRow): AdminOrderItemDTO {
     quantity: row.quantity,
     lineSubtotalAmount: row.line_subtotal_amount,
     shopId: row.shop_id,
+    imageUrl: await imageUrlOrNull(row.image_key),
   };
 }
 
@@ -245,18 +263,22 @@ export async function getOrder(orderId: string): Promise<AdminOrderDetailDTO | n
   const requestItemRows = requestRow ? await refundRepo.refundRequestItems(requestRow.request_id) : [];
 
   const pkgIds = packageRows.map((p) => p.fulfillment_id);
-  // Its history — packing, hand-overs, moves, courier steps — is the activity log (104), not part of this read.
-  const [statusById, assignmentById, consignmentById, parcelRows] = await Promise.all([
+  // Its history - packing, hand-overs, moves, courier steps - is the activity log (104), not part of this read.
+  const [statusById, assignmentById, consignmentById, parcelRows, milestoneRows, customerOrderCount, items] = await Promise.all([
     packageStatuses(db, pkgIds),
     assignmentsFor(pkgIds),
     order.delivery_type === "courier" ? consignmentsFor(db, pkgIds) : Promise.resolve(new Map()),
     repo.parcels(pkgIds),
+    repo.milestones(pkgIds),
+    repo.paidOrderCount(order.customer_id),
+    Promise.all(itemRows.map(toItem)),
   ]);
   const consignments = new Map(
     await Promise.all([...consignmentById].map(async ([id, c]) => [id, await toConsignment(c)] as const)),
   );
   const packages = packageRows.map((p) => ({
     ...toPackage(p, statusById.get(p.fulfillment_id) ?? null, assignmentById.get(p.fulfillment_id), consignments.get(p.fulfillment_id) ?? null),
+    milestones: toMilestones(milestoneRows.find((m) => m.package_id === p.fulfillment_id)),
     parcels: parcelRows
       .filter((b) => b.package_id === p.fulfillment_id)
       .map((b) => ({
@@ -301,8 +323,9 @@ export async function getOrder(orderId: string): Promise<AdminOrderDetailDTO | n
     customerId: order.customer_id,
     customerEmail: order.customer_email,
     customerName: order.customer_name,
+    customerOrderCount,
 
-    items: itemRows.map(toItem),
+    items,
     packages,
 
     itemSubtotalAmount: order.item_subtotal_amount,
@@ -504,10 +527,10 @@ function toCourierRow(r: repo.CourierParcelRow, now: Date): HandoverRowDTO & { _
 
   const view: CourierView | null =
     problem ? "problems"
-    : handed ? "with_courier"
-    : r.courier_collection === "supplier" ? "supplier"
-    : hubLate ? "hub_late"
-    : "hub_due";
+      : handed ? "with_courier"
+        : r.courier_collection === "supplier" ? "supplier"
+          : hubLate ? "hub_late"
+            : "hub_due";
   return {
     fulfillmentId: r.fulfillment_id,
     orderId: r.order_id,
@@ -554,7 +577,7 @@ export async function listCourierParcels(view: CourierView, now: Date = new Date
 
 /**
  * Courier parcels as a console list (103): a parcel's stage is worked out here (`toCourierRow`), so the
- * search, service filter, sort, page and every stage's count run over the in-flight set — never a capped one.
+ * search, service filter, sort, page and every stage's count run over the in-flight set - never a capped one.
  */
 export async function courierParcelPage(req: CourierListRequest, now: Date = new Date()): Promise<CourierParcelListDTO> {
   const all = (await repo.courierParcels()).map((r) => toCourierRow(r, now));

@@ -127,7 +127,7 @@ private fun Day(day: HistoryDay, onOpenDrop: (String) -> Unit, onOpenRun: (Strin
             )
         }
         DriverGroup {
-            // Newest first, drops and runs together — the canvas interleaves them by time.
+            // Newest first, drops and runs together - the canvas interleaves them by time.
             val entries = (day.drops.map { it.completedAt to it } + day.runs.map { (it.completedAt ?: "") to it })
                 .sortedByDescending { it.first }
                 .map { it.second }
@@ -201,7 +201,7 @@ private fun RowIcon(look: RowLook) {
 private fun Chevron() = DriverIcon(Res.drawable.lucide_chevron_right, size = 18.dp, tint = MaterialTheme.colorScheme.onSurfaceVariant)
 
 /**
- * A past record (canvas `HistoryRun`, `HistoryDrop`). The proof photo is shown — it is what the
+ * A past record (canvas `HistoryRun`, `HistoryDrop`). The proof photo is shown - it is what the
  * driver needs when a customer says the parcel never came. A run has no proof section.
  */
 @Composable
@@ -262,7 +262,7 @@ private fun PastRun(detail: HistoryDetail, title: String, hubName: String?, onOp
     detail.map?.let { map ->
         RunMapView(
             map, seed = title + (at ?: ""),
-            description = "Map of this finished run — every stop done.",
+            description = "Map of this finished run - every stop done.",
             height = 170.dp, animate = false,
         )
     }
@@ -321,7 +321,7 @@ private fun PastDrop(detail: HistoryDetail) {
     Text(
         listOfNotNull(
             detail.orderRef?.let { "Order $it." },
-            if (detail.proof != null) "Kept so you can answer \"where did you leave it?\" — the customer sees the same photo." else "Kept so you can answer what happened — read only.",
+            if (detail.proof != null) "Kept so you can answer \"where did you leave it?\" - the customer sees the same photo." else "Kept so you can answer what happened - read only.",
         ).joinToString(" "),
         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
@@ -385,12 +385,12 @@ private fun methodWords(method: String): String = when (method) {
     else -> method.replaceFirstChar { it.uppercase() }
 }
 
-/** The proof note as written by the app: "Left at: Front door — the driver's words". */
+/** The proof note as written by the app: "Left at: Front door - the driver's words". */
 internal fun splitNote(note: String?): Pair<String?, String?> {
     val text = note?.trim()?.takeIf { it.isNotEmpty() } ?: return null to null
     if (!text.startsWith("Left at: ")) return null to text
     val rest = text.removePrefix("Left at: ")
-    val parts = rest.split(" — ", limit = 2)
+    val parts = rest.split(" - ", limit = 2)
     return parts[0] to parts.getOrNull(1)?.takeIf { it.isNotBlank() }
 }
 

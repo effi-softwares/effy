@@ -3,10 +3,10 @@ package com.effyshopping.customer.mobile.features.saved.domain
 import com.effyshopping.customer.mobile.features.catalog.domain.UnitPrice
 
 /**
- * The saved-items domain — a price-and-availability watchlist, not a wishlist.
+ * The saved-items domain - a price-and-availability watchlist, not a wishlist.
  *
  * Clean-Architecture domain models: the app's own types, mapped from the generated wire DTOs in the
- * data layer (Principle VI — wire shapes never leak past `data`).
+ * data layer (Principle VI - wire shapes never leak past `data`).
  *
  * Not the cart's set-aside, which is a bookmark and a different capability.
  */
@@ -15,15 +15,15 @@ import com.effyshopping.customer.mobile.features.catalog.domain.UnitPrice
  * Whether the shopper can buy a saved item right now, at the location they are shopping for.
  *
  * Five values, not a boolean, and that is the whole point of the slice. The capability this
- * replaces reported `available = true` whenever the catalogue said `status = 'active'` — but with
+ * replaces reported `available = true` whenever the catalogue said `status = 'active'` - but with
  * hidden fulfilment and zone-scoped delivery a product can be perfectly active and still unreachable
  * at the shopper's address, so the list invited people into a checkout that refused them.
  *
  * Each value implies a different next action, which is why collapsing any two is a regression:
  *
  *  purchasable → buy now
- *  TEMPORARILY_UNAVAILABLE → sold and delivered here, just not in stock — wait
- *  NO_LONGER_SOLD → withdrawn entirely — give up
+ *  TEMPORARILY_UNAVAILABLE → sold and delivered here, just not in stock - wait
+ *  NO_LONGER_SOLD → withdrawn entirely - give up
  */
 enum class SavedVerdict {
     PURCHASABLE,
@@ -46,7 +46,7 @@ data class SavedItem(
     val compareAtAmount: String?,
     val badges: List<String>,
     val savedAt: String,
-    /** The price when it was saved — the baseline [priceDropped] is measured against. */
+    /** The price when it was saved - the baseline [priceDropped] is measured against. */
     val savedPriceAmount: String,
     /**
      * True only when the current price is below the save-time price.
@@ -70,7 +70,7 @@ data class SavedItem(
 )
 
 /**
- * The shopper's whole set of saved product ids, across every list — the read that makes the heart
+ * The shopper's whole set of saved product ids, across every list - the read that makes the heart
  * tell the truth.
  *
  * [namedProductIds] is the subset held in a list the shopper named. A tap on a filled heart
@@ -102,7 +102,7 @@ interface SavedRepository {
 
     /**
      * [restoreSavedAt] is set only by undo, returning the item to the position it previously held.
-     * An ordinary save leaves it null and the item lands at the top — a deliberate re-save after a
+     * An ordinary save leaves it null and the item lands at the top - a deliberate re-save after a
      * completed removal is a new save, and the list must be able to say so.
      */
     suspend fun save(productId: String, restoreSavedAt: String? = null, variantId: String? = null)

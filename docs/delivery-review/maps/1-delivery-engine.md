@@ -1,4 +1,4 @@
-# Map 1 — The customer-facing delivery engine (who delivers, when, for how much → paid)
+# Map 1 - The customer-facing delivery engine (who delivers, when, for how much → paid)
 
 Scope: everything from "does Effy deliver to this postcode?" to the moment an order is paid. Read from
 code and migrations on branch `dev` (HEAD f9118e04), 2026-10-18. Paths are relative to
@@ -27,42 +27,42 @@ cart, and the delivery type gets its first history row.
 
 ---
 
-## 1. Coverage — where Effy delivers
+## 1. Coverage - where Effy delivers
 
 ### What it does
 Decides, per normalised 4‑digit AU postcode and instant, who delivers: Effy (postcode is on the list),
 courier (not on the list, courier delivery on and sellable), or none.
 
 ### Key files
-- `ES/delivery/coverage.ts:41` `coverageForPostcode(q, postcode, now)` — the only TS wrapper; one
+- `ES/delivery/coverage.ts:41` `coverageForPostcode(q, postcode, now)` - the only TS wrapper; one
   `SELECT … FROM public.coverage_for_postcode($1,$2)`. Returns `{kind, reason, distanceKm, groupId, groupName}`.
-- `ES/delivery/coverage.ts:68` `courierReachesPostcode` — used by the quote for the "listed postcode,
+- `ES/delivery/coverage.ts:68` `courierReachesPostcode` - used by the quote for the "listed postcode,
   no window left" fallback only.
-- `ES/delivery/coverage.ts:94` `loadCourierSettings` — default courier service's estimate + id,
+- `ES/delivery/coverage.ts:94` `loadCourierSettings` - default courier service's estimate + id,
   `courier_collection_default`, `courier_when_no_windows`.
 - `ES/delivery/zone.ts:10` `normalizePostcode` (`/^[0-9]{4}$/` after trim; malformed = 400, never "not served").
-- `ES/delivery/zone.ts:22` `serviceableForPostcode` — **no production caller** (see Observations).
-- `ES/delivery/locality.ts:18` `searchLocalities` — address typeahead (digits → postcode prefix, else
+- `ES/delivery/zone.ts:22` `serviceableForPostcode` - **no production caller** (see Observations).
+- `ES/delivery/locality.ts:18` `searchLocalities` - address typeahead (digits → postcode prefix, else
   name prefix), alphabetical, deliberately not ordered by serviceability.
-- `customer/src/addresses/model.ts:39` — address book computes `coverage` per address inline via
+- `customer/src/addresses/model.ts:39` - address book computes `coverage` per address inline via
   `(SELECT c.kind FROM public.coverage_for_postcode(btrim(postal_code)) c)` (worked out, never stored).
-- `storefront/src/functions/serviceability-v1-get.ts` — public serviceability + basket "offer".
+- `storefront/src/functions/serviceability-v1-get.ts` - public serviceability + basket "offer".
 - Admin: `admin/src/delivery/coverage.service.ts` / `coverage.repository.ts` (548 lines).
 
 ### SQL (current definitions)
-- `public.coverage_for_postcode(p_postcode text, p_at timestamptz DEFAULT now())` —
+- `public.coverage_for_postcode(p_postcode text, p_at timestamptz DEFAULT now())` -
   `db/migrations/20261009011552_order_delivery_type.sql:141`. If the postcode is in
   `delivery_zone_postcode` → `('effy','listed', distance_km, group_id, group_name)` (group only if
   `delivery_zone.status='active'`). Otherwise asks `courier_reaches_postcode` and maps
   `courier_offered → 'courier'`, else `'none'` with the reason.
-- `public.courier_reaches_postcode(p_postcode, p_at)` — same file `:108`. Order of checks:
+- `public.courier_reaches_postcode(p_postcode, p_at)` - same file `:108`. Order of checks:
   postcode must exist in `public.locality` (else `unknown_postcode`) → `courier_delivery_state` →
   `courier_excluded_postcode` → state.
-- `public.courier_delivery_state(p_at)` — redefined in `20261009051347_courier_fulfilment.sql:~140`:
+- `public.courier_delivery_state(p_at)` - redefined in `20261009051347_courier_fulfilment.sql:~140`:
   `courier_off` (settings flag false) → `courier_not_ready` (no active default `courier_service` OR no
-  active `delivery_fee_plan` of kind courier) → `courier_pending` (if `delivery_model_v2_at` false —
+  active `delivery_fee_plan` of kind courier) → `courier_pending` (if `delivery_model_v2_at` false -
   now always true) → `courier_offered`.
-- `public.haversine_km`, `public.coverage_computed_distance_km(postcode)` —
+- `public.haversine_km`, `public.coverage_computed_distance_km(postcode)` -
   `20261008114600_effy_delivery_coverage.sql:17,32`: distance from hub (settings lat/lng) to the
   postcode's most-addressed locality centroid, rounded to 2dp.
 
@@ -83,7 +83,7 @@ courier (not on the list, courier delivery on and sellable), or none.
   time. A hub move recomputes all `computed` distances in the same transaction and flags `manual` ones
   for review (`admin/src/delivery/repository.ts:upsertSettings`).
 - Adding a postcode requires a locality row (`unknown_postcode` 422) and a distance (computed, or
-  manual entry; else `distance_required` 422) — `coverage.service.ts:169-198`.
+  manual entry; else `distance_required` 422) - `coverage.service.ts:169-198`.
 - Removing a group ungroups its postcodes (FK SET NULL); never removes coverage.
 - Customer gets one refusal sentence: `COVERAGE_REFUSAL_SENTENCE` in
   `packages/shared-types/src/delivery.ts`, 422 `COVERAGE_REFUSAL_CODE` from `commerce/src/checkout/respond.ts:72`.
@@ -99,18 +99,18 @@ courier (not on the list, courier delivery on and sellable), or none.
 | POST/PATCH/DELETE | `/admin/v1/delivery/coverage/groups[/{groupId}]` | admin / staff |
 | PUT | `/admin/v1/delivery/coverage/courier` (offered / when-no-windows / collection default) | admin / staff |
 | POST/DELETE | `/admin/v1/delivery/coverage/courier/exclusions[/{postcode}]` | admin / staff |
-| GET | `/fleet/v1/coverage` | fleet / staff — ⚠ a DIFFERENT concept: driver-clearance gaps per group (062), `fleet/src/coverage/repository.ts` |
+| GET | `/fleet/v1/coverage` | fleet / staff - ⚠ a DIFFERENT concept: driver-clearance gaps per group (062), `fleet/src/coverage/repository.ts` |
 
-(`/admin/v1/deliverability*` is email deliverability — unrelated.)
+(`/admin/v1/deliverability*` is email deliverability - unrelated.)
 
 ### Guards
-`ES/delivery/coverage.guard.test.ts` — P10 the refusal sentence written once (TS + Kotlin
+`ES/delivery/coverage.guard.test.ts` - P10 the refusal sentence written once (TS + Kotlin
 `CoverageWords.kt`), P11 a customer contract carries no reason/group/distance, P12 only allow-listed
 files read `delivery_zone_postcode`, and the answer is read via the one function/wrapper.
 
 ---
 
-## 2. Fee engine — how much
+## 2. Fee engine - how much
 
 ### What it does
 One fee per **order** (never per shop), integer cents, pure function. Two kinds of plan: `effy` and
@@ -119,24 +119,24 @@ One fee per **order** (never per shop), integer cents, pure function. Two kinds 
 ### Key files
 - `ES/delivery/engine.ts` (278 lines, pure, no I/O):
   - `:127 basketValueCents(itemSubtotal, discount)` = max(0, subtotal − promo). Points NOT subtracted.
-  - `:135 distanceBandFor` — smallest `upperKm ≥ km` (boundary takes the lower band) else open band; none → `UnpricedDistanceError`.
-  - `:151 weightBandFor` — smallest `upperGrams ≥ g` else the heaviest band ("open top"); no bands → `UnpricedWeightError`.
-  - `:185 effyFee` — `raw = base + distance + weight + premium`; `settle` = ceil to step, clamp
+  - `:135 distanceBandFor` - smallest `upperKm ≥ km` (boundary takes the lower band) else open band; none → `UnpricedDistanceError`.
+  - `:151 weightBandFor` - smallest `upperGrams ≥ g` else the heaviest band ("open top"); no bands → `UnpricedWeightError`.
+  - `:185 effyFee` - `raw = base + distance + weight + premium`; `settle` = ceil to step, clamp
     [floor, cap]; free if `basket ≥ freeOver` (whole fee incl. surcharge → 0); small-order fee added if
     `basket < smallOrderUnder` (outside rounding and cap).
-  - `:232 courierFee` — `base + weight`, round/clamp, courier plan's own `freeOver`; no distance, no
+  - `:232 courierFee` - `base + weight`, round/clamp, courier plan's own `freeOver`; no distance, no
     premium, no small-order fee.
-  - `:270 feeLines` — customer lines `delivery`, `window_surcharge` (= clamped − clampedWithoutPremium,
+  - `:270 feeLines` - customer lines `delivery`, `window_surcharge` (= clamped − clampedWithoutPremium,
     i.e. what the window actually added after the cap), `small_order`, `free_delivery` (negative). Always
     sum to `totalCents`.
-- `ES/delivery/plan.ts` — `Plan` shape; `loadActivePlan(q, kind)` (throws `NoActivePlanError`),
+- `ES/delivery/plan.ts` - `Plan` shape; `loadActivePlan(q, kind)` (throws `NoActivePlanError`),
   `loadPlan(id)`, `withBands` (3 queries; slot premiums only for **active** slots);
   `windowPremiumCents(plan, slotId, isToday)` = (today ? `today_premium_amount` : 0) + per-slot premium;
   `slotId === null ⇒ 0`.
-- `ES/delivery/quote.ts:138 priceEffyOrder`, `:165 priceCourierOrder` — wrap the engine; convert
+- `ES/delivery/quote.ts:138 priceEffyOrder`, `:165 priceCourierOrder` - wrap the engine; convert
   `Unpriced*` into `ListedPostcodeUnpricedError` / `CourierNotPurchasableError` (fail loud → metric
   `DeliveryQuoteFailures`, never free delivery).
-- `ES/delivery/fee-wire.ts` — `feeDTO` (customer: lines + total), `storedBreakdown` (v1 JSON stored in
+- `ES/delivery/fee-wire.ts` - `feeDTO` (customer: lines + total), `storedBreakdown` (v1 JSON stored in
   `order.delivery_fee_breakdown`: plan id/name, inputs km/grams/basket/slotId/windowIsToday, every part,
   lines), `offerDTO` (free-over / small-order amounts for the cart before an address exists).
 - Admin: `admin/src/delivery/pricing.service.ts` (309), `pricing.repository.ts` (233).
@@ -147,7 +147,7 @@ One fee per **order** (never per shop), integer cents, pure function. Two kinds 
 | `delivery_fee_plan` | `id, name UNIQUE, kind effy\|courier, is_active, rounding_step (def 0.50), floor_amount, cap_amount, base_amount, free_over_amount NULL, small_order_under_amount NULL, small_order_fee_amount NULL, today_premium_amount (def 0), created_by, activated_by, activated_at, updated_by, updated_at` |
 | `delivery_distance_band` | `plan_id, upper_km NULL(=open), add_amount`; UNIQUE(plan,upper_km); one open band per plan |
 | `delivery_weight_band` | `plan_id, upper_grams, add_amount` |
-| `delivery_slot_premium` | `(plan_id, slot_id) PK, add_amount > 0` — premium belongs to the plan |
+| `delivery_slot_premium` | `(plan_id, slot_id) PK, add_amount > 0` - premium belongs to the plan |
 
 CHECKs (`20261008135721_delivery_fee_engine_v2.sql`, 047): cap/floor on step grid, cap ≥ floor,
 small-order pair both-or-neither, `small_order_under < free_over`, small fee and today premium on step
@@ -157,7 +157,7 @@ grid, courier shape (no small-order, no today premium), one active per kind (par
 ### Plan lifecycle
 State derived: draft (never activated) → active → retired (activated_at set, not active). Activated
 plans are immutable; a retired plan is copied, never reactivated. **Only path live:**
-`public.delivery_plan_activate(plan, actor, confirm_zero_floor)` — advisory lock per kind, refuses
+`public.delivery_plan_activate(plan, actor, confirm_zero_floor)` - advisory lock per kind, refuses
 `plan_not_found | plan_already_active | plan_retired | plan_incomplete (DETAIL = blocking gaps) |
 zero_floor_unconfirmed`, deactivates old then activates new in one tx. `public.delivery_plan_gaps(plan)`
 codes: `distance_bands_missing`, `distance_open_band_missing`, `distance_not_monotonic`,
@@ -169,36 +169,36 @@ codes: `distance_bands_missing`, `distance_open_band_missing`, `distance_not_mon
 `POST /plans/{planId}/activate`, `POST /plans/simulate` (same `effyFee`/`courierFee`, plan by id).
 
 ### Guards
-`ES/delivery/fee.guard.test.ts` — P20 no shop contract/query carries delivery money; a customer route
+`ES/delivery/fee.guard.test.ts` - P20 no shop contract/query carries delivery money; a customer route
 reads only `delivery_fee_breakdown->'lines'`; P21 nothing reads a ring/tier or a method multiplier; P22
 only `engine.ts` adds a base to a band, and checkout + simulator price through `effyFee`/`courierFee`.
 `engine.test.ts`, `fee.container.test.ts`, `fee.goose.container.test.ts`.
 
 ---
 
-## 3. Windows, days, capacity, ASAP — when
+## 3. Windows, days, capacity, ASAP - when
 
 ### What it does
 Lays out today + the next `effy_lookahead_days` **delivery** days, judges each active window per day,
 and exposes timed windows, the day's "Any time" window, and an ASAP option.
 
 ### Key files
-- `ES/delivery/slots.ts:87 judgeWindow(now, date, slot, booked, runs, bufferMin, turnaroundMin)` —
+- `ES/delivery/slots.ts:87 judgeWindow(now, date, slot, booked, runs, bufferMin, turnaroundMin)` -
   **the one window rule**. Open iff: (1) `now ≤ cutoff` on that date; (2) **today only**: some active
   collection run satisfies `now ≤ run − prepBuffer` AND `run + turnaround ≤ window start` (effective
   cutoff = min(slot cutoff, last such orderBy)); else `uncollectable`; (3) `capacity === null || booked
   < capacity` else `full`. Reason precedence cutoff > uncollectable > full. Later days are always
   "collectable".
-- `ES/delivery/slots.ts:41 clockOn`, `:47 clockOnDate` — the one place a wall clock (Australia/Melbourne)
+- `ES/delivery/slots.ts:41 clockOn`, `:47 clockOnDate` - the one place a wall clock (Australia/Melbourne)
   becomes an instant (`lib/collection-deadline.ts:84 instantAtLocalTime`). Guarded.
 - `ES/delivery/slots.ts:150 loadSlotSettings` (defaults if no row: hold 10, turnaround 60, lookahead 3,
-  ASAP "usually within 2–3 days"), `:204 loadSlots` (active, by start), `:221 lockSlot` (`FOR UPDATE` —
+  ASAP "usually within 2–3 days"), `:204 loadSlots` (active, by start), `:221 lockSlot` (`FOR UPDATE` -
   the capacity guarantee), `:241/253 slotLoad / slotLoadByDate` (read view `delivery_slot_load` only),
   `:266 ownLiveHoldsByDate` (customer's own unexpired holds on pending orders, subtracted in the quote),
   `:316 nonDeliveryDates`.
-- `ES/delivery/windows.ts:37 effyDays(now, lookahead, noWeekdays, noDates)` — today always first (flagged
+- `ES/delivery/windows.ts:37 effyDays(now, lookahead, noWeekdays, noDates)` - today always first (flagged
   `nonDelivery` if excluded), then the next `lookahead` non-excluded days (scan bounded at 60; arithmetic
-  at noon UTC for DST safety). `:92 openWindows` — per day: timed windows sorted, `closedReason`
+  at noon UTC for DST safety). `:92 openWindows` - per day: timed windows sorted, `closedReason`
   (`not_delivery_day|full|closed`), `anyTime` (open Any‑time window, never in `windows[]`).
   `:125 windowsUnavailable` → `null` if any day has a timed window **or an open Any-time window**; else
   `no_windows` (timed windows exist) or `none_defined`. `:132 windowKey = slotId|date`.
@@ -213,16 +213,16 @@ and exposes timed windows, the day's "Any time" window, and an ASAP option.
 | `delivery_slot_booking` | `slot_id, delivery_date, order_id UNIQUE, state held\|confirmed\|released, held_until, window_start, window_end (instants), over_capacity` |
 | view `delivery_slot_load` | per (slot,date): `booked` = confirmed + held with `held_until > now()`; `over_capacity` count. The one definition of "a booking counts". |
 | `delivery_non_delivery_date` | `day PK, label, created_by` |
-| `delivery_collection_run` | `run_time time UNIQUE, label, status` — daily, no weekday dimension |
+| `delivery_collection_run` | `run_time time UNIQUE, label, status` - daily, no weekday dimension |
 | `order_package_delivery` | `order_id, shop_id` UNIQUE pair, `method same_day\|standard`, `promised_from/to date`, `slot_id, window_start, window_end` (all-or-none) |
 
 ### Business rules
 - **One window for the whole order.** `same_day` on a package = window today, `standard` = a later day
-  (customer words, not routing — except on courier packages, where `standard` is routing).
+  (customer words, not routing - except on courier packages, where `standard` is routing).
 - **Any time window (085)**: created by migration `20261013130000_any_time_window_always.sql` with hours
   spanning existing windows (default 09:00–21:00), cutoff = earliest cutoff, no capacity. Customers may
   pick it only for a **later** day (`delivery-choice.ts:63`), and it is never sent for today
-  (`commerce/src/checkout/quote.ts:80`). Its fee is `baseFee` (no window or today premium) — `ES/delivery/quote.ts:276`.
+  (`commerce/src/checkout/quote.ts:80`). Its fee is `baseFee` (no window or today premium) - `ES/delivery/quote.ts:276`.
 - **ASAP**: `resolveAsap` (`commerce/src/checkout/delivery-choice.ts:79`) binds the first calendar day
   (today included) whose Any-time window is open; customer is told `asap_estimate`, never the day; fee
   = `baseFee`. Because the Any-time window starts at the earliest window's start and today requires
@@ -246,17 +246,17 @@ and exposes timed windows, the day's "Any time" window, and an ASAP option.
 | `sameday_prep_buffer_min` | 60 | `PUT /admin/v1/delivery/settings` |
 | `hub_latitude/longitude` | required | same (moves recompute distances) |
 | collection runs | none | `/admin/v1/delivery/collection-runs` (GET/POST/DELETE) |
-| per-slot start/end/cutoff/capacity/status | — | `GET/POST /fleet/v1/delivery-slots`, `PATCH /{slotId}` |
-| non-delivery dates | — | `POST /fleet/v1/delivery-days/dates`, `DELETE /dates/{day}` |
+| per-slot start/end/cutoff/capacity/status | - | `GET/POST /fleet/v1/delivery-slots`, `PATCH /{slotId}` |
+| non-delivery dates | - | `POST /fleet/v1/delivery-days/dates`, `DELETE /dates/{day}` |
 
 ### Guards
-`ES/delivery/windows.guard.test.ts` — the switch column has one writer and nothing asks which model is
+`ES/delivery/windows.guard.test.ts` - the switch column has one writer and nothing asks which model is
 on; only `slots.ts` turns a clock into an instant; readiness defined once. `windows.test.ts`,
 `slots.test.ts`, `windows.container.test.ts`, `fleet/src/slots/slots.container.test.ts`.
 
 ---
 
-## 4. The quote (shared) — composing coverage, fee and windows
+## 4. The quote (shared) - composing coverage, fee and windows
 
 `ES/delivery/quote.ts:223 quote(q, customerId, postcode, pkgs, now, basketCents)`:
 1. `coverageForPostcode` → `courier` ⇒ `quoteCourier(..., "out_of_coverage")`; `none` ⇒ `{serviced:false}`.
@@ -306,7 +306,7 @@ The basket is weighed whole: `grams = Σ pkgs.grams` where `pkgs` are per-shop s
 3. Promo discount re-computed; `quote(...)` re-run from scratch with `basketValueCents`.
 4. `!serviced` ⇒ 422 coverage refusal. Delivery-type check: courier quote requires
    `deliveryType:"courier"`; an effy quote refuses `"courier"` ⇒ 409 `delivery_type_changed`. (An
-   absent type is accepted for effy — old clients.)
+   absent type is accepted for effy - old clients.)
 5. Resolve the choice: `resolveCourier` (packages `standard`, no day/slot, no hold) or
    `resolveEffyChoice` (`delivery-choice.ts:101`): both window+asap or neither ⇒ `slot_required`;
    `no_windows_available`, `date_unavailable`, `slot_unavailable`.
@@ -345,7 +345,7 @@ Reached from the webhook (event row + effects in one tx), `/checkout/confirm`, o
 `FreeDeliveryOrders`, `StockBlocked`, `PointsOnlyOrders`.
 
 ### Guards
-`commerce/src/checkout/checkout.guard.test.ts` — no package list in the quote DTO, fee is a string,
+`commerce/src/checkout/checkout.guard.test.ts` - no package list in the quote DTO, fee is a string,
 refusal is 409 with code + fresh quote, intent reads no amount from the request except the compared
 `shownDeliveryAmount`, no `setup_future_usage`, webhook event insert first.
 
@@ -354,14 +354,14 @@ refusal is 409 with code + fresh quote, intent reads no amount from the request 
 ## 6. Order → package → shop_fulfillment split (shop "selection")
 
 **There is no fulfilment-shop selection or allocation logic.** Verified:
-- `public.product.shop_id NOT NULL` (`20260716092105_product_catalog.sql:88`) — "Shop-owned catalog
+- `public.product.shop_id NOT NULL` (`20260716092105_product_catalog.sql:88`) - "Shop-owned catalog
   item … eBay seller-listing model". A product row belongs to exactly one shop.
 - `cartLines` takes `p.shop_id` straight from the product (`commerce/src/checkout/store.ts:166`).
 - `packagesFromLines` groups lines by `shopId` (`commerce/src/checkout/quote.ts:49`); the quote's
   `shopIds` is `distinctShops(pkgs)` in first-appearance order.
 - One `order_package_delivery` row per (order, shop) at intent; one `shop_fulfillment` per (order, shop)
   at payment (`finalize.ts` step 2). Stock is per product (= per shop); a short shelf caps the paid
-  quantity at intent and flags a shortfall at payment — never re-routes to another shop.
+  quantity at intent and flags a shortfall at payment - never re-routes to another shop.
 - Grep for `allocat|chooseShop|pickShop` finds nothing in delivery/checkout.
 
 "Hidden fulfilment" is therefore a **presentation** rule (the customer DTOs never name a shop or count
@@ -375,26 +375,26 @@ whichever the catalogue shows.
 
 ### Delivery type (079)
 - `order.delivery_type effy|courier`, `delivery_type_reason in_coverage|out_of_coverage|no_window|staff_change`,
-  `courier_estimate` (exactly when courier) — CHECKs in `20261009011552_order_delivery_type.sql`.
+  `courier_estimate` (exactly when courier) - CHECKs in `20261009011552_order_delivery_type.sql`.
 - `order_delivery_type_change` (append-only; one first row per order via partial unique index;
   `effy_shopper` has no UPDATE/DELETE).
-- `ES/delivery/delivery-type.ts` — `deliveredBySql(o, method, slot)` and `fulfilmentDeliveredBySql` (both
+- `ES/delivery/delivery-type.ts` - `deliveredBySql(o, method, slot)` and `fulfilmentDeliveredBySql` (both
   call `public.package_delivered_by(type, method, slot_id)` = `COALESCE(type, same_day OR slot ⇒ effy
   else courier)`); `recordDeliveryType` (first row at payment; idempotent) and `changeDeliveryType`
-  (staff move; locks order row) — **the one writer**.
+  (staff move; locks order row) - **the one writer**.
 - Guard `delivery-type.guard.test.ts`: history table named only by writer/reader; type set only at
   checkout pending order + the writer; `delivery_promise` two writers; nothing decides "who delivers"
   from the window; the old "courier offered" constant is gone.
 
 ### Courier services and collection (080)
 - `courier_service` (`courier_name, service_name, estimate_text, max_business_days, pickup_weekdays int[],
-  pickup_cutoff time, collects_from_supplier, status active|retired, is_default` — exactly one default,
+  pickup_cutoff time, collects_from_supplier, status active|retired, is_default` - exactly one default,
   must be active). Operator-entered, never seeded.
 - `order.courier_service_id`, `order.courier_collection hub|supplier` (from
   `courier_collection_default` at checkout), `order_courier_collection_change` (append-only).
-- `public.courier_parcel_collection(type, mode)` — supplier only for a courier order in supplier mode.
-- `ES/delivery/courier-pickup.ts nextCourierPickup(from, weekdays, cutoff)` — when a hub parcel is due out.
-- `ES/delivery/consignment.ts` (549 lines) — the one writer of `courier_consignment`,
+- `public.courier_parcel_collection(type, mode)` - supplier only for a courier order in supplier mode.
+- `ES/delivery/courier-pickup.ts nextCourierPickup(from, weekdays, cutoff)` - when a hub parcel is due out.
+- `ES/delivery/consignment.ts` (549 lines) - the one writer of `courier_consignment`,
   `courier_consignment_event`, `carrier_handoff`, mode changes (`bookConsignment`, `handOver`,
   `recordConsignmentStep`, `changeCourierCollection`, `setCourierRouting`). One live consignment per
   `shop_fulfillment`. Guard `consignment.guard.test.ts`.
@@ -402,7 +402,7 @@ whichever the catalogue shows.
   routes (staff): `PUT /orders/v1/fulfillments/{id}/consignment`, `POST …/consignment/events`,
   `POST …/consignment/label`, `PUT /orders/v1/orders/{orderId}/courier-collection`.
 
-### Back-office move (081) and re-time (085) — `ES/delivery/override.ts` (832 lines)
+### Back-office move (081) and re-time (085) - `ES/delivery/override.ts` (832 lines)
 - `previewMove`, `moveToCourier`, `moveToEffy`, `changeEffyWindow`; lock order: planner advisory lock
   (`PLANNER_PASS_LOCK`) → order row → slot (for Effy binds) → payment → points.
 - Refusals (`guardMove`): `not_paid, no_delivery_type, already_*, delivered, handed_over,
@@ -417,9 +417,9 @@ whichever the catalogue shows.
 - Routes: `GET/POST /orders/v1/orders/{orderId}/delivery-move`, `POST /orders/v1/orders/{orderId}/delivery-window`.
 
 ### Legacy / cutover (083)
-- `ES/delivery/legacy.ts` `LEGACY_OPEN_ORDER_SQL`, `legacyOpenOrders` — orders with no type still open.
+- `ES/delivery/legacy.ts` `LEGACY_OPEN_ORDER_SQL`, `legacyOpenOrders` - orders with no type still open.
   Used by `orders/src/orders/repository.ts:133` (filter) and the go-live service.
-- `ES/delivery/readiness.ts goLiveReadiness` — used by go-live page/setter/sweep only.
+- `ES/delivery/readiness.ts goLiveReadiness` - used by go-live page/setter/sweep only.
 - `public.delivery_model_v2_at` = `SELECT true` since `20261009150000_retire_delivery_model_v1.sql`.
 - `admin/src/delivery/go-live.*`, routes `GET /admin/v1/delivery/go-live`, `PUT /go-live/switch`, and the
   scheduled `deliveryModelSwitchSweep` (rate 5 min, `admin/serverless.yml:1093`).
@@ -427,7 +427,7 @@ whichever the catalogue shows.
 
 ---
 
-## 8. Delivery tables — current shape (after all 82 migrations)
+## 8. Delivery tables - current shape (after all 82 migrations)
 
 | table | purpose | introduced / reshaped |
 |---|---|---|
@@ -459,7 +459,7 @@ dropped (2026‑08‑02 `remove_delivery_zones_and_fees`), and recreated (2026�
 
 ---
 
-## 9. `delivery_settings` — every column today, and who writes it
+## 9. `delivery_settings` - every column today, and who writes it
 
 | column | default | writer |
 |---|---|---|
@@ -520,7 +520,7 @@ dropped (2026‑08‑02 `remove_delivery_zones_and_fees`), and recreated (2026�
 4. **The `none_defined` / "no windows" alarm and the courier-when-no-windows fallback are effectively
    unreachable.** `windowsUnavailable` returns `null` whenever any day has an open Any-time window
    (`windows.ts:126`). The Any-time window always exists, is always active and has **no capacity by
-   default** (085 migration), and later days are always "collectable" — so with every timed window
+   default** (085 migration), and later days are always "collectable" - so with every timed window
    disabled, `unavailable` is still null, `EffyWindowsNoneDefined` never fires, and
    `courier_when_no_windows` never triggers. FEATURE-HISTORY 085 says the alarm "still means TIMED
    windows"; the code's early return contradicts that.
@@ -556,11 +556,11 @@ dropped (2026‑08‑02 `remove_delivery_zones_and_fees`), and recreated (2026�
 
 ### B. Dead or legacy code still around
 
-- `ES/delivery/zone.ts:22 serviceableForPostcode` — no production caller.
-- `ES/delivery/slots.ts:296 ownLiveHolds` (single-date) — superseded by `ownLiveHoldsByDate`, no caller.
-- `ES/delivery/schedule.ts:21 lastOrderCutoff` — only a contract test references it; the comment at
+- `ES/delivery/zone.ts:22 serviceableForPostcode` - no production caller.
+- `ES/delivery/slots.ts:296 ownLiveHolds` (single-date) - superseded by `ownLiveHoldsByDate`, no caller.
+- `ES/delivery/schedule.ts:21 lastOrderCutoff` - only a contract test references it; the comment at
   `lib/collection-deadline.ts:125` still says checkout uses it.
-- `ES/delivery/plan.ts:5-12` — `METHOD_SAME_DAY/STANDARD` comment says they "stay until the checkout
+- `ES/delivery/plan.ts:5-12` - `METHOD_SAME_DAY/STANDARD` comment says they "stay until the checkout
   feature (E5) replaces same-day/standard"; E5 shipped; they are now the customer's words (fine) but the
   comment is stale.
 - **Go-live machinery after the removal**: `delivery_model_v2_at` is `SELECT true`; `courier_delivery_state`
@@ -571,7 +571,7 @@ dropped (2026‑08‑02 `remove_delivery_zones_and_fees`), and recreated (2026�
   `CourierReason` still carries `courier_pending`.
 - **Write-only columns**: `order.delivery_quote` and `order.delivery_quote_expires_at` are written on
   every intent (`store.ts:408`) and read by no TS code (grep). `delivery_quote` holds every window fee
-  offered (days × windows breakdowns) — sizeable JSON per order for no reader.
+  offered (days × windows breakdowns) - sizeable JSON per order for no reader.
   `shop_fulfillment.promised_ready_at` is deliberately never set.
 - Legacy names on live knobs: `standard_no_delivery_weekdays` (applies to all Effy days),
   `sameday_hub_turnaround_min`, `sameday_prep_buffer_min`, metric `StandardDateRefused`,
@@ -579,7 +579,7 @@ dropped (2026‑08‑02 `remove_delivery_zones_and_fees`), and recreated (2026�
   (customer word for Effy, routing word for courier).
 - Docs: `docs/logistics-engine-architecture.md` and `docs/research/logistics/audit-00-current-system.md`
   self-declare as out of date (rings, `shop_sameday_exception`, Go core-api, "shops have no location",
-  "no work model") — all superseded.
+  "no work model") - all superseded.
 
 ### C. Duplicated concepts
 
@@ -594,7 +594,7 @@ dropped (2026‑08‑02 `remove_delivery_zones_and_fees`), and recreated (2026�
   slots, load): `quote()` (`quote.ts:243-256`), `override.ts windowsNow`, and `bindEffyWindow`; plus the
   fleet slots console. Each correctly calls the shared pure functions, but the I/O orchestration is
   copy-pasted; a `loadCalendar(q, now)` helper would remove it.
-- **Hold vs judge** re-reads settings and schedule inside the lock (`store.ts:386-392`) — correct (fresh
+- **Hold vs judge** re-reads settings and schedule inside the lock (`store.ts:386-392`) - correct (fresh
   under lock) but a second load of what the quote just read.
 - **Two "today" surcharges by design**: plan `today_premium_amount` + per-slot premium; plus the free
   threshold zeroes both. Clear in code; easy to misconfigure in the console.
@@ -608,13 +608,13 @@ dropped (2026‑08‑02 `remove_delivery_zones_and_fees`), and recreated (2026�
   driver-work removal, window binding, reads and DTO formatting. It is the largest file in the area and
   the riskiest to change.
 - `ES/delivery/consignment.ts` (549) and `ES/payments/finalize.ts` (~380, 11 steps in one tx).
-- `commerce/src/checkout/service.ts createIntent` — ~250 lines, 14 steps, 4+ transactions, 3 network
+- `commerce/src/checkout/service.ts createIntent` - ~250 lines, 14 steps, 4+ transactions, 3 network
   calls to Stripe interleaved with DB writes.
 - A quote is ~12 sequential round trips on the connection-limited `effy_shopper` pool
   (coverage, plan + 3 band reads, settings ×2, runs, non-delivery dates, slots, load, own holds,
   courier settings); the intent repeats it, re-reads settings under the lock, and a refusal triggers a
   *third* quote (`checkout-intent-v1-post.ts:95`).
-- Heavy guard-test/invariant machinery (one-writer, one-reader, words, fixtures for Kotlin twins) —
+- Heavy guard-test/invariant machinery (one-writer, one-reader, words, fixtures for Kotlin twins) -
   effective, but each concept now has a migration comment, a TS comment, a guard, a CLAUDE.md bullet
   and a FEATURE-HISTORY entry saying the same thing; comments in several files are already stale
   (see B).
@@ -630,7 +630,7 @@ dropped (2026‑08‑02 `remove_delivery_zones_and_fees`), and recreated (2026�
 - No customer notification for staff re-timing / moves beyond the order page (FEATURE-HISTORY 085).
 - Collection runs have no weekday dimension; a non-delivery weekday is handled only on the customer
   calendar side.
-- Capacity is per (window, date) only — no per-group/area or per-vehicle capacity in the customer
+- Capacity is per (window, date) only - no per-group/area or per-vehicle capacity in the customer
   promise.
 - 085 is built but, per FEATURE-HISTORY, its second migration was not applied to dev and no container
   test ran; 079 and 083–085 are "not walked".

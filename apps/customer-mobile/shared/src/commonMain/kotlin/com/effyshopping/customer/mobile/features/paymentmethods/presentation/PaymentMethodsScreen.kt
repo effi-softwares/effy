@@ -60,7 +60,7 @@ fun PaymentMethodsScreen(container: AppContainer, onBack: () -> Unit) {
     }
     val state by vm.state.collectAsStateWithLifecycle()
 
-    // 087 (PaymentMethods board): a pushed page with Back (it had none — FR-029). Removing a card
+    // 087 (PaymentMethods board): a pushed page with Back (it had none - FR-029). Removing a card
     // asks first, in a sheet.
     var confirming by remember { mutableStateOf<KeptCard?>(null) }
     Column(Modifier.fillMaxSize()) {
@@ -78,7 +78,7 @@ fun PaymentMethodsScreen(container: AppContainer, onBack: () -> Unit) {
             // An honest empty state that explains, with no dead controls (US6 scenario 4).
             state.cards.isEmpty() -> EffyEmptyState(
                 title = "No saved cards",
-                body = "When you pay, you can choose to save your card for next time — it will appear here.",
+                body = "When you pay, you can choose to save your card for next time - it will appear here.",
                 icon = Res.drawable.lucide_credit_card,
             )
 
@@ -98,7 +98,7 @@ fun PaymentMethodsScreen(container: AppContainer, onBack: () -> Unit) {
                 }
                 item(key = "note") {
                     EffyNotice(
-                        "Effy never sees or stores your card number — only the last four digits, so you can tell your cards apart.",
+                        "Effy never sees or stores your card number - only the last four digits, so you can tell your cards apart.",
                         icon = Res.drawable.lucide_lock,
                     )
                 }
@@ -159,7 +159,7 @@ private fun CardRow(card: KeptCard, removing: Boolean, onRemove: () -> Unit) {
         Column(Modifier.weight(1f)) {
             Text("${brandName(card.brand)} •••• ${card.last4}", style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"))
             if (card.unusableReason != null) {
-                // An unusable card states its reason — with an icon, never red.
+                // An unusable card states its reason - with an icon, never red.
                 EffyInlineError(card.unusableReason)
             } else {
                 Text(

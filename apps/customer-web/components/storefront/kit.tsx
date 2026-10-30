@@ -21,11 +21,11 @@ import { CatalogImage } from "./CatalogImage"
  *
  * So the storefront inverts the mapping rather than inventing a colour: the page surface is the
  * `card` token (white in light, near-black in dark) and tinted tiles use `muted`. No hex is hardcoded,
- * no token changes value, `tokens:check` is untouched, and dark mode keeps working — a plain
+ * no token changes value, `tokens:check` is untouched, and dark mode keeps working - a plain
  * `bg-white` would have broken it.
  *
  * If the whole platform should move to a white ground, that is a one-line change to `--background`
- * in tokens.css and a brand decision affecting the two consoles too — not something to smuggle in
+ * in tokens.css and a brand decision affecting the two consoles too - not something to smuggle in
  * through the storefront.
  */
 export const pageSurface = "bg-card text-foreground"
@@ -35,7 +35,7 @@ export const pageSurface = "bg-card text-foreground"
 /**
  * A page or section title.
  *
- * The reference sets these compact and semi-bold — not the oversized display type of a fashion site.
+ * The reference sets these compact and semi-bold - not the oversized display type of a fashion site.
  * Density is the point: a catalog header sits beside a result count and a sort control, and an
  * oversized heading would push the actual controls below the fold.
  */
@@ -115,7 +115,7 @@ export function SectionHeader({
       <SectionHeading>{title}</SectionHeading>
       {href && (
         // `min-h-11` = 44px, the platform's web touch-target minimum. It was a 20px-tall inline link
-        // — the text's own line box — which is comfortably missable on a phone and was caught by the
+        // - the text's own line box - which is comfortably missable on a phone and was caught by the
         // A11y sweep, not by eye. The extra height is invisible: `items-end` on the parent keeps
         // it optically aligned with the heading's baseline.
         <Link
@@ -137,7 +137,7 @@ export function PageHeader({
   children,
 }: {
   title: string
-  /** Rendered as "(20)" beside the title — the reference puts the result count in the heading. */
+  /** Rendered as "(20)" beside the title - the reference puts the result count in the heading. */
   count?: number
   description?: string
   children?: React.ReactNode
@@ -169,7 +169,7 @@ export function Rule({ className }: { className?: string }) {
 /**
  * The storefront button system lives in `./actions` (a `next/image`-free module) and is re-exported
  * here so existing `from ".../kit"` imports keep working. Guest routes must import from `./actions`
- * directly, not from here — importing a button through `kit` drags `MediaFrame` and its picture code into
+ * directly, not from here - importing a button through `kit` drags `MediaFrame` and its picture code into
  * the chunk, which is exactly what pushed `/search` over the 174 KB gate. See the note in `actions.tsx`.
  */
 export { btnClass, iconBtnClass, ActionLink, ActionButton } from "./actions"
@@ -177,7 +177,7 @@ export type { BtnVariant, BtnSize } from "./actions"
 
 /* Form controls */
 
-// The strings live in `./fields` (next/image-free) — client components import them from there.
+// The strings live in `./fields` (next/image-free) - client components import them from there.
 export { input, select } from "./fields"
 
 export function Field({
@@ -227,7 +227,7 @@ export function Field({
 
 /**
  * Every empty state explains itself in plain language and offers at least one recovery
- * path. A dead end is never acceptable — least of all on a page a shopper reached by accident.
+ * path. A dead end is never acceptable - least of all on a page a shopper reached by accident.
  */
 export function EmptyState({
   title,
@@ -275,7 +275,7 @@ export function MediaFrame({
   src,
   alt,
   ratio = "square",
-  /** Shown centred in the placeholder when there is no image — typically a category's initial. */
+  /** Shown centred in the placeholder when there is no image - typically a category's initial. */
   fallbackLabel,
   sizes,
   widths,
@@ -295,7 +295,7 @@ export function MediaFrame({
   priority?: boolean
   rounded?: string
   className?: string
-  /** Overlaid content — a Scrim and its text. Rendered above the image in both states. */
+  /** Overlaid content - a Scrim and its text. Rendered above the image in both states. */
   children?: React.ReactNode
 }) {
   return (

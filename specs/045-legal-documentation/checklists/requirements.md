@@ -31,8 +31,8 @@
 
 ## Notes
 
-- **No [NEEDS CLARIFICATION] markers were used.** The one genuinely open area — the real-world legal
-  identifiers (entity name, ABN, registered address, governing-law state, contact addresses) — is
+- **No [NEEDS CLARIFICATION] markers were used.** The one genuinely open area - the real-world legal
+  identifiers (entity name, ABN, registered address, governing-law state, contact addresses) - is
   handled per the platform's hard rule (ask, never infer): FR-009 makes them operator-supplied inputs
   with fail-loud placeholders, and they are recorded in Assumptions and Dependencies rather than
   guessed. This is the correct spec-level treatment; the values are collected at authoring/publish time.

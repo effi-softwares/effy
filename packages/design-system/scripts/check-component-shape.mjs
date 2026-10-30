@@ -49,5 +49,5 @@ if (errors.length) {
   process.exit(1);
 }
 console.log(
-  `check-component-shape: OK — ${SQUARED.length} controls and tags never pills, controls at 8px, card at 12px, surfaces ≥ their rows`,
+  `check-component-shape: OK - ${SQUARED.length} controls and tags never pills, controls at 8px, card at 12px, surfaces ≥ their rows`,
 );

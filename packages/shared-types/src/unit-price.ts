@@ -100,7 +100,7 @@ export function unitPriceCents(
   return Number((numerator * two + denominator) / (denominator * two)) // half up
 }
 
-/** Convenience over money strings — what the server's mappers hold. */
+/** Convenience over money strings - what the server's mappers hold. */
 export function unitPrice(
   priceAmount: string | null | undefined,
   packQuantity: string | number | null | undefined,

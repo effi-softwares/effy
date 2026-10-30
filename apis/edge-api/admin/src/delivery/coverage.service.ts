@@ -175,7 +175,7 @@ export async function addPostcodes(body: AddCoveragePostcodesRequest, sub: strin
     else needDistance.push(postcode);
   }
   if (needDistance.length > 0) {
-    throw new CoverageError(422, "distance_required", "no place in this postcode has a known location — enter its distance from the hub", { postcodes: needDistance });
+    throw new CoverageError(422, "distance_required", "no place in this postcode has a known location - enter its distance from the hub", { postcodes: needDistance });
   }
   if (toAdd.length === 0) return { added: [], alreadyListed };
 

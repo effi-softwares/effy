@@ -1,11 +1,11 @@
-# Shop audience — capability parity register
+# Shop audience - capability parity register
 
 **Binding on**: `apps/shop-web` (Vite SPA) and `apps/shop-mobile` (KMP + Compose).
 **Origin**: [specs/007-shop-web](../../specs/007-shop-web/) (FR-023a, SC-014).
 
 The shop audience is served by **two** surfaces. This file is the **single place** the platform
 records what that audience can do and which surface delivers it. It exists so a capability added to
-one surface cannot leave the other's state unstated — the drift that a two-surface audience
+one surface cannot leave the other's state unstated - the drift that a two-surface audience
 otherwise slides into silently.
 
 > **Rule**: a change that adds or removes a shop capability on either surface **must** update this
@@ -24,20 +24,20 @@ This is normative (constitution v1.6.0, Principle IV).
 | Symbol | Meaning |
 |---|---|
 | ✅ | Delivered and verified on that surface |
-| ⬜ | Outstanding — the capability exists for this audience but this surface does not have it |
-| ⏸ | Deferred by design — a documented constitution deviation, not an oversight (see below) |
-| — | Not applicable to that surface |
+| ⬜ | Outstanding - the capability exists for this audience but this surface does not have it |
+| ⏸ | Deferred by design - a documented constitution deviation, not an oversight (see below) |
+| - | Not applicable to that surface |
 
-## Baseline — established by 007-shop-web, mobile delivered by 014-shop-mobile-foundation
+## Baseline - established by 007-shop-web, mobile delivered by 014-shop-mobile-foundation
 
 | # | Capability | Web (`shop-web`) | Mobile (`shop-mobile`) | Backend it depends on |
 |---|---|---|---|---|
 | 1 | Passwordless **email one-time code** sign-in against the **shop** pool | ✅ | ✅ | Cognito shop pool (001); code issued by the platform since **035** (6 digits) |
-| 2 | Session persists across restart; explicit sign-out clears it | ✅ | ✅ | — |
-| 3 | Protected areas unreachable when signed out; return-to-intent after sign-in | ✅ | ✅ † | — |
-| 4 | Authenticated shell (navigation, current location, identity + sign-out) | ✅ | ✅ | — |
+| 2 | Session persists across restart; explicit sign-out clears it | ✅ | ✅ | - |
+| 3 | Protected areas unreachable when signed out; return-to-intent after sign-in | ✅ | ✅ † | - |
+| 4 | Authenticated shell (navigation, current location, identity + sign-out) | ✅ | ✅ | - |
 | 5 | Record-backed identity read (subject, email, roles, status, assigned shop) | ✅ | ✅ | `GET /shop/v1/me` |
-| 6 | Role-aware interface: privileged controls hidden from `shop_staff` / role-less | ✅ | ✅ | — |
+| 6 | Role-aware interface: privileged controls hidden from `shop_staff` / role-less | ✅ | ✅ | - |
 | 7 | Backend-authoritative manager gate (role **and** status **and** shop scope) | ✅ | ✅ ‡ | `GET /shop/v1/manager-ping` |
 | 8 | Graceful degraded / expired-session / denied states, no internal detail shown | ✅ | ✅ | shared error envelope |
 | 9 | Product analytics + error telemetry with a `surface` property, no PII | ✅ | ⏸ | PostHog |
@@ -51,15 +51,15 @@ email-code-only, the RBAC gate).
 **Footnotes:**
 - **† Row 3 (return-to-intent):** shop-mobile is **login-first**, so protected areas are unreachable when
   signed out *by construction* (nothing is reachable without signing in). "Return-to-intent" has no target
-  yet — the foundation has a single post-login destination and no deep links — so it is deferred to the
+  yet - the foundation has a single post-login destination and no deep links - so it is deferred to the
   first slice that adds a deep-linkable destination (014 T035). The *guarantee* (no protected access while
   signed out) holds today; only the *convenience* is deferred.
-- **‡ Row 7 (manager gate):** the gate is delivered, and its **negative half** — `shop_staff`, role-less,
-  and an **unassigned** `shop_manager` each refused with a **uniform** denial — is implemented and
+- **‡ Row 7 (manager gate):** the gate is delivered, and its **negative half** - `shop_staff`, role-less,
+  and an **unassigned** `shop_manager` each refused with a **uniform** denial - is implemented and
   unit-tested. Its **positive half** (a manager *served* at an active shop → *Granted*) plus the
   inactive-shop / disabled-operator denials need **009** shop data, so live sign-off is **partial by
   design**, exactly as 007's is. See *What that defers* below.
-- **⏸ Row 9 (telemetry):** **deferred for shop-mobile** — a documented Principle VII deviation shared with
+- **⏸ Row 9 (telemetry):** **deferred for shop-mobile** - a documented Principle VII deviation shared with
   013's customer-mobile (the `mobile-telemetry` closing slice). PostHog/Crashlytics wiring is not in the
   bootstrap; recorded here so the register does not overstate what mobile delivers (014 FR-038, SC-015).
 
@@ -67,40 +67,40 @@ email-code-only, the RBAC gate).
 
 Scoped directly from what was the ⬜ column, and **delivered by 014** (rows 1–8, 10; row 9 deferred):
 
-1. **Auth (rows 1–3)** — Amplify (or the Cognito SDK) against the **shop** pool, passwordless
+1. **Auth (rows 1–3)** - Amplify (or the Cognito SDK) against the **shop** pool, passwordless
    email one-time code, no password field. Session in secure storage; sign-out clears it. A signed-out user
    cannot reach a protected destination, and is returned to it after signing in.
-2. **Shell (row 4)** — the app's navigation frame with the verified identity and sign-out, rather than
+2. **Shell (row 4)** - the app's navigation frame with the verified identity and sign-out, rather than
    porting the web sidebar. **Behaviour** is native on each platform; **visual chrome** is Material 3 on
-   both (a recorded Principle V deviation — see *Constitution deviations* below). Tablet-first layout
+   both (a recorded Principle V deviation - see *Constitution deviations* below). Tablet-first layout
    (FR-003a): a window-size-driven shell, not a stretched phone column.
-3. **Identity read (row 5)** — `GET /shop/v1/me` through the Ktor client with the access token as
+3. **Identity read (row 5)** - `GET /shop/v1/me` through the Ktor client with the access token as
    bearer. Types come from the same contract as the web: `ShopStaffRecordDTO`. A role-less operator
    and an operator with no assigned shop are **expected states**, not errors.
-4. **Role-aware UI + gate (rows 6–7)** — hide manager-only destinations for `shop_staff`; call
+4. **Role-aware UI + gate (rows 6–7)** - hide manager-only destinations for `shop_staff`; call
    `GET /shop/v1/manager-ping` and render the uniform denial. **Never** treat the hidden control as
    the guard.
-5. **Error contract (row 8)** — map the RFC 9457 problem envelope to the same states the web renders:
+5. **Error contract (row 8)** - map the RFC 9457 problem envelope to the same states the web renders:
    `unauthenticated` → recover or re-auth · `forbidden` → denial · `unavailable` → degraded + retry.
-6. **Telemetry (row 9)** — **DEFERRED** (Principle VII deviation, below). PostHog `surface:
+6. **Telemetry (row 9)** - **DEFERRED** (Principle VII deviation, below). PostHog `surface:
    "shop-mobile"` + Crashlytics are not in the bootstrap; they land in the shared `mobile-telemetry`
    slice. When built: no PII beyond the subject id.
-7. **Isolation (row 10)** — the app authenticates against the shop pool only, and presents its
+7. **Isolation (row 10)** - the app authenticates against the shop pool only, and presents its
    credential to `/shop/v1/*` only.
 
 Nothing in rows 1–10 requires a backend change: the shop service already serves both surfaces.
 
-## Constitution deviations (014 — both shared with 013's customer-mobile)
+## Constitution deviations (014 - both shared with 013's customer-mobile)
 
 Two deviations are taken **knowingly** by the mobile bootstrap and recorded here and in
 [plan.md](../../specs/014-shop-mobile-foundation/plan.md) *Complexity Tracking* (they must match). Both
-are shared with 013 so the two mobile surfaces stay consistent, and each names the slice that closes it —
+are shared with 013 so the two mobile surfaces stay consistent, and each names the slice that closes it -
 a deviation is only legitimate while it has an owner.
 
 | # | Principle | Deviation | Why | Closes in |
 |---|---|---|---|---|
-| 1 | **V — Design** | iOS renders **Material 3 chrome**, not full Apple HIG component parity. *Behaviour* (scroll, back-gesture, text, accessibility) is native on both platforms; only the visual component language is shared. | A single Compose UI ships to both platforms in the bootstrap; a HIG-conformant SwiftUI shell is a distinct body of work, and isolating presentation now means adopting it later touches only that layer. | `iOS native shell` slice |
-| 2 | **VII — Observability** | **No telemetry** on mobile — no PostHog analytics, no Crashlytics — so row 9 is ⏸, not ✅. | Telemetry is a cross-cutting concern better wired once, across all three mobile apps, than bolted per-slice; the bootstrap's job is the auth + identity + gate spine. | `mobile-telemetry` slice |
+| 1 | **V - Design** | iOS renders **Material 3 chrome**, not full Apple HIG component parity. *Behaviour* (scroll, back-gesture, text, accessibility) is native on both platforms; only the visual component language is shared. | A single Compose UI ships to both platforms in the bootstrap; a HIG-conformant SwiftUI shell is a distinct body of work, and isolating presentation now means adopting it later touches only that layer. | `iOS native shell` slice |
+| 2 | **VII - Observability** | **No telemetry** on mobile - no PostHog analytics, no Crashlytics - so row 9 is ⏸, not ✅. | Telemetry is a cross-cutting concern better wired once, across all three mobile apps, than bolted per-slice; the bootstrap's job is the auth + identity + gate spine. | `mobile-telemetry` slice |
 
 Neither deviation weakens a security property: authorization is still backend-decided (row 7), the
 credential is still pool-isolated (row 10), and no PII is emitted (there is nothing emitting at all yet).
@@ -118,12 +118,12 @@ credential is still pool-isolated (row 10), and no PII is emitted (there is noth
 
 These belong to later slices and are listed so their absence is a decision, not an oversight:
 
-- **Shop management** — creating and editing shops, assigning staff to a shop, and
+- **Shop management** - creating and editing shops, assigning staff to a shop, and
   enabling/disabling an operator. **The next slice**, in the back-office console. 007 defines the
   `shop` table and the authorization that depends on it, but ships **no way to create a shop**
   (FR-019): no interface, no command, no seed file. No shop row will ever exist that the product
   did not create.
-- Role **management** from within the platform — the `cognito:groups` claim remains the origin of
+- Role **management** from within the platform - the `cognito:groups` claim remains the origin of
   role assignment (constitution Principle IV).
 - Any product shop-operations capability: picking, packing, inventory, order handling (FR-025).
 - Hosted deployment of either surface.
@@ -131,31 +131,31 @@ These belong to later slices and are listed so their absence is a decision, not 
 ### What that defers
 
 Because the manager gate inner-joins `shop`, no operator can hold a shop assignment until shop
-management ships. The gate's **negative half is fully proven now** — `shop_staff`, role-less, and an
+management ships. The gate's **negative half is fully proven now** - `shop_staff`, role-less, and an
 unassigned `shop_manager` are each refused, which is the shop-scope term doing real work. Its
 **positive half** (a manager *served* at an active shop), the **inactive-shop** denial, and the
 **disabled-operator** denial are verified in the shop-management slice, against data the product
 created. All three terms are implemented and unit-tested in 007.
 
-## 015 — Mobile app shell & adaptive navigation
+## 015 - Mobile app shell & adaptive navigation
 
 `apps/shop-mobile` gains a production **navigation shell** (spec 015): a top-level session gate
-(login-first — sign-in is the only public screen, every tab requires the session) wrapping an
-**adaptive** primary navigation — a **bottom bar on a phone, a navigation rail on a tablet** — over four
+(login-first - sign-in is the only public screen, every tab requires the session) wrapping an
+**adaptive** primary navigation - a **bottom bar on a phone, a navigation rail on a tablet** - over four
 tabs (**Home · Catalog · Orders · Account**), each with its own back stack. Catalog/Orders are
 "coming soon" placeholders until their slices land; the identity block is sectioned rows (no card,
 DOCTRINE-2); sign-out lives in the Account tab and returns to sign-in. Built on the shared
 `packages/mobile-kit` (adaptive shell + per-tab back stacks) on stable Material 3. Verified: compiles +
-unit tests green on Android, links for iOS. **Web (`shop-web`) is unaffected** — this is a mobile-only
+unit tests green on Android, links for iOS. **Web (`shop-web`) is unaffected** - this is a mobile-only
 navigation capability. Live device/simulator sign-off is the operator's step.
 
-## 016 — Product catalog management (web delivered; mobile presentation retired by 018)
+## 016 - Product catalog management (web delivered; mobile presentation retired by 018)
 
 `apps/shop-web` and `apps/shop-mobile` gain the **product catalog** (spec 016): each shop authors
 **shop-owned** products against a back-office-managed schema (product types + a dynamic attribute
 library + a category taxonomy, `apis/edge-api/admin` `catalog/`), browses them in a
 backend-paginated/searched/filtered table, and views/edits each on a sectioned/tabbed detail page
-with **focused edits** — all **no cards** (DOCTRINE-2), modelled on eBay item-specifics + Uber Eats
+with **focused edits** - all **no cards** (DOCTRINE-2), modelled on eBay item-specifics + Uber Eats
 menus (DOCTRINE-1). Backend: `apis/edge-api/shop` `products/` + `sections/` (shop authorizer; every
 query scoped to the operator's resolved shop; EAV attribute typing; optimistic-concurrency focused
 edits; draft-first create with publish-time mandatory enforcement; private-S3 presigned media).
@@ -166,12 +166,12 @@ edits; draft-first create with publish-time mandatory enforcement; private-S3 pr
 | 16.2 | Create a product via a schema-driven multi-step form with a **device-local draft** (FR-012) | ✅ | ⬜ | `POST /shop/v1/products` |
 | 16.3 | Backend search / filter / sort / paginate the shop's products (< 1s at 10k+, SC-004) | ✅ | ⬜ | `GET /shop/v1/products` |
 | 16.4 | Sectioned/tabbed product detail; **schema-drift notice** (FR-020a) | ✅ | ⬜ | `GET /shop/v1/products/{id}` |
-| 16.5 | Focused edits with **optimistic concurrency** — stale ⇒ reload (FR-023a) | ✅ | ⬜ | `PATCH /shop/v1/products/{id}` |
+| 16.5 | Focused edits with **optimistic concurrency** - stale ⇒ reload (FR-023a) | ✅ | ⬜ | `PATCH /shop/v1/products/{id}` |
 | 16.6 | Lifecycle: publish (re-validates mandatory + primary image) / unavailable / archive | ✅ | ⬜ | `POST /shop/v1/products/{id}/status` |
 | 16.7 | Guarded hard-delete (draft only; else archive) (R8) | ✅ | ⬜ | `DELETE /shop/v1/products/{id}` |
 | 16.8 | Shop-local **sections**: define, assign, filter | ✅ | ⬜ | `GET/POST/PATCH/DELETE /shop/v1/sections`, `PATCH .../sections` |
 | 16.9 | Product **media** (primary image + gallery, private-S3 presigned) | ✅ | ⬜ | `POST .../media` + `.../media/register` + patch/delete |
-| 16.10 | Inventory | "coming soon" | "coming soon" | — (a later slice) |
+| 16.10 | Inventory | "coming soon" | "coming soon" | - (a later slice) |
 | 16.11 | Catalog product-analytics events (create/edit/archive/search/filter) | ✅ | ⏸ | PostHog |
 | 16.12 | Shop isolation: every catalog query scoped to the operator's shop, never client input | ✅ | ✅ | `authorizeShopMember` (shop record) |
 
@@ -182,12 +182,12 @@ edits; draft-first create with publish-time mandatory enforcement; private-S3 pr
 - **⏸ Row 16.11 (mobile telemetry):** deferred by design (documented Principle VII deviation, owned by
   the `mobile-telemetry` slice, consistent with 013/014).
 
-**Historical 016 verification:** web — `pnpm typecheck` + `pnpm -r test` (back-office 35, shop-web 99)
-and `turbo build` all green. Backend — edge-admin 52 (including catalog authz/service/handler), edge-shop
+**Historical 016 verification:** web - `pnpm typecheck` + `pnpm -r test` (back-office 35, shop-web 99)
+and `turbo build` all green. Backend - edge-admin 52 (including catalog authz/service/handler), edge-shop
 77 (including products authz/service/lifecycle/media). The mobile presentation tests recorded by 016
 were retired with that presentation in 018; retained mobile catalog domain and repository tests remain.
 
-## 018 — Shop mobile UI foundation reset
+## 018 - Shop mobile UI foundation reset
 
 The mobile presentation has been intentionally reset. Authentication, session restoration/refusal,
 record-backed Home and Account screens, the backend-authoritative manager gate, Light/Dark/System
@@ -199,11 +199,11 @@ The catalog repository, use cases, device-local draft store, generated contracts
 intact. Rows 16.1–16.9 are therefore marked outstanding for mobile until dedicated specifications rebuild
 those user-facing workflows. Product creation must return as a recoverable full-screen flow, not a sheet.
 
-## 020 — Order fulfilment (receive → pick → handoff)
+## 020 - Order fulfilment (receive → pick → handoff)
 
 `apps/shop-web` and `apps/shop-mobile` gain the shop audience's **order-handling** capability (spec
 020). 019 already wrote one `public.shop_fulfillment` row per (order, shop) on every paid order and
-an `order.placed` outbox event — **and nothing consumed either**, so a portion's status had never
+an `order.placed` outbox event - **and nothing consumed either**, so a portion's status had never
 once left `pending`. This slice is that consumer: a queue, a pick screen, and a state machine ending
 at `ready_for_pickup`, at parity on both surfaces. It is the first time the platform's fulfilment
 side does anything at all.
@@ -211,10 +211,10 @@ side does anything at all.
 **Service**: `apis/edge-api/shop` `fulfillments/` (`/shop/v1/fulfillments…`), per
 [docs/api/path-assignment.md](../api/path-assignment.md). The **customer-facing** half of the same
 capability is served by `apis/edge-api/commerce` (`/commerce/v1/orders…`), where the customer's
-receipt lives — one capability, two audiences, two services.
+receipt lives - one capability, two audiences, two services.
 
 **Authorization is role-agnostic**: both `shop_manager` and `shop_staff` have full fulfilment access
-(FR-019a) — fulfilment is floor work and this slice contains no adjudicable decisions. The 007
+(FR-019a) - fulfilment is floor work and this slice contains no adjudicable decisions. The 007
 manager gate is deliberately **not** reused. The audit trail (`public.fulfillment_event`) is
 therefore the **sole** accountability control, which is why it is written in the same transaction as
 every change it records.
@@ -223,7 +223,7 @@ every change it records.
 |---|---|---|---|---|
 | 20.1 | Order queue for **this shop only**, promise-ordered, stable position | ✅ | ✅ | `GET /shop/v1/fulfillments` |
 | 20.2 | Near-real-time arrival (15s interval refetch, background-paused) | ✅ | ✅ | First polling in the monorepo (research R8) |
-| 20.3 | Explicit empty state | ✅ | ✅ | — |
+| 20.3 | Explicit empty state | ✅ | ✅ | - |
 | 20.4 | At-risk escalation **in place** (prominence, never reordering) | ✅ | ✅ | SC-018 |
 | 20.5 | Active / completed views | ✅ | ✅ | `?state=active\|completed` |
 | 20.6 | Pick screen: this shop's lines, quantities, delivery context | ✅ | ✅ | `GET /shop/v1/fulfillments/{id}` |
@@ -238,74 +238,74 @@ every change it records.
 | 20.15 | Fulfilment product-analytics events | ✅ | ⏸ | PostHog |
 
 **Customer-side (not a shop capability, recorded for traceability)**: the customer's order view now
-reflects real fulfilment progress and discloses item-level shortfalls — but **only once a portion is
+reflects real fulfilment progress and discloses item-level shortfalls - but **only once a portion is
 terminal**, so a flag raised and undone mid-pick never reaches them (FR-018b, SC-017). The customer
 sees **one aggregate line**, never a per-portion breakdown: a count would disclose the fan-out as
 surely as a shop name would (FR-018, SC-009).
 
 **Footnotes:**
-- **⏸ Row 20.15 (mobile telemetry):** deferred by design — the standing Principle VII deviation owned
+- **⏸ Row 20.15 (mobile telemetry):** deferred by design - the standing Principle VII deviation owned
   by the `mobile-telemetry` slice, consistent with 013/014/015/016.
 - **A portion is never 404.** Missing and belonging-to-another-shop both return the uniform 403,
   deliberately unlike the sibling `products` slice: every read is already shop-scoped, so distinct
   codes would hand a caller an oracle for enumerating other shops' orders by id (SC-007).
-- **⚠ The shortfall is an unresolved financial debt.** Flagging an item unavailable moves no money —
+- **⚠ The shortfall is an unresolved financial debt.** Flagging an item unavailable moves no money -
   the customer has paid for something they will not receive. That is accepted and time-boxed by this
   slice; `fulfillment_item` stores it as quantities precisely so the obligation stays *queryable* for
   the refunds slice rather than needing reconstruction.
 - **⚠ The dev-only pickup stub has NO route in any environment.** `POST /shop/v1/fulfillments/{id}/pickup`
-  correctly returns **404** even in dev — it is invoked locally only via
+  correctly returns **404** even in dev - it is invoked locally only via
   `apis/edge-api/shop/scripts/invoke-pickup-stub.mjs`. It accepts a caller-supplied driver identity,
   so a reachable deployed route would be an order-state forgery primitive. Removal trigger: the
   driver slice's real dispatch path (FR-034).
 - **Delivery promise is read-only here** and owned by **021-delivery-zones-pricing**. Until 021 ships
   every order carries the same promise, so promise-ordering collapses to strict FIFO by construction
-  (FR-001b, SC-020) — no rework when 021 lands.
-- **⚠ 023 amendment — the shop sees the SHIPPING address only, never billing.** From 023 the order
-  carries two address snapshots: `delivery_address` (shipping — where it's delivered) and
+  (FR-001b, SC-020) - no rework when 021 lands.
+- **⚠ 023 amendment - the shop sees the SHIPPING address only, never billing.** From 023 the order
+  carries two address snapshots: `delivery_address` (shipping - where it's delivered) and
   `billing_address` (payment/invoice). The shop fulfilment surface exposes **only** the shipping
-  address, exactly as before — billing is a **separate column the shop never selects**, so it is
+  address, exactly as before - billing is a **separate column the shop never selects**, so it is
   structurally unreachable from every shop query, DTO, and payload (FR-018). Locked by a guard test
   (`apis/edge-api/shop/src/fulfillments/no-billing.guard.test.ts`) that fails if any shop-side source
-  ever names "billing". No shop data, endpoint, or UI changed — this is an exposure boundary, recorded.
+  ever names "billing". No shop data, endpoint, or UI changed - this is an exposure boundary, recorded.
 
 ---
 
-## §024 — Brand marks (icons · splash · favicon)
+## §024 - Brand marks (icons · splash · favicon)
 
 **Parity: ACHIEVED.** Both shop surfaces carry the **Sky** colourway (`#0ea5e9` body / `#075985`
 fold; was blue-500/blue-800 until 2026-07-27) of the same authored mark the customer surfaces use in Emerald.
 
 | Capability | shop-web | shop-mobile |
 |---|---|---|
-| Browser tab / bookmark icon | ✅ `public/favicon.ico` + `icon.svg` | — |
-| Apple touch icon | ✅ `public/apple-touch-icon.png` (180) | — |
-| Launcher icon | — | ✅ adaptive (vector fg/bg) + legacy mipmaps ×5 |
-| Themed / monochrome icon | — | ✅ `<monochrome>` layer (Android 13+) |
-| iOS light / dark / tinted appearances | — | ✅ all three, **no alpha channel** |
+| Browser tab / bookmark icon | ✅ `public/favicon.ico` + `icon.svg` | - |
+| Apple touch icon | ✅ `public/apple-touch-icon.png` (180) | - |
+| Launcher icon | - | ✅ adaptive (vector fg/bg) + legacy mipmaps ×5 |
+| Themed / monochrome icon | - | ✅ `<monochrome>` layer (Android 13+) |
+| iOS light / dark / tinted appearances | - | ✅ all three, **no alpha channel** |
 | Branded launch screen | n/a | ✅ Android `Theme.Effy.Splash` + iOS `UILaunchScreen`, ground `#3b82f6` (blue-500) |
 | Light + dark appearance | ✅ | ✅ |
 
 **Why a second hue at all (FR-014/FR-015):** shop staff may carry a device with **both** Effy apps installed,
 and the operator app is the one that accepts and picks live orders. Two identical icons is a daily,
-repeated cost. The two marks differ **in hue only** — same silhouette, same navy outline, same
-off-white tag — so they read as one brand in two colourways (SC-003), not two logos.
+repeated cost. The two marks differ **in hue only** - same silhouette, same navy outline, same
+off-white tag - so they read as one brand in two colourways (SC-003), not two logos.
 
 ⚠ **The sky blue is NOT a design token (FR-014a).** It exists only inside the mark and the assets derived
 from it. `@effy/brand` deliberately does **not depend on** `@effy/design-system`, no token was added,
-and **no Compose theme was regenerated** — verified by `tokens:check` passing unchanged. The shop
+and **no Compose theme was regenerated** - verified by `tokens:check` passing unchanged. The shop
 app's and console's UI remain emerald, identical to before. Principle V's single-accent rule is
 untouched, and no constitution amendment was required.
 
 **Also corrected:** the Android launcher label was the developer string `shop-mobile`, now
 **"Effy Shop"**.
 
-⚠ **Not device-verified yet** — SC-002/SC-003 (the side-by-side observer test that motivates the whole
+⚠ **Not device-verified yet** - SC-002/SC-003 (the side-by-side observer test that motivates the whole
 colourway) needs both apps installed on one physical device.
 
 ---
 
-## §035 — Platform-wide six-digit one-time codes
+## §035 - Platform-wide six-digit one-time codes
 
 Sign-in on **both** shop surfaces moves from Cognito's managed `EMAIL_OTP` factor (**8 digits**,
 length not configurable by any setting) to a **platform-issued custom challenge** (**6 digits**), so
@@ -314,24 +314,24 @@ every code Effy sends is the same length.
 | # | Capability | shop-web | shop-mobile | Notes |
 |---|---|---|---|---|
 | 035.1 | Sign-in code is **6 digits** | 🔒 | 🔒 | code + Terraform done; needs the operator deploy |
-| 035.2 | ⚠ **shop-mobile sign-in works at all** | n/a | 🔒 | it truncated the real 8-digit code to six and submitted the wrong value — sign-in could not succeed |
+| 035.2 | ⚠ **shop-mobile sign-in works at all** | n/a | 🔒 | it truncated the real 8-digit code to six and submitted the wrong value - sign-in could not succeed |
 | 035.3 | Managed 8-digit flow no longer reachable | 🔒 | 🔒 | `ALLOW_USER_AUTH` dropped from both clients; safe here because this audience never self-signs-up |
 | 035.4 | Shared one-time-code field | 🔒 | 🔒 | promoted out of shop-mobile into `packages/mobile-kit` and `@effy/design-system/ui` |
 
-⚠ **shop-mobile's client was unguarded until 035** — `verify-pool-credentials.sh` read only the
+⚠ **shop-mobile's client was unguarded until 035** - `verify-pool-credentials.sh` read only the
 module-owned app client and never checked the mobile ones at all.
 
 ---
 
-## §041 — Monochrome consoles & shop mobile: unified dashboard identity
+## §041 - Monochrome consoles & shop mobile: unified dashboard identity
 
 The platform adopts an operator-supplied appearance identity as the shared design-token SSOT and puts
 the two internal web consoles on the shadcn **dashboard** structure. **shop-web** and **back-office**
 gain a dashboard overview landing (section cards + a chart + the existing proving screen) inside the
-shared `ConsoleShell`; **shop-mobile** is a **colour-only** change — its Compose theme regenerates
+shared `ConsoleShell`; **shop-mobile** is a **colour-only** change - its Compose theme regenerates
 from the new tokens, no screen or flow touched. Constitution amended to **v1.13.0**: the UI stays
 monochrome (the neutral ramp carries every UI accent, still inverting by appearance), with ONE bounded
-exception — a data-visualisation palette (`--chart-1..5`) permitted **for charts only**, never a UI
+exception - a data-visualisation palette (`--chart-1..5`) permitted **for charts only**, never a UI
 accent, never surfaced to the mobile themes.
 
 | # | Capability | shop-web | shop-mobile | Notes |
@@ -342,21 +342,21 @@ accent, never surfaced to the mobile themes.
 | 041.4 | `amber` "warning" hue removed (was a third UI hue) | ✅ | n/a | converted to monochrome emphasis (weight/foreground) across fulfillment + catalog |
 | 041.5 | Blue dark `sidebar-primary` neutralized | ✅ | ✅ | the adopted theme's dark active-nav blue is set back to the monochrome accent |
 
-⚠ **Not device-verified yet** — the shop-mobile full Gradle/Android/iOS compile and the on-device
+⚠ **Not device-verified yet** - the shop-mobile full Gradle/Android/iOS compile and the on-device
 walk (Light/Dark/Follow-System) are the operator's step; the change is a pure token regen (guards
 `sm-tokens-check`/`sm-guard` green), so risk is low. The overview chart data on both consoles is
-**illustrative sample data**, explicitly labelled — live metrics are a later slice.
+**illustrative sample data**, explicitly labelled - live metrics are a later slice.
 
-## §047 — Product shipping weight (delivery engine)
+## §047 - Product shipping weight (delivery engine)
 
 Delivery fees are priced from package weight (047), so every product carries a weight. A shop operator
 records a product's **real** weight in shop-web (Catalog → product edit → "Shipping weight (grams)");
-supplying one marks it **measured**, otherwise the platform prices on a stated **assumed** default —
+supplying one marks it **measured**, otherwise the platform prices on a stated **assumed** default -
 never weightless, never free (FR-053/054/055). ⚠ Fees, zones and same-day are **back-office only**; the
 shop service exposes **no** delivery-config route (SC-008/SC-009, guarded by
 `delivery-isolation.contract.test.ts`). shop-mobile weight entry is a deferred parity item.
 
-## §048 — Shop-web continuous deployment (Amplify)
+## §048 - Shop-web continuous deployment (Amplify)
 
 `apps/shop-web` (Vite SPA, previously local-only) gains the same managed Git-driven pipeline the
 storefront got in 042: a push/merge to `dev` auto-builds **only** the shop-web app root and serves it
@@ -370,7 +370,7 @@ hostname → stage B attaches the subdomain), the live SC walk (auto-deploy, SPA
 data-load via the gateway, `noindex`, secret sweep), and the commit. Back-office ships in the same slice
 (048) at `back-office.dev.effyshopping.com`. Spec/artifacts: [specs/048-console-web-cicd/](../../specs/048-console-web-cicd/).
 
-## §050 — Observability & Push Notification Foundation
+## §050 - Observability & Push Notification Foundation
 
 Adds the platform's crash reporting (Crashlytics), product analytics (PostHog), and push (FCM) to the
 shop app. Status:
@@ -382,13 +382,13 @@ shop app. Status:
 - **⚠ Native SDK wiring is Firebase-account-gated**: the Android Firebase/PostHog actuals, the iOS
   Swift bridges, and the Gradle plugins land once the operator creates the Firebase project and drops
   in `google-services.json`/`GoogleService-Info.plist` (quickstart §A1). Until then the drivers are
-  NoOp — analytics/crash/push are silent, the app fully functional (FR-005/FR-027).
+  NoOp - analytics/crash/push are silent, the app fully functional (FR-005/FR-027).
 - **No PII** beyond the auth subject id; analytics consent-gated (shop); push OS-permission only.
 
-## §054 — Product Inventory (Shop-Managed Stock)
+## §054 - Product Inventory (Shop-Managed Stock)
 
 Gives a shop a stock count it can maintain, and makes availability tell the truth. Closes gap **G2** in
-[ORDER-FLOW-GAPS.md](../../ORDER-FLOW-GAPS.md) — before this, nothing on the platform knew how much of
+[ORDER-FLOW-GAPS.md](../../ORDER-FLOW-GAPS.md) - before this, nothing on the platform knew how much of
 anything a shop had, so overselling was unbounded and the only discovery mechanism was a picker at an
 empty shelf hours later.
 
@@ -399,41 +399,41 @@ empty shelf hours later.
 | Turn stock tracking on/off (a count is required to enable) | ✅ Inventory tab | ✅ Inventory tab |
 | Set an exact count · adjust by a delta, with a reason | ✅ | ✅ |
 | Per-product low-stock threshold, clearable to the shop default | ✅ | ✅ |
-| Shop-wide default threshold | ✅ Catalog → Stock settings | ⚠ read-only — set it on shop-web |
+| Shop-wide default threshold | ✅ Catalog → Stock settings | ⚠ read-only - set it on shop-web |
 | Movement history (who, why, before → after) | ✅ table | ✅ rows |
 | Restock list (out-of-stock first, then low) | ⛔ removed 2026-09-10 | ⛔ removed 2026-09-10 |
 
-- **⚠ Both shop roles manage stock** (FR-010, A7) — the gate is membership, not role, following 020's
+- **⚠ Both shop roles manage stock** (FR-010, A7) - the gate is membership, not role, following 020's
   FR-019a: the append-only movement record is the accountability control, and counting a shelf is the
   work of whoever is standing at it. The nav entry is ungated for the same reason.
 - **⚠ Tracking is opt-in per product.** An untracked product behaves exactly as it did before 054
   existed, which is what makes this non-breaking for the whole existing catalogue on day one (FR-002,
-  SC-006 — proven by a test, not asserted).
-- **⚠ The two shop surfaces' Inventory tabs were both placeholders since 016** ("Inventory — coming
-  soon"). This slice is what they were reserved for. On mobile the detail tabs were **decorative** —
-  `DetailTabs()` hard-coded index 0 and the pane below never changed — so Inventory is now real while
+  SC-006 - proven by a test, not asserted).
+- **⚠ The two shop surfaces' Inventory tabs were both placeholders since 016** ("Inventory - coming
+  soon"). This slice is what they were reserved for. On mobile the detail tabs were **decorative** -
+  `DetailTabs()` hard-coded index 0 and the pane below never changed - so Inventory is now real while
   Attributes and Media still show the overview, as they always have. A pre-existing gap, recorded not
   silently widened.
 - **A pick shortfall corrects the count** (FR-023): the shelf is the truth, so recording that a line
   could not be found empties it rather than raising a discrepancy for someone to approve later.
-  Un-flagging does **not** — "it turned up after all" says nothing about how many more are there.
+  Un-flagging does **not** - "it turned up after all" says nothing about how many more are there.
 - **Back-office can do everything a shop can, on their behalf** (FR-026), and the shop sees who did it:
   the movement history shows "Effy support" beside the individual's name. Read is open to any active
   staff including `csa`; writing is admin/manager.
-- **⚠ The restock LIST was removed from both surfaces on 2026-09-10** (057 design revision — purchasing
+- **⚠ The restock LIST was removed from both surfaces on 2026-09-10** (057 design revision - purchasing
   deferred, see §057). The low-stock READ (`GET /inventory/v1/low-stock`) stays: shop-web's dashboard
   "Needs attention" and counts, and back-office's shop stock panel, still consume it. A product's own
   Inventory tab still says when it is out or running low.
 - **Colour carries nothing.** "Out of stock" and "Low" are words and weight on both surfaces, with
-  tests asserting the words — 041 removed the last amber warning from these exact screens.
+  tests asserting the words - 041 removed the last amber warning from these exact screens.
 
 **⚠ Status: code-complete and machine-verified; NOT deployed, NOT committed, NOT walked by a person.**
-The oversell concurrency proof (SC-003) is written but has **never executed** — Docker was down for the
+The oversell concurrency proof (SC-003) is written but has **never executed** - Docker was down for the
 whole session. Spec/artifacts: [specs/054-product-inventory/](../../specs/054-product-inventory/).
 
 ---
 
-## §055 — Refunds & Cancellation (the shop's part)
+## §055 - Refunds & Cancellation (the shop's part)
 
 This slice is mostly customer- and back-office-facing. The shop's part is one thing, and it removes
 the last state a shop could not get out of.
@@ -447,19 +447,19 @@ the last state a shop could not get out of.
   state to move it to: the portion sat in the active queue forever, and the only way out was for
   someone to stop looking at it.
 - ⚠ **It moves no money** (FR-031). It says "we cannot supply this"; a person at Effy decides the
-  refund, and the order surfaces in the console as **awaiting a refund decision** — ranked above
+  refund, and the order surfaces in the console as **awaiting a refund decision** - ranked above
   handover and arrival, because it is the only one where a customer is out of pocket while the queue
   waits.
 - ⚠ **A reason is required**, enforced by the control, the ViewModel, the service and a **CHECK
   constraint**. Back-office is asked to return a customer's money on the strength of it; "the shop said
   no" is not a basis.
 - ⚠ **`withdrawn` is a DIFFERENT state, and reads "Order cancelled".** It is written by the
-  platform's cancellation (`@effy/edge-shared/payments`) when an order is cancelled — never by a shop. Conflating it with `unfulfillable` would tell a shop it
+  platform's cancellation (`@effy/edge-shared/payments`) when an order is cancelled - never by a shop. Conflating it with `unfulfillable` would tell a shop it
   failed at something nobody ever wanted, and would make shop-reliability reporting count cancellations
   as shop failures.
 - ⚠ **Both are terminal.** A shop that said it cannot supply must not be able to un-say it: the
   platform may already have refunded the customer on the strength of it.
-- ⚠ **Once collected it is no longer the shop's call.** The refusal costs no code — `collected` is
+- ⚠ **Once collected it is no longer the shop's call.** The refusal costs no code - `collected` is
   absent as a source in the legal-edge map, so the absence of an entry *is* the rule.
 
 **⚠ Status: code-complete and machine-verified; NOT deployed, NOT committed, NOT walked by a person.**
@@ -467,10 +467,10 @@ Spec/artifacts: [specs/055-refunds-cancellation/](../../specs/055-refunds-cancel
 
 ---
 
-## §057 — Shop Console Redesign (057-shop-web-redesign)
+## §057 - Shop Console Redesign (057-shop-web-redesign)
 
 The console rebuilt on an imported Claude Design mockup, plus two capabilities the shop audience
-never had: initiating a refund and managing its own team. (A third — suppliers and purchase orders —
+never had: initiating a refund and managing its own team. (A third - suppliers and purchase orders -
 was built, then **removed on 2026-09-10** by a design revision; see below.)
 
 | Capability | shop-web | shop-mobile | Notes |
@@ -481,64 +481,64 @@ was built, then **removed on 2026-09-10** by a design revision; see below.)
 | Catalog filter chips | ✅ | ⛔ | Server-side search, unlike the queue's client-side filter |
 | Add-product wizard progress rail | ✅ | ⛔ | New shared `Stepper` primitive |
 | Breadcrumb trail in the header (parents navigate back) | ✅ | ⛔ | Replaced the in-page crumb rows |
-| Product detail in four tabs + Activity sheet (full change log) | ✅ | ⛔ | A2 — replaced the one-scroll page and its rail |
+| Product detail in four tabs + Activity sheet (full change log) | ✅ | ⛔ | A2 - replaced the one-scroll page and its rail |
 | Suppliers / purchase orders / restock queue | ⛔ removed | ⛔ | Deferred to its own feature (2026-09-10) |
-| **Initiate a refund** | ✅ (manager) | ⛔ | Settles through 055's pipeline — no second mechanism |
+| **Initiate a refund** | ✅ (manager) | ⛔ | Settles through 055's pipeline - no second mechanism |
 | **Manage the team** (invite / role / stand down) | ✅ (manager) | ⛔ | Writes the records back-office owns |
-| Grouped, collapsible icon rail (count dot, group rule, trigger-only collapse) | ✅ | ⛔ | A4 — shadcn `sidebar-07` |
-| Region loader with title + description (pages, tables, drawers) | ✅ | ⛔ | A4 — skeletons kept for small things |
+| Grouped, collapsible icon rail (count dot, group rule, trigger-only collapse) | ✅ | ⛔ | A4 - shadcn `sidebar-07` |
+| Region loader with title + description (pages, tables, drawers) | ✅ | ⛔ | A4 - skeletons kept for small things |
 
-- ⚠ **DESIGN REVISION 2026-09-10 — PURCHASING REMOVED, NOT LEFT DORMANT.** The Restock screen,
+- ⚠ **DESIGN REVISION 2026-09-10 - PURCHASING REMOVED, NOT LEFT DORMANT.** The Restock screen,
   suppliers, purchase orders, the product's default supplier, the 10 edge-shop routes, their DTOs and
   telemetry events are gone, and `20260910065158_remove_shop_purchasing.sql` drops `supplier`,
   `purchase_order`, `purchase_order_line`, `product.supplier_id` and
   `stock_movement.purchase_order_line_id`. Purchasing returns later as its own spec. The header also
   lost its primary action and theme toggle (appearance stays in the sidebar user menu's Light / Dark /
   Follow-System), and the screen title became a breadcrumb trail.
-- ⚠ **AMENDMENT A4 (2026-09-18) — SHELL, OVERLAYS, LOADING.** The header theme toggle is **deleted**
-  (it had come back with the theme adoption; back-office loses it too — the user menu is the only
+- ⚠ **AMENDMENT A4 (2026-09-18) - SHELL, OVERLAYS, LOADING.** The header theme toggle is **deleted**
+  (it had come back with the theme adoption; back-office loses it too - the user menu is the only
   appearance control). The rail gained Platform / Workspace groups, a collapsed-mode count dot and
   group rule, and a header trigger at every width; it now turns into its sheet at **1100px**, the
   bottom bar's breakpoint, so no width shows both. **Every overlay on both consoles had been
-  unanimated** — `tw-animate-css` was imported by customer-web only. Page / table / drawer loading
+  unanimated** - `tw-animate-css` was imported by customer-web only. Page / table / drawer loading
   uses the new orbit `LoadingArea`; skeletons remain for single lines and figures.
-- ⚠ **DESIGN REVISION A2 (2026-09-10) — PRODUCT DETAIL IN FOUR TABS.** Details · Inventory · Media ·
+- ⚠ **DESIGN REVISION A2 (2026-09-10) - PRODUCT DETAIL IN FOUR TABS.** Details · Inventory · Media ·
   Visibility (resets to Details per product); the summary rail became an **Activity** side sheet whose
   change log lists **every** stock movement (the rail fit four); Archive moved into the header. The
   revision's variants, unit cost / margin, reorder point, "Last 30 days" stats and seeded log are
-  **not** reproduced — each slot carries the platform's real equivalent (spec A2 §5), and
+  **not** reproduced - each slot carries the platform's real equivalent (spec A2 §5), and
   `inventory-guard.test.ts` passes unchanged. Presentation-only: no API, contract or data change.
 - ⚠ **A SHOP REFUND SETTLES THROUGH THE PLATFORM'S ONE REFUND STATE MACHINE (055), NEVER A
   SHOP-LOCAL ONE.** The route is `POST /shop/v1/orders/{orderId}/refunds` on the shop service, which
-  calls `@effy/edge-shared/payments` — the same code back-office and a customer's cancellation use.
+  calls `@effy/edge-shared/payments` - the same code back-office and a customer's cancellation use.
   *(Until 070 this was the console's one call to a second, always-on backend, because that backend
   alone held the payment secret. That backend is retired.)*
 - ⚠ **The refund gate asks THREE questions and all three must hold**: an active operator, carrying
   `shop_manager`, at an active shop **that is fulfilling part of this order**. The third is what makes
-  it different from every other gate on the platform — a shop manager's authority is bounded by which
+  it different from every other gate on the platform - a shop manager's authority is bounded by which
   orders their shop actually touched, so it cannot be answered from the subject alone.
 - ⚠ **Refunding is the ONE authority split from picking.** 020's FR-019a deliberately gave both roles
-  full fulfilment access — the people at the shelves do the work. A refund is irreversible and spends
+  full fulfilment access - the people at the shelves do the work. A refund is irreversible and spends
   the business's money, so it is manager-only, like 046's outward reply and 053's arrival assertion.
-- ⚠ **INVITING A COLLEAGUE REFUSES A REUSED EMAIL RATHER THAN ADOPTING THE ACCOUNT BEHIND IT — and
+- ⚠ **INVITING A COLLEAGUE REFUSES A REUSED EMAIL RATHER THAN ADOPTING THE ACCOUNT BEHIND IT - and
   this feature's own research said the opposite.** R5 recorded 009's provisioning as "built correctly"
   and safe to reuse as-is. It is not, for this caller: `ensureShopUser` recovers an existing account
   and **re-enables it if disabled**, which 009 documented as break-glass for a back-office admin. 056
   records that exact shape as a shipped defect on the driver path. A shop manager typing a departed
   colleague's address cannot know any of it happened, so the invite refuses and **names** the
   situation.
-- ⚠ **The last active manager cannot be removed — by either route.** Guarding only "stand down" leaves
+- ⚠ **The last active manager cannot be removed - by either route.** Guarding only "stand down" leaves
   demotion as the way in, and a shop with no manager cannot invite, change a role or refund. It locks
   itself out permanently and only back-office can undo it.
 - ⚠ **A `received` purchase order still accepts receives**, and the container test is what proved it
   must. `received` is DERIVED, so refusing writes there broke both idempotency (a retry errored) and
-  correction (a mis-keyed receive could never be fixed) — a derived state a human cannot escape.
+  correction (a mis-keyed receive could never be fixed) - a derived state a human cannot escape.
 - ⚠ **Colour law held throughout.** The mockup ships a third `--warning` hue, a password sign-in and
   a green that is byte-identical to a retired brand value; none was adopted. `check-tokens.mjs` now
   guards the shop layer too and **fails naming the token** if a third hue appears.
-- **shop-mobile gains nothing** — 057 is a web slice by design (FR-001). The ⛔ column is the register
+- **shop-mobile gains nothing** - 057 is a web slice by design (FR-001). The ⛔ column is the register
   doing its job: every row above is a parity debt the mobile surface now carries.
-- **Amendment A3 (2026-09-10) — the order console** (spec § Amendment A3), shop-web only, all ⛔ on
+- **Amendment A3 (2026-09-10) - the order console** (spec § Amendment A3), shop-web only, all ⛔ on
   mobile. **Orders list**: search · Filters sheet (Date · Payment · Delivery) · Export CSV; status tabs
   with all-state counts; result count + Clear filters; sortable table with an Items summary column,
   paging, bulk Start picking / Mark ready / Add tag / Export / Can't supply. **Order detail**: sticky
@@ -546,14 +546,14 @@ was built, then **removed on 2026-09-10** by a design revision; see below.)
   unavailable + note), Fulfil → handover to an Effy driver, tags and internal notes, refund with an
   honoured restock choice, Activity sheet, order pagination in the header. ⚠ **The order's money is
   visible on shop-web** (operator decision) via `/shop/v1/orders…`; the pick contract shop-mobile reads
-  is unchanged and still money-free — shop-mobile still picks per unit on the 020 contract.
+  is unchanged and still money-free - shop-mobile still picks per unit on the 020 contract.
 
 **⚠ Status: code-complete and machine-verified; NOT deployed, NOT committed, NOT walked by a person.**
 Spec/artifacts: [specs/057-shop-web-redesign/](../../specs/057-shop-web-redesign/).
 
 ---
 
-## §058 — Today & Insights (shop-web)
+## §058 - Today & Insights (shop-web)
 
 **058-shop-today-insights** replaces the console's dashboard with **Today** (what needs doing right
 now) and adds **Insights** (how the shop is performing). Both are **shop-web only**; every row below
@@ -570,12 +570,12 @@ is a parity debt shop-mobile now carries (⛔).
 | Insights: range control, two metric strips, twin charts, top products, CSV | ✅ | ⛔ |
 
 **What the shop audience can now see that it could not before:** its own revenue over time, its
-average order value, what it could not supply, and what it refunded — all scoped to its own goods.
+average order value, what it could not supply, and what it refunded - all scoped to its own goods.
 
 **⚠ Three controls the imported design offers are deliberately NOT built** (FR-011), each because the
 platform cannot honour them rather than as a styling choice: **New order** (a shop cannot create an
-order — customers buy from Effy), **Discount code** (codes are platform-wide and would discount other
-shops' items), **Message a customer** (a shop is never given the customer's email — 023 FR-018). A
+order - customers buy from Effy), **Discount code** (codes are platform-wide and would discount other
+shops' items), **Message a customer** (a shop is never given the customer's email - 023 FR-018). A
 source guard fails naming the file if any of them reappears.
 
 **⚠ Three Insights cells were replaced rather than faked** (FR-034): `Conversion rate` (a hidden
@@ -583,27 +583,27 @@ fulfilment node has no funnel of its own), `New customers` (customer relationshi
 from shops) and `Returns open` (the platform has no returns model) became **Can't supply**,
 **Cancelled** and **Ready for pickup**.
 
-**⚠ Revenue means this shop's goods** (FR-032) — not the order totals the Orders list shows, which
+**⚠ Revenue means this shop's goods** (FR-032) - not the order totals the Orders list shows, which
 include the delivery fee and order-level discount Effy sets for the whole order. The Insights
 subtitles say "Goods · AUD" so the two are never read as the same number. Refunds reduce revenue **on
 the day they were issued**, following Shopify's sales-report practice, so a reported past day never
 changes because of something that happened later.
 
 **⚠ Status: code-complete and machine-verified; NOT deployed, NOT committed, NOT walked by a person.**
-Container tests are written but were **not executed** — Docker was down for the whole session.
+Container tests are written but were **not executed** - Docker was down for the whole session.
 Spec/artifacts: [specs/058-shop-today-insights/](../../specs/058-shop-today-insights/); architecture
 research: [docs/insights-architecture.md](../insights-architecture.md).
 
 ---
 
-## §059 — the console becomes an installable, notifying app
+## §059 - the console becomes an installable, notifying app
 
 Added by [059-shop-web-pwa](../../specs/059-shop-web-pwa/).
 
 | # | Capability | Web (`shop-web`) | Mobile (`shop-mobile`) | Backend it depends on |
 |---|---|---|---|---|
-| 59.1 | Install the console to a home screen; it opens standalone, branded, and still signed in | ✅ | — | none (static hosting) |
-| 59.2 | An installed console finds and applies a new deployed version without reinstalling | ✅ | — | none |
+| 59.1 | Install the console to a home screen; it opens standalone, branded, and still signed in | ✅ | - | none (static hosting) |
+| 59.2 | An installed console finds and applies a new deployed version without reinstalling | ✅ | - | none |
 | 59.3 | **Be notified of a new order with the console closed** | ✅ | ✅ (since 050) | `device_token` + `notification_request`, FCM |
 | 59.4 | Be notified when an attention condition newly needs a human (4 kinds) | ✅ | ⬜ | the scheduled attention evaluator |
 | 59.5 | Tapping a notification opens the console **on that order**, reusing the open window | ✅ | ✅ | `webPath` in the push payload |
@@ -612,7 +612,7 @@ Added by [059-shop-web-pwa](../../specs/059-shop-web-pwa/).
 | 59.8 | Unread count on the app icon where the OS supports one | ✅ | ✅ (native) | none |
 
 **⚠ Row 59.3 was a DEFECT, not a gap.** Since 050 the platform has enqueued one `shop_new_order`
-intent per active staff member of every fulfilling shop, on every paid order — and
+intent per active staff member of every fulfilling shop, on every paid order - and
 `device_token.platform` permitted only `android`/`ios`, so for a shop audience that works in a **web
 console** every one of those intents was recorded, attempted and discarded as "nobody to send to".
 The mobile ✅ was real; the web one was unreachable. One line of `20260919064216_shop_web_push.sql`
@@ -620,11 +620,11 @@ is the fix.
 
 **⚠ Rows 59.4, 59.6 and 59.7 are ⬜ on mobile, and that is a decision, not an oversight.** The
 attention evaluator enqueues to a `sub`, so shop-mobile would receive 59.4 the moment it registered
-a token for those types — but it has no preference UI, and `POST /shop/v1/devices` **refuses**
+a token for those types - but it has no preference UI, and `POST /shop/v1/devices` **refuses**
 `mutedTypes` on a mobile platform rather than accepting and discarding it, precisely so a future
 mobile slice cannot mistake this for already wired.
 
-**⚠ On iPadOS — this audience's primary device — the Push API exists ONLY for a home-screen web app.**
+**⚠ On iPadOS - this audience's primary device - the Push API exists ONLY for a home-screen web app.**
 Row 59.1 is therefore a *precondition* of row 59.3 there, not a convenience. An operator who never
 installs cannot even be **asked** for notification permission.
 
@@ -633,14 +633,14 @@ address, a contact detail or another shop's figures. Pinned by a test over every
 
 **⚠ Status: code-complete and machine-verified; NOT deployed, NOT committed, NOT walked by a person,
 and NO NOTIFICATION HAS EVER BEEN DELIVERED.** The 40 container-backed tests are written and were
-**not executed** — Docker was down for the whole session, the second slice running for which that is
+**not executed** - Docker was down for the whole session, the second slice running for which that is
 true. ⚠ **Every cell above is INTENDED state. FR-038 requires this table to be rewritten with
 OBSERVED state once a person has walked the console.** Sign-off:
 [specs/059-shop-web-pwa/SIGNOFF.md](../../specs/059-shop-web-pwa/SIGNOFF.md).
 
 ---
 
-## §067 — Product review and the two prices (067-product-approval-margin)
+## §067 - Product review and the two prices (067-product-approval-margin)
 
 A shop submits; Effy approves. Stock is never reviewed.
 
@@ -651,11 +651,11 @@ A shop submits; Effy approves. Stock is never reviewed.
 | See each product's review state (list and detail) | ✅ chip + a Review filter | ✅ pill (no filter) |
 | See why Effy sent it back | ✅ | ✅ |
 | Edit an approved product → a change waiting for review | ✅ every editor, images included | ❌ mobile has no product editing (016) |
-| See what a pending change proposes (now / proposed) | ✅ | ✅ — a detail being CLEARED is not listed; category/type show no name |
+| See what a pending change proposes (now / proposed) | ✅ | ✅ - a detail being CLEARED is not listed; category/type show no name |
 | Discard a pending change | ✅ | ✅ |
 | Take off sale / put back on sale, immediately | ✅ | ❌ no status control on mobile |
 | See its own price and the customer price | ✅ | ✅ |
-| Stock: count, adjust, threshold, tracking — immediate | ✅ (054) | ✅ (054) |
+| Stock: count, adjust, threshold, tracking - immediate | ✅ (054) | ✅ (054) |
 | Push when Effy decides | ✅ opens the product | ⚠ delivered; tap-routing is not built (050 T047) |
 
 **Deliberately not available to a shop, on either surface**
@@ -670,10 +670,10 @@ A shop submits; Effy approves. Stock is never reviewed.
 
 ---
 
-## §098 — Product sizes and flavours (098-product-variants)
+## §098 - Product sizes and flavours (098-product-variants)
 
 A product is now the shared details (name, descriptions, brand, aisle, attributes, pictures, GST, review)
-and **one or more variants** — up to two options (e.g. Size, Flavour), up to 50 variants. Each variant
+and **one or more variants** - up to two options (e.g. Size, Flavour), up to 50 variants. Each variant
 has its own shop price, "was" price, SKU, barcode, weight, pack size, stock and optional picture. A
 product sold one way has exactly one variant and no options.
 
@@ -682,11 +682,11 @@ product sold one way has exactly one variant and no options.
 | Define options and values; edit the variant grid (price, codes, weight, pack size, picture) | ✅ create wizard "Sizes & prices" step; Sizes editor on the product | ⛔ stopped (2026-10-21) |
 | Unit pricing basis for the product (per 100 g / kg / 100 mL / L / each) | ✅ with a preview per row | ⛔ |
 | A new size or a price change on a live product waits for Effy's review | ✅ whole set proposed together | ⛔ |
-| Take one size off sale / back on sale / remove it — **immediately** | ✅ Sizes table row actions (`POST /shop/v1/products/{id}/variants/{variantId}/state`) | ⛔ |
+| Take one size off sale / back on sale / remove it - **immediately** | ✅ Sizes table row actions (`POST /shop/v1/products/{id}/variants/{variantId}/state`) | ⛔ |
 | Stock per size (count, adjust, threshold, tracking, history) | ✅ size picker in the Inventory section | ⛔ |
 | Each order line, pick list and label names the size, with its SKU and barcode as sold | ✅ | ⛔ |
 
-- ⚠ **The last size on sale cannot be taken off** (409) — make the product unavailable instead.
+- ⚠ **The last size on sale cannot be taken off** (409) - make the product unavailable instead.
 - ⚠ **A removed size is kept** for past orders and stock history; its stock code is freed.
 - ⚠ **One margin per product** prices every size; the shop sees what it is paid and what customers pay
   for each size, never the margin.

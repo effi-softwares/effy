@@ -115,7 +115,7 @@ export function ExceptionsScreen() {
               </TabsList>
             </div>
             <span className="text-xs text-muted-foreground max-md:hidden">
-              Live — nothing here refreshes on a timer
+              Live - nothing here refreshes on a timer
             </span>
           </div>
 
@@ -166,7 +166,7 @@ export function ExceptionsScreen() {
 
       {!canResolve ? (
         <p className="text-xs text-muted-foreground">
-          A customer-service agent sees these lists read-only — closing and acting needs an admin or a manager.
+          A customer-service agent sees these lists read-only - closing and acting needs an admin or a manager.
         </p>
       ) : null}
     </>
@@ -188,7 +188,7 @@ function exceptionColumns(canResolve: boolean): EffyColumnDef<DeliveryExceptionD
       meta: { label: "Reason" },
     },
     { id: "driver", header: "Driver", cell: ({ row }) => row.original.driverName, meta: { label: "Driver", priority: 2 } },
-    { id: "destination", header: "Destination", cell: ({ row }) => row.original.destinationSuburb ?? "—", meta: { label: "Destination", priority: 2, phone: "hide" } },
+    { id: "destination", header: "Destination", cell: ({ row }) => row.original.destinationSuburb ?? "-", meta: { label: "Destination", priority: 2, phone: "hide" } },
     {
       id: "package",
       header: "Package",
@@ -196,7 +196,7 @@ function exceptionColumns(canResolve: boolean): EffyColumnDef<DeliveryExceptionD
         const e = row.original
         return e.packageLocation === "with_driver" ? (
           <StatusWord tone="problem" icon={Undo2}>
-            With {e.driverName} — to return
+            With {e.driverName} - to return
           </StatusWord>
         ) : (
           <StatusWord tone="moving" icon={Warehouse}>

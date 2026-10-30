@@ -31,6 +31,6 @@
 
 ## Notes
 
-- Ratings/reviews and seller/store facets are explicitly excluded with rationale (no data / contradicts product model) — recorded as Assumptions, not gaps.
+- Ratings/reviews and seller/store facets are explicitly excluded with rationale (no data / contradicts product model) - recorded as Assumptions, not gaps.
 - Facet-count computation technique and the specific read-path optimization are deliberately left to `/speckit-plan`; the spec fixes only user-facing performance budgets (SC-002, SC-007, SC-008).
 - Items marked incomplete require spec updates before `/speckit-clarify` or `/speckit-plan`. None are incomplete.

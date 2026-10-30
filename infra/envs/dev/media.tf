@@ -7,7 +7,7 @@ resource "aws_s3_bucket" "product_media" {
   bucket = "${module.shared.name_prefix}-product-media"
 }
 
-# No public access under any account-level misconfiguration — reads are via presigned GET only.
+# No public access under any account-level misconfiguration - reads are via presigned GET only.
 resource "aws_s3_bucket_public_access_block" "product_media" {
   bucket = aws_s3_bucket.product_media.id
 
@@ -17,7 +17,7 @@ resource "aws_s3_bucket_public_access_block" "product_media" {
   restrict_public_buckets = true
 }
 
-# SSE-S3 at rest — product images hold no secrets; a CMK would add KMS cost/IAM surface with no
+# SSE-S3 at rest - product images hold no secrets; a CMK would add KMS cost/IAM surface with no
 # requirement behind it (same rationale as the state bucket).
 # trivy:ignore:avd-aws-0132
 resource "aws_s3_bucket_server_side_encryption_configuration" "product_media" {
@@ -31,7 +31,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "product_media" {
   }
 }
 
-# Versioning — an overwritten/deleted image stays recoverable.
+# Versioning - an overwritten/deleted image stays recoverable.
 resource "aws_s3_bucket_versioning" "product_media" {
   bucket = aws_s3_bucket.product_media.id
 
@@ -91,7 +91,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "product_media" {
     }
 
     # Versioning is on, so an overwritten object leaves a noncurrent version behind. Proof keys carry
-    # a random token and are never reused, so this should match nothing — it exists so that if one
+    # a random token and are never reused, so this should match nothing - it exists so that if one
     # ever does appear it is archived with everything else rather than sitting in standard unnoticed.
     noncurrent_version_transition {
       noncurrent_days = 90
@@ -104,7 +104,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "product_media" {
     }
   }
 
-  # 102 — pictures fetched for a product import wait under imports/ until the products are created, when
+  # 102 - pictures fetched for a product import wait under imports/ until the products are created, when
   # they are copied to products/. A staged copy is never read again after that, so it goes after a week;
   # on this versioned bucket the expiration writes a delete marker and the old version goes a day later.
   rule {
@@ -125,20 +125,20 @@ resource "aws_s3_bucket_lifecycle_configuration" "product_media" {
   }
 }
 
-# ══ 086 — shopper pictures: one permanent public address, smaller copies made at upload ══════════
+# ══ 086 - shopper pictures: one permanent public address, smaller copies made at upload ══════════
 #
 # Spec specs/086-catalogue-image-delivery; decisions in its research.md.
 
 # the public set, stated in terraform. `PUBLIC_MEDIA_PREFIXES` in @effy/edge-shared
 # (media-public.ts) is the same list, and media-public.guard.test.ts reads this file to prove the two
-# agree. Only these prefixes are readable through the CDN. `proof/` and `courier-label/` — a door
-# photo, a customer's name and address — must never be added; the guard fails if they are.
+# agree. Only these prefixes are readable through the CDN. `proof/` and `courier-label/` - a door
+# photo, a customer's name and address - must never be added; the guard fails if they are.
 locals {
   public_media_prefixes = ["products", "promotions", "categories", "renditions"]
   media_host            = "media.${module.dns.zone_name}"
 }
 
-# ── The certificate — us-east-1, because CloudFront reads certificates only there ────────────────
+# ── The certificate - us-east-1, because CloudFront reads certificates only there ────────────────
 resource "aws_acm_certificate" "media" {
   provider          = aws.us_east_1
   domain_name       = local.media_host
@@ -307,11 +307,11 @@ resource "aws_route53_record" "media_aaaa" {
   }
 }
 
-# ── The bucket policy — the CDN reads the public set and nothing else ───────────────────────────
+# ── The bucket policy - the CDN reads the public set and nothing else ───────────────────────────
 #
 # NO s3:ListBucket, deliberately. Without it S3 answers 403 for a key that is not there exactly as
 # it answers a key the policy refuses: a request cannot learn whether a label exists, and
-# nothing can be listed. The public-access block above stays fully on — OAC is not public
+# nothing can be listed. The public-access block above stays fully on - OAC is not public
 # access. This is the bucket's only policy resource; a second would silently replace it.
 data "aws_iam_policy_document" "product_media" {
   statement {
@@ -346,10 +346,10 @@ resource "aws_ssm_parameter" "media_public_base_url" {
   tier  = "Standard"
 }
 
-# ── The rendition queue — the bucket says a picture arrived; the media worker makes its copies ─────
+# ── The rendition queue - the bucket says a picture arrived; the media worker makes its copies ─────
 #
 # only products/, promotions/ and categories/ (101) are notified. The worker writes under renditions/, which is never
-# notified — so it cannot trigger itself — and proof/ and courier-label/ are never sent to it at all.
+# notified - so it cannot trigger itself - and proof/ and courier-label/ are never sent to it at all.
 # sse-SQS below; a CMK adds cost and IAM surface with no requirement behind it
 # trivy:ignore:avd-aws-0096
 resource "aws_sqs_queue" "media_renditions_dlq" {
@@ -437,7 +437,7 @@ resource "aws_ssm_parameter" "media_rendition_queue_arn" {
   tier  = "Standard"
 }
 
-# ── Alarms — regional, to the operator alerts topic ────────────────────────────────────
+# ── Alarms - regional, to the operator alerts topic ────────────────────────────────────
 resource "aws_cloudwatch_metric_alarm" "media_renditions_dlq" {
   alarm_name          = "${module.shared.name_prefix}-media-renditions-dlq"
   alarm_description   = "086 - an uploaded picture could not be processed after three tries (S3 or the database failing, not a bad picture). Shoppers get the full-size original until it is. Read /aws/lambda/effy-edge-media-${var.env}-render, fix the cause, then redrive the dead-letter queue ${aws_sqs_queue.media_renditions_dlq.name}."
@@ -453,7 +453,7 @@ resource "aws_cloudwatch_metric_alarm" "media_renditions_dlq" {
   alarm_actions       = [aws_sns_topic.alerts.arn]
 }
 
-# The worker's own errors — a thrown fault (S3, the database, a bad deploy) rather than a bad picture.
+# The worker's own errors - a thrown fault (S3, the database, a bad deploy) rather than a bad picture.
 # Here, not in background-functions.tf: that map is for scheduled functions, and this one is fed by
 # the queue. Three errors in each of three five-minute periods: one cold connection is not news.
 resource "aws_cloudwatch_metric_alarm" "media_render_errors" {
@@ -487,11 +487,11 @@ resource "aws_cloudwatch_metric_alarm" "media_rendition_failed" {
   alarm_actions       = [aws_sns_topic.alerts.arn]
 }
 
-# ── CDN alarms — us-east-1, the only region CloudFront publishes metrics in ──────────────
+# ── CDN alarms - us-east-1, the only region CloudFront publishes metrics in ──────────────
 #
 # A second alerts topic, because an alarm can notify only a topic in its own region. Its
-# subscription takes the same var.alert_email as alerts.tf, behind the same guard — never a retyped
-# address — and AWS mails one more confirmation link the operator must click.
+# subscription takes the same var.alert_email as alerts.tf, behind the same guard - never a retyped
+# address - and AWS mails one more confirmation link the operator must click.
 # Unencrypted on purpose: CloudWatch alarms cannot publish to a topic under the AWS-managed SNS key,
 # and a customer key would cost more than the alarm text it protects (no customer data in it).
 # trivy:ignore:avd-aws-0095

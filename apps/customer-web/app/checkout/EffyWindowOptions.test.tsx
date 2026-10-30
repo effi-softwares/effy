@@ -13,7 +13,7 @@ import type { DeliveryChoice } from "@/lib/delivery-choice"
 import { EffyWindowOptions } from "./EffyWindowOptions"
 
 /**
- * 078 / 085 — the picker, drawn from the same fixture the customer app's picker is held to
+ * 078 / 085 - the picker, drawn from the same fixture the customer app's picker is held to
  * (`packages/shared-types/src/effy-windows.fixtures.json`). What a shopper reads on the website and
  * in the app is one set of words; this proves the website shows them and adds none of its own.
  */
@@ -26,7 +26,7 @@ const MAIN = byName("today has two windows left")
 /** Fri and Sat can be bought with no time (Sat's windows are all taken); Mon cannot; asap is offered. */
 const FLEX = byName("085")
 
-/** The picker with its choice held, as the checkout holds it — so every click is seen through. */
+/** The picker with its choice held, as the checkout holds it - so every click is seen through. */
 function Harness({ c, initial = null, onChoose }: { c: Case; initial?: DeliveryChoice | null; onChoose: (n: DeliveryChoice | null) => void }) {
   const [chosen, setChosen] = useState<DeliveryChoice | null>(initial)
   return (
@@ -54,13 +54,13 @@ const dayRadio = (label: string) => screen.getByRole("radio", { name: new RegExp
 const windowsIn = (group: HTMLElement) => within(group).getAllByRole("radio").map((r) => r.closest("label")!.textContent)
 const today = () => screen.getByRole("group", { name: DELIVERY_WINDOW_WORDS.sectionSameDay })
 
-describe("EffyWindowOptions — one choice for the order", () => {
+describe("EffyWindowOptions - one choice for the order", () => {
   it("Same-day delivery lists today's windows with the time to order by and what each adds", () => {
     setup(MAIN)
     expect(windowsIn(today())).toEqual(["4 pm – 6 pmOrder by 2 pm+$5.00", "6:30 pm – 8:30 pmOrder by 5:15 pm+$7.00"])
   })
 
-  it("⚠ nothing is chosen for the shopper — no window, no day, not 'as soon as possible'", () => {
+  it("⚠ nothing is chosen for the shopper - no window, no day, not 'as soon as possible'", () => {
     setup(FLEX)
     expect(checked()).toEqual([])
     expect(screen.queryByTestId("day-times")).not.toBeInTheDocument()
@@ -78,8 +78,8 @@ describe("EffyWindowOptions — one choice for the order", () => {
   })
 })
 
-describe("085 — a day is a complete choice", () => {
-  it("choosing a day chooses its Any-time window and says 'any time during the day' — no times shown", async () => {
+describe("085 - a day is a complete choice", () => {
+  it("choosing a day chooses its Any-time window and says 'any time during the day' - no times shown", async () => {
     const { onChoose, user } = setup(FLEX)
     await user.click(dayRadio("Fri 9 Oct"))
     expect(onChoose).toHaveBeenLastCalledWith({ slotId: "anytime", date: "2026-10-09" })
@@ -95,7 +95,7 @@ describe("085 — a day is a complete choice", () => {
     expect(checked()).toEqual([dayRadio("Sat 10 Oct")])
   })
 
-  it("a day whose windows are all taken can still be bought with no time — and offers no time", async () => {
+  it("a day whose windows are all taken can still be bought with no time - and offers no time", async () => {
     const { user } = setup(FLEX)
     await user.click(dayRadio("Sat 10 Oct"))
     expect(screen.queryByRole("button", { name: DELIVERY_WINDOW_WORDS.timeOptionOpen })).not.toBeInTheDocument()
@@ -108,7 +108,7 @@ describe("085 — a day is a complete choice", () => {
   })
 })
 
-describe("085 — a time is optional", () => {
+describe("085 - a time is optional", () => {
   it("'Need a specific time?' is under the chosen day only, and opening it changes nothing", async () => {
     const { onChoose, user } = setup(FLEX)
     expect(screen.queryByRole("button", { name: DELIVERY_WINDOW_WORDS.timeOptionOpen })).not.toBeInTheDocument()
@@ -168,7 +168,7 @@ describe("085 — a time is optional", () => {
   })
 })
 
-describe("085 — as soon as possible", () => {
+describe("085 - as soon as possible", () => {
   it("is the first tile in the days' row: 'Standard' and the usual timeframe", async () => {
     const { onChoose, user } = setup(FLEX)
     const asap = screen.getByRole("radio", { name: new RegExp(DELIVERY_WINDOW_WORDS.asapTitle) })
@@ -194,7 +194,7 @@ describe("085 — as soon as possible", () => {
   })
 })
 
-describe("⚠ 085 — at most one thing is ever chosen, whatever the order of choices", () => {
+describe("⚠ 085 - at most one thing is ever chosen, whatever the order of choices", () => {
   type Step = [string, (user: ReturnType<typeof userEvent.setup>) => Promise<void>]
   const steps: Step[] = [
     ["a window today", (u) => u.click(within(today()).getByRole("radio", { name: /4 pm – 6 pm/ }))],
@@ -245,7 +245,7 @@ describe("the shared words, and nothing else", () => {
     expect(today()).toHaveTextContent("Closed")
   })
 
-  it("with nothing on any day it says the one sentence and offers no choice — and no courier", () => {
+  it("with nothing on any day it says the one sentence and offers no choice - and no courier", () => {
     setup(byName("nothing on any day"))
     expect(screen.getByRole("status")).toHaveTextContent(DELIVERY_WINDOW_WORDS.noWindows)
     expect(screen.queryByRole("radio")).not.toBeInTheDocument()

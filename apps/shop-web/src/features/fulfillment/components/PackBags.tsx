@@ -1,4 +1,4 @@
-import { Check, Minus, Plus, Printer, RotateCcw, ShoppingBag } from "lucide-react"
+import { Check, Minus, Plus, Printer, RotateCcw } from "lucide-react"
 import { useMemo, useState } from "react"
 
 import { useQueryClient } from "@tanstack/react-query"
@@ -15,7 +15,6 @@ import {
 import {
   Badge,
   Button,
-  Card,
   Select,
   SelectContent,
   SelectItem,
@@ -120,16 +119,9 @@ export function PackBags({ detail }: { detail: ShopOrderDetailDTO }) {
   const step = (z: ParcelZone, d: number) => setCounts({ ...shown, [z]: Math.max(0, Math.min(50, shown[z] + d)) })
 
   return (
-    <Card role="region" aria-labelledby="bags-heading" className="min-w-0 gap-0 overflow-hidden py-0">
+    <div role="region" aria-label="Bags & labels" className="min-w-0 overflow-hidden rounded-lg border">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b px-5 py-4 max-md:px-4">
         <div className="min-w-0 flex-1">
-          <h2
-            id="bags-heading"
-            className="flex items-center gap-2 leading-6 font-semibold [&_svg]:size-4 [&_svg]:text-muted-foreground"
-          >
-            <ShoppingBag aria-hidden="true" />
-            Bags &amp; labels
-          </h2>
           <p className="text-sm text-muted-foreground">
             {detail.parcels.length} {detail.parcels.length === 1 ? "bag" : "bags"} ·{" "}
             {detail.parcels.length - unprinted.length} printed
@@ -343,6 +335,6 @@ export function PackBags({ detail }: { detail: ShopOrderDetailDTO }) {
           <span className="font-mono">{removing?.code}</span>
         </p>
       </DesignSheet>
-    </Card>
+    </div>
   )
 }

@@ -90,7 +90,7 @@ export function PlanEditor({
           <DrawerTitle>{title}</DrawerTitle>
           <DrawerDescription>
             {saved?.state === "active"
-              ? "In force. A plan that has been active can't be changed — copy it to a new draft."
+              ? "In force. A plan that has been active can't be changed - copy it to a new draft."
               : saved?.state === "retired"
                 ? "Retired. Kept as the record of what was charged while it was in force."
                 : "A draft. Saving does not change any fee; activating does."}
@@ -177,7 +177,7 @@ export function PlanEditor({
               {amount(
                 "todayPremiumAmount",
                 "Delivery today",
-                "Added to any window today — what makes same-day a bit dearer.",
+                "Added to any window today - what makes same-day a bit dearer.",
               )}
               <Table className="w-full text-sm">
                 <TableHeader>

@@ -84,7 +84,7 @@ package:
 functions:
   healthz:
     handler: src/functions/healthz-get.handler
-    description: Liveness — is the commerce service deployed and executing? Touches nothing. Public.
+    description: Liveness - is the commerce service deployed and executing? Touches nothing. Public.
     events:
       - httpApi:
           method: GET
@@ -92,7 +92,7 @@ functions:
 
   readyz:
     handler: src/functions/readyz-get.handler
-    description: Readiness — can the commerce service serve? Probes the DB under a 2s budget. Public.
+    description: Readiness - can the commerce service serve? Probes the DB under a 2s budget. Public.
     events:
       - httpApi:
           method: GET
@@ -102,7 +102,7 @@ functions:
 
   cartV1:
     handler: src/functions/cart-v1-get.handler
-    description: The shopper's priced cart — lines, set-aside lines, totals, notices, applied promotion, checkout state.
+    description: The shopper's priced cart - lines, set-aside lines, totals, notices, applied promotion, checkout state.
     events:
       - httpApi:
           method: GET
@@ -113,7 +113,7 @@ functions:
 
   promotionGroupsV1:
     handler: src/functions/promotion-groups-v1-get.handler
-    description: Display groups for the signed-in shopper — their personal offers included (094).
+    description: Display groups for the signed-in shopper - their personal offers included (094).
     events:
       - httpApi:
           method: GET
@@ -135,7 +135,7 @@ functions:
 
   cartMergeV1:
     handler: src/functions/cart-merge-v1-post.handler
-    description: Sign-in adoption — union a device cart into the account cart with the MAXIMUM quantity.
+    description: Sign-in adoption - union a device cart into the account cart with the MAXIMUM quantity.
     events:
       - httpApi:
           method: POST
@@ -146,7 +146,7 @@ functions:
 
   cartItemsAddV1:
     handler: src/functions/cart-items-v1-post.handler
-    description: Add to cart (increment). The only non-idempotent cart write — changeId required.
+    description: Add to cart (increment). The only non-idempotent cart write - changeId required.
     events:
       - httpApi:
           method: POST
@@ -245,7 +245,7 @@ functions:
 
   cartPreviewV1:
     handler: src/functions/cart-preview-v1-post.handler
-    description: PUBLIC — re-price a guest's device cart with notices; writes nothing.
+    description: PUBLIC - re-price a guest's device cart with notices; writes nothing.
     events:
       - httpApi:
           method: POST
@@ -253,7 +253,7 @@ functions:
 
   cartPolicyV1:
     handler: src/functions/cart-policy-v1-get.handler
-    description: PUBLIC — the minimum spend and cart ceilings, the same for everyone.
+    description: PUBLIC - the minimum spend and cart ceilings, the same for everyone.
     events:
       - httpApi:
           method: GET
@@ -263,7 +263,7 @@ functions:
 
   savedIdsV1:
     handler: src/functions/saved-ids-v1-get.handler
-    description: Which products the shopper has saved, and which are in a named list — fills every heart on a screen.
+    description: Which products the shopper has saved, and which are in a named list - fills every heart on a screen.
     events:
       - httpApi:
           method: GET
@@ -307,7 +307,7 @@ functions:
 
   savedMergeV1:
     handler: src/functions/saved-merge-v1-post.handler
-    description: Sign-in adoption — fold a device's guest list into the account.
+    description: Sign-in adoption - fold a device's guest list into the account.
     events:
       - httpApi:
           method: POST
@@ -419,7 +419,7 @@ functions:
 
   checkoutQuoteV1:
     handler: src/functions/checkout-quote-v1-post.handler
-    description: Delivery preview before payment — packages, fees, open same-day windows, available standard days.
+    description: Delivery preview before payment - packages, fees, open same-day windows, available standard days.
     events:
       - httpApi:
           method: POST
@@ -442,7 +442,7 @@ functions:
 
   checkoutConfirmV1:
     handler: src/functions/checkout-confirm-v1-post.handler
-    description: The shopper's return from the provider — re-read the intent and settle the order.
+    description: The shopper's return from the provider - re-read the intent and settle the order.
     timeout: 25
     events:
       - httpApi:
@@ -478,7 +478,7 @@ functions:
 
   stripeWebhookV1:
     handler: src/functions/stripe-webhook-v1-post.handler
-    description: PUBLIC — payment provider notifications, authenticated by the provider's signature over the raw body.
+    description: PUBLIC - payment provider notifications, authenticated by the provider's signature over the raw body.
     timeout: 25
     events:
       - httpApi:
@@ -571,7 +571,7 @@ functions:
   # Resolves refunds whose submission to the provider never got an answer.
   refundReconcile:
     handler: src/functions/refund-reconcile-scheduled.handler
-    description: Every 5 minutes — resolve refunds left uncertain by an unanswered provider call.
+    description: Every 5 minutes - resolve refunds left uncertain by an unanswered provider call.
     timeout: 60
     events:
       - schedule:

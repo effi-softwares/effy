@@ -19,14 +19,14 @@ function category(over: Partial<StorefrontCategoryDTO> = {}): StorefrontCategory
   }
 }
 
-/** N distinct stocked categories — the cap is not reachable with the live seed's 9. */
+/** N distinct stocked categories - the cap is not reachable with the live seed's 9. */
 function many(n: number): StorefrontCategoryDTO[] {
   return Array.from({ length: n }, (_, i) =>
     category({ key: `c${i}`, name: `Category ${i}`, productCount: i + 1 }),
   )
 }
 
-describe("CategoryStrip — one shortcut per stocked category (FR-013)", () => {
+describe("CategoryStrip - one shortcut per stocked category (FR-013)", () => {
   it("links each shortcut to that category's listing", () => {
     render(<CategoryStrip categories={[category({ key: "paper_goods", name: "Paper Goods" })]} />)
 
@@ -66,7 +66,7 @@ describe("CategoryStrip — one shortcut per stocked category (FR-013)", () => {
   })
 })
 
-describe("CategoryStrip — a shortcut must lead somewhere with products in it", () => {
+describe("CategoryStrip - a shortcut must lead somewhere with products in it", () => {
   /** Category filtering is exact-match, so a shortcut to an unstocked category would open an empty listing. */
   it("omits categories with no stocked products", () => {
     render(
@@ -113,7 +113,7 @@ describe("CategoryStrip — a shortcut must lead somewhere with products in it",
   })
 })
 
-describe("CategoryStrip — imagery degrades, never breaks (FR-014)", () => {
+describe("CategoryStrip - imagery degrades, never breaks (FR-014)", () => {
   it("renders a neutral initial tile instead of a broken frame when there is no image", () => {
     const { container } = render(
       <CategoryStrip categories={[category({ name: "Bakery", imageUrl: null })]} />,

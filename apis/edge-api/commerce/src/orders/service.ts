@@ -10,7 +10,7 @@ import { isUuid } from "../lib/ids";
 import type { OrderRow, OrdersRepository, RefundRow } from "./repository";
 
 /** Missing and someone else's are deliberately indistinguishable. */
-export class OrderNotFoundError extends Error {}
+export class OrderNotFoundError extends Error { }
 
 type ImageAddress = (key: string | null) => Promise<string | null>;
 
@@ -143,7 +143,7 @@ export function createOrdersService(deps: { repo: OrdersRepository; imageAddress
     try {
       return await read();
     } catch (err) {
-      scope.log.warn({ err }, `orders: ${what} unavailable — receipt served without it`);
+      scope.log.warn({ err }, `orders: ${what} unavailable - receipt served without it`);
       return fallback;
     }
   }

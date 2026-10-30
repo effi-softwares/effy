@@ -17,7 +17,7 @@ export function SkinUsage({ skin }: { skin: AdminSkinDTO }) {
           ))}
           {usage.groups.map((g) => (
             <li key={g.id}>
-              <span className="font-medium">{g.name}</span> — {g.members} {g.members === 1 ? "promotion" : "promotions"}
+              <span className="font-medium">{g.name}</span> - {g.members} {g.members === 1 ? "promotion" : "promotions"}
             </li>
           ))}
         </ul>

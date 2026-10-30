@@ -3,12 +3,14 @@ import { useState } from "react"
 import { PARCEL_CUSTODY_WORDS, PARCEL_ZONE_WORDS, type AdminParcelDTO, type OrderAssignment } from "@effy/shared-types"
 import { AssignmentLine } from "./AssignmentLine"
 import { ConsignmentBlock } from "./ConsignmentBlock"
+import { PackageJourney } from "./PackageJourney"
 import { PackageStatusPill } from "@effy/web-kit/console"
-import { Button, Input, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@effy/design-system/ui"
-import { Store } from "lucide-react"
+import { Button, Input } from "@effy/design-system/ui"
+import { Box, Snowflake, Store, Thermometer } from "lucide-react"
 
 import {
   type OrderPackage,
+  journeyOf,
   nextActionFor,
   packageDeliveryText,
   PROMISE_FLAG_LABEL,
@@ -18,7 +20,7 @@ import {
 } from "../model"
 
 function formatDate(iso: string | null | undefined): string {
-  if (!iso) return "—"
+  if (!iso) return "-"
   return new Intl.DateTimeFormat("en-AU", { dateStyle: "medium", timeStyle: "short" }).format(new Date(iso))
 }
 
@@ -52,7 +54,7 @@ export function PackageRows({
   highlight,
 }: Props) {
   return (
-    <div className="divide-y divide-border">
+    <div className="divide-y divide-border [&>*:first-child]:pt-0">
       {packages.map((pkg) => (
         <PackageRow
           key={pkg.fulfillmentId}
@@ -68,7 +70,7 @@ export function PackageRows({
         />
       ))}
       {packages.length === 0 ? (
-        <p className="px-5 py-4 text-sm text-muted-foreground">This order has no packages yet.</p>
+        <p className="text-sm text-muted-foreground">This order has no packages yet.</p>
       ) : null}
     </div>
   )
@@ -106,7 +108,7 @@ function PackageRow({
   return (
     <div
       id={`package-${pkg.fulfillmentId}`}
-      className={`space-y-4 px-5 py-4 ${lit ? "bg-primary-muted/40" : ""}`}
+      className={`grid scroll-mt-20 gap-6 py-7 ${lit ? "ef-flash" : ""}`}
       data-highlighted={lit || undefined}
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -135,6 +137,8 @@ function PackageRow({
         {pkg.statusView ? <PackageStatusPill view={pkg.statusView} icons /> : null}
       </div>
 
+      <PackageJourney steps={journeyOf(pkg, courierCollection)} />
+
       {pkg.collect || pkg.deliver ? (
         <div className="divide-y divide-border rounded-lg border border-border">
           {pkg.collect ? (
@@ -154,7 +158,7 @@ function PackageRow({
         </div>
       ) : null}
 
-      {bags.length > 0 ? <BagTable bags={bags} highlightParcelId={highlight?.parcelId} /> : null}
+      {bags.length > 0 ? <BagList bags={bags} highlightParcelId={highlight?.parcelId} /> : null}
 
       {/* Its hand-overs, bag by bag, are in the order's activity (104). */}
       {promise ? (
@@ -223,7 +227,7 @@ function PackageRow({
           {pkg.dueOut
             ? `Due out ${new Intl.DateTimeFormat("en-AU", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", timeZone: "Australia/Melbourne" }).format(new Date(pkg.dueOut))}`
             : "Pickup day has passed"}
-          {pkg.late ? " — late" : ""}
+          {pkg.late ? " - late" : ""}
         </p>
       ) : null}
 
@@ -271,38 +275,30 @@ function PackageRow({
   )
 }
 
-function BagTable({ bags, highlightParcelId }: { bags: AdminParcelDTO[]; highlightParcelId?: string }) {
+const ZONE_ICON = { ambient: Box, chilled: Thermometer, frozen: Snowflake } as const
+
+/** Its bags: each with its code, its temperature, whether its label is printed, and where it is. */
+function BagList({ bags, highlightParcelId }: { bags: AdminParcelDTO[]; highlightParcelId?: string }) {
   return (
-    <div>
-      <div className="text-xs font-medium text-muted-foreground mb-2">Bags</div>
-      <Table className="rounded-lg border border-border [&_td]:py-2" aria-label="Bags">
-        <TableHeader>
-          <TableRow>
-            <TableHead>Bag</TableHead>
-            <TableHead>Code</TableHead>
-            <TableHead>Zone</TableHead>
-            <TableHead>Label</TableHead>
-            <TableHead>Where</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {bags.map((b) => (
-            <TableRow
-              key={b.parcelId}
-              id={`parcel-${b.parcelId}`}
-              className={
-                b.parcelId === highlightParcelId
-                  ? "bg-primary-muted font-medium"
-                  : b.voided
-                    ? "text-muted-foreground"
-                    : ""
-              }
-              aria-current={b.parcelId === highlightParcelId ? "true" : undefined}
-            >
-              <TableCell className="tabular-nums">{b.voided ? <s>Bag {b.seq}</s> : `${b.seq} of ${b.of}`}</TableCell>
-              <TableCell className="font-mono">{b.voided ? <s>{b.code}</s> : b.code}</TableCell>
-              <TableCell>{PARCEL_ZONE_WORDS[b.zone]}</TableCell>
-              <TableCell>
+    <ul aria-label="Bags" className="m-0 list-none divide-y divide-border overflow-hidden rounded-lg border p-0">
+      {bags.map((b) => {
+        const Zone = ZONE_ICON[b.zone]
+        const lit = b.parcelId === highlightParcelId
+        return (
+          <li
+            key={b.parcelId}
+            id={`parcel-${b.parcelId}`}
+            aria-current={lit ? "true" : undefined}
+            className={`grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 px-4 py-3 ${lit ? "bg-primary-muted" : ""} ${b.voided ? "text-muted-foreground" : ""}`}
+          >
+            <span aria-hidden="true" className="grid size-8 place-items-center rounded-md bg-muted text-muted-foreground [&_svg]:size-4">
+              <Zone />
+            </span>
+            <span className="min-w-0">
+              <span className="block font-medium tabular-nums">
+                {b.voided ? <s>Bag {b.seq}</s> : `${b.seq} of ${b.of}`} · {PARCEL_ZONE_WORDS[b.zone]}
+              </span>
+              <span className="block text-[13px] text-muted-foreground">
                 {b.voided
                   ? "Removed"
                   : b.printedCount === 0
@@ -310,12 +306,15 @@ function BagTable({ bags, highlightParcelId }: { bags: AdminParcelDTO[]; highlig
                     : b.printedCount === 1
                       ? "Printed"
                       : `Printed ${b.printedCount}×`}
-              </TableCell>
-              <TableCell>{b.voided ? "—" : PARCEL_CUSTODY_WORDS[b.custody]}</TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+              </span>
+            </span>
+            <span className="flex items-center gap-3 text-[13px]">
+              <span className="font-mono">{b.voided ? <s>{b.code}</s> : b.code}</span>
+              <span className="text-muted-foreground">{b.voided ? "—" : PARCEL_CUSTODY_WORDS[b.custody]}</span>
+            </span>
+          </li>
+        )
+      })}
+    </ul>
   )
 }

@@ -8,23 +8,23 @@ import AWSCognitoAuthPlugin
 /// the common `AuthDriver` contract. Plain callbacks, so there is no `suspend`/`Flow` to produce here.
 ///
 /// NOTE the deliberate absences mirror `AuthDriver`: there is NO password-write and NO global-sign-out
-/// method — those go to the backend (FR-024). Do not add them.
+/// method - those go to the backend (FR-024). Do not add them.
 final class SwiftAuthBridge: NSObject, IosAuthBridge {
 
     // MARK: Session
 
     /// ⚠ THIS RECONCILES; it does not merely read.
     ///
-    /// A session that reports `isSignedIn` but cannot produce a token — an expired refresh token, or a
+    /// A session that reports `isSignedIn` but cannot produce a token - an expired refresh token, or a
     /// Keychain entry that outlived the install that made it, which on iOS happens because **the
-    /// Keychain survives deleting the app** — used to be reported as simply "no session". That left
+    /// Keychain survives deleting the app** - used to be reported as simply "no session". That left
     /// Amplify holding a signed-in user while the app showed a guest, and every subsequent `signIn`
     /// failed with *"There is already a user in signedIn state"*.
     ///
     /// So an unusable session is signed OUT before reporting "no session", and the two stores agree.
     ///
     /// ⚠ This is NOT the only way they diverge, and probably not the common one. `SessionManager`
-    /// deliberately falls back to Guest when the customer record cannot be read at launch — a backend
+    /// deliberately falls back to Guest when the customer record cannot be read at launch - a backend
     /// outage should not log anyone out, and its own comment says "the Amplify session survives for a
     /// relaunch". That path produces the same standoff with a session that is perfectly valid, so this
     /// method cannot see it. `signInRecoveringFromStaleSession` is what actually covers it.
@@ -60,7 +60,7 @@ final class SwiftAuthBridge: NSObject, IosAuthBridge {
     ///
     /// This is Amplify's own documented recovery ("SignOut the user first before calling signIn"), and
     /// it is applied at the driver rather than in a use case on purpose: a stale SDK session is an SDK
-    /// concern. The closed `AuthError` set (FR-016) has no member for it and should not grow one — the
+    /// concern. The closed `AuthError` set (FR-016) has no member for it and should not grow one - the
     /// domain has no decision to make here, and the customer certainly does not.
     ///
     /// ⚠ Retried EXACTLY once. If the second attempt fails it is reported, so a genuine
@@ -96,7 +96,7 @@ final class SwiftAuthBridge: NSObject, IosAuthBridge {
                             onResult: @escaping (BridgeAuthResult) -> Void) {
         Task {
             do {
-                // password: nil — Cognito creates a genuinely passwordless user (D7).
+                // password: nil - Cognito creates a genuinely passwordless user (D7).
                 let result = try await Amplify.Auth.signUp(username: email, password: nil,
                                                            options: signUpOptions(email))
                 onResult(mapSignUp(result, email: email))
@@ -133,11 +133,11 @@ final class SwiftAuthBridge: NSObject, IosAuthBridge {
     func signInWithEmailOtp(email: String, onResult: @escaping (BridgeAuthResult) -> Void) {
         Task {
             onResult(await signInRecoveringFromStaleSession {
-                // ⚠ 035 — the platform's own SIX-digit code, not Cognito's managed eight-digit
+                // ⚠ 035 - the platform's own SIX-digit code, not Cognito's managed eight-digit
                 // EMAIL_OTP (whose length is not configurable by any setting on any object).
                 // ⚠ .customWithoutSRP, never .customWithSRP: the WITH_SRP variant has a recorded
                 // history of completing sign-in WITHOUT presenting the challenge.
-                // ⚠ CODE ROUTE ONLY — the password route keeps .userSRP.
+                // ⚠ CODE ROUTE ONLY - the password route keeps .userSRP.
                 let plugin = AWSAuthSignInOptions(authFlowType: .customWithoutSRP)
                 let options = AuthSignInRequest.Options(pluginOptions: plugin)
                 return try await Amplify.Auth.signIn(username: email, options: options)
@@ -156,7 +156,7 @@ final class SwiftAuthBridge: NSObject, IosAuthBridge {
 
     /// Send the sign-UP confirmation code again (036 FR-007).
     ///
-    /// ⚠ Cognito's MANAGED resend — a real API, unlike the sign-in code, which has none and must be
+    /// ⚠ Cognito's MANAGED resend - a real API, unlike the sign-in code, which has none and must be
     /// re-initiated from scratch (see `AuthDriver.resendSignInCode`).
     func resendSignUpCode(email: String, onResult: @escaping (BridgeAuthResult) -> Void) {
         Task {
@@ -164,7 +164,7 @@ final class SwiftAuthBridge: NSObject, IosAuthBridge {
                 let details = try await Amplify.Auth.resendSignUpCode(for: email)
                 // ⚠ `destinationString`, not `.description`: `destination` is a `DeliveryDestination`
                 // ENUM, and its synthesized description would put "email(\"s***@e***.com\")" on screen.
-                // ⚠ And the outcome is `signupConfirm` — the vocabulary `IosAuthDriver.mapResult`
+                // ⚠ And the outcome is `signupConfirm` - the vocabulary `IosAuthDriver.mapResult`
                 // actually switches on. An invented string falls through to `Unexpected`, which is a
                 // dead end that compiles perfectly.
                 onResult(BridgeAuthResult(outcome: "signupConfirm",
@@ -191,7 +191,7 @@ final class SwiftAuthBridge: NSObject, IosAuthBridge {
 
     // MARK: Mapping
 
-    /// ⚠ 036 FR-032 — the NAME attributes are gone. They are optional on the pool (no `schema {}`
+    /// ⚠ 036 FR-032 - the NAME attributes are gone. They are optional on the pool (no `schema {}`
     /// block), so registration is unaffected; the name is written after the account exists.
     private func signUpOptions(_ email: String) -> AuthSignUpRequest.Options {
         AuthSignUpRequest.Options(userAttributes: [AuthUserAttribute(.email, value: email)])
@@ -204,7 +204,7 @@ final class SwiftAuthBridge: NSObject, IosAuthBridge {
         switch result.nextStep {
         case .done:
             return BridgeAuthResult(outcome: "done", destination: nil, email: nil, errorKind: nil)
-        // 035 — the platform's own 6-digit code.
+        // 035 - the platform's own 6-digit code.
         case .confirmSignInWithCustomChallenge(let info):
             return BridgeAuthResult(outcome: "otp", destination: info?["maskedDestination"], email: nil, errorKind: nil)
         // ⚠ Kept during rollout: both flows coexist on the pool, so a revert is a one-constant
@@ -236,7 +236,7 @@ final class SwiftAuthBridge: NSObject, IosAuthBridge {
         BridgeAuthResult(outcome: "failed", destination: nil, email: nil, errorKind: errorKind(error))
     }
 
-    /// `userNotFound` and `notAuthorized` BOTH map to invalidCredentials — never leak whether an email
+    /// `userNotFound` and `notAuthorized` BOTH map to invalidCredentials - never leak whether an email
     /// is registered (FR-016).
     private func errorKind(_ error: Error) -> String {
         guard let authError = error as? CognitoAuthError else { return "unexpected" }

@@ -60,7 +60,7 @@ locals {
       period    = 300
       periods   = 3
       threshold = 1
-      stops     = "Shop staff are no longer being told about work that is ageing — orders waiting to be picked, stock running out. Nothing else reports this."
+      stops     = "Shop staff are no longer being told about work that is ageing - orders waiting to be picked, stock running out. Nothing else reports this."
     }
     insights-reconcile = {
       function  = "effy-edge-shop-${var.env}-insightsReconcile"

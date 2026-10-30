@@ -1,4 +1,4 @@
-# Quickstart — 013 Customer Mobile Foundation
+# Quickstart - 013 Customer Mobile Foundation
 
 **Audience**: the operator, running everything that touches live AWS or a real device. Claude writes all the code;
 this is the run/validate guide, not an implementation guide.
@@ -9,34 +9,34 @@ identities, no TestFlight/Play distribution.
 
 ---
 
-## 0. Prerequisites — a reachable backend (deployed OR local)
+## 0. Prerequisites - a reachable backend (deployed OR local)
 
 This app has no backend of its own; it calls `edge-api/customer` (011/012). That backend can be **deployed** or
-**run locally** — a physical phone reaches either. **Local is the recommended dev path** and mirrors how `core-api`
+**run locally** - a physical phone reaches either. **Local is the recommended dev path** and mirrors how `core-api`
 already works (local-Docker-only by decision).
 
 **What is genuinely required, regardless of path:**
-- The **customer Cognito pool** — this is real dev AWS and already exists (the app authenticates directly against
+- The **customer Cognito pool** - this is real dev AWS and already exists (the app authenticates directly against
   Cognito; there is no local substitute). Pool id / client id from `make output ENV=dev`.
 - The **customer table + `has_password` migration** applied to whatever DB the edge-api points at.
 - A working **email inbox** for OTP + the step-up code. *(The built-in Cognito sender is fine for dev volume; SES
-  production access / `mail-verify` is a go-live concern, not a dev blocker — ignore it until you choose to.)*
+  production access / `mail-verify` is a go-live concern, not a dev blocker - ignore it until you choose to.)*
 
-### Path A — local edge-api + ngrok (recommended for dev)
+### Path A - local edge-api + ngrok (recommended for dev)
 
 ```bash
 make db-up ENV=dev                                        # apply the 011/012 migrations to your dev/local DB
-make edge-offline SERVICE=customer ENV=dev &              # serverless-offline — the customer routes on :3000
+make edge-offline SERVICE=customer ENV=dev &              # serverless-offline - the customer routes on :3000
 curl -s http://localhost:3000/customer/healthz            # → {"status":"ok","service":"customer"}
 make cm-ngrok-edge NGROK_STATIC_DOMAIN=<you>.ngrok-free.app   # stable public https URL the phone can reach
 ```
 
 Put the **ngrok static URL** in `secrets.properties` as `EDGE_API_BASE_URL` (§ 1). Because `EDGE_API_BASE_URL` is
-**build-time** (BuildKonfig), a **static/reserved** ngrok domain is worth it — a random per-session URL would force a
+**build-time** (BuildKonfig), a **static/reserved** ngrok domain is worth it - a random per-session URL would force a
 rebuild every time. `make cm-ngrok-core` does the same for core-api (:8080) when commerce eventually needs it; for
 this slice only edge is called.
 
-### Path B — deployed edge-api (for a shared/QA environment)
+### Path B - deployed edge-api (for a shared/QA environment)
 
 ```bash
 make apply ENV=dev                              # adds the customer-mobile app client (90-day refresh) + authorizer audience (D3a; additive)
@@ -49,7 +49,7 @@ curl -s https://edge-api.dev.effyshopping.com/customer/healthz   # → {"status"
 
 ---
 
-## 1. Configuration — no secrets in the tree
+## 1. Configuration - no secrets in the tree
 
 ```bash
 cd apps/customer-mobile
@@ -62,7 +62,7 @@ Fill `secrets.properties` from `make output` (values also in SSM `/effy/dev/auth
 
 ```properties
 COGNITO_USER_POOL_ID=ap-southeast-2_xxxxxxxxx
-# ⚠ the MOBILE client — output `customer_mobile_app_client_id` / SSM .../auth/customer/mobile_app_client_id.
+# ⚠ the MOBILE client - output `customer_mobile_app_client_id` / SSM .../auth/customer/mobile_app_client_id.
 # NOT the web `app_client_id`. The mobile client is the one with the 90-day session (D3a).
 COGNITO_APP_CLIENT_ID=xxxxxxxxxxxxxxxxxxxxxxxxxx
 COGNITO_REGION=ap-southeast-2
@@ -70,28 +70,28 @@ EDGE_API_BASE_URL=https://edge-api.dev.effyshopping.com   # or your ngrok URL (P
 CORE_API_BASE_URL=http://localhost:8080          # commerce; nothing to call yet
 ```
 
-**None of these is a secret** — they are *names*. The app client has **no client secret** (`generate_secret =
+**None of these is a secret** - they are *names*. The app client has **no client secret** (`generate_secret =
 false`), which is why there is nothing here an attacker could use (data-model § 7).
 
-**Prove FR-041** — a missing key fails the build, loudly:
+**Prove FR-041** - a missing key fails the build, loudly:
 
 ```bash
 # temporarily blank COGNITO_APP_CLIENT_ID, then:
 ./gradlew :shared:assemble
-# EXPECT: build fails at configuration time —
+# EXPECT: build fails at configuration time -
 #   "Missing required build configuration: COGNITO_APP_CLIENT_ID …"
 # NOT a compiled app that misbehaves at runtime.
 ```
 
 ---
 
-## 2. The generated artifacts — regenerate and confirm no drift (Principle II)
+## 2. The generated artifacts - regenerate and confirm no drift (Principle II)
 
 ```bash
 pnpm --filter @effy/shared-types contract:gen      # shared-types → contract/schema.json + Dto.kt
 pnpm --filter @effy/design-system tokens:gen       # tokens.css   → compose/EffyTokens.kt
 git diff --exit-code packages/shared-types/contract packages/design-system/compose
-# EXPECT: clean. A non-empty diff means the Kotlin drifted from its TS/CSS source — commit the regenerated files.
+# EXPECT: clean. A non-empty diff means the Kotlin drifted from its TS/CSS source - commit the regenerated files.
 ```
 
 This is the whole of the Principle II guarantee: **the Kotlin cannot be stale and green.** CI runs the same two
@@ -106,7 +106,7 @@ make android-run ENV=dev        # or open in Android Studio; installs to the con
 make ios-run ENV=dev            # or open iosApp/ in Xcode; runs on the simulator/device
 ```
 
-**Prove the escape-hatch guard works — by breaking it** (the 011 lesson, D8):
+**Prove the escape-hatch guard works - by breaking it** (the 011 lesson, D8):
 
 ```bash
 # add a reference to `getEscapeHatch()` somewhere in shared/, then:
@@ -133,7 +133,7 @@ make mobile-fixtures ENV=dev    # hits dev /customer/v1/me etc.; both TS and Kot
 
 ---
 
-## 5. The device matrix — the part that cannot be faked (SC-001)
+## 5. The device matrix - the part that cannot be faked (SC-001)
 
 **"Two SDKs behave identically" is a claim until you exercise it.** Run **every** flow on **both** an Android device
 and an iOS device.
@@ -147,33 +147,33 @@ and an iOS device.
 | Session persistence | sign in → force-quit → reopen | **Still signed in, zero interactions** (SC-005) |
 | One record across surfaces | sign in on phone with a customer who exists on web | **One** record, not two (SC-010) |
 | Name + avatar | change name; check avatar for two/one/no name, non-Latin, emoji | Greeting updates without re-login; **zero** blank/mangled/email-derived initials (SC-013) |
-| Sign out | from any screen | ≤ 2 interactions; afterwards **no usable token on the device** — verify by inspection (SC-012) |
+| Sign out | from any screen | ≤ 2 interactions; afterwards **no usable token on the device** - verify by inspection (SC-012) |
 
 ---
 
-## 6. The adversarial proofs — demonstrated, not asserted (SC-006, SC-007)
+## 6. The adversarial proofs - demonstrated, not asserted (SC-006, SC-007)
 
 These are the reason the slice exists. **Perform them, do not reason about them.**
 
-- **SC-006 — cannot set a password from a bare session.** Sign in as an OTP-only customer. Hand the unlocked,
+- **SC-006 - cannot set a password from a bare session.** Sign in as an OTP-only customer. Hand the unlocked,
   signed-in phone to a second person **who does not have the account's email**. They attempt to set a password.
-  **It must be impossible** — the emailed code is required, verified server-side in the same request, with no stored
+  **It must be impossible** - the emailed code is required, verified server-side in the same request, with no stored
   grant to capture (FR-024). If they can complete it, the slice has failed its one job.
-- **SC-007 — cannot change a password without the current one.** As a password customer, attempt a change without
+- **SC-007 - cannot change a password without the current one.** As a password customer, attempt a change without
   the current password. **Refused**, even holding a valid session (FR-025).
-- **SC-019 — password write signs out this device.** Set or change a password. **The app returns to sign-in**, and
+- **SC-019 - password write signs out this device.** Set or change a password. **The app returns to sign-in**, and
   the same customer signs in with the password they just chose. Confirm the email arrived and contains **no link**.
 
 ---
 
-## 7. The spikes — settle before sign-off (research § The spikes)
+## 7. The spikes - settle before sign-off (research § The spikes)
 
 | # | Prove |
 |---|---|
 | **S1** | On our pool, `ChangePassword`-without-previous **actually** behaves as the API docs say (FR-024's premise). |
 | **S2** | What "Forgot password?" does **today** for a passwordless customer (that path is live now). |
-| **S3** | Nav3 polymorphic routes + the auth-stack swap + edge-swipe **on a real iPhone** — green on Android proves nothing. |
-| **S4** | Whether Amplify's refresh is rotation-compatible (`GetTokensFromRefreshToken`) — until settled, **rotation stays OFF**. |
+| **S3** | Nav3 polymorphic routes + the auth-stack swap + edge-swipe **on a real iPhone** - green on Android proves nothing. |
+| **S4** | Whether Amplify's refresh is rotation-compatible (`GetTokensFromRefreshToken`) - until settled, **rotation stays OFF**. |
 | **S5** | Amplify `updatePassword` with an **empty-string** old password: dropped (→ the attack) or `InvalidParameterException`? |
 | **S6** | The exact Amplify shared-prefs filenames to exclude from Android Auto Backup (FR-020). |
 
@@ -181,12 +181,12 @@ These are the reason the slice exists. **Perform them, do not reason about them.
 
 ## 8. Sign-off
 
-- [ ] O1 — `make apply ENV=dev`: the **customer-mobile app client** (90-day refresh) + authorizer audience applied,
+- [ ] O1 - `make apply ENV=dev`: the **customer-mobile app client** (90-day refresh) + authorizer audience applied,
       **additive** (aborted if the pool or *web* client would be replaced). Mobile client id → `secrets.properties`.
-- [ ] O2 — 011/012 backend deployed; `/customer/healthz` green; **SES sends**.
+- [ ] O2 - 011/012 backend deployed; `/customer/healthz` green; **SES sends**.
 - [ ] Every § 5 row passes on **both** platforms.
 - [ ] Every § 6 adversarial proof passes.
-- [ ] All six spikes settled; none changed the design (or, if one did, the spec/plan were updated first — Principle I).
+- [ ] All six spikes settled; none changed the design (or, if one did, the spec/plan were updated first - Principle I).
 - [ ] `docs/audiences/customer-capabilities.md` mobile column filled; **no unstated cell** (FR-044, SC-018).
 - [ ] The two recorded deviations (Principle V iOS chrome; Principle VII telemetry) still hold, each with its named
       closing slice.

@@ -49,31 +49,31 @@ export function composeSections(
     return section
   }
 
-  // 1 — category shortcuts. Navigation before the thing it navigates.
+  // 1 - category shortcuts. Navigation before the thing it navigates.
   if (categories.some((c) => c.productCount > 0)) {
     sections.push({ kind: "categories", categories })
   }
 
   // The hero promotions are `PromoHero`'s (the `home-hero` group). The offers between sections are the
   // `home-between` group: block a takes the first three and block B what is left, so FR-020's "must not
-  // duplicate a promotion already shown above" is structural — one list, each block consumes from it.
+  // duplicate a promotion already shown above" is structural - one list, each block consumes from it.
   const blockA = between.slice(0, OFFERS_PER_BLOCK)
   const blockB = between.slice(OFFERS_PER_BLOCK, OFFERS_PER_BLOCK * 2)
 
-  // 2 — the discount rail leads: it is the reason a shopper who is only browsing keeps scrolling.
+  // 2 - the discount rail leads: it is the reason a shopper who is only browsing keeps scrolling.
   const onSale = take("on_sale")
   if (onSale) sections.push(onSale)
 
-  // 3 — offers block A.
+  // 3 - offers block A.
   if (blockA.length > 0) {
     sections.push({ kind: "offers", block: "a", title: "Offers", banners: blockA })
   }
 
-  // 4 — the curated picks.
+  // 4 - the curated picks.
   const featured = take("featured")
   if (featured) sections.push(featured)
 
-  // 5 — the departments, in the order the server gave them.
+  // 5 - the departments, in the order the server gave them.
   for (const rail of home.rails) {
     if (used.has(rail.key) || !rail.key.startsWith("category:")) continue
     const section = railSection(rail)
@@ -83,12 +83,12 @@ export function composeSections(
     }
   }
 
-  // 6 — offers block B, from whatever block a did not take.
+  // 6 - offers block B, from whatever block a did not take.
   if (blockB.length > 0) {
     sections.push({ kind: "offers", block: "b", title: "More offers", banners: blockB })
   }
 
-  // 8 — anything the server sent that none of the named slots claimed. Without this a rail the backend
+  // 8 - anything the server sent that none of the named slots claimed. Without this a rail the backend
   // adds later would be silently dropped by a frontend that only knows three key shapes.
   for (const rail of home.rails) {
     if (used.has(rail.key)) continue
@@ -102,7 +102,7 @@ export function composeSections(
   return sections
 }
 
-/** True when the payload has no merchandised content at all — the "shelves being stocked" case. */
+/** True when the payload has no merchandised content at all - the "shelves being stocked" case. */
 export function isEmptyStore(home: StorefrontHomeDTO): boolean {
   return home.rails.every((r) => r.products.length === 0)
 }

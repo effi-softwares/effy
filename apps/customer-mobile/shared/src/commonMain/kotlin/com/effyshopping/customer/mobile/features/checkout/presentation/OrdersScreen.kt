@@ -95,12 +95,12 @@ private class OrdersViewModel(
 
     /** Extracted from `init` so the error state can offer a retry. */
     /**
-     * Reload without clearing the screen — what a pull-to-refresh needs.
+     * Reload without clearing the screen - what a pull-to-refresh needs.
      *
      * [load] flips the state to Loading first, which replaces the whole screen with a spinner. That is
      * right on first open and wrong on a refresh: the shopper is looking at this content and asking for a
      * newer version of it, not asking for it to disappear. A failure here keeps what is on screen for the
-     * same reason — "we could not check" must never read as "there is nothing here".
+     * same reason - "we could not check" must never read as "there is nothing here".
      */
     suspend fun refresh() {
         try {
@@ -133,7 +133,7 @@ fun OrdersScreen(
     onOpen: (String) -> Unit,
     /** An empty order list offers a route back into the catalogue. */
     onBrowse: () -> Unit = {},
-    /** 087 (Orders board) — the reorder snackbar's "View cart". */
+    /** 087 (Orders board) - the reorder snackbar's "View cart". */
     onViewCart: () -> Unit = {},
 ) {
     val vm = viewModel { OrdersViewModel(container.listOrders, container.live.changes(LiveKind.ORDERS)) }
@@ -145,7 +145,7 @@ fun OrdersScreen(
      * Put a past order back in the cart, and tell the shopper what could not come.
      *
      * The report is the point. Silently adding a subset is the one outcome they cannot detect for
-     * themselves — they would go to the cart believing they had reordered. It names no shop, only counts.
+     * themselves - they would go to the cart believing they had reordered. It names no shop, only counts.
      */
     fun reorder(orderId: String) {
         scope.launch {
@@ -223,7 +223,7 @@ fun OrdersScreen(
             }
         }
     }
-    // The reorder outcome is announced here — at the bottom, above the tab bar (Patterns board).
+    // The reorder outcome is announced here - at the bottom, above the tab bar (Patterns board).
     EffySnackbarHost(snackbarHost, modifier = Modifier.align(Alignment.BottomCenter))
     }
 }
@@ -314,9 +314,9 @@ private fun OrderRow(order: OrderSummary, onOpen: (String) -> Unit, onReorder: (
                 style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum"),
                 modifier = Modifier.weight(1f),
             )
-            // "buy again" — re-finding fifteen items is work nobody does.
+            // "buy again" - re-finding fifteen items is work nobody does.
             EffyTextLink("Buy again", onClick = { onReorder(order.id) })
-            // 087 (Orders board) — "Track order" while it is on its way, else "View order". The card
+            // 087 (Orders board) - "Track order" while it is on its way, else "View order". The card
             // opens it too; this names what the tap is for. The stage is the server's.
             EffyTextLink(
                 if (order.stage == OrderStage.OnTheWay) "Track order" else "View order",
@@ -340,7 +340,7 @@ internal fun orderStageWord(order: OrderSummary): Pair<String, EffyStatusKind> =
     else -> statusLabel(order.status) to EffyStatusKind.InProgress
 }
 
-/** The arrival line — only ever as sold, only through the pinned wording. */
+/** The arrival line - only ever as sold, only through the pinned wording. */
 internal fun orderArrivalLine(order: OrderSummary): String? {
     order.deliveredAt?.let { at -> DeliveryWindowText.epochMillisOrNull(at)?.let { return "Delivered ${DeliveryWindowText.formatDay(DeliveryWindowText.melbourneDay(it))}" } }
     if (order.status in setOf("cancelled", "refunded") || order.fullyRefunded) return null
