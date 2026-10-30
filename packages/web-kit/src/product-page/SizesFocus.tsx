@@ -1,9 +1,9 @@
-import type { ReactNode } from "react";
+import type { KeyboardEvent, ReactNode } from "react";
 
-import { Copy } from "lucide-react";
+import { Copy, Pencil } from "lucide-react";
 
 import { cn } from "@effy/design-system";
-import { Badge, Button, toast } from "@effy/design-system/ui";
+import { Badge, Button, Input, Label, toast } from "@effy/design-system/ui";
 import { unitPriceText } from "@effy/shared-types";
 
 import {
@@ -15,6 +15,38 @@ import {
   type SizeView,
   type StockState,
 } from "./model";
+import type { SheetField, SheetRow } from "./SizesSheet";
+
+/**
+ * Editing the chosen size where it is shown: its price, its own code, its barcode and its packed weight become fields,
+ * and a bar under the size saves or cancels them. Everything else about a size (its option values, its net quantity,
+ * adding and removing sizes) stays in the console's sizes dialog.
+ */
+export interface SizeEditing {
+  /** The size being edited; null while none is. */
+  sizeId: string | null;
+  onStart: (sizeId: string) => void;
+  /** The values as typed, and as they were, by size id. */
+  value: Readonly<Record<string, SheetRow>>;
+  initial: Readonly<Record<string, SheetRow>>;
+  /** A field's refusal, by `sizeId:field`. */
+  errors?: Readonly<Record<string, string>>;
+  onChange: (sizeId: string, field: SheetField, value: string) => void;
+  onSave: () => void;
+  onCancel: () => void;
+  /** The price field's currency ("AUD"). */
+  currency: string;
+  /** "Send to Effy" on an approved product. */
+  saveLabel: string;
+  /** What happens on save, said beside the buttons. */
+  note: string;
+  /** What customers pay says while the price is being changed. */
+  customerPriceWhileChanging: string;
+  saving?: boolean;
+  /** A refusal of the whole save; `onReload` when someone else changed the product meanwhile. */
+  error?: string | null;
+  onReload?: () => void;
+}
 
 const STOCK_TEXT: Record<StockState, string> = {
   untracked: "text-muted-foreground",
@@ -51,6 +83,7 @@ interface Props {
   footer?: (s: SizeView) => ReactNode;
   /** Under the list: adding a size. */
   addSize?: ReactNode;
+  edit?: SizeEditing;
 }
 
 /**
@@ -71,9 +104,16 @@ export function SizesFocus({
   stockActions,
   footer,
   addSize,
+  edit,
 }: Props) {
   const size = sizes.find((s) => s.id === selectedId) ?? sizes[0];
   if (!size) return null;
+  const editing = edit?.sizeId === size.id ? edit : null;
+  const row = editing ? editing.value[size.id] : undefined;
+  const was = editing ? editing.initial[size.id] : undefined;
+  // While a size has unsaved edits the list stays on it: its edits are saved or cancelled first.
+  const locked = !!editing && JSON.stringify(row) !== JSON.stringify(was);
+  const priceChanging = !!row && !!was && row.price.trim() !== was.price.trim();
   const ladder = unitLadder(sizes);
   const best = ladder ? ladder.reduce((a, b) => (b.share < a.share ? b : a)) : null;
 
@@ -91,9 +131,11 @@ export function SizesFocus({
               key={s.id}
               type="button"
               onClick={() => onSelect(s.id)}
+              disabled={locked && s.id !== size.id}
+              title={locked && s.id !== size.id ? "Save or cancel this size's changes first" : undefined}
               aria-current={s.id === size.id ? "true" : undefined}
               className={cn(
-                "flex shrink-0 items-center gap-3 rounded-md border border-transparent p-3 text-left transition-colors outline-none hover:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring/50 md:w-full",
+                "flex shrink-0 items-center gap-3 rounded-md border border-transparent p-3 text-left transition-colors outline-none hover:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 md:w-full",
                 s.id === size.id && "border-border bg-background hover:bg-background",
               )}
             >
@@ -118,20 +160,60 @@ export function SizesFocus({
         {addSize ? <div className="shrink-0 md:mt-1.5">{addSize}</div> : null}
       </div>
 
-      <div key={size.id} className="grid min-w-0 content-start gap-10 p-8 max-md:p-5" style={{ animation: "effy-fade 200ms ease-out" }}>
+      <div
+        key={size.id}
+        className="grid min-w-0 content-start gap-10 p-8 max-md:p-5"
+        style={{ animation: "effy-fade 200ms ease-out" }}
+        role={editing ? "group" : undefined}
+        aria-label={editing ? `Editing ${size.label}` : undefined}
+        // Enter in a field saves the size; Escape anywhere in it cancels.
+        onKeyDown={(e: KeyboardEvent) => {
+          if (!editing) return;
+          if (e.key === "Escape") {
+            e.preventDefault();
+            editing.onCancel();
+          } else if (e.key === "Enter" && (e.target as HTMLElement).tagName === "INPUT" && locked && !editing.saving) {
+            e.preventDefault();
+            editing.onSave();
+          }
+        }}
+      >
         <div className="flex flex-wrap items-center gap-4">
           <SizeMark size={size} large />
           <div className="min-w-0">
             <h3 className="text-xl leading-7 font-semibold tracking-[-0.02em]">{size.label}</h3>
             {size.code ? <CodeChip code={size.code} /> : <span className="text-sm text-muted-foreground">New size — its code comes on approval</span>}
           </div>
-          {onSaleControl ? <div className="ml-auto flex items-center gap-3 text-sm font-medium">{onSaleControl(size)}</div> : null}
+          <div className="ml-auto flex flex-wrap items-center gap-4">
+            {onSaleControl ? <div className="flex items-center gap-3 text-sm font-medium">{onSaleControl(size)}</div> : null}
+            {edit && !editing ? (
+              <Button type="button" variant="outline" disabled={edit.sizeId !== null} onClick={() => edit.onStart(size.id)}>
+                <Pencil aria-hidden="true" />
+                Edit
+              </Button>
+            ) : editing ? (
+              <Badge variant="default">Editing</Badge>
+            ) : null}
+          </div>
         </div>
 
         <Block title="Price">
           <div className="flex flex-wrap items-stretch gap-3">
-            <PriceBox label={priceLabel}>
-              {size.pendingShopPrice ? (
+            <PriceBox label={priceLabel} editing={!!editing}>
+              {editing && row ? (
+                <EditField
+                  id={`size-${size.id}-price`}
+                  label={priceLabel}
+                  value={row.price}
+                  prefix={editing.currency}
+                  inputMode="decimal"
+                  autoFocus
+                  error={editing.errors?.[`${size.id}:price`]}
+                  disabled={editing.saving}
+                  onChange={(v) => editing.onChange(size.id, "price", v)}
+                  large
+                />
+              ) : size.pendingShopPrice ? (
                 <>
                   <s className="text-sm font-normal text-muted-foreground">{money(size.shopPrice)}</s>
                   {money(size.pendingShopPrice)}
@@ -139,13 +221,13 @@ export function SizesFocus({
               ) : (
                 money(size.shopPrice)
               )}
-              {size.pendingShopPrice ? (
+              {!editing && size.pendingShopPrice ? (
                 <Badge variant="default" className="basis-full">
                   {pendingWord}
                 </Badge>
               ) : null}
             </PriceBox>
-            {marginLabel && size.customerPrice ? (
+            {marginLabel && size.customerPrice && !editing ? (
               <>
                 <Operator>+</Operator>
                 <PriceBox label={marginLabel} muted>
@@ -157,7 +239,9 @@ export function SizesFocus({
               <Operator>→</Operator>
             )}
             <PriceBox label="Customers pay" result>
-              {size.customerPrice ? (
+              {editing && priceChanging ? (
+                <span className="text-sm font-normal text-muted-foreground">{editing.customerPriceWhileChanging}</span>
+              ) : size.customerPrice ? (
                 money(size.customerPrice)
               ) : (
                 <span className="text-sm font-normal text-muted-foreground">{unsetCustomerPrice}</span>
@@ -198,7 +282,7 @@ export function SizesFocus({
         </Block>
 
         <Block title="Stock">
-          <SizeStockView size={size} actions={stockActions?.(size)} />
+          <SizeStockView size={size} actions={editing ? undefined : stockActions?.(size)} />
         </Block>
 
         <Block title="Codes and shipping">
@@ -206,24 +290,154 @@ export function SizesFocus({
             <Fact label="Effy code" mono>
               {size.code ?? "—"}
             </Fact>
-            <Fact label={codeLabel} mono>
-              {size.sku ?? "—"}
-            </Fact>
-            <Fact label="Barcode" mono={!!size.gtin}>
-              {size.gtin ?? <span className="text-muted-foreground">None</span>}
-            </Fact>
-            <Fact label="Packed weight">
-              {weightText(size.weightGrams)}
-              {size.weightAssumed ? <span className="ml-1.5 text-muted-foreground">assumed</span> : null}
-            </Fact>
+            {editing && row ? (
+              <>
+                <EditField
+                  id={`size-${size.id}-sku`}
+                  label={codeLabel}
+                  value={row.sku}
+                  mono
+                  error={editing.errors?.[`${size.id}:sku`]}
+                  disabled={editing.saving}
+                  onChange={(v) => editing.onChange(size.id, "sku", v)}
+                />
+                <EditField
+                  id={`size-${size.id}-gtin`}
+                  label="Barcode"
+                  value={row.gtin}
+                  mono
+                  inputMode="numeric"
+                  error={editing.errors?.[`${size.id}:gtin`]}
+                  disabled={editing.saving}
+                  onChange={(v) => editing.onChange(size.id, "gtin", v)}
+                />
+                <EditField
+                  id={`size-${size.id}-weight`}
+                  label="Packed weight"
+                  value={row.weight}
+                  suffix="g"
+                  inputMode="numeric"
+                  placeholder={size.weightAssumed ? `${size.weightGrams} assumed` : undefined}
+                  error={editing.errors?.[`${size.id}:weight`]}
+                  disabled={editing.saving}
+                  onChange={(v) => editing.onChange(size.id, "weight", v)}
+                />
+              </>
+            ) : (
+              <>
+                <Fact label={codeLabel} mono>
+                  {size.sku ?? "—"}
+                </Fact>
+                <Fact label="Barcode" mono={!!size.gtin}>
+                  {size.gtin ?? <span className="text-muted-foreground">None</span>}
+                </Fact>
+                <Fact label="Packed weight">
+                  {weightText(size.weightGrams)}
+                  {size.weightAssumed ? <span className="ml-1.5 text-muted-foreground">assumed</span> : null}
+                </Fact>
+              </>
+            )}
             <Fact label="Net quantity">
               {size.quantity ? `${size.quantity.amount} ${size.quantity.unit}` : <span className="text-muted-foreground">—</span>}
             </Fact>
           </dl>
         </Block>
 
-        {footer ? <div>{footer(size)}</div> : null}
+        {editing ? (
+          <div
+            role="region"
+            aria-label="Save this size"
+            className="sticky bottom-4 z-[1] flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border bg-background p-3 pl-4 shadow-lg"
+          >
+            <p className={cn("min-w-0 flex-[1_1_240px] text-sm", editing.error ? "font-medium" : "text-muted-foreground")} role={editing.error ? "alert" : undefined}>
+              {editing.error ?? editing.note}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="ghost" disabled={editing.saving} onClick={editing.onCancel}>
+                Cancel
+              </Button>
+              {editing.onReload ? (
+                <Button type="button" variant="outline" onClick={editing.onReload}>
+                  Reload
+                </Button>
+              ) : (
+                <Button type="button" disabled={editing.saving || !locked} onClick={editing.onSave}>
+                  {editing.saving ? "Saving…" : editing.saveLabel}
+                </Button>
+              )}
+            </div>
+          </div>
+        ) : footer ? (
+          <div>{footer(size)}</div>
+        ) : null}
       </div>
+    </div>
+  );
+}
+
+/** One field of a size being edited in place: its label above, a prefix or suffix inside, its refusal below. */
+function EditField({
+  id,
+  label,
+  value,
+  onChange,
+  prefix,
+  suffix,
+  mono,
+  large,
+  error,
+  ...input
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  prefix?: string;
+  suffix?: string;
+  mono?: boolean;
+  large?: boolean;
+  error?: string;
+  inputMode?: "decimal" | "numeric";
+  placeholder?: string;
+  autoFocus?: boolean;
+  disabled?: boolean;
+}) {
+  return (
+    <div className={cn("grid gap-1.5", large && "w-40")}>
+      {large ? null : (
+        <Label htmlFor={id} className="text-xs font-normal text-muted-foreground">
+          {label}
+        </Label>
+      )}
+      <div className="relative">
+        {prefix ? (
+          <span className="pointer-events-none absolute inset-y-0 left-3 grid place-items-center text-sm text-muted-foreground">{prefix}</span>
+        ) : null}
+        <Input
+          id={id}
+          value={value}
+          aria-label={large ? label : undefined}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? `${id}-error` : undefined}
+          onChange={(e) => onChange(e.target.value)}
+          className={cn(
+            "tabular-nums",
+            prefix && "pl-12",
+            suffix && "pr-8",
+            mono && "font-mono text-[13px]",
+            large && "font-semibold",
+          )}
+          {...input}
+        />
+        {suffix ? (
+          <span className="pointer-events-none absolute inset-y-0 right-3 grid place-items-center text-sm text-muted-foreground">{suffix}</span>
+        ) : null}
+      </div>
+      {error ? (
+        <p id={`${id}-error`} className="text-xs font-medium text-destructive">
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -310,9 +524,21 @@ function Block({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-function PriceBox({ label, muted, result, children }: { label: string; muted?: boolean; result?: boolean; children: ReactNode }) {
+function PriceBox({
+  label,
+  muted,
+  result,
+  editing,
+  children,
+}: {
+  label: string;
+  muted?: boolean;
+  result?: boolean;
+  editing?: boolean;
+  children: ReactNode;
+}) {
   return (
-    <div className={cn("min-w-40 rounded-md border px-[18px] py-4", result && "border-transparent bg-muted")}>
+    <div className={cn("min-w-40 rounded-md border px-[18px] py-4", result && "border-transparent bg-muted", editing && "border-primary/50 bg-primary-muted/40")}>
       <div className="text-xs text-muted-foreground">{label}</div>
       <div className={cn("mt-1.5 flex flex-wrap items-baseline gap-2 text-xl font-semibold tracking-[-0.01em] tabular-nums", muted && "text-muted-foreground")}>
         {children}

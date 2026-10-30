@@ -8,6 +8,7 @@ import {
   ResponsiveModalFooter,
   ResponsiveModalHeader,
   ResponsiveModalTitle,
+  useResponsiveModalIsMobile,
 } from "@effy/design-system/ui"
 
 import { cn } from "@/lib/utils"
@@ -21,10 +22,23 @@ interface DialogProps {
   children: ReactNode
 }
 
+/**
+ * A product edit, in shadcn's responsive dialog (its padding and gap marked important: the consoles' dialog rule in
+ * console.css is unlayered, so it outweighs a plain utility). On a desktop the title stays put above a rule, only the fields scroll,
+ * and the buttons stay put on a footer below them; on a phone it is the bottom drawer, scrolling as a whole.
+ */
 export function FocusedEditDialog({ open, onOpenChange, size = "default", children }: DialogProps) {
+  const mobile = useResponsiveModalIsMobile()
   return (
     <ResponsiveModal open={open} onOpenChange={onOpenChange}>
-      <ResponsiveModalContent className={cn("max-h-[90vh] overflow-y-auto max-md:max-h-[92dvh]", WIDTH[size])}>
+      <ResponsiveModalContent
+        className={cn(
+          mobile
+            ? "max-h-[92dvh] overflow-y-auto"
+            : "grid max-h-[90vh] grid-rows-[auto_minmax(0,1fr)_auto] gap-0! overflow-hidden p-0!",
+          WIDTH[size],
+        )}
+      >
         {children}
       </ResponsiveModalContent>
     </ResponsiveModal>
@@ -59,18 +73,28 @@ export function FocusedEditForm({
   onCancel,
   children,
 }: FormProps) {
+  const mobile = useResponsiveModalIsMobile()
   return (
     <>
-      <ResponsiveModalHeader>
+      <ResponsiveModalHeader className={mobile ? undefined : "border-b px-6 pt-6 pr-12 pb-4"}>
         <ResponsiveModalTitle>{title}</ResponsiveModalTitle>
-        {description ? <ResponsiveModalDescription>{description}</ResponsiveModalDescription> : null}
+        {description ? (
+          <ResponsiveModalDescription className="max-w-[72ch]">{description}</ResponsiveModalDescription>
+        ) : null}
       </ResponsiveModalHeader>
 
-      <div className="space-y-4">{children}</div>
+      <div className={mobile ? "space-y-4" : "min-h-0 space-y-4 overflow-y-auto px-6 py-5 [scrollbar-width:thin]"}>
+        {children}
+      </div>
 
-      {error ? <p className="text-sm font-medium">{error}</p> : null}
+      {error && mobile ? <p className="text-sm font-medium">{error}</p> : null}
 
-      <ResponsiveModalFooter>
+      <ResponsiveModalFooter className={mobile ? undefined : "items-center border-t bg-muted/40 px-6 py-4"}>
+        {error && !mobile ? (
+          <p role="alert" className="mr-auto text-sm font-medium">
+            {error}
+          </p>
+        ) : null}
         <Button type="button" variant="ghost" onClick={onCancel} disabled={saving}>
           Cancel
         </Button>

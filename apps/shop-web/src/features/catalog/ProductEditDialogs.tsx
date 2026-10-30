@@ -189,10 +189,10 @@ function SizesForm({ detail, onClose, onDropped }: FormProps) {
     <FocusedEditForm
       onCancel={onClose}
       saveLabel={saveWord(detail)}
-      title="Edit sizes and prices"
+      title="Add or remove sizes"
       description={reviewNote(
         detail,
-        "What you are paid for each size, and its codes, weight and pack size. Turning a size off is immediate — use the Off sale action on the size's row.",
+        "The options this product comes in and every size with its price, codes, weight and pack size. A single size's price, codes and weight can also be changed on the page, with Edit.",
       )}
       canSave={(!touched || valid) && !!form.data}
       saving={edit.saving}

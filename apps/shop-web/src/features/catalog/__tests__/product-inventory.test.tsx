@@ -96,6 +96,9 @@ const SIZED = {
     {
       id: "v1",
       state: "active",
+      optionValueIds: [null, null],
+      shopPriceAmount: "4.00",
+      weightGrams: 500,
       label: "500 g",
       code: "V2222222",
       stock: stockDetail({ variantId: "v1", onHand: 12, effectiveThreshold: 5 }).stock,
@@ -103,6 +106,9 @@ const SIZED = {
     {
       id: "v2",
       state: "active",
+      optionValueIds: [null, null],
+      shopPriceAmount: "4.00",
+      weightGrams: 500,
       label: "1 kg",
       code: "V3333333",
       stock: stockDetail({ variantId: "v2", onHand: 0, outOfStock: true }).stock,
@@ -110,6 +116,9 @@ const SIZED = {
     {
       id: "v3",
       state: "active",
+      optionValueIds: [null, null],
+      shopPriceAmount: "4.00",
+      weightGrams: 500,
       label: "5 kg",
       code: "V4444444",
       stock: stockDetail({ variantId: "v3", tracked: false, onHand: null }).stock,

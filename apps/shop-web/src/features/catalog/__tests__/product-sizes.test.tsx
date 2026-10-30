@@ -126,6 +126,50 @@ describe("the product's sizes", () => {
     expect(screen.getByText("Fix the marked cells first.")).toBeInTheDocument()
   })
 
+  it("edits a size where it is shown: Edit, type, and Send to Effy sends the whole set", async () => {
+    updateProduct.mockResolvedValue(DETAIL)
+    await open()
+    await userEvent.click(screen.getByRole("button", { name: "Edit" }))
+    const price = screen.getByLabelText("Your price")
+    expect(price).toHaveFocus()
+    await userEvent.clear(price)
+    await userEvent.type(price, "9.10")
+    await userEvent.clear(screen.getByLabelText("Your code"))
+    await userEvent.type(screen.getByLabelText("Your code"), "EGG-700-B")
+    expect(screen.getByText("Set by Effy on approval")).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole("button", { name: "Send to Effy" }))
+    await waitFor(() => expect(updateProduct).toHaveBeenCalledTimes(1))
+    expect(updateProduct.mock.calls[0]![1].variants[0]).toMatchObject({
+      id: VARIANT,
+      shopPriceAmount: "9.10",
+      sku: "EGG-700-B",
+    })
+  })
+
+  it("Enter saves and Escape cancels an edit in place", async () => {
+    updateProduct.mockResolvedValue(DETAIL)
+    await open()
+    await userEvent.click(screen.getByRole("button", { name: "Edit" }))
+    await userEvent.type(screen.getByLabelText("Your code"), "X{Escape}")
+    expect(screen.queryByLabelText("Your code")).not.toBeInTheDocument()
+    expect(updateProduct).not.toHaveBeenCalled()
+
+    await userEvent.click(screen.getByRole("button", { name: "Edit" }))
+    await userEvent.type(screen.getByLabelText("Your code"), "X{Enter}")
+    await waitFor(() => expect(updateProduct).toHaveBeenCalledTimes(1))
+  })
+
+  it("keeps what was typed when the view is switched", async () => {
+    await open()
+    await userEvent.click(screen.getByRole("button", { name: "Edit" }))
+    const price = screen.getByLabelText("Your price")
+    await userEvent.clear(price)
+    await userEvent.type(price, "9.90")
+    await userEvent.click(screen.getByRole("radio", { name: "Spreadsheet" }))
+    expect(screen.getByLabelText("Your price for One size")).toHaveValue("9.90")
+  })
+
   it("remembers the chosen view on this device", async () => {
     await open()
     await userEvent.click(screen.getByRole("radio", { name: "Spreadsheet" }))

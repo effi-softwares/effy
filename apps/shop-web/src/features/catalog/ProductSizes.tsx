@@ -1,24 +1,16 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react"
+import { useState, type ReactNode } from "react"
 
 import { Bell, ClipboardCheck, History, Layers, PackagePlus, Pencil, Plus, Trash2 } from "lucide-react"
 
 import { Badge, Button, Switch, toast } from "@effy/design-system/ui"
 import { useActivityLog } from "@effy/web-kit/activity-log"
-import {
-  defaultStockVariantId,
-  draftFromDetail,
-  sizeLabelOf,
-  toInputs,
-  variantSetErrors,
-} from "@effy/web-kit/product-form"
+import { defaultStockVariantId, sizeLabelOf } from "@effy/web-kit/product-form"
 import {
   SizesFocus,
   SizesSheet,
   SizesViewToggle,
   storedSizesView,
   storeSizesView,
-  type SheetField,
-  type SheetRow,
   type SizesView,
   type SizeView,
 } from "@effy/web-kit/product-page"
@@ -34,15 +26,16 @@ import type { ProductDetail } from "./model"
 import { shopSizes } from "./productPage"
 import { useSetVariantState } from "./queries"
 import { isApproved } from "./review"
+import { useSizesDraft, type SizesDraft } from "./sizesDraft"
 import { AdjustStockDialog, ReceiveStockDialog, StartTrackingDialog } from "./StockDialogs"
-import { useFocusedEdit } from "./useFocusedEdit"
 
 type StockDialog = { kind: "receive" | "count" | "rules"; variantId: string; open: boolean }
 
 /**
- * The product's sizes: one at a time (each size's price, stock and codes) or as a spreadsheet the shop types prices,
- * codes and weights into. Turning a size off sale and stock are immediate; a price, code or weight on an approved
- * product goes to Effy for review.
+ * The product's sizes: one at a time (each size's price, stock and codes, edited where they are shown) or as a
+ * spreadsheet the shop types prices, codes and weights into — one draft for both, so switching keeps what is typed.
+ * Adding, removing or re-labelling sizes is the sizes dialog's. Turning a size off sale and stock are immediate; a
+ * price, code or weight on an approved product goes to Effy for review.
  */
 export function ProductSizes({
   detail,
@@ -70,6 +63,8 @@ export function ProductSizes({
   const hasOptions = detail.options.length > 0
   const onSale = sizes.filter((s) => s.onSale).length
   const money = (amount: string) => formatMoney(amount, detail.currency)
+  const draft = useSizesDraft(detail, onDraft)
+  const [editingId, setEditingId] = useState<string | null>(null)
 
   async function change(s: SizeView, state: "active" | "inactive" | "removed") {
     setError(null)
@@ -159,7 +154,7 @@ export function ProductSizes({
           {!readOnly && onEditSizes ? (
             <Button variant="outline" onClick={onEditSizes}>
               <Pencil aria-hidden="true" />
-              Edit sizes
+              Add or remove sizes
             </Button>
           ) : null}
         </>
@@ -169,7 +164,10 @@ export function ProductSizes({
         <SizesFocus
           sizes={sizes}
           selectedId={selected}
-          onSelect={setSelected}
+          onSelect={(id) => {
+            setSelected(id)
+            if (!draft.dirty) setEditingId(null)
+          }}
           money={money}
           priceLabel="Your price"
           codeLabel="Your code"
@@ -191,6 +189,30 @@ export function ProductSizes({
                 )
               : undefined
           }
+          edit={
+            readOnly
+              ? undefined
+              : {
+                  sizeId: editingId,
+                  onStart: setEditingId,
+                  value: draft.typed,
+                  initial: draft.initial,
+                  errors: draft.errors,
+                  onChange: draft.change,
+                  onSave: () => draft.save(() => setEditingId(null)),
+                  onCancel: () => {
+                    draft.discard()
+                    setEditingId(null)
+                  },
+                  currency: detail.currency,
+                  saveLabel: draft.saveLabel,
+                  note: draft.invalid ? "Fix the marked fields first." : draft.note,
+                  customerPriceWhileChanging: draft.approved ? "Set by Effy on approval" : "Set when Effy approves it",
+                  saving: draft.saving,
+                  error: draft.error,
+                  onReload: draft.stale ? draft.reload : undefined,
+                }
+          }
           addSize={
             !readOnly && onEditSizes ? (
               <Button variant="ghost" size="sm" onClick={onEditSizes}>
@@ -202,14 +224,12 @@ export function ProductSizes({
         />
       ) : (
         <SheetEditor
-          key={detail.updatedAt}
-          detail={detail}
+          draft={draft}
           sizes={sizes}
           readOnly={readOnly}
           money={money}
           saleControl={(s) => saleControl(s, false)}
           onReceive={(id) => open("receive", id)}
-          onDraft={onDraft}
         />
       )}
 
@@ -273,87 +293,22 @@ export function ProductSizes({
   )
 }
 
-const FIELD_OF: Record<string, SheetField> = {
-  shopPriceAmount: "price",
-  sku: "sku",
-  gtin: "gtin",
-  weightGrams: "weight",
-}
-
-/** The spreadsheet, with what the shop has typed since the product was last read; saved as one change. */
+/** The spreadsheet over the sizes draft; the bar under it saves every changed size as one change. */
 function SheetEditor({
-  detail,
+  draft,
   sizes,
   readOnly,
   money,
   saleControl,
   onReceive,
-  onDraft,
 }: {
-  detail: ProductDetail
+  draft: SizesDraft
   sizes: SizeView[]
   readOnly: boolean
   money: (amount: string) => string
   saleControl: (s: SizeView) => ReactNode
   onReceive: (variantId: string) => void
-  onDraft?: (prices: Record<string, string> | null) => void
 }) {
-  const edit = useFocusedEdit(detail.id)
-  const approved = isApproved(detail)
-  // The set as the shop is editing it: the live sizes, or the change already with Effy.
-  const base = useMemo(() => draftFromDetail(detail), [detail])
-  const initial = useMemo(
-    () =>
-      Object.fromEntries(
-        base.variants.map((r) => [r.id, { price: r.shopPriceAmount, sku: r.sku, gtin: r.gtin, weight: r.weightGrams }]),
-      ) as Record<string, SheetRow>,
-    [base],
-  )
-  const [typed, setTyped] = useState<Record<string, SheetRow>>(initial)
-  const [touched, setTouched] = useState(false)
-
-  const set = {
-    ...base,
-    variants: base.variants.map((r) => {
-      const t = typed[r.id]
-      return t ? { ...r, shopPriceAmount: t.price, sku: t.sku, gtin: t.gtin, weightGrams: t.weight } : r
-    }),
-  }
-  const errors: Record<string, string> = {}
-  for (const [field, message] of Object.entries(variantSetErrors(set))) {
-    const m = /^variants\[(\d+)\]\.(\w+)$/.exec(field)
-    const row = m ? set.variants[Number(m[1])] : undefined
-    const cell = m ? FIELD_OF[m[2]!] : undefined
-    if (row && cell) errors[`${row.id}:${cell}`] = message
-  }
-  const dirty = JSON.stringify(typed) !== JSON.stringify(initial)
-  const changed = Object.keys(typed).filter((id) => JSON.stringify(typed[id]) !== JSON.stringify(initial[id])).length
-  const invalid = Object.keys(errors).length > 0
-
-  useEffect(() => {
-    onDraft?.(dirty ? Object.fromEntries(Object.entries(typed).map(([id, r]) => [id, r.price])) : null)
-  }, [typed, dirty, onDraft])
-  // Leaving the spreadsheet (or saving, which re-reads the product) ends what was being typed.
-  useEffect(() => () => onDraft?.(null), [onDraft])
-
-  function save() {
-    setTouched(true)
-    if (invalid) return
-    const inputs = toInputs(set)
-    void edit.save(
-      {
-        expectedUpdatedAt: detail.updatedAt,
-        options: inputs.options,
-        variants: inputs.variants,
-        unitBasis: inputs.unitBasis,
-      },
-      () => {
-        track({ name: "product_variants_saved", productId: detail.id, variantCount: inputs.variants.length })
-        toast(approved ? "Sent to Effy. Customers see it once it is approved." : "Saved")
-      },
-    )
-  }
-
   return (
     <div className="grid gap-4">
       <SizesSheet
@@ -365,11 +320,11 @@ function SheetEditor({
           readOnly
             ? undefined
             : {
-                value: typed,
-                initial,
-                errors: touched ? errors : undefined,
-                disabled: edit.saving,
-                onChange: (id, field, value) => setTyped((t) => ({ ...t, [id]: { ...t[id]!, [field]: value } })),
+                value: draft.typed,
+                initial: draft.initial,
+                errors: draft.errors,
+                disabled: draft.saving,
+                onChange: draft.change,
               }
         }
         onSaleControl={saleControl}
@@ -394,39 +349,27 @@ function SheetEditor({
           Tab moves to the next cell, Enter to the one below. An empty weight keeps the assumed one.
         </p>
       )}
-      {dirty || edit.error ? (
+      {draft.dirty || draft.error ? (
         <div className="ef-actionbar mx-0 mb-0 rounded-lg border px-4" role="region" aria-label="Unsaved changes">
           <div className="ef-actionbar__text">
             <span className="ef-actionbar__title">
-              {changed} {changed === 1 ? "size" : "sizes"} changed
+              {draft.changed} {draft.changed === 1 ? "size" : "sizes"} changed
             </span>
             <span className="ef-actionbar__desc">
-              {edit.error ??
-                (touched && invalid
-                  ? "Fix the marked cells first."
-                  : approved
-                    ? "Effy checks it first — customers keep seeing today's version until it is approved."
-                    : "Saved straight to the product.")}
+              {draft.error ?? (draft.invalid ? "Fix the marked cells first." : draft.note)}
             </span>
           </div>
           <div className="ef-actionbar__actions">
-            <Button
-              variant="ghost"
-              disabled={edit.saving}
-              onClick={() => {
-                setTyped(initial)
-                setTouched(false)
-              }}
-            >
+            <Button variant="ghost" disabled={draft.saving} onClick={draft.discard}>
               Discard
             </Button>
-            {edit.stale ? (
-              <Button variant="outline" onClick={edit.reload}>
+            {draft.stale ? (
+              <Button variant="outline" onClick={draft.reload}>
                 Reload
               </Button>
             ) : (
-              <Button onClick={save} disabled={edit.saving || (touched && invalid)}>
-                {edit.saving ? "Saving…" : approved ? "Send to Effy" : "Save"}
+              <Button onClick={() => draft.save()} disabled={draft.saving || draft.invalid}>
+                {draft.saving ? "Saving…" : draft.saveLabel}
               </Button>
             )}
           </div>
