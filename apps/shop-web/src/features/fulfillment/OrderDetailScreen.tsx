@@ -12,8 +12,11 @@ import {
   ClipboardList,
   Info,
   ListChecks,
+  MapPin,
   MessageSquare,
   PackageCheck,
+  Pencil,
+  Phone,
   Plus,
   Printer,
   ReceiptText,
@@ -21,15 +24,16 @@ import {
   ShoppingBag,
   Tag,
   Truck,
+  User,
 } from "lucide-react"
 
 import { Badge, Button, Kbd } from "@effy/design-system/ui"
 import { ActionBarButton, useActionBar, useActionBarDensity } from "@effy/web-kit/action-bar"
-import { ActivityLogDrawer, useActivityAction } from "@effy/web-kit/activity-log"
+import { ActivityButton, ActivityLogDrawer } from "@effy/web-kit/activity-log"
 import { ErrorState, PackageStatusPill, useHeaderDetail, type HeaderBack } from "@effy/web-kit/console"
 import {
   BannerStack,
-  DetailRows,
+  InspectorRows,
   InspectorSection,
   MoreActions,
   RecordFacts,
@@ -60,7 +64,6 @@ import { useOrderNeighbours } from "./components/useOrderNeighbours"
 import { canDeclareUnfulfillable } from "./model"
 import {
   canPick,
-  deliveredByText,
   formatMoney,
   formatWhen,
   paymentMethodText,
@@ -90,7 +93,13 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
   const back: HeaderBack = { label: "Orders", link: { to: "/orders", search: { ...search } } }
 
   if (q.isError) {
-    return <ErrorState error={q.error} onRetry={() => void q.refetch()} forbiddenMessage="This order isn't available to your shop." />
+    return (
+      <ErrorState
+        error={q.error}
+        onRetry={() => void q.refetch()}
+        forbiddenMessage="This order isn't available to your shop."
+      />
+    )
   }
   if (q.isPending) {
     return (
@@ -100,26 +109,17 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
         back={back}
         facts={["Ready by", "Collected by", "Lines picked", "Bags", "Your items"]}
         sections={SECTIONS}
-        rail={["Where it is", "Customer and delivery", "Payment"]}
+        rail={["Where it is", "Customer", "Your money", "Tags"]}
       />
     )
   }
   return <OrderPage key={q.data.id} detail={q.data} search={search} back={back} />
 }
 
-function OrderPage({
-  detail,
-  search,
-  back,
-}: {
-  detail: OrderDetail
-  search: OrdersSearch
-  back: HeaderBack
-}) {
+function OrderPage({ detail, search, back }: { detail: OrderDetail; search: OrdersSearch; back: HeaderBack }) {
   const navigate = useNavigate()
   useHeaderDetail(detail.orderNumber)
   const { data: session } = useQuery(sessionQuery)
-  const activity = useActivityAction()
   const transition = useTransitionFulfillment(detail.id)
   const [cancelOpen, setCancelOpen] = useState(false)
   const [tagsOpen, setTagsOpen] = useState(false)
@@ -161,20 +161,43 @@ function OrderPage({
             tone: "problem" as const,
             icon: CircleAlert,
             title: `It’s ${due.minutes} ${due.minutes === 1 ? "minute" : "minutes"} past its ready-by time`,
-            children: <p>{goesWith} is coming for it. Finish the last lines, or say what you can’t supply and mark it ready.</p>,
+            children: (
+              <p>{goesWith} is coming for it. Finish the last lines, or say what you can’t supply and mark it ready.</p>
+            ),
           },
         ]
       : detail.atRisk
-        ? [{ key: "risk", tone: "problem" as const, icon: CircleAlert, title: "At risk of missing its collection", children: <p>Pack it by {formatWhen(detail.readyBy)}.</p> }]
+        ? [
+            {
+              key: "risk",
+              tone: "problem" as const,
+              icon: CircleAlert,
+              title: "At risk of missing its collection",
+              children: <p>Pack it by {formatWhen(detail.readyBy)}.</p>,
+            },
+          ]
         : []),
-    ...(note ? [{ key: "state", tone: detail.status === "unfulfillable" ? ("problem" as const) : ("info" as const), icon: Info, title: note }] : []),
+    ...(note
+      ? [
+          {
+            key: "state",
+            tone: detail.status === "unfulfillable" ? ("problem" as const) : ("info" as const),
+            icon: Info,
+            title: note,
+          },
+        ]
+      : []),
     ...(short > 0 && picking
       ? [
           {
             key: "short",
             icon: Info,
             title: short === 1 ? "One line is short" : `${short} lines are short`,
-            children: <p>Effy tells the customer and refunds them for what you couldn’t supply. You’re paid for what you send.</p>,
+            children: (
+              <p>
+                Effy tells the customer and refunds them for what you couldn’t supply. You’re paid for what you send.
+              </p>
+            ),
           },
         ]
       : []),
@@ -187,82 +210,128 @@ function OrderPage({
         <>
           <InspectorSection title="Where it is">
             <div className="grid gap-3">
-              <PackageStatusPill view={detail.statusView} />
-              <p className="text-sm text-muted-foreground">
-                {picking
-                  ? `Pack it by ${formatWhen(detail.readyBy)}. ${goesWith} collects it${detail.collection ? `, ${collectionLine(detail.collection)}` : ""}.`
-                  : detail.status === "ready_for_pickup"
-                    ? `Ready. ${goesWith} collects it${detail.collection ? `, ${collectionLine(detail.collection)}` : ""} — keep chilled and frozen bags cold until then.`
-                    : `${goesWith} has it. Nothing more to do.`}
-              </p>
+              <div>
+                <PackageStatusPill view={detail.statusView} />
+              </div>
+              {due?.tone === "over" ? (
+                <div className="grid gap-1 rounded-lg bg-destructive-soft px-4 py-3 text-sm">
+                  <b className="font-semibold text-destructive">
+                    {due.minutes} {due.minutes === 1 ? "minute" : "minutes"} past {formatWhen(detail.readyBy)}
+                  </b>
+                  <span>
+                    {goesWith} is still coming. If you can’t finish, say what you can’t supply and mark it ready.
+                  </span>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  {picking ? (
+                    <>
+                      Pack it by <b className="font-semibold text-foreground">{formatWhen(detail.readyBy)}</b>
+                      {due?.tone === "soon" ? (
+                        <span className="text-accent2"> — {due.words.replace(/^in /, "")} left</span>
+                      ) : null}
+                      . {goesWith} collects it{detail.collection ? `, ${collectionLine(detail.collection)}` : ""}.
+                    </>
+                  ) : detail.status === "ready_for_pickup" ? (
+                    `Ready. ${goesWith} collects it${detail.collection ? `, ${collectionLine(detail.collection)}` : ""} — keep chilled and frozen bags cold until then.`
+                  ) : (
+                    `${goesWith} has it. Nothing more to do.`
+                  )}
+                </p>
+              )}
             </div>
           </InspectorSection>
-          <InspectorSection title="Customer and delivery">
-            <DetailRows
-              tight
+          <InspectorSection title="Customer">
+            <InspectorRows
               rows={[
+                { key: "name", icon: User, label: "Name", value: detail.delivery.recipientName || "—" },
+                ...(detail.delivery.phone
+                  ? [
+                      {
+                        key: "phone",
+                        icon: Phone,
+                        label: "Phone",
+                        value: (
+                          <a href={`tel:${detail.delivery.phone}`} className="link">
+                            {detail.delivery.phone}
+                          </a>
+                        ),
+                      },
+                    ]
+                  : []),
                 {
-                  label: "Customer",
-                  value: (
-                    <>
-                      <div className="font-medium">{detail.delivery.recipientName || "—"}</div>
-                      {detail.delivery.phone ? (
-                        <a href={`tel:${detail.delivery.phone}`} className="text-muted-foreground no-underline hover:underline">
-                          {detail.delivery.phone}
-                        </a>
-                      ) : null}
-                    </>
-                  ),
+                  key: "with",
+                  icon: Truck,
+                  label: "Goes with",
+                  value: detail.deliveredBy === "courier" ? "Courier" : "Effy driver",
                 },
-                { label: "Ship to", value: <span className="whitespace-pre-line">{addressText(detail)}</span> },
-                { label: "Bill to", value: <span className="text-muted-foreground">Held by Effy with the payment.</span> },
                 {
-                  label: "Tags",
-                  value: (
-                    <span className="flex flex-wrap items-center gap-2">
-                      {detail.tags.length > 0 ? (
-                        detail.tags.map((t) => (
-                          <Badge key={t} variant="outline">
-                            {t}
-                          </Badge>
-                        ))
-                      ) : (
-                        <span className="text-muted-foreground">No tags.</span>
-                      )}
-                      <Button variant="link" className="ml-auto" onClick={() => setTagsOpen(true)}>
-                        Edit
-                      </Button>
-                    </span>
-                  ),
+                  key: "to",
+                  icon: MapPin,
+                  label: "Ship to",
+                  value: <span className="whitespace-pre-line">{addressText(detail)}</span>,
                 },
               ]}
             />
+            <p className="mt-3 flex gap-1.5 text-xs text-muted-foreground">
+              <Info aria-hidden="true" className="mt-px size-3.5 flex-none" />
+              The address is on each bag’s label. The bill-to address is held by Effy with the payment.
+            </p>
             {detail.courierPickup ? (
               <div className="mt-4 border-t pt-4">
                 <CourierPickup fulfillmentId={detail.id} status={detail.status} pickup={detail.courierPickup} />
               </div>
             ) : null}
           </InspectorSection>
-          <InspectorSection title="Payment" actions={<PaymentPill state={detail.payment.state} />}>
-            <div className="grid gap-3">
-              <DetailRows
-                tight
-                rows={[
-                  { label: "Your items", value: <span className="tabular-nums">{formatMoney(detail.money.shopSubtotal, currency)}</span> },
-                  { label: "Refunded", value: <span className="tabular-nums">{formatMoney(detail.money.refunded, currency)}</span> },
-                  { label: "Net", value: <span className="font-semibold tabular-nums">{formatMoney(detail.money.net, currency)}</span> },
-                ]}
-              />
-              <p className="text-sm text-muted-foreground">
-                {paymentMethodText(detail.payment)} · {formatMoney(detail.payment.amount, currency)} captured at checkout
-              </p>
-              {refundable ? (
-                <Button variant="outline" onClick={() => setRefundOpen(true)}>
-                  <ReceiptText aria-hidden="true" />
-                  Refund
-                </Button>
-              ) : null}
-            </div>
+          <InspectorSection title="Your money" actions={<PaymentPill state={detail.payment.state} />}>
+            <dl className="m-0 grid text-sm tabular-nums [&_div]:flex [&_div]:justify-between [&_div]:gap-6 [&_div]:py-1.5 [&_dd]:m-0 [&_dt]:text-muted-foreground">
+              <div>
+                <dt>Your items</dt>
+                <dd>{formatMoney(detail.money.shopSubtotal, currency)}</dd>
+              </div>
+              <div>
+                <dt>Refunded</dt>
+                <dd>
+                  {Number(detail.money.refunded) > 0
+                    ? `− ${formatMoney(detail.money.refunded, currency)}`
+                    : formatMoney(detail.money.refunded, currency)}
+                </dd>
+              </div>
+              <div className="mt-1.5 border-t pt-3! text-[15px] font-semibold [&_dt]:text-foreground!">
+                <dt>You’re paid</dt>
+                <dd>{formatMoney(detail.money.net, currency)}</dd>
+              </div>
+            </dl>
+            <p className="mt-3 text-xs text-muted-foreground">
+              {paymentMethodText(detail.payment)} · {formatMoney(detail.payment.amount, currency)} captured at checkout
+            </p>
+            {refundable ? (
+              <Button variant="outline" className="mt-4 w-full" onClick={() => setRefundOpen(true)}>
+                <ReceiptText aria-hidden="true" />
+                Refund
+              </Button>
+            ) : null}
+          </InspectorSection>
+          <InspectorSection
+            title="Tags"
+            actions={
+              <Button variant="ghost" size="sm" onClick={() => setTagsOpen(true)}>
+                <Pencil aria-hidden="true" />
+                Edit
+              </Button>
+            }
+          >
+            {detail.tags.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5">
+                {detail.tags.map((t) => (
+                  <Badge key={t} variant="muted">
+                    {t}
+                  </Badge>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No tags.</p>
+            )}
           </InspectorSection>
           {/* Room for the action bar, which floats over the rail's foot too. */}
           <div aria-hidden="true" className="h-20 flex-none" />
@@ -297,24 +366,27 @@ function OrderPage({
             <span>
               {units} {units === 1 ? "item" : "items"}
             </span>
-            <span>
-              <Truck aria-hidden="true" />
-              {deliveredByText(detail.deliveredBy)}
-            </span>
           </>
         }
         actions={
-          <MoreActions
-            actions={[
-              activity,
-              { label: "Print pick list", icon: Printer, onSelect: () => printPickList(detail) },
-              { label: "Edit tags", icon: Tag, onSelect: () => setTagsOpen(true) },
-              refundable ? { label: "Refund…", icon: ReceiptText, onSelect: () => setRefundOpen(true) } : null,
-              canDeclareUnfulfillable(detail.status)
-                ? { label: "Can't supply it…", icon: CircleAlert, destructive: true, onSelect: () => setCancelOpen(true) }
-                : null,
-            ]}
-          />
+          <>
+            <ActivityButton />
+            <MoreActions
+              actions={[
+                { label: "Print pick list", icon: Printer, onSelect: () => printPickList(detail) },
+                { label: "Edit tags", icon: Tag, onSelect: () => setTagsOpen(true) },
+                refundable ? { label: "Refund…", icon: ReceiptText, onSelect: () => setRefundOpen(true) } : null,
+                canDeclareUnfulfillable(detail.status)
+                  ? {
+                      label: "Can't supply it…",
+                      icon: CircleAlert,
+                      destructive: true,
+                      onSelect: () => setCancelOpen(true),
+                    }
+                  : null,
+              ]}
+            />
+          </>
         }
       />
 
@@ -324,27 +396,50 @@ function OrderPage({
             key: "ready",
             label: "Ready by",
             value: <span className={due ? DUE_TONE[due.tone] : undefined}>{formatWhen(detail.readyBy)}</span>,
-            note: due ? <span className={DUE_TONE[due.tone]}>{due.words}</span> : detail.status === "ready_for_pickup" ? "Ready" : "Gone",
+            note: due ? (
+              <span className={DUE_TONE[due.tone]}>{due.words}</span>
+            ) : detail.status === "ready_for_pickup" ? (
+              "Ready"
+            ) : (
+              "Gone"
+            ),
           },
           {
             key: "with",
             label: "Collected by",
             value: detail.deliveredBy === "courier" ? "Courier" : "Effy driver",
-            note: detail.collection ? collectionLine(detail.collection) : detail.courierPickup ? "A courier pickup" : "—",
+            note: detail.collection
+              ? collectionLine(detail.collection)
+              : detail.courierPickup
+                ? "A courier pickup"
+                : "—",
           },
           {
             key: "lines",
             label: "Lines picked",
             value: `${picked} of ${detail.lines.length}`,
-            note: short > 0 ? `${short} short` : picked === detail.lines.length ? "Every line accounted for" : `${detail.lines.length - picked} to go`,
+            note:
+              short > 0
+                ? `${short} short`
+                : picked === detail.lines.length
+                  ? "Every line accounted for"
+                  : `${detail.lines.length - picked} to go`,
           },
           {
             key: "bags",
             label: "Bags",
             value: `${detail.parcels.length} · ${printed} printed`,
-            note: detail.zonesNeeded.length > 0 ? `Needs ${detail.zonesNeeded.map((z) => PARCEL_ZONE_WORDS[z].toLowerCase()).join(", ")}` : "—",
+            note:
+              detail.zonesNeeded.length > 0
+                ? `Needs ${detail.zonesNeeded.map((z) => PARCEL_ZONE_WORDS[z].toLowerCase()).join(", ")}`
+                : "—",
           },
-          { key: "money", label: "Your items", value: formatMoney(detail.money.shopSubtotal, currency), note: `Net ${formatMoney(detail.money.net, currency)}` },
+          {
+            key: "money",
+            label: "Your items",
+            value: formatMoney(detail.money.shopSubtotal, currency),
+            note: `Net ${formatMoney(detail.money.net, currency)}`,
+          },
         ]}
       />
 
@@ -409,13 +504,18 @@ function OrderPage({
                 title={
                   <span className="flex items-baseline justify-between gap-3">
                     {n.authorLabel || "Your team"}
-                    <time className="text-xs font-normal whitespace-nowrap text-muted-foreground" dateTime={n.createdAt}>
+                    <time
+                      className="text-xs font-normal whitespace-nowrap text-muted-foreground"
+                      dateTime={n.createdAt}
+                    >
                       {formatWhen(n.createdAt)}
                     </time>
                   </span>
                 }
               >
-                <span className="mt-1 block rounded-lg bg-muted px-3 py-2 whitespace-pre-line text-foreground text-pretty">{n.body}</span>
+                <span className="mt-1 block rounded-lg bg-muted px-3 py-2 whitespace-pre-line text-foreground text-pretty">
+                  {n.body}
+                </span>
               </TimelineItem>
             ))}
           </Timeline>
@@ -430,23 +530,51 @@ function OrderPage({
         back={back}
         lead={
           picking
-            ? { title: `${picked} of ${detail.lines.length} picked`, sub: picked < detail.lines.length ? `${detail.lines.length - picked} to go` : "Every line accounted for" }
+            ? {
+                title: `${picked} of ${detail.lines.length} picked`,
+                sub:
+                  picked < detail.lines.length ? `${detail.lines.length - picked} to go` : "Every line accounted for",
+              }
             : detail.status === "ready_for_pickup"
-              ? { title: "Ready", sub: detail.collection ? collectionLine(detail.collection) : `${goesWith} collects it` }
+              ? {
+                  title: "Ready",
+                  sub: detail.collection ? collectionLine(detail.collection) : `${goesWith} collects it`,
+                }
               : { title: detail.statusView.word, sub: null }
         }
         actions={[
           ...(detail.status === "received"
-            ? [{ label: "Start picking", icon: ListChecks, primary: true, busy: transition.isPending, onClick: () => transition.mutate({ to: "picking", from: detail.status }) }]
+            ? [
+                {
+                  label: "Start picking",
+                  icon: ListChecks,
+                  primary: true,
+                  busy: transition.isPending,
+                  onClick: () => transition.mutate({ to: "picking", from: detail.status }),
+                },
+              ]
             : []),
           ...(detail.status === "picking"
             ? [
                 { label: "Can't supply…", onClick: () => setCancelOpen(true) },
-                { label: "Mark ready", icon: PackageCheck, primary: true, hint: "R", onClick: () => setFulfilOpen(true) },
+                {
+                  label: "Mark ready",
+                  icon: PackageCheck,
+                  primary: true,
+                  hint: "R",
+                  onClick: () => setFulfilOpen(true),
+                },
               ]
             : []),
           ...(detail.status === "ready_for_pickup"
-            ? [{ label: "Reopen picking", icon: RotateCcw, busy: transition.isPending, onClick: () => transition.mutate({ to: "picking", from: detail.status }) }]
+            ? [
+                {
+                  label: "Reopen picking",
+                  icon: RotateCcw,
+                  busy: transition.isPending,
+                  onClick: () => transition.mutate({ to: "picking", from: detail.status }),
+                },
+              ]
             : []),
           ...(!picking && detail.status !== "ready_for_pickup" && refundable
             ? [{ label: "Refund…", icon: ReceiptText, onClick: () => setRefundOpen(true) }]
@@ -470,7 +598,13 @@ function OrderPage({
       <OrderNoteDialog fulfillmentId={detail.id} open={noteOpen} onOpenChange={setNoteOpen} />
       {canRefund ? (
         <RefundSheet
-          detail={{ id: detail.id, orderId: detail.orderId, orderNumber: detail.orderNumber, currency, lines: detail.lines }}
+          detail={{
+            id: detail.id,
+            orderId: detail.orderId,
+            orderNumber: detail.orderNumber,
+            currency,
+            lines: detail.lines,
+          }}
           open={refundOpen}
           onOpenChange={setRefundOpen}
         />
@@ -482,11 +616,19 @@ function OrderPage({
 const DUE_TONE = { calm: "", soon: "text-accent2", over: "font-medium text-destructive" } as const
 
 /** The ready-by time while the package is still being packed: how long is left, or how late it is. */
-function dueOf(readyBy: string | null, picking: boolean, now = Date.now()): { tone: keyof typeof DUE_TONE; minutes: number; words: string } | null {
+function dueOf(
+  readyBy: string | null,
+  picking: boolean,
+  now = Date.now(),
+): { tone: keyof typeof DUE_TONE; minutes: number; words: string } | null {
   if (!picking || !readyBy) return null
   const minutes = Math.round((Date.parse(readyBy) - now) / 60_000)
   if (minutes < 0) return { tone: "over", minutes: -minutes, words: `${-minutes} min late` }
-  return { tone: minutes <= SOON_MINUTES ? "soon" : "calm", minutes, words: minutes >= 120 ? `in ${Math.round(minutes / 60)} h` : `in ${minutes} min` }
+  return {
+    tone: minutes <= SOON_MINUTES ? "soon" : "calm",
+    minutes,
+    words: minutes >= 120 ? `in ${Math.round(minutes / 60)} h` : `in ${minutes} min`,
+  }
 }
 
 /** The package's own lines, four at a glance — its header's picture. */
@@ -568,10 +710,22 @@ function OrderBarControls({ position, total, prev, next, back, lead, actions }: 
           {position} of {total}
         </b>
       ) : null}
-      <ActionBarButton size="icon-sm" disabled={!prev} onClick={() => prev?.()} aria-label="Previous order (←)" title="Previous order (←)">
+      <ActionBarButton
+        size="icon-sm"
+        disabled={!prev}
+        onClick={() => prev?.()}
+        aria-label="Previous order (←)"
+        title="Previous order (←)"
+      >
         <ChevronLeft />
       </ActionBarButton>
-      <ActionBarButton size="icon-sm" disabled={!next} onClick={() => next?.()} aria-label="Next order (→)" title="Next order (→)">
+      <ActionBarButton
+        size="icon-sm"
+        disabled={!next}
+        onClick={() => next?.()}
+        aria-label="Next order (→)"
+        title="Next order (→)"
+      >
         <ChevronRight />
       </ActionBarButton>
       <span className="ef-selbar__rule" aria-hidden="true" />
@@ -580,7 +734,12 @@ function OrderBarControls({ position, total, prev, next, back, lead, actions }: 
         {lead.sub && roomy ? <span className="ml-1.5 font-normal opacity-65">{lead.sub}</span> : null}
       </span>
       {actions.map((a) => (
-        <ActionBarButton key={a.label} className={a.primary ? SOLID_BRAND : undefined} disabled={a.busy} onClick={a.onClick}>
+        <ActionBarButton
+          key={a.label}
+          className={a.primary ? SOLID_BRAND : undefined}
+          disabled={a.busy}
+          onClick={a.onClick}
+        >
           {a.icon ? <a.icon aria-hidden="true" /> : null}
           {a.label}
           {a.hint && roomy ? <Kbd className="ml-1">{a.hint}</Kbd> : null}

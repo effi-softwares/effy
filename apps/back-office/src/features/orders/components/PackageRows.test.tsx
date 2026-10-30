@@ -39,8 +39,8 @@ describe("PackageRows - 089", () => {
         packages={[pkg]}
         canRecord={false}
         busy={false}
-        onHandoff={() => { }}
-        onArrival={() => { }}
+        onHandoff={() => {}}
+        onArrival={() => {}}
       />,
     )
     expect(screen.getByLabelText("Package code")).toHaveTextContent("7K3Q9M")
@@ -91,13 +91,13 @@ describe("PackageRows - 096 bags", () => {
         packages={[bags]}
         canRecord={false}
         busy={false}
-        onHandoff={() => { }}
-        onArrival={() => { }}
+        onHandoff={() => {}}
+        onArrival={() => {}}
       />,
     )
     const table = screen.getByRole("list", { name: "Bags" })
     expect(table).toHaveTextContent("1 of 2")
-    expect(table).toHaveTextContent("Printed 2×")
+    expect(table).toHaveTextContent("printed 2×")
     expect(table).toHaveTextContent("With driver")
     expect(table).toHaveTextContent("Removed")
     // Each bag's hand-overs are in the order's activity (104), not under the package.
@@ -111,8 +111,8 @@ describe("PackageRows - 096 bags", () => {
         packages={[bags]}
         canRecord={false}
         busy={false}
-        onHandoff={() => { }}
-        onArrival={() => { }}
+        onHandoff={() => {}}
+        onArrival={() => {}}
         highlight={{ parcelId: "b2" }}
       />,
     )

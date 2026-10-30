@@ -1,6 +1,9 @@
 import { useState } from "react"
 
+import { CalendarClock, Info, MessageSquare, Truck } from "lucide-react"
+
 import { asapSentence, courierEstimateSentence } from "@effy/shared-types"
+import { InspectorRows } from "@effy/web-kit/patterns"
 
 import { ChangeDeliveryWindowDialog } from "./ChangeDeliveryWindowDialog"
 import { CourierCollection } from "./CourierCollection"
@@ -31,37 +34,46 @@ export function DeliveryTypeSection({
 
   // The page says where to move it (its section head, More, the action bar); this holds the dialogs and the facts.
   return (
-    <div className="grid gap-4">
-      <dl className="ef-dl ef-dl--tight">
-        <div className="ef-dl__row">
-          <dt>Delivered by</dt>
-          <dd className="font-semibold">{deliveryTypeText(order.deliveryType)}</dd>
-        </div>
-        {order.deliveryTypeReason ? (
-          <div className="ef-dl__row">
-            <dt>Why</dt>
-            <dd>{DELIVERY_REASON_LABEL[order.deliveryTypeReason]}</dd>
-          </div>
-        ) : null}
-        {order.courierEstimate ? (
-          <div className="ef-dl__row">
-            <dt>Customer was told</dt>
-            <dd>{courierEstimateSentence(order.courierEstimate)}</dd>
-          </div>
-        ) : null}
-        {order.promise ? (
-          <div className="ef-dl__row">
-            <dt>Sold as</dt>
-            <dd>{PROMISE_LABEL[order.promise]}</dd>
-          </div>
-        ) : null}
-        {order.promise === "asap" && order.asapEstimate ? (
-          <div className="ef-dl__row">
-            <dt>Customer was told</dt>
-            <dd>{asapSentence(order.asapEstimate)}</dd>
-          </div>
-        ) : null}
-      </dl>
+    <div className="grid gap-6">
+      <div className="grid gap-2">
+        <h3 className="text-[13px] font-semibold">Sold as</h3>
+        <InspectorRows
+          rows={[
+            {
+              key: "by",
+              icon: Truck,
+              label: "Delivered by",
+              value: deliveryTypeText(order.deliveryType),
+            },
+            ...(order.promise
+              ? [{ key: "promise", icon: CalendarClock, label: "Sold as", value: PROMISE_LABEL[order.promise] }]
+              : []),
+            ...(order.courierEstimate
+              ? [
+                  {
+                    key: "told",
+                    icon: MessageSquare,
+                    label: "Customer was told",
+                    value: courierEstimateSentence(order.courierEstimate),
+                  },
+                ]
+              : []),
+            ...(order.promise === "asap" && order.asapEstimate
+              ? [
+                  {
+                    key: "asap",
+                    icon: MessageSquare,
+                    label: "Customer was told",
+                    value: asapSentence(order.asapEstimate),
+                  },
+                ]
+              : []),
+            ...(order.deliveryTypeReason
+              ? [{ key: "why", icon: Info, label: "Why", value: DELIVERY_REASON_LABEL[order.deliveryTypeReason] }]
+              : []),
+          ]}
+        />
+      </div>
 
       {children}
 

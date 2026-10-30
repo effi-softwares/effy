@@ -15,7 +15,7 @@ export function Shipments({ detail }: { detail: OrderDetail }) {
         ? `Collected · ${formatWhen(detail.stateChangedAt)}`
         : `Ready for pickup · ${formatWhen(detail.stateChangedAt)}`
   return (
-    <div className="border-t px-5 py-4 max-md:px-4">
+    <div className="rounded-lg border px-5 py-4 max-md:px-4">
       <div className="pb-2 text-xs font-medium text-muted-foreground">Shipments</div>
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <div className="grid min-w-0 gap-1">

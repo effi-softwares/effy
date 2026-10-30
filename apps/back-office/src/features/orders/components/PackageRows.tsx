@@ -69,9 +69,7 @@ export function PackageRows({
           highlight={highlight}
         />
       ))}
-      {packages.length === 0 ? (
-        <p className="text-sm text-muted-foreground">This order has no packages yet.</p>
-      ) : null}
+      {packages.length === 0 ? <p className="text-sm text-muted-foreground">This order has no packages yet.</p> : null}
     </div>
   )
 }
@@ -114,7 +112,7 @@ function PackageRow({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-3">
           <span
-            className="grid size-9 flex-none place-items-center rounded-lg bg-muted text-foreground [&_svg]:size-4"
+            className="grid size-9 flex-none place-items-center rounded-md bg-muted text-muted-foreground [&_svg]:size-4"
             aria-hidden="true"
           >
             <Store />
@@ -139,8 +137,10 @@ function PackageRow({
 
       <PackageJourney steps={journeyOf(pkg, courierCollection)} />
 
+      {bags.length > 0 ? <BagList bags={bags} highlightParcelId={highlight?.parcelId} /> : null}
+
       {pkg.collect || pkg.deliver ? (
-        <div className="divide-y divide-border rounded-lg border border-border">
+        <div className="grid gap-3 md:grid-cols-2">
           {pkg.collect ? (
             <AssignmentLine
               label="Collect"
@@ -157,8 +157,6 @@ function PackageRow({
           ) : null}
         </div>
       ) : null}
-
-      {bags.length > 0 ? <BagList bags={bags} highlightParcelId={highlight?.parcelId} /> : null}
 
       {/* Its hand-overs, bag by bag, are in the order's activity (104). */}
       {promise ? (
@@ -291,26 +289,36 @@ function BagList({ bags, highlightParcelId }: { bags: AdminParcelDTO[]; highligh
             aria-current={lit ? "true" : undefined}
             className={`grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 px-4 py-3 ${lit ? "bg-primary-muted" : ""} ${b.voided ? "text-muted-foreground" : ""}`}
           >
-            <span aria-hidden="true" className="grid size-8 place-items-center rounded-md bg-muted text-muted-foreground [&_svg]:size-4">
+            <span
+              aria-hidden="true"
+              className="grid size-8 place-items-center rounded-md bg-muted text-muted-foreground [&_svg]:size-4"
+            >
               <Zone />
             </span>
             <span className="min-w-0">
               <span className="block font-medium tabular-nums">
-                {b.voided ? <s>Bag {b.seq}</s> : `${b.seq} of ${b.of}`} · {PARCEL_ZONE_WORDS[b.zone]}
+                {b.voided ? <s>Bag {b.seq}</s> : `Bag ${b.seq} of ${b.of}`} · {PARCEL_ZONE_WORDS[b.zone]}
               </span>
               <span className="block text-[13px] text-muted-foreground">
                 {b.voided
                   ? "Removed"
-                  : b.printedCount === 0
-                    ? "Not printed"
-                    : b.printedCount === 1
-                      ? "Printed"
-                      : `Printed ${b.printedCount}×`}
+                  : [
+                      b.seq === 1 ? "Carries the package code" : "Its own label",
+                      b.printedCount === 0
+                        ? "not printed"
+                        : b.printedCount === 1
+                          ? "printed"
+                          : `printed ${b.printedCount}×`,
+                    ].join(" · ")}
               </span>
             </span>
             <span className="flex items-center gap-3 text-[13px]">
-              <span className="font-mono">{b.voided ? <s>{b.code}</s> : b.code}</span>
-              <span className="text-muted-foreground">{b.voided ? "—" : PARCEL_CUSTODY_WORDS[b.custody]}</span>
+              <span className="rounded-sm border px-2 py-0.5 font-mono text-xs">
+                {b.voided ? <s>{b.code}</s> : b.code}
+              </span>
+              <span className="min-w-24 text-right text-muted-foreground">
+                {b.voided ? "—" : PARCEL_CUSTODY_WORDS[b.custody]}
+              </span>
             </span>
           </li>
         )

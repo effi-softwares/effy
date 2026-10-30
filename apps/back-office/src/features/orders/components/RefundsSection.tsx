@@ -204,7 +204,9 @@ const REFUND_COLUMNS: EffyColumnDef<RefundDTO>[] = [
   {
     id: "when",
     header: "When",
-    cell: ({ row }) => <span className="text-muted-foreground">{new Date(row.original.createdAt).toLocaleString()}</span>,
+    cell: ({ row }) => (
+      <span className="text-muted-foreground">{new Date(row.original.createdAt).toLocaleString()}</span>
+    ),
     meta: { label: "When", phone: "primary" },
   },
   {

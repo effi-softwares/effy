@@ -93,7 +93,7 @@ describe("Bags & labels (096)", () => {
 
   it("offers Remove on any bag but bag 1 before printing; on the last bag only once anything is printed", async () => {
     const { unmount } = show(detail())
-    const rows = () => screen.getAllByRole("row").slice(1)
+    const rows = () => within(screen.getByRole("list", { name: "Bags" })).getAllByRole("listitem")
     expect(within(rows()[0]!).queryByRole("button", { name: "Remove" })).not.toBeInTheDocument()
     expect(within(rows()[1]!).getByRole("button", { name: "Remove" })).toBeInTheDocument()
     unmount()

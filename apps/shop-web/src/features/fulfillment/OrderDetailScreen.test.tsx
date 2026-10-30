@@ -148,7 +148,7 @@ describe("layout", () => {
     open()
     await loaded()
     const titles = screen.getAllByRole("heading").map((h) => h.textContent)
-    for (const t of ["Pick list", "Bags & labels", "Team notes", "Where it is", "Customer and delivery", "Payment"]) {
+    for (const t of ["Pick list", "Bags & labels", "Team notes", "Where it is", "Customer", "Your money", "Tags"]) {
       expect(titles).toContain(t)
     }
     expect(screen.queryByRole("heading", { name: "Fulfilment" })).not.toBeInTheDocument()
@@ -165,16 +165,17 @@ describe("layout", () => {
     expect(screen.queryByRole("button", { name: "Cancel order" })).not.toBeInTheDocument()
   })
 
-  it("shows the four blocks of Customer and delivery, with the second address withheld", async () => {
+  it("says who the customer is and who collects it, with the bill-to address withheld; tags apart", async () => {
     open(orderDetail({ tags: ["fragile"] }))
     await loaded()
-    const section = screen.getByRole("heading", { name: "Customer and delivery" }).closest("section")!
-    for (const label of ["Customer", "Ship to", "Bill to", "Tags"]) {
-      expect(within(section).getByText(label)).toBeInTheDocument()
+    const customer = screen.getByRole("heading", { name: "Customer" }).closest("section")!
+    for (const label of ["Name", "Phone", "Goes with", "Ship to"]) {
+      expect(within(customer).getByText(label)).toBeInTheDocument()
     }
-    expect(within(section).getByText(/Held by Effy with the payment/)).toBeInTheDocument()
-    expect(within(section).getByText("fragile")).toBeInTheDocument()
-    expect(within(section).getByRole("button", { name: "Edit" })).toBeInTheDocument()
+    expect(within(customer).getByText(/bill-to address is held by Effy with the payment/)).toBeInTheDocument()
+    const tags = screen.getByRole("heading", { name: "Tags" }).closest("section")!
+    expect(within(tags).getByText("fragile")).toBeInTheDocument()
+    expect(within(tags).getByRole("button", { name: "Edit" })).toBeInTheDocument()
   })
 
   it("says so when there are no notes, rather than collapsing to a bare rule", async () => {
@@ -235,27 +236,28 @@ describe("item-level picking", () => {
         ],
       }),
     )
-    expect(await screen.findByText("1 of 4 items picked · Courier")).toBeInTheDocument()
-    expect(screen.getByText("Picked")).toBeInTheDocument()
-    expect(screen.getByText("1 of 3 picked")).toBeInTheDocument()
-    expect(screen.getByText("Unavailable · supplier short")).toBeInTheDocument()
-    expect(screen.getByText("Not picked")).toBeInTheDocument()
+    expect(await screen.findByText("3 of 4 lines · 2 short")).toBeInTheDocument()
+    expect(screen.getByText("Picked 2")).toBeInTheDocument()
+    expect(screen.getByText("1 of 3 · 2 short")).toBeInTheDocument()
+    expect(screen.getByText("Can't supply")).toBeInTheDocument()
+    expect(screen.getByText("“supplier short”")).toBeInTheDocument()
+    // The one line still to pick is the next one, with its own Picked.
+    expect(screen.getByRole("button", { name: "Mark Tea picked" })).toBeInTheDocument()
+    expect(screen.getByText("Next")).toBeInTheDocument()
   })
 
   it("one click marks the whole line picked - no steppers", async () => {
     setOrderPicks.mockResolvedValue(orderDetail())
     open(orderDetail({ lines: [line({ gatheredQuantity: 0 })] }))
-    await userEvent.click(await screen.findByRole("checkbox", { name: /mark barossa .* picked/i }))
+    await userEvent.click(await screen.findByRole("button", { name: /mark barossa .* picked/i }))
     expect(setOrderPicks).toHaveBeenCalledWith("f1", { lines: [{ orderItemId: "oi1", mode: "full" }] })
     expect(screen.queryByRole("button", { name: /more gathered|fewer gathered/i })).not.toBeInTheDocument()
   })
 
-  it("clicking a picked line again clears it", async () => {
+  it("Undo on a picked line clears it", async () => {
     setOrderPicks.mockResolvedValue(orderDetail())
     open(orderDetail({ lines: [line({ gatheredQuantity: 2 })] }))
-    const box = await screen.findByRole("checkbox", { name: /mark barossa .* picked/i })
-    expect(box).toHaveAttribute("aria-checked", "true")
-    await userEvent.click(box)
+    await userEvent.click(await screen.findByRole("button", { name: /undo barossa/i }))
     expect(setOrderPicks).toHaveBeenCalledWith("f1", { lines: [{ orderItemId: "oi1", mode: "none" }] })
   })
 
@@ -277,8 +279,9 @@ describe("item-level picking", () => {
 
   it("locks the boxes once the order has left picking", async () => {
     open(orderDetail({ status: "ready_for_pickup", lines: [line({ gatheredQuantity: 2 })] }))
-    expect(await screen.findByRole("checkbox", { name: /mark barossa .* picked/i })).toBeDisabled()
-    expect(screen.queryByRole("button", { name: "Adjust" })).not.toBeInTheDocument()
+    expect(await screen.findByText("Picked 2")).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /undo barossa/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /other outcomes/i })).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "Select all" })).not.toBeInTheDocument()
   })
 
@@ -294,7 +297,8 @@ describe("Adjust this line", () => {
   async function openAdjust(d = orderDetail({ lines: [MILK] })) {
     setOrderPicks.mockResolvedValue(orderDetail())
     open(d)
-    await userEvent.click(await screen.findByRole("button", { name: "Adjust" }))
+    await userEvent.click(await screen.findByRole("button", { name: "Other outcomes for Oat milk 1L" }))
+    await userEvent.click(await screen.findByRole("menuitem", { name: /adjust with a note/i }))
     return screen.findByRole("dialog")
   }
 
@@ -385,8 +389,7 @@ describe("the activity drawer (104)", () => {
     await loaded()
     expect(apiGet).not.toHaveBeenCalled()
 
-    await userEvent.click(screen.getByRole("button", { name: "More actions" }))
-    await userEvent.click(await screen.findByRole("menuitem", { name: "Activity" }))
+    await userEvent.click(screen.getByRole("button", { name: "Activity" }))
     const opened = router.navigate.mock.calls[0]![0] as {
       search: (prev: Record<string, unknown>) => Record<string, unknown>
     }

@@ -31,7 +31,7 @@ import {
 import { Avatar, AvatarFallback, Badge, Button, toast } from "@effy/design-system/ui"
 import { leastAdvanced, STATUS_WORD, type PackageStatusView } from "@effy/shared-types"
 import { ActionBarButton, useActionBar, useActionBarDensity } from "@effy/web-kit/action-bar"
-import { ActivityLogDrawer, useActivityAction } from "@effy/web-kit/activity-log"
+import { ActivityButton, ActivityLogDrawer } from "@effy/web-kit/activity-log"
 import { ErrorState, PackageStatusPill, useHeaderDetail } from "@effy/web-kit/console"
 import { listQueryOptions, useListNeighbours } from "@effy/web-kit/data-table"
 import {
@@ -66,7 +66,15 @@ import { PackageRows } from "./components/PackageRows"
 import { RefundsSection } from "./components/RefundsSection"
 import { orderActionError } from "./errorText"
 import { ORDERS_LIST_KEY, ordersList } from "./list"
-import { aud, CUSTOMER_STAGES, deliveryTypeText, isPaid, nextActionFor, promiseTextFor, type OrderDetail } from "./model"
+import {
+  aud,
+  CUSTOMER_STAGES,
+  deliveryTypeText,
+  isPaid,
+  nextActionFor,
+  promiseTextFor,
+  type OrderDetail,
+} from "./model"
 import { orderDetailQuery, ordersKeys, useRecordArrival, useRecordHandoff } from "./queries"
 import { fetchOrderPage } from "./repo"
 
@@ -107,14 +115,19 @@ export function OrderDetailScreen({
   return <OrderPage key={q.data.id} order={q.data} highlight={highlight} />
 }
 
-function OrderPage({ order, highlight }: { order: OrderDetail; highlight?: { parcelId?: string; packageId?: string } }) {
+function OrderPage({
+  order,
+  highlight,
+}: {
+  order: OrderDetail
+  highlight?: { parcelId?: string; packageId?: string }
+}) {
   const navigate = useNavigate()
   useHeaderDetail(order.orderNumber)
   const { data: session } = useQuery(sessionQuery)
   const roles = session?.status === "signed-in" ? session.identity.roles : []
   const canRecord = canRecordOrderProgress(roles)
   const mayAssign = canDispatch(roles)
-  const activity = useActivityAction()
 
   const handoff = useRecordHandoff(order.id)
   const arrival = useRecordArrival(order.id)
@@ -124,7 +137,11 @@ function OrderPage({ order, highlight }: { order: OrderDetail; highlight?: { par
   const [seed, setSeed] = useState<{ lines: Record<string, number>; version: number } | undefined>()
 
   // Opened from a scan: bring the bag (or package) into view.
-  const target = highlight?.parcelId ? `parcel-${highlight.parcelId}` : highlight?.packageId ? `package-${highlight.packageId}` : null
+  const target = highlight?.parcelId
+    ? `parcel-${highlight.parcelId}`
+    : highlight?.packageId
+      ? `package-${highlight.packageId}`
+      : null
   useEffect(() => {
     if (target) document.getElementById(target)?.scrollIntoView?.({ block: "center" })
   }, [target])
@@ -134,7 +151,13 @@ function OrderPage({ order, highlight }: { order: OrderDetail; highlight?: { par
     key: ORDERS_LIST_KEY,
     id: order.id,
     rowId: (r) => r.id,
-    fallback: listQueryOptions({ key: ORDERS_LIST_KEY, list: ordersList, view: ordersList.initial(), cursor: null, fetch: fetchOrderPage }),
+    fallback: listQueryOptions({
+      key: ORDERS_LIST_KEY,
+      list: ordersList,
+      view: ordersList.initial(),
+      cursor: null,
+      fetch: fetchOrderPage,
+    }),
   })
   const open = (id: string) => void navigate({ to: "/orders/$orderId", params: { orderId: id } })
   useHotkey("ArrowLeft", () => nb.prev && open(nb.prev), { ignoreInputs: true })
@@ -180,7 +203,9 @@ function OrderPage({ order, highlight }: { order: OrderDetail; highlight?: { par
       tone: "problem" as const,
       icon: CircleAlert,
       title: `${p.shopName}’s package: ${p.statusView?.detail ?? "a problem"}`,
-      children: <p>Its journey under Packages shows where it stopped. Every bag has to be accounted for before it moves on.</p>,
+      children: (
+        <p>Its journey under Packages shows where it stopped. Every bag has to be accounted for before it moves on.</p>
+      ),
     })),
     ...(request
       ? [
@@ -226,7 +251,10 @@ function OrderPage({ order, highlight }: { order: OrderDetail; highlight?: { par
       railTitle="About this order"
       rail={
         <>
-          <InspectorSection title="What the customer sees" actions={<span className="text-[13px] text-muted-foreground">{stage?.label}</span>}>
+          <InspectorSection
+            title="What the customer sees"
+            actions={<span className="text-[13px] text-muted-foreground">{stage?.label}</span>}
+          >
             <CustomerOrderPreview order={order} />
           </InspectorSection>
           <InspectorSection
@@ -241,7 +269,9 @@ function OrderPage({ order, highlight }: { order: OrderDetail; highlight?: { par
           >
             <div className="mb-3 flex items-center gap-3">
               <Avatar aria-hidden="true" className="size-10">
-                <AvatarFallback className="bg-primary-muted text-primary">{initialsOf(order.customerName ?? order.customerEmail)}</AvatarFallback>
+                <AvatarFallback className="bg-primary-muted text-primary">
+                  {initialsOf(order.customerName ?? order.customerEmail)}
+                </AvatarFallback>
               </Avatar>
               <div className="min-w-0">
                 <div className="truncate font-semibold">{order.customerName ?? order.customerEmail}</div>
@@ -252,9 +282,25 @@ function OrderPage({ order, highlight }: { order: OrderDetail; highlight?: { par
             </div>
             <InspectorRows
               rows={[
-                { key: "email", icon: Mail, label: "Email", value: <a href={`mailto:${order.customerEmail}`} className="link">{order.customerEmail}</a> },
+                {
+                  key: "email",
+                  icon: Mail,
+                  label: "Email",
+                  value: (
+                    <a href={`mailto:${order.customerEmail}`} className="link">
+                      {order.customerEmail}
+                    </a>
+                  ),
+                },
                 ...(typeof order.deliveryAddress.city === "string"
-                  ? [{ key: "area", icon: MapPin, label: "Suburb", value: [order.deliveryAddress.city, order.deliveryAddress.postalCode].filter(Boolean).join(" ") }]
+                  ? [
+                      {
+                        key: "area",
+                        icon: MapPin,
+                        label: "Suburb",
+                        value: [order.deliveryAddress.city, order.deliveryAddress.postalCode].filter(Boolean).join(" "),
+                      },
+                    ]
                   : []),
               ]}
             />
@@ -271,13 +317,37 @@ function OrderPage({ order, highlight }: { order: OrderDetail; highlight?: { par
           <InspectorSection title="Order facts">
             <InspectorRows
               rows={[
-                { key: "placed", icon: CalendarDays, label: "Placed", value: moment(order.placedAt ?? order.createdAt) },
-                { key: "number", icon: Hash, label: "Order", value: <span className="font-mono">{order.orderNumber}</span> },
+                {
+                  key: "placed",
+                  icon: CalendarDays,
+                  label: "Placed",
+                  value: moment(order.placedAt ?? order.createdAt),
+                },
+                {
+                  key: "number",
+                  icon: Hash,
+                  label: "Order",
+                  value: <span className="font-mono">{order.orderNumber}</span>,
+                },
                 ...(order.promoCode
-                  ? [{ key: "promo", icon: Tag, label: "Promotion", value: <span className="font-mono">{order.promoCode}</span> }]
+                  ? [
+                      {
+                        key: "promo",
+                        icon: Tag,
+                        label: "Promotion",
+                        value: <span className="font-mono">{order.promoCode}</span>,
+                      },
+                    ]
                   : []),
                 ...(order.paymentSplit
-                  ? [{ key: "points", icon: Coins, label: "Points", value: `${order.paymentSplit.pointsUsed.toLocaleString("en-AU")} used` }]
+                  ? [
+                      {
+                        key: "points",
+                        icon: Coins,
+                        label: "Points",
+                        value: `${order.paymentSplit.pointsUsed.toLocaleString("en-AU")} used`,
+                      },
+                    ]
                   : []),
                 {
                   key: "shops",
@@ -312,12 +382,16 @@ function OrderPage({ order, highlight }: { order: OrderDetail; highlight?: { par
               variant="ghost"
               size="icon-sm"
               aria-label="Copy order number"
-              onClick={() => void navigator.clipboard?.writeText(order.orderNumber).then(() => toast(`Copied ${order.orderNumber}`))}
+              onClick={() =>
+                void navigator.clipboard?.writeText(order.orderNumber).then(() => toast(`Copied ${order.orderNumber}`))
+              }
             >
               <Copy />
             </Button>
             {status ? <PackageStatusPill view={status} showDetail={false} icons /> : null}
-            <Badge variant={order.deliveryType === "effy" ? "success" : "secondary"}>{deliveryTypeText(order.deliveryType)}</Badge>
+            <Badge variant={order.deliveryType === "effy" ? "success" : "secondary"}>
+              {deliveryTypeText(order.deliveryType)}
+            </Badge>
           </>
         }
         meta={
@@ -333,27 +407,32 @@ function OrderPage({ order, highlight }: { order: OrderDetail; highlight?: { par
               </Link>
             </span>
             <span>
-              {units} {units === 1 ? "item" : "items"} · {order.packages.length === 1 ? "one shop" : `${order.packages.length} shops`}
+              {units} {units === 1 ? "item" : "items"} ·{" "}
+              {order.packages.length === 1 ? "one shop" : `${order.packages.length} shops`}
             </span>
           </>
         }
         actions={
-          <MoreActions
-            actions={[
-              activity,
-              canRecord && isPaid(order) ? { label: "Issue a refund…", icon: ReceiptText, onSelect: () => refund() } : null,
-              movable && order.deliveryType === "effy"
-                ? { label: "Change day or time…", icon: CalendarClock, onSelect: () => setMoving("retime") }
-                : null,
-              movable
-                ? {
-                    label: order.deliveryType === "effy" ? "Send by courier…" : "Deliver by Effy…",
-                    icon: order.deliveryType === "effy" ? Truck : Route,
-                    onSelect: () => setMoving(order.deliveryType === "effy" ? "courier" : "effy"),
-                  }
-                : null,
-            ]}
-          />
+          <>
+            <ActivityButton />
+            <MoreActions
+              actions={[
+                canRecord && isPaid(order)
+                  ? { label: "Issue a refund…", icon: ReceiptText, onSelect: () => refund() }
+                  : null,
+                movable && order.deliveryType === "effy"
+                  ? { label: "Change day or time…", icon: CalendarClock, onSelect: () => setMoving("retime") }
+                  : null,
+                movable
+                  ? {
+                      label: order.deliveryType === "effy" ? "Send by courier…" : "Deliver by Effy…",
+                      icon: order.deliveryType === "effy" ? Truck : Route,
+                      onSelect: () => setMoving(order.deliveryType === "effy" ? "courier" : "effy"),
+                    }
+                  : null,
+              ]}
+            />
+          </>
         }
       />
 
@@ -376,12 +455,23 @@ function OrderPage({ order, highlight }: { order: OrderDetail; highlight?: { par
             value: `${order.packages.length} · ${packed === order.packages.length ? "all packed" : `${packed} packed`}`,
             note: order.packages.map((p) => p.shopName).join(", "),
           },
-          { key: "stage", label: "Customer sees", value: stage?.label ?? order.stage, note: order.finished ? "Every package has arrived" : stage?.note },
+          {
+            key: "stage",
+            label: "Customer sees",
+            value: stage?.label ?? order.stage,
+            note: order.finished ? "Every package has arrived" : stage?.note,
+          },
           {
             key: "refunds",
             label: "Refunds",
-            value: request ? "Asked for" : Number(order.refundedAmount) > 0 ? aud(order.refundedAmount, order.currency) : "None",
-            note: request ? "Waiting for a decision" : `${aud(order.refundableAmount, order.currency)} still refundable`,
+            value: request
+              ? "Asked for"
+              : Number(order.refundedAmount) > 0
+                ? aud(order.refundedAmount, order.currency)
+                : "None",
+            note: request
+              ? "Waiting for a decision"
+              : `${aud(order.refundableAmount, order.currency)} still refundable`,
           },
         ]}
       />
@@ -397,7 +487,11 @@ function OrderPage({ order, highlight }: { order: OrderDetail; highlight?: { par
           { id: "packages", label: "Packages", count: order.packages.length, problem: problems.length > 0 },
           { id: "items", label: "Items", count: units },
           { id: "delivery", label: "Delivery" },
-          { id: "payment", label: "Payment & refunds", count: request || order.proposedRefunds.length > 0 ? 1 : undefined },
+          {
+            id: "payment",
+            label: "Payment & refunds",
+            count: request || order.proposedRefunds.length > 0 ? 1 : undefined,
+          },
         ]}
         compact={
           <>
@@ -436,7 +530,9 @@ function OrderPage({ order, highlight }: { order: OrderDetail; highlight?: { par
           }
         />
         {!canRecord ? (
-          <p className="mt-4 text-sm text-muted-foreground">Recording a handover or an arrival needs a manager or administrator.</p>
+          <p className="mt-4 text-sm text-muted-foreground">
+            Recording a handover or an arrival needs a manager or administrator.
+          </p>
         ) : null}
       </RecordSection>
 
@@ -459,6 +555,7 @@ function OrderPage({ order, highlight }: { order: OrderDetail; highlight?: { par
                       else next.add(id)
                       return next
                     }),
+                  onAll: (ids) => setSelected(new Set(ids)),
                 }
               : null
           }
@@ -480,7 +577,13 @@ function OrderPage({ order, highlight }: { order: OrderDetail; highlight?: { par
         }
       >
         <div className="grid gap-12 lg:grid-cols-2">
-          <DeliveryTypeSection order={order} canChangeCollection={canRecord} canMove={canRecord} moving={moving} onMovingChange={setMoving}>
+          <DeliveryTypeSection
+            order={order}
+            canChangeCollection={canRecord}
+            canMove={canRecord}
+            moving={moving}
+            onMovingChange={setMoving}
+          >
             <AddressBlock title="Delivering to" address={order.deliveryAddress} />
             <DeliveryInstructions instructions={order.deliveryInstructions} />
             {order.billingAddress ? (
@@ -516,7 +619,14 @@ function OrderPage({ order, highlight }: { order: OrderDetail; highlight?: { par
         promise={promise}
         actions={
           problems.length > 0
-            ? [{ label: "Find the package", icon: Search, primary: true, onClick: () => goTo(`package-${problems[0]!.fulfillmentId}`) }]
+            ? [
+                {
+                  label: "Find the package",
+                  icon: Search,
+                  primary: true,
+                  onClick: () => goTo(`package-${problems[0]!.fulfillmentId}`),
+                },
+              ]
             : request && canRecord
               ? [
                   { label: "Decline…", onClick: () => goTo("refund-request") },
@@ -537,10 +647,15 @@ function OrderPage({ order, highlight }: { order: OrderDetail; highlight?: { par
                     },
                   ]
                 : [
-                    ...(movable && order.deliveryType === "effy" && order.stage !== "on_the_way" && order.stage !== "delivered"
+                    ...(movable &&
+                    order.deliveryType === "effy" &&
+                    order.stage !== "on_the_way" &&
+                    order.stage !== "delivered"
                       ? [{ label: "Change day or time…", icon: CalendarClock, onClick: () => setMoving("retime") }]
                       : []),
-                    ...(canRecord && isPaid(order) ? [{ label: "Issue a refund…", icon: ReceiptText, onClick: () => refund() }] : []),
+                    ...(canRecord && isPaid(order)
+                      ? [{ label: "Issue a refund…", icon: ReceiptText, onClick: () => refund() }]
+                      : []),
                   ]
         }
       />
@@ -579,7 +694,11 @@ function ItemCollage({ order }: { order: OrderDetail }) {
         const item = shown[i]
         return (
           <span key={i} className="grid place-items-center bg-muted text-muted-foreground [&_svg]:size-4">
-            {item?.imageUrl ? <img src={item.imageUrl} alt="" className="size-full object-cover" /> : item ? <Box aria-hidden="true" /> : null}
+            {item?.imageUrl ? (
+              <img src={item.imageUrl} alt="" className="size-full object-cover" />
+            ) : item ? (
+              <Box aria-hidden="true" />
+            ) : null}
           </span>
         )
       })}
@@ -602,21 +721,37 @@ function PaymentLines({ order }: { order: OrderDetail }) {
         <h3 className="mb-3 text-[13px] font-semibold">Paid with</h3>
         <ul className="m-0 grid list-none divide-y divide-border p-0">
           <li className="flex items-center gap-3 py-3 first:pt-0">
-            <CreditCard aria-hidden="true" className="size-4 text-muted-foreground" />
+            <span
+              aria-hidden="true"
+              className="grid h-7 w-10 flex-none place-items-center rounded-[5px] bg-foreground text-[10px] font-bold tracking-[.04em] text-background uppercase"
+            >
+              {(m?.brand ?? "Card").slice(0, 4)}
+            </span>
             <span className="min-w-0 flex-1">
               <span className="block font-medium">{card}</span>
-              <span className="block text-[13px] text-muted-foreground">{isPaid(order) ? "Captured at checkout" : `Payment ${order.paymentStatus}`}</span>
+              <span className="block text-[13px] text-muted-foreground">
+                {isPaid(order) ? "Captured at checkout" : `Payment ${order.paymentStatus}`}
+              </span>
             </span>
-            <span className="font-semibold tabular-nums">{aud(order.paymentSplit?.cardAmount ?? order.grandTotalAmount, c)}</span>
+            <span className="font-semibold tabular-nums">
+              {aud(order.paymentSplit?.cardAmount ?? order.grandTotalAmount, c)}
+            </span>
           </li>
           {order.paymentSplit ? (
             <li className="flex items-center gap-3 py-3">
-              <Coins aria-hidden="true" className="size-4 text-muted-foreground" />
+              <span
+                aria-hidden="true"
+                className="grid h-7 w-10 flex-none place-items-center rounded-[5px] bg-brand-fill text-brand-foreground [&_svg]:size-3.5"
+              >
+                <Coins />
+              </span>
               <span className="min-w-0 flex-1">
                 <span className="block font-medium">Effy points</span>
                 <span className="block text-[13px] text-muted-foreground">
                   {order.paymentSplit.pointsUsed.toLocaleString("en-AU")} points
-                  {order.paymentSplit.pointsReturned > 0 ? ` · ${order.paymentSplit.pointsReturned.toLocaleString("en-AU")} returned` : ""}
+                  {order.paymentSplit.pointsReturned > 0
+                    ? ` · ${order.paymentSplit.pointsReturned.toLocaleString("en-AU")} returned`
+                    : ""}
                 </span>
               </span>
               <span className="font-semibold tabular-nums">{aud(order.paymentSplit.pointsAmount, c)}</span>
@@ -699,7 +834,17 @@ function OrderBar(props: {
 const SOLID_PRIMARY =
   "border-transparent bg-primary-fill text-primary-foreground hover:bg-primary-fill/90 hover:text-primary-foreground dark:bg-primary-fill dark:hover:bg-primary-fill/90"
 
-function OrderBarControls({ position, total, totalCapped, prev, next, onOpen, status, promise, actions }: Parameters<typeof OrderBar>[0]) {
+function OrderBarControls({
+  position,
+  total,
+  totalCapped,
+  prev,
+  next,
+  onOpen,
+  status,
+  promise,
+  actions,
+}: Parameters<typeof OrderBar>[0]) {
   const density = useActionBarDensity()
   const roomy = density === "normal"
   const tight = density === "tight" || density === "scroll"
@@ -717,10 +862,22 @@ function OrderBarControls({ position, total, totalCapped, prev, next, onOpen, st
           {totalCapped ? "+" : ""}
         </b>
       ) : null}
-      <ActionBarButton size="icon-sm" disabled={!prev} onClick={() => prev && onOpen(prev)} aria-label="Previous order (←)" title="Previous order (←)">
+      <ActionBarButton
+        size="icon-sm"
+        disabled={!prev}
+        onClick={() => prev && onOpen(prev)}
+        aria-label="Previous order (←)"
+        title="Previous order (←)"
+      >
         <ChevronLeft />
       </ActionBarButton>
-      <ActionBarButton size="icon-sm" disabled={!next} onClick={() => next && onOpen(next)} aria-label="Next order (→)" title="Next order (→)">
+      <ActionBarButton
+        size="icon-sm"
+        disabled={!next}
+        onClick={() => next && onOpen(next)}
+        aria-label="Next order (→)"
+        title="Next order (→)"
+      >
         <ChevronRight />
       </ActionBarButton>
       <span className="ef-selbar__rule" aria-hidden="true" />

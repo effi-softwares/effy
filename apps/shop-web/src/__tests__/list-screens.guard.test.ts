@@ -10,7 +10,6 @@ import { describe, expect, it } from "vitest"
 const RAW_TABLE_ALLOWED: Record<string, string> = {
   "catalog/ReviewPanel.tsx": "review: a change against what is on sale",
   "catalog/VariantsSection.tsx": "editor: on-sale switches and remove per size",
-  "fulfillment/components/PackBags.tsx": "editor: pack bags",
   "insights/TopProducts.tsx": "dashboard strip: ranked, with share bars",
 }
 

@@ -37,28 +37,34 @@ export function FeeBreakdown({ breakdown }: { breakdown: DeliveryFeeBreakdownDTO
     rows.push(["Small-order fee", `the basket was ${dollars(inputs.basketCents)}`, dollars(parts.smallOrderCents)])
 
   return (
-    <section className="space-y-3">
-      <h2 className="text-sm font-medium">How the delivery fee was built</h2>
-      <p className="text-sm text-muted-foreground">Priced by {breakdown.plan.name} when the order was placed.</p>
-      <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-[max-content_1fr_max-content]">
-        {rows.map(([label, detail, amount]) => (
-          <div key={label} className="contents">
-            <dt className="text-muted-foreground">{label}</dt>
-            <dd>{detail}</dd>
-            <dd className="tabular-nums sm:text-right">{amount}</dd>
-          </div>
-        ))}
-      </dl>
-      <p className="text-sm font-medium">What the customer was shown</p>
-      <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-[max-content_1fr]">
+    <section className="grid gap-3">
+      <h3 className="text-[13px] font-semibold">The fee</h3>
+      <table className="w-full border-collapse text-[13.5px] tabular-nums">
+        <tbody className="[&_td]:border-b [&_td]:py-2 [&_td:last-child]:text-right">
+          {rows.map(([label, detail, amount]) => (
+            <tr key={label}>
+              <td>
+                {label}
+                {detail ? <small className="block text-xs text-muted-foreground">{detail}</small> : null}
+              </td>
+              <td className="align-top">{amount}</td>
+            </tr>
+          ))}
+          <tr className="font-semibold [&_td]:border-b-0 [&_td]:pt-3">
+            <td>Charged</td>
+            <td>{dollars(parts.totalCents)}</td>
+          </tr>
+        </tbody>
+      </table>
+      <p className="text-xs text-muted-foreground">Priced by {breakdown.plan.name} when the order was placed.</p>
+      <h3 className="mt-3 text-[13px] font-semibold">What the customer was shown</h3>
+      <dl className="m-0 grid text-[13.5px] tabular-nums [&_div]:flex [&_div]:justify-between [&_div]:gap-6 [&_div]:py-1 [&_dd]:m-0 [&_dt]:text-muted-foreground">
         {breakdown.lines.map((l, i) => (
-          <div key={`${l.kind}-${i}`} className="contents">
-            <dt className="text-muted-foreground">{DELIVERY_FEE_LINE_LABEL[l.kind]}</dt>
-            <dd className="tabular-nums">{signed(l.amount)}</dd>
+          <div key={`${l.kind}-${i}`}>
+            <dt>{DELIVERY_FEE_LINE_LABEL[l.kind]}</dt>
+            <dd>{signed(l.amount)}</dd>
           </div>
         ))}
-        <dt className="font-medium text-foreground">Delivery total</dt>
-        <dd className="font-medium tabular-nums">{dollars(parts.totalCents)}</dd>
       </dl>
     </section>
   )

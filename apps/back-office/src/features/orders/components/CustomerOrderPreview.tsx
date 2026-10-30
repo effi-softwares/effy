@@ -12,7 +12,10 @@ import { aud, CUSTOMER_STAGES, promiseTextFor, type OrderDetail } from "../model
  * and who brings it. Nothing on it names a shop or says how many pack it — the customer never sees that.
  */
 export function CustomerOrderPreview({ order }: { order: OrderDetail }) {
-  const at = Math.max(0, CUSTOMER_STAGES.findIndex((s) => s.stage === order.stage))
+  const at = Math.max(
+    0,
+    CUSTOMER_STAGES.findIndex((s) => s.stage === order.stage),
+  )
   const finished = order.stage === "delivered"
   const step = CUSTOMER_STAGES[at]!
   const units = order.items.reduce((n, i) => n + i.quantity, 0)
@@ -62,7 +65,11 @@ export function CustomerOrderPreview({ order }: { order: OrderDetail }) {
           ) : null}
           <div>
             <dt>Delivery</dt>
-            <dd className={order.deliveryType === "effy" ? "inline-flex items-center gap-1.5 font-semibold text-brand" : ""}>
+            <dd
+              className={
+                order.deliveryType === "effy" ? "inline-flex items-center gap-1.5 font-semibold text-brand" : ""
+              }
+            >
               {order.deliveryType === "effy" ? <CircleCheck aria-hidden="true" className="size-3.5" /> : null}
               {DELIVERY_TYPE_WORDS[order.deliveryType]}
             </dd>

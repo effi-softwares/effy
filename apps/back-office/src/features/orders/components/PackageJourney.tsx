@@ -43,15 +43,16 @@ export function PackageJourney({ steps, now = new Date() }: { steps: readonly Jo
             >
               {done ? <Check /> : s.state === "problem" ? <CircleAlert /> : null}
             </span>
-            <span
-              className={cn(
-                "truncate text-[13px]",
-                s.state === "todo" ? "text-muted-foreground" : "font-medium",
-              )}
-            >
+            <span className={cn("truncate text-[13px]", s.state === "todo" ? "text-muted-foreground" : "font-medium")}>
               {STATUS_WORD[s.status]}
               <span className="sr-only">
-                {done ? " — done" : s.state === "current" ? " — where it is now" : s.state === "problem" ? " — stopped here" : ""}
+                {done
+                  ? " — done"
+                  : s.state === "current"
+                    ? " — where it is now"
+                    : s.state === "problem"
+                      ? " — stopped here"
+                      : ""}
               </span>
             </span>
             <span

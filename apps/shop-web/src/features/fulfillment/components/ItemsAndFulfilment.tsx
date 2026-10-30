@@ -1,24 +1,14 @@
 import { useState } from "react"
-import { CircleAlert, CircleCheck, Package, Snowflake, Thermometer, type LucideIcon } from "lucide-react"
+import { Check, CircleAlert, CircleCheck, Package, Snowflake, Thermometer, type LucideIcon } from "lucide-react"
 
 import { STORAGE_CLASSES, STORAGE_CLASS_WORDS, type StorageClass } from "@effy/shared-types"
-import { Button, Progress } from "@effy/design-system/ui"
+import { Button } from "@effy/design-system/ui"
+import { ActionBarButton, useActionBar } from "@effy/web-kit/action-bar"
 import { ScanField } from "@effy/web-kit/scanner"
 
-import {
-  canPick,
-  deliveredByText,
-  formatMoney,
-  pickModeOf,
-  pickSummary,
-  pickToast,
-  type OrderDetail,
-  type OrderLine,
-  type PickMode,
-} from "../orderConsole"
+import { canPick, pickModeOf, pickToast, type OrderDetail, type OrderLine, type PickMode } from "../orderConsole"
 import { useSetPicks } from "../queries"
 import { AdjustLineDialog } from "./AdjustLineDialog"
-import { RefundedBox, TotalRow } from "./OrderTotals"
 import { LineRow } from "./PickLine"
 import { Shipments } from "./Shipments"
 
@@ -30,19 +20,24 @@ export function ItemsAndFulfilment({ detail }: { detail: OrderDetail }) {
   const picks = useSetPicks(detail.id)
   const [adjusting, setAdjusting] = useState<{ line: OrderLine; preset?: Exclude<PickMode, "none"> } | null>(null)
   const [scan, setScan] = useState<{ ok: boolean; text: string; lineId?: string } | null>(null)
+  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set())
 
   const editable = canPick(detail.status)
   const modes = detail.lines.map((l) => pickModeOf(l))
   const allPicked = detail.lines.length > 0 && modes.every((m) => m === "full")
   const pickedFull = modes.filter((m) => m === "full").length
+  const shortCount = modes.filter((m) => m === "part" || m === "unavailable").length
+  const done = modes.filter((m) => m !== "none").length
   const busy = picks.isPending
+  const zones = zonesOf(detail.lines)
+  // The next line to pick, in walking order.
+  const next = editable ? zones.flatMap((z) => z.lines).find((l) => pickModeOf(l) === "none") : undefined
 
-  function toggleLine(l: OrderLine) {
+  function setLine(l: OrderLine, mode: PickMode) {
     if (!editable || busy) return
-    const next: PickMode = pickModeOf(l) === "full" ? "none" : "full"
     picks.mutate({
-      lines: [{ orderItemId: l.orderItemId, mode: next }],
-      toast: pickToast(l.name, next, l.orderedQuantity, l.orderedQuantity),
+      lines: [{ orderItemId: l.orderItemId, mode }],
+      toast: pickToast(l.name, mode, l.orderedQuantity, l.orderedQuantity),
     })
   }
 
@@ -55,6 +50,36 @@ export function ItemsAndFulfilment({ detail }: { detail: OrderDetail }) {
     })
   }
 
+  // Several lines at once: all picked, or none of them to be had (each still says it on its own row).
+  function markSelected(mode: "full" | "unavailable") {
+    const lines = detail.lines.filter((l) => selected.has(l.orderItemId))
+    const what = `${lines.length} ${lines.length === 1 ? "line" : "lines"}`
+    picks.mutate(
+      {
+        lines: lines.map((l) => ({ orderItemId: l.orderItemId, mode })),
+        toast: mode === "full" ? `${what} picked` : `${what} marked unavailable`,
+      },
+      { onSuccess: () => setSelected(new Set()) },
+    )
+  }
+
+  // Ticked lines take the action bar while they are ticked, as a table's selection does.
+  const bar = useActionBar({
+    count: selected.size,
+    label: "Selected lines",
+    busy,
+    onClear: () => setSelected(new Set()),
+    children: (
+      <>
+        <ActionBarButton onClick={() => markSelected("full")}>
+          <Check aria-hidden="true" />
+          Mark picked
+        </ActionBarButton>
+        <ActionBarButton onClick={() => markSelected("unavailable")}>Can&apos;t supply them</ActionBarButton>
+      </>
+    ),
+  })
+
   function onScan(raw: string) {
     const code = raw.trim()
     const l = detail.lines.find((x) => x.gtin === code || x.variantCode === code || x.sku === code)
@@ -63,136 +88,134 @@ export function ItemsAndFulfilment({ detail }: { detail: OrderDetail }) {
       return
     }
     setScan({ ok: true, text: `${l.name}${l.variantLabel ? ` · ${l.variantLabel}` : ""}`, lineId: l.orderItemId })
-    if (pickModeOf(l) !== "full" && editable && !busy) {
-      picks.mutate({
-        lines: [{ orderItemId: l.orderItemId, mode: "full" }],
-        toast: pickToast(l.name, "full", l.orderedQuantity, l.orderedQuantity),
-      })
-    }
+    if (pickModeOf(l) !== "full") setLine(l, "full")
   }
 
-  const m = detail.money
-  const pct = detail.lines.length > 0 ? (pickedFull / detail.lines.length) * 100 : 0
-
+  const n = detail.lines.length
   return (
-    <div className="min-w-0">
-      <div className="overflow-hidden rounded-lg border">
-        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b px-5 py-4 max-md:px-4">
-          <div className="grid min-w-0 flex-1 gap-2">
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-              <Progress aria-hidden="true" className="max-w-65" height={8} value={pct} />
-              <p className="text-sm text-muted-foreground">
-                {pickSummary(detail.lines)} · {deliveredByText(detail.deliveredBy)}
-              </p>
-            </div>
-          </div>
-          {editable ? (
-            <Button variant="ghost" size="sm" onClick={toggleAll} disabled={busy}>
-              {allPicked ? "Clear all" : "Select all"}
-            </Button>
-          ) : null}
+    <div className="grid min-w-0 gap-6">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <div aria-hidden="true" className="flex h-1.5 w-full max-w-80 overflow-hidden rounded-full bg-muted">
+          <i
+            className="block h-full bg-success transition-[width] duration-500"
+            style={{ width: `${n ? (pickedFull / n) * 100 : 0}%` }}
+          />
+          <i
+            className="block h-full bg-accent2 transition-[width] duration-500"
+            style={{ width: `${n ? (shortCount / n) * 100 : 0}%` }}
+          />
         </div>
-
+        <p className="text-[13px] text-muted-foreground tabular-nums">
+          {done} of {n} {n === 1 ? "line" : "lines"}
+          {shortCount > 0 ? ` · ${shortCount} short` : ""}
+        </p>
         {editable ? (
-          <div className="flex flex-wrap items-center gap-3 border-b px-5 py-3 max-md:px-4">
-            <div className="min-w-0 flex-1">
-              <ScanField
-                accept={(t) => /^\d{8,14}$/.test(t.trim())}
-                onRead={({ raw }) => onScan(raw)}
-                placeholder="Scan a product barcode, or type it"
-                label="Scan a product barcode"
-              />
-            </div>
-            {scan ? (
-              <p role="status" className="flex basis-full items-center gap-2 text-sm font-medium [&_svg]:size-4">
-                {scan.ok ? (
-                  <CircleCheck aria-hidden="true" className="text-success" />
-                ) : (
-                  <CircleAlert aria-hidden="true" />
-                )}
-                {scan.text}
-              </p>
-            ) : (
-              <p className="basis-full text-sm text-muted-foreground">
-                A scanner types here. It ticks the line when the barcode matches.
-              </p>
-            )}
-          </div>
+          <Button variant="ghost" size="sm" className="ml-auto" onClick={toggleAll} disabled={busy}>
+            {allPicked ? "Clear all" : "Select all"}
+          </Button>
         ) : null}
-
-        <div className="flex flex-col">
-          {zonesOf(detail.lines).map(({ zone, lines }) => {
-            const Z = ZONE[zone]
-            return (
-              <section key={zone} aria-label={STORAGE_CLASS_WORDS[zone]}>
-                <h3 className="flex items-center gap-2 border-b bg-muted/50 px-5 py-2 text-xs font-semibold tracking-[0.02em] max-md:px-4 [&_svg]:size-4">
-                  <Z.icon aria-hidden="true" />
-                  {STORAGE_CLASS_WORDS[zone].toUpperCase()}
-                  <span className="font-normal tracking-normal text-muted-foreground">· {Z.hint}</span>
-                </h3>
-                <ul>
-                  {lines.map((l) => (
-                    <LineRow
-                      key={l.orderItemId}
-                      line={l}
-                      currency={m.currency}
-                      editable={editable}
-                      busy={busy}
-                      scanned={scan?.lineId === l.orderItemId}
-                      onToggle={() => toggleLine(l)}
-                      onAdjust={() => setAdjusting({ line: l })}
-                      onCantFind={() => setAdjusting({ line: l, preset: "unavailable" })}
-                    />
-                  ))}
-                </ul>
-              </section>
-            )
-          })}
-        </div>
-
-        <div className="border-t px-5 py-3 max-md:px-4">
-          <TotalRow label="Your items" value={formatMoney(m.shopSubtotal, m.currency)} />
-          {Number(m.discount) > 0 ? (
-            <TotalRow label="Discount" value={`−${formatMoney(m.discount, m.currency)}`} />
-          ) : null}
-          <TotalRow label="Total" value={formatMoney(m.total, m.currency)} strong />
-          {detail.refunds.length > 0 ? <RefundedBox detail={detail} /> : null}
-        </div>
-
-        <Shipments detail={detail} />
-
-        <AdjustLineDialog
-          line={adjusting?.line ?? null}
-          preset={adjusting?.preset}
-          onClose={() => setAdjusting(null)}
-          saving={busy}
-          onSave={(mode, units, note) => {
-            const l = adjusting!.line
-            picks.mutate(
-              {
-                lines: [
-                  {
-                    orderItemId: l.orderItemId,
-                    mode,
-                    ...(mode === "part" ? { units } : {}),
-                    ...(note ? { note } : {}),
-                  },
-                ],
-                toast: pickToast(l.name, mode, units, l.orderedQuantity),
-              },
-              { onSuccess: () => setAdjusting(null) },
-            )
-          }}
-        />
       </div>
+
+      {editable ? (
+        <div className="grid gap-2">
+          <ScanField
+            accept={(t) => /^\d{8,14}$/.test(t.trim())}
+            onRead={({ raw }) => onScan(raw)}
+            placeholder="Scan a product barcode, or type it"
+            label="Scan a product barcode"
+          />
+          {scan ? (
+            <p role="status" className="flex items-center gap-2 text-sm font-medium [&_svg]:size-4">
+              {scan.ok ? (
+                <CircleCheck aria-hidden="true" className="text-success" />
+              ) : (
+                <CircleAlert aria-hidden="true" />
+              )}
+              {scan.text}
+            </p>
+          ) : (
+            <p className="text-[13px] text-muted-foreground">
+              A scanner types here. It ticks the line when the barcode matches.
+            </p>
+          )}
+        </div>
+      ) : null}
+
+      <div className="grid gap-7">
+        {zones.map(({ zone, lines }) => {
+          const Z = ZONE[zone]
+          return (
+            <section key={zone} aria-label={STORAGE_CLASS_WORDS[zone]} className="grid gap-2.5">
+              <h3 className="flex items-center gap-2.5 text-[13.5px]">
+                <span
+                  aria-hidden="true"
+                  className="grid size-7 place-items-center rounded-md bg-muted text-muted-foreground [&_svg]:size-3.5"
+                >
+                  <Z.icon />
+                </span>
+                <span className="font-semibold">{STORAGE_CLASS_WORDS[zone]}</span>
+                <span className="text-[12.5px] text-muted-foreground">· {Z.hint}</span>
+              </h3>
+              <ul className="m-0 grid list-none gap-2 p-0">
+                {lines.map((l) => (
+                  <LineRow
+                    key={l.orderItemId}
+                    line={l}
+                    editable={editable}
+                    busy={busy}
+                    scanned={scan?.lineId === l.orderItemId}
+                    next={next?.orderItemId === l.orderItemId}
+                    selected={selected.has(l.orderItemId)}
+                    onSelect={() =>
+                      setSelected((s) => {
+                        const nx = new Set(s)
+                        if (nx.has(l.orderItemId)) nx.delete(l.orderItemId)
+                        else nx.add(l.orderItemId)
+                        return nx
+                      })
+                    }
+                    onPick={() => setLine(l, "full")}
+                    onUndo={() => setLine(l, "none")}
+                    onSome={() => setAdjusting({ line: l, preset: "part" })}
+                    onCantSupply={() => setAdjusting({ line: l, preset: "unavailable" })}
+                    onNote={() => setAdjusting({ line: l })}
+                  />
+                ))}
+              </ul>
+            </section>
+          )
+        })}
+      </div>
+
+      <Shipments detail={detail} />
+
+      <AdjustLineDialog
+        line={adjusting?.line ?? null}
+        preset={adjusting?.preset}
+        onClose={() => setAdjusting(null)}
+        saving={busy}
+        onSave={(mode, units, note) => {
+          const l = adjusting!.line
+          picks.mutate(
+            {
+              lines: [
+                { orderItemId: l.orderItemId, mode, ...(mode === "part" ? { units } : {}), ...(note ? { note } : {}) },
+              ],
+              toast: pickToast(l.name, mode, units, l.orderedQuantity),
+            },
+            { onSuccess: () => setAdjusting(null) },
+          )
+        }}
+      />
+      {bar}
     </div>
   )
 }
 
 const ZONE: Record<StorageClass, { icon: LucideIcon; hint: string }> = {
-  ambient: { icon: Package, hint: "pick first" },
-  chilled: { icon: Thermometer, hint: "then, straight into the chilled bag" },
-  frozen: { icon: Snowflake, hint: "pick last, straight into the frozen bag" },
+  ambient: { icon: Package, hint: "Pick first" },
+  chilled: { icon: Thermometer, hint: "Pick after the shelves, straight into the chilled bag" },
+  frozen: { icon: Snowflake, hint: "Pick last, straight into the frozen bag" },
 }
 
 function zonesOf(lines: readonly OrderLine[]): { zone: StorageClass; lines: OrderLine[] }[] {
