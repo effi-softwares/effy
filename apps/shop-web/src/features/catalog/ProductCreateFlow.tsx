@@ -3,7 +3,7 @@ import { useEffect, useState } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { ArrowLeft, ArrowRight, CircleAlert } from "lucide-react"
 
-import { formRows, recategorise, type CreateProductRequest, type FactKey, type ProductFacts } from "@effy/shared-types"
+import { followDefaults, formRows, recategorise, type CreateProductRequest } from "@effy/shared-types"
 import { Alert, AlertTitle, Button } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 import { FormSkeleton, Loading } from "@effy/web-kit/patterns"
@@ -49,6 +49,7 @@ import { sessionQuery } from "@/features/auth/queries"
 import { meQuery } from "@/features/shop-identity/queries"
 import { track } from "@/lib/telemetry"
 
+import { clearDraftPhoto, loadDraftPhoto, saveDraftPhoto } from "./draftPhoto"
 import { productMutationError } from "./errorText"
 import { pathText } from "./model"
 import { categoryFormQuery, taxonomyQuery, useCreateProduct } from "./queries"
@@ -126,6 +127,23 @@ function CreateFlow({ shopId, subject, onCancel, onCreated }: Props & { shopId: 
     track({ name: "product_create_started" })
   }, [])
 
+  // The draft's photo comes back from IndexedDB; one chosen meanwhile wins.
+  useEffect(() => {
+    let live = true
+    void loadDraftPhoto(shopId, subject).then((file) => {
+      if (live && file) setImageFile((current) => current ?? file)
+    })
+    return () => {
+      live = false
+    }
+  }, [shopId, subject])
+
+  function changeImage(file: File | null) {
+    setImageFile(file)
+    void saveDraftPhoto(shopId, subject, file)
+    setSavedAt(new Date())
+  }
+
   function change(next: (d: ProductDraft) => ProductDraft) {
     setDraft((d) => {
       const updated = next(d)
@@ -136,17 +154,12 @@ function CreateFlow({ shopId, subject, onCancel, onCreated }: Props & { shopId: 
   }
   const update = (patch: Partial<ProductDraft>) => change((d) => ({ ...d, ...patch }))
 
-  // Facts the shop has not changed follow the leaf's defaults.
+  // Facts the shop has not changed follow the leaf's defaults (else the platform's: room temperature, GST-free, not 18+).
   useEffect(() => {
     const defaults = form.data?.defaults
     if (!defaults) return
     change((d) => {
-      const pick = <K extends FactKey>(k: K): ProductFacts[K] => (d.factsTouched.includes(k) ? d.facts[k] : defaults[k])
-      const facts: ProductFacts = {
-        storage: pick("storage"),
-        gstStatus: pick("gstStatus"),
-        ageRestricted: pick("ageRestricted"),
-      }
+      const facts = followDefaults(d.facts, d.factsTouched, defaults)
       return facts.storage === d.facts.storage &&
         facts.gstStatus === d.facts.gstStatus &&
         facts.ageRestricted === d.facts.ageRestricted
@@ -206,6 +219,7 @@ function CreateFlow({ shopId, subject, onCancel, onCreated }: Props & { shopId: 
 
   function discard() {
     clearDraft(shopId, subject)
+    void clearDraftPhoto(shopId, subject)
     onCancel()
   }
 
@@ -255,6 +269,7 @@ function CreateFlow({ shopId, subject, onCancel, onCreated }: Props & { shopId: 
         // the product exists as a draft; the shop can submit it from its page
       }
       clearDraft(shopId, subject)
+      void clearDraftPhoto(shopId, subject)
       onCreated(product.id)
     } catch (err) {
       setUploadProgress(null)
@@ -296,7 +311,7 @@ function CreateFlow({ shopId, subject, onCancel, onCreated }: Props & { shopId: 
         return (
           <PhotoStep
             file={imageFile}
-            onChange={setImageFile}
+            onChange={changeImage}
             imageUrl={imageUrl}
             error={tried && !imageFile ? "Add a photo. Every product needs one." : null}
             disabled={busy}

@@ -4,12 +4,11 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { ArrowLeft, ArrowRight, CircleAlert } from "lucide-react"
 
 import {
+  followDefaults,
   formRows,
   recategorise,
   type BackOfficeProductDTO,
   type EffyProductContentDTO,
-  type FactKey,
-  type ProductFacts,
 } from "@effy/shared-types"
 import {
   Alert,
@@ -157,12 +156,7 @@ export function EffyProductForm({
     const defaults = form.data?.defaults
     if (!defaults) return
     setDraft((d) => {
-      const pick = <K extends FactKey>(k: K): ProductFacts[K] => (d.factsTouched.includes(k) ? d.facts[k] : defaults[k])
-      const facts: ProductFacts = {
-        storage: pick("storage"),
-        gstStatus: pick("gstStatus"),
-        ageRestricted: pick("ageRestricted"),
-      }
+      const facts = followDefaults(d.facts, d.factsTouched, defaults)
       return facts.storage === d.facts.storage &&
         facts.gstStatus === d.facts.gstStatus &&
         facts.ageRestricted === d.facts.ageRestricted

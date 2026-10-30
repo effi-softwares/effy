@@ -206,6 +206,22 @@ export interface ProductFacts {
   ageRestricted: boolean | null
 }
 
+/** Where no category up the tree sets a fact, a new product starts at room temperature, GST-free and not 18+. */
+export const FACT_FALLBACK = { storage: "ambient", gstStatus: "gst_free", ageRestricted: false } as const satisfies {
+  [K in FactKey]: NonNullable<ProductFacts[K]>
+}
+
+/** A form's facts against a leaf: those changed by hand stay, the others take its default (else the fallback). */
+export function followDefaults(
+  facts: ProductFacts,
+  touched: readonly FactKey[],
+  defaults: FactDefaults,
+): ProductFacts {
+  const pick = <K extends FactKey>(k: K): ProductFacts[K] =>
+    touched.includes(k) ? facts[k] : (defaults[k] ?? FACT_FALLBACK[k])
+  return { storage: pick("storage"), gstStatus: pick("gstStatus"), ageRestricted: pick("ageRestricted") }
+}
+
 export interface RecategoriseResult {
   details: DetailInput[]
   /** Names of the details the new category does not ask for (hidden there included). */
@@ -231,13 +247,7 @@ export function recategorise(
     if (keep.has(d.attributeId)) details.push(d)
     else dropped.push(oldName.get(d.attributeId) ?? d.attributeId)
   }
-  const touched = new Set(draft.factsTouched)
-  const pick = <K extends FactKey>(k: K) => (touched.has(k) ? draft.facts[k] : newDefaults[k])
-  return {
-    details,
-    dropped,
-    facts: { storage: pick("storage"), gstStatus: pick("gstStatus"), ageRestricted: pick("ageRestricted") },
-  }
+  return { details, dropped, facts: followDefaults(draft.facts, draft.factsTouched, newDefaults) }
 }
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October",

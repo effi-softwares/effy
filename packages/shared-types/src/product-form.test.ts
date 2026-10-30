@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import {
-  formatAttributeValue, isStockDateName, missingDetails, recategorise, validateDetails, valueProblem,
+  followDefaults, formatAttributeValue, isStockDateName, missingDetails, recategorise, validateDetails, valueProblem,
 } from "./product-form"
 import type { CategoryFormRow, DetailInput } from "./taxonomy"
 
@@ -94,7 +94,26 @@ describe("recategorise (101)", () => {
     )
     expect(out.details.map((d) => d.attributeId)).toEqual(["a-weight"])
     expect(out.dropped).toEqual(["Allergens"])
-    expect(out.facts).toEqual({ storage: "frozen", gstStatus: "gst_free", ageRestricted: null })
+    // 18+ is set nowhere up the tree: it falls back to not 18+.
+    expect(out.facts).toEqual({ storage: "frozen", gstStatus: "gst_free", ageRestricted: false })
+  })
+})
+
+describe("followDefaults", () => {
+  const empty = { storage: null, gstStatus: null, ageRestricted: null }
+
+  it("starts a fact no category sets at room temperature, GST-free, not 18+", () => {
+    expect(followDefaults(empty, [], empty)).toEqual({ storage: "ambient", gstStatus: "gst_free", ageRestricted: false })
+  })
+
+  it("takes the leaf's default over the fallback, and keeps what was changed by hand", () => {
+    expect(
+      followDefaults(
+        { storage: "frozen", gstStatus: null, ageRestricted: null },
+        ["storage"],
+        { storage: "chilled", gstStatus: "taxable", ageRestricted: true },
+      ),
+    ).toEqual({ storage: "frozen", gstStatus: "taxable", ageRestricted: true })
   })
 })
 
