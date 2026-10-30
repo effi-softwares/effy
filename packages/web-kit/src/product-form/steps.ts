@@ -34,8 +34,8 @@ export const STEP_WORDS: Record<StepKey, { title: string; hint: string }> = {
     hint: "One clear photo, used everywhere shoppers see this product.",
   },
   sizes: {
-    title: "Sizes & prices",
-    hint: "Sell it in one size, or add options such as pack size or flavour and price each one.",
+    title: "Variants & prices",
+    hint: "Sell it as one product, or add variants such as size, flavour or colour and price each one.",
   },
   details: {
     title: "Details",
@@ -102,7 +102,7 @@ export function stepComplete(
   }
 }
 
-/** What a step holds so far, for the rail ("2 sizes · From $4.60"). */
+/** What a step holds so far, for the rail ("2 variants · From $4.60"). */
 export function stepSummary(
   key: StepKey,
   draft: ProductDraft,
@@ -120,14 +120,14 @@ export function stepSummary(
       const priced = draft.variantSet.variants.filter((v) =>
         isValidPrice(v.shopPriceAmount),
       );
-      if (priced.length === 0) return "One size or several";
+      if (priced.length === 0) return "One price, or one per variant";
       if (draft.variantSet.variants.length === 1) {
         const pack = rowPack(draft.variantSet, draft.variantSet.variants[0]!);
         const size =
           pack.packUnit !== "" ? packLabel(pack.packQuantity.trim(), pack.packUnit) : null;
         return [money(priced[0]!.shopPriceAmount), size].filter(Boolean).join(" · ");
       }
-      return `${draft.variantSet.variants.length} sizes · ${previewPrice(draft)}`;
+      return `${draft.variantSet.variants.length} variants · ${previewPrice(draft)}`;
     }
     case "details": {
       if (!form) return "Asked once the category is chosen";
@@ -196,7 +196,7 @@ export function readiness(
     { key: "image", label: "Photo", ok: hasImage, step: "image" },
     {
       key: "sizes",
-      label: draft.variantSet.variants.length > 1 ? "Sizes and prices" : "Price",
+      label: draft.variantSet.variants.length > 1 ? "Variants and prices" : "Price",
       ok: variantSetValid(draft.variantSet),
       step: "sizes",
     },
@@ -219,7 +219,7 @@ const PRICE = /^\d+(\.\d{1,2})?$/;
 export const money = (amount: string) => `$${Number(amount).toFixed(2)}`;
 
 /**
- * The lowest price ("From $4.60" when sizes differ), or "" before one is set. `shown` turns a shop price into
+ * The lowest price ("From $4.60" when variants differ), or "" before one is set. `shown` turns a shop price into
  * the price to show — back-office adds its margin.
  */
 export function previewPrice(

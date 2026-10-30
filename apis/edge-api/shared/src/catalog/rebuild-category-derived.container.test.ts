@@ -157,11 +157,18 @@ d("101 — rebuild_category_derived: inheritance, hiding, defaults, the closure"
       )).rows;
     expect(await missing()).toEqual([{ attribute_name: "T Allergens", variant_id: null }]);
 
+    // Two variants by a library option (Flavour: Plain, Natural).
     const option = (await pool.query<{ id: string }>(
-      `INSERT INTO public.product_option (product_id, "position", kind) VALUES ($1, 1, 'pack_size') RETURNING id::text`, [productId],
+      `INSERT INTO public.product_option (product_id, "position", attribute_id)
+       VALUES ($1, 1, (SELECT id FROM public.attribute_definition WHERE key = 'flavour')) RETURNING id::text`, [productId],
     )).rows[0]!.id;
     const values = (await pool.query<{ id: string }>(
-      `INSERT INTO public.product_option_value (option_id, value, "position") VALUES ($1, '500 g', 0), ($1, '1 kg', 1) RETURNING id::text`, [option],
+      `INSERT INTO public.product_option_value (option_id, value, "position", allowed_value_id)
+       SELECT $1, v.label, CASE v.label WHEN 'Plain' THEN 0 ELSE 1 END, v.id
+         FROM public.attribute_allowed_value v JOIN public.attribute_definition ad ON ad.id = v.attribute_definition_id
+        WHERE ad.key = 'flavour' AND v.label IN ('Plain', 'Natural')
+        ORDER BY 3
+       RETURNING id::text`, [option],
     )).rows.map((r) => r.id);
     await pool.query(`UPDATE public.product_variant SET option1_value_id = $1 WHERE id = $2`, [values[0], variantId]);
     const second = await insertTestVariant(pool, productId, { shopId: shop, price: "2.00", position: 1, optionValueIds: [values[1]!, null] });

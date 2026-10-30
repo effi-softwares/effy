@@ -6,13 +6,13 @@
 // writers. The rules are `validateVariantSet` and `validateOptionsAgainstForm` in @effy/shared-types, the same
 // as the shop console runs.
 //
-// Options are library attributes the product's leaf offers as variant options, or "Pack size" (101). Each
-// option value keeps a label copy (`product_option_value.value`) that every order line, manifest and
-// document reads through variantLabelSql: the allowed value's label, or the variants' pack size. This writer
-// and the attribute library's label rename (taxonomy.ts) are the only writers of that copy.
+// Options are library attributes the product's category offers as variant options — never the platform's own
+// (105). Each option value keeps a label copy (`product_option_value.value`) that every order line, manifest
+// and document reads through variantLabelSql: the allowed value's label. This writer and the attribute
+// library's label rename (taxonomy.ts) are the only writers of that copy. A variant's net quantity
+// (pack_quantity / pack_unit) is its own fact, read only for unit pricing.
 
 import {
-  packLabel,
   validateOptionsAgainstForm,
   validateVariantSet,
   type OptionInputDTO,
@@ -74,14 +74,7 @@ export async function applyVariantSet(tx: Queryable, input: ApplyVariantSetInput
   errors.push(...validateOptionsAgainstForm(options, rows));
   if (errors.length > 0) throw new VariantSetInvalid(errors);
   const allowedLabel = new Map(rows.flatMap((r) => r.values.map((v) => [v.id, v.label] as const)));
-  const packLabelOf = new Map<string, string>();
-  for (const v of variants) {
-    for (const id of v.optionValueIds) {
-      if (id && v.packQuantity && v.packUnit) packLabelOf.set(id, packLabel(String(v.packQuantity), v.packUnit) ?? "");
-    }
-  }
-  const labelOf = (o: OptionInputDTO, v: OptionInputDTO["values"][number]) =>
-    o.kind === "attribute" ? allowedLabel.get(v.allowedValueId ?? "") ?? "" : packLabelOf.get(v.id) ?? "";
+  const labelOf = (v: OptionInputDTO["values"][number]) => allowedLabel.get(v.allowedValueId) ?? "";
 
   const optionIds = options.map((o) => o.id);
   const valueIds = options.flatMap((o) => o.values.map((v) => v.id));
@@ -169,16 +162,16 @@ export async function applyVariantSet(tx: Queryable, input: ApplyVariantSetInput
     // 3. Options and values, upserted by id.
     for (const o of options) {
       await tx.query(
-        `INSERT INTO public.product_option (id, product_id, position, kind, attribute_id) VALUES ($1, $2, $3, $4, $5)
-         ON CONFLICT (id) DO UPDATE SET position = EXCLUDED.position, kind = EXCLUDED.kind, attribute_id = EXCLUDED.attribute_id`,
-        [o.id, productId, o.position, o.kind, o.kind === "attribute" ? o.attributeId : null],
+        `INSERT INTO public.product_option (id, product_id, position, attribute_id) VALUES ($1, $2, $3, $4)
+         ON CONFLICT (id) DO UPDATE SET position = EXCLUDED.position, attribute_id = EXCLUDED.attribute_id`,
+        [o.id, productId, o.position, o.attributeId],
       );
       for (const v of o.values) {
         await tx.query(
           `INSERT INTO public.product_option_value (id, option_id, value, position, allowed_value_id) VALUES ($1, $2, $3, $4, $5)
            ON CONFLICT (id) DO UPDATE SET option_id = EXCLUDED.option_id, value = EXCLUDED.value, position = EXCLUDED.position,
                                           allowed_value_id = EXCLUDED.allowed_value_id`,
-          [v.id, o.id, labelOf(o, v), v.position, o.kind === "attribute" ? v.allowedValueId : null],
+          [v.id, o.id, labelOf(v), v.position, v.allowedValueId],
         );
       }
     }
@@ -228,7 +221,7 @@ export async function applyVariantSet(tx: Queryable, input: ApplyVariantSetInput
       const c = (e as { constraint?: string }).constraint ?? "";
       if (c.includes("sku")) throw new VariantSetInvalid([{ field: "variants", message: "a stock code is already used in your shop" }]);
       if (c.includes("combination")) throw new VariantSetInvalid([{ field: "variants", message: "two variants have the same combination" }]);
-      if (c.includes("attribute") || c.includes("pack_size")) throw new VariantSetInvalid([{ field: "options", message: "two options are the same" }]);
+      if (c.includes("attribute")) throw new VariantSetInvalid([{ field: "options", message: "two options are the same" }]);
       if (c.includes("value")) throw new VariantSetInvalid([{ field: "options", message: "two values of one option are the same" }]);
     }
     throw e;

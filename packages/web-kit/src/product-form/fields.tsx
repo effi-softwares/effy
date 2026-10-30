@@ -57,8 +57,10 @@ export function FormField({
     <div className="grid content-start gap-2" data-invalid={error ? "true" : undefined}>
       <Label htmlFor={id} className="flex items-baseline gap-1.5">
         {label}
-        {required ? <span className="text-destructive">*</span> : null}
-        {optional ? <span className="text-xs font-normal text-muted-foreground">optional</span> : null}
+        {required ? <span className="leading-none text-destructive">*</span> : null}
+        {optional ? (
+          <span className="text-xs leading-none font-normal text-muted-foreground">optional</span>
+        ) : null}
       </Label>
       {children}
       {help || trailing ? (

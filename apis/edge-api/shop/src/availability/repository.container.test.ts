@@ -1,5 +1,5 @@
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
-import { migrationSql } from "@effy/edge-shared/testing";
+import { insertTestOption, migrationSql } from "@effy/edge-shared/testing";
 import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -58,21 +58,10 @@ describe.skipIf(!RUN)("Availability — real PostgreSQL, real migrations", () =>
       [opts.shop ?? SHOP, name, status],
     );
     // One size: no options. Several: a "Size" option with one value per size, as the editor writes them.
-    const option =
-      sizes.length > 1
-        ? (await pool.query<{ id: string }>(
-            `INSERT INTO public.product_option (product_id, "position", kind) VALUES ($1, 1, 'pack_size') RETURNING id`,
-            [p.rows[0]!.id],
-          )).rows[0]!.id
-        : null;
+    const values = sizes.length > 1 ? await insertTestOption(pool, p.rows[0]!.id, sizes.map((_, i) => `Size ${i + 1}`)) : null;
     const ids: string[] = [];
     for (const [i, s] of sizes.entries()) {
-      const value = option
-        ? (await pool.query<{ id: string }>(
-            `INSERT INTO public.product_option_value (option_id, value, "position") VALUES ($1, $2, $3) RETURNING id`,
-            [option, `Size ${i + 1}`, i],
-          )).rows[0]!.id
-        : null;
+      const value = values ? values[i]! : null;
       const v = await pool.query<{ id: string }>(
         `INSERT INTO public.product_variant (product_id, shop_id, option1_value_id, "position", shop_price_amount, price_amount, sku, gtin, state,
            removed_at, stock_tracked, stock_on_hand)

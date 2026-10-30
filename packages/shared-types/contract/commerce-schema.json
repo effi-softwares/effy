@@ -1906,20 +1906,14 @@
       "additionalProperties": false,
       "properties": {
         "attributeId": {
-          "description": "The library attribute (attribute options); null for Pack size.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "description": "The library attribute the category offers as an option.",
+          "type": "string"
         },
         "id": {
           "type": "string"
         },
-        "kind": {
-          "$ref": "#/definitions/OptionKind"
-        },
         "name": {
-          "description": "The attribute's name, or \"Pack size\".",
+          "description": "The attribute's name.",
           "type": "string"
         },
         "position": {
@@ -1936,29 +1930,18 @@
       "required": [
         "id",
         "position",
-        "kind",
         "attributeId",
         "name",
         "values"
       ],
       "type": "object"
     },
-    "OptionKind": {
-      "enum": [
-        "attribute",
-        "pack_size"
-      ],
-      "type": "string"
-    },
     "OptionValueDTO": {
       "additionalProperties": false,
       "properties": {
         "allowedValueId": {
-          "description": "The library value it is (attribute options); null for a pack size.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "description": "The library value it is.",
+          "type": "string"
         },
         "id": {
           "type": "string"
@@ -1967,7 +1950,7 @@
           "$ref": "#/definitions/WireInt"
         },
         "value": {
-          "description": "The label shoppers see: the attribute value's label, or a pack size (\"500 g\").",
+          "description": "The label shoppers see: the attribute value's label.",
           "type": "string"
         }
       },

@@ -1,5 +1,5 @@
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
-import { activityEntries, migrationSql } from "@effy/edge-shared/testing";
+import { activityEntries, insertTestOption, migrationSql } from "@effy/edge-shared/testing";
 import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -259,12 +259,7 @@ SELECT id FROM p`,
     const first = (await pool.query<{ product_id: string; variant_id: string }>(
       `SELECT product_id::text, variant_id::text FROM public.order_item WHERE id = $1`, [o.itemIds[0]],
     )).rows[0]!;
-    const size = (await pool.query<{ id: string }>(
-      `INSERT INTO public.product_option (product_id, position, kind) VALUES ($1, 1, 'pack_size') RETURNING id`, [first.product_id],
-    )).rows[0]!.id;
-    const [small, large] = (await pool.query<{ id: string }>(
-      `INSERT INTO public.product_option_value (option_id, value, position) VALUES ($1, '500 g', 0), ($1, '1 kg', 1) RETURNING id`, [size],
-    )).rows.map((r) => r.id);
+    const [small, large] = await insertTestOption(pool, first.product_id, ["500 g", "1 kg"]);
     await pool.query(`UPDATE public.product_variant SET option1_value_id = $2, sku = 'R-500' WHERE id = $1`, [first.variant_id, small]);
     const second = (await pool.query<{ id: string }>(
       `INSERT INTO public.product_variant (product_id, shop_id, option1_value_id, position, sku, gtin, shop_price_amount, price_amount)

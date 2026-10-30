@@ -3,7 +3,6 @@ import { imageWidthsField } from "@effy/edge-shared";
 import { productOffer } from "@effy/edge-shared/promotions";
 import {
   formatAttributeValue,
-  PACK_SIZE_OPTION_NAME,
   unitPrice,
   type DetailValue,
   type MediaDTO,
@@ -108,12 +107,10 @@ export function createCatalogService(repo: CatalogRepository, imageAddress: Imag
         .map((o) => ({
           id: String(o.id),
           position: Number(o.position),
-          kind: o.kind,
-          attributeId: o.attribute_id === null ? null : String(o.attribute_id),
-          name: o.kind === "pack_size" ? PACK_SIZE_OPTION_NAME : (o.name ?? "Option"),
+          attributeId: String(o.attribute_id),
+          name: o.name ?? "Option",
           values: o.values.map((x) => ({
-            id: String(x.id), value: x.value, position: Number(x.position),
-            allowedValueId: x.allowed_value_id === null ? null : String(x.allowed_value_id),
+            id: String(x.id), value: x.value, position: Number(x.position), allowedValueId: String(x.allowed_value_id),
           })),
         }))
         .filter((o) => o.values.length > 0);

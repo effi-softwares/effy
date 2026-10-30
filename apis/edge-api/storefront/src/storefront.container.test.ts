@@ -373,9 +373,25 @@ d("070 — storefront reads against the real schema", () => {
     try {
       await client.query("BEGIN");
       await client.query(`UPDATE public.product SET unit_basis = 'per_kg' WHERE id = $1`, [productId]);
+      // The category offers Flavour as its option (105: options come only from the category).
+      const flavour = (await client.query<{ attr: string; v: string; label: string }>(
+        `SELECT ad.id::text AS attr, v.id::text AS v, v.label FROM public.attribute_definition ad
+           JOIN public.attribute_allowed_value v ON v.attribute_definition_id = ad.id
+          WHERE ad.key = 'flavour' AND v.label IN ('Plain', 'Natural', 'Vanilla')
+          ORDER BY CASE v.label WHEN 'Plain' THEN 0 WHEN 'Natural' THEN 1 ELSE 2 END`,
+      )).rows;
+      await client.query(
+        `INSERT INTO public.category_attribute (category_id, attribute_id, level, hidden, section, "position")
+         SELECT id, $1, 'optional', false, 'Details', 99 FROM public.category WHERE key = 'sft-bakery'
+         ON CONFLICT DO NOTHING`, [flavour[0]!.attr],
+      );
+      await client.query(`SELECT public.rebuild_category_derived()`);
       await applyVariantSet(client, {
         productId, shopId, mode: "draft",
-        options: [{ id: u(1), position: 1, kind: "pack_size", values: [{ id: u(2), position: 0 }, { id: u(3), position: 1 }, { id: u(4), position: 2 }] }],
+        options: [{
+          id: u(1), position: 1, attributeId: flavour[0]!.attr,
+          values: [{ id: u(2), allowedValueId: flavour[0]!.v, position: 0 }, { id: u(3), allowedValueId: flavour[1]!.v, position: 1 }, { id: u(4), allowedValueId: flavour[2]!.v, position: 2 }],
+        }],
         variants: [
           { id: u(10), position: 0, optionValueIds: [u(2), null], shopPriceAmount: "3.20", sku: "RICE-500", packQuantity: "500", packUnit: "g" },
           { id: u(11), position: 1, optionValueIds: [u(3), null], shopPriceAmount: "5.50", gtin: "9300000000011", packQuantity: "1", packUnit: "kg" },
@@ -404,9 +420,12 @@ d("070 — storefront reads against the real schema", () => {
     expect(byCode.items.find((c) => c.id === productId)?.variantId).toBe(u(10));
 
     const page = await createCatalogService(createCatalogRepository(pool), noImage).productDetail(productId);
-    expect(page?.variants.map((v) => [v.label, v.priceAmount])).toEqual([["500 g", "3.52"], ["1 kg", "6.05"]]);
-    expect(page?.options[0]).toMatchObject({ kind: "pack_size", name: "Pack size" });
-    expect(page?.options[0]?.values.map((v) => v.value)).toEqual(["500 g", "1 kg"]);
+    expect(page?.variants.map((v) => [v.label, v.priceAmount])).toEqual([["Plain", "3.52"], ["Natural", "6.05"]]);
+    expect(page?.options[0]).toMatchObject({ name: "Flavour" });
+    expect(page?.options[0]).not.toHaveProperty("kind");
+    expect(page?.options[0]?.values.map((v) => v.value)).toEqual(["Plain", "Natural"]);
+    // The net quantity still gives each variant its unit price.
+    expect(page?.variants.map((v) => v.unitPrice?.amount)).toEqual(["7.04", "6.05"]);
     expect(page?.defaultVariantId).toBe(u(10));
   });
 });

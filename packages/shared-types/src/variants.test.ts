@@ -13,13 +13,15 @@ const FLAVOUR_ATTR = id()
 const PLAIN = id()
 const SPICED = id()
 const HOT = id()
+const COLOUR_ATTR = id()
+const COLOURS = Array.from({ length: 4 }, () => id())
 
-/** Pack size, position 1, with `count` values. */
-function packSize(count: number): OptionInputDTO {
-  return { id: id(), position: 1, kind: "pack_size", values: Array.from({ length: count }, (_, position) => ({ id: id(), position })) }
+/** Colour, position 1, with `count` values from its list. */
+function colour(count: number): OptionInputDTO {
+  return { id: id(), position: 1, attributeId: COLOUR_ATTR, values: COLOURS.slice(0, count).map((a, position) => ({ id: id(), allowedValueId: a, position })) }
 }
 function flavour(allowed: string[], position: 1 | 2 = 2): OptionInputDTO {
-  return { id: id(), position, kind: "attribute", attributeId: FLAVOUR_ATTR, values: allowed.map((a, p) => ({ id: id(), allowedValueId: a, position: p })) }
+  return { id: id(), position, attributeId: FLAVOUR_ATTR, values: allowed.map((a, p) => ({ id: id(), allowedValueId: a, position: p })) }
 }
 const variant = (position: number, ids: [string | null, string | null], extra: Partial<VariantInputDTO> = {}): VariantInputDTO => ({
   id: id(),
@@ -34,9 +36,9 @@ describe("variantLabel", () => {
   it("joins value labels in option order", () => {
     const options = [
       { position: 2, values: [{ id: "f1", value: "Plain" }, { id: "f2", value: "Spiced" }] },
-      { position: 1, values: [{ id: "s1", value: "500 g" }] },
+      { position: 1, values: [{ id: "s1", value: "Red" }] },
     ]
-    expect(variantLabel(options, ["s1", "f2"])).toBe("500 g / Spiced")
+    expect(variantLabel(options, ["s1", "f2"])).toBe("Red / Spiced")
   })
   it("is null for a product with no options", () => {
     expect(variantLabel([], [null, null])).toBeNull()
@@ -54,7 +56,7 @@ describe("packLabel", () => {
 
 describe("optionCombinations", () => {
   it("one option → one row per value; two → the cross product; none → one", () => {
-    const s = packSize(2)
+    const s = colour(2)
     const f = flavour([PLAIN, SPICED, HOT])
     expect(optionCombinations([])).toEqual([[null, null]])
     expect(optionCombinations([s])).toHaveLength(2)
@@ -68,13 +70,13 @@ describe("validateVariantSet (098, 101)", () => {
     expect(validateVariantSet([], [variant(0, [null, null])], null)).toEqual([])
   })
 
-  it("accepts a partial set of combinations, pack sizes taken from the variants", () => {
-    const s = packSize(2)
+  it("accepts a partial set of combinations, each variant with its own net quantity", () => {
+    const s = colour(2)
     const f = flavour([PLAIN, SPICED])
     const vs = [
       variant(0, [s.values[0]!.id, f.values[0]!.id], { packQuantity: "500", packUnit: "g" }),
       variant(1, [s.values[1]!.id, f.values[0]!.id], { packQuantity: "1", packUnit: "kg" }),
-      variant(2, [s.values[0]!.id, f.values[1]!.id], { packQuantity: "500", packUnit: "g" }),
+      variant(2, [s.values[0]!.id, f.values[1]!.id]),
     ]
     expect(validateVariantSet([s, f], vs, "per_kg")).toEqual([])
   })
@@ -89,7 +91,7 @@ describe("validateVariantSet (098, 101)", () => {
 
   it("refuses a third option, too many values, and an unused value", () => {
     const third: OptionInputDTO = { ...flavour([PLAIN]), position: 3 as 1 }
-    expect(fields(validateVariantSet([packSize(1), flavour([PLAIN]), third], [], null))).toContain("options")
+    expect(fields(validateVariantSet([colour(1), flavour([PLAIN]), third], [], null))).toContain("options")
     const many = { ...flavour(Array.from({ length: 21 }, () => id()), 1) }
     expect(fields(validateVariantSet([many], [variant(0, [many.values[0]!.id, null])], null))).toContain("options[0].values")
     const f = flavour([PLAIN, SPICED], 1)
@@ -97,27 +99,19 @@ describe("validateVariantSet (098, 101)", () => {
   })
 
   it("refuses an attribute option without its attribute or values, and the same value twice", () => {
-    const noAttr: OptionInputDTO = { ...flavour([PLAIN], 1), attributeId: null }
+    const noAttr = { ...flavour([PLAIN], 1), attributeId: null } as unknown as OptionInputDTO
     expect(fields(validateVariantSet([noAttr], [variant(0, [noAttr.values[0]!.id, null])], null))).toContain("options[0].attributeId")
     const twice = flavour([PLAIN, PLAIN], 1)
     expect(fields(validateVariantSet([twice], [variant(0, [twice.values[0]!.id, null]), variant(1, [twice.values[1]!.id, null])], null)))
       .toContain("options[0].values[1].allowedValueId")
   })
 
-  it("refuses two pack size options, a pack value without a pack, and two values of one size", () => {
-    const a = packSize(1)
-    const b = { ...packSize(1), position: 2 }
-    expect(fields(validateVariantSet([a, b], [variant(0, [a.values[0]!.id, b.values[0]!.id], { packQuantity: "1", packUnit: "kg" })], "per_kg")))
-      .toContain("options")
-    const s = packSize(2)
-    expect(fields(validateVariantSet([s], [variant(0, [s.values[0]!.id, null]), variant(1, [s.values[1]!.id, null], { packQuantity: "1", packUnit: "kg" })], null)))
-      .toContain("variants[0].packQuantity")
-    const same = validateVariantSet(
-      [s],
-      [variant(0, [s.values[0]!.id, null], { packQuantity: "1", packUnit: "kg" }), variant(1, [s.values[1]!.id, null], { packQuantity: "1.000", packUnit: "kg" })],
-      "per_kg",
-    )
-    expect(same.some((e) => e.message.includes("same size"))).toBe(true)
+  it("refuses two options on the same attribute, and a value not from the list", () => {
+    const a = flavour([PLAIN], 1)
+    const b = flavour([SPICED], 2)
+    expect(fields(validateVariantSet([a, b], [variant(0, [a.values[0]!.id, b.values[0]!.id])], null))).toContain("options[1].attributeId")
+    const off = { ...flavour([PLAIN], 1), values: [{ id: id(), allowedValueId: "", position: 0 }] }
+    expect(fields(validateVariantSet([off], [variant(0, [off.values[0]!.id, null])], null))).toContain("options[0].values[0].allowedValueId")
   })
 
   it("refuses a missing price, a was-price not above the price, and a shared stock code", () => {
@@ -135,7 +129,7 @@ describe("validateVariantSet (098, 101)", () => {
     expect(errs).toEqual(expect.arrayContaining(["variants[0].shopPriceAmount", "variants[1].shopCompareAtAmount", "variants[1].sku"]))
   })
 
-  it("refuses a pack unit that does not match the basis, and half a pack size", () => {
+  it("refuses a net-quantity unit that does not match the basis, and half a net quantity", () => {
     expect(fields(validateVariantSet([], [variant(0, [null, null], { packQuantity: "500", packUnit: "ml" })], "per_kg"))).toContain("variants[0].packUnit")
     expect(fields(validateVariantSet([], [variant(0, [null, null], { packQuantity: "500" })], "per_kg"))).toContain("variants[0].packQuantity")
     expect(validateVariantSet([], [variant(0, [null, null], { packQuantity: "500", packUnit: "g" })], "per_kg")).toEqual([])

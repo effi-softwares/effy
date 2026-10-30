@@ -340,7 +340,7 @@ export function EffyProductForm({
             </EditorSection>
             <EditorSection
               title="Effy's margin"
-              description="Added to every size's shop price to make what shoppers pay."
+              description="Added to every variant's shop price to make what shoppers pay."
             >
               <div className="grid gap-2" data-invalid={tried && !marginDto ? "true" : undefined}>
                 <MarginField

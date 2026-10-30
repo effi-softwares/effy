@@ -126,7 +126,7 @@ export function LivePreview({
                   {name || <span className="text-muted-foreground">Product name</span>}
                 </Flash>
                 <p className="text-xs text-muted-foreground tabular-nums">
-                  {sizes.length > 1 ? `${sizes.length} sizes` : sizes[0]?.label !== "One size" ? sizes[0]?.label : " "}
+                  {sizes.length > 1 ? `${sizes.length} variants` : sizes[0]?.label !== "One size" ? sizes[0]?.label : " "}
                 </p>
               </div>
               <div aria-hidden="true" className="flex flex-col gap-2 opacity-60">
@@ -155,7 +155,7 @@ export function LivePreview({
               {sizePrice ? money(sizePrice) : <span className="text-sm font-medium text-muted-foreground">No price yet</span>}
             </Flash>
             {sizes.length > 1 ? (
-              <div className="flex flex-wrap gap-1.5" role="group" aria-label="Sizes">
+              <div className="flex flex-wrap gap-1.5" role="group" aria-label="Variants">
                 {sizes.map((s, i) => (
                   <Button
                     key={s.id}

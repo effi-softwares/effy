@@ -88,13 +88,25 @@ const proposedVariantIds = async (productId: string): Promise<string[] | null> =
   return r.rowCount === 0 ? null : r.rows[0]!.ids ?? [];
 };
 
+/** Scent (the leaf's option attribute) and its first three values, read once a product is made. */
+let SCENT_ATTR = "";
+let SCENT: string[] = [];
+
 /** Live and approved, in two sizes at 10% over the shop's price. */
 async function liveProduct(): Promise<{ id: string; options: OptionInputDTO[]; small: VariantInputDTO; large: VariantInputDTO; values: string[] }> {
   const leaf = (await pool.query<{ c: string }>(`SELECT id::text AS c FROM public.category WHERE key = 'laundry-liquid'`)).rows[0]!.c;
   const values = [randomUUID(), randomUUID(), randomUUID()];
+  // The leaf offers Scent as its option (105: there is no platform option).
+  const scent = await pool.query<{ attr: string; v: string }>(
+    `SELECT ad.id::text AS attr, v.id::text AS v FROM public.attribute_definition ad
+       JOIN public.attribute_allowed_value v ON v.attribute_definition_id = ad.id
+      WHERE ad.key = 'scent' ORDER BY v."position" LIMIT 3`,
+  );
+  SCENT_ATTR = scent.rows[0]!.attr;
+  SCENT = scent.rows.map((r) => r.v);
   const options: OptionInputDTO[] = [{
-    id: randomUUID(), position: 1, kind: "pack_size",
-    values: [{ id: values[0]!, position: 0 }, { id: values[1]!, position: 1 }],
+    id: randomUUID(), position: 1, attributeId: SCENT_ATTR,
+    values: [{ id: values[0]!, allowedValueId: SCENT[0]!, position: 0 }, { id: values[1]!, allowedValueId: SCENT[1]!, position: 1 }],
   }];
   const small = variant(0, values[0]!, "3.00");
   const large = variant(1, values[1]!, "5.00");
@@ -134,7 +146,7 @@ d("098 US6 — a live product's sizes against real PostgreSQL", () => {
     const p = await liveProduct();
     const before = await liveRows(p.id);
 
-    const withTwoKg: OptionInputDTO[] = [{ ...p.options[0]!, values: [...p.options[0]!.values, { id: p.values[2]!, position: 2 }] }];
+    const withTwoKg: OptionInputDTO[] = [{ ...p.options[0]!, values: [...p.options[0]!.values, { id: p.values[2]!, allowedValueId: SCENT[2]!, position: 2 }] }];
     const twoKg = variant(2, p.values[2]!, "9.00");
     await updateProduct(shopId, p.id, { options: withTwoKg, variants: [{ ...p.small, shopPriceAmount: "3.20" }, p.large, twoKg] }, "sub-sam");
 

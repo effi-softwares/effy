@@ -138,7 +138,7 @@ describe("DetailField (101)", () => {
       />,
     );
     await userEvent.click(
-      screen.getByRole("radio", { name: "Differs by size" }),
+      screen.getByRole("radio", { name: "Differs by variant" }),
     );
     expect(onChange).toHaveBeenLastCalledWith({
       attributeId: "a1",

@@ -21,12 +21,13 @@ import {
 import { DetailField } from "./DetailField";
 import { FactsSection } from "./FactsSection";
 import { EditorSection } from "./fields";
+import { STEP_WORDS } from "./steps";
 
 interface Props {
   form: CategoryFormDTO;
   details: readonly DetailInput[];
   variants: readonly DetailVariant[];
-  /** Attributes that are this product's options: set through Sizes & prices, not here. */
+  /** Attributes that are this product's options: set through Variants & prices, not here. */
   optionAttributeIds: readonly string[];
   errors: Record<string, string>;
   facts: ProductFacts;
@@ -110,15 +111,23 @@ export function DetailsStep({
               }
             >
               {s.rows.map((row) => (
-                <DetailField
-                  key={row.attributeId}
-                  row={row}
-                  entry={byAttr.get(row.attributeId)}
-                  variants={variants}
-                  errors={errors}
-                  disabled={disabled}
-                  onChange={(next) => onDetail(row.attributeId, next)}
-                />
+                <div key={row.attributeId} className="grid gap-2">
+                  <DetailField
+                    row={row}
+                    entry={byAttr.get(row.attributeId)}
+                    variants={variants}
+                    errors={errors}
+                    disabled={disabled}
+                    onChange={(next) => onDetail(row.attributeId, next)}
+                  />
+                  {row.variantOption ? (
+                    // An attribute that can be an option, asked here as one value: say where several go.
+                    <p className="text-xs text-muted-foreground">
+                      Sold in more than one {row.name.toLowerCase()}? Add {row.name} as an option on{" "}
+                      {STEP_WORDS.sizes.title}, and each one gets its own price.
+                    </p>
+                  ) : null}
+                </div>
               ))}
             </EditorSection>
           );

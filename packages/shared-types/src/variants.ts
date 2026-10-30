@@ -1,12 +1,13 @@
 /**
  * Product variants. A product is what a shopper recognises as one thing ("Basmati Rice"); its variants,
- * one per combination of up to two options (Flavour, Pack size), are what is bought, priced and counted. A
+ * one per combination of up to two options (Flavour, Colour…), are what is bought, priced and counted. A
  * product with no options has one variant and no selector.
  *
- * Since 101 an option is never typed: it names a library attribute the leaf allows as a variant option
- * (Flavour, Colour, Size…), with values from that attribute's list, or it is "Pack size", whose values are
- * the variants' own pack sizes. The pure rules both ends need:
- *  • `variantLabel`: "Mango / 500 g", the one way a variant is named (order lines snapshot it);
+ * An option is never typed and never the platform's own (105): it names a library attribute the product's
+ * category offers as a variant option, with values from that attribute's list. How much is in a variant's pack
+ * (its net quantity) is a fact of the variant, used for unit pricing, never an option. The pure rules both ends
+ * need:
+ *  • `variantLabel`: "Mango / Large", the one way a variant is named (order lines snapshot it);
  *  • `validateVariantSet` and `validateOptionsAgainstForm`: the shop console runs them before saving, and the
  *    one writer (`applyVariantSet`, @effy/edge-shared/catalog) runs the same functions.
  */
@@ -24,31 +25,25 @@ export const VARIANT_LIMITS = {
   variants: 50,
 } as const
 
-export type OptionKind = "attribute" | "pack_size"
-
-/** What a Pack size option is called. */
-export const PACK_SIZE_OPTION_NAME = "Pack size"
-
 /** `[position-1 value, position-2 value]`; null where the product has no such option. */
 export type OptionValueIds = [string | null, string | null]
 
 export interface OptionValueDTO {
   id: string
-  /** The label shoppers see: the attribute value's label, or a pack size ("500 g"). */
+  /** The label shoppers see: the attribute value's label. */
   value: string
   position: WireInt
-  /** The library value it is (attribute options); null for a pack size. */
-  allowedValueId: string | null
+  /** The library value it is. */
+  allowedValueId: string
 }
 
 export interface OptionDTO {
   id: string
   /** 1 or 2. */
   position: WireInt
-  kind: OptionKind
-  /** The library attribute (attribute options); null for Pack size. */
-  attributeId: string | null
-  /** The attribute's name, or "Pack size". */
+  /** The library attribute the category offers as an option. */
+  attributeId: string
+  /** The attribute's name. */
   name: string
   values: OptionValueDTO[]
 }
@@ -109,16 +104,14 @@ export interface ShopVariantDTO {
 }
 
 /**
- * One option as a shop sends it. Ids are client-generated UUIDs for new options and values. An attribute
- * option's values each name a library value; a Pack size option's values carry no label — each takes the pack
- * size of the variants that name it.
+ * One option as a shop sends it. Ids are client-generated UUIDs for new options and values. The option names a
+ * library attribute the category offers as an option; each value names one of that attribute's values.
  */
 export interface OptionInputDTO {
   id: string
   position: WireInt
-  kind: OptionKind
-  attributeId?: string | null
-  values: { id: string; allowedValueId?: string | null; position: WireInt }[]
+  attributeId: string
+  values: { id: string; allowedValueId: string; position: WireInt }[]
 }
 
 /** One variant as a shop sends it; `id` is client-generated for a new one. */
@@ -226,7 +219,6 @@ export function validateVariantSet(
   const positions = new Set<number>()
   const attributes = new Set<string>()
   const ids = new Set<string>()
-  let packOptions = 0
   options.forEach((o, i) => {
     const f = `options[${i}]`
     if (!UUID.test(o.id)) add(`${f}.id`, "must be a UUID")
@@ -235,16 +227,9 @@ export function validateVariantSet(
     if (o.position !== 1 && o.position !== 2) add(`${f}.position`, "must be 1 or 2")
     else if (positions.has(o.position)) add(`${f}.position`, "is used twice")
     positions.add(o.position)
-    if (o.kind === "pack_size") {
-      packOptions += 1
-      if (o.attributeId) add(`${f}.attributeId`, "a pack size option names no attribute")
-    } else if (o.kind === "attribute") {
-      if (!o.attributeId || !UUID.test(o.attributeId)) add(`${f}.attributeId`, "choose which detail this option is")
-      else if (attributes.has(o.attributeId)) add(`${f}.attributeId`, "two options cannot be the same detail")
-      else attributes.add(o.attributeId)
-    } else {
-      add(`${f}.kind`, "must be an attribute or pack size")
-    }
+    if (!o.attributeId || !UUID.test(o.attributeId)) add(`${f}.attributeId`, "choose which detail this option is")
+    else if (attributes.has(o.attributeId)) add(`${f}.attributeId`, "two options cannot be the same detail")
+    else attributes.add(o.attributeId)
     if (o.values.length === 0) add(`${f}.values`, "an option needs at least one value")
     if (o.values.length > VARIANT_LIMITS.valuesPerOption) add(`${f}.values`, `an option can have at most ${VARIANT_LIMITS.valuesPerOption} values`)
     const seen = new Set<string>()
@@ -254,21 +239,16 @@ export function validateVariantSet(
       if (!UUID.test(v.id)) add(`${vf}.id`, "must be a UUID")
       if (ids.has(v.id)) add(`${vf}.id`, "is used twice")
       ids.add(v.id)
-      if (o.kind === "attribute") {
-        const allowed = v.allowedValueId ?? ""
-        if (!UUID.test(allowed)) add(`${vf}.allowedValueId`, "choose a value from the list")
-        else if (seen.has(allowed)) add(`${vf}.allowedValueId`, "this value is already in the option")
-        seen.add(allowed)
-      } else if (v.allowedValueId) {
-        add(`${vf}.allowedValueId`, "a pack size value comes from the variants' pack sizes")
-      }
+      const allowed = v.allowedValueId ?? ""
+      if (!UUID.test(allowed)) add(`${vf}.allowedValueId`, "choose a value from the list")
+      else if (seen.has(allowed)) add(`${vf}.allowedValueId`, "this value is already in the option")
+      seen.add(allowed)
       if (!Number.isInteger(v.position) || v.position < 0 || v.position >= VARIANT_LIMITS.valuesPerOption || valuePositions.has(v.position)) {
         add(`${vf}.position`, "must be a distinct position")
       }
       valuePositions.add(v.position)
     })
   })
-  if (packOptions > 1) add("options", "a product can have one pack size option")
   if (positions.has(2) && !positions.has(1)) add("options", "the first option must come before the second")
 
   // Variants
@@ -347,28 +327,6 @@ export function validateVariantSet(
     })
   })
 
-  // A pack size value is the pack size of every variant naming it; two values are two different sizes.
-  byPosition.forEach((o, k) => {
-    if (o.kind !== "pack_size") return
-    const sizeOf = new Map<string, string>()
-    const valueOf = new Map<string, string>()
-    variants.forEach((v, i) => {
-      const id = (v.optionValueIds ?? [null, null])[k]
-      if (!id) return
-      const label = v.packQuantity && v.packUnit ? packLabel(String(v.packQuantity), v.packUnit) : null
-      if (!label) {
-        add(`variants[${i}].packQuantity`, "enter the pack size: it is this variant's option value")
-        return
-      }
-      const known = sizeOf.get(id)
-      if (known !== undefined && known !== label) add(`variants[${i}].packQuantity`, "variants with the same pack size value need the same pack size")
-      sizeOf.set(id, label)
-      const other = valueOf.get(label)
-      if (other !== undefined && other !== id) add(`variants[${i}].packQuantity`, "two pack size values have the same size")
-      valueOf.set(label, id)
-    })
-  })
-
   return errors
 }
 
@@ -380,7 +338,7 @@ export function validateOptionsAgainstForm(options: readonly OptionInputDTO[], r
   const errors: VariantSetError[] = []
   const byId = new Map(rows.map((r) => [r.attributeId, r]))
   options.forEach((o, i) => {
-    if (o.kind !== "attribute" || !o.attributeId) return
+    if (!o.attributeId) return
     const row = byId.get(o.attributeId)
     if (!row || !row.variantOption) {
       errors.push({ field: `options[${i}].attributeId`, message: "this category does not offer that option" })

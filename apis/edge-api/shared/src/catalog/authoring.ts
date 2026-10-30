@@ -163,12 +163,12 @@ export function parseVariantSet(body: Record<string, unknown>, fields: FieldErro
     const r = (o ?? {}) as Record<string, unknown>;
     return {
       id: str(r.id), position: int(r.position),
-      kind: (r.kind === "pack_size" ? "pack_size" : r.kind === "attribute" ? "attribute" : str(r.kind)) as OptionInputDTO["kind"],
-      attributeId: typeof r.attributeId === "string" ? r.attributeId : null,
+      // An empty id fails the rules' "choose which detail this option is".
+      attributeId: str(r.attributeId),
       values: Array.isArray(r.values)
         ? (r.values as unknown[]).map((v) => {
             const x = (v ?? {}) as Record<string, unknown>;
-            return { id: str(x.id), allowedValueId: typeof x.allowedValueId === "string" ? x.allowedValueId : null, position: int(x.position) };
+            return { id: str(x.id), allowedValueId: str(x.allowedValueId), position: int(x.position) };
           })
         : [],
     };

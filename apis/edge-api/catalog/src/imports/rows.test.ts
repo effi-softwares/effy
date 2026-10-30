@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { CategoryFormRow } from "@effy/shared-types";
 
 import {
-  buildBody, duplicateSkus, formProblems, groupRows, IMPORT_COLUMNS, parseDetailCell, parsePack, pathKey, pictureLinks,
+  buildBody, duplicateSkus, formProblems, groupRows, IMPORT_COLUMNS, parseDetailCell, pathKey, pictureLinks,
   readHeader, splitPath, type Header, type LeafLookup, type SheetRow,
 } from "./rows";
 
@@ -73,16 +73,27 @@ describe("102 — reading an import sheet", () => {
     ]);
   });
 
-  it("makes sizes from rows: pack sizes from their values, a flavour from the aisle's own values", () => {
+  it("makes variants from rows by the aisle's own option, each row with its own net quantity", () => {
     const b = build([
-      row(2, { ...BASE, "Option 1 name": "Pack size", "Option 1 value": "500 g", "Option 2 name": "Flavour", "Option 2 value": "Plain" }),
-      row(3, { ...BASE, SKU: "Y-1K", "Shop price": "8.00", "Option 1 value": "1 kg", "Option 2 value": "Mango", "Option 1 name": "Pack size", "Option 2 name": "Flavour" }),
+      row(2, { ...BASE, "Option 1 name": "Flavour", "Option 1 value": "Plain", "Net quantity": "500", "Net unit": "g" }),
+      row(3, { ...BASE, SKU: "Y-1K", "Shop price": "8.00", "Option 1 name": "Flavour", "Option 1 value": "Mango", "Net quantity": "1", "Net unit": "kg" }),
     ]);
     expect(b.problems).toEqual([]);
-    const body = b.body as { options: { kind: string; values: unknown[] }[]; variants: { packQuantity: string; packUnit: string }[] };
-    expect(body.options.map((o) => [o.kind, o.values.length])).toEqual([["pack_size", 2], ["attribute", 2]]);
+    const body = b.body as { options: { attributeId: string; values: unknown[] }[]; variants: { packQuantity: string; packUnit: string }[] };
+    expect(body.options.map((o) => [o.attributeId, o.values.length])).toEqual([["flavour", 2]]);
+    expect(body.options[0]).not.toHaveProperty("kind");
     expect(body.variants.map((v) => `${v.packQuantity} ${v.packUnit}`)).toEqual(["500 g", "1 kg"]);
     expect(b.variantRows).toEqual([2, 3]);
+  });
+
+  it("105 — Pack size is not an option unless the aisle offers one by that name; old pack columns are named, not mapped", () => {
+    const b = build([
+      row(2, { ...BASE, "Option 1 name": "Pack size", "Option 1 value": "500 g" }),
+      row(3, { ...BASE, SKU: "Y-1K", "Option 1 name": "Pack size", "Option 1 value": "1 kg" }),
+    ]);
+    expect(b.problems).toContainEqual({ rowNumber: 2, column: "Option 1 name", message: '"Pack size" is not an option this aisle offers' });
+    const old = readHeader([...IMPORT_COLUMNS.map((c) => c.name).filter((n) => n !== "Net quantity" && n !== "Net unit"), "Pack quantity", "Pack unit"]);
+    expect(old).toEqual({ problems: ['"Pack quantity" is now "Net quantity": rename the column', '"Pack unit" is now "Net unit": rename the column'] });
   });
 
   it("names what a cell cannot say, against its row and column", () => {
@@ -102,20 +113,20 @@ describe("102 — reading an import sheet", () => {
     expect(b.problems).toEqual(
       expect.arrayContaining([
         { rowNumber: 3, column: "Name", message: "differs from row 2 of the same product" },
-        { rowNumber: 2, column: "Option 1 name", message: "a product on several rows needs an option, e.g. Pack size" },
+        { rowNumber: 2, column: "Option 1 name", message: "a product on several rows needs an option the aisle offers" },
       ]),
     );
     const fat = build([
-      row(2, { ...BASE, "Option 1 name": "Pack size", "Option 1 value": "500 g", "Detail: Fat content": "10 %" }),
-      row(3, { ...BASE, SKU: "Y-2", "Option 1 name": "Pack size", "Option 1 value": "1 kg", "Detail: Fat content": "5 %" }),
+      row(2, { ...BASE, "Option 1 name": "Flavour", "Option 1 value": "Plain", "Detail: Fat content": "10 %" }),
+      row(3, { ...BASE, SKU: "Y-2", "Option 1 name": "Flavour", "Option 1 value": "Mango", "Detail: Fat content": "5 %" }),
     ]);
-    expect(fat.problems).toContainEqual({ rowNumber: 3, column: "Detail: Fat content", message: "is the same for every size of a product — it cannot differ" });
+    expect(fat.problems).toContainEqual({ rowNumber: 3, column: "Detail: Fat content", message: "is the same for every variant of a product — it cannot differ" });
   });
 
-  it("lets a detail that may differ by size differ, one value per size", () => {
+  it("lets a detail that may differ by variant differ, one value per variant", () => {
     const b = build([
-      row(2, { ...BASE, "Option 1 name": "Pack size", "Option 1 value": "500 g", "Detail: Organic": "yes" }),
-      row(3, { ...BASE, SKU: "Y-2", "Option 1 name": "Pack size", "Option 1 value": "1 kg", "Detail: Organic": "no" }),
+      row(2, { ...BASE, "Option 1 name": "Flavour", "Option 1 value": "Plain", "Detail: Organic": "yes" }),
+      row(3, { ...BASE, SKU: "Y-2", "Option 1 name": "Flavour", "Option 1 value": "Mango", "Detail: Organic": "no" }),
     ]);
     const details = (b.body as { details: { attributeId: string; perVariant?: unknown[] }[] }).details;
     expect(details).toEqual([{ attributeId: "organic", perVariant: [expect.objectContaining({ value: { boolean: true } }), expect.objectContaining({ value: { boolean: false } })] }]);
@@ -137,9 +148,7 @@ describe("102 — reading an import sheet", () => {
     ]);
   });
 
-  it("reads packs, numbers, choices, dates and times as their attributes take them", () => {
-    expect(parsePack("1.5 kg")).toEqual({ quantity: "1.5", unit: "kg" });
-    expect(parsePack("six")).toBeNull();
+  it("reads numbers, choices, dates and times as their attributes take them", () => {
     expect(parseDetailCell(FORM[0]!, "10 kg")).toEqual({ problem: "unit must be one of %" });
     expect(parseDetailCell(FORM[2]!, "mango")).toEqual({ value: { valueIds: ["v-mango"] } });
     expect(parseDetailCell(formRow({ attributeId: "d", name: "Best before", inputType: "date" }), "27/10/2026")).toEqual({ value: { date: "2026-10-27" } });

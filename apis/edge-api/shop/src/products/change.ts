@@ -33,7 +33,7 @@ export interface TargetValues {
 export function liveVariantInputs(live: ProductDetail): { options: OptionInputDTO[]; variants: VariantInputDTO[] } {
   return {
     options: live.options.map((o) => ({
-      id: o.id, position: o.position, kind: o.kind, attributeId: o.attributeId,
+      id: o.id, position: o.position, attributeId: o.attributeId,
       values: o.values.map((v) => ({ id: v.id, allowedValueId: v.allowedValueId, position: v.position })),
     })),
     variants: live.variants
@@ -57,7 +57,7 @@ function canonicalSet(options: readonly OptionInputDTO[], variants: readonly Var
     options: [...options]
       .sort((a, b) => a.position - b.position)
       .map((o) => ({
-        id: o.id, p: o.position, k: o.kind, a: o.attributeId ?? null,
+        id: o.id, p: o.position, a: o.attributeId,
         v: [...o.values].sort((a, b) => a.position - b.position).map((v) => [v.id, v.allowedValueId ?? null, v.position]),
       })),
     variants: [...variants]

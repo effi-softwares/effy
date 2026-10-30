@@ -182,7 +182,7 @@ d("101 — the taxonomy writer", () => {
     const plain = flavour.values.find((v) => v.label === "Plain")!.id;
     const p = await product(await keyId("bananas"));
     await pool.query(`INSERT INTO public.product_attribute_value (product_id, attribute_definition_id, allowed_value_ids) VALUES ($1, $2, ARRAY[$3]::uuid[])`, [p, flavour.id, plain]);
-    const option = await one(`INSERT INTO public.product_option (product_id, "position", kind, attribute_id) VALUES ($1, 1, 'attribute', $2) RETURNING id::text`, [p, flavour.id]);
+    const option = await one(`INSERT INTO public.product_option (product_id, "position", attribute_id) VALUES ($1, 1, $2) RETURNING id::text`, [p, flavour.id]);
     await pool.query(`INSERT INTO public.product_option_value (option_id, value, "position", allowed_value_id) VALUES ($1, 'Plain', 0, $2)`, [option, plain]);
 
     expect(await refusal(svc.updateAttr(flavour.id, { inputType: "multi_select" }, ADMIN))).toBe("attribute_in_use");

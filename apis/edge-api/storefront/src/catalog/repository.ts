@@ -1,6 +1,6 @@
 import { pooled, productAvailableSql, renditionWidthsSql, type Queryable, variantPurchasableSql } from "@effy/edge-shared";
 import { variantLabelSql } from "@effy/edge-shared/catalog";
-import type { InputType, OptionKind, PackUnit, UnitBasis } from "@effy/shared-types";
+import type { InputType, PackUnit, UnitBasis } from "@effy/shared-types";
 import { PRODUCT_OFFER_SQL, type ProductOfferRow } from "@effy/edge-shared/promotions";
 
 export interface CategoryRow {
@@ -52,11 +52,10 @@ export interface VariantPageRow {
 export interface OptionPageRow {
   id: string;
   position: number;
-  kind: OptionKind;
-  attribute_id: string | null;
-  /** The attribute's name; null for a pack size option. */
+  attribute_id: string;
+  /** The attribute's name; null when staff keep the attribute from shoppers. */
   name: string | null;
-  values: { id: string; value: string; position: number; allowed_value_id: string | null }[];
+  values: { id: string; value: string; position: number; allowed_value_id: string }[];
 }
 
 export interface MediaRow {
@@ -207,7 +206,7 @@ SELECT p.id::text                  AS id,
        -- The options, with only the values some active variant uses.
        COALESCE((
          SELECT json_agg(json_build_object(
-                  'id', o.id, 'position', o.position, 'kind', o.kind, 'attribute_id', o.attribute_id,
+                  'id', o.id, 'position', o.position, 'attribute_id', o.attribute_id,
                   'name', (SELECT oa.name FROM public.attribute_definition oa WHERE oa.id = o.attribute_id AND oa.customer_visible),
                   'values', COALESCE((
                      SELECT json_agg(json_build_object('id', ov.id, 'value', ov.value, 'position', ov.position,

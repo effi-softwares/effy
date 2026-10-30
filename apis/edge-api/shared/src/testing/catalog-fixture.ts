@@ -97,3 +97,40 @@ export async function insertTestVariant(
   await refreshListing(db, productId);
   return variant.rows[0]!.id;
 }
+
+/**
+ * A variant option on a product, as the one writer makes them (105): it names a library attribute — here a
+ * test-only "Test option" attribute, made once — and each value names one of its values, labelled as given
+ * ("500 g", "1 kg"). Returns the option value ids in order. Test-only: the option is not checked against the
+ * product's category.
+ */
+export async function insertTestOption(db: Queryable, productId: string, labels: readonly string[], position: 1 | 2 = 1): Promise<string[]> {
+  const attr = (await db.query<{ id: string }>(
+    `WITH made AS (
+       INSERT INTO public.attribute_definition (key, name, input_type, varies_by_variant, variant_option)
+       VALUES ('test_option', 'Test option', 'single_select', true, true)
+       ON CONFLICT (key) DO NOTHING RETURNING id)
+     SELECT id::text FROM made UNION ALL SELECT id::text FROM public.attribute_definition WHERE key = 'test_option' LIMIT 1`,
+  )).rows[0]!.id;
+  const option = (await db.query<{ id: string }>(
+    `INSERT INTO public.product_option (product_id, "position", attribute_id) VALUES ($1, $2, $3) RETURNING id::text`,
+    [productId, position, attr],
+  )).rows[0]!.id;
+  const ids: string[] = [];
+  for (const [i, label] of labels.entries()) {
+    const allowed = (await db.query<{ id: string }>(
+      `WITH made AS (
+         INSERT INTO public.attribute_allowed_value (attribute_definition_id, label, "position") VALUES ($1, $2, 0)
+         ON CONFLICT (attribute_definition_id, lower(label)) DO NOTHING RETURNING id)
+       SELECT id::text FROM made
+       UNION ALL SELECT id::text FROM public.attribute_allowed_value WHERE attribute_definition_id = $1 AND lower(label) = lower($2)
+       LIMIT 1`,
+      [attr, label],
+    )).rows[0]!.id;
+    ids.push((await db.query<{ id: string }>(
+      `INSERT INTO public.product_option_value (option_id, value, "position", allowed_value_id) VALUES ($1, $2, $3, $4) RETURNING id::text`,
+      [option, label, i, allowed],
+    )).rows[0]!.id);
+  }
+  return ids;
+}

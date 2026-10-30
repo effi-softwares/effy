@@ -14,8 +14,6 @@ import { isGstStatus, setGstStatus } from "@effy/edge-shared/documents";
 import {
   formatAttributeValue,
   GST_STATUS_WORDS,
-  packLabel,
-  PACK_SIZE_OPTION_NAME,
   REVIEW_REASON_MAX,
   STORAGE_WORDS,
   UNIT_BASIS_LABELS,
@@ -102,7 +100,7 @@ function marginOf(p: repo.ProductRow): MarginDTO | null {
 
 const basisWords = (b: string | null | undefined) => (b ? (UNIT_BASIS_LABELS[b as UnitBasis] ?? b) : "None");
 
-/** "Pack size: 500 g, 1 kg · Flavour: Plain, Mango" — how a reviewer reads a set of options. */
+/** "Colour: Red, Blue · Flavour: Plain, Mango" — how a reviewer reads a set of options. */
 function optionsText(options: readonly LabelledOption[]): string | null {
   if (options.length === 0) return null;
   return [...options]
@@ -119,27 +117,16 @@ interface LabelledOption {
   values: { id: string; value: string; position: number }[];
 }
 
-/**
- * A set's options with names and value labels, so it can be read and its variants named: an attribute
- * option's from the leaf's form, a pack size's from the variants that name it.
- */
+/** A set's options with names and value labels from the category's form, so it can be read and its variants named. */
 function labelledOptions(set: SetInput, rows: readonly CategoryFormRow[]): LabelledOption[] {
   const byAttr = new Map(rows.map((r) => [r.attributeId, r]));
-  const packOf = new Map<string, string>();
-  for (const v of set.variants) {
-    for (const id of v.optionValueIds) if (id && v.packQuantity && v.packUnit) packOf.set(id, packLabel(String(v.packQuantity), v.packUnit) ?? "");
-  }
   return set.options.map((o) => {
-    const row = o.attributeId ? byAttr.get(o.attributeId) : undefined;
+    const row = byAttr.get(o.attributeId);
     const labels = new Map((row?.values ?? []).map((v) => [v.id, v.label]));
     return {
       position: o.position,
-      name: o.kind === "pack_size" ? PACK_SIZE_OPTION_NAME : (row?.name ?? "Option"),
-      values: o.values.map((v) => ({
-        id: v.id,
-        position: v.position,
-        value: o.kind === "pack_size" ? (packOf.get(v.id) ?? "") : (labels.get(v.allowedValueId ?? "") ?? ""),
-      })),
+      name: row?.name ?? "Option",
+      values: o.values.map((v) => ({ id: v.id, position: v.position, value: labels.get(v.allowedValueId) ?? "" })),
     };
   });
 }
@@ -148,7 +135,7 @@ function labelledOptions(set: SetInput, rows: readonly CategoryFormRow[]): Label
 export function liveSetOf(set: VariantSet): SetInput {
   return {
     options: set.options.map((o) => ({
-      id: o.id, position: o.position, kind: o.kind, attributeId: o.attributeId,
+      id: o.id, position: o.position, attributeId: o.attributeId,
       values: o.values.map((v) => ({ id: v.id, allowedValueId: v.allowedValueId, position: v.position })),
     })),
     variants: set.variants
@@ -248,7 +235,7 @@ const VARIANT_FIELDS: readonly { key: keyof VariantInputDTO; label: string; show
   { key: "sku", label: "SKU", show: (v) => v.sku ?? null },
   { key: "gtin", label: "Barcode", show: (v) => v.gtin ?? null },
   { key: "weightGrams", label: "Weight (g)", show: (v) => (v.weightGrams === null || v.weightGrams === undefined ? null : String(v.weightGrams)) },
-  { key: "packQuantity", label: "Pack size", show: (v) => (v.packQuantity ? `${Number(v.packQuantity)} ${v.packUnit ?? ""}`.trim() : null) },
+  { key: "packQuantity", label: "Net quantity", show: (v) => (v.packQuantity ? `${Number(v.packQuantity)} ${v.packUnit ?? ""}`.trim() : null) },
   { key: "mediaStorageKey", label: "Picture", show: (v) => (v.mediaStorageKey ? "Own picture" : null) },
 ];
 

@@ -121,7 +121,7 @@ export function ReviewStep({
               const d = draft.details.find((x) => x.attributeId === r.attributeId);
               if (!d || (d.value === undefined && !(d.perVariant?.length ?? 0)))
                 return [r.name, r.level === "required" ? null : "—"];
-              return [r.name, d.value ? formatAttributeValue(r, d.value) : "Differs by size"];
+              return [r.name, d.value ? formatAttributeValue(r, d.value) : "Differs by variant"];
             }),
           ["Storage", draft.facts.storage ? STORAGE_WORDS[draft.facts.storage] : null],
           ["GST", draft.facts.gstStatus ? GST_STATUS_WORDS[draft.facts.gstStatus] : null],

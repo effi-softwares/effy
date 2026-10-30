@@ -1,6 +1,6 @@
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import { transactorFor } from "@effy/edge-shared";
-import { insertTestProduct, insertTestVariant, migrationSql } from "@effy/edge-shared/testing";
+import { insertTestOption, insertTestProduct, insertTestVariant, migrationSql } from "@effy/edge-shared/testing";
 import { loadCartPolicy } from "@effy/edge-shared/cart-policy";
 import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -51,10 +51,7 @@ d("070 — cart repository against the real schema", () => {
       prod[name] = t.productId;
     }
     // A second size of Milk: same product, its own line.
-    const size = await one(`INSERT INTO public.product_option (product_id, position, kind) VALUES ('${prod.Milk}', 1, 'pack_size') RETURNING id::text`);
-    const [oneL, twoL] = (await pool.query<{ id: string }>(
-      `INSERT INTO public.product_option_value (option_id, value, position) VALUES ($1, '1 L', 0), ($1, '2 L', 1) RETURNING id::text`, [size],
-    )).rows.map((r) => r.id);
+    const [oneL, twoL] = await insertTestOption(pool, prod.Milk!, ["1 L", "2 L"]);
     await pool.query(`UPDATE public.product_variant SET option1_value_id = $2 WHERE id = $1`, [p.Milk, oneL]);
     p["Milk 2L"] = await insertTestVariant(pool, prod.Milk!, { shopId: ids.shopId, price: "7.90", position: 1, optionValueIds: [twoL!, null] });
     [customerId, otherCustomerId] = (

@@ -46,9 +46,7 @@ export function draftVariants(
 
 /** Attributes that are this draft's variant options: their values come from the options, never the form. */
 export function optionAttributeIds(draft: ProductDraft): string[] {
-  return draft.variantSet.options.flatMap((o) =>
-    o.kind === "attribute" && o.attributeId ? [o.attributeId] : [],
-  );
+  return draft.variantSet.options.flatMap((o) => (o.attributeId ? [o.attributeId] : []));
 }
 
 /** Problems with what was entered, keyed `details.<key>` (and `details.<key>[<variantId>]`). */

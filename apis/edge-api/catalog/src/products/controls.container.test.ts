@@ -37,7 +37,7 @@ vi.mock("@effy/edge-shared/live", () => ({
   },
 }));
 
-import { insertTestProduct, migrationSql, testLeafId } from "@effy/edge-shared/testing";
+import { insertTestOption, insertTestProduct, migrationSql, testLeafId } from "@effy/edge-shared/testing";
 
 import { bulk, setVariantState } from "./controls";
 import { hold } from "./holds";
@@ -78,14 +78,9 @@ async function product(o: { status?: "draft" | "active" | "unavailable" | "archi
   return productId;
 }
 
-/** A second size on a product: a pack-size option with two values, the existing variant on the first. */
+/** A second variant on a product: an option with two values, the existing variant on the first. */
 async function twoSizes(productId: string): Promise<{ small: string; large: string }> {
-  const opt = (await pool.query<{ id: string }>(
-    `INSERT INTO public.product_option (product_id, position, kind) VALUES ($1, 1, 'pack_size') RETURNING id::text`, [productId],
-  )).rows[0]!.id;
-  const [a, b] = (await pool.query<{ id: string }>(
-    `INSERT INTO public.product_option_value (option_id, value, position) VALUES ($1, '500 g', 0), ($1, '1 kg', 1) RETURNING id::text`, [opt],
-  )).rows.map((r) => r.id);
+  const [a, b] = await insertTestOption(pool, productId, ["500 g", "1 kg"]);
   const small = (await pool.query<{ id: string }>(
     `UPDATE public.product_variant SET option1_value_id = $2 WHERE product_id = $1 RETURNING id::text`, [productId, a],
   )).rows[0]!.id;

@@ -27,7 +27,7 @@ interface Props {
   row: CategoryFormRow;
   /** What is entered now; undefined when nothing is. */
   entry: DetailInput | undefined;
-  /** The product's sizes: a detail that may differ by size can be entered per size. */
+  /** The product's variants: a detail that may differ by variant can be entered per variant. */
   variants: readonly DetailVariant[];
   /** `null` leaves the detail out. */
   onChange: (next: DetailInput | null) => void;
@@ -95,7 +95,7 @@ export function DetailField({
           type="single"
           variant="outline"
           size="sm"
-          aria-label={`${row.name}: one value or one per size`}
+          aria-label={`${row.name}: one value or one per variant`}
           disabled={disabled}
           value={perSize ? "per" : "same"}
           onValueChange={(v) => {
@@ -105,10 +105,10 @@ export function DetailField({
           }}
         >
           <ToggleGroupItem value="same" className="px-3">
-            Same for every size
+            Same for every variant
           </ToggleGroupItem>
           <ToggleGroupItem value="per" className="px-3">
-            Differs by size
+            Differs by variant
           </ToggleGroupItem>
         </ToggleGroup>
       ) : null}

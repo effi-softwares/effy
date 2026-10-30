@@ -4,6 +4,37 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
+**105-category-driven-variants — Variants Only From Category Attributes.** 🔨 **BUILT 2026-10-30; NOT MIGRATED, DEPLOYED OR
+WALKED.** Spec, plan, tasks: [specs/105-category-driven-variants/](specs/105-category-driven-variants/tasks.md).
+- **Change**: a product's options are exactly the library attributes its category offers as variant options. The
+  platform's own option — **Pack size** (`product_option.kind = 'pack_size'`, values made from the variants' pack sizes)
+  — is gone from the schema, `@effy/shared-types` (`OptionKind`, `PACK_SIZE_OPTION_NAME`, `kind` on every option DTO),
+  the one writer, the readers, CSV import, back-office review, the storefront and the customer contract (regenerated;
+  the app reads no `kind`). A variant's `pack_quantity` / `pack_unit` stay as its **net quantity**, read only for unit
+  pricing, and every screen says "Net quantity". The seeded clothing **Size** (`clothing_size`, XXS–4XL) is removed.
+- **Editor**: "Add an option" lists only the category's options (each with three of its values); a category with none
+  disables "With variants" ("This category has no options to choose between. Ask Effy to add one."); Net quantity is in
+  every variant's codes-and-shipping details; the unit-price help counts variants with no quantity. A local draft saved
+  with a Pack size option loads with its options dropped (`draft.ts`).
+- **Import**: "Pack quantity"/"Pack unit" columns are now "Net quantity"/"Net unit"; an old header is refused naming the
+  new one; "Pack size" as an option name is refused like any option the aisle does not offer.
+- **Migration** (`20261030090000_category_driven_variants.sql`, one-way): products using Pack size or clothing Size are
+  deleted with the cart lines, saved lines and promotion targets that refuse it; a product an order line names is KEPT
+  with its lowest-position variant and no options (the rest `removed`, listing summary recomputed, a NOTICE lists them),
+  because order history is permanent; pending changes naming either are deleted; then `kind` is dropped and
+  `attribute_id` / `allowed_value_id` are NOT NULL; `rebuild_category_derived()`.
+- **Verified**: typecheck of every touched package; unit suites of shared-types, web-kit, shop-web, back-office,
+  customer-web, edge-shared, shop, catalog, commerce, storefront. Container tests run against a local Postgres 18
+  (testcontainers swapped for a local database): edge-shared, storefront, commerce cart, catalog taxonomy and products,
+  shop products green. The migration applied to the baseline + 101–103 with seeded Pack-size, clothing-Size and ordered
+  products and gave the expected rows. Not 105's: `shared-types` `package-status.guard.test.ts` (099), shop availability
+  and catalog products/imports list tests of 103 (27 values on one option breaks the 0–19 position check; a too-deep
+  page; an import checksum fixture).
+- **Operator, in order**: commit → `AWS_PROFILE=ef make db-up-one ENV=dev` (`20261030090000_category_driven_variants.sql`;
+  read the NOTICE for kept products) → deploy `SERVICE=shop`, `SERVICE=catalog`, `SERVICE=storefront`, `SERVICE=commerce`
+  → shop-web, back-office, customer-web → walk [quickstart](specs/105-category-driven-variants/quickstart.md). To sell by
+  quantity ("500 g / 1 kg") staff add their own option attribute in Categories & attributes and attach it.
+
 **104-activity-log-drawer — Every Activity Log in One Drawer.** 🔨 **BUILT 2026-10-29; NOT DEPLOYED OR WALKED.** Spec, plan,
 tasks: [specs/104-activity-log-drawer/](specs/104-activity-log-drawer/tasks.md).
 - **See**: twelve logs (back-office: order, shop, driver, vehicle, product, promotion, customer points, points rules,

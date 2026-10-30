@@ -52,11 +52,16 @@ export function loadDraft(
     if (typeof parsed !== "object" || parsed === null) return null;
     // A draft saved before 101 kept its details as `attributes` of a type: it cannot be carried over.
     if ("attributes" in parsed) return null;
+    const saved = parsed.variantSet;
+    // A draft saved before 105 may hold a Pack size option (no attribute): drop such an option, and with it the
+    // variants it made — the shop picks its options again from the category.
+    const stale =
+      !!saved &&
+      Array.isArray(saved.options) &&
+      saved.options.some((o) => !o || typeof o.attributeId !== "string" || o.attributeId === "");
     const variantSet =
-      parsed.variantSet &&
-      Array.isArray(parsed.variantSet.variants) &&
-      parsed.variantSet.variants.length > 0
-        ? { ...parsed.variantSet, packs: parsed.variantSet.packs ?? {} }
+      saved && !stale && Array.isArray(saved.variants) && saved.variants.length > 0
+        ? { unitBasis: saved.unitBasis ?? "", options: saved.options ?? [], variants: saved.variants }
         : emptyVariantSet();
     const base = emptyDraft();
     return {

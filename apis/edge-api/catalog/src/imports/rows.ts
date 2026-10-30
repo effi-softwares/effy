@@ -1,4 +1,4 @@
-// A shop's spreadsheet, row by row (102). Pure: it reads the header, groups the rows that are sizes of one
+// A shop's spreadsheet, row by row (102). Pure: it reads the header, groups the rows that are variants of one
 // product, and turns each group into the very body Effy's form sends — `parseCreateInput` then judges it by
 // the form's own rules. What a cell cannot even say (an unknown aisle, "yes-ish" for 18+) is named here,
 // against its row and column.
@@ -18,7 +18,7 @@ import {
 
 /** The template's fixed columns, in order. Detail columns follow as `Detail: <name>`. */
 export const IMPORT_COLUMNS = [
-  { name: "Product key", required: true, help: "The same key on every row that is a size of one product." },
+  { name: "Product key", required: true, help: "The same key on every row that is a variant of one product." },
   { name: "Name", required: true, help: "What customers see." },
   { name: "Brand", required: false, help: "" },
   { name: "Short description", required: true, help: "One line." },
@@ -27,17 +27,17 @@ export const IMPORT_COLUMNS = [
   { name: "Storage", required: false, help: "Room temperature, Chilled or Frozen. Empty: the aisle's default." },
   { name: "GST", required: false, help: "Taxable or GST-free. Empty: the aisle's default." },
   { name: "18+", required: false, help: "Yes or No. Empty: the aisle's default." },
-  { name: "Option 1 name", required: false, help: "For a product in sizes: Pack size, or an option the aisle offers." },
-  { name: "Option 1 value", required: false, help: "This row's value, e.g. 500 g." },
+  { name: "Option 1 name", required: false, help: "For a product with variants: an option the aisle offers, e.g. Flavour." },
+  { name: "Option 1 value", required: false, help: "This row's value, from that option's list, e.g. Strawberry." },
   { name: "Option 2 name", required: false, help: "" },
   { name: "Option 2 value", required: false, help: "" },
-  { name: "SKU", required: true, help: "The shop's own code for this size; unique in the shop." },
+  { name: "SKU", required: true, help: "The shop's own code for this variant; unique in the shop." },
   { name: "Barcode", required: false, help: "" },
   { name: "Shop price", required: true, help: "What the shop is paid, e.g. 4.50." },
   { name: "Compare-at price", required: false, help: "A 'was' price, if any." },
   { name: "Weight (g)", required: false, help: "Shipping weight in grams." },
-  { name: "Pack quantity", required: false, help: "e.g. 500 (with Pack unit g)." },
-  { name: "Pack unit", required: false, help: "g, kg, ml, l or each." },
+  { name: "Net quantity", required: false, help: "How much is in the pack, e.g. 500 (with Net unit g). For the unit price." },
+  { name: "Net unit", required: false, help: "g, kg, ml, l or each." },
   { name: "Picture links", required: false, help: "https links separated by |. The first is the main picture." },
 ] as const;
 
@@ -51,6 +51,9 @@ export interface Header {
 }
 
 const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
+
+/** Columns renamed since a template was downloaded (105): named, never mapped silently. */
+const RENAMED: Record<string, string> = { "pack quantity": "Net quantity", "pack unit": "Net unit" };
 
 /** The sheet's header: every column known, every required column present, none twice. */
 export function readHeader(columns: readonly string[]): { header: Header } | { problems: string[] } {
@@ -68,6 +71,8 @@ export function readHeader(columns: readonly string[]): { header: Header } | { p
       return;
     }
     const fixed = byName.get(norm(name));
+    const renamed = RENAMED[norm(name)];
+    if (!fixed && renamed) return problems.push(`"${name}" is now "${renamed}": rename the column`);
     if (!fixed) return problems.push(`"${name}" is not a column the template has`);
     if (index.has(fixed)) return problems.push(`"${fixed}" appears twice`);
     index.set(fixed, i);
@@ -136,14 +141,6 @@ const GST: Record<string, "taxable" | "gst_free"> = { taxable: "taxable", "gst-f
 const YES = new Set(["yes", "y", "true", "1"]);
 const NO = new Set(["no", "n", "false", "0"]);
 const MONEY = /^\$?\s*(\d+(?:\.\d{1,2})?)$/;
-
-/** A pack such as "500 g", "1.5 kg" or "6 each". */
-export function parsePack(text: string): { quantity: string; unit: PackUnit } | null {
-  const m = /^(\d+(?:\.\d+)?)\s*([a-z]+)$/i.exec(text.trim());
-  if (!m) return null;
-  const unit = m[2]!.toLowerCase() as PackUnit;
-  return (PACK_UNITS as readonly string[]).includes(unit) ? { quantity: m[1]!, unit } : null;
-}
 
 /** One detail cell in the value shape its attribute takes; null with a reason when it cannot be one. */
 export function parseDetailCell(row: CategoryFormRow, text: string): { value: DetailValue } | { problem: string } {
@@ -244,13 +241,13 @@ export function buildBody(
   for (const [slot, nameCol, valueCol] of [[0, "Option 1 name", "Option 1 value"], [1, "Option 2 name", "Option 2 value"]] as const) {
     const name = cell(h, first, nameCol);
     if (!name) continue;
-    const isPack = norm(name) === "pack size";
-    const attr = isPack ? null : form.find((r) => r.variantOption && norm(r.name) === norm(name));
-    if (!isPack && !attr) {
+    // The only options are the aisle's own (105).
+    const attr = form.find((r) => r.variantOption && norm(r.name) === norm(name));
+    if (!attr) {
       say(first, nameCol, leaf?.isLeaf ? `"${name}" is not an option this aisle offers` : "cannot be checked until the aisle is right");
       continue;
     }
-    const option: OptionInputDTO = { id: randomUUID(), position: slot + 1, kind: isPack ? "pack_size" : "attribute", attributeId: attr?.attributeId ?? null, values: [] };
+    const option: OptionInputDTO = { id: randomUUID(), position: slot + 1, attributeId: attr.attributeId, values: [] };
     for (const row of g.rows) {
       const v = cell(h, row, valueCol);
       if (!v) {
@@ -258,21 +255,18 @@ export function buildBody(
         continue;
       }
       if (optionValueOf[slot]!.has(norm(v))) continue;
-      const allowed = attr ? attr.values.find((x) => norm(x.label) === norm(v)) : null;
-      if (attr && !allowed) {
+      const allowed = attr.values.find((x) => norm(x.label) === norm(v));
+      if (!allowed) {
         say(row, valueCol, `"${v}" is not one of: ${attr.values.map((x) => x.label).join(", ")}`);
         continue;
       }
-      if (isPack && !parsePack(v) && !(cell(h, row, "Pack quantity") && cell(h, row, "Pack unit"))) {
-        say(row, valueCol, "say the pack as a quantity and unit, e.g. 500 g");
-      }
       const id = randomUUID();
       optionValueOf[slot]!.set(norm(v), id);
-      option.values.push({ id, allowedValueId: allowed?.id ?? null, position: option.values.length });
+      option.values.push({ id, allowedValueId: allowed.id, position: option.values.length });
     }
     options.push(option);
   }
-  if (sized && options.length === 0) say(first, "Option 1 name", "a product on several rows needs an option, e.g. Pack size");
+  if (sized && options.length === 0) say(first, "Option 1 name", "a product on several rows needs an option the aisle offers");
 
   const variants: VariantInputDTO[] = [];
   const variantRows: number[] = [];
@@ -287,11 +281,10 @@ export function buildBody(
     const sku = cell(h, row, "SKU");
     if (!sku) say(row, "SKU", "is required — it is how a repeat import is recognised");
 
-    const packOption = options.findIndex((o) => o.kind === "pack_size");
-    const fromValue = packOption >= 0 ? parsePack(cell(h, row, packOption === 0 ? "Option 1 value" : "Option 2 value")) : null;
-    const qty = cell(h, row, "Pack quantity") || fromValue?.quantity || "";
-    const unitText = (cell(h, row, "Pack unit") || fromValue?.unit || "").toLowerCase();
-    if (unitText && !(PACK_UNITS as readonly string[]).includes(unitText)) say(row, "Pack unit", `must be one of ${PACK_UNITS.join(", ")}`);
+    // The variant's net quantity: a fact for the unit price, never an option.
+    const qty = cell(h, row, "Net quantity");
+    const unitText = cell(h, row, "Net unit").toLowerCase();
+    if (unitText && !(PACK_UNITS as readonly string[]).includes(unitText)) say(row, "Net unit", `must be one of ${PACK_UNITS.join(", ")}`);
 
     const ids: [string | null, string | null] = [null, null];
     options.forEach((o) => {
@@ -337,7 +330,7 @@ export function buildBody(
         attributeId: row.attributeId,
         perVariant: parsed.flatMap((value, i) => (value ? [{ variantId: variants[i]!.id, value }] : [])),
       });
-    } else if (!same) say(g.rows[1]!, `${DETAIL_PREFIX} ${col.name}`, "is the same for every size of a product — it cannot differ");
+    } else if (!same) say(g.rows[1]!, `${DETAIL_PREFIX} ${col.name}`, "is the same for every variant of a product — it cannot differ");
   }
 
   if (problems.length > 0 || !leaf?.isLeaf) return { body: null, problems, variantRows, leafId: leaf?.isLeaf ? leaf.id : null };

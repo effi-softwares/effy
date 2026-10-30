@@ -48,19 +48,15 @@ const variant = (position: number, valueIds: [string | null, string | null], ext
   id: uuid(), position, optionValueIds: valueIds, shopPriceAmount: "4.00", ...extra,
 });
 
-/** Two pack sizes (500 g, 1 kg), or with `flavour`, two flavours (Plain, Mango). */
-async function twoVariants(productId: string, kind: "pack" | "flavour"): Promise<string[]> {
+/** Two flavours (Plain, Mango), each with its own net quantity. */
+async function twoVariants(productId: string): Promise<string[]> {
   const a = uuid();
   const b = uuid();
-  const option: OptionInputDTO = kind === "pack"
-    ? { id: uuid(), position: 1, kind: "pack_size", values: [{ id: a, position: 0 }, { id: b, position: 1 }] }
-    : {
-        id: uuid(), position: 1, kind: "attribute", attributeId: ids.flavour!,
-        values: [{ id: a, allowedValueId: ids.plain!, position: 0 }, { id: b, allowedValueId: ids.mango!, position: 1 }],
-      };
-  const vs = kind === "pack"
-    ? [variant(0, [a, null], { packQuantity: "500", packUnit: "g" }), variant(1, [b, null], { packQuantity: "1", packUnit: "kg" })]
-    : [variant(0, [a, null]), variant(1, [b, null])];
+  const option: OptionInputDTO = {
+    id: uuid(), position: 1, attributeId: ids.flavour!,
+    values: [{ id: a, allowedValueId: ids.plain!, position: 0 }, { id: b, allowedValueId: ids.mango!, position: 1 }],
+  };
+  const vs = [variant(0, [a, null], { packQuantity: "500", packUnit: "g" }), variant(1, [b, null], { packQuantity: "1", packUnit: "kg" })];
   await tx((q) => applyVariantSet(q, { productId, shopId, options: [option], variants: vs, mode: "draft" }));
   return vs.map((v) => v.id);
 }
@@ -118,15 +114,17 @@ d("101 — product details: the one writer", () => {
 
   it("holds a detail per variant or for the whole product, never both, and replaces the set each write", async () => {
     const p = await product("greek-and-natural-yoghurt");
-    const [v1, v2] = await twoVariants(p, "pack");
+    const [v1, v2] = await twoVariants(p);
     const per: DetailInput = {
       attributeId: ids.allergens!,
       perVariant: [{ variantId: v1!, value: { valueIds: [ids.milk!] } }, { variantId: v2!, value: { valueIds: [ids.milk!, ids.eggs!] } }],
     };
     await tx((q) => writeProductDetails(q, p, [per]));
-    expect((await stored(p)).map((r) => [r.key, r.variant_id])).toEqual([["allergens", v1], ["allergens", v2]].sort((a, b) => String(a[1]).localeCompare(String(b[1]))));
+    // The Flavour option writes each variant's flavour too; this is about Allergens.
+    const allergens = async () => (await stored(p)).filter((r) => r.key === "allergens").map((r) => [r.key, r.variant_id]);
+    expect(await allergens()).toEqual([["allergens", v1], ["allergens", v2]].sort((a, b) => String(a[1]).localeCompare(String(b[1]))));
     await tx((q) => writeProductDetails(q, p, [{ attributeId: ids.allergens!, value: { valueIds: [ids.milk!] } }]));
-    expect((await stored(p)).map((r) => [r.key, r.variant_id])).toEqual([["allergens", null]]);
+    expect(await allergens()).toEqual([["allergens", null]]);
     // Country of origin is the same for every variant: it cannot differ.
     expect(await refusal(tx((q) => writeProductDetails(q, p, [{ attributeId: ids.country_of_origin!, perVariant: [{ variantId: v1!, value: { valueIds: [ids.australia!] } }] }]))))
       .toEqual(["details.country_of_origin"]);
@@ -134,7 +132,7 @@ d("101 — product details: the one writer", () => {
 
   it("writes a variant's option value as its value of that attribute, and refuses it as a detail", async () => {
     const p = await product("greek-and-natural-yoghurt");
-    const [v1, v2] = await twoVariants(p, "flavour");
+    const [v1, v2] = await twoVariants(p);
     const rows = await pool.query<{ variant_id: string; ids: string[] }>(
       `SELECT variant_id::text, allowed_value_ids::text[] AS ids FROM public.product_attribute_value WHERE product_id = $1 AND attribute_definition_id = $2 ORDER BY variant_id`,
       [p, ids.flavour],
@@ -169,7 +167,7 @@ d("101 — product details: the one writer", () => {
 
   it("collapses per-variant values when one variant is left, and names what went", async () => {
     const p = await product("greek-and-natural-yoghurt");
-    const [v1, v2] = await twoVariants(p, "pack");
+    const [v1, v2] = await twoVariants(p);
     await tx((q) => writeProductDetails(q, p, [{
       attributeId: ids.allergens!,
       perVariant: [{ variantId: v1!, value: { valueIds: [ids.milk!] } }, { variantId: v2!, value: { valueIds: [ids.eggs!] } }],
@@ -180,10 +178,11 @@ d("101 — product details: the one writer", () => {
     )).rows[0]!;
     const result = await tx((q) => applyVariantSet(q, {
       productId: p, shopId, mode: "draft",
-      options: [{ id: keep.o, position: 1, kind: "pack_size", values: [{ id: keep.ov, position: 0 }] }],
+      options: [{ id: keep.o, position: 1, attributeId: ids.flavour!, values: [{ id: keep.ov, allowedValueId: ids.plain!, position: 0 }] }],
       variants: [{ ...variant(0, [keep.ov, null], { packQuantity: "500", packUnit: "g" }), id: v1! }],
     }));
     expect(result.droppedDetails).toEqual(["Allergens"]);
-    expect((await readProductDetails(pool, [p])).get(p)).toEqual([{ attributeId: ids.allergens, value: { valueIds: [ids.milk] } }]);
+    expect((await readProductDetails(pool, [p])).get(p)!.filter((d) => d.attributeId === ids.allergens))
+      .toEqual([{ attributeId: ids.allergens, value: { valueIds: [ids.milk] } }]);
   });
 });

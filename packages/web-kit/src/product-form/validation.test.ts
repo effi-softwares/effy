@@ -141,11 +141,10 @@ describe("101 — the details step", () => {
     expect(detailErrors(form, good)).toEqual({});
   });
 
-  it("a detail that differs by size is missing for each size not filled in, named by its size", () => {
+  it("a detail that differs by variant is missing for each variant not filled in, named by its variant", () => {
     const flavour = {
       id: "00000000-0000-4000-8000-000000000001",
       position: 1,
-      kind: "attribute" as const,
       attributeId: "a-flavour",
       values: [
         {

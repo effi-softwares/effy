@@ -18,7 +18,6 @@ import {
   syncRows,
   toInputs,
   variantSetErrors,
-  type PackSizeDraft,
   type VariantSetDraft,
 } from "./variants";
 
@@ -28,6 +27,9 @@ const id = () => `00000000-0000-4000-8000-${String(++n).padStart(12, "0")}`;
 const FLAVOUR = id();
 const PLAIN = id();
 const MANGO = id();
+const COLOUR = id();
+const RED = id();
+const BLUE = id();
 const flavourRow = {
   attributeId: FLAVOUR,
   key: "flavour",
@@ -52,40 +54,34 @@ const flavourRow = {
   variesByVariant: true,
   variantOption: true,
 } as CategoryFormRow;
+const colourRow = {
+  ...flavourRow,
+  attributeId: COLOUR,
+  key: "colour",
+  name: "Colour",
+  values: [
+    { id: RED, label: "Red" },
+    { id: BLUE, label: "Blue" },
+  ],
+} as CategoryFormRow;
 const rows = [
   flavourRow,
+  colourRow,
   {
     ...flavourRow,
     attributeId: id(),
-    key: "colour",
-    name: "Colour",
+    key: "origin",
+    name: "Origin",
     variantOption: false,
   },
 ];
 
-/** A Pack size option with these sizes ("500 g"), and the packs map that sizes them. */
-function packOption(
-  position: number,
-  sizes: string[],
-): { option: OptionInputDTO; packs: Record<string, PackSizeDraft> } {
-  const packs: Record<string, PackSizeDraft> = {};
-  const values = sizes.map((s, i) => {
-    const [quantity, unit] = s.split(" ");
-    const vid = id();
-    packs[vid] = { quantity: quantity!, unit: unit as PackSizeDraft["unit"] };
-    return { id: vid, allowedValueId: null, position: i };
-  });
-  return {
-    option: {
-      id: id(),
-      position,
-      kind: "pack_size",
-      attributeId: null,
-      values,
-    },
-    packs,
-  };
-}
+const colourOption = (position: number, valueIds: string[]): OptionInputDTO => ({
+  id: id(),
+  position,
+  attributeId: COLOUR,
+  values: valueIds.map((v, i) => ({ id: id(), allowedValueId: v, position: i })),
+});
 
 const flavourOption = (
   position: number,
@@ -93,7 +89,6 @@ const flavourOption = (
 ): OptionInputDTO => ({
   id: id(),
   position,
-  kind: "attribute",
   attributeId: FLAVOUR,
   values: valueIds.map((v, i) => ({
     id: id(),
@@ -106,35 +101,32 @@ describe("101 — shop-web variant sets", () => {
   it("a new product has no options and one variant", () => {
     const s = emptyVariantSet();
     expect(s.options).toEqual([]);
-    expect(s.packs).toEqual({});
     expect(s.variants).toHaveLength(1);
   });
 
-  it("offers Pack size plus the leaf's variant-option attributes", () => {
-    expect(optionAttributes(rows).map((r) => r.name)).toEqual(["Flavour"]);
+  it("offers only the category's variant-option attributes — nothing of the platform's own (105)", () => {
+    expect(optionAttributes(rows).map((r) => r.name)).toEqual(["Flavour", "Colour"]);
   });
 
-  it("labels values from the library and pack sizes from their size", () => {
-    const { option, packs } = packOption(1, ["500 g", "1 kg"]);
+  it("labels every value from the library", () => {
     const set: VariantSetDraft = {
       ...emptyVariantSet(),
-      options: [option, flavourOption(2, [PLAIN, MANGO])],
-      packs,
+      options: [colourOption(1, [RED, BLUE]), flavourOption(2, [PLAIN, MANGO])],
     };
     const labelled = labelledOptions(set, rows);
-    expect(labelled.map((o) => o.name)).toEqual(["Pack size", "Flavour"]);
+    expect(labelled.map((o) => o.name)).toEqual(["Colour", "Flavour"]);
     expect(labelled.flatMap((o) => o.values.map((v) => v.value))).toEqual([
-      "500 g",
-      "1 kg",
+      "Red",
+      "Blue",
       "Plain",
       "Mango",
     ]);
     const variants = syncRows([], set.options, set.variants);
     expect(variants.map((r) => rowLabel(set, r, rows))).toEqual([
-      "500 g / Plain",
-      "500 g / Mango",
-      "1 kg / Plain",
-      "1 kg / Mango",
+      "Red / Plain",
+      "Red / Mango",
+      "Blue / Plain",
+      "Blue / Mango",
     ]);
   });
 
@@ -156,29 +148,28 @@ describe("101 — shop-web variant sets", () => {
       addMissingRows({
         unitBasis: "",
         options: [flavour],
-        packs: {},
         variants: kept,
       }),
     ).toHaveLength(2);
   });
 
-  it("every variant naming a pack size value is sent with that size", () => {
-    const { option, packs } = packOption(1, ["500 g", "1 kg"]);
-    const variants = syncRows([], [option], [emptyRow(0)]).map((r) => ({
+  it("each variant is sent with its own net quantity; the option names its attribute", () => {
+    const option = flavourOption(1, [PLAIN, MANGO]);
+    const variants = syncRows([], [option], [emptyRow(0)]).map((r, i) => ({
       ...r,
       shopPriceAmount: "2.00",
+      packQuantity: i === 0 ? "500" : "1",
+      packUnit: (i === 0 ? "g" : "kg") as "g" | "kg",
     }));
-    const out = toInputs({ unitBasis: "", options: [option], packs, variants });
+    const out = toInputs({ unitBasis: "per_100g", options: [option], variants });
     expect(out.variants.map((v) => [v.packQuantity, v.packUnit])).toEqual([
       ["500", "g"],
       ["1", "kg"],
     ]);
-    expect(out.options[0]).toMatchObject({
-      kind: "pack_size",
-      attributeId: null,
-    });
+    expect(out.options[0]).toMatchObject({ attributeId: FLAVOUR });
+    expect(out.options[0]).not.toHaveProperty("kind");
     expect(
-      variantSetErrors({ unitBasis: "", options: [option], packs, variants }),
+      variantSetErrors({ unitBasis: "per_100g", options: [option], variants }),
     ).toEqual({});
   });
 
@@ -197,7 +188,6 @@ describe("101 — shop-web variant sets", () => {
     const out = toInputs({
       unitBasis: "",
       options: [flavour],
-      packs: {},
       variants,
     });
     expect(out.options[0]!.values.map((v) => v.allowedValueId)).toEqual([
@@ -205,7 +195,7 @@ describe("101 — shop-web variant sets", () => {
     ]);
   });
 
-  it("opens on the pending proposal when there is one; an assumed weight is seeded blank; pack sizes come from the variants", () => {
+  it("opens on the pending proposal when there is one; an assumed weight is seeded blank; net quantity stays the variant's", () => {
     const packValue = id();
     const detail = {
       unitBasis: null,
@@ -213,15 +203,14 @@ describe("101 — shop-web variant sets", () => {
         {
           id: "o1",
           position: 1,
-          kind: "pack_size",
-          attributeId: null,
-          name: "Pack size",
+          attributeId: FLAVOUR,
+          name: "Flavour",
           values: [
             {
               id: packValue,
-              value: "500 g",
+              value: "Plain",
               position: 0,
-              allowedValueId: null,
+              allowedValueId: PLAIN,
             },
           ],
         },
@@ -252,7 +241,7 @@ describe("101 — shop-web variant sets", () => {
       shopPriceAmount: "2.00",
       weightGrams: "",
     });
-    expect(draft.packs[packValue]).toEqual({ quantity: "500", unit: "g" });
+    expect(draft.variants[0]).toMatchObject({ packQuantity: "500", packUnit: "g" });
     const pending = {
       ...detail,
       pendingChange: {
@@ -278,7 +267,6 @@ describe("applyToAll (098)", () => {
     const set: VariantSetDraft = {
       unitBasis: "",
       options: [],
-      packs: {},
       variants: [
         {
           ...emptyRow(0),

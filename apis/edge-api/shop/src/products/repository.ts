@@ -162,7 +162,7 @@ export async function updateProduct(
       await applyVariantSet(client, {
         productId: id, shopId, unitBasis: values.unitBasis, mode: "draft",
         options: current.options.map((o) => ({
-          id: o.id, position: o.position, kind: o.kind, attributeId: o.attributeId,
+          id: o.id, position: o.position, attributeId: o.attributeId,
           values: o.values.map((v) => ({ id: v.id, allowedValueId: v.allowedValueId, position: v.position })),
         })),
         variants: current.variants.filter((v) => v.state !== "removed").map((v) => ({

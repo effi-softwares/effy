@@ -6,11 +6,12 @@ import { initialVariantId, pickValue, selectorRows, valueState } from "./variant
 
 const options: OptionDTO[] = [
   {
-    id: "o1", position: 1, kind: "pack_size", attributeId: null, name: "Pack size",
-    values: [{ id: "s5", value: "500 g", position: 0, allowedValueId: null }, { id: "s1", value: "1 kg", position: 1, allowedValueId: null }],
+    // A staff-made category option (105: options come only from the category).
+    id: "o1", position: 1, attributeId: "a-pack", name: "Pack",
+    values: [{ id: "s5", value: "500 g", position: 0, allowedValueId: "p500" }, { id: "s1", value: "1 kg", position: 1, allowedValueId: "p1k" }],
   },
   {
-    id: "o2", position: 2, kind: "attribute", attributeId: "a-colour", name: "Colour",
+    id: "o2", position: 2, attributeId: "a-colour", name: "Colour",
     values: [{ id: "tw", value: "White", position: 0, allowedValueId: "white" }, { id: "tb", value: "Brown", position: 1, allowedValueId: "brown" }],
   },
 ]
@@ -47,7 +48,7 @@ describe("variant selection (098)", () => {
 
   it("draws every option in order with its values' states and the selection", () => {
     const rows = selectorRows(options, variants, variants[0]!)
-    expect(rows.map((r) => r.option.name)).toEqual(["Pack size", "Colour"])
+    expect(rows.map((r) => r.option.name)).toEqual(["Pack", "Colour"])
     expect(rows[1]!.values).toEqual([
       { id: "tw", value: "White", state: "available", selected: true },
       { id: "tb", value: "Brown", state: "sold_out", selected: false },

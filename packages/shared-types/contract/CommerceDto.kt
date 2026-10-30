@@ -1433,16 +1433,15 @@ data class MergeCartRequest (
 @Serializable
 data class OptionDTO (
     /**
-     * The library attribute (attribute options); null for Pack size.
+     * The library attribute the category offers as an option.
      */
     @SerialName("attributeId")
-    val attributeID: String? = null,
+    val attributeID: String,
 
     val id: String,
-    val kind: OptionKind,
 
     /**
-     * The attribute's name, or "Pack size".
+     * The attribute's name.
      */
     val name: String,
 
@@ -1455,24 +1454,18 @@ data class OptionDTO (
 )
 
 @Serializable
-enum class OptionKind(val value: String) {
-    @SerialName("attribute") Attribute("attribute"),
-    @SerialName("pack_size") PackSize("pack_size");
-}
-
-@Serializable
 data class OptionValueDTO (
     /**
-     * The library value it is (attribute options); null for a pack size.
+     * The library value it is.
      */
     @SerialName("allowedValueId")
-    val allowedValueID: String? = null,
+    val allowedValueID: String,
 
     val id: String,
     val position: Long,
 
     /**
-     * The label shoppers see: the attribute value's label, or a pack size ("500 g").
+     * The label shoppers see: the attribute value's label.
      */
     val value: String
 )

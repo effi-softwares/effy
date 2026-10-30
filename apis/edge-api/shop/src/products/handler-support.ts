@@ -74,7 +74,7 @@ export function toDetailDTO(d: ProductDetail): ProductDetailDTO {
     unitBasis: d.unitBasis,
     // Options and every variant, each with shop price, customer price and stock.
     options: d.options.map((o) => ({
-      id: o.id, position: o.position, kind: o.kind, attributeId: o.attributeId, name: o.name,
+      id: o.id, position: o.position, attributeId: o.attributeId, name: o.name,
       values: o.values.map((v) => ({ id: v.id, value: v.value, position: v.position, allowedValueId: v.allowedValueId })),
     })),
     variants: d.variants.map((v) => ({

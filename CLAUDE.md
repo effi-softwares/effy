@@ -167,9 +167,12 @@ back-office › Categories & attributes, the `catalog` service on the staff gate
   the shop's and review sees it. 18+ is a LABEL only (`AGE_RESTRICTED_LABEL`; Kotlin twin `AgeWords`) — no age check yet.
   Stock dates (expiry, packed, batch) are never details (`isStockDateName`).
 - ⚠ **ONE WRITER PER FACT**: `writeProductDetails` (a product's details, typed, per variant where an attribute
-  "may differ by size") and `applyVariantSet` (options: Pack size, or a library attribute the leaf offers as a
-  variant option — its values are also each variant's detail). A value's label is copied to
-  `product_option_value.value` for order lines; a rename rewrites the copy.
+  "may differ by size") and `applyVariantSet` (options: ONLY library attributes the leaf offers as a variant option —
+  its values are also each variant's detail). A value's label is copied to `product_option_value.value` for order
+  lines; a rename rewrites the copy.
+- ⚠ **VARIANTS COME ONLY FROM THE CATEGORY (105)** — there is no platform option ("Pack size" and `product_option.kind`
+  are gone): a product varies by the attributes its category offers, nothing else. A variant's `pack_quantity` /
+  `pack_unit` is its **net quantity**, a fact for unit pricing, never an option. The seeded clothing Size is removed.
 - Submission (and approval) is refused while a required detail is empty (`missing_required_details`); a
   requirement added later leaves products on sale and lists them (back-office › Product review › Missing details,
   the shop's Missing details filter). Category icons are keys from `CATEGORY_ICONS` (one list: the migration CHECK,
@@ -641,6 +644,7 @@ the entries carry gotchas and deploy-ordering rules that the code does not. Slic
 
 Features recorded:
 
+- **105-category-driven-variants** — Variants Only From Category Attributes (no platform "Pack size" option; net quantity per variant; clothing Size removed; import columns renamed) — built 2026-10-30; not migrated, deployed or walked
 - **104-activity-log-drawer** — Every Activity Log in One Drawer (twelve logs; one server helper; search, type, dates, paging, CSV export; state in the address) — built 2026-10-29; not deployed or walked
 - **103-console-data-tables** — One Data Table for Every Console List (server-driven search/filter/sort/paging in the address; fills the window; capped sets refuse past 500; no silent truncation) — MVP deployed to dev; the rest built 2026-10-28, not deployed or walked
 - **102-backoffice-product-catalogue** — Back-Office Product Catalogue (every shop's products in one list; holds; Effy creates products for a shop and imports a shop's list; one writer of a new product) — built 2026-10-27; not applied, migrated, deployed or walked
@@ -722,5 +726,5 @@ Features recorded:
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/103-console-data-tables/plan.md
+at specs/105-category-driven-variants/plan.md
 <!-- SPECKIT END -->

@@ -100,7 +100,7 @@ export function FactsSection({
           {STORAGES.map((s) => {
             const Icon = STORAGE_ICON[s];
             return (
-              <ToggleGroupItem key={s} value={s} className="px-3">
+              <ToggleGroupItem key={s} value={s} className="flex-none px-3">
                 <Icon aria-hidden="true" />
                 {STORAGE_WORDS[s]}
               </ToggleGroupItem>
@@ -122,7 +122,7 @@ export function FactsSection({
           onValueChange={(v) => v && set("gstStatus", v as GstStatus)}
         >
           {(["taxable", "gst_free"] as const).map((g) => (
-            <ToggleGroupItem key={g} value={g} className="px-3">
+            <ToggleGroupItem key={g} value={g} className="flex-none px-3">
               {GST_STATUS_WORDS[g]}
             </ToggleGroupItem>
           ))}
