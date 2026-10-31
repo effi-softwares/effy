@@ -26,7 +26,7 @@ TF_ROOTS := $(BOOTSTRAP_DIR) $(GLOBAL_DIR) $(INFRA_DIR)/envs/dev $(INFRA_DIR)/en
 .PHONY: gateway-usage help bootstrap-init bootstrap-apply init plan apply destroy output fmt validate lint preflight \
         global-init global-plan global-apply global-output dns-verify mail-verify mail-events-verify edge-health \
         db-new db-status db-up db-up-one db-down db-shopper-role check-goose \
-        live-guards shop-words-guard driver-words-guard purge-orders wipe-dev create-first-admin load-localities delete-admin edge-install edge-offline edge-test edge-deploy edge-remove \
+        live-guards shop-words-guard driver-words-guard purge-orders reset-dev-data wipe-dev create-first-admin load-localities delete-admin edge-install edge-offline edge-test edge-deploy edge-remove \
         verify-pool-credentials \
         bo-dev bo-build bo-lint bo-test \
         shop-dev shop-build shop-lint shop-test \
@@ -149,6 +149,10 @@ db-status: check-goose ## Applied vs pending migrations (read-only): make db-sta
 purge-orders: ## OPERATOR: delete every order + all order-derived data (ENV=dev; DRY_RUN=1 to preview)
 	@ENV=$(ENV) AWS_PROFILE=$(AWS_PROFILE) AWS_REGION=$(AWS_REGION) \
 		bash scripts/purge-orders.sh $(if $(DRY_RUN),--dry-run,)
+
+reset-dev-data: ## OPERATOR: delete all dev data but staff, shops, shop users, drivers and localities (DRY_RUN=1 to preview)
+	@ENV=$(ENV) AWS_PROFILE=$(AWS_PROFILE) AWS_REGION=$(AWS_REGION) \
+		bash scripts/reset-dev-data.sh $(if $(DRY_RUN),--dry-run,)
 
 wipe-dev: check-goose ## OPERATOR: reset dev to empty - DB rebuilt from all migrations, all Cognito users and media deleted
 	@ENV=$(ENV) AWS_PROFILE=$(AWS_PROFILE) AWS_REGION=$(AWS_REGION) bash scripts/wipe-dev.sh

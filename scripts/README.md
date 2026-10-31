@@ -15,6 +15,7 @@ They are not infrastructure (`infra/scripts/` holds the Terraform/DB plumbing: `
 | Script | `make` target | Does |
 |---|---|---|
 | `purge-orders.sh` | `purge-orders` | Deletes every order and everything derived from it - fulfilment, payments, delivery packages, driver work, the order half of the event ledgers |
+| `reset-dev-data.sh` | `reset-dev-data` | Empties dev back to its accounts: keeps back-office staff, shops, shop users, drivers and localities; removes all other data and its media. The table-by-table list is `db/reset/reset_dev_data.sql` |
 | `wipe-dev.sh` | `wipe-dev` | Resets dev to empty: rebuilds the database from every migration, deletes every Cognito user in the four pools and empties the media bucket |
 
 `purge-orders` is here for the same reason as the rest: it cannot be a product feature. An order is a
