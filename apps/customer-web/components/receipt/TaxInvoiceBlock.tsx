@@ -1,5 +1,6 @@
 "use client"
 
+import { OPERATING_TZ } from "@effy/shared-types"
 import { useState } from "react"
 
 import type { OrderTaxDocumentsDTO } from "@effy/shared-types"
@@ -8,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { capture } from "@/lib/telemetry"
 import { Input, Label } from "@/components/ui/form"
 
-const DAY = new Intl.DateTimeFormat("en-AU", { dateStyle: "long", timeZone: "Australia/Melbourne" })
+const DAY = new Intl.DateTimeFormat("en-AU", { dateStyle: "long", timeZone: OPERATING_TZ })
 
 /** Each refusal in the customer's words - never the server's prose. */
 const REFUSAL: Record<string, string> = {

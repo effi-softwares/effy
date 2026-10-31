@@ -4,7 +4,7 @@ import type { ScheduledHandler } from "aws-lambda";
 
 import { logger } from "@effy/edge-shared";
 
-import { markCurrentHours, runRollup } from "../insights/rollup";
+import { followOperatingZone, markCurrentHours, runRollup } from "../insights/rollup";
 
 /** EMF every run, zeros included. The alarm is on the oldest bucket's age, not the count: freshness is the promise. */
 function emitBacklogMetric(oldestBacklogMs: number, buckets: number): void {
@@ -31,6 +31,7 @@ function emitBacklogMetric(oldestBacklogMs: number, buckets: number): void {
 
 export const handler: ScheduledHandler = async () => {
   try {
+    await followOperatingZone();
     const marked = await markCurrentHours();
     const result = await runRollup();
     emitBacklogMetric(result.oldestBacklogMs, result.buckets);

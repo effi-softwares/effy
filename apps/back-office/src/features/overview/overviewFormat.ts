@@ -1,4 +1,6 @@
-const TZ = "Australia/Melbourne"
+import { OPERATING_TZ } from "@effy/shared-types"
+
+const TZ = OPERATING_TZ
 export const dateLine = new Intl.DateTimeFormat("en-AU", {
   weekday: "long",
   day: "numeric",

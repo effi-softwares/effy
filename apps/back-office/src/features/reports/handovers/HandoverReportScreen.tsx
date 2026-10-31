@@ -2,7 +2,7 @@ import { useState } from "react"
 
 import { useQuery } from "@tanstack/react-query"
 
-import { PARCEL_MISSING_REASON_WORDS, READ_OUTCOME_WORDS, type HandoverMixDTO, type HandoverReportDTO } from "@effy/shared-types"
+import { PARCEL_MISSING_REASON_WORDS, READ_OUTCOME_WORDS, type HandoverMixDTO, type HandoverReportDTO, OPERATING_TZ } from "@effy/shared-types"
 import { DateField } from "@effy/design-system/ui"
 import { StaticTable, type EffyColumnDef } from "@effy/web-kit/data-table"
 import { ErrorState } from "@effy/web-kit/console"
@@ -18,7 +18,7 @@ import {
 
 import { handoverReportQuery } from "./queries"
 
-const melbourneDay = (d: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: "Australia/Melbourne" }).format(d)
+const melbourneDay = (d: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: OPERATING_TZ }).format(d)
 
 const SURFACE_WORDS = { driver_app: "Driver app", shop_web: "Shop console", back_office: "Back-office" } as const
 const ACTOR_WORDS = { driver: "Drivers", shop_staff: "Shop staff", admin_staff: "Hub staff" } as const

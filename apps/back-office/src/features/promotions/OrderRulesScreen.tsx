@@ -1,3 +1,4 @@
+import { OPERATING_TZ } from "@effy/shared-types"
 import { useState } from "react"
 
 import { useForm } from "@tanstack/react-form"
@@ -225,6 +226,6 @@ function formatTime(iso: string): string {
       year: "numeric",
       hour: "numeric",
       minute: "2-digit",
-      timeZone: "Australia/Melbourne",
+      timeZone: OPERATING_TZ,
     })
 }

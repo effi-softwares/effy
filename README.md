@@ -59,6 +59,32 @@ Notes:
 - While stopped, `db-*` targets and the deployed backend's DB-backed
   endpoints fail by design; health endpoints and everything non-DB keep working.
 
+### Switching the time zone (Melbourne ↔ Colombo)
+
+Effy's clock - delivery days, windows, cutoffs, "today" and printed dates - is one line. Change it in
+`infra/envs/dev/dev.tfvars`:
+
+```hcl
+operating_timezone = "Australia/Melbourne"   # or "Asia/Colombo"
+```
+
+The allowed values are in `infra/envs/dev/variables.tf` (Melbourne, Sydney, Colombo). The value is fixed at build
+time, so nothing changes until everything is rebuilt. Run these in this order:
+
+```sh
+make apply ENV=dev             # writes /effy/dev/operating_tz and the Amplify build setting
+make edge-deploy-all ENV=dev   # rebuilds every backend bundle; fails if the apply above was skipped
+git push                       # Amplify rebuilds back-office, shop-web and customer-web
+```
+
+Then rebuild the customer app; its Gradle build reads the same line. The driver app has no setting of its own.
+
+- Shops follow by themselves within a minute of the deploy. Their older insights figures are rebuilt overnight.
+- Delivery windows and collection runs are stored as clock times, so 09:00 stays 09:00 in the new zone. An order
+  already placed keeps its exact moment and will read differently, so switch with no open orders.
+- Running a web app locally? It stays on Melbourne unless you start it with `OPERATING_TZ=Asia/Colombo pnpm dev`.
+- A customer app build for another environment must set `OPERATING_TZ` itself, or it takes dev's value.
+
 ## 2. Database migrations (goose, forward-only)
 
 DSN is composed at invocation from SSM + Secrets Manager - never on disk, never echoed.

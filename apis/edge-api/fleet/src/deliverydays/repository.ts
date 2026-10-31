@@ -1,3 +1,4 @@
+import { OPERATING_TZ } from "@effy/shared-types";
 import { query, withTransaction } from "@effy/edge-shared";
 import { ASAP_ESTIMATE_DEFAULT } from "@effy/edge-shared/delivery";
 import type { DeliveryDaysDTO, DeliveryDaysInput, NonDeliveryDateDTO } from "@effy/shared-types";
@@ -43,7 +44,7 @@ async function dates(): Promise<NonDeliveryDateDTO[]> {
   const res = await query<{ day: string; label: string | null; affected: number }>(
     `SELECT d.day::text AS day, d.label, ${AFFECTED} AS affected
        FROM public.delivery_non_delivery_date d
-      WHERE d.day >= (now() AT TIME ZONE 'Australia/Melbourne')::date
+      WHERE d.day >= (now() AT TIME ZONE '${OPERATING_TZ}')::date
       ORDER BY d.day`,
   );
   return res.rows.map((r) => ({ day: r.day, label: r.label, affectedOrders: r.affected }));

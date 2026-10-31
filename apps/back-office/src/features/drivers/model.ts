@@ -1,3 +1,4 @@
+import { OPERATING_TZ } from "@effy/shared-types"
 import type { DriverBlockedReason, DriverEmploymentStatus } from "@effy/shared-types"
 import { defineListSearch, searchFilter } from "@effy/web-kit/data-table"
 
@@ -47,7 +48,7 @@ export function formatTime(iso: string): string {
   return d.toLocaleTimeString("en-AU", {
     hour: "numeric",
     minute: "2-digit",
-    timeZone: "Australia/Melbourne",
+    timeZone: OPERATING_TZ,
   })
 }
 
@@ -68,7 +69,7 @@ export function formatDate(iso: string | null): string {
     day: "numeric",
     month: "short",
     year: "numeric",
-    timeZone: "Australia/Melbourne",
+    timeZone: OPERATING_TZ,
   })
 }
 
@@ -81,6 +82,6 @@ export function formatDateTime(iso: string | null): string {
     month: "short",
     hour: "2-digit",
     minute: "2-digit",
-    timeZone: "Australia/Melbourne",
+    timeZone: OPERATING_TZ,
   })
 }

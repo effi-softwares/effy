@@ -1,6 +1,7 @@
 // The rollup job: drain the dirty queue and recompute those buckets from source, never increment (a
 // refund can be rejected thirty days later, so figures move backwards). Recomputing is idempotent. The
 // dirty table is the queue; what is monitored is the age of its oldest row.
+import { OPERATING_TZ } from "@effy/shared-types";
 import { query, withTransaction } from "@effy/edge-shared";
 
 /** Bounded so a backlog drains steadily instead of in one long lock. */
@@ -247,6 +248,16 @@ export async function runRollup(limit = CLAIM_LIMIT): Promise<RollupResult> {
       oldestBacklogMs: Date.now() - oldest.getTime(),
     };
   });
+}
+
+/**
+ * A shop's zone is the platform's: nothing else sets `shop.timezone`, and the triggers that bucket a shop's
+ * figures read it there. Runs every minute, so a changed zone needs no step of its own; the nightly reconcile
+ * then rebuilds the buckets it moved.
+ */
+export async function followOperatingZone(): Promise<number> {
+  const res = await query(`UPDATE public.shop SET timezone = $1 WHERE timezone <> $1`, [OPERATING_TZ]);
+  return res.rowCount ?? 0;
 }
 
 /** Keeps the current hour fresh, so "nothing sold since" is distinguishable from "figures stopped". */

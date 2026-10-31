@@ -5,8 +5,10 @@
  * output differs between runtimes.
  */
 
-/** The operating timezone: a delivery happens in Melbourne, wherever the device is. */
-export const DELIVERY_TZ = "Australia/Melbourne";
+import { OPERATING_TZ } from "./operating-zone";
+
+/** A delivery happens on Effy's clock, wherever the device is. */
+export const DELIVERY_TZ = OPERATING_TZ;
 
 /** A delivery window, as two instants. */
 export interface DeliveryWindow {

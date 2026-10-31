@@ -1,7 +1,8 @@
 // Counts over Melbourne calendar days, inclusive.
+import { OPERATING_TZ } from "@effy/shared-types";
 import { query } from "@effy/edge-shared";
 
-const IN_RANGE = (col: string) => `(${col} AT TIME ZONE 'Australia/Melbourne')::date BETWEEN $1::date AND $2::date`;
+const IN_RANGE = (col: string) => `(${col} AT TIME ZONE '${OPERATING_TZ}')::date BETWEEN $1::date AND $2::date`;
 
 export interface MixRow {
   key: string | null;

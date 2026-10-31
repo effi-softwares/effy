@@ -1,6 +1,9 @@
 import type { NextConfig } from "next"
 
 const nextConfig: NextConfig = {
+  // Inlined at build: `@effy/shared-types` reads it in the server and the browser alike.
+  env: { OPERATING_TZ: process.env.OPERATING_TZ ?? "" },
+
   // Cache Components: everything is dynamic unless cached, and an uncached read outside <Suspense> is a
   // build error. That error keeps public pages cacheable; do not disable it to make a page compile.
   cacheComponents: true,

@@ -6,6 +6,9 @@ import { defineConfig } from "vitest/config"
 import { VitePWA } from "vite-plugin-pwa"
 
 export default defineConfig({
+  define: {
+    "process.env.OPERATING_TZ": JSON.stringify(process.env.OPERATING_TZ ?? ""),
+  },
   plugins: [
     react(),
     tailwindcss(),

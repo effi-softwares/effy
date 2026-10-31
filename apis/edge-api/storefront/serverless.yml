@@ -54,6 +54,9 @@ provider:
 custom:
   esbuild:
     bundle: true
+    # Build-time: baked into the bundle, so a change takes a deploy. No default on purpose.
+    define:
+      process.env.OPERATING_TZ: '"${ssm:/effy/${sls:stage}/operating_tz}"'
     minify: false
     sourcemap: true
     platform: node

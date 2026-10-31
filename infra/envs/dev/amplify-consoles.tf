@@ -49,8 +49,10 @@ locals {
   # Principle IV: shop-web must take the shop pool, back-office the admin pool. A swap makes sign-in
   # succeed and every backend call 401 from the mismatched authorizer.
   # PostHog is shared across the consoles; the project key is public-safe (build-inlined), same
-  # source as the SSM record so one dev.tfvars value fans out to SSM + both console builds.
+  # source as the SSM record so one dev.tfvars value fans out to SSM + both console builds. The operating zone
+  # rides here for the same reason.
   telemetry_env = {
+    OPERATING_TZ           = var.operating_timezone
     VITE_POSTHOG_KEY       = var.posthog_project_key
     VITE_POSTHOG_HOST      = var.posthog_host
     VITE_TELEMETRY_ENABLED = var.telemetry_enabled ? "true" : "false"

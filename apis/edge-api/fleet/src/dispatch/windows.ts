@@ -4,7 +4,7 @@
 
 import { nextRunInstant, packageStatuses, query, type Queryable } from "@effy/edge-shared";
 import { effyDays, loadSlotSettings, nonDeliveryDates } from "@effy/edge-shared/delivery";
-import { anyTimeDayLabel, formatArrival, formatDeliveryDay, formatDeliveryWindow, type DispatchWindowsResponse } from "@effy/shared-types";
+import { anyTimeDayLabel, formatArrival, formatDeliveryDay, formatDeliveryWindow, type DispatchWindowsResponse, OPERATING_TZ } from "@effy/shared-types";
 
 import { loadSchedule } from "../planner/repository";
 import { dueRun, isoDateOf } from "../planner/service";
@@ -24,7 +24,7 @@ const WINDOW_PARCELS = `
          COALESCE((SELECT ds.any_time FROM public.delivery_slot ds WHERE ds.id = opd.slot_id), false) AS any_time,
          z.name                 AS group_name,
          -- The local date it reached the hub, if it has.
-         (SELECT (min(hc.checked_in_at) AT TIME ZONE 'Australia/Melbourne')::date::text
+         (SELECT (min(hc.checked_in_at) AT TIME ZONE '${OPERATING_TZ}')::date::text
             FROM public.round_package crp
             JOIN public.round_stop crs ON crs.id = crp.stop_id
             JOIN public.hub_checkin hc ON hc.round_id = crs.round_id
@@ -40,7 +40,7 @@ const WINDOW_PARCELS = `
    WHERE o.status = 'paid'
      AND sf.status NOT IN ('withdrawn', 'unfulfillable')
      AND opd.window_start IS NOT NULL
-     AND (opd.window_start AT TIME ZONE 'Australia/Melbourne')::date = $1::date
+     AND (opd.window_start AT TIME ZONE '${OPERATING_TZ}')::date = $1::date
      AND o.delivery_type = 'effy'
    ORDER BY opd.window_start, o.order_number, sf.id
 `;
@@ -55,7 +55,7 @@ const WINDOW_ROUNDS = `
    WHERE dr.kind = 'delivery'
      AND dr.status IN ('planned', 'in_progress', 'completed')
      AND dr.window_start_at IS NOT NULL
-     AND (dr.window_start_at AT TIME ZONE 'Australia/Melbourne')::date = $1::date
+     AND (dr.window_start_at AT TIME ZONE '${OPERATING_TZ}')::date = $1::date
    ORDER BY dr.created_at, dr.id
 `;
 

@@ -1,11 +1,12 @@
 // One snapshot and an attention list: a union of four kinds, so the operator does not do the merge.
+import { OPERATING_TZ } from "@effy/shared-types";
 import { proposedRefundsForShop } from "@effy/edge-shared";
 
 import { readBacklog, readClock, readLiveOrders, readStockAttention } from "./repository";
 import type { AttentionItem, AttentionView, ProposedRefund, TodaySnapshot } from "./types";
 
 /** Every shop's until shops carry their own location. */
-export const DEFAULT_TIMEZONE = "Australia/Melbourne";
+export const DEFAULT_TIMEZONE = OPERATING_TZ;
 
 /** Rows before deferring to "Open queue →". */
 export const ATTENTION_LIMIT = 8;

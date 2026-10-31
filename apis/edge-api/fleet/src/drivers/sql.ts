@@ -1,6 +1,8 @@
 // One definition of "can this driver receive work", shared by every repository that asks.
 
 /** An open duty session (`ended_at IS NULL`); a partial unique index allows one per driver. */
+import { OPERATING_TZ } from "@effy/shared-types"
+
 export const ON_DUTY_EXISTS = `EXISTS (
   SELECT 1 FROM public.driver_duty_session s
    WHERE s.driver_id = d.id AND s.ended_at IS NULL
@@ -25,7 +27,7 @@ export const BLOCKED_REASONS = `(
               AND (bc.zone_id IS NULL OR bz.status = 'active')
          ) THEN 'no_capabilities' END,
     CASE WHEN d.licence_expires_on IS NOT NULL
-          AND d.licence_expires_on < (now() AT TIME ZONE 'Australia/Melbourne')::date
+          AND d.licence_expires_on < (now() AT TIME ZONE '${OPERATING_TZ}')::date
          THEN 'licence_expired' END,
     -- ⚠ EVERY APPLICABLE REASON IS EMITTED, NOT THE FIRST ONE FOUND. A driver can be
     -- suspended AND holding a van with lapsed rego; sending an operator to fix only one of those
@@ -43,11 +45,11 @@ export const BLOCKED_REASONS = `(
             WHERE bvh.driver_id = d.id AND bvh.ended_at IS NULL
               AND (
                 (bv.registration_expires_on IS NOT NULL
-                   AND bv.registration_expires_on < (now() AT TIME ZONE 'Australia/Melbourne')::date)
+                   AND bv.registration_expires_on < (now() AT TIME ZONE '${OPERATING_TZ}')::date)
                 OR (bv.insurance_expires_on IS NOT NULL
-                   AND bv.insurance_expires_on < (now() AT TIME ZONE 'Australia/Melbourne')::date)
+                   AND bv.insurance_expires_on < (now() AT TIME ZONE '${OPERATING_TZ}')::date)
                 OR (bv.roadworthy_expires_on IS NOT NULL
-                   AND bv.roadworthy_expires_on < (now() AT TIME ZONE 'Australia/Melbourne')::date)
+                   AND bv.roadworthy_expires_on < (now() AT TIME ZONE '${OPERATING_TZ}')::date)
                 OR bv.status <> 'active'
               )
          ) THEN 'vehicle_non_compliant' END

@@ -1,3 +1,4 @@
+import { OPERATING_TZ } from "@effy/shared-types"
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
@@ -47,7 +48,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   )
 }
 
-const PLACED = new Intl.DateTimeFormat("en-AU", { dateStyle: "long", timeStyle: "short", timeZone: "Australia/Melbourne" })
+const PLACED = new Intl.DateTimeFormat("en-AU", { dateStyle: "long", timeStyle: "short", timeZone: OPERATING_TZ })
 const TONE = { outline: "outline", default: "default", brand: "brand", secondary: "secondary" } as const
 
 /** One order: where it is and when it is coming, then the receipt; beside them, refunds and reporting a problem. */

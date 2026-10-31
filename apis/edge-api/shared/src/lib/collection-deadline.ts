@@ -2,8 +2,10 @@
 // the window rules build their instants here too). On the day DST ends 02:30 happens twice; on the day
 // it starts 02:30 does not exist.
 
+import { OPERATING_TZ } from "@effy/shared-types";
+
 /** Collection runs are wall-clock facts about Effy's working day. */
-export const OPERATING_TZ = "Australia/Melbourne";
+export { OPERATING_TZ };
 
 export interface CollectionRun {
   hour: number;

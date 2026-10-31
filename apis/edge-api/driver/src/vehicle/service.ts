@@ -2,7 +2,7 @@
 // the vehicle the driver holds now, never one named by the request.
 
 import { withTransaction } from "@effy/edge-shared";
-import { VEHICLE_CHECK_ITEMS, type VehicleCheckEntry } from "@effy/shared-types";
+import { VEHICLE_CHECK_ITEMS, type VehicleCheckEntry, OPERATING_TZ } from "@effy/shared-types";
 
 export class VehicleCheckError extends Error {
   constructor(readonly code: "no_vehicle" | "invalid", readonly sentence: string) {
@@ -43,7 +43,7 @@ export async function submitVehicleCheck(driverId: string, changeId: string, ans
     const minor = answers.some((a) => a.answer === "minor");
     const ins = await tx.query(
       `INSERT INTO public.vehicle_check (driver_id, vehicle_id, local_date, answers, unsafe, minor, change_id)
-       VALUES ($1, $2, (now() AT TIME ZONE 'Australia/Melbourne')::date, $3::jsonb, $4, $5, $6)
+       VALUES ($1, $2, (now() AT TIME ZONE '${OPERATING_TZ}')::date, $3::jsonb, $4, $5, $6)
        ON CONFLICT DO NOTHING
        RETURNING unsafe`,
       [driverId, vehicleId, JSON.stringify(answers), unsafe, minor, changeId],
@@ -52,7 +52,7 @@ export async function submitVehicleCheck(driverId: string, changeId: string, ans
 
     const prior = await tx.query(
       `SELECT unsafe, cleared_at FROM public.vehicle_check
-        WHERE driver_id = $1 AND vehicle_id = $2 AND local_date = (now() AT TIME ZONE 'Australia/Melbourne')::date`,
+        WHERE driver_id = $1 AND vehicle_id = $2 AND local_date = (now() AT TIME ZONE '${OPERATING_TZ}')::date`,
       [driverId, vehicleId],
     );
     const p = prior.rows[0];

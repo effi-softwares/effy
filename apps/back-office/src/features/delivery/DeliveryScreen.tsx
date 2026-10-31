@@ -1,3 +1,4 @@
+import { OPERATING_CITY } from "@effy/shared-types"
 import { useState } from "react"
 
 import { useQuery } from "@tanstack/react-query"
@@ -102,7 +103,7 @@ function SchedulePanel({ canManage }: { canManage: boolean }) {
   return (
     <Panel
       title="Collection runs"
-      description="Effy's drivers collect from shops on these runs (Melbourne time). A window today is offered while a run can still be made and reaches the hub before the window starts, allowing the prep buffer set in Hub and timings."
+      description={`Effy's drivers collect from shops on these runs (${OPERATING_CITY} time). A window today is offered while a run can still be made and reaches the hub before the window starts, allowing the prep buffer set in Hub and timings.`}
       flush
     >
       <div className="space-y-4 px-5 py-4">

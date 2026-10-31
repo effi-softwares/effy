@@ -1,4 +1,6 @@
-const TZ = "Australia/Melbourne"
+import { OPERATING_TZ } from "@effy/shared-types"
+
+const TZ = OPERATING_TZ
 
 const ymd = new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" })
 const time = new Intl.DateTimeFormat("en-AU", { timeZone: TZ, hour: "numeric", minute: "2-digit", hour12: true })

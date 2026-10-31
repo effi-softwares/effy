@@ -72,8 +72,20 @@ val optionalKeys = listOf(
     "DEBUG_TOOLS",        // "true" shows the in-app observability test panel. Never in prod.
 )
 
+/**
+ * Effy's clock, from the line the backend and the web apps build from, so the app has no setting of its own.
+ * OPERATING_TZ (env or secrets.properties) overrides it, for a build of another environment.
+ */
+fun operatingTz(): String =
+    configValue("OPERATING_TZ")
+        ?: Regex("""(?m)^operating_timezone\s*=\s*"([^"]+)"""")
+            .find(rootProject.file("../../infra/envs/dev/dev.tfvars").readText())
+            ?.groupValues?.get(1)
+        ?: throw GradleException("infra/envs/dev/dev.tfvars has no operating_timezone")
+
 // Exposed to the:shared module's BuildKonfig block. Required keys must be present (checked above);
 // optional keys default to "" so telemetry stays a no-op until configured.
 extra["effyConfig"] =
     requiredKeys.associateWith { configValue(it)!! } +
-        optionalKeys.associateWith { configValue(it) ?: "" }
+        optionalKeys.associateWith { configValue(it) ?: "" } +
+        ("OPERATING_TZ" to operatingTz())

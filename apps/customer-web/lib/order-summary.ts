@@ -1,4 +1,4 @@
-import { asapSentence, DELIVERY_TYPE_WORDS, DELIVERY_WINDOW_WORDS, formatArrival, type OrderSummaryDTO } from "@effy/shared-types"
+import { asapSentence, DELIVERY_TYPE_WORDS, DELIVERY_WINDOW_WORDS, formatArrival, type OrderSummaryDTO, OPERATING_TZ } from "@effy/shared-types"
 
 /**
  * What one row of the order history says (reference: Orders · Order history): the badge, the line
@@ -33,7 +33,7 @@ const DELIVERED_AT = new Intl.DateTimeFormat("en-AU", {
   month: "short",
   hour: "numeric",
   minute: "2-digit",
-  timeZone: "Australia/Melbourne",
+  timeZone: OPERATING_TZ,
 })
 
 const lowerFirst = (s: string) => s.charAt(0).toLowerCase() + s.slice(1)

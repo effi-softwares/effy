@@ -1,5 +1,6 @@
 // Built around what needs attention, not what is fine: the common case is automatic, the exception visible.
 
+import { OPERATING_TZ } from "@effy/shared-types";
 import { COURIER_COLLECTION_SQL } from "@effy/edge-shared/delivery";
 import { ROUND_STAGE_COLUMNS, ROUND_STAGE_LATERAL, TO_RETURN_SQL } from "@effy/edge-shared/delivery";
 
@@ -36,10 +37,10 @@ export const DAY_ROUNDS = `
    -- today", which was the same thing while a round existed for 45 minutes. A round is now assigned
    -- the evening before its run, and "created today" would hide it on the morning it is due.
    WHERE dr.status IN ('planned', 'in_progress')
-      OR dr.created_at >= date_trunc('day', now() AT TIME ZONE 'Australia/Melbourne')
-                            AT TIME ZONE 'Australia/Melbourne'
-      OR dr.updated_at >= date_trunc('day', now() AT TIME ZONE 'Australia/Melbourne')
-                            AT TIME ZONE 'Australia/Melbourne'
+      OR dr.created_at >= date_trunc('day', now() AT TIME ZONE '${OPERATING_TZ}')
+                            AT TIME ZONE '${OPERATING_TZ}'
+      OR dr.updated_at >= date_trunc('day', now() AT TIME ZONE '${OPERATING_TZ}')
+                            AT TIME ZONE '${OPERATING_TZ}'
    ORDER BY dr.status NOT IN ('completed', 'cancelled') DESC, dr.deadline_at ASC
 `;
 

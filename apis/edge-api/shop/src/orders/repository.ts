@@ -6,7 +6,7 @@ import { likePattern, orderBy, packageStatuses, presignRead, query, withTransact
 
 import { collectionsFor } from "../collection/service";
 import { courierPickups, pickupOf } from "../lib/courier-pickup";
-import { STATUS_WORD, parcelCustodyOf, type PackageStatusView, type ParcelZone, type ShopLabelCommonDTO, type ShopOrderCollectionDTO, type StorageClass } from "@effy/shared-types";
+import { STATUS_WORD, parcelCustodyOf, type PackageStatusView, type ParcelZone, type ShopLabelCommonDTO, type ShopOrderCollectionDTO, type StorageClass, OPERATING_TZ } from "@effy/shared-types";
 
 import { appendEvent, emptyShelfFromPick } from "../fulfillments/repository";
 import {
@@ -126,8 +126,8 @@ WITH base AS (
      AND (   $5::text = 'any'
           -- ⚠ "Today" is the Melbourne day, not the server's UTC day - a 9am
           -- order in Melbourne is still "yesterday" in UTC.
-          OR ($5::text = 'today' AND placed_at >= (date_trunc('day', now() AT TIME ZONE 'Australia/Melbourne')
-                                             AT TIME ZONE 'Australia/Melbourne'))
+          OR ($5::text = 'today' AND placed_at >= (date_trunc('day', now() AT TIME ZONE '${OPERATING_TZ}')
+                                             AT TIME ZONE '${OPERATING_TZ}'))
           OR ($5::text = '7d'  AND placed_at >= now() - interval '7 days')
           OR ($5::text = '30d' AND placed_at >= now() - interval '30 days'))
 )`;

@@ -1,3 +1,4 @@
+import { OPERATING_CITY } from "@effy/shared-types";
 import { announce } from "@effy/edge-shared/live";
 
 import * as repo from "./repository";
@@ -26,7 +27,7 @@ export async function listCollectionRuns() {
 
 export async function createCollectionRun(runTime: string, label: string | null, sub: string) {
   if (!/^([01]\d|2[0-3]):[0-5]\d$/.test((runTime ?? "").trim())) {
-    throw new DeliveryError("invalid_zone", "run time must be HH:MM (24-hour, Australia/Melbourne)");
+    throw new DeliveryError("invalid_zone", `run time must be HH:MM (24-hour, ${OPERATING_CITY} time)`);
   }
   await repo.createCollectionRun(runTime.trim(), label?.trim() || null, sub);
   return repo.listCollectionRuns();

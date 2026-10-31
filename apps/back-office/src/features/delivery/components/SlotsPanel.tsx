@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query"
 import type { EffyColumnDef as ColumnDef } from "@effy/web-kit/data-table"
 import { Plus } from "lucide-react"
 
-import { formatDeliveryDay, type DeliverySlotDayDTO, type DeliverySlotDTO } from "@effy/shared-types"
+import { formatDeliveryDay, type DeliverySlotDayDTO, type DeliverySlotDTO, OPERATING_CITY } from "@effy/shared-types"
 import {
   Badge,
   Button,
@@ -143,7 +143,7 @@ export function SlotsPanel({ canManage }: { canManage: boolean }) {
     <section className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <p className="max-w-2xl text-sm text-muted-foreground">
-          The delivery windows a customer can choose - today, or on one of the next delivery days (Australia/Melbourne).
+          The delivery windows a customer can choose - today, or on one of the next delivery days ({OPERATING_CITY} time).
           A window is offered until its “order by” time and while a collection run can still bring the goods to the hub
           before it starts. A window has no limit on deliveries unless you set one. Changes apply to the next checkout;
           orders already placed keep the window they were sold. Each day has its own count: the columns show how many
@@ -249,7 +249,7 @@ function SlotDialog({ slot, onClose }: { slot: DeliverySlotDTO | null; onClose: 
         <DialogHeader>
           <DialogTitle>{slot ? "Edit window" : "New delivery window"}</DialogTitle>
           <DialogDescription>
-            Times are Melbourne time, 24-hour.{" "}
+            Times are {OPERATING_CITY} time, 24-hour.{" "}
             {slot
               ? "Orders already placed keep the window they were sold."
               : "It is offered at checkout as soon as you save."}

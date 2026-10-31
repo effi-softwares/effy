@@ -14,6 +14,8 @@
  * deadline, then soonest to open. `opens_at` is null once open, by the database's clock. `stop_count`
  * counts shops or drops, not the hub.
  */
+import { OPERATING_TZ } from "@effy/shared-types"
+
 export const OPEN_ROUNDS = `
   SELECT r.id, r.kind, r.status, r.deadline_at, r.changed_note,
          CASE WHEN r.opens > now() THEN r.opens END AS opens_at,
@@ -140,8 +142,8 @@ export const COMPLETED_TODAY = `
     FROM public.driver_round dr
    WHERE dr.driver_id = $1
      AND dr.status = 'completed'
-     AND dr.updated_at >= date_trunc('day', now() AT TIME ZONE 'Australia/Melbourne')
-                           AT TIME ZONE 'Australia/Melbourne'
+     AND dr.updated_at >= date_trunc('day', now() AT TIME ZONE '${OPERATING_TZ}')
+                           AT TIME ZONE '${OPERATING_TZ}'
    ORDER BY dr.updated_at DESC
 `;
 

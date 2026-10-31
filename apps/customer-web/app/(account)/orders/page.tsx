@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { Suspense } from "react"
 
-import { DELIVERY_TYPE_WORDS, type OrderSummaryDTO } from "@effy/shared-types"
+import { DELIVERY_TYPE_WORDS, type OrderSummaryDTO, OPERATING_TZ } from "@effy/shared-types"
 
 import { CatalogImage } from "@/components/storefront/CatalogImage"
 import { edgeApi, uncached } from "@/lib/api/edge"
@@ -50,7 +50,7 @@ export default function OrdersPage({ searchParams }: { searchParams: Search }) {
   )
 }
 
-const PLACED = new Intl.DateTimeFormat("en-AU", { day: "numeric", month: "short", year: "numeric", timeZone: "Australia/Melbourne" })
+const PLACED = new Intl.DateTimeFormat("en-AU", { day: "numeric", month: "short", year: "numeric", timeZone: OPERATING_TZ })
 const PAGE_SIZE = 10
 
 async function OrdersList({ searchParams }: { searchParams: Search }) {

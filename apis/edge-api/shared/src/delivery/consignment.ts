@@ -1,3 +1,4 @@
+import { OPERATING_TZ } from "@effy/shared-types";
 import type { ConsignmentEventKind, ConsignmentState } from "@effy/shared-types";
 
 import type { Queryable } from "../lib/db";
@@ -133,7 +134,7 @@ export async function bookConsignment(tx: Queryable, input: BookConsignmentInput
   }
   const pickup = pkg.collection === "supplier" ? input.pickup ?? null : null;
   if (pickup && !handed) {
-    const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Australia/Melbourne" }).format(input.now);
+    const today = new Intl.DateTimeFormat("en-CA", { timeZone: OPERATING_TZ }).format(input.now);
     if (pickup.date < today) throw new ConsignmentRefusal("pickup_in_past", "the pickup day has passed");
   }
 

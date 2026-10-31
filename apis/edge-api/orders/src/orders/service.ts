@@ -21,7 +21,7 @@ import { COUNTED_REFUND_STATUSES, imageUrlOrNull, keysetListPage, offsetListPage
 import type { ListPage } from "@effy/shared-types";
 
 import type { CourierListRequest, OrderListRequest } from "./list";
-import { CONSIGNMENT_PROBLEMS, COURIER_VIEWS, leastAdvanced, parcelCustodyOf, type OrderAssignment, type PackageStatusView, type ParcelZone } from "@effy/shared-types";
+import { CONSIGNMENT_PROBLEMS, COURIER_VIEWS, leastAdvanced, parcelCustodyOf, type OrderAssignment, type PackageStatusView, type ParcelZone, OPERATING_TZ } from "@effy/shared-types";
 
 import { judgePromise } from "./promise";
 import { consignmentsFor, nextCourierPickup, parseClock } from "@effy/edge-shared/delivery";
@@ -510,7 +510,7 @@ function overdueWithCourier(handedAt: Date, maxBusinessDays: number, now: Date):
   return days > maxBusinessDays;
 }
 
-const melbourneDay = (at: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: "Australia/Melbourne" }).format(at);
+const melbourneDay = (at: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: OPERATING_TZ }).format(at);
 
 function toCourierRow(r: repo.CourierParcelRow, now: Date): HandoverRowDTO & { _view: CourierView | null; _sort: number } {
   const dueOut = r.courier_collection === "hub" ? courierDueOut(r, now) : null;
@@ -520,7 +520,7 @@ function toCourierRow(r: repo.CourierParcelRow, now: Date): HandoverRowDTO & { _
 
   const pickupLate = r.courier_collection === "supplier" && !handed && r.pickup_date !== null
     && (r.pickup_date < r.today || (r.pickup_date === r.today && r.pickup_to !== null && new Intl.DateTimeFormat("en-GB", {
-      timeZone: "Australia/Melbourne", hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+      timeZone: OPERATING_TZ, hour: "2-digit", minute: "2-digit", hourCycle: "h23",
     }).format(now) > r.pickup_to));
   const hubLate = r.courier_collection === "hub" && !handed && (dueOut ? now.getTime() > dueOut.getTime() : r.today > dueOn);
   const overdue = handed && !problem && r.max_business_days !== null && overdueWithCourier(r.handed_over_at!, r.max_business_days, now);

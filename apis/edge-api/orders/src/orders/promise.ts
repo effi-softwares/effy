@@ -1,5 +1,7 @@
 // Derived on read, never stored (a stored due date goes stale when pickup days change). Pure; every
 // date arrives as a Melbourne `yyyy-mm-dd` from Postgres, and ISO dates compare as text.
+import { OPERATING_TZ } from "@effy/shared-types"
+
 
 export interface PromiseFacts {
   /** A courier order was told an estimate and promised no day. */
@@ -32,7 +34,7 @@ export interface PromiseVerdict {
 }
 
 function melbourneDay(at: Date): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "Australia/Melbourne" }).format(at);
+  return new Intl.DateTimeFormat("en-CA", { timeZone: OPERATING_TZ }).format(at);
 }
 
 export function judgePromise(f: PromiseFacts): PromiseVerdict {

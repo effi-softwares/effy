@@ -1,3 +1,4 @@
+import { OPERATING_TZ } from "@effy/shared-types"
 import type {
   VehicleBodyType,
   VehicleComplianceIssue,
@@ -78,7 +79,7 @@ export function formatDate(iso: string | null): string {
     day: "numeric",
     month: "short",
     year: "numeric",
-    timeZone: "Australia/Melbourne",
+    timeZone: OPERATING_TZ,
   })
 }
 
@@ -91,7 +92,7 @@ export function formatDateTime(iso: string | null): string {
     month: "short",
     hour: "2-digit",
     minute: "2-digit",
-    timeZone: "Australia/Melbourne",
+    timeZone: OPERATING_TZ,
   })
 }
 

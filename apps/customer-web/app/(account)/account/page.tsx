@@ -3,7 +3,7 @@ import Link from "next/link"
 import { redirect } from "next/navigation"
 import { Suspense } from "react"
 import { CircleHelp, CreditCard, Heart, Lock, MapPin, Pencil, ShieldCheck, Tag } from "lucide-react"
-import { DELIVERY_TYPE_WORDS, type PaymentMethodDTO } from "@effy/shared-types"
+import { DELIVERY_TYPE_WORDS, type PaymentMethodDTO, OPERATING_TZ } from "@effy/shared-types"
 
 import { CoverageNote } from "@/app/(account)/addresses/_components/CoverageNote"
 import { btnClass } from "@/components/storefront/actions"
@@ -35,8 +35,8 @@ export default function AccountPage({ searchParams }: { searchParams: Promise<{ 
   )
 }
 
-const DATE = new Intl.DateTimeFormat("en-AU", { day: "numeric", month: "long", year: "numeric", timeZone: "Australia/Melbourne" })
-const SHORT = new Intl.DateTimeFormat("en-AU", { day: "numeric", month: "short", year: "numeric", timeZone: "Australia/Melbourne" })
+const DATE = new Intl.DateTimeFormat("en-AU", { day: "numeric", month: "long", year: "numeric", timeZone: OPERATING_TZ })
+const SHORT = new Intl.DateTimeFormat("en-AU", { day: "numeric", month: "short", year: "numeric", timeZone: OPERATING_TZ })
 
 function day(iso: string | null | undefined, fmt: Intl.DateTimeFormat): string | null {
   if (!iso) return null

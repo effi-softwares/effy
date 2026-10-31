@@ -3,7 +3,7 @@
 import { logger, query } from "@effy/edge-shared";
 import { customerCompensationOf } from "@effy/edge-shared/delivery";
 import { customerWords, type EntryKind } from "@effy/edge-shared/points";
-import { compensationLine, courierEstimateSentence, DELIVERY_TYPE_WORDS, formatArrival, movedLines } from "@effy/shared-types";
+import { compensationLine, courierEstimateSentence, DELIVERY_TYPE_WORDS, formatArrival, movedLines, OPERATING_TZ } from "@effy/shared-types";
 import { identityFromEnv, MailConfigError } from "@effy/email-kit";
 import { sendEmail } from "@effy/email-kit/send";
 
@@ -11,7 +11,7 @@ import type { SendResult } from "../fcm/sender";
 import type { NotificationType } from "./copy";
 
 /** A delivery date is the shopper's day, not the server's. */
-const TZ = "Australia/Melbourne";
+const TZ = OPERATING_TZ;
 
 /** `order_paid` must never appear: its email is the receipt, via `receipt_dispatch`. */
 const EMAIL_TEMPLATES = {

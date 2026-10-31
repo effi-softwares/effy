@@ -3,10 +3,11 @@
  * conflict do nothing on customer and date) produces the email intents, so a customer is told once. The
  * date is the last usable day in Melbourne; a customer with no email is not mailed.
  */
+import { OPERATING_TZ } from "@effy/shared-types";
 import type { Queryable } from "../lib/db";
 import { loadSettings } from "./settings";
 
-const TZ = "Australia/Melbourne";
+const TZ = OPERATING_TZ;
 
 /** Queue warnings for lots that stop within the warning period. Returns how many were queued. */
 export async function queueExpiryWarnings(q: Queryable, now: Date): Promise<number> {

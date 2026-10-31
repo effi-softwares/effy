@@ -327,6 +327,12 @@ Observable and measurable from day one (constitution Principle VII; full detail 
   alongside email - never ad hoc per feature.
 
 ## Decisions locked
+- **Operating time zone: one value per environment.** `operating_timezone` in `<env>.tfvars`, **build-time everywhere**:
+  → SSM `/effy/<env>/operating_tz` → each stack's esbuild `define`, the Amplify builds, and the customer app's Gradle
+  build (reads the tfvars line). Shops follow it by themselves (`followOperatingZone`). Code reads `OPERATING_TZ` /
+  `OPERATING_CITY` from `@effy/shared-types` only (Melbourne when unset); ⚠ `operating-zone.guard.test.ts` fails a
+  zone written anywhere else. Dev is on `Asia/Colombo` (2026-10-31); production is Melbourne or Sydney. Names like
+  `melbourneDate` are history: they mean "on Effy's clock". Steps: [README.md](README.md), "Switching the time zone".
 - **Region: `ap-southeast-2` (Sydney).** Moved from `ap-southeast-1` (Singapore) on 2026-07-12 - dev
   was destroyed and re-provisioned from scratch (no data kept), and the Terraform state bucket moved
   with it (`effy-apse2-tfstate`). `ap-southeast-1` is empty. Region is config, never a literal: it

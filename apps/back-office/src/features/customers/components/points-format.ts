@@ -1,3 +1,5 @@
+import { OPERATING_TZ } from "@effy/shared-types"
+
 export function parsePoints(text: string): number | null {
   const t = text.replace(/[,\s]/g, "")
   if (!/^\d+$/.test(t)) return null
@@ -17,7 +19,7 @@ export function formatPoints(points: number, signed = false): string {
 }
 
 export function formatDay(ymd: string): string {
-  return new Intl.DateTimeFormat("en-AU", { dateStyle: "medium", timeZone: "Australia/Melbourne" }).format(
+  return new Intl.DateTimeFormat("en-AU", { dateStyle: "medium", timeZone: OPERATING_TZ }).format(
     new Date(`${ymd}T12:00:00+10:00`),
   )
 }

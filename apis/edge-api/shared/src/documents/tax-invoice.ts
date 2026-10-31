@@ -1,6 +1,7 @@
 // Tax invoices and adjustment notes, issued once from a frozen `snapshot` of what the PDF prints and
 // never altered (`tax_document` is append-only). Nothing is issued while the operator's legal name and
 // ABN are unset: refused (`InvoicesUnavailable`) and alerted, never a placeholder.
+import { OPERATING_TZ } from "@effy/shared-types";
 import type { GstStatus, TaxDocumentDTO } from "@effy/shared-types";
 
 import { adjustmentGst, invoiceTotals, money } from "./gst";
@@ -185,7 +186,7 @@ export async function orderTaxDocuments(tx: Tx, orderId: string): Promise<{ invo
 }
 
 const day = (iso: string) =>
-  new Intl.DateTimeFormat("en-AU", { day: "numeric", month: "long", year: "numeric", timeZone: "Australia/Melbourne" }).format(new Date(iso));
+  new Intl.DateTimeFormat("en-AU", { day: "numeric", month: "long", year: "numeric", timeZone: OPERATING_TZ }).format(new Date(iso));
 const abnWords = (abn: string) => `${abn.slice(0, 2)} ${abn.slice(2, 5)} ${abn.slice(5, 8)} ${abn.slice(8)}`;
 
 /** From its snapshot alone. */

@@ -1,5 +1,6 @@
 // Held packages, overdue steps and vehicle checks; all derived on read except the three stored facts.
 
+import { OPERATING_TZ } from "@effy/shared-types";
 import { ROUND_STAGE_COLUMNS, ROUND_STAGE_LATERAL } from "@effy/edge-shared/delivery";
 
 /** Oldest first. */
@@ -69,7 +70,7 @@ export const VEHICLE_CHECKS_TODAY = `
     FROM public.vehicle_check vc
     JOIN public.driver d ON d.id = vc.driver_id
     JOIN public.vehicle v ON v.id = vc.vehicle_id
-   WHERE vc.local_date = (now() AT TIME ZONE 'Australia/Melbourne')::date
+   WHERE vc.local_date = (now() AT TIME ZONE '${OPERATING_TZ}')::date
      AND (vc.unsafe OR vc.minor)
    ORDER BY vc.unsafe DESC, vc.created_at DESC
 `;

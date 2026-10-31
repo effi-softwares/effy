@@ -1,8 +1,10 @@
 // One definition of "may this driver's vehicle take work today?", for the planner, readiness and /me.
 
 /** `none` | `ok` | `due` | `unsafe` for driver `d` and held vehicle `v`; `ok` whenever the check is off. */
+import { OPERATING_TZ } from "@effy/shared-types"
+
 export function vehicleCheckStateSql(d = "d", v = "v"): string {
-  const today = `(now() AT TIME ZONE 'Australia/Melbourne')::date`;
+  const today = `(now() AT TIME ZONE '${OPERATING_TZ}')::date`;
   return `CASE
     WHEN ${v}.id IS NULL THEN 'none'
     WHEN NOT COALESCE((SELECT vehicle_check_required FROM public.delivery_settings WHERE id = 1), false) THEN 'ok'

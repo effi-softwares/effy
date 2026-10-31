@@ -11,6 +11,8 @@
  * Combining: every combinable candidate applies together, unless one non-combinable candidate alone
  * gives more; ties go to the one ending soonest, then the oldest.
  */
+import { OPERATING_TZ } from "@effy/shared-types"
+
 
 export type EngineKind = "cart" | "item" | "bxgy" | "delivery";
 export type EngineValueType = "percent" | "amount" | "free";
@@ -386,7 +388,7 @@ function sum(xs: readonly number[]): number {
 /** Melbourne's ISO day and minute of day for an instant — the context the engine is given. */
 export function melbourneContext(at: Date): EngineContext {
   const parts = new Intl.DateTimeFormat("en-AU", {
-    timeZone: "Australia/Melbourne",
+    timeZone: OPERATING_TZ,
     weekday: "short",
     hour: "2-digit",
     minute: "2-digit",

@@ -1,3 +1,4 @@
+import { OPERATING_TZ } from "@effy/shared-types";
 import { COURIER_COLLECTION_SQL } from "@effy/edge-shared/delivery";
 import type { DeliveryFeeBreakdownDTO, HandoverPreference, OrderAwaiting } from "@effy/shared-types";
 
@@ -433,7 +434,7 @@ export interface PackageRow {
   service_cutoff: string | null;
 }
 
-const MEL_DATE = (expr: string) => `(${expr} AT TIME ZONE 'Australia/Melbourne')::date::text`;
+const MEL_DATE = (expr: string) => `(${expr} AT TIME ZONE '${OPERATING_TZ}')::date::text`;
 
 export async function packages(orderId: string): Promise<PackageRow[]> {
   const res = await query<PackageRow>(
@@ -625,22 +626,22 @@ export interface TodayRow {
 
 export async function today(countedRefundStatuses: readonly string[]): Promise<TodayRow> {
   const res = await query<TodayRow>(
-    `WITH day AS (SELECT (now() AT TIME ZONE 'Australia/Melbourne')::date AS d)
+    `WITH day AS (SELECT (now() AT TIME ZONE '${OPERATING_TZ}')::date AS d)
      SELECT day.d::text AS date,
             (SELECT count(*) FROM public."order" o
               WHERE o.placed_at IS NOT NULL AND o.status <> 'pending_payment'
                 AND o.delivery_type = 'effy'
-                AND (o.placed_at AT TIME ZONE 'Australia/Melbourne')::date = day.d)::text AS effy,
+                AND (o.placed_at AT TIME ZONE '${OPERATING_TZ}')::date = day.d)::text AS effy,
             (SELECT count(*) FROM public."order" o
               WHERE o.placed_at IS NOT NULL AND o.status <> 'pending_payment'
                 AND o.delivery_type = 'courier'
-                AND (o.placed_at AT TIME ZONE 'Australia/Melbourne')::date = day.d)::text AS courier,
+                AND (o.placed_at AT TIME ZONE '${OPERATING_TZ}')::date = day.d)::text AS courier,
             (SELECT count(DISTINCT r.order_id) FROM public.refund r
               WHERE r.status = ANY($1::text[])
-                AND (r.created_at AT TIME ZONE 'Australia/Melbourne')::date = day.d)::text AS refunded_orders,
+                AND (r.created_at AT TIME ZONE '${OPERATING_TZ}')::date = day.d)::text AS refunded_orders,
             (SELECT COALESCE(sum(r.amount), 0) FROM public.refund r
               WHERE r.status = ANY($1::text[])
-                AND (r.created_at AT TIME ZONE 'Australia/Melbourne')::date = day.d)::text AS refunded_amount
+                AND (r.created_at AT TIME ZONE '${OPERATING_TZ}')::date = day.d)::text AS refunded_amount
        FROM day`,
     [countedRefundStatuses],
   );

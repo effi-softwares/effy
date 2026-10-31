@@ -1,9 +1,9 @@
-import { DELIVERY_NOTE_LINE_WORDS, type DeliveryNoteDTO } from "@effy/shared-types"
+import { DELIVERY_NOTE_LINE_WORDS, type DeliveryNoteDTO, OPERATING_TZ } from "@effy/shared-types"
 
 import { DeliveryNoteSeen } from "./DeliveryNoteSeen"
 import { TaxInvoiceBlock } from "./TaxInvoiceBlock"
 
-const DAY = new Intl.DateTimeFormat("en-AU", { dateStyle: "long", timeZone: "Australia/Melbourne" })
+const DAY = new Intl.DateTimeFormat("en-AU", { dateStyle: "long", timeZone: OPERATING_TZ })
 
 /**
  * The order's documents. The delivery note says what was supplied, line by line, once the

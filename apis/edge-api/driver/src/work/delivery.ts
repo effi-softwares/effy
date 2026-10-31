@@ -1,4 +1,4 @@
-import { ANY_TIME_LABEL, formatDeliveryWindow, type DeliveryWindow } from "@effy/shared-types";
+import { ANY_TIME_LABEL, formatDeliveryWindow, type DeliveryWindow, OPERATING_TZ } from "@effy/shared-types";
 import { presignRead, query, withTransaction } from "@effy/edge-shared";
 import { liveParcelsByPackage } from "@effy/edge-shared/labels";
 import type {
@@ -188,7 +188,7 @@ export async function history(driverId: string): Promise<HistoryDTO> {
     window_start: Date | null;
     window_end: Date | null;
   }>(
-    `SELECT to_char(dr.updated_at AT TIME ZONE 'Australia/Melbourne', 'YYYY-MM-DD') AS local_date,
+    `SELECT to_char(dr.updated_at AT TIME ZONE '${OPERATING_TZ}', 'YYYY-MM-DD') AS local_date,
             dr.id        AS run_id,
             dr.kind      AS kind,
             dr.updated_at AS completed_at,
@@ -220,7 +220,7 @@ export async function history(driverId: string): Promise<HistoryDTO> {
     failure_reason: string | null;
   }>(
     // A drop that came back is history too, with its street and how a delivered one was handed over.
-    `SELECT to_char(x.at AT TIME ZONE 'Australia/Melbourne', 'YYYY-MM-DD') AS local_date, x.*
+    `SELECT to_char(x.at AT TIME ZONE '${OPERATING_TZ}', 'YYYY-MM-DD') AS local_date, x.*
        FROM (
          SELECT rs.id          AS drop_id,
                 o.order_number AS order_number,

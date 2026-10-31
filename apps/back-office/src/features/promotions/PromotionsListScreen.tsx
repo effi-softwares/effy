@@ -7,6 +7,7 @@ import {
   type AdminPromotionListItemDTO,
   type PromotionKind,
   type PromotionState,
+  OPERATING_TZ,
 } from "@effy/shared-types"
 import { Button } from "@effy/design-system/ui"
 import {
@@ -53,7 +54,7 @@ const dateFmt = new Intl.DateTimeFormat("en-AU", {
   day: "numeric",
   month: "short",
   year: "numeric",
-  timeZone: "Australia/Melbourne",
+  timeZone: OPERATING_TZ,
 })
 
 export function activeDates(startsAt: string | null, endsAt: string | null): string {

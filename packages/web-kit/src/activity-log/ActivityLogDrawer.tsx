@@ -25,6 +25,7 @@ import {
   type ActivityLogId,
   type ActivityPage,
   type ActivityTone,
+  OPERATING_TZ,
 } from "@effy/shared-types";
 
 import type { EffyColumnDef } from "../data-table/column-meta";
@@ -276,7 +277,7 @@ function ActivityLogBody({ app, log, api, path, queryKey, subjects, fileName }: 
 // ---- columns --------------------------------------------------------------------------------------------
 
 const WHEN = new Intl.DateTimeFormat("en-AU", {
-  timeZone: "Australia/Melbourne",
+  timeZone: OPERATING_TZ,
   day: "numeric",
   month: "short",
   year: "numeric",

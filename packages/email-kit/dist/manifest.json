@@ -32,7 +32,7 @@
   "feedback-received": {
     "htmlBytes": 14904,
     "htmlChars": 14904,
-    "textBytes": 453
+    "textBytes": 451
   },
   "feedback-reply": {
     "htmlBytes": 19940,
@@ -42,7 +42,7 @@
   "newsletter-confirmation": {
     "htmlBytes": 16052,
     "htmlChars": 16052,
-    "textBytes": 505
+    "textBytes": 503
   },
   "order-confirmation": {
     "htmlBytes": 44394,
@@ -70,7 +70,7 @@
     "textBytes": 488
   },
   "points-expiring": {
-    "htmlBytes": 15515,
+    "htmlBytes": 15513,
     "htmlChars": 15513,
     "textBytes": 452
   }

@@ -10,6 +10,6 @@ import platform.Foundation.timeZoneWithName
  * in summer is a smaller lie than one ten hours out all year. iOS has shipped this zone since iOS 2.
  */
 actual fun melbourneOffsetSeconds(epochMillis: Long): Int {
-    val zone = NSTimeZone.timeZoneWithName("Australia/Melbourne") ?: return 10 * 3600
+    val zone = NSTimeZone.timeZoneWithName(OPERATING_TZ) ?: return 10 * 3600
     return zone.secondsFromGMTForDate(NSDate.dateWithTimeIntervalSince1970(epochMillis / 1000.0)).toInt()
 }

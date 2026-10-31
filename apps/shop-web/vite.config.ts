@@ -7,6 +7,7 @@ import { VitePWA } from "vite-plugin-pwa"
 
 export default defineConfig({
   define: {
+    "process.env.OPERATING_TZ": JSON.stringify(process.env.OPERATING_TZ ?? ""),
     __BUILD_ID__: JSON.stringify(process.env.BUILD_ID ?? String(Date.now())),
   },
   plugins: [

@@ -1,3 +1,4 @@
+import { OPERATING_TZ } from "@effy/shared-types";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
 import { Link, useLocation, type LinkProps } from "@tanstack/react-router";
@@ -123,7 +124,7 @@ export function StaffHeader({ title, groups, defaultTabs, onOpenSearch, searchPr
 }
 
 const APPEAR_AFTER_MS = 4_000;
-const clock = new Intl.DateTimeFormat("en-AU", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "Australia/Melbourne" });
+const clock = new Intl.DateTimeFormat("en-AU", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: OPERATING_TZ });
 
 /**
  * Says so when the screen cannot receive live updates, and how old what is on it is.

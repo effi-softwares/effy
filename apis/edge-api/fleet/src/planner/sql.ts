@@ -1,5 +1,6 @@
 // No coordinate, distance or travel-time column exists or is selected: a shop has an address, nothing computes distance.
 
+import { OPERATING_TZ } from "@effy/shared-types";
 import { COURIER_COLLECTION_SQL, heldSql, vehicleCheckStateSql } from "@effy/edge-shared/delivery";
 
 /** Who takes a parcel to the customer, over the gathers' aliases. */
@@ -163,8 +164,8 @@ export const CANDIDATE_DRIVERS = `
               JOIN public.round_stop   rs ON rs.id = rp.stop_id
               JOIN public.driver_round dr ON dr.id = rs.round_id
              WHERE dr.driver_id = d.id
-               AND rp.created_at >= date_trunc('day', now() AT TIME ZONE 'Australia/Melbourne')
-                                    AT TIME ZONE 'Australia/Melbourne'),
+               AND rp.created_at >= date_trunc('day', now() AT TIME ZONE '${OPERATING_TZ}')
+                                    AT TIME ZONE '${OPERATING_TZ}'),
            0
          )::bigint               AS packages_assigned_today,
          -- Today's check of the vehicle they hold.

@@ -29,6 +29,7 @@ locals {
 
   customer_web_env = {
     # public (inlined at build)
+    OPERATING_TZ                       = var.operating_timezone
     NEXT_PUBLIC_SITE_URL               = local.storefront_url
     NEXT_PUBLIC_COGNITO_USER_POOL_ID   = module.customer_pool.user_pool_id
     NEXT_PUBLIC_COGNITO_CLIENT_ID      = module.customer_pool.app_client_id

@@ -1,4 +1,5 @@
 // Every mutation writes its audit row in the same transaction.
+import { OPERATING_TZ } from "@effy/shared-types";
 import type { PoolClient } from "pg";
 
 import {
@@ -322,13 +323,13 @@ export async function createShopWithManager(
     try {
       const ins = await client.query<{ id: string }>(
         // No address on create; it is set through update.
-        `INSERT INTO public.shop (code, name, contact_phone, notes)
-              VALUES ($1, $2, $3, $4)
+        `INSERT INTO public.shop (code, name, contact_phone, notes, timezone)
+              VALUES ($1, $2, $3, $4, $5)
            ON CONFLICT (code) DO UPDATE
               SET name = EXCLUDED.name, contact_phone = EXCLUDED.contact_phone,
                   notes = EXCLUDED.notes, updated_at = now()
           RETURNING id`,
-        [input.code, input.name, input.contactPhone, input.notes],
+        [input.code, input.name, input.contactPhone, input.notes, OPERATING_TZ],
       );
       id = ins.rows[0]!.id;
     } catch (err) {

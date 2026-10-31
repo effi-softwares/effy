@@ -1,4 +1,5 @@
 // The gaps, found before an order is affected.
+import { OPERATING_TZ } from "@effy/shared-types";
 import { query } from "@effy/edge-shared";
 import type {
   BlockedDriver,
@@ -53,8 +54,8 @@ export async function expiringCredentials(): Promise<ExpiringCredential[]> {
     expired: boolean;
   }>(
     `WITH horizon AS (
-       SELECT (now() AT TIME ZONE 'Australia/Melbourne')::date AS today,
-              (now() AT TIME ZONE 'Australia/Melbourne')::date + make_interval(days => $1::int) AS limit_date
+       SELECT (now() AT TIME ZONE '${OPERATING_TZ}')::date AS today,
+              (now() AT TIME ZONE '${OPERATING_TZ}')::date + make_interval(days => $1::int) AS limit_date
      )
      SELECT d.id, d.name, 'licence'::text AS kind, d.licence_expires_on AS expires_on,
             (d.licence_expires_on < h.today) AS expired

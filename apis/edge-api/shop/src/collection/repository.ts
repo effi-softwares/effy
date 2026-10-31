@@ -1,5 +1,6 @@
 // Reads for the collection facts a shop is told (099): this shop's pickups on collection rounds. The
 // packages' runs come from `@effy/edge-shared/delivery` (`shopPackageRuns`). Raw SQL.
+import { OPERATING_TZ } from "@effy/shared-types";
 import { query, type Queryable } from "@effy/edge-shared";
 
 import type { StopFacts } from "./rule";
@@ -33,5 +34,5 @@ export async function loadStops(shopId: string, now: Date, db: Queryable = { que
 
 export async function shopTimezone(shopId: string, db: Queryable = { query }): Promise<string> {
   const res = await db.query<{ timezone: string }>(`SELECT timezone FROM public.shop WHERE id = $1::uuid`, [shopId]);
-  return res.rows[0]?.timezone ?? "Australia/Melbourne";
+  return res.rows[0]?.timezone ?? OPERATING_TZ;
 }

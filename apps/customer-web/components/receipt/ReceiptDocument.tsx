@@ -1,7 +1,7 @@
 import { Package } from "lucide-react"
 
 import { sellerIdentity } from "@effy/legal-content"
-import { DELIVERY_FEE_LINE_LABEL, type OrderDTO, type OrderItemDTO, type PaymentMethodSummaryDTO } from "@effy/shared-types"
+import { DELIVERY_FEE_LINE_LABEL, type OrderDTO, type OrderItemDTO, type PaymentMethodSummaryDTO, OPERATING_TZ } from "@effy/shared-types"
 
 import { AgeBadge } from "@/components/storefront/AgeBadge"
 import { CatalogImage } from "@/components/storefront/CatalogImage"
@@ -314,7 +314,7 @@ function brandLabel(method: PaymentMethodSummaryDTO): string {
 }
 
 /**
- * Fixed to `Australia/Melbourne`, not the server's zone. A receipt states when an order was placed,
+ * Fixed to the operating zone, not the server's zone. A receipt states when an order was placed,
  * and the platform trades in one timezone (047 judges its cutoff in the same one). Rendering this on a
  * server in another zone would print a different date than the shopper experienced.
  */
@@ -324,6 +324,6 @@ function formatPlacedAt(iso: string): string {
   return new Intl.DateTimeFormat("en-AU", {
     dateStyle: "long",
     timeStyle: "short",
-    timeZone: "Australia/Melbourne",
+    timeZone: OPERATING_TZ,
   }).format(d)
 }

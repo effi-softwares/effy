@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query"
 import { Link, useSearch } from "@tanstack/react-router"
 
-import { COURIER_VIEWS, type CourierView, type HandoverRowDTO } from "@effy/shared-types"
+import { COURIER_VIEWS, type CourierView, type HandoverRowDTO, OPERATING_TZ } from "@effy/shared-types"
 import { CircleAlert, CircleCheck, Clock, Forward, PackageOpen, Settings2, Store, Truck, Warehouse } from "lucide-react"
 
 import { Button } from "@effy/design-system/ui"
@@ -38,7 +38,7 @@ const when = (iso: string) =>
     month: "short",
     hour: "numeric",
     minute: "2-digit",
-    timeZone: "Australia/Melbourne",
+    timeZone: OPERATING_TZ,
   }).format(new Date(iso))
 
 /** Courier parcels' view in the address (103), mirroring the orders service's `COURIER_LIST_SPEC`. */

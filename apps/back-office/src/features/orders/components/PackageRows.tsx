@@ -1,6 +1,6 @@
 import { useState } from "react"
 
-import { PARCEL_CUSTODY_WORDS, PARCEL_ZONE_WORDS, type AdminParcelDTO, type OrderAssignment } from "@effy/shared-types"
+import { PARCEL_CUSTODY_WORDS, PARCEL_ZONE_WORDS, type AdminParcelDTO, type OrderAssignment, OPERATING_TZ } from "@effy/shared-types"
 import { AssignmentLine } from "./AssignmentLine"
 import { ConsignmentBlock } from "./ConsignmentBlock"
 import { PackageJourney } from "./PackageJourney"
@@ -223,7 +223,7 @@ function PackageRow({
       {pkg.dueOut || pkg.late ? (
         <p className={`text-sm ${pkg.late ? "text-warning" : "text-muted-foreground"}`}>
           {pkg.dueOut
-            ? `Due out ${new Intl.DateTimeFormat("en-AU", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", timeZone: "Australia/Melbourne" }).format(new Date(pkg.dueOut))}`
+            ? `Due out ${new Intl.DateTimeFormat("en-AU", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", timeZone: OPERATING_TZ }).format(new Date(pkg.dueOut))}`
             : "Pickup day has passed"}
           {pkg.late ? " - late" : ""}
         </p>

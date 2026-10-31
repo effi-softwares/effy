@@ -4,16 +4,18 @@
  * Lapsed compliance items as a `text[]`; empty means compliant. Derived on read (compliance changes at
  * midnight), enumerated (each has its own remedy), and a null expiry is not a lapse. Melbourne time.
  */
+import { OPERATING_TZ } from "@effy/shared-types"
+
 export const COMPLIANCE_ISSUES = `(
   ARRAY_REMOVE(ARRAY[
     CASE WHEN v.registration_expires_on IS NOT NULL
-          AND v.registration_expires_on < (now() AT TIME ZONE 'Australia/Melbourne')::date
+          AND v.registration_expires_on < (now() AT TIME ZONE '${OPERATING_TZ}')::date
          THEN 'registration_expired' END,
     CASE WHEN v.insurance_expires_on IS NOT NULL
-          AND v.insurance_expires_on < (now() AT TIME ZONE 'Australia/Melbourne')::date
+          AND v.insurance_expires_on < (now() AT TIME ZONE '${OPERATING_TZ}')::date
          THEN 'insurance_expired' END,
     CASE WHEN v.roadworthy_expires_on IS NOT NULL
-          AND v.roadworthy_expires_on < (now() AT TIME ZONE 'Australia/Melbourne')::date
+          AND v.roadworthy_expires_on < (now() AT TIME ZONE '${OPERATING_TZ}')::date
          THEN 'roadworthy_expired' END
   ], NULL)
 )`;

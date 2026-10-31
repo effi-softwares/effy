@@ -1,6 +1,6 @@
 // The delivery note: what the customer was supplied, once the order has arrived. Lines are merged by
 // product across packages, so it never shows how many suppliers or bags filled the order; no price or shop.
-import { DELIVERY_NOTE_LINE_WORDS, DOCUMENT_CONTACT, type DeliveryNoteDTO, type DeliveryNoteLineStatus } from "@effy/shared-types";
+import { DELIVERY_NOTE_LINE_WORDS, DOCUMENT_CONTACT, type DeliveryNoteDTO, type DeliveryNoteLineStatus, OPERATING_TZ } from "@effy/shared-types";
 
 import { A4, MARGIN, ensureRoom, finish, newDocument, rule, text, wordmark, wrap } from "./pdf";
 
@@ -68,7 +68,7 @@ function statusOf(ordered: number, supplied: number): DeliveryNoteLineStatus {
 }
 
 const day = (iso: string) =>
-  new Intl.DateTimeFormat("en-AU", { day: "numeric", month: "long", year: "numeric", timeZone: "Australia/Melbourne" }).format(new Date(iso));
+  new Intl.DateTimeFormat("en-AU", { day: "numeric", month: "long", year: "numeric", timeZone: OPERATING_TZ }).format(new Date(iso));
 
 /** A4: the wordmark, the order, a table of lines, the contact. */
 export async function renderDeliveryNotePdf(note: DeliveryNoteDTO): Promise<Uint8Array> {

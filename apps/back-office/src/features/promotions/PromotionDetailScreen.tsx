@@ -1,3 +1,4 @@
+import { OPERATING_TZ, OPERATING_CITY } from "@effy/shared-types"
 import { useState } from "react"
 
 import { useQuery } from "@tanstack/react-query"
@@ -56,7 +57,7 @@ const timeFmt = new Intl.DateTimeFormat("en-AU", {
   year: "numeric",
   hour: "numeric",
   minute: "2-digit",
-  timeZone: "Australia/Melbourne",
+  timeZone: OPERATING_TZ,
 })
 const formatTime = (iso: string | null) => (iso ? timeFmt.format(new Date(iso)) : "-")
 
@@ -379,7 +380,7 @@ function Overview({ p }: { p: Promotion }) {
           ]}
         />
       </Panel>
-      <Panel title="Who and when" description="Times are Melbourne time.">
+      <Panel title="Who and when" description={`Times are ${OPERATING_CITY} time.`}>
         <DetailRows
           rows={[
             {
@@ -439,7 +440,7 @@ function PromotionSkeleton({ promotionId }: { promotionId: string }) {
           <PanelSkeleton title="What it gives">
             <DetailRowsSkeleton labels={["Gives", "Applies", "Minimum spend", "Combines"]} />
           </PanelSkeleton>
-          <PanelSkeleton title="Who and when" description="Times are Melbourne time.">
+          <PanelSkeleton title="Who and when" description={`Times are ${OPERATING_CITY} time.`}>
             <DetailRowsSkeleton labels={["Who", "Delivery", "Starts", "Ends", "Conditions"]} />
           </PanelSkeleton>
         </>

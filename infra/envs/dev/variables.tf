@@ -13,6 +13,16 @@ variable "aws_region" {
   type        = string
 }
 
+variable "operating_timezone" {
+  description = "Effy's clock: delivery days, windows, cutoffs, \"today\" and printed dates. Changing it: README.md."
+  type        = string
+
+  validation {
+    condition     = contains(["Australia/Melbourne", "Australia/Sydney", "Asia/Colombo"], var.operating_timezone)
+    error_message = "operating_timezone must be Australia/Melbourne, Australia/Sydney or Asia/Colombo."
+  }
+}
+
 variable "aws_account_id" {
   description = "Target AWS account id (12 digits) - pinned via provider allowed_account_ids (research.md D8)."
   type        = string

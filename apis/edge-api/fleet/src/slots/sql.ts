@@ -1,5 +1,7 @@
 /** Melbourne's calendar date now. */
-export const MEL_TODAY = `(now() AT TIME ZONE 'Australia/Melbourne')::date`;
+import { OPERATING_TZ } from "@effy/shared-types"
+
+export const MEL_TODAY = `(now() AT TIME ZONE '${OPERATING_TZ}')::date`;
 
 /** `booked` comes only from `public.delivery_slot_load`, the one definition of "a booking counts" that checkout reads too. */
 export const LIST_SLOTS = `

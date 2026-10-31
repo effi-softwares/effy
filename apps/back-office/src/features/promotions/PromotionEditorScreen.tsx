@@ -1,3 +1,4 @@
+import { OPERATING_CITY } from "@effy/shared-types"
 import { useState, type ComponentProps, type ReactNode } from "react"
 
 import { useQuery } from "@tanstack/react-query"
@@ -393,7 +394,7 @@ function Editor({ current }: { current: Promotion | null }) {
 
           <Panel
             title="When"
-            description="Melbourne time. Leave a date empty for no bound; no days chosen means every day."
+            description={`${OPERATING_CITY} time. Leave a date empty for no bound; no days chosen means every day.`}
           >
             <div className="space-y-5">
               <div className="grid gap-4 sm:grid-cols-2">

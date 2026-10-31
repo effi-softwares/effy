@@ -2,6 +2,7 @@
 import {
   ARRIVAL_UNCONFIRMED, asapSentence, courierEstimateSentence, DELIVERY_WINDOW_WORDS, courierLines, DELIVERY_FEE_LINE_LABEL, DELIVERY_TYPE_WORDS, formatArrival,
   type DeliveryFeeLineKind,
+  OPERATING_TZ,
 } from "@effy/shared-types";
 import { logger } from "@effy/edge-shared";
 import { identityFromEnv, MailConfigError } from "@effy/email-kit";
@@ -11,7 +12,7 @@ import type { PendingReceipt, ReceiptSendResult } from "./drain";
 import { loadReceipt, type ReceiptArrivalRow, type ReceiptItemRow } from "./repository";
 
 /** "Today" is the shopper's day, not the server's. */
-const TZ = "Australia/Melbourne";
+const TZ = OPERATING_TZ;
 
 function money(amount: string | null, currency: string): string {
   const n = Number(amount ?? "0");

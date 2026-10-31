@@ -8,3 +8,11 @@ resource "aws_ssm_parameter" "region" {
   value = var.aws_region
   tier  = "Standard"
 }
+
+# Effy's clock: each stack bakes this into its bundle at deploy; the web apps take the same value at build.
+resource "aws_ssm_parameter" "operating_timezone" {
+  name  = "/effy/${var.env}/operating_tz"
+  type  = "String"
+  value = var.operating_timezone
+  tier  = "Standard"
+}

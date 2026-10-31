@@ -1,3 +1,4 @@
+import { OPERATING_TZ } from "@effy/shared-types"
 import Link from "next/link"
 
 import type { CustomerPointsDTO, PointsHistoryEntryDTO } from "@effy/shared-types"
@@ -13,9 +14,9 @@ const money = (amount: string) =>
 const pts = (n: number) => Math.abs(n).toLocaleString("en-AU")
 /** "8 Oct 2027": a Melbourne date, read at noon so no zone moves it. */
 const day = (ymd: string) =>
-  new Intl.DateTimeFormat("en-AU", { dateStyle: "medium", timeZone: "Australia/Melbourne" }).format(new Date(`${ymd}T12:00:00+10:00`))
+  new Intl.DateTimeFormat("en-AU", { dateStyle: "medium", timeZone: OPERATING_TZ }).format(new Date(`${ymd}T12:00:00+10:00`))
 const when = (iso: string) =>
-  new Intl.DateTimeFormat("en-AU", { dateStyle: "medium", timeZone: "Australia/Melbourne" }).format(new Date(iso))
+  new Intl.DateTimeFormat("en-AU", { dateStyle: "medium", timeZone: OPERATING_TZ }).format(new Date(iso))
 
 /**
  * Effy points: the balance and every change. Server-rendered, re-rendered by `LiveRefresh` when the

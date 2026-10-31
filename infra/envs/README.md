@@ -87,6 +87,10 @@ and rebuilt keeping nothing), so the blast radius is a throwaway box.
 Until then: **never point a non-dev environment at this posture**, and never put real user data in
 `dev`.
 
+## Changing the operating time zone
+
+One line, `operating_timezone` in `<env>.tfvars`. Steps: [the root README](../../README.md), "Switching the time zone".
+
 ## Region relocation runbook
 
 **Executed 2026-07-12: Singapore (`ap-southeast-1`) → Sydney (`ap-southeast-2`).** The notes below are
