@@ -6,7 +6,7 @@ import { discountText, formatMoney, orderedMedia, primaryMedia, storefrontText }
 describe("formatMoney", () => {
   it("prefixes the currency and dashes an empty amount", () => {
     expect(formatMoney("4.50", "AUD")).toBe("AUD 4.50")
-    expect(formatMoney(null, "AUD")).toBe("—")
+    expect(formatMoney(null, "AUD")).toBe("-")
   })
 })
 
@@ -46,10 +46,10 @@ describe("discountText (057 pricing block)", () => {
   })
 
   it("says nothing when there is no saving to state", () => {
-    expect(discountText("8.00", null)).toBe("—")
-    expect(discountText("8.00", "8.00")).toBe("—")
-    expect(discountText("8.00", "7.50")).toBe("—")
-    expect(discountText(null, "10.00")).toBe("—")
+    expect(discountText("8.00", null)).toBe("-")
+    expect(discountText("8.00", "8.00")).toBe("-")
+    expect(discountText("8.00", "7.50")).toBe("-")
+    expect(discountText(null, "10.00")).toBe("-")
   })
 })
 
