@@ -5,8 +5,8 @@ env        = "dev"
 aws_region = "ap-southeast-2"
 
 # Effy's clock for this env. Changing it: README.md, "Switching the time zone".
-# operating_timezone = "Australia/Melbourne"
-operating_timezone = "Asia/Colombo"
+operating_timezone = "Australia/Melbourne"
+# operating_timezone = "Asia/Colombo"
 
 # Fill in the real 12-digit account id before the first plan/apply - the placeholder
 # fails validation (and the provider allowed_account_ids guard) loudly on purpose.
