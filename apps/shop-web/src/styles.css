@@ -8,13 +8,6 @@
   .ticket {
     @apply flex flex-col gap-3 rounded-xl border border-solid border-border bg-card p-4 text-sm text-inherit no-underline;
   }
-  .ticket.is-new {
-    @apply border-primary;
-    box-shadow: 0 0 0 1px var(--primary);
-  }
-  .ticket.is-late {
-    @apply border-foreground;
-  }
   .ticket.is-quiet {
     @apply gap-1 bg-transparent px-4 py-3;
   }

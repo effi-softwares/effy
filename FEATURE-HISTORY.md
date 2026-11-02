@@ -4,6 +4,30 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
+**Shop order queue redesign (no spec number).** 🔨 **BUILT 2026-11-02; NOT DEPLOYED OR WALKED.** Prototype, research and
+sources: `docs/reference-screens/Order Queue Redesign/index.html` (git-ignored). Operator chose ruled columns and the fold-out column.
+- **The queue is the page**: `/orders` opens on it; the table is `view=table`. ⚠ The queue ignores filters, so every link
+  that filters the list must name the table. Nav: Queue (plain `/orders`), All orders and Awaiting pick (`view=table`).
+- **Three working columns** (Awaiting pick, Picking, Ready), ruled, each scrolling itself, with a late count in the heading.
+  Tickets share one border (no blue ring, no black border); only the top ticket of a column has a filled button.
+- **Left the shop** (`components/LeftShop.tsx`): a strip at the end of the board folds out into a column (`left=open` in the
+  address); a phone gets a button and a bottom sheet. Grouped by `statusView`, Problem first, Delivered folded. It replaces
+  the Collected today lane.
+- **Next collection** moved from a bar above the board to the line under the title (`QueueDescription`), giving the board
+  back about 72px; with no collection planned, that line is the page's help text.
+- **Export CSV** moved into the page's More menu, with a loading toast because the menu has closed by the time it runs.
+- **Backend** (`shop`): list filter `leftShop` (`status = 'collected'`, or `'delivered'` with `state_changed_at` today on
+  Effy's clock), sort `moved`, row field `movedAt` = `state_changed_at`. ⚠ That column is written at collection and at
+  arrival only, which is why one field gives both times; no migration. ⚠ The old lane used `range: "today"`, which tests the
+  day the order was PLACED, so it missed an order placed yesterday and collected today.
+- ⚠ **Limits**: the column reads the 100 latest moves, and "Problem" is derived per row, so a problem past the first 100 does
+  not reach the dot (the column offers "All N in the table"). A shop never sees a held bag (`bagsHeld: 0`), so it is never a
+  Problem here. The late count covers the page a lane read (25, oldest first).
+- **Verified**: unit tests; the filter against real Postgres (`repository.container.test.ts`, 20 pass); the real component
+  rendered in Chrome at 1440, 1024 and 390, light and dark. Not walked on dev. `package-status.guard` still fails, on 099's
+  `collection.ts` only; the queue no longer trips it.
+- **Open**: deploy `SERVICE=shop` BEFORE shop-web: an older `shop` ignores `leftShop`, and the column would list every order.
+
 **105-category-driven-variants - Variants Only From Category Attributes.** 🔨 **BUILT 2026-10-30; NOT MIGRATED, DEPLOYED OR
 WALKED.** Spec, plan, tasks: [specs/105-category-driven-variants/](specs/105-category-driven-variants/tasks.md).
 - **Change**: a product's options are exactly the library attributes its category offers as variant options. The

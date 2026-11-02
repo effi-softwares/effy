@@ -30,6 +30,7 @@ describe("parseOrderListQuery - the wire is optional, the query never is", () =>
       payment: "any",
       deliveredBy: "any",
       range: "any",
+      leftShop: false,
       sort: "placed",
       dir: "desc",
       page: 1,

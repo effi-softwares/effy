@@ -24,6 +24,7 @@ export const SHOP_ORDER_LIST = {
     customer: { sql: "lower(customer_name)", dir: "asc" },
     items: { sql: "item_count", dir: "desc" },
     total: { sql: "total", dir: "desc" },
+    moved: { sql: "state_changed_at", dir: "desc" },
   },
   defaultSort: "placed",
   idSql: "id",
@@ -35,6 +36,7 @@ export interface ShopOrderFilters {
   payment: PaymentState | "any";
   deliveredBy: DeliveredByFilter;
   range: Range;
+  leftShop: boolean;
 }
 
 export const SHOP_ORDER_LIST_SPEC: ListSpec<SortKey, ShopOrderFilters> = {
@@ -45,6 +47,7 @@ export const SHOP_ORDER_LIST_SPEC: ListSpec<SortKey, ShopOrderFilters> = {
     payment: listFilter.oneOf([...PAYMENT_STATES, "any"] as const),
     deliveredBy: listFilter.oneOf(DELIVERED_BY_FILTERS),
     range: listFilter.oneOf(RANGES),
+    leftShop: listFilter.bool,
   },
 };
 

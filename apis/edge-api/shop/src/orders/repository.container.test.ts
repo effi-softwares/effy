@@ -162,6 +162,30 @@ SELECT id FROM p`,
     expect(out.counts).toMatchObject({ all: 3, new: 1, picking: 1, delivered: 1, collected: 0 });
   });
 
+  it("left the shop: everything still on its way, and only what arrived today (the arrival's day, not the order's)", async () => {
+    const moved = (id: string, ago: string) =>
+      pool.query(`UPDATE public.shop_fulfillment SET state_changed_at = now() - $2::interval WHERE id = $1`, [id, ago]);
+
+    await order({ number: "EFY-HERE", recipient: "Ann", status: "ready_for_pickup" });
+    await order({ number: "EFY-GONE", recipient: "Bo", status: "withdrawn" });
+    await order({ number: "EFY-X", recipient: "Other", status: "collected", shop: OTHER_SHOP });
+    // Left days ago and still not there: it stays.
+    const old = await order({ number: "EFY-WAY", recipient: "Cy", status: "collected", placedMinutesAgo: 60 * 24 * 3 });
+    await moved(old.fulfillmentId, "3 days");
+    // Placed days ago, arrived just now: the one a filter on the order's own day would lose.
+    await order({ number: "EFY-TODAY", recipient: "Di", status: "delivered", placedMinutesAgo: 60 * 24 * 3 });
+    const before = await order({ number: "EFY-PAST", recipient: "Ed", status: "delivered" });
+    await moved(before.fulfillmentId, "2 days");
+
+    const out = await listOrders(SHOP, parseOrderListQuery({ leftShop: "true", sort: "moved" }));
+    // Latest move first.
+    expect(out.items.map((r) => r.orderNumber)).toEqual(["EFY-TODAY", "EFY-WAY"]);
+    expect(out.total).toBe(2);
+    expect(out.items[1]!.movedAt.getTime()).toBeLessThan(Date.now() - 2 * 86_400_000);
+    // The filter is off unless asked for.
+    expect((await listOrders(SHOP, parseOrderListQuery({}))).total).toBe(5);
+  });
+
   it("composes search and filters, and the counts reflect the combination", async () => {
     await order({ number: "EFY-A1", recipient: "Ann Lee", status: "picking" });
     await order({ number: "EFY-A2", recipient: "Ann Park", status: "received" });

@@ -33,6 +33,7 @@ vi.mock("../repo", () => ({
 import { OrderListScreen } from "../OrderListScreen"
 import { toListQuery, validateOrdersSearch, type OrdersSearch } from "../orderConsole"
 import { orderListQuery } from "../queries"
+import { todayQuery } from "@/features/today/queries"
 
 const table = () => within(screen.getByRole("table"))
 const findInTable = async (text: string) => {
@@ -56,6 +57,114 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
+describe("the queue", () => {
+  const onTheWay = orderRow({ id: "a", orderNumber: "EFY-WAY", status: "collected", statusView: { status: "at_hub", word: "At hub", detail: null, driverName: null } })
+  const failed = orderRow({
+    id: "b",
+    orderNumber: "EFY-BAD",
+    status: "collected",
+    statusView: { status: "problem", word: "Problem", detail: "Delivery attempt failed", driverName: null },
+  })
+  const arrived = orderRow({ id: "c", orderNumber: "EFY-DONE", status: "delivered", statusView: { status: "delivered", word: "Delivered", detail: null, driverName: null } })
+
+  function byList(left: ReturnType<typeof orderRow>[], lane: ReturnType<typeof orderRow>[] = []) {
+    listOrders.mockImplementation(async (q: { leftShop?: boolean; tab?: string }) =>
+      orderList(q.leftShop ? left : q.tab === "new" ? lane : []),
+    )
+  }
+
+  it("has three working columns; collected orders are not one of them", async () => {
+    byList([])
+    wrap({ view: undefined })
+    const lanes = await screen.findByRole("list", { name: "Order queue" })
+    expect(within(lanes).getAllByRole("listitem").map((l) => l.getAttribute("aria-label"))).toEqual(["Awaiting pick", "Picking", "Ready"])
+    expect(screen.queryByText("Collected today")).not.toBeInTheDocument()
+  })
+
+  it("gives only the next order a filled button, and counts what is late in the heading", async () => {
+    byList([], [orderRow({ id: "1", orderNumber: "EFY-1", atRisk: true }), orderRow({ id: "2", orderNumber: "EFY-2" })])
+    wrap({ view: undefined })
+    const [first, second] = await screen.findAllByRole("button", { name: "Start picking" })
+    expect(first!).toHaveAttribute("data-variant", "default")
+    expect(second!).toHaveAttribute("data-variant", "outline")
+    expect(screen.getByText("1 late")).toBeInTheDocument()
+  })
+
+  it("asks once for what has left, newest move first, and shows the count and the problem while folded", async () => {
+    byList([onTheWay, failed])
+    const { onSearchChange } = wrap({ view: undefined })
+    const strip = await screen.findByRole("button", { name: "Left the shop, 2 orders, 1 with a problem" })
+    expect(listOrders).toHaveBeenCalledWith(expect.objectContaining({ leftShop: true, sort: "moved", pageSize: 100 }))
+    expect(screen.queryByText("EFY-WAY")).not.toBeInTheDocument()
+    await userEvent.click(strip)
+    expect(onSearchChange).toHaveBeenLastCalledWith({ left: "open" })
+  })
+
+  it("groups by where the order is, problem first, delivered folded", async () => {
+    byList([onTheWay, failed, arrived])
+    const { onSearchChange } = wrap({ view: undefined, left: "open" })
+    const column = await screen.findByRole("complementary", { name: "Left the shop" })
+    await within(column).findByText("EFY-WAY")
+    const heads = within(column).getAllByRole("button", { expanded: true }).map((b) => b.textContent)
+    expect(heads).toEqual(["Problem1", "At hub1"])
+    expect(within(column).getByText("Delivery attempt failed")).toBeInTheDocument()
+    expect(within(column).queryByText("EFY-DONE")).not.toBeInTheDocument()
+    await userEvent.click(within(column).getByRole("button", { name: /Delivered/ }))
+    expect(within(column).getByText("EFY-DONE")).toBeInTheDocument()
+    await userEvent.click(within(column).getByRole("button", { name: "Fold away" }))
+    expect(onSearchChange).toHaveBeenLastCalledWith({})
+  })
+
+  it("says the next collection under the title, and what the page is for when none is planned", async () => {
+    byList([])
+    const render2 = (today: unknown) => {
+      const qc = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } })
+      qc.setQueryData(todayQuery.queryKey, today as never)
+      return render(
+        <QueryClientProvider client={qc}>
+          <OrderListScreen search={{}} onSearchChange={vi.fn()} />
+        </QueryClientProvider>,
+      )
+    }
+    const next = { runAt: "2026-11-02T02:00:00Z", dayOffset: 0, driver: "none", opensAt: null, driverOnDuty: false, due: { ready: 2, picking: 3 } }
+    const { unmount } = render2({ timezone: "Australia/Melbourne", nextCollection: next })
+    const line = await screen.findByRole("status")
+    expect(line).toHaveTextContent("Next collection 1:00 pm · 2 ready, 3 still picking · No driver given the run yet")
+    expect(screen.queryByText(/scan a bag label/)).not.toBeInTheDocument()
+    unmount()
+
+    render2({ timezone: "Australia/Melbourne", nextCollection: null })
+    expect(await screen.findByText(/scan a bag label/)).toBeInTheDocument()
+  })
+
+  it("says so when nothing has left", async () => {
+    byList([])
+    wrap({ view: undefined, left: "open" })
+    expect(await screen.findByText("Nothing has left the shop yet today")).toBeInTheDocument()
+  })
+})
+
+describe("Export CSV", () => {
+  it("lives in the More menu, on both views, and says when there is nothing to export", async () => {
+    listOrders.mockResolvedValue(orderList([orderRow()]))
+    wrap({ view: undefined })
+    await screen.findByRole("list", { name: "Order queue" })
+    expect(screen.queryByRole("button", { name: "Export CSV" })).not.toBeInTheDocument()
+    await userEvent.click(await screen.findByRole("button", { name: "More actions" }))
+    expect(await screen.findByRole("menuitem", { name: "Export CSV" })).not.toHaveAttribute("aria-disabled", "true")
+  })
+
+  it("is offered but off when no order matches", async () => {
+    listOrders.mockResolvedValue(orderList([]))
+    wrap()
+    await screen.findByRole("table", { busy: false })
+    await userEvent.click(screen.getByRole("button", { name: "More actions" }))
+    const item = await screen.findByRole("menuitem", { name: "Export CSV" })
+    expect(item).toHaveAttribute("aria-disabled", "true")
+    expect(item).toHaveAttribute("title", "No orders to export")
+  })
+})
+
 describe("which view the page opens on", () => {
   it("opens on the queue, with the table as the second choice", async () => {
     listOrders.mockResolvedValue(orderList([orderRow()]))
@@ -71,7 +180,8 @@ describe("which view the page opens on", () => {
   it("keeps the table in the address, and drops the old queue address", () => {
     expect(validateOrdersSearch({ view: "table" })).toEqual({ view: "table" })
     expect(validateOrdersSearch({ view: "queue" })).toEqual({})
-    expect(toListQuery({ view: "table", tab: "new" })).toEqual({ tab: "new" })
+    expect(toListQuery({ view: "table", left: "open", tab: "new" })).toEqual({ tab: "new" })
+    expect(toListQuery({ leftShop: true })).toEqual({ leftShop: true })
   })
 })
 

@@ -48,6 +48,7 @@ const DETAIL = {
   orderId: "o-1",
   orderNumber: "EFY-1",
   placedAt: new Date("2026-09-10T00:00:00Z"),
+  movedAt: new Date("2026-09-10T00:00:00Z"),
   status: "picking",
   stateChangedAt: new Date("2026-09-10T00:05:00Z"),
   readyBy: new Date("2026-09-10T01:00:00Z"),

@@ -58,7 +58,7 @@ describe("counts cover every state, under every filter except the tab", () => {
     const out = await listOrders("shop-1", { ...parseOrderListQuery(null), tab: "picking" });
     expect(out.counts).toMatchObject({ all: 12, new: 3, picking: 2, delivered: 7, withdrawn: 0 });
     // The counts query takes the filters but not the tab.
-    expect(query.mock.calls[1]![1]).toHaveLength(6);
+    expect(query.mock.calls[1]![1]).toHaveLength(7);
     expect(sql(query.mock.calls[1])).not.toContain("$8");
   });
 

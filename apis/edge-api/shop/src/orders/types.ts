@@ -44,8 +44,8 @@ export const DELIVERED_BY_FILTERS: readonly DeliveredByFilter[] = ["any", "effy_
 export type Range = "any" | "today" | "7d" | "30d";
 export const RANGES: readonly Range[] = ["any", "today", "7d", "30d"];
 
-export type SortKey = "placed" | "number" | "customer" | "items" | "total";
-export const SORT_KEYS: readonly SortKey[] = ["placed", "number", "customer", "items", "total"];
+export type SortKey = "placed" | "number" | "customer" | "items" | "total" | "moved";
+export const SORT_KEYS: readonly SortKey[] = ["placed", "number", "customer", "items", "total", "moved"];
 
 /** Fully defaulted; nothing here is optional. */
 export interface OrderListQuery {
@@ -55,6 +55,8 @@ export interface OrderListQuery {
   payment: PaymentState | "any";
   deliveredBy: DeliveredByFilter;
   range: Range;
+  /** Only what has left the shop: still on its way, or delivered today. */
+  leftShop: boolean;
   sort: SortKey;
   dir: "asc" | "desc";
   page: number;
@@ -67,6 +69,8 @@ export interface OrderRow {
   customerName: string;
   placedAt: Date;
   status: FulfillmentStatus;
+  /** When `status` last changed: the moment it left while `collected`, the moment it arrived once `delivered`. */
+  movedAt: Date;
   /** Shop audience: never a driver's name. */
   statusView: PackageStatusView;
   itemCount: number;

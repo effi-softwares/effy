@@ -7,6 +7,7 @@ export function orderRow(over: Partial<OrderRow> = {}): OrderRow {
     customerName: "Maya Oyelaran",
     placedAt: "2026-09-10T02:14:05Z",
     status: "received",
+    movedAt: "2026-09-10T02:14:05Z",
     statusView: { status: "preparing", word: "Preparing", detail: null, driverName: null },
     itemCount: 4,
     gatheredCount: 0,

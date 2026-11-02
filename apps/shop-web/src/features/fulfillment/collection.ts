@@ -1,6 +1,6 @@
 import type { CollectionDriver, ShopCollectionRunDTO, ShopOrderCollectionDTO } from "@effy/shared-types"
 
-const timeOf = (iso: string, timezone?: string) =>
+export const timeOf = (iso: string, timezone?: string) =>
   new Date(iso).toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit", timeZone: timezone })
 
 export function runTime(run: Pick<ShopOrderCollectionDTO, "runAt" | "dayOffset">, timezone?: string): string {

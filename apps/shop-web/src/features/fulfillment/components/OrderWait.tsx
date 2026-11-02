@@ -20,7 +20,11 @@ export function OrderWait({ row, now }: { row: Pick<OrderRow, "placedAt" | "stat
   }
   const fresh = now - placed < 15 * 60_000
   return (
-    <Badge asChild variant={row.atRisk ? "destructive" : fresh ? "info" : "muted"}>
+    <Badge
+      asChild
+      variant={fresh && !row.atRisk ? "default" : "muted"}
+      className={row.atRisk ? "bg-destructive-soft text-destructive" : undefined}
+    >
       <time dateTime={row.placedAt}>
         {row.atRisk ? (
           <Clock aria-hidden="true" />

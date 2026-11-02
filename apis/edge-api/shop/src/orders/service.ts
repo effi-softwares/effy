@@ -33,6 +33,7 @@ export function parseOrderListQuery(qs: Readonly<Record<string, string | undefin
     payment: f.payment ?? "any",
     deliveredBy: f.deliveredBy ?? "any",
     range: f.range ?? "any",
+    leftShop: f.leftShop ?? false,
     sort: req.sort,
     dir: req.dir,
     page: req.page,

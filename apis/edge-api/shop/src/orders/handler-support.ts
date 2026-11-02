@@ -17,6 +17,7 @@ function toRowDTO(r: OrderRow): ShopOrderRowDTO {
     customerName: r.customerName,
     placedAt: r.placedAt.toISOString(),
     status: r.status,
+    movedAt: r.movedAt.toISOString(),
     statusView: r.statusView,
     itemCount: r.itemCount,
     gatheredCount: r.gatheredCount,

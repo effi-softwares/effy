@@ -39,8 +39,12 @@ export interface OrdersSearch {
   page?: number
   /** Rows per page (103); 25 when absent. */
   size?: 25 | 50 | 100
+  /** Only what has left the shop: still on its way, or delivered today. */
+  leftShop?: boolean
   /** The queue is the page; the table is asked for. A link that filters the list must ask: the queue ignores filters. */
   view?: "table"
+  /** The queue's Left the shop column is folded out. */
+  left?: "open"
 }
 
 function pick<T extends string>(raw: unknown, allowed: readonly T[]): T | undefined {
@@ -67,12 +71,14 @@ export function validateOrdersSearch(raw: Record<string, unknown>): OrdersSearch
   if (Number.isInteger(page) && page > 1) out.page = page
   const size = Number(raw.size)
   if (size === 50 || size === 100) out.size = size
+  if (raw.leftShop === true || raw.leftShop === "true") out.leftShop = true
   if (raw.view === "table") out.view = "table"
+  if (raw.left === "open") out.left = "open"
   return out
 }
 
 export function toListQuery(s: OrdersSearch): ShopOrderListQuery {
-  const { view: _view, size, ...query } = validateOrdersSearch(s as Record<string, unknown>)
+  const { view: _view, left: _left, size, ...query } = validateOrdersSearch(s as Record<string, unknown>)
   return size ? { ...query, pageSize: size } : query
 }
 
@@ -96,7 +102,7 @@ export const shopOrdersList = defineListSearch<ShopOrderSort, ShopOrderFilters>(
   mode: "offset",
   sorts: SHOP_ORDER_SORTS,
   defaultSort: "placed",
-  sortDir: { placed: "desc", number: "asc", customer: "asc", items: "desc", total: "desc" },
+  sortDir: { placed: "desc", number: "asc", customer: "asc", items: "desc", total: "desc", moved: "desc" },
   filters: {
     tab: searchFilter.oneOf(without(SHOP_ORDER_TABS, "all")),
     attention: searchFilter.oneOf(without(SHOP_ORDER_ATTENTION, "any")),
@@ -107,7 +113,7 @@ export const shopOrdersList = defineListSearch<ShopOrderSort, ShopOrderFilters>(
 })
 
 export function isFiltered(s: OrdersSearch): boolean {
-  return !!(s.q || s.attention || s.payment || s.deliveredBy || s.range)
+  return !!(s.q || s.attention || s.payment || s.deliveredBy || s.range || s.leftShop)
 }
 
 export function activeFilterCount(s: OrdersSearch): number {

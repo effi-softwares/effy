@@ -63,8 +63,8 @@ const REFUND_TOTALS = `
 
 /**
  * Every portion this shop holds. `$1` shop · `$2` search over order number, customer, items and SKUs
- * (null = none) · `$3` attention · `$4` payment · `$5` method · `$6` range. The tab is not a predicate:
- * the per-tab counts are taken over this set.
+ * (null = none) · `$3` attention · `$4` payment · `$5` range · `$6` who takes it away · `$7` left the shop. The tab
+ * is not a predicate: the per-tab counts are taken over this set.
  */
 const FILTERED = `
 WITH base AS (
@@ -72,6 +72,7 @@ WITH base AS (
          o.order_number,
          ${PLACED} AS placed_at,
          sf.status,
+         sf.state_changed_at,
          sf.item_count,
          COALESCE(fi.gathered, 0)::int    AS gathered_count,
          COALESCE(fi.unavailable, 0)::int AS unavailable_count,
@@ -130,6 +131,12 @@ WITH base AS (
                                              AT TIME ZONE '${OPERATING_TZ}'))
           OR ($5::text = '7d'  AND placed_at >= now() - interval '7 days')
           OR ($5::text = '30d' AND placed_at >= now() - interval '30 days'))
+     -- Left the shop: still on its way however long ago it left, or delivered today. "Today" tests the day it
+     -- ARRIVED, unlike the range above, which tests the day it was placed.
+     AND (   NOT $7::boolean
+          OR status = 'collected'
+          OR (status = 'delivered' AND state_changed_at >= (date_trunc('day', now() AT TIME ZONE '${OPERATING_TZ}')
+                                                            AT TIME ZONE '${OPERATING_TZ}')))
 )`;
 
 interface RowRecord {
@@ -137,6 +144,7 @@ interface RowRecord {
   order_number: string;
   placed_at: Date;
   status: FulfillmentStatus;
+  state_changed_at: Date;
   item_count: number;
   gathered_count: number;
   unavailable_count: number;
@@ -163,7 +171,7 @@ async function shopStatuses(ids: readonly string[]): Promise<Map<string, Package
 }
 
 export async function listOrders(shopId: string, q: OrderListQuery): Promise<OrderList> {
-  const filterArgs = [shopId, q.q.trim() ? likePattern(q.q.trim()) : null, q.attention, q.payment, q.range, q.deliveredBy];
+  const filterArgs = [shopId, q.q.trim() ? likePattern(q.q.trim()) : null, q.attention, q.payment, q.range, q.deliveredBy, q.leftShop];
   const offset = (q.page - 1) * q.pageSize;
 
   const [page, counts] = await Promise.all([
@@ -171,9 +179,9 @@ export async function listOrders(shopId: string, q: OrderListQuery): Promise<Ord
       `${FILTERED}
        SELECT *, count(*) OVER () AS full_count
          FROM filtered
-        WHERE ($7::text = 'all' OR tab = $7::text)
+        WHERE ($8::text = 'all' OR tab = $8::text)
         ${orderBy(SHOP_ORDER_LIST, q as unknown as Parameters<typeof orderBy>[1])}
-        LIMIT $8 OFFSET $9`,
+        LIMIT $9 OFFSET $10`,
       [...filterArgs, q.tab, q.pageSize, offset],
     ),
     query<{ tab: OrderTab; n: string }>(
@@ -217,6 +225,7 @@ function toRow(r: RowRecord): Omit<OrderRow, "statusView"> {
     customerName: r.customer_name,
     placedAt: r.placed_at,
     status: r.status,
+    movedAt: r.state_changed_at,
     itemCount: r.item_count,
     gatheredCount: r.gathered_count,
     unavailableCount: r.unavailable_count,

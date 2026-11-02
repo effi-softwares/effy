@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 
 import { useQuery } from "@tanstack/react-query"
-import { Columns3, Download, Loader2, SlidersHorizontal, Table2, X } from "lucide-react"
+import { Columns3, Download, SlidersHorizontal, Table2, X } from "lucide-react"
 
 import {
   SHOP_ORDER_DELIVERED_BY,
@@ -10,7 +10,7 @@ import {
   SHOP_ORDER_TABS,
 } from "@effy/shared-types"
 import { Button, TabsCount, toast } from "@effy/design-system/ui"
-import { Facet, PageHeader, ViewSelect } from "@effy/web-kit/patterns"
+import { Facet, MoreActions, PageHeader, ViewSelect } from "@effy/web-kit/patterns"
 
 import { track } from "@/lib/telemetry"
 
@@ -20,7 +20,7 @@ import { useNow } from "@/features/today/useNow"
 
 import { BulkActions } from "./components/BulkActions"
 import { OrderFiltersSheet } from "./components/OrderFiltersSheet"
-import { OrderQueue } from "./components/OrderQueue"
+import { OrderQueue, QueueDescription } from "./components/OrderQueue"
 import { OrderSearchBox } from "./components/OrderSearchBox"
 import { OrderTable } from "./components/OrderTable"
 import { ListPage, useListState } from "@effy/web-kit/data-table"
@@ -97,11 +97,13 @@ export function OrderListScreen({
 
   async function exportCsv() {
     setExporting(true)
+    // The menu has closed by now, so this is the only sign that it is working.
+    const id = toast.loading("Exporting orders…")
     try {
       const exported = await exportOrdersCsv(search)
-      toast.success(`Exported ${exported} order${exported === 1 ? "" : "s"}`)
+      toast.success(`Exported ${exported} order${exported === 1 ? "" : "s"}`, { id })
     } catch {
-      toast.error("The export couldn't be built. Try again in a moment.")
+      toast.error("The export couldn't be built. Try again in a moment.", { id })
     } finally {
       setExporting(false)
     }
@@ -115,7 +117,7 @@ export function OrderListScreen({
         title="Orders"
         description={
           view === "queue"
-            ? "Orders to pick and pack, oldest first; scan a bag label to open its order."
+            ? <QueueDescription now={now} />
             : "Every order containing your shop's items, with where each one is up to."
         }
         actions={
@@ -152,16 +154,23 @@ export function OrderListScreen({
                 },
               ]}
             />
-            <Button variant="outline" disabled={exporting || total === 0} onClick={() => void exportCsv()}>
-              {exporting ? <Loader2 className="animate-spin" /> : <Download aria-hidden="true" />}
-              Export CSV
-            </Button>
+            <MoreActions
+              actions={[
+                {
+                  label: "Export CSV",
+                  icon: Download,
+                  disabled: exporting || total === 0,
+                  hint: exporting ? undefined : "No orders to export",
+                  onSelect: () => void exportCsv(),
+                },
+              ]}
+            />
           </>
         }
       />
 
       {view === "queue" ? (
-        <OrderQueue search={search} now={now} />
+        <OrderQueue search={search} now={now} onSearchChange={onSearchChange} />
       ) : (
         <>
           <OrderFiltersSheet

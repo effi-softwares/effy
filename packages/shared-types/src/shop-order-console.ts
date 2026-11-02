@@ -48,7 +48,7 @@ export type ShopOrderDeliveredBy = (typeof SHOP_ORDER_DELIVERED_BY)[number]
 export const SHOP_ORDER_RANGES = ["any", "today", "7d", "30d"] as const
 export type ShopOrderRange = (typeof SHOP_ORDER_RANGES)[number]
 
-export const SHOP_ORDER_SORTS = ["placed", "number", "customer", "items", "total"] as const
+export const SHOP_ORDER_SORTS = ["placed", "number", "customer", "items", "total", "moved"] as const
 export type ShopOrderSort = (typeof SHOP_ORDER_SORTS)[number]
 
 /** GET /shop/v1/orders query. Every field optional; an unrecognised value is its default. */
@@ -59,6 +59,8 @@ export interface ShopOrderListQuery {
   payment?: ShopOrderPaymentState | "any"
   deliveredBy?: ShopOrderDeliveredBy
   range?: ShopOrderRange
+  /** Only what has left the shop: still on its way, or delivered today. */
+  leftShop?: boolean
   sort?: ShopOrderSort
   dir?: "asc" | "desc"
   /** 1-based. */
@@ -118,6 +120,8 @@ export interface ShopOrderRowDTO {
   customerName: string
   placedAt: string
   status: FulfillmentStatus
+  /** When `status` last changed: the moment it left while `collected`, the moment it arrived once `delivered`. */
+  movedAt: string
   /** Where the package really is, in the staff words (At hub, Out for delivery…); `status` is the shop's own step. `driverName` is always null here. */
   statusView: PackageStatusView
   /** This shop's units on the order. */
