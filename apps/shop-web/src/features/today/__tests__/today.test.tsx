@@ -167,7 +167,7 @@ describe("Today (US1)", () => {
     wrap(<TodayScreen />)
 
     // Straight to the tab that holds the work, not to the list's default view.
-    expect(await screen.findByRole("link", { name: "Pick" })).toHaveAttribute("href", "/orders?tab=new")
+    expect(await screen.findByRole("link", { name: "Pick" })).toHaveAttribute("href", "/orders?view=table&tab=new")
     expect(screen.getByRole("link", { name: "Restock" })).toHaveAttribute("href", "/catalog/p5?size=v5")
   })
 

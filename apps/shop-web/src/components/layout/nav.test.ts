@@ -1,7 +1,7 @@
-import { visibleNav } from "@effy/web-kit/console"
+import { staffActiveKey, visibleNav } from "@effy/web-kit/console"
 import { describe, expect, it } from "vitest"
 
-import { NAV } from "./nav"
+import { NAV, navGroups } from "./nav"
 
 describe("shop-web nav (role-aware)", () => {
   it("always shows the ungated Dashboard item", () => {
@@ -20,6 +20,16 @@ describe("shop-web nav (role-aware)", () => {
       expect(visibleNav(NAV, roles).map((i) => i.to)).toContain("/orders")
     }
     expect(NAV.find((i) => i.to === "/orders")?.requiredRole).toBeUndefined()
+  })
+
+  it("lights Queue on the plain page and the table's own leaves in the table", () => {
+    const lit = (pathname: string, query: Record<string, unknown> = {}) =>
+      staffActiveKey(navGroups([]), { pathname, query })
+    expect(lit("/orders")).toBe("orders-queue")
+    expect(lit("/orders/f1")).toBe("orders-queue")
+    expect(lit("/orders", { view: "table" })).toBe("orders")
+    expect(lit("/orders/f1", { view: "table" })).toBe("orders")
+    expect(lit("/orders", { view: "table", tab: "new" })).toBe("orders-new")
   })
 
   it("offers no Restock item to anyone", () => {

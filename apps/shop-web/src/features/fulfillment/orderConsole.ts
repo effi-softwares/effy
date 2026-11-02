@@ -39,7 +39,8 @@ export interface OrdersSearch {
   page?: number
   /** Rows per page (103); 25 when absent. */
   size?: 25 | 50 | 100
-  view?: "queue"
+  /** The queue is the page; the table is asked for. A link that filters the list must ask: the queue ignores filters. */
+  view?: "table"
 }
 
 function pick<T extends string>(raw: unknown, allowed: readonly T[]): T | undefined {
@@ -66,7 +67,7 @@ export function validateOrdersSearch(raw: Record<string, unknown>): OrdersSearch
   if (Number.isInteger(page) && page > 1) out.page = page
   const size = Number(raw.size)
   if (size === 50 || size === 100) out.size = size
-  if (raw.view === "queue") out.view = "queue"
+  if (raw.view === "table") out.view = "table"
   return out
 }
 

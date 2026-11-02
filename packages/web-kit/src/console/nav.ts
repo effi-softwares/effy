@@ -9,7 +9,7 @@ export interface NavItem<TRole extends string> {
   requiredRole?: TRole;
   /** The sidebar group (e.g. "Shop"). */
   group?: string;
-  /** Search params the destination needs (`{ view: "queue" }`), for a flat list such as ⌘K's "Go to". */
+  /** Search params the destination needs (`{ view: "table" }`), for a flat list such as ⌘K's "Go to". */
   search?: Readonly<Record<string, string>>;
 }
 

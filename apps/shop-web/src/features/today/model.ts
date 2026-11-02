@@ -121,7 +121,7 @@ export function unitsToPack(units: number): string {
 export function attentionHref(item: ShopAttentionItemDTO): string {
   switch (item.kind) {
     case "awaiting_pick":
-      return "/orders?tab=new"
+      return "/orders?view=table&tab=new"
     case "out_of_stock":
     case "low_stock":
       // Open the product on the size that needs stock.

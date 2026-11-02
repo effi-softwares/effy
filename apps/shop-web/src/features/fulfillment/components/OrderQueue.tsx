@@ -104,7 +104,7 @@ function Lane({ lane, q, now }: { lane: (typeof LANES)[number]; q: string | unde
           {total > rows.length ? (
             <Link
               to="/orders"
-              search={{ tab: lane.tab, q }}
+              search={{ view: "table", tab: lane.tab, q }}
               className="inline-flex min-h-10 items-center gap-2 px-4 text-sm font-medium text-foreground no-underline hover:underline"
             >
               All {total} in the table

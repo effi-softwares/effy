@@ -15,7 +15,7 @@ export interface StaffNavLeaf<TRole extends string = string, TCount extends stri
   /** A tab carried in the URL (`/delivery?tab=pricing`). Matched as part of "is this the page". */
   tab?: string;
   /**
-   * Other search params that make this page (`/orders?view=queue`). Every one must match for the leaf
+   * Other search params that make this page (`/orders?view=table`). Every one must match for the leaf
    * to be the page, and a leaf that names them beats a plain one on the same path.
    */
   query?: Readonly<Record<string, string>>;
@@ -100,7 +100,7 @@ function matchScore(
   const onPath = pathname === leaf.to || pathname.startsWith(leaf.to + "/");
   if (!onPath) return 0;
   if (leaf.query) {
-    // Every named param must match (an order opened from the queue keeps `view=queue`, so Queue stays
+    // Every named param must match (an order opened from the table keeps `view=table`, so its leaf stays
     // lit on its detail); one more than a plain leaf on the same path, so the named one wins.
     const keys = Object.keys(leaf.query);
     if (!keys.every((k) => String(query?.[k] ?? "") === leaf.query![k])) return 0;

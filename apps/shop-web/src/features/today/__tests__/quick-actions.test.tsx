@@ -88,7 +88,7 @@ describe("Quick actions (US4)", () => {
 
     expect(navigate).toHaveBeenCalledWith({
       to: "/orders",
-      search: { attention: "at_risk", sort: "placed", dir: "asc" },
+      search: { view: "table", attention: "at_risk", sort: "placed", dir: "asc" },
     })
   })
 

@@ -31,7 +31,7 @@ vi.mock("../repo", () => ({
 }))
 
 import { OrderListScreen } from "../OrderListScreen"
-import type { OrdersSearch } from "../orderConsole"
+import { toListQuery, validateOrdersSearch, type OrdersSearch } from "../orderConsole"
 import { orderListQuery } from "../queries"
 
 const table = () => within(screen.getByRole("table"))
@@ -45,7 +45,7 @@ function wrap(search: OrdersSearch = {}) {
   const onSearchChange = vi.fn()
   const utils = render(
     <QueryClientProvider client={qc}>
-      <OrderListScreen search={search} onSearchChange={onSearchChange} />
+      <OrderListScreen search={{ view: "table", ...search }} onSearchChange={onSearchChange} />
     </QueryClientProvider>,
   )
   return { ...utils, onSearchChange }
@@ -54,6 +54,25 @@ function wrap(search: OrdersSearch = {}) {
 afterEach(() => {
   vi.useRealTimers()
   vi.clearAllMocks()
+})
+
+describe("which view the page opens on", () => {
+  it("opens on the queue, with the table as the second choice", async () => {
+    listOrders.mockResolvedValue(orderList([orderRow()]))
+    const { onSearchChange } = wrap({ view: undefined })
+    expect(await screen.findByRole("list", { name: "Order queue" })).toBeInTheDocument()
+    expect(screen.queryByRole("table")).not.toBeInTheDocument()
+    const views = within(screen.getByRole("tablist", { name: "Show orders as" })).getAllByRole("tab")
+    expect(views.map((t) => t.textContent)).toEqual(["Queue", "Table"])
+    await userEvent.click(views[1]!)
+    expect(onSearchChange).toHaveBeenLastCalledWith({ view: "table" })
+  })
+
+  it("keeps the table in the address, and drops the old queue address", () => {
+    expect(validateOrdersSearch({ view: "table" })).toEqual({ view: "table" })
+    expect(validateOrdersSearch({ view: "queue" })).toEqual({})
+    expect(toListQuery({ view: "table", tab: "new" })).toEqual({ tab: "new" })
+  })
 })
 
 describe("the Orders list (057 A3)", () => {
@@ -125,7 +144,7 @@ describe("the Orders list (057 A3)", () => {
     await screen.findByRole("table", { busy: false })
     await userEvent.click(screen.getByRole("combobox", { name: "Order status" }))
     await userEvent.click(screen.getByRole("option", { name: /Picking/ }))
-    expect(onSearchChange).toHaveBeenCalledWith({ tab: "picking" })
+    expect(onSearchChange).toHaveBeenCalledWith({ view: "table", tab: "picking" })
   })
 
   it("debounces the search box into the URL", async () => {
@@ -139,7 +158,7 @@ describe("the Orders list (057 A3)", () => {
     await act(async () => {
       vi.advanceTimersByTime(300)
     })
-    expect(onSearchChange).toHaveBeenLastCalledWith({ q: "EFY-1" })
+    expect(onSearchChange).toHaveBeenLastCalledWith({ view: "table", q: "EFY-1" })
   })
 
   it("has no saved views and no Fulfilment select - the status is the one select", async () => {
@@ -185,7 +204,7 @@ describe("the Orders list (057 A3)", () => {
     expect(within(sheet).getByText("Showing 1–1 of 47")).toBeInTheDocument()
     expect(within(sheet).queryByRole("button", { name: /apply/i })).not.toBeInTheDocument()
     await userEvent.click(within(sheet).getByRole("button", { name: "Clear all" }))
-    expect(onSearchChange).toHaveBeenLastCalledWith({})
+    expect(onSearchChange).toHaveBeenLastCalledWith({ view: "table" })
   })
 
   it("offers Clear filters beside the count only when something is filtered", async () => {
@@ -199,7 +218,7 @@ describe("the Orders list (057 A3)", () => {
     await screen.findByRole("table", { busy: false })
     await userEvent.click(screen.getByRole("button", { name: "Clear filters" }))
     // Everything that narrows the list goes; the operator's sort stays.
-    expect(onSearchChange).toHaveBeenCalledWith({ sort: "total" })
+    expect(onSearchChange).toHaveBeenCalledWith({ view: "table", sort: "total" })
   })
 
   it("sorts by a column header, flipping direction on the second click", async () => {
@@ -207,16 +226,16 @@ describe("the Orders list (057 A3)", () => {
     const { onSearchChange, rerender } = wrap()
     await screen.findByRole("table", { busy: false })
     await userEvent.click(table().getByRole("button", { name: /^Total/ }))
-    expect(onSearchChange).toHaveBeenLastCalledWith({ sort: "total" })
+    expect(onSearchChange).toHaveBeenLastCalledWith({ view: "table", sort: "total" })
 
     rerender(
       <QueryClientProvider client={new QueryClient()}>
-        <OrderListScreen search={{ sort: "total" }} onSearchChange={onSearchChange} />
+        <OrderListScreen search={{ view: "table", sort: "total" }} onSearchChange={onSearchChange} />
       </QueryClientProvider>,
     )
     await screen.findByRole("table", { busy: false })
     await userEvent.click(table().getByRole("button", { name: /^Total/ }))
-    expect(onSearchChange).toHaveBeenLastCalledWith({ sort: "total", dir: "asc" })
+    expect(onSearchChange).toHaveBeenLastCalledWith({ view: "table", sort: "total", dir: "asc" })
   })
 
   it("shows the Placed column sorted descending by default", async () => {
@@ -296,7 +315,7 @@ describe("the Orders list (057 A3)", () => {
     await screen.findByText("Page 2 of 3")
     expect(screen.getByText("26–26 of 60")).toBeInTheDocument()
     await userEvent.click(screen.getByRole("button", { name: "Next page" }))
-    expect(onSearchChange).toHaveBeenLastCalledWith({ page: 3 })
+    expect(onSearchChange).toHaveBeenLastCalledWith({ view: "table", page: 3 })
   })
 })
 
@@ -315,7 +334,7 @@ describe("empty states say which kind of empty it is", () => {
     const resets = screen.getAllByRole("button", { name: "Reset filters" })
     await userEvent.click(resets[resets.length - 1]!)
     // Filters go; the operator's chosen sort stays.
-    expect(onSearchChange).toHaveBeenCalledWith({ sort: "total" })
+    expect(onSearchChange).toHaveBeenCalledWith({ view: "table", sort: "total" })
   })
 })
 

@@ -42,7 +42,7 @@ export function NeedsAttention({
             {more > 0 ? `Cleared items drop off automatically · ${more} more` : "Cleared items drop off automatically"}
           </p>
           <Button variant="ghost" size="sm" asChild>
-            <Link to="/orders" search={{ attention: "at_risk", sort: "placed", dir: "asc" }}>
+            <Link to="/orders" search={{ view: "table", attention: "at_risk", sort: "placed", dir: "asc" }}>
               Open queue →
             </Link>
           </Button>

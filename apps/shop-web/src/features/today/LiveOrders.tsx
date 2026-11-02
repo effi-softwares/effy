@@ -19,7 +19,7 @@ export function LiveOrders({ orders, now }: { orders: readonly ShopLiveOrderDTO[
       description="Updating as orders arrive"
       actions={
         <Button variant="ghost" size="sm" asChild>
-          <Link to="/orders">All orders →</Link>
+          <Link to="/orders" search={{ view: "table" }}>All orders →</Link>
         </Button>
       }
     >

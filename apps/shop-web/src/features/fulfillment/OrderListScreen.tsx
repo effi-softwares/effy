@@ -92,7 +92,7 @@ export function OrderListScreen({
       : `Showing ${(page - 1) * pageSize + 1}–${(page - 1) * pageSize + rows.length} of ${total}`
 
   function clearAll() {
-    onSearchChange(validateOrdersSearch({ sort: search.sort, dir: search.dir }))
+    onSearchChange(validateOrdersSearch({ view: search.view, sort: search.sort, dir: search.dir }))
   }
 
   async function exportCsv() {
@@ -107,7 +107,7 @@ export function OrderListScreen({
     }
   }
 
-  const view = search.view === "queue" ? "queue" : "table"
+  const view = search.view === "table" ? "table" : "queue"
 
   return (
     <ListPage>
@@ -125,7 +125,7 @@ export function OrderListScreen({
               value={view}
               onChange={(v) =>
                 onSearchChange(
-                  validateOrdersSearch({ ...search, view: v === "queue" ? "queue" : undefined } as Record<
+                  validateOrdersSearch({ ...search, view: v === "table" ? "table" : undefined } as Record<
                     string,
                     unknown
                   >),
@@ -133,20 +133,20 @@ export function OrderListScreen({
               }
               options={[
                 {
-                  value: "table",
-                  label: (
-                    <>
-                      <Table2 aria-hidden="true" />
-                      Table
-                    </>
-                  ),
-                },
-                {
                   value: "queue",
                   label: (
                     <>
                       <Columns3 aria-hidden="true" />
                       Queue
+                    </>
+                  ),
+                },
+                {
+                  value: "table",
+                  label: (
+                    <>
+                      <Table2 aria-hidden="true" />
+                      Table
                     </>
                   ),
                 },

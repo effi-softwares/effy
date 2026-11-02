@@ -19,14 +19,14 @@ export function SecondaryStrip({ dto, backlog }: { dto: ShopInsightsDTO; backlog
       value: money(dto.secondary.refunds.value, dto.currency),
       note: `${dto.secondary.refunds.orders} ${dto.secondary.refunds.orders === 1 ? "order" : "orders"}`,
       to: "/orders",
-      search: { payment: "refunded" },
+      search: { view: "table", payment: "refunded" },
     },
     {
       label: "Can't supply",
       value: dto.secondary.cantSupply.value,
       note: `${dto.secondary.cantSupply.units} units`,
       to: "/orders",
-      search: { tab: "unfulfillable" },
+      search: { view: "table", tab: "unfulfillable" },
     },
     {
       label: "Low stock SKUs",
@@ -40,14 +40,14 @@ export function SecondaryStrip({ dto, backlog }: { dto: ShopInsightsDTO; backlog
       value: dto.secondary.cancelled.value,
       note: "Withdrawn portions",
       to: "/orders",
-      search: { tab: "withdrawn" },
+      search: { view: "table", tab: "withdrawn" },
     },
     {
       label: "Ready for pickup",
       value: backlog ? String(backlog.readyForPickup) : "—",
       note: "Waiting for a driver",
       to: "/orders",
-      search: { tab: "ready_for_pickup" },
+      search: { view: "table", tab: "ready_for_pickup" },
     },
   ]
 

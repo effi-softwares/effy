@@ -74,7 +74,7 @@ export function QuickActionsSheet({
           run: () => {
             close()
             track({ name: "quick_action_used", action: "attention_queue" })
-            void navigate({ to: "/orders", search: { attention: "at_risk", sort: "placed", dir: "asc" } })
+            void navigate({ to: "/orders", search: { view: "table", attention: "at_risk", sort: "placed", dir: "asc" } })
           },
         },
       ],

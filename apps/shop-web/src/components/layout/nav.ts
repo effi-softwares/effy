@@ -14,10 +14,16 @@ const NAV_GROUPS: readonly StaffNavGroup<ShopRole>[] = [
         to: "/orders",
         icon: ClipboardList,
         subs: [
-          { key: "orders", label: "All orders", to: "/orders" },
-          { key: "orders-new", label: "Awaiting pick", to: "/orders", query: { tab: "new" }, count: "/orders" },
-          // The packing bench: the same list as four lanes.
-          { key: "orders-queue", label: "Queue", to: "/orders", query: { view: "queue" } },
+          // The packing bench: the page itself, the same orders as four lanes.
+          { key: "orders-queue", label: "Queue", to: "/orders" },
+          { key: "orders", label: "All orders", to: "/orders", query: { view: "table" } },
+          {
+            key: "orders-new",
+            label: "Awaiting pick",
+            to: "/orders",
+            query: { view: "table", tab: "new" },
+            count: "/orders",
+          },
         ],
       },
       {

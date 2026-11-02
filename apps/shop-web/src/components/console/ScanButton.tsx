@@ -39,7 +39,7 @@ export function ScanButton() {
       if (list.items.length === 1) {
         void navigate({ to: "/orders/$fulfillmentId", params: { fulfillmentId: list.items[0]!.id } })
       } else {
-        void navigate({ to: "/orders", search: { q } })
+        void navigate({ to: "/orders", search: { view: "table", q } })
       }
     } finally {
       setBusy(false)
