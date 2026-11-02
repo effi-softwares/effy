@@ -33,15 +33,23 @@ private class IosPaymentElementHandle(
     private val _state = MutableStateFlow(PaymentElementState())
     override val state: StateFlow<PaymentElementState> = _state.asStateFlow()
 
-    /** The element's own view, handed to [UIKitView] once Swift has built it. */
-    var view: UIView? = null
+    /**
+     * The element's own view, handed to [UIKitView] once Swift has built it.
+     *
+     * ⚠ COMPOSE STATE, NOT A PLAIN FIELD. [PaymentElementContent] reads it, and under strong skipping
+     * that composable is skipped whenever its arguments (this handle, an equal modifier) are unchanged -
+     * which they always are. As a plain field it was read once, while Swift was still building the
+     * element (null), and never again: the method list never appeared, nothing could be selected, and
+     * the pay button stayed disabled. A snapshot read is what makes the composable re-run on its own.
+     */
+    var view: UIView? by mutableStateOf(null)
         private set
 
-    /** Height in points, mirrored into Compose so the interop box can follow it. */
-    var heightPoints: Double = 0.0
+    /** Height in points - snapshot state for the same reason as [view], so the interop box follows it. */
+    var heightPoints: Double by mutableStateOf(0.0)
         private set
 
-    fun start(config: PaymentElementConfig, onLayout: () -> Unit) {
+    fun start(config: PaymentElementConfig) {
         bridge.create(
             clientSecret = config.clientSecret,
             publishableKey = config.publishableKey,
@@ -67,7 +75,6 @@ private class IosPaymentElementHandle(
                     ready = ready.view != null && ready.error == null,
                     error = ready.error,
                 )
-                onLayout()
             },
             onChange = { change ->
                 heightPoints = change.heightPoints
@@ -75,7 +82,6 @@ private class IosPaymentElementHandle(
                     selectedLabel = change.label,
                     mandateText = change.mandateText,
                 )
-                onLayout()
             },
         )
     }
@@ -123,14 +129,10 @@ actual fun rememberPaymentElement(config: PaymentElementConfig): PaymentElementH
     val factory = IosPaymentElementRegistry.factory
         ?: return remember { UnavailablePaymentElementHandle() }
 
-    // Recomposition trigger for the interop box: the bridge reports height off the Compose frame clock,
-    // so a plain field write would not schedule one and the box would keep its first height.
-    var layoutTick by remember { mutableStateOf(0) }
-
     val handle = remember(config.clientSecret) { IosPaymentElementHandle(factory()) }
 
     LaunchedEffect(handle) {
-        handle.start(config) { layoutTick++ }
+        handle.start(config)
     }
 
     // The element holds a live PaymentIntent and a view controller reference. Leaving the screen
@@ -139,10 +141,6 @@ actual fun rememberPaymentElement(config: PaymentElementConfig): PaymentElementH
     DisposableEffect(handle) {
         onDispose { handle.dispose() }
     }
-
-    // Read the tick so this composable re-runs when the bridge reports a new height.
-    @Suppress("UNUSED_EXPRESSION")
-    layoutTick
 
     return handle
 }

@@ -115,6 +115,9 @@ final class SwiftPaymentElementBridge: NSObject, IosPaymentElementBridge {
                         error: nil
                     )
                 )
+                // The delegate reports CHANGES only. Whatever the element starts with selected (and its
+                // settled height) is published once here, or the pay button would wait for a change.
+                self.publishSelection(from: created)
             } catch {
                 // ⚠ A shopper who cannot pay must be TOLD, in words they can act on - never a raw SDK
                 // error string, which is written for a developer reading a dashboard (FR-036).
