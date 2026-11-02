@@ -4,6 +4,26 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
+**Shop Insights redesign (no spec number).** 🔨 **BUILT 2026-11-02; NOT MIGRATED, DEPLOYED OR WALKED.** Prototype, research and sources:
+`docs/reference-screens/Today and Insights Redesign/insights.html` (git-ignored).
+- **Four pages with their own addresses** (`/insights`, `/sales`, `/products`, `/service`), the range in the search (7 days when absent):
+  Overview opens with a written sentence whose figures link to the page behind them, then what changed, revenue against the last period
+  and five figures. Today's backlog figures left Insights. Export CSV moved to the More menu.
+- **The briefing is written on the server by rules** (`insights/briefing.ts`, not AI): the same numbers give the same words, and each
+  line has a threshold (rates under 0.1 pts, climbs under 2 places, a best of one are not said). Mood: strong from +8%, quiet at -8%.
+- **New in `ShopInsightsDTO`**: per-bucket `previousRevenue` / `previousOrders` and daily service figures; `previousRank` on products
+  (top 8, was 5); `briefing`; `rhythm` (8 weeks by weekday and hour, null under 2 weeks); `cantSupplyProducts`; `quality.readySpread`.
+  30 days is now a point a day, not weekly.
+- **Migration `20261103090000_insights_detail.sql`**: `shop_sales_hour.ready_spread` and `shop_product_sales_day.unavailable_units`, so
+  the rollup-only rule holds. It queues the last 60 days of hours, so the job fills both from source. ⚠ Product rollups now also recompute
+  the day before an hour: what could not be supplied is kept on the day it SOLD, and a short pick can land the next morning.
+- **Charts** (`LineChart.tsx`, `Rhythm.tsx`, palette validated): one axis, the comparison dashed grey, crosshair, arrow keys and a table
+  view. The rhythm is one hue mixed from `--primary-fill`, so it needs no colour of its own. `MotionScope` and `RollingNumber` are now
+  shared with Today.
+- **Verified**: unit tests; rollups and reads against real Postgres (26 tests); the real pages in Chrome at 1440, 1024 and 390 with sample data.
+  Not walked on real data. `package-status.guard` still fails on 099's `collection.ts` only.
+- **Open**: `make db-up ENV=dev`, THEN `SERVICE=shop`, then shop-web. ⚠ The new `shop` reads the new columns, so it fails without the migration.
+
 **Shop Today redesign (no spec number).** 🔨 **BUILT 2026-11-02; NOT DEPLOYED OR WALKED.** Prototype, research and sources:
 `docs/reference-screens/Today and Insights Redesign/today.html` (git-ignored), version "A + B · Now bar". Insights is prototyped, not built.
 - **The page is one line of time** (`features/today/DayLine.tsx`): the last events, a pinned **Now bar** holding the newest,

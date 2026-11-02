@@ -44,6 +44,6 @@ describe("how well the shop fulfils (099)", () => {
 
   it("is null when the window has nothing to measure — never 0% or 100%", () => {
     const q = qualityOf(totals(), totals());
-    expect(q).toEqual({ foundRate: null, cantSupplyRate: null, averageTimeToReady: null });
+    expect(q).toEqual({ foundRate: null, cantSupplyRate: null, averageTimeToReady: null, readySpread: [0, 0, 0, 0, 0, 0] });
   });
 });

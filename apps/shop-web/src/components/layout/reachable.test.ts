@@ -9,6 +9,9 @@ const ROUTES_DIR = join(__dirname, "..", "..", "routes")
 
 const EXEMPT: Record<string, string> = {
   "catalog/new": "reached from the Catalog screen's own 'Add product' action, where the work is",
+  "insights/sales": "reached from the tabs at the top of Insights",
+  "insights/products": "reached from the tabs at the top of Insights",
+  "insights/service": "reached from the tabs at the top of Insights",
 }
 
 function declaredPaths(): Array<{ file: string; path: string }> {
