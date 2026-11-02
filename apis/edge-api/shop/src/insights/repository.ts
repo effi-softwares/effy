@@ -22,12 +22,13 @@ export interface HourTotals {
 
 export interface HourRow extends HourTotals {
   bucketStart: Date;
+  readySpread: number[];
 }
 
 const SELECT_HOURS = `
 SELECT bucket_start, gross_goods, refunds, refunded_orders, orders, units,
        cant_supply, cant_supply_units, cancelled,
-       finished_orders, finished_units_ordered, finished_units_supplied, ready_orders, ready_seconds
+       finished_orders, finished_units_ordered, finished_units_supplied, ready_orders, ready_seconds, ready_spread
   FROM public.shop_sales_hour
  WHERE shop_id = $1::uuid
    AND bucket_start >= $2
@@ -51,6 +52,7 @@ interface HourDbRow {
   ready_orders: number;
   /** bigint arrives as a string. */
   ready_seconds: string;
+  ready_spread: number[];
 }
 
 export async function readHours(shopId: string, from: Date, to: Date): Promise<HourRow[]> {
@@ -70,6 +72,7 @@ export async function readHours(shopId: string, from: Date, to: Date): Promise<H
     finishedUnitsSupplied: r.finished_units_supplied,
     readyOrders: r.ready_orders,
     readySeconds: Number(r.ready_seconds),
+    readySpread: r.ready_spread,
   }));
 }
 
@@ -130,6 +133,74 @@ export async function readTopProducts(
     units: r.units,
     revenue: r.revenue,
   }));
+}
+
+/** Every product's place in a window, the same order as `SELECT_TOP_PRODUCTS`. */
+const SELECT_PRODUCT_RANKS = `
+SELECT d.product_id::text AS product_id,
+       RANK() OVER (ORDER BY SUM(d.gross_goods) DESC)::int AS rank
+  FROM public.shop_product_sales_day d
+ WHERE d.shop_id = $1::uuid
+   AND d.local_date >= $2::date
+   AND d.local_date <= $3::date
+ GROUP BY d.product_id
+`;
+
+export async function readProductRanks(shopId: string, fromDate: string, toDate: string): Promise<Map<string, number>> {
+  const res = await query<{ product_id: string; rank: number }>(SELECT_PRODUCT_RANKS, [shopId, fromDate, toDate]);
+  return new Map(res.rows.map((r) => [r.product_id, r.rank]));
+}
+
+const SELECT_CANT_SUPPLY = `
+SELECT p.id::text AS product_id, p.name, SUM(d.unavailable_units)::int AS units
+  FROM public.shop_product_sales_day d
+  JOIN public.product p ON p.id = d.product_id
+ WHERE d.shop_id = $1::uuid
+   AND d.local_date >= $2::date
+   AND d.local_date <= $3::date
+ GROUP BY p.id, p.name
+HAVING SUM(d.unavailable_units) > 0
+ ORDER BY SUM(d.unavailable_units) DESC, p.name
+ LIMIT $4
+`;
+
+export async function readCantSupplyProducts(
+  shopId: string,
+  fromDate: string,
+  toDate: string,
+  limit: number,
+): Promise<{ productId: string; name: string; units: number }[]> {
+  const res = await query<{ product_id: string; name: string; units: number }>(SELECT_CANT_SUPPLY, [shopId, fromDate, toDate, limit]);
+  return res.rows.map((r) => ({ productId: r.product_id, name: r.name, units: r.units }));
+}
+
+/** The last eight weeks by weekday and hour, on the shop's clock, and how many of those weeks sold anything. */
+const SELECT_RHYTHM = `
+WITH hours AS (
+  SELECT bucket_start AT TIME ZONE $2 AS local_at, orders
+    FROM public.shop_sales_hour
+   WHERE shop_id = $1::uuid
+     AND orders > 0
+     AND bucket_start >= now() - interval '56 days'
+)
+SELECT EXTRACT(ISODOW FROM local_at)::int AS weekday,
+       EXTRACT(HOUR FROM local_at)::int AS hour,
+       SUM(orders)::int AS orders,
+       (SELECT COUNT(DISTINCT date_trunc('week', local_at)) FROM hours)::int AS weeks
+  FROM hours
+ GROUP BY 1, 2
+ ORDER BY 1, 2
+`;
+
+export async function readRhythm(
+  shopId: string,
+  timezone: string,
+): Promise<{ weeks: number; cells: { weekday: number; hour: number; orders: number }[] }> {
+  const res = await query<{ weekday: number; hour: number; orders: number; weeks: number }>(SELECT_RHYTHM, [shopId, timezone]);
+  return {
+    weeks: res.rows[0]?.weeks ?? 0,
+    cells: res.rows.map((r) => ({ weekday: r.weekday, hour: r.hour, orders: r.orders })),
+  };
 }
 
 /** Short-lived signed URLs, as the catalog serves thumbnails. */

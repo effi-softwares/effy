@@ -85,7 +85,7 @@ describe("range plans", () => {
 
   it("buckets 30 days by week", () => {
     const plan = planFor("30d", now, MELBOURNE);
-    expect(plan.grain).toBe("week");
+    expect(plan.grain).toBe("day");
     expect(plan.basis).toBe("previous_30_days");
   });
 });

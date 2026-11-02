@@ -147,7 +147,7 @@ export function planFor(range: InsightsRange, now: Date, timeZone: string): Rang
     window: { from, to: now },
     comparison: { from: previousFrom, to: from },
     basis: days === 7 ? "previous_7_days" : "previous_30_days",
-    grain: days === 7 ? "day" : "week",
+    grain: "day",
   };
 }
 

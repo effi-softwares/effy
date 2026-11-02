@@ -35,6 +35,7 @@ vi.mock("@effy/edge-shared", async () => {
 import { readHours, readTopProducts } from "./repository";
 import { localParts } from "./window";
 import { runRollup } from "./rollup";
+import { readCantSupplyProducts, readProductRanks } from "./repository";
 import { runReconcile } from "./reconcile";
 import { readInsights } from "./service";
 
@@ -403,6 +404,85 @@ SELECT id FROM p`,
       );
       expect(state.rows[0]!.timezone).toBe(TZ);
       expect(Date.now() - state.rows[0]!.computed_at.getTime()).toBeLessThan(10_000);
+    });
+  });
+
+  describe("what the redesign reads", () => {
+    const finish = (fulfillmentId: string) =>
+      pool.query(
+        `INSERT INTO public.fulfillment_event (shop_fulfillment_id, event_type, from_status, to_status)
+         VALUES ($1, 'state_changed', 'picking', 'ready_for_pickup')`,
+        [fulfillmentId],
+      );
+    const short = (fulfillmentId: string, itemId: string, unavailable: number, ordered: number) =>
+      pool.query(
+        `INSERT INTO public.fulfillment_item (shop_fulfillment_id, order_item_id, ordered_quantity, gathered_quantity, unavailable_quantity)
+         VALUES ($1, $2, $3, $3::int - $4::int, $4)`,
+        [fulfillmentId, itemId, ordered, unavailable],
+      );
+    const hour = (daysAgo: number, orders: number) =>
+      pool.query(
+        `INSERT INTO public.shop_sales_hour (shop_id, bucket_start, gross_goods, orders)
+         VALUES ($1, date_trunc('hour', now()) - make_interval(days => $2), 100, $3)`,
+        [SHOP, daysAgo, orders],
+      );
+
+    it("sorts a finished order into its time-to-ready range", async () => {
+      const a = await paidOrder({ number: "EFY-QUICK", minutesAgo: 5 });
+      const b = await paidOrder({ number: "EFY-SLOW", minutesAgo: 25 });
+      await finish(a.fulfillmentId);
+      await finish(b.fulfillmentId);
+      await runRollup();
+      const dto = await readInsights({ shopId: SHOP }, "today", "Australia/Melbourne");
+      expect(dto.quality.readySpread).toEqual([1, 0, 1, 0, 0, 0]);
+    });
+
+    it("keeps what could not be supplied against the product, for this shop only", async () => {
+      const rice = await product("Rice");
+      const a = await paidOrder({ number: "EFY-A", productId: rice, qty: 4 });
+      await short(a.fulfillmentId, a.itemId, 3, 4);
+      const theirs = await paidOrder({ number: "EFY-T", shop: OTHER_SHOP, qty: 4 });
+      await short(theirs.fulfillmentId, theirs.itemId, 4, 4);
+      await runRollup();
+      const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+      const next = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
+      expect(await readCantSupplyProducts(SHOP, yesterday, next, 5)).toEqual([{ productId: rice, name: "Rice", units: 3 }]);
+    });
+
+    it("ranks products in a window, ties sharing a place", async () => {
+      const a = await product("A");
+      const b = await product("B");
+      const c = await product("C");
+      await pool.query(
+        `INSERT INTO public.shop_product_sales_day (shop_id, local_date, product_id, units, gross_goods)
+         VALUES ($1, '2026-10-01', $2, 1, 50), ($1, '2026-10-01', $3, 1, 90), ($1, '2026-10-02', $4, 1, 50)`,
+        [SHOP, a, b, c],
+      );
+      const ranks = await readProductRanks(SHOP, "2026-10-01", "2026-10-02");
+      expect([ranks.get(b), ranks.get(a), ranks.get(c)]).toEqual([1, 2, 2]);
+    });
+
+    it("draws the week's rhythm only with two weeks behind it", async () => {
+      await hour(1, 3);
+      expect((await readInsights({ shopId: SHOP }, "7d", "Australia/Melbourne")).rhythm).toBeNull();
+      await hour(15, 2);
+      const { rhythm } = await readInsights({ shopId: SHOP }, "7d", "Australia/Melbourne");
+      expect(rhythm!.weeks).toBe(2);
+      expect(rhythm!.cells.reduce((n, c) => n + c.orders, 0)).toBe(5);
+    });
+
+    it("lines each point up with the same point of the comparison", async () => {
+      await hour(8, 4);
+      const { series } = await readInsights({ shopId: SHOP }, "7d", "Australia/Melbourne");
+      expect(series.buckets).toHaveLength(7);
+      expect(series.buckets.reduce((n, b) => n + (b.previousOrders ?? 0), 0)).toBe(4);
+      expect(series.buckets.reduce((n, b) => n + b.orders, 0)).toBe(0);
+    });
+
+    it("gives thirty days a point a day", async () => {
+      const { series } = await readInsights({ shopId: SHOP }, "30d", "Australia/Melbourne");
+      expect(series.grain).toBe("day");
+      expect(series.buckets).toHaveLength(30);
     });
   });
 

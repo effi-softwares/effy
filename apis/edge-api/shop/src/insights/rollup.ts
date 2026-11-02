@@ -44,7 +44,7 @@ const RECOMPUTE = `
 INSERT INTO public.shop_sales_hour AS t (
   shop_id, bucket_start, gross_goods, refunds, refunded_orders, orders, units,
   cant_supply, cant_supply_units, cancelled,
-  finished_orders, finished_units_ordered, finished_units_supplied, ready_orders, ready_seconds,
+  finished_orders, finished_units_ordered, finished_units_supplied, ready_orders, ready_seconds, ready_spread,
   computed_at)
 SELECT $1::uuid,
        b.bucket_start,
@@ -61,6 +61,7 @@ SELECT $1::uuid,
        COALESCE(q.units_supplied, 0),
        COALESCE(q.ready_orders, 0),
        COALESCE(q.ready_seconds, 0),
+       q.ready_spread,
        now()
   FROM unnest($2::timestamptz[]) AS b(bucket_start)
   LEFT JOIN LATERAL (
@@ -132,11 +133,20 @@ SELECT $1::uuid,
            COALESCE(SUM(f.supplied), 0)::int                                     AS units_supplied,
            COUNT(*) FILTER (WHERE f.to_status = 'ready_for_pickup')::int         AS ready_orders,
            COALESCE(SUM(GREATEST(0, EXTRACT(EPOCH FROM (f.occurred_at - f.paid_at))))
-                    FILTER (WHERE f.to_status = 'ready_for_pickup'), 0)::bigint AS ready_seconds
+                    FILTER (WHERE f.to_status = 'ready_for_pickup'), 0)::bigint AS ready_seconds,
+           ARRAY[
+             COUNT(*) FILTER (WHERE f.to_status = 'ready_for_pickup' AND f.waited < interval '10 minutes'),
+             COUNT(*) FILTER (WHERE f.to_status = 'ready_for_pickup' AND f.waited >= interval '10 minutes' AND f.waited < interval '20 minutes'),
+             COUNT(*) FILTER (WHERE f.to_status = 'ready_for_pickup' AND f.waited >= interval '20 minutes' AND f.waited < interval '30 minutes'),
+             COUNT(*) FILTER (WHERE f.to_status = 'ready_for_pickup' AND f.waited >= interval '30 minutes' AND f.waited < interval '40 minutes'),
+             COUNT(*) FILTER (WHERE f.to_status = 'ready_for_pickup' AND f.waited >= interval '40 minutes' AND f.waited < interval '60 minutes'),
+             COUNT(*) FILTER (WHERE f.to_status = 'ready_for_pickup' AND f.waited >= interval '60 minutes')
+           ]::integer[] AS ready_spread
       FROM (
         SELECT fe.to_status,
                fe.occurred_at,
                COALESCE(o.placed_at, o.created_at) AS paid_at,
+               fe.occurred_at - COALESCE(o.placed_at, o.created_at) AS waited,
                (SELECT COALESCE(SUM(fi.ordered_quantity), 0)
                   FROM public.fulfillment_item fi WHERE fi.shop_fulfillment_id = sf.id) AS ordered,
                (SELECT COALESCE(SUM(fi.gathered_quantity), 0)
@@ -170,7 +180,18 @@ ON CONFLICT (shop_id, bucket_start) DO UPDATE SET
   finished_units_supplied = EXCLUDED.finished_units_supplied,
   ready_orders            = EXCLUDED.ready_orders,
   ready_seconds           = EXCLUDED.ready_seconds,
+  ready_spread            = EXCLUDED.ready_spread,
   computed_at       = EXCLUDED.computed_at
+`;
+
+/**
+ * The local dates a recompute touches: each hour's own, and the day before. An order sold last night and short-picked
+ * this morning dirties this morning's hour, and what could not be supplied is kept on the day it sold.
+ */
+const TOUCHED_DAYS = `
+SELECT DISTINCT d.local_date
+  FROM unnest($2::timestamptz[]) AS b(bucket_start)
+ CROSS JOIN LATERAL (VALUES ((b.bucket_start AT TIME ZONE $3)::date), ((b.bucket_start AT TIME ZONE $3)::date - 1)) AS d(local_date)
 `;
 
 /**
@@ -179,27 +200,23 @@ ON CONFLICT (shop_id, bucket_start) DO UPDATE SET
  */
 const WIPE_PRODUCTS = `
 DELETE FROM public.shop_product_sales_day p
- USING (
-   SELECT DISTINCT (b.bucket_start AT TIME ZONE $3)::date AS local_date
-     FROM unnest($2::timestamptz[]) AS b(bucket_start)
- ) d
+ USING (${TOUCHED_DAYS}) d
  WHERE p.shop_id = $1::uuid AND p.local_date = d.local_date
 `;
 
 /** For the local dates the recomputed hours fall in. */
 const RECOMPUTE_PRODUCTS = `
-WITH days AS (
-  SELECT DISTINCT (b.bucket_start AT TIME ZONE $3)::date AS local_date
-    FROM unnest($2::timestamptz[]) AS b(bucket_start)
-)
-INSERT INTO public.shop_product_sales_day (shop_id, local_date, product_id, units, gross_goods)
+WITH days AS (${TOUCHED_DAYS})
+INSERT INTO public.shop_product_sales_day (shop_id, local_date, product_id, units, gross_goods, unavailable_units)
 SELECT $1::uuid,
        (public.shop_local_hour(COALESCE(o.placed_at, o.created_at), $3) AT TIME ZONE $3)::date,
        oi.product_id,
        SUM(oi.quantity)::int,
-       SUM(oi.shop_line_subtotal_amount)
+       SUM(oi.shop_line_subtotal_amount),
+       COALESCE(SUM(fi.unavailable_quantity), 0)::int
   FROM public."order" o
   JOIN public.order_item oi ON oi.order_id = o.id AND oi.shop_id = $1::uuid
+  LEFT JOIN public.fulfillment_item fi ON fi.order_item_id = oi.id
  WHERE o.status IN ('paid', 'canceled')
    AND (public.shop_local_hour(COALESCE(o.placed_at, o.created_at), $3) AT TIME ZONE $3)::date
        IN (SELECT local_date FROM days)

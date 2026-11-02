@@ -6,11 +6,17 @@ import type {
   ShopInsightsDTO,
 } from "@effy/shared-types";
 
-import { readComputedAt, readHours, readTopProducts, signThumbnails } from "./repository";
+import { buildBriefing } from "./briefing";
+import { readCantSupplyProducts, readComputedAt, readHours, readProductRanks, readRhythm, readTopProducts, signThumbnails } from "./repository";
 import type { HourRow } from "./repository";
 import { addLocalDays, bucketsFor, localParts, planFor } from "./window";
 
-export const TOP_PRODUCT_LIMIT = 5;
+export const TOP_PRODUCT_LIMIT = 8;
+export const CANT_SUPPLY_LIMIT = 5;
+/** A week's rhythm needs more than one week behind it. */
+export const RHYTHM_MIN_WEEKS = 2;
+
+const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 export interface Totals {
   gross: number;
@@ -108,9 +114,10 @@ function rateFigure(num: number, den: number, prevNum: number, prevDen: number):
  * supplied of units ordered), can't-supply rate (portions it could not supply of portions finished),
  * and the average time from payment to ready, in whole seconds. Customer cancellations never count.
  */
-export function qualityOf(current: Totals, previous: Totals): ShopInsightsDTO["quality"] {
+export function qualityOf(current: Totals, previous: Totals, readySpread: number[] = [0, 0, 0, 0, 0, 0]): ShopInsightsDTO["quality"] {
   const avg = (t: Totals) => (t.readyOrders > 0 ? t.readySeconds / t.readyOrders : 0);
   return {
+    readySpread,
     foundRate: rateFigure(current.finishedUnitsSupplied, current.finishedUnitsOrdered, previous.finishedUnitsSupplied, previous.finishedUnitsOrdered),
     cantSupplyRate: rateFigure(current.cantSupply, current.finishedOrders, previous.cantSupply, previous.finishedOrders),
     averageTimeToReady:
@@ -133,6 +140,20 @@ export class InvalidRangeError extends Error {
   }
 }
 
+/** Added up bucket by bucket: an hour's spread is its six counts. */
+function spreadOf(rows: readonly HourRow[]): number[] {
+  return rows.reduce((total, r) => total.map((n, i) => n + (r.readySpread[i] ?? 0)), [0, 0, 0, 0, 0, 0]);
+}
+
+/** A bucket's service figures; null where nothing finished in it. */
+function bucketQuality(t: Totals) {
+  return {
+    foundRate: t.finishedUnitsOrdered > 0 ? Math.min(100, (t.finishedUnitsSupplied / t.finishedUnitsOrdered) * 100).toFixed(1) : null,
+    cantSupplyRate: t.finishedOrders > 0 ? Math.min(100, (t.cantSupply / t.finishedOrders) * 100).toFixed(1) : null,
+    averageTimeToReady: t.readyOrders > 0 ? Math.round(t.readySeconds / t.readyOrders) : null,
+  };
+}
+
 const RANGES: readonly InsightsRange[] = ["today", "7d", "30d"];
 
 export function parseRange(raw: string | undefined | null): InsightsRange {
@@ -149,10 +170,11 @@ export async function readInsights(
 ): Promise<ShopInsightsDTO> {
   const plan = planFor(range, now, timezone);
 
-  const [currentRows, previousRows, computedAt] = await Promise.all([
+  const [currentRows, previousRows, computedAt, rhythm] = await Promise.all([
     readHours(actor.shopId, plan.window.from, plan.window.to),
     readHours(actor.shopId, plan.comparison.from, plan.comparison.to),
     readComputedAt(actor.shopId),
+    readRhythm(actor.shopId, timezone),
   ]);
 
   const current = sum(currentRows);
@@ -162,29 +184,42 @@ export async function readInsights(
     const p = localParts(d, timezone);
     return `${p.year}-${String(p.month).padStart(2, "0")}-${String(p.day).padStart(2, "0")}`;
   };
-  const topRows = await readTopProducts(
-    actor.shopId,
-    localDate(plan.window.from),
-    // The window's last day, inclusive.
-    localDate(addLocalDays(plan.window.to, timezone, 0)),
-    TOP_PRODUCT_LIMIT,
-  );
+  const from = localDate(plan.window.from);
+  // The window's last day, inclusive.
+  const to = localDate(addLocalDays(plan.window.to, timezone, 0));
+  const [topRows, ranks, cantSupplyProducts] = await Promise.all([
+    readTopProducts(actor.shopId, from, to, TOP_PRODUCT_LIMIT),
+    // A comparison window's end is exclusive, except today's, whose day is still the one to compare with.
+    readProductRanks(
+      actor.shopId,
+      localDate(plan.comparison.from),
+      localDate(range === "today" ? plan.comparison.from : addLocalDays(plan.comparison.to, timezone, -1)),
+    ),
+    readCantSupplyProducts(actor.shopId, from, to, CANT_SUPPLY_LIMIT),
+  ]);
   const thumbnails = await signThumbnails(topRows);
   const topRevenue = topRows.length > 0 ? Number(topRows[0]!.revenue) : 0;
 
   // Every bucket, empty ones included: a missing bar and a zero bar say different things.
   const buckets = bucketsFor(plan, timezone);
-  const series = buckets.map((b) => {
+  // Point for point: the comparison's own buckets, so a day that skips an hour for daylight saving still lines up.
+  const comparisonBuckets = bucketsFor({ ...plan, window: plan.comparison }, timezone);
+  const series = buckets.map((b, i) => {
     const inBucket = currentRows.filter(
       (r) => r.bucketStart >= b.start && r.bucketStart < b.end,
     );
     const t = sum(inBucket);
+    const before = comparisonBuckets[i];
+    const was = before ? sum(previousRows.filter((r) => r.bucketStart >= before.start && r.bucketStart < before.end)) : null;
     return {
       start: b.start.toISOString(),
       label: b.label,
       partial: b.partial,
       revenue: money(revenueOf(t)),
       orders: t.orders,
+      previousRevenue: was ? money(revenueOf(was)) : null,
+      previousOrders: was ? was.orders : null,
+      ...bucketQuality(t),
     };
   });
 
@@ -193,6 +228,20 @@ export async function readInsights(
 
   const lastHourRow = currentRows.at(-1);
   const days = range === "today" ? 1 : range === "7d" ? 7 : 30;
+
+  const quality = qualityOf(current, previous, spreadOf(currentRows));
+  const revenue = figure(revenueOf(current), revenueOf(previous), "pct", true);
+  const topProducts = topRows.map((r, i) => ({
+    productId: r.productId,
+    name: r.name,
+    sku: r.sku,
+    thumbnailUrl: thumbnails[i] ?? null,
+    units: r.units,
+    revenue: r.revenue,
+    // A bar width relative to the top row.
+    share: topRevenue > 0 ? Number(r.revenue) / topRevenue : 0,
+    previousRank: ranks.get(r.productId) ?? null,
+  }));
 
   return {
     range,
@@ -206,7 +255,7 @@ export async function readInsights(
     computedAt: computedAt?.toISOString() ?? null,
     currency: "AUD",
     primary: {
-      revenue: figure(revenueOf(current), revenueOf(previous), "pct", true),
+      revenue,
       orders: {
         ...figure(current.orders, previous.orders, "abs"),
         perDay: range === "today" ? null : (current.orders / days).toFixed(0),
@@ -231,17 +280,20 @@ export async function readInsights(
       revenueTotal: figure(revenueOf(current), revenueOf(previous), "pct", true),
       ordersTotal: figure(current.orders, previous.orders, "abs"),
     },
-    quality: qualityOf(current, previous),
-    topProducts: topRows.map((r, i) => ({
-      productId: r.productId,
-      name: r.name,
-      sku: r.sku,
-      thumbnailUrl: thumbnails[i] ?? null,
-      units: r.units,
-      revenue: r.revenue,
-      // A bar width relative to the top row.
-      share: topRevenue > 0 ? Number(r.revenue) / topRevenue : 0,
-    })),
+    quality,
+    topProducts,
+    cantSupplyProducts,
+    rhythm: rhythm.weeks >= RHYTHM_MIN_WEEKS ? rhythm : null,
+    briefing: buildBriefing({
+      range,
+      weekday: WEEKDAYS[localParts(now, timezone).weekday]!,
+      currency: "AUD",
+      revenue,
+      buckets: series,
+      quality,
+      topProducts,
+      cantSupplyProducts,
+    }),
   };
 }
 

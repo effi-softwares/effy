@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { useStore } from "@tanstack/react-store"
-import { LazyMotion, MotionConfig } from "motion/react"
 import { Printer, Zap } from "lucide-react"
 
 import { ActivityLogDrawer, useActivityAction } from "@effy/web-kit/activity-log"
@@ -9,6 +8,7 @@ import { ErrorState } from "@effy/web-kit/console"
 import { Button } from "@effy/design-system/ui"
 import { MoreActions, PageHeader } from "@effy/web-kit/patterns"
 
+import { MotionScope } from "@/components/console/MotionScope"
 import { orderListQuery } from "@/features/fulfillment/queries"
 import { money } from "@/features/insights/model"
 import { insightsQuery } from "@/features/insights/queries"
@@ -22,8 +22,6 @@ import { buildJobs, relativeTime, todayDate } from "./model"
 import { printLists, QuickActionsSheet } from "./QuickActionsSheet"
 import { todayQuery } from "./queries"
 import { useNow } from "./useNow"
-
-const motionFeatures = () => import("./motion-features").then((m) => m.default)
 
 /** The orders that make up Next up: the same oldest-first list the queue's first column reads. */
 const WAITING = { tab: "new", dir: "asc" } as const
@@ -81,8 +79,7 @@ export function TodayScreen() {
   }
 
   return (
-    <LazyMotion features={motionFeatures} strict>
-      <MotionConfig reducedMotion="user">
+    <MotionScope>
         <div className="flex min-w-0 flex-col gap-4">
           <PageHeader
             title="Today"
@@ -134,7 +131,6 @@ export function TodayScreen() {
           queryKey={["shop", "today"]}
           fileName="team-activity"
         />
-      </MotionConfig>
-    </LazyMotion>
+    </MotionScope>
   )
 }

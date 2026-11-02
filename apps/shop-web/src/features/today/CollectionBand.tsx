@@ -1,25 +1,16 @@
-import { useEffect, useState } from "react"
+import { useEffect } from "react"
 
-import { m, useMotionValueEvent, useReducedMotion, useSpring } from "motion/react"
+import { m } from "motion/react"
 
 import type { ShopNextCollectionDTO } from "@effy/shared-types"
 import { cn } from "@effy/design-system"
 import { Bone, Loading } from "@effy/web-kit/patterns"
 
+import { RollingNumber } from "@/components/console/RollingNumber"
 import { DRIVER_WORDS, driverWord } from "@/features/fulfillment/collection"
 import { track } from "@/lib/telemetry"
 
 import { collectionClock, collectionLine } from "./model"
-
-/** A number that rolls to its new value. Motion's own `AnimateNumber` is a paid add-on. */
-function RollingNumber({ value }: { value: number }) {
-  const calm = useReducedMotion()
-  const spring = useSpring(value, { stiffness: 140, damping: 24 })
-  const [shown, setShown] = useState(value)
-  useEffect(() => spring.set(value), [spring, value])
-  useMotionValueEvent(spring, "change", (v) => setShown(Math.round(v)))
-  return <>{calm ? value : shown}</>
-}
 
 /** The countdown and what is left, read as one sentence. */
 export function CollectionBand({

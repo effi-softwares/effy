@@ -174,6 +174,13 @@ export interface InsightsBucketDTO {
   partial: boolean
   revenue: string
   orders: WireInt
+  /** The same point of the comparison window; null when the comparison is shorter (a day still running). */
+  previousRevenue: string | null
+  previousOrders: WireInt | null
+  /** Percent to one place, or whole seconds; null when nothing finished in this bucket. */
+  foundRate: string | null
+  cantSupplyRate: string | null
+  averageTimeToReady: WireInt | null
 }
 
 export interface InsightsTopProductDTO {
@@ -185,6 +192,32 @@ export interface InsightsTopProductDTO {
   revenue: string
   /** 0..1 of the top row: a bar width. */
   share: number
+  /** Its place in the comparison window; null when it sold nothing then. */
+  previousRank: WireInt | null
+}
+
+/** Minutes from paid to ready: the ranges `quality.readySpread` counts, in order. */
+export const READY_SPREAD_LABELS = ["Under 10", "10-20", "20-30", "30-40", "40-60", "Over 60"] as const
+
+/** The Insights pages a briefing line can open. */
+export type InsightsPage = "sales" | "products" | "service"
+
+/**
+ * How the period went, written by rules on the server so the same numbers always give the same words, and each line
+ * can be traced to the page behind it. `mood` is null with nothing to compare against.
+ */
+export interface InsightsBriefingDTO {
+  mood: "strong" | "steady" | "slower" | "quiet" | null
+  /** What the period is compared with, ready for "on ...": "the week before". */
+  comparedWith: string
+  changes: Array<{ tone: "up" | "down" | "flat"; title: string; detail: string; page: InsightsPage }>
+}
+
+/** Orders by weekday and hour over recent weeks; `orders` is a total, so an average is `orders / weeks`. */
+export interface InsightsRhythmDTO {
+  weeks: WireInt
+  /** ISO weekday (1 = Monday), local hour (0-23). Only cells with orders. */
+  cells: Array<{ weekday: WireInt; hour: WireInt; orders: WireInt }>
 }
 
 export interface ShopInsightsDTO {
@@ -220,6 +253,11 @@ export interface ShopInsightsDTO {
     ordersTotal: InsightsFigureDTO
   }
   topProducts: InsightsTopProductDTO[]
+  briefing: InsightsBriefingDTO
+  /** Null until two weeks have sold anything. */
+  rhythm: InsightsRhythmDTO | null
+  /** The products it could not supply in the window, most first. */
+  cantSupplyProducts: Array<{ productId: string; name: string; units: WireInt }>
   /**
    * How well the shop fulfils (099), over the portions it finished in the window. Rates are percent
    * strings to one decimal place with an `abs` change in points; the average is whole seconds with a
@@ -229,6 +267,8 @@ export interface ShopInsightsDTO {
     foundRate: InsightsFigureDTO | null
     cantSupplyRate: InsightsFigureDTO | null
     averageTimeToReady: InsightsFigureDTO | null
+    /** Orders by `READY_SPREAD_LABELS`; all zero when nothing finished. */
+    readySpread: WireInt[]
   }
 }
 
