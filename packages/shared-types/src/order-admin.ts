@@ -436,7 +436,7 @@ export type AdminOrderListResponse = ListPage<AdminOrderSummaryDTO>;
 /**
  * Who has one package for one stage (collection or delivery), and how. `assignmentId` is the
  * concurrency token the manual actions send back (null when nobody has it); `movable` is false once the
- * goods are in a van.
+ * goods have been taken, and stays false after they leave the van - it does not say where they are.
  */
 export interface OrderAssignment {
   assignmentId: string | null;

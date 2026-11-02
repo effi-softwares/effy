@@ -12,10 +12,13 @@ import { initialsOf } from "@/components/shell/identity"
 export function AssignmentLine({
   label,
   assignment,
+  inVan,
   actions,
 }: {
   label: "Collect" | "Deliver"
   assignment: OrderAssignment
+  /** The goods are in this driver's van now. Not `!movable`, which stays true after check-in and delivery. */
+  inVan: boolean
   actions?: React.ReactNode
 }) {
   const now = new Date()
@@ -49,7 +52,7 @@ export function AssignmentLine({
         ) : null}
       </div>
       {actions}
-      {name && !assignment.movable ? (
+      {name && inVan ? (
         <Badge variant="outline">
           <Lock aria-hidden="true" />
           In their van

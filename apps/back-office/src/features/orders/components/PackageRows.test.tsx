@@ -47,6 +47,59 @@ describe("PackageRows - 089", () => {
   })
 })
 
+describe("PackageRows - where the goods are", () => {
+  const taken = {
+    assignmentId: "a1",
+    driver: { id: "d1", name: "Sam Rivera" },
+    opensAt: null,
+    dueAt: null,
+    roundId: "r1",
+    how: null,
+    unassignedReason: null,
+    movable: false,
+  }
+  const at = (status: "with_driver" | "at_hub" | "out_for_delivery" | "delivered", deliver: typeof taken | null) =>
+    render(
+      <PackageRows
+        orderId="o1"
+        packages={[
+          {
+            ...pkg,
+            statusView: { status, word: status, detail: null, driverName: null },
+            collect: taken,
+            deliver,
+          },
+        ]}
+        canRecord={false}
+        busy={false}
+        onHandoff={() => {}}
+        onArrival={() => {}}
+      />,
+    )
+
+  it("says the collecting driver has it while it is with them", () => {
+    at("with_driver", null)
+    expect(screen.getByText("In their van")).toBeInTheDocument()
+  })
+
+  it("does not say so once it is checked in at the hub, though the collection cannot be moved", () => {
+    at("at_hub", null)
+    expect(screen.queryByText("In their van")).toBeNull()
+  })
+
+  it("says so once, on the delivering driver, while it is out for delivery", () => {
+    at("out_for_delivery", taken)
+    expect(screen.getAllByText("In their van")).toHaveLength(1)
+    expect(screen.getByText("Delivers")).toBeInTheDocument()
+    expect(screen.getByText("In their van").closest(".rounded-lg")).toHaveTextContent("Delivers")
+  })
+
+  it("does not say so once it is delivered", () => {
+    at("delivered", taken)
+    expect(screen.queryByText("In their van")).toBeNull()
+  })
+})
+
 describe("PackageRows - 096 bags", () => {
   const bags = {
     ...pkg,

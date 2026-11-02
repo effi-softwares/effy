@@ -145,6 +145,7 @@ function PackageRow({
             <AssignmentLine
               label="Collect"
               assignment={pkg.collect}
+              inVan={pkg.statusView?.status === "with_driver"}
               actions={renderActions?.(pkg, "collection", pkg.collect)}
             />
           ) : null}
@@ -152,6 +153,7 @@ function PackageRow({
             <AssignmentLine
               label="Deliver"
               assignment={pkg.deliver}
+              inVan={pkg.statusView?.status === "out_for_delivery"}
               actions={renderActions?.(pkg, "delivery", pkg.deliver)}
             />
           ) : null}
