@@ -91,9 +91,12 @@ export interface ShopCollectionRunDTO {
   driverOnDuty: boolean
 }
 
-/** Today's "Next collection": the run, and this shop's Effy orders due on it. */
+/**
+ * Today's "Next collection": the run, and this shop's Effy orders due on it. `picking` is every order not ready yet;
+ * `started` is how many of those someone has begun.
+ */
 export interface ShopNextCollectionDTO extends ShopCollectionRunDTO {
-  due: { ready: WireInt; picking: WireInt }
+  due: { ready: WireInt; picking: WireInt; started: WireInt }
 }
 
 /** The run expected to collect an Effy-driver package still at the shop. A courier package never has one. */

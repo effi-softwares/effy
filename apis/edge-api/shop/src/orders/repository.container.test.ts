@@ -39,7 +39,7 @@ import { orderActivitySource } from "../activity/sources";
 import type { Actor } from "../fulfillments/service";
 import { toListDTO, toOrderDTO } from "./handler-support";
 import { readPickLists } from "../pick-lists/repository";
-import { readLiveOrders } from "../today/repository";
+import { readTodayEvents } from "../today/repository";
 import { listQueue, readDetail } from "../fulfillments/repository";
 import { courierHandover } from "../fulfillments/service";
 import { createFirstParcels } from "@effy/edge-shared/labels";
@@ -465,7 +465,6 @@ SELECT id FROM p`,
     for (const [name, o] of Object.entries(made)) {
       expect((await readOrder(o.fulfillmentId, SHOP)).deliveredBy, name).toBe(EXPECTED[name.slice(0, 6) as keyof typeof EXPECTED]);
     }
-    expect(Object.fromEntries((await readLiveOrders(SHOP, 50)).map((r) => [r.orderNumber, r.deliveredBy]))).toEqual(EXPECTED);
     expect(Object.fromEntries((await readPickLists(SHOP)).lists.map((r) => [r.orderNumber, r.deliveredBy]))).toEqual(EXPECTED);
   });
 
@@ -486,7 +485,7 @@ SELECT id FROM p`,
     const wire = [
       toListDTO(list),
       ...(await Promise.all(Object.values(made).map(async (o) => toOrderDTO(await readOrder(o.fulfillmentId, SHOP))))),
-      ...(await readLiveOrders(SHOP, 50)),
+      ...(await readTodayEvents(SHOP)),
       ...(await readPickLists(SHOP)).lists,
     ];
     const text = JSON.stringify(wire);
@@ -551,8 +550,7 @@ SELECT id FROM p`,
       state: "booked", pickupDate: day, pickupFrom: "13:00", pickupTo: "15:00", courierName: "Test Courier",
       serviceName: "Parcel", reference: "REF-MINE", labelUrl: `https://signed.example/courier-label/${o.mine}/label.pdf`,
     });
-    // The same on Today and the fulfilment queue.
-    expect((await readLiveOrders(SHOP, 50)).find((r) => r.fulfillmentId === o.mine)?.courierPickup?.state).toBe("booked");
+    // The same on the fulfilment queue.
     expect((await listQueue(SHOP, "completed")).find((r) => r.id === o.mine)?.promise.courierPickup?.pickupFrom).toBe("13:00");
 
     // The parcel's bags (bag 1 is made at payment, which this fixture skips).
@@ -597,7 +595,7 @@ SELECT id FROM p`,
     const wire = JSON.stringify([
       toListDTO(await listOrders(SHOP, parseOrderListQuery({}))),
       toOrderDTO(await readOrder(o.mine, SHOP)),
-      await readLiveOrders(SHOP, 50),
+      await readTodayEvents(SHOP),
       (await readPickLists(SHOP)).lists,
       toQueueDTO(await listQueue(SHOP, "completed")),
       await readDetail(o.mine, SHOP, STAFF),

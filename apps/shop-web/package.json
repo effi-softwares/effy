@@ -29,6 +29,7 @@
     "firebase": "^12.19.0",
     "idb-keyval": "^6.3.0",
     "lucide-react": "^1.24.0",
+    "motion": "^14.1.0",
     "posthog-js": "^1.200.0",
     "qrcode-generator": "2.0.4",
     "react": "^19.0.0",

@@ -11,7 +11,7 @@ vi.mock("@effy/edge-shared", async () => {
   return { ...actual, query: (text: string, params?: unknown[]) => holder.pool!.query(text, params as never[]) };
 });
 
-import { readBacklog, readClock, readLiveOrders, readStockAttention } from "./repository";
+import { readBacklog, readClock, readTodayEvents, readStockAttention } from "./repository";
 
 const RUN = process.env.CONTAINER_TESTS === "1";
 
@@ -198,31 +198,84 @@ SELECT id FROM p`,
     });
   });
 
-  describe("live orders", () => {
-    it("returns the newest paid portions first, with this shop's unit count", async () => {
-      await paidOrder({ number: "EFY-OLD", minutesAgo: 90, qty: 2 });
-      await paidOrder({ number: "EFY-NEW", minutesAgo: 1, qty: 6 });
+  describe("today's events", () => {
+    const kinds = async () => (await readTodayEvents(SHOP)).map((e) => e.kind);
 
-      const live = await readLiveOrders(SHOP, 5);
-      expect(live.map((l) => l.orderNumber)).toEqual(["EFY-NEW", "EFY-OLD"]);
-      expect(live[0]).toMatchObject({ itemCount: 6, customerName: "Ada Lovelace", currency: "AUD" });
+    it("says what came in, newest first, with this shop's units and who takes it", async () => {
+      await paidOrder({ number: "EFY-OLD", minutesAgo: 1, qty: 2 });
+      await paidOrder({ number: "EFY-NEW", minutesAgo: 0, qty: 6 });
+      const [first, second] = await readTodayEvents(SHOP);
+      expect(first).toMatchObject({ kind: "came_in", orderNumber: "EFY-NEW", itemCount: 6 });
+      expect(second).toMatchObject({ kind: "came_in", orderNumber: "EFY-OLD" });
     });
 
-    it("⚠ every row carries the portion id its detail page opens (FR-009)", async () => {
-      const { fulfillmentId } = await paidOrder({ number: "EFY-ID" });
-      const [row] = await readLiveOrders(SHOP, 5);
-      expect(row!.fulfillmentId).toBe(fulfillmentId);
+    it("reads the shop's own steps, and a reopened pick is not a new start", async () => {
+      const { fulfillmentId } = await paidOrder({ number: "EFY-STEP", minutesAgo: 1 });
+      await pool.query(
+        `INSERT INTO public.fulfillment_event (shop_fulfillment_id, event_type, from_status, to_status, occurred_at) VALUES
+           ($1,'state_changed','received','picking', now()),
+           ($1,'state_changed','picking','ready_for_pickup', now() + interval '1 second'),
+           ($1,'state_changed','ready_for_pickup','picking', now() + interval '2 seconds'),
+           ($1,'item_gathered',NULL,NULL, now() + interval '3 seconds')`,
+        [fulfillmentId],
+      );
+      expect(await kinds()).toEqual(["ready", "picking", "came_in"]);
     });
 
-    it("never shows an unpaid order, and never another shop's", async () => {
+    it("⚠ reads a driver's collection from the hand-over: one event per hand-over, not per bag or order", async () => {
+      const a = await paidOrder({ number: "EFY-A", minutesAgo: 1 });
+      const b = await paidOrder({ number: "EFY-B", minutesAgo: 1 });
+      const c = await paidOrder({ number: "EFY-C", minutesAgo: 1 });
+      const hand = (change: string, id: string, n: number) =>
+        pool.query(
+          `WITH bag AS (
+             INSERT INTO public.package_parcel (shop_fulfillment_id, parcel_code, seq, zone)
+             VALUES ($2, public.new_package_code(), $3, 'ambient') RETURNING id)
+           INSERT INTO public.package_handover (shop_fulfillment_id, step, handover_method, change_id, parcel_id, actor_kind, admin_sub)
+           SELECT $2, 'courier_handover', 'manual', $1, bag.id, 'admin_staff', 'sub-admin' FROM bag`,
+          [change, id, n],
+        );
+      const one = "11111111-aaaa-4aaa-8aaa-111111111111";
+      const two = "22222222-bbbb-4bbb-8bbb-222222222222";
+      await hand(one, a.fulfillmentId, 1);
+      await hand(one, a.fulfillmentId, 2);
+      await hand(one, b.fulfillmentId, 1);
+      await hand(two, c.fulfillmentId, 1);
+      const handed = (await readTodayEvents(SHOP)).filter((e) => e.kind === "collected");
+      expect(handed.map((e) => (e.kind === "collected" ? [e.orders, e.orderNumber] : null)).sort()).toEqual([[1, "EFY-C"], [2, null]].sort());
+    });
+
+    it("says when a size sold out or came back, and not for every sale", async () => {
+      const id = await product({ name: "Rice", onHand: 0 });
+      const move = (before: number, after: number) =>
+        pool.query(
+          `INSERT INTO public.stock_movement (product_id, variant_id, shop_id, quantity_delta, quantity_before, quantity_after, reason, actor_kind)
+           SELECT v.product_id, v.id, v.shop_id, $2::int - $1::int, $1, $2, 'correction', 'shop' FROM public.product_variant v WHERE v.product_id = $3`,
+          [before, after, id],
+        );
+      await move(5, 3);
+      await move(3, 0);
+      await move(0, 8);
+      const events = await readTodayEvents(SHOP);
+      expect(events.map((e) => e.kind).sort()).toEqual(["restocked", "sold_out"]);
+      expect(events[0]).toMatchObject({ name: "Rice" });
+    });
+
+    it("never shows an unpaid order, another shop's, or yesterday's", async () => {
       await pool.query(
         `INSERT INTO public."order" (customer_id, order_number, status, item_subtotal_amount,
            delivery_fee_amount, grand_total_amount, delivery_address, delivery_type, delivery_type_reason)
          VALUES ($1,'EFY-UNPAID','pending_payment',10,0,10,'{"recipientName":"X"}'::jsonb, 'effy', 'in_coverage')`,
         [CUST],
       );
-      await paidOrder({ number: "EFY-THEIRS", shop: OTHER_SHOP });
-      expect(await readLiveOrders(SHOP, 5)).toEqual([]);
+      await paidOrder({ number: "EFY-THEIRS", shop: OTHER_SHOP, minutesAgo: 0 });
+      await paidOrder({ number: "EFY-AGO", minutesAgo: 60 * 30 });
+      expect(await readTodayEvents(SHOP)).toEqual([]);
+    });
+
+    it("stops at the limit", async () => {
+      for (let i = 0; i < 3; i++) await paidOrder({ number: `EFY-${i}`, minutesAgo: 0 });
+      expect(await readTodayEvents(SHOP, 2)).toHaveLength(2);
     });
   });
 

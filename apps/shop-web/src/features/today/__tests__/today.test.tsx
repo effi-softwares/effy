@@ -2,11 +2,16 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { render, screen, within, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import type { ReactNode } from "react"
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest"
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 
+const navigate = vi.hoisted(() => vi.fn())
 vi.mock("@tanstack/react-router", () => ({
-  Link: ({ children, to }: { children: ReactNode; to?: string }) => <a href={to ?? "#"}>{children}</a>,
-  useNavigate: () => () => {},
+  Link: ({ children, to, className, ...rest }: { children: ReactNode; to?: string; className?: string }) => (
+    <a href={to ?? "#"} className={className} {...rest}>
+      {children}
+    </a>
+  ),
+  useNavigate: () => navigate,
   useSearch: () => ({}),
 }))
 
@@ -16,22 +21,42 @@ vi.mock("../repo", () => ({ getToday }))
 const getInsights = vi.hoisted(() => vi.fn())
 vi.mock("@/features/insights/repo", () => ({ getInsights }))
 
-import type { ShopTodayDTO } from "@effy/shared-types"
+const listOrders = vi.hoisted(() => vi.fn())
+const transitionFulfillment = vi.hoisted(() => vi.fn())
+vi.mock("@/features/fulfillment/repo", () => ({ listOrders, transitionFulfillment }))
 
-import { attentionHref, attentionRow, openItemCount, unitsToPack } from "../model"
+import type { ShopNextCollectionDTO, ShopTodayDTO, ShopTodayEventDTO } from "@effy/shared-types"
+
+import { orderList, orderRow } from "@/features/fulfillment/__tests__/fixtures"
+
+import { attentionHref, buildJobs, collectionClock, collectionLine, eventWords, openItemCount, todayDate } from "../model"
 import { TodayScreen } from "../TodayScreen"
 import { useNavBadges } from "../useNavBadges"
 
-/** Every loading shape has gone — a skeleton writes the page's real titles, so a title alone does not mean loaded. */
+/** Every loading shape has gone: a skeleton writes the page's real titles, so a title alone does not mean loaded. */
 const loaded = () => waitFor(() => expect(screen.queryAllByRole("status", { busy: true })).toHaveLength(0))
 
 const NOW = "2026-09-14T04:00:00.000Z"
 const nowMs = new Date(NOW).getTime()
+const inMinutes = (m: number) => new Date(nowMs + m * 60_000).toISOString()
+const TZ = "Australia/Melbourne"
+
+const next = (over: Partial<ShopNextCollectionDTO> = {}): ShopNextCollectionDTO => ({
+  runAt: inMinutes(38),
+  dayOffset: 0,
+  driver: "assigned",
+  opensAt: null,
+  driverOnDuty: false,
+  due: { ready: 3, picking: 5, started: 2 },
+  ...over,
+})
+
+const event = (e: Record<string, unknown>, id: string): ShopTodayEventDTO => ({ id, at: NOW, ...e }) as ShopTodayEventDTO
 
 function today(over: Partial<ShopTodayDTO> = {}): ShopTodayDTO {
   return {
     now: NOW,
-    timezone: "Australia/Melbourne",
+    timezone: TZ,
     backlog: {
       awaitingPick: { orders: 3, units: 11, oldestPaidAt: "2026-09-14T00:48:00.000Z" },
       readyForPickup: 2,
@@ -39,30 +64,18 @@ function today(over: Partial<ShopTodayDTO> = {}): ShopTodayDTO {
     },
     attention: [
       { kind: "awaiting_pick", orders: 3, units: 11, since: "2026-09-14T00:48:00.000Z" },
-      {
-        kind: "out_of_stock",
-        productId: "p5",
-        variantId: "v5",
-        name: "Beeswax wrap set",
-        soldLast7Days: 17,
-        since: "2026-09-14T01:00:00.000Z",
-      },
+      { kind: "out_of_stock", productId: "p5", variantId: "v5", name: "Beeswax wrap set", soldLast7Days: 17, since: "2026-09-14T01:00:00.000Z" },
     ],
     attentionMore: 0,
     oldestWaitingAt: "2026-09-14T00:48:00.000Z",
-    live: [
-      {
-        fulfillmentId: "f-1",
-        orderNumber: "EFY-4421",
-        customerName: "Elin Wikström",
-        paidAt: "2026-09-14T03:59:30.000Z",
-        itemCount: 4,
-        deliveredBy: "effy_driver",
-        total: "57.80",
-        currency: "AUD",
-      },
+    events: [
+      event({ kind: "came_in", fulfillmentId: "f-1", orderNumber: "EFY-4421", itemCount: 4, deliveredBy: "effy_driver" }, "e1"),
+      event({ kind: "ready", fulfillmentId: "f-2", orderNumber: "EFY-4420" }, "e2"),
+      event({ kind: "sold_out", productId: "p5", variantId: "v5", name: "Beeswax wrap set" }, "e3"),
+      event({ kind: "collected", orders: 7, fulfillmentId: null, orderNumber: null }, "e4"),
+      event({ kind: "picking", fulfillmentId: "f-3", orderNumber: "EFY-4419" }, "e5"),
     ],
-    nextCollection: null,
+    nextCollection: next(),
     ...over,
   }
 }
@@ -70,10 +83,14 @@ function today(over: Partial<ShopTodayDTO> = {}): ShopTodayDTO {
 beforeAll(() => {
   vi.useFakeTimers({ shouldAdvanceTime: true })
   vi.setSystemTime(new Date(NOW))
-  getInsights.mockResolvedValue(insights())
 })
 afterAll(() => {
   vi.useRealTimers()
+})
+beforeEach(() => {
+  vi.clearAllMocks()
+  getInsights.mockResolvedValue(insights())
+  listOrders.mockResolvedValue(orderList([orderRow({ id: "o1", orderNumber: "EFY-9001", status: "received", itemCount: 7, atRisk: true })]))
 })
 
 function insights() {
@@ -119,176 +136,180 @@ function wrap(children: ReactNode) {
   return render(<QueryClientProvider client={qc}>{children}</QueryClientProvider>)
 }
 
-describe("Today (US1)", () => {
-  it("derives the subtitle from the SERVER's clock and the shop's timezone", async () => {
+describe("the countdown", () => {
+  it("reads as one sentence, with one bar and how many are being picked", async () => {
     getToday.mockResolvedValue(today())
     wrap(<TodayScreen />)
-
-    expect(await screen.findByText("Monday 14 September · Melbourne")).toBeInTheDocument()
-  })
-
-  it("renders the Part A copy verbatim", async () => {
-    getToday.mockResolvedValue(today())
-    wrap(<TodayScreen />)
-
     await loaded()
-    expect(screen.getByText("Needs attention")).toBeInTheDocument()
-    expect(screen.getByText("Live orders")).toBeInTheDocument()
-    expect(screen.getByText("Updating as orders arrive")).toBeInTheDocument()
-    expect(screen.getByText("Cleared items drop off automatically")).toBeInTheDocument()
-    expect(screen.getByText("Showing the five most recent orders")).toBeInTheDocument()
-    expect(screen.getByText("Open queue →")).toBeInTheDocument()
-    expect(screen.getByText("All orders →")).toBeInTheDocument()
-    expect(screen.getByText("Quick actions")).toBeInTheDocument()
-    expect(screen.getByText("Print pick lists")).toBeInTheDocument()
-    await userEvent.click(screen.getByRole("button", { name: "More actions" }))
-    expect(screen.getByRole("menuitem", { name: "Team activity" })).toBeInTheDocument()
+    const band = await screen.findByRole("region", { name: "Next collection" })
+    expect(within(band).getByText("38")).toBeInTheDocument()
+    expect(within(band).getByText(/until the .* driver\. 5 orders still to pack\./)).toBeInTheDocument()
+    expect(within(band).getByRole("progressbar", { name: "3 of 8 orders ready" })).toBeInTheDocument()
+    expect(within(band).getByText(/2 being picked/)).toBeInTheDocument()
   })
 
-  it("shows the backlog row with its units and the oldest age", async () => {
+  it("says so when no runs are set up, rather than showing a zero", async () => {
+    getToday.mockResolvedValue(today({ nextCollection: null }))
+    wrap(<TodayScreen />)
+    expect(await screen.findByText(/No collection runs are set up/)).toBeInTheDocument()
+    expect(screen.queryByRole("progressbar")).not.toBeInTheDocument()
+  })
+
+  it("counts minutes only while that means something", () => {
+    expect(collectionClock(next(), nowMs, TZ)).toMatchObject({ minutes: 38, unit: "min" })
+    expect(collectionClock(next({ runAt: inMinutes(90) }), nowMs, TZ)).toMatchObject({ minutes: null, big: "1 h", unit: "30 min" })
+    expect(collectionClock(next({ runAt: inMinutes(-3) }), nowMs, TZ)).toMatchObject({ minutes: null, big: "Due" })
+    const tomorrow = next({ runAt: inMinutes(1200), dayOffset: 1 })
+    expect(collectionClock(tomorrow, nowMs, TZ)).toMatchObject({ minutes: null, unit: "Tomorrow" })
+    expect(collectionLine(tomorrow, collectionClock(tomorrow, nowMs, TZ), TZ)).toMatch(/^is your next driver\./)
+  })
+
+  it("says when everything is ready, and when nothing is due", () => {
+    const ready = next({ due: { ready: 4, picking: 0, started: 0 } })
+    expect(collectionLine(ready, collectionClock(ready, nowMs, TZ), TZ)).toMatch(/Every order is ready\.$/)
+    const none = next({ due: { ready: 0, picking: 0, started: 0 } })
+    expect(collectionLine(none, collectionClock(none, nowMs, TZ), TZ)).toMatch(/None of your orders are due/)
+  })
+
+  it("dates the page from the SERVER's clock and the shop's timezone", () => {
+    expect(todayDate(NOW, TZ)).toBe("Monday 14 September")
+  })
+})
+
+describe("what just happened", () => {
+  it("holds the newest in the Now bar and the three before it on the line, oldest first", async () => {
     getToday.mockResolvedValue(today())
     wrap(<TodayScreen />)
-
-    expect(await screen.findByText("3 orders awaiting pick")).toBeInTheDocument()
-    expect(screen.getByText(/11 units to pack · oldest 3 h 12 m/)).toBeInTheDocument()
+    await loaded()
+    const bar = await screen.findByLabelText("Live activity")
+    expect(within(bar).getByText("came in")).toBeInTheDocument()
+    expect(within(bar).getByText(/EFY-4421/)).toBeInTheDocument()
+    const line = screen.getAllByRole("listitem").map((l) => l.textContent)
+    expect(line[0]).toContain("7 orders collected")
+    expect(line[2]).toContain("is ready")
+    // The fifth event stays in the log.
+    expect(screen.queryByText(/EFY-4419/)).not.toBeInTheDocument()
   })
 
-  it("names the demand behind an empty shelf — never a view count the platform does not have", async () => {
+  it("opens the one Activity drawer for anything earlier", async () => {
     getToday.mockResolvedValue(today())
     wrap(<TodayScreen />)
-
-    expect(await screen.findByText("Beeswax wrap set out of stock")).toBeInTheDocument()
-    expect(screen.getByText("17 sold in the last 7 days, 0 on hand")).toBeInTheDocument()
-    expect(screen.queryByText(/views today/i)).not.toBeInTheDocument()
+    await loaded()
+    await userEvent.click(await screen.findByRole("button", { name: /Earlier/ }))
+    expect(navigate).toHaveBeenCalled()
   })
 
-  it("gives every row a verb-specific button that resolves it", async () => {
+  it("says so before anything has happened today", async () => {
+    getToday.mockResolvedValue(today({ events: [] }))
+    wrap(<TodayScreen />)
+    expect(await screen.findByText("Nothing has happened yet today")).toBeInTheDocument()
+  })
+
+  it("has words for every kind", () => {
+    expect(eventWords(event({ kind: "came_in", orderNumber: "E", itemCount: 1, deliveredBy: "courier" }, "a"))).toEqual({ code: "E", words: "came in", note: "1 item · Courier" })
+    expect(eventWords(event({ kind: "collected", orders: 1, orderNumber: "E", fulfillmentId: "f" }, "b")).words).toBe("was collected")
+    expect(eventWords(event({ kind: "collected", orders: 7, orderNumber: null, fulfillmentId: null }, "c")).words).toBe("7 orders collected")
+    for (const kind of ["picking", "ready", "delivered", "cant_supply", "cancelled"]) {
+      expect(eventWords(event({ kind, orderNumber: "E" }, kind)).words).toBeTruthy()
+    }
+    expect(eventWords(event({ kind: "restocked", name: "Rice" }, "d")).words).toBe("Rice is back in stock")
+  })
+})
+
+describe("what is next", () => {
+  const order = (id: string, over: Parameters<typeof orderRow>[0] = {}) => orderRow({ id, orderNumber: `EFY-${id}`, status: "received", ...over })
+  const runAt = inMinutes(38)
+  const collection = { runAt, dayOffset: 0, driver: "none" as const }
+  const jobs = (waiting: ReturnType<typeof orderRow>[], attention: ShopTodayDTO["attention"] = [], extra = {}) =>
+    buildJobs({ waiting, waitingTotal: waiting.length, attention, attentionMore: 0, nextRunAt: runAt, timezone: TZ, now: nowMs, ...extra })
+  const low = { kind: "low_stock" as const, productId: "p", variantId: "low", name: "Oat milk", onHand: 3, daysOfCover: 2, since: NOW }
+  const out = { kind: "out_of_stock" as const, productId: "p", variantId: "out", name: "Rice", soldLast7Days: 4, since: NOW }
+  const refund = { kind: "refund_proposed" as const, fulfillmentId: "f", orderNumber: "EFY-R", amount: "5.40", since: NOW }
+
+  it("puts late work first, then the next driver's, then what costs sales, then the rest", () => {
+    const list = jobs([order("later"), order("run", { collection }), order("late", { atRisk: true })], [low, refund, out]).jobs
+    expect(list.map((j) => j.key)).toEqual(["order-late", "order-run", "stock-out", "refund-f"])
+  })
+
+  it("lists orders one by one, never the group row", () => {
+    const list = jobs([order("a")], [{ kind: "awaiting_pick", orders: 1, units: 3, since: NOW }]).jobs
+    expect(list.map((j) => j.key)).toEqual(["order-a"])
+  })
+
+  it("counts everything it could not show, including what the server held back", () => {
+    const waiting = ["a", "b", "c", "d", "e"].map((id) => order(id))
+    expect(jobs(waiting).more).toBe(1)
+    expect(jobs(waiting, [], { waitingTotal: 9, attentionMore: 2 }).more).toBe(7)
+  })
+
+  it("an order nobody has opened is opened; one that has been is picked", () => {
+    const list = jobs([order("p", { status: "pending" }), order("r")]).jobs
+    expect(list.map((j) => [j.kind, j.action])).toEqual([["open", "Open order"], ["pick", "Start picking"]])
+  })
+
+  it("shows the next job largest, with the only filled button", async () => {
     getToday.mockResolvedValue(today())
     wrap(<TodayScreen />)
-
-    // Straight to the tab that holds the work, not to the list's default view.
-    expect(await screen.findByRole("link", { name: "Pick" })).toHaveAttribute("href", "/orders?view=table&tab=new")
-    expect(screen.getByRole("link", { name: "Restock" })).toHaveAttribute("href", "/catalog/p5?size=v5")
+    await loaded()
+    expect(await screen.findByText("Do this next")).toBeInTheDocument()
+    expect(await screen.findByRole("heading", { name: "Pick EFY-9001" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Start picking" })).toHaveAttribute("data-variant", "default")
+    const restock = screen.getByRole("link", { name: "Restock" })
+    expect(restock).toHaveAttribute("href", "/catalog/p5?size=v5")
+    expect(restock).toHaveAttribute("data-variant", "outline")
   })
 
-  it("opens each live row on the order it displays (FR-009)", async () => {
+  it("starts the pick, then opens the order", async () => {
     getToday.mockResolvedValue(today())
+    transitionFulfillment.mockResolvedValue({})
     wrap(<TodayScreen />)
-
-    const row = await screen.findByText("EFY-4421")
-    const link = row.closest("a")!
-    expect(link).toHaveAttribute("href", "/orders/$fulfillmentId") // params supplied by the router
-    expect(within(link).getByText("Elin Wikström")).toBeInTheDocument()
-    expect(within(link).getByText("New")).toBeInTheDocument()
-    expect(within(link).getByText(/Just now · 4 items · Effy driver/)).toBeInTheDocument()
-    expect(within(link).getByText("AUD 57.80")).toBeInTheDocument()
+    await userEvent.click(await screen.findByRole("button", { name: "Start picking" }))
+    await waitFor(() => expect(transitionFulfillment).toHaveBeenCalledWith("o1", { to: "picking" }))
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith({ to: "/orders/$fulfillmentId", params: { fulfillmentId: "o1" } }))
   })
 
-  it("drops the New badge once an arrival is over a minute old", async () => {
-    getToday.mockResolvedValue(
-      today({
-        live: [
-          {
-            fulfillmentId: "f-2",
-            orderNumber: "EFY-4400",
-            customerName: "Anders Holm",
-            paidAt: "2026-09-14T03:50:00.000Z",
-            itemCount: 1,
-            deliveredBy: "effy_driver",
-            total: "12.00",
-            currency: "AUD",
-          },
-        ],
-      }),
-    )
+  it("says all clear, with no zeroed card, when nothing needs anyone", async () => {
+    listOrders.mockResolvedValue(orderList([]))
+    getToday.mockResolvedValue(today({ attention: [], attentionMore: 0, oldestWaitingAt: null }))
     wrap(<TodayScreen />)
-
-    expect(await screen.findByText("EFY-4400")).toBeInTheDocument()
-    expect(screen.queryByText("New")).not.toBeInTheDocument()
-    expect(screen.getByText(/10 min ago · 1 item · Effy driver/)).toBeInTheDocument()
-  })
-
-  it("shows the calm steady state, not a zeroed card, when nothing needs anyone", async () => {
-    getToday.mockResolvedValue(
-      today({
-        attention: [],
-        attentionMore: 0,
-        oldestWaitingAt: null,
-        backlog: {
-          awaitingPick: { orders: 0, units: 0, oldestPaidAt: null },
-          readyForPickup: 0,
-          lowStock: { skus: 0, outOfStock: 0 },
-        },
-      }),
-    )
-    wrap(<TodayScreen />)
-
-    expect(await screen.findByText("Nothing needs you right now")).toBeInTheDocument()
-    expect(screen.getByText("Nothing is waiting")).toBeInTheDocument()
-    const badge = screen.queryByText("0", { selector: "span.font-mono" })
-    expect(badge).not.toBeInTheDocument()
+    expect(await screen.findByText("All clear")).toBeInTheDocument()
   })
 
   it("surfaces a read failure instead of rendering an empty shop", async () => {
     getToday.mockRejectedValue({ kind: "unavailable", status: 503, title: "x", detail: "y" })
     wrap(<TodayScreen />)
-
     expect(await screen.findByRole("button", { name: /retry/i })).toBeInTheDocument()
-    expect(screen.queryByText("Nothing needs you right now")).not.toBeInTheDocument()
+    expect(screen.queryByText("All clear")).not.toBeInTheDocument()
+  })
+})
+
+describe("the page's actions", () => {
+  it("keeps quick actions, the pick lists and the team's activity", async () => {
+    getToday.mockResolvedValue(today())
+    wrap(<TodayScreen />)
+    await loaded()
+    expect(await screen.findByRole("button", { name: "Quick actions" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Print pick lists" })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole("button", { name: "More actions" }))
+    expect(await screen.findByRole("menuitem", { name: "Team activity" })).toBeInTheDocument()
   })
 })
 
 describe("⚠ FR-006 — one value, everywhere it appears", () => {
-  it("the card title, the unit figure, the badge and the nav badge all come from one field", async () => {
+  it("the sidebar badge reads the same cache entry, not a count of its own", () => {
     const dto = today({ attentionMore: 4 })
-    getToday.mockResolvedValue(dto)
-
-    // The screen's own rendering…
-    wrap(<TodayScreen />)
-    expect(await screen.findByText("3 orders awaiting pick")).toBeInTheDocument()
-    expect(screen.getAllByText(/11 units to pack/)).toHaveLength(2)
-    // …the badge counts every open item, including the ones the card could not fit…
     expect(openItemCount(dto)).toBe(6)
-    expect(screen.getByText("6")).toBeInTheDocument()
-
-    // …and the sidebar badge reads the same cache entry, not a count of its own.
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     qc.setQueryData(["shop", "today"], dto)
-    const badges = renderHookValue(qc)
-    expect(badges["/orders"]).toBe(dto.backlog.awaitingPick.orders)
-  })
-
-  it("the attention row and the glance phrase are built by ONE function", () => {
-    const row = attentionRow({ kind: "awaiting_pick", orders: 1, units: 1, since: NOW }, nowMs)
-    expect(row.title).toBe("1 order awaiting pick")
-    expect(row.detail.startsWith(unitsToPack(1))).toBe(true)
-    expect(unitsToPack(1)).toBe("1 unit to pack")
+    expect(renderHookValue(qc)["/orders"]).toBe(dto.backlog.awaitingPick.orders)
   })
 
   it("098 — a stock row opens its product on the size that needs stock", () => {
-    expect(
-      attentionHref({
-        kind: "low_stock",
-        productId: "p5",
-        variantId: "v5-1kg",
-        name: "Rice — 1 kg",
-        onHand: 2,
-        daysOfCover: null,
-        since: NOW,
-      }),
-    ).toBe("/catalog/p5?size=v5-1kg")
+    expect(attentionHref({ kind: "low_stock", productId: "p5", variantId: "v5-1kg", name: "Rice — 1 kg", onHand: 2, daysOfCover: null, since: NOW })).toBe("/catalog/p5?size=v5-1kg")
   })
 
   it("routes a proposed refund to the order it is about", () => {
-    expect(
-      attentionHref({
-        kind: "refund_proposed",
-        fulfillmentId: "f-9",
-        orderNumber: "EFY-4413",
-        amount: "5.40",
-        since: NOW,
-      }),
-    ).toBe("/orders/f-9")
+    expect(attentionHref({ kind: "refund_proposed", fulfillmentId: "f-9", orderNumber: "EFY-4413", amount: "5.40", since: NOW })).toBe("/orders/f-9")
   })
 })
 

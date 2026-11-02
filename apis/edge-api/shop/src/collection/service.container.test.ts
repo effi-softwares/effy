@@ -110,7 +110,7 @@ describe.skipIf(!RUN)("collection facts for a shop — real PostgreSQL, real mig
     await order("picking", { shop: OTHER_SHOP });
     const next = await nextCollectionFor(SHOP, now);
     expect(next?.runAt).toBe(nextRunInstant(HOURLY, now)!.toISOString());
-    expect(next?.due).toEqual({ ready: 1, picking: 2 });
+    expect(next?.due).toMatchObject({ ready: 1, picking: 2 });
     expect(next?.driver).toBe("none");
   });
 
@@ -138,14 +138,14 @@ describe.skipIf(!RUN)("collection facts for a shop — real PostgreSQL, real mig
     const next = await nextCollectionFor(SHOP, now);
     expect(next?.runAt).toBe(later.toISOString());
     expect(next?.driver).toBe("assigned");
-    expect(next?.due).toEqual({ ready: 0, picking: 1 });
+    expect(next?.due).toMatchObject({ ready: 0, picking: 1 });
   });
 
   it("never gives a courier's own pickup an Effy run", async () => {
     const own = await order("ready_for_pickup", { courierSupplier: true });
     const runs = await collectionsFor(SHOP, [own], new Date());
     expect(runs.has(own)).toBe(false);
-    expect((await nextCollectionFor(SHOP, new Date()))?.due).toEqual({ ready: 0, picking: 0 });
+    expect((await nextCollectionFor(SHOP, new Date()))?.due).toMatchObject({ ready: 0, picking: 0 });
   });
 
   it("is null when no collection runs are set up", async () => {

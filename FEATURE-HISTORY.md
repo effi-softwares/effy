@@ -4,6 +4,28 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
+**Shop Today redesign (no spec number).** 🔨 **BUILT 2026-11-02; NOT DEPLOYED OR WALKED.** Prototype, research and sources:
+`docs/reference-screens/Today and Insights Redesign/today.html` (git-ignored), version "A + B · Now bar". Insights is prototyped, not built.
+- **The page is one line of time** (`features/today/DayLine.tsx`): the last events, a pinned **Now bar** holding the newest,
+  then the work: a large next job and three more. The old panels (Needs attention, Live orders, Next collection, Today at a
+  glance) are gone. The title row and countdown are one band (`CollectionBand.tsx`); date and sales sit in the header detail.
+- **Next up is `buildJobs`** (`model.ts`): orders one by one from the existing Orders list (`tab=new`, oldest first), merged with
+  attention: late, then the next run, out of stock, refunds, other orders, low stock. No new route.
+- **Backend** (`shop`): `ShopTodayDTO.events` (`readTodayEvents`, at most `TODAY_EVENT_LIMIT`, today on Effy's clock) replaces
+  `live`, which is removed. `nextCollection.due.started` is new: `due.picking` means "not ready", so it could not say how many
+  are being picked. ⚠ A driver's collection writes no `fulfillment_event`, so hand-overs are read from `package_handover`, grouped by
+  `change_id`; arrivals from `package_arrival`. No migration. The privacy tests that read `live` now read the event feed.
+- **"Earlier" opens the Team activity drawer**, not a second log (104): the page shows the last few events as live status only.
+- **Motion** (`motion`, added to shop-web): `LazyMotion` + `m` with `domMax` from `motion-features.ts`, a separate 26 KB (gzip)
+  chunk, under `MotionConfig reducedMotion="user"`. ⚠ `AnimateNumber` is paid (Motion+), so `RollingNumber` uses `useSpring`.
+  An event keeps its `layoutId` from the bar to the line. ⚠ The lead job's cell is one grid area (`*:[grid-area:1/1]`): `popLayout`
+  threw the next card off the page, and two `AnimatePresence` over one `layoutId` left a ghost.
+- **Verified**: unit tests; the event SQL against real Postgres (53 tests with the order and collection suites); the real
+  component in Chrome at 1440, 1024 and 390, light and dark, with simulated live updates, measuring the motion frame by frame.
+  Not walked against a deployed API. `package-status.guard` still fails on 099's `collection.ts` only.
+- **Open**: `make edge-deploy SERVICE=shop ENV=dev`, then push shop-web straight after. The two must go together: old shop-web
+  reads `live` and new shop-web reads `events`, so Today errors until both are out.
+
 **Shop order queue redesign (no spec number).** 🔨 **BUILT 2026-11-02; NOT DEPLOYED OR WALKED.** Prototype, research and
 sources: `docs/reference-screens/Order Queue Redesign/index.html` (git-ignored). Operator chose ruled columns and the fold-out column.
 - **The queue is the page**: `/orders` opens on it; the table is `view=table`. ⚠ The queue ignores filters, so every link

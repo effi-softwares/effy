@@ -94,7 +94,7 @@ function today(): ShopTodayDTO {
     attention: [],
     attentionMore: 0,
     oldestWaitingAt: null,
-    live: [],
+    events: [],
     nextCollection: null,
   }
 }

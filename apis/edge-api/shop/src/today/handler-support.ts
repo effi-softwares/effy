@@ -4,13 +4,9 @@ import { createHash } from "node:crypto";
 import type { APIGatewayProxyStructuredResultV2 } from "aws-lambda";
 
 import type { AuthedEvent, RequestScope } from "@effy/edge-shared";
-import type {
-  ShopAttentionItemDTO,
-  ShopLiveOrderDTO,
-  ShopTodayDTO,
-} from "@effy/shared-types";
+import type { ShopAttentionItemDTO, ShopTodayDTO, ShopTodayEventDTO } from "@effy/shared-types";
 
-import type { AttentionView, LiveOrder, TodaySnapshot } from "./types";
+import type { AttentionView, TodaySnapshot } from "./types";
 
 export { gate, mapFulfillmentError as mapTodayError } from "../fulfillments/handler-support";
 
@@ -48,21 +44,6 @@ function toAttentionDTO(i: AttentionView["items"][number]): ShopAttentionItemDTO
   }
 }
 
-function toLiveDTO(o: LiveOrder): ShopLiveOrderDTO {
-  return {
-    fulfillmentId: o.fulfillmentId,
-    orderNumber: o.orderNumber,
-    customerName: o.customerName,
-    paidAt: o.paidAt.toISOString(),
-    itemCount: o.itemCount,
-    deliveredBy: o.deliveredBy,
-    ...(o.courierPickup ? { courierPickup: o.courierPickup } : {}),
-    total: o.total,
-    currency: o.currency,
-    ...(o.collection ? { collection: o.collection } : {}),
-  };
-}
-
 export function toTodayDTO(s: TodaySnapshot, attention: AttentionView): ShopTodayDTO {
   return {
     now: s.now.toISOString(),
@@ -80,7 +61,7 @@ export function toTodayDTO(s: TodaySnapshot, attention: AttentionView): ShopToda
     attentionMore: attention.more,
     oldestWaitingAt: attention.oldestWaitingAt?.toISOString() ?? null,
     nextCollection: s.nextCollection,
-    live: s.live.map(toLiveDTO),
+    events: s.events.map((e) => ({ ...e, at: e.at.toISOString() }) as ShopTodayEventDTO),
   };
 }
 

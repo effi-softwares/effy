@@ -6,10 +6,10 @@ import {
   query,
 } from "@effy/edge-shared";
 import { lineNameSql, variantLabelSql } from "@effy/edge-shared/catalog";
+import { OPERATING_TZ, TODAY_EVENT_LIMIT } from "@effy/shared-types";
 
 import { DELIVERED_BY_SQL, type DeliveredBy } from "../lib/delivered-by";
-import type { Backlog, LiveOrder, StockAttention } from "./types";
-import { courierPickups, pickupOf } from "../lib/courier-pickup";
+import type { Backlog, StockAttention, TodayEvent } from "./types";
 
 /**
  * Backlog, ready and low-stock counts in one round trip. `awaiting_units` sums this shop's lines only.
@@ -138,53 +138,107 @@ export async function readStockAttention(shopId: string, limit: number): Promise
 }
 
 /**
- * The five most recently paid orders, each a stored portion. The total is the order's, as on the Orders
- * list, not Insights' this-shop-goods revenue.
+ * What happened at this shop today, on Effy's clock, newest first. Five sources, because no one table holds it:
+ * ⚠ a driver's collection writes no `fulfillment_event`, so hand-overs are read from `package_handover`, one row per
+ * bag, grouped by the hand-over (`change_id`); arrivals are `package_arrival`. A reopened pick is not a new start.
  */
-const SELECT_LIVE = `
-SELECT sf.id::text AS fulfillment_id,
-       o.order_number,
-       COALESCE(o.delivery_address ->> 'recipientName', '') AS customer_name,
-       COALESCE(o.placed_at, o.created_at) AS paid_at,
-       ${DELIVERED_BY_SQL} AS delivered_by,
-       o.grand_total_amount::text AS total,
-       o.currency,
-       (SELECT COALESCE(SUM(oi.quantity), 0)
-          FROM public.order_item oi
-         WHERE oi.order_id = sf.order_id AND oi.shop_id = sf.shop_id)::int AS item_count
-  FROM public.shop_fulfillment sf
-  JOIN public."order" o ON o.id = sf.order_id
- WHERE sf.shop_id = $1
-   AND o.status IN ('paid', 'canceled')
- ORDER BY COALESCE(o.placed_at, o.created_at) DESC
- LIMIT $2
+const SELECT_EVENTS = `
+WITH day AS (
+  SELECT date_trunc('day', now() AT TIME ZONE '${OPERATING_TZ}') AT TIME ZONE '${OPERATING_TZ}' AS start
+)
+SELECT * FROM (
+  SELECT 'came_in:' || sf.id AS id, COALESCE(o.placed_at, o.created_at) AS at, 'came_in' AS kind,
+         sf.id::text AS fulfillment_id, o.order_number, sf.item_count, ${DELIVERED_BY_SQL} AS delivered_by,
+         NULL::int AS orders, NULL::text AS product_id, NULL::text AS variant_id, NULL::text AS name
+    FROM public.shop_fulfillment sf
+    JOIN public."order" o ON o.id = sf.order_id
+   WHERE sf.shop_id = $1
+     AND o.status IN ('paid', 'canceled')
+     AND COALESCE(o.placed_at, o.created_at) >= (SELECT start FROM day)
+
+  UNION ALL
+  SELECT fe.id::text, fe.occurred_at,
+         CASE fe.to_status WHEN 'picking' THEN 'picking' WHEN 'ready_for_pickup' THEN 'ready'
+                           WHEN 'unfulfillable' THEN 'cant_supply' ELSE 'cancelled' END,
+         sf.id::text, o.order_number, NULL, NULL, NULL, NULL, NULL, NULL
+    FROM public.fulfillment_event fe
+    JOIN public.shop_fulfillment sf ON sf.id = fe.shop_fulfillment_id
+    JOIN public."order" o ON o.id = sf.order_id
+   WHERE sf.shop_id = $1
+     AND fe.event_type = 'state_changed'
+     AND fe.to_status IN ('picking', 'ready_for_pickup', 'unfulfillable', 'withdrawn')
+     AND NOT (fe.to_status = 'picking' AND fe.from_status = 'ready_for_pickup')
+     AND fe.occurred_at >= (SELECT start FROM day)
+
+  UNION ALL
+  SELECT 'collected:' || ph.change_id, MIN(ph.recorded_at), 'collected',
+         CASE WHEN COUNT(DISTINCT sf.id) = 1 THEN MIN(sf.id::text) END,
+         CASE WHEN COUNT(DISTINCT sf.id) = 1 THEN MIN(o.order_number) END,
+         NULL, NULL, COUNT(DISTINCT sf.id)::int, NULL, NULL, NULL
+    FROM public.package_handover ph
+    JOIN public.shop_fulfillment sf ON sf.id = ph.shop_fulfillment_id
+    JOIN public."order" o ON o.id = sf.order_id
+   WHERE sf.shop_id = $1
+     AND ph.step IN ('collect', 'courier_handover', 'shop_pickup')
+     AND ph.recorded_at >= (SELECT start FROM day)
+   GROUP BY ph.change_id
+
+  UNION ALL
+  SELECT 'delivered:' || sf.id, pa.arrived_at, 'delivered',
+         sf.id::text, o.order_number, NULL, NULL, NULL, NULL, NULL, NULL
+    FROM public.package_arrival pa
+    JOIN public.shop_fulfillment sf ON sf.id = pa.shop_fulfillment_id
+    JOIN public."order" o ON o.id = sf.order_id
+   WHERE sf.shop_id = $1
+     AND pa.arrived_at >= (SELECT start FROM day)
+
+  UNION ALL
+  SELECT sm.id::text, sm.created_at, CASE WHEN sm.quantity_after = 0 THEN 'sold_out' ELSE 'restocked' END,
+         NULL, NULL, NULL, NULL, NULL, p.id::text, v.id::text, ${lineNameSql("p.name", variantLabelSql("v"))}
+    FROM public.stock_movement sm
+    JOIN public.product_variant v ON v.id = sm.variant_id
+    JOIN public.product p ON p.id = v.product_id
+   WHERE sm.shop_id = $1
+     AND sm.created_at >= (SELECT start FROM day)
+     AND (   (sm.quantity_after = 0 AND sm.quantity_before > 0)
+          OR (sm.quantity_before = 0 AND sm.quantity_after > 0))
+) e
+ORDER BY e.at DESC, e.id
+LIMIT $2
 `;
 
-interface LiveRow {
-  fulfillment_id: string;
-  order_number: string;
-  customer_name: string;
-  paid_at: Date;
-  delivered_by: DeliveredBy;
-  total: string;
-  currency: string;
-  item_count: number;
+interface EventRow {
+  id: string;
+  at: Date;
+  kind: TodayEvent["kind"];
+  fulfillment_id: string | null;
+  order_number: string | null;
+  item_count: number | null;
+  delivered_by: DeliveredBy | null;
+  orders: number | null;
+  product_id: string | null;
+  variant_id: string | null;
+  name: string | null;
 }
 
-export async function readLiveOrders(shopId: string, limit: number): Promise<LiveOrder[]> {
-  const res = await query<LiveRow>(SELECT_LIVE, [shopId, limit]);
-  const pickups = await courierPickups(shopId, res.rows.map((r) => r.fulfillment_id));
-  return res.rows.map((r) => ({
-    ...pickupOf(pickups, r.fulfillment_id),
-    fulfillmentId: r.fulfillment_id,
-    orderNumber: r.order_number,
-    customerName: r.customer_name,
-    paidAt: r.paid_at,
-    itemCount: r.item_count,
-    deliveredBy: r.delivered_by,
-    total: r.total,
-    currency: r.currency,
-  }));
+function toEvent(r: EventRow): TodayEvent {
+  const base = { id: r.id, at: r.at };
+  switch (r.kind) {
+    case "came_in":
+      return { ...base, kind: r.kind, fulfillmentId: r.fulfillment_id!, orderNumber: r.order_number!, itemCount: r.item_count!, deliveredBy: r.delivered_by! };
+    case "collected":
+      return { ...base, kind: r.kind, orders: r.orders!, fulfillmentId: r.fulfillment_id, orderNumber: r.order_number };
+    case "sold_out":
+    case "restocked":
+      return { ...base, kind: r.kind, productId: r.product_id!, variantId: r.variant_id!, name: r.name! };
+    default:
+      return { ...base, kind: r.kind, fulfillmentId: r.fulfillment_id!, orderNumber: r.order_number! };
+  }
+}
+
+export async function readTodayEvents(shopId: string, limit = TODAY_EVENT_LIMIT): Promise<TodayEvent[]> {
+  const res = await query<EventRow>(SELECT_EVENTS, [shopId, limit]);
+  return res.rows.map(toEvent);
 }
 
 /** Validated against `pg_timezone_names`; an unknown zone falls back to the platform's, logged. */

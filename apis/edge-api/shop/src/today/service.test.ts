@@ -25,7 +25,7 @@ function snapshot(over: Partial<TodaySnapshot> = {}): TodaySnapshot {
     },
     stock: [],
     proposals: [],
-    live: [],
+    events: [],
     nextCollection: null,
     ...over,
   };
@@ -133,7 +133,6 @@ describe("the snapshot", () => {
     });
     vi.spyOn(repo, "readBacklog").mockResolvedValue(snapshot().backlog);
     vi.spyOn(repo, "readStockAttention").mockResolvedValue([]);
-    vi.spyOn(repo, "readLiveOrders").mockResolvedValue([]);
 
     const out = await readToday(
       { sub: "sub-staff", shopId: "shop-1", staffId: "staff-1" },
@@ -153,7 +152,6 @@ describe("the snapshot", () => {
     });
     vi.spyOn(repo, "readBacklog").mockResolvedValue(snapshot().backlog);
     vi.spyOn(repo, "readStockAttention").mockResolvedValue([]);
-    vi.spyOn(repo, "readLiveOrders").mockResolvedValue([]);
     vi.mocked(proposedRefundsForShop).mockResolvedValue([
       {
         shop_fulfillment_id: "f1",
@@ -201,7 +199,6 @@ describe("the snapshot", () => {
     });
     vi.spyOn(repo, "readBacklog").mockResolvedValue(snapshot().backlog);
     vi.spyOn(repo, "readStockAttention").mockResolvedValue([]);
-    vi.spyOn(repo, "readLiveOrders").mockResolvedValue([]);
 
     const out = await readToday(
       { sub: "s", shopId: "shop-1", staffId: null },

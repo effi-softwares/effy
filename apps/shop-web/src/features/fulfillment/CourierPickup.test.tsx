@@ -11,7 +11,8 @@ vi.mock("./repo", () => ({ courierHandover, listFulfillments: vi.fn(), getFulfil
 
 import { CourierPickup } from "./components/CourierPickup"
 import { courierPickupLine, pickupWhen } from "./courierPickup"
-import { liveMeta } from "@/features/today/model"
+import { buildJobs } from "@/features/today/model"
+import { orderRow } from "./__tests__/fixtures"
 
 const pickup = (over: Partial<CourierPickupDTO> = {}): CourierPickupDTO => ({
   state: "booked",
@@ -42,15 +43,10 @@ describe("080 - a courier collects this parcel from the shop", () => {
     expect(courierPickupLine(pickup({ pickupFrom: null, pickupTo: null }))).toBe("Courier pickup · Thu 15 Oct")
     expect(courierPickupLine(pickup({ state: "arranging", pickupDate: null }))).toBe("Courier pickup · being arranged")
     expect(courierPickupLine(pickup({ state: "handed_over" }))).toBe("Handed over to courier")
-    expect(
-      liveMeta(
-        { paidAt: new Date(0).toISOString(), itemCount: 2, deliveredBy: "courier", courierPickup: pickup() },
-        60_000,
-      ),
-    ).toMatch(/2 items · Courier pickup · Thu 15 Oct, 1–3 pm$/)
-    expect(liveMeta({ paidAt: new Date(0).toISOString(), itemCount: 1, deliveredBy: "courier" }, 60_000)).toMatch(
-      /1 item · Courier$/,
-    )
+    const detail = (over: Parameters<typeof orderRow>[0]) =>
+      buildJobs({ waiting: [orderRow(over)], waitingTotal: 1, attention: [], attentionMore: 0, nextRunAt: null, timezone: "Australia/Melbourne", now: 0 }).jobs[0]!.detail
+    expect(detail({ itemCount: 2, courierPickup: pickup() })).toMatch(/^2 items Courier pickup · Thu 15 Oct, 1–3 pm · waited/)
+    expect(detail({ itemCount: 1 })).toMatch(/^1 item Courier · waited/)
   })
 
   it("shows the courier, the window, the reference and the label; hands over once packed", async () => {

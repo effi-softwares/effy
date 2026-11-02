@@ -37,7 +37,7 @@ const sameInstant = (a: Date, b: Date) => a.getTime() === b.getTime();
 export interface NextCollection {
   runAt: Date;
   stop: StopFacts | undefined;
-  due: { ready: number; picking: number };
+  due: { ready: number; picking: number; started: number };
 }
 
 /**
@@ -60,11 +60,12 @@ export function nextCollection(
   candidates.sort((a, b) => a.getTime() - b.getTime());
   const runAt = candidates[0] ?? nextRun;
   if (!runAt) return null;
-  const due = { ready: 0, picking: 0 };
+  const due = { ready: 0, picking: 0, started: 0 };
   for (const p of packages) {
     if (!p.runAt || !sameInstant(p.runAt, runAt)) continue;
     if (p.status === "ready_for_pickup") due.ready += 1;
     else due.picking += 1;
+    if (p.status === "picking") due.started += 1;
   }
   return { runAt, stop: stops.find((s) => sameInstant(s.runAt, runAt)), due };
 }

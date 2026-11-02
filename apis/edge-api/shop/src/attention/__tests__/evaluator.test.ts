@@ -103,7 +103,7 @@ function snapshot(over: {
       })),
     ],
     proposals: (over.proposals ?? []).map((p) => ({ ...p, amount: "10.00", since: NOW })),
-    live: [],
+    events: [],
   };
 }
 

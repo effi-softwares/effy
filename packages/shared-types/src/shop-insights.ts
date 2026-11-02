@@ -8,9 +8,11 @@
 import type { WireInt } from "./cart"
 import type { DeliveredBy } from "./delivery-type"
 import type { CourierPickupDTO } from "./shop-order"
-import type { ShopNextCollectionDTO, ShopOrderCollectionDTO, StorageClass } from "./shop-order-console"
+import type { ShopNextCollectionDTO, StorageClass } from "./shop-order-console"
 
 // Today: the live snapshot
+
+export const TODAY_EVENT_LIMIT = 12
 
 /**
  * One thing waiting on a person, in the order to look at them. A discriminated union, so each kind
@@ -53,26 +55,39 @@ export type ShopAttentionItemDTO =
     since: string
   }
 
-/** One of the five most recently paid orders; every row is a stored order. */
-export interface ShopLiveOrderDTO {
-  /** The portion id, which the row opens. */
-  fulfillmentId: string
-  orderNumber: string
-  /** The delivery recipient's name, as the Orders list shows it. */
-  customerName: string
-  paidAt: string
-  /** Units on this shop's lines. */
-  itemCount: WireInt
-  /** Who takes this package away: the only delivery fact a shop is told. */
-  deliveredBy: DeliveredBy
-  /** Present only when a courier collects this package from the shop. */
-  courierPickup?: CourierPickupDTO
-  /** The order's total, as the Orders list shows it; not the basis of Insights' Revenue (this shop's goods only). */
-  total: string
-  currency: string
-  /** Present only for an Effy-driver package still at the shop (099). */
-  collection?: ShopOrderCollectionDTO
-}
+/**
+ * One thing that happened at this shop today, newest first in `ShopTodayDTO.events`. The wording is the client's.
+ * `collected` is one driver or courier hand-over, however many orders it took.
+ */
+export type ShopTodayEventDTO = { id: string; at: string } & (
+  | {
+    kind: "came_in"
+    fulfillmentId: string
+    orderNumber: string
+    /** Units on this shop's lines. */
+    itemCount: WireInt
+    /** Who takes this package away: the only delivery fact a shop is told. */
+    deliveredBy: DeliveredBy
+  }
+  | {
+    kind: "picking" | "ready" | "cant_supply" | "cancelled" | "delivered"
+    fulfillmentId: string
+    orderNumber: string
+  }
+  | {
+    kind: "collected"
+    orders: WireInt
+    /** The order, when the hand-over took just one. */
+    fulfillmentId: string | null
+    orderNumber: string | null
+  }
+  | {
+    kind: "sold_out" | "restocked"
+    productId: string
+    variantId: string
+    name: string
+  }
+)
 
 export interface ShopBacklogDTO {
   /** The one value every backlog figure renders from (needs attention, badges, glance cells, Insights). */
@@ -100,7 +115,8 @@ export interface ShopTodayDTO {
   attentionMore: WireInt
   /** The oldest open item's instant: "Oldest item waiting {age}". Null when nothing waits. */
   oldestWaitingAt: string | null
-  live: ShopLiveOrderDTO[]
+  /** Today's events on Effy's clock, newest first: at most `TODAY_EVENT_LIMIT`. */
+  events: ShopTodayEventDTO[]
   /** The next Effy collection run to reach this shop; null when no collection runs are set up (099). */
   nextCollection: ShopNextCollectionDTO | null
 }

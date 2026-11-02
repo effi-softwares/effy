@@ -30,7 +30,7 @@ describe("the shop's next collection", () => {
       at(12, 30),
     );
     expect(next?.runAt).toEqual(at(12, 30));
-    expect(next?.due).toEqual({ ready: 1, picking: 1 });
+    expect(next?.due).toEqual({ ready: 1, picking: 1, started: 1 });
     expect(next?.stop?.stopStatus).toBe("pending");
   });
 
@@ -42,7 +42,7 @@ describe("the shop's next collection", () => {
   it("shows the next scheduled run with nothing due when the shop has no packages", () => {
     const next = nextCollection([], [], at(9, 0, 28));
     expect(next?.runAt).toEqual(at(9, 0, 28));
-    expect(next?.due).toEqual({ ready: 0, picking: 0 });
+    expect(next?.due).toEqual({ ready: 0, picking: 0, started: 0 });
   });
 
   it("is null with no run at all", () => {

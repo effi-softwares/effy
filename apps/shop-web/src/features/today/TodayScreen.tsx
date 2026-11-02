@@ -1,31 +1,41 @@
 import { useEffect, useMemo, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { useStore } from "@tanstack/react-store"
-
-import { ActivityLogDrawer, useActivityAction } from "@effy/web-kit/activity-log"
-import { ErrorState } from "@effy/web-kit/console"
-import { Button } from "@effy/design-system/ui"
-import { ListSkeleton, Loading, MoreActions, PageHeader, PanelSkeleton } from "@effy/web-kit/patterns"
+import { LazyMotion, MotionConfig } from "motion/react"
 import { Printer, Zap } from "lucide-react"
 
-import { LiveOrders } from "./LiveOrders"
-import { printLists, QuickActionsSheet } from "./QuickActionsSheet"
-import { relativeTime, subheading } from "./model"
-import { NeedsAttention } from "./NeedsAttention"
-import { NextCollection } from "./NextCollection"
-import { TodayGlance } from "./TodayGlance"
-import { todayQuery } from "./queries"
-import { useNow } from "./useNow"
+import { ActivityLogDrawer, useActivityAction } from "@effy/web-kit/activity-log"
+import { ErrorState, useHeaderDetail } from "@effy/web-kit/console"
+import { Button } from "@effy/design-system/ui"
+import { MoreActions } from "@effy/web-kit/patterns"
 
+import { orderListQuery } from "@/features/fulfillment/queries"
+import { money } from "@/features/insights/model"
+import { insightsQuery } from "@/features/insights/queries"
 import { api } from "@/lib/api"
 import { onlineStore } from "@/lib/online"
 import { track } from "@/lib/telemetry"
 
+import { CollectionBand } from "./CollectionBand"
+import { DayLine, DayLineSkeleton } from "./DayLine"
+import { buildJobs, relativeTime, todayDate } from "./model"
+import { printLists, QuickActionsSheet } from "./QuickActionsSheet"
+import { todayQuery } from "./queries"
+import { useNow } from "./useNow"
+
+const motionFeatures = () => import("./motion-features").then((m) => m.default)
+
+/** The orders that make up Next up: the same oldest-first list the queue's first column reads. */
+const WAITING = { tab: "new", dir: "asc" } as const
+
 export function TodayScreen() {
   const today = useQuery(todayQuery)
+  const waiting = useQuery(orderListQuery(WAITING))
+  const sales = useQuery(insightsQuery("today"))
   const [quickActionsOpen, setQuickActionsOpen] = useState(false)
   const activity = useActivityAction()
   const now = useNow(15_000)
+  const { online } = useStore(onlineStore)
 
   useEffect(() => {
     track({ name: "today_viewed" })
@@ -33,87 +43,89 @@ export function TodayScreen() {
 
   const data = today.data
   const awaitingPick = data?.backlog.awaitingPick.orders ?? 0
-  const { online } = useStore(onlineStore)
   const fetchedAt = today.dataUpdatedAt
-  const heading = useMemo(() => (data ? subheading(data.now, data.timezone) : null), [data])
+  const figures = sales.data?.primary
+  const context = useMemo(() => {
+    if (!data) return null
+    const parts = [todayDate(data.now, data.timezone)]
+    if (figures && sales.data) {
+      const orders = Number(figures.orders.value)
+      parts.push(`${money(figures.revenue.value, sales.data.currency)} from ${orders} ${orders === 1 ? "order" : "orders"} so far`)
+    }
+    if (!online && fetchedAt > 0) parts.push(`last updated ${relativeTime(new Date(fetchedAt).toISOString(), now)}`)
+    return parts.join(" · ")
+  }, [data, figures, sales.data, online, fetchedAt, now])
+  useHeaderDetail(context)
+
+  const { jobs, more } = useMemo(
+    () =>
+      data
+        ? buildJobs({
+            waiting: waiting.data?.items ?? [],
+            waitingTotal: waiting.data?.total ?? 0,
+            attention: data.attention,
+            attentionMore: data.attentionMore,
+            nextRunAt: data.nextCollection?.runAt ?? null,
+            timezone: data.timezone,
+            now,
+          })
+        : { jobs: [], more: 0 },
+    [data, waiting.data, now],
+  )
 
   if (today.isError) {
     return <ErrorState error={today.error} onRetry={() => void today.refetch()} />
   }
 
   return (
-    <div className="flex min-w-0 flex-col gap-6 max-md:gap-4">
-      <PageHeader
-        title="Today"
-        description={
-          <>
-            {heading ?? "\u00a0"}
-            {!online && fetchedAt > 0 && (
-              <span className="font-medium text-foreground">
-                {" · "}last updated {relativeTime(new Date(fetchedAt).toISOString(), now)}
-              </span>
-            )}
-          </>
-        }
-        actions={
-          <>
-            <Button variant="outline" onClick={() => setQuickActionsOpen(true)}>
-              <Zap aria-hidden="true" />
-              Quick actions
-            </Button>
-            <Button
-              disabled={awaitingPick === 0}
-              title={awaitingPick === 0 ? "Nothing is waiting to be picked" : undefined}
-              onClick={() => void printLists()}
-            >
-              <Printer aria-hidden="true" />
-              Print pick lists
-            </Button>
-            <MoreActions actions={[{ ...activity, label: "Team activity" }]} />
-          </>
-        }
-      />
-
-      <div className="ef-detail">
-        <div className="ef-detail__main">
-          {today.isPending || !data ? (
-            <Loading>
-              <PanelSkeleton title="Needs attention" description flush footer>
-                <ListSkeleton rows={4} media="icon" inset />
-              </PanelSkeleton>
-              <PanelSkeleton title="Live orders" description="Updating as orders arrive" flush>
-                <ListSkeleton rows={5} media="icon" trailing="chip" inset />
-              </PanelSkeleton>
-            </Loading>
+    <LazyMotion features={motionFeatures} strict>
+      <MotionConfig reducedMotion="user">
+        <div className="flex min-w-0 flex-col">
+          <h1 className="sr-only">Today</h1>
+          <CollectionBand
+            next={data?.nextCollection}
+            timezone={data?.timezone}
+            now={now}
+            loading={today.isPending}
+            actions={
+              <>
+                <Button variant="outline" title="Quick actions" className="max-xl:w-11 max-xl:px-0" onClick={() => setQuickActionsOpen(true)}>
+                  <Zap aria-hidden="true" />
+                  <span className="max-xl:sr-only">Quick actions</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  disabled={awaitingPick === 0}
+                  title={awaitingPick === 0 ? "Nothing is waiting to be picked" : "Print pick lists"}
+                  className="max-xl:w-11 max-xl:px-0"
+                  onClick={() => void printLists()}
+                >
+                  <Printer aria-hidden="true" />
+                  <span className="max-xl:sr-only">Print pick lists</span>
+                </Button>
+                <MoreActions actions={[{ ...activity, label: "Team activity" }]} />
+              </>
+            }
+          />
+          {data ? (
+            <DayLine events={data.events} jobs={jobs} more={more} timezone={data.timezone} onEarlier={() => activity.onSelect?.()} />
           ) : (
-            <>
-              <NeedsAttention
-                items={data.attention}
-                more={data.attentionMore}
-                oldestWaitingAt={data.oldestWaitingAt}
-                now={now}
-              />
-              <LiveOrders orders={data.live} now={now} />
-            </>
+            <DayLineSkeleton />
           )}
         </div>
-        <aside className="ef-detail__aside">
-          <NextCollection next={data?.nextCollection} timezone={data?.timezone} now={now} loading={today.isPending} />
-          <TodayGlance backlog={data?.backlog} />
-        </aside>
-      </div>
 
-      <QuickActionsSheet open={quickActionsOpen} onOpenChange={setQuickActionsOpen} awaitingPick={awaitingPick} />
-      <ActivityLogDrawer
-        app="shop-web"
-        log="shop-team"
-        title="Team activity"
-        description="Everything your team has done — orders, picking, notes, stock and refunds — newest first."
-        api={api}
-        path="/shop/v1/team-activity"
-        queryKey={["shop", "today"]}
-        fileName="team-activity"
-      />
-    </div>
+        <QuickActionsSheet open={quickActionsOpen} onOpenChange={setQuickActionsOpen} awaitingPick={awaitingPick} />
+        <ActivityLogDrawer
+          app="shop-web"
+          log="shop-team"
+          title="Team activity"
+          description="Everything your team has done — orders, picking, notes, stock and refunds — newest first."
+          api={api}
+          path="/shop/v1/team-activity"
+          queryKey={["shop", "today"]}
+          fileName="team-activity"
+        />
+      </MotionConfig>
+    </LazyMotion>
   )
 }
