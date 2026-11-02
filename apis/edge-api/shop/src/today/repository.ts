@@ -241,6 +241,50 @@ export async function readTodayEvents(shopId: string, limit = TODAY_EVENT_LIMIT)
   return res.rows.map(toEvent);
 }
 
+/**
+ * When orders arrive at this shop on this weekday: the last four weeks' hours from the rollup, and how many of those
+ * days sold anything, so a "usually" is never said from one day.
+ */
+const SELECT_RHYTHM = `
+WITH hours AS (
+  SELECT bucket_start AT TIME ZONE '${OPERATING_TZ}' AS local_at, orders
+    FROM public.shop_sales_hour
+   WHERE shop_id = $1
+     AND orders > 0
+     AND bucket_start >= now() - interval '28 days'
+     AND bucket_start < date_trunc('day', now() AT TIME ZONE '${OPERATING_TZ}') AT TIME ZONE '${OPERATING_TZ}'
+     AND EXTRACT(ISODOW FROM bucket_start AT TIME ZONE '${OPERATING_TZ}') = EXTRACT(ISODOW FROM now() AT TIME ZONE '${OPERATING_TZ}')
+)
+SELECT EXTRACT(HOUR FROM local_at)::int AS hour, SUM(orders)::int AS orders,
+       (SELECT COUNT(DISTINCT local_at::date) FROM hours)::int AS days
+  FROM hours
+ GROUP BY 1
+ ORDER BY 1
+`;
+
+export async function readRhythm(shopId: string): Promise<{ hours: { hour: number; orders: number }[]; days: number }> {
+  const res = await query<{ hour: number; orders: number; days: number }>(SELECT_RHYTHM, [shopId]);
+  return { hours: res.rows.map((r) => ({ hour: r.hour, orders: r.orders })), days: res.rows[0]?.days ?? 0 };
+}
+
+/** Yesterday on Effy's clock, from the rollup: goods less refunds, as Insights counts revenue. */
+const SELECT_YESTERDAY = `
+WITH today AS (
+  SELECT date_trunc('day', now() AT TIME ZONE '${OPERATING_TZ}') AS start
+)
+SELECT COALESCE(SUM(orders), 0)::int AS orders, COALESCE(SUM(gross_goods - refunds), 0)::numeric(12,2)::text AS revenue
+  FROM public.shop_sales_hour
+ WHERE shop_id = $1
+   AND bucket_start >= ((SELECT start FROM today) - interval '1 day') AT TIME ZONE '${OPERATING_TZ}'
+   AND bucket_start < (SELECT start FROM today) AT TIME ZONE '${OPERATING_TZ}'
+`;
+
+export async function readYesterday(shopId: string): Promise<{ orders: number; revenue: string } | null> {
+  const res = await query<{ orders: number; revenue: string }>(SELECT_YESTERDAY, [shopId]);
+  const r = res.rows[0]!;
+  return r.orders > 0 ? r : null;
+}
+
 /** Validated against `pg_timezone_names`; an unknown zone falls back to the platform's, logged. */
 const SELECT_TIMEZONE = `
 SELECT CASE WHEN EXISTS (SELECT 1 FROM pg_timezone_names n WHERE n.name = s.timezone)

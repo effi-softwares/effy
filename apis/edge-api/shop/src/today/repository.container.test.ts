@@ -11,7 +11,7 @@ vi.mock("@effy/edge-shared", async () => {
   return { ...actual, query: (text: string, params?: unknown[]) => holder.pool!.query(text, params as never[]) };
 });
 
-import { readBacklog, readClock, readTodayEvents, readStockAttention } from "./repository";
+import { readBacklog, readClock, readRhythm, readStockAttention, readTodayEvents, readYesterday } from "./repository";
 
 const RUN = process.env.CONTAINER_TESTS === "1";
 
@@ -276,6 +276,37 @@ SELECT id FROM p`,
     it("stops at the limit", async () => {
       for (let i = 0; i < 3; i++) await paidOrder({ number: `EFY-${i}`, minutesAgo: 0 });
       expect(await readTodayEvents(SHOP, 2)).toHaveLength(2);
+    });
+  });
+
+  describe("yesterday and the usual rhythm, from the rollup", () => {
+    const hour = (shop: string, daysAgo: number, orders: number, gross = 100, refunds = 0) =>
+      pool.query(
+        `INSERT INTO public.shop_sales_hour (shop_id, bucket_start, gross_goods, refunds, orders)
+         VALUES ($1, date_trunc('day', now() AT TIME ZONE 'Australia/Melbourne') AT TIME ZONE 'Australia/Melbourne'
+                     - make_interval(days => $2) + interval '11 hours', $3, $4, $5)`,
+        [shop, daysAgo, gross, refunds, orders],
+      );
+
+    it("closes yesterday as goods less refunds, for this shop only", async () => {
+      await hour(SHOP, 1, 5, 200, 30);
+      await hour(SHOP, 2, 9, 900);
+      await hour(OTHER_SHOP, 1, 7, 700);
+      expect(await readYesterday(SHOP)).toEqual({ orders: 5, revenue: "170.00" });
+    });
+
+    it("is null when yesterday sold nothing", async () => {
+      await hour(SHOP, 2, 9);
+      expect(await readYesterday(SHOP)).toBeNull();
+    });
+
+    it("reads only this weekday, from past weeks, and counts the days behind it", async () => {
+      await hour(SHOP, 7, 4);
+      await hour(SHOP, 14, 6);
+      await hour(SHOP, 3, 50); // another weekday
+      await hour(SHOP, 35, 50); // too long ago
+      expect(await readRhythm(SHOP)).toMatchObject({ days: 2 });
+      expect((await readRhythm(SHOP)).hours.reduce((n, h) => n + h.orders, 0)).toBe(10);
     });
   });
 

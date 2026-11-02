@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { instantAtLocalTime } from "@effy/edge-shared";
 import type { ShopPackageRun } from "@effy/edge-shared/delivery";
 
-import { dayOffset, driverState, nextCollection, type StopFacts } from "./rule";
+import { dayOffset, driverState, nextCollection, runsAhead, type StopFacts } from "./rule";
 
 const at = (h: number, m = 0, day = 27) => instantAtLocalTime(2026, 10, day, h, m);
 const pkg = (over: Partial<ShopPackageRun> = {}): ShopPackageRun => ({ id: "p1", status: "picking", runAt: at(12, 30), ...over });
@@ -19,6 +19,18 @@ describe("where the run's driver is, for this shop", () => {
     // Open, but the driver is off duty.
     expect(driverState(stop({ driverOnDuty: false }), at(12))).toBe("assigned");
     expect(driverState(stop({ stopStatus: "done", driverOnDuty: true }), at(12))).toBe("collected");
+  });
+});
+
+describe("today's runs still to come", () => {
+  it("counts each run's orders and drops what has passed or been collected", () => {
+    const ahead = runsAhead(
+      [at(16, 30), at(12, 30), at(8, 30), at(14, 30)],
+      [pkg({ id: "a" }), pkg({ id: "b", runAt: at(16, 30) })],
+      [stop({ runAt: at(14, 30), stopStatus: "done" })],
+      at(10, 0),
+    );
+    expect(ahead).toEqual([{ runAt: at(12, 30), orders: 1 }, { runAt: at(16, 30), orders: 1 }]);
   });
 });
 

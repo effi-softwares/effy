@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import type { APIGatewayProxyStructuredResultV2 } from "aws-lambda";
 
 import type { AuthedEvent, RequestScope } from "@effy/edge-shared";
-import type { ShopAttentionItemDTO, ShopTodayDTO, ShopTodayEventDTO } from "@effy/shared-types";
+import type { ShopAttentionItemDTO, ShopTodayAheadDTO, ShopTodayDTO, ShopTodayEventDTO } from "@effy/shared-types";
 
 import type { AttentionView, TodaySnapshot } from "./types";
 
@@ -62,6 +62,8 @@ export function toTodayDTO(s: TodaySnapshot, attention: AttentionView): ShopToda
     oldestWaitingAt: attention.oldestWaitingAt?.toISOString() ?? null,
     nextCollection: s.nextCollection,
     events: s.events.map((e) => ({ ...e, at: e.at.toISOString() }) as ShopTodayEventDTO),
+    ahead: s.ahead.map((a) => ({ ...a, at: a.at.toISOString() }) as ShopTodayAheadDTO),
+    yesterday: s.yesterday,
   };
 }
 

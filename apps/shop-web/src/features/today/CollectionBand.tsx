@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react"
+import { useEffect, useState } from "react"
 
 import { m, useMotionValueEvent, useReducedMotion, useSpring } from "motion/react"
 
@@ -21,27 +21,25 @@ function RollingNumber({ value }: { value: number }) {
   return <>{calm ? value : shown}</>
 }
 
-/** The page's head: the countdown and what is left, read as one sentence, with the page's actions on the same row. */
+/** The countdown and what is left, read as one sentence. */
 export function CollectionBand({
   next,
   timezone,
   now,
   loading,
-  actions,
 }: {
   next: ShopNextCollectionDTO | null | undefined
   timezone: string | undefined
   now: number
   loading: boolean
-  actions: ReactNode
 }) {
   return (
     <section
       aria-label="Next collection"
-      className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-7 pb-4 max-md:grid-cols-[auto_minmax(0,1fr)] max-md:gap-x-3.5 max-md:gap-y-2.5"
+      className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-7 pb-4 max-md:gap-x-3.5 max-md:gap-y-2.5"
     >
       {loading ? (
-        <div className="col-span-2 flex items-center gap-7 max-md:col-span-full">
+        <div className="col-span-full flex items-center gap-7">
           <Loading label="Loading the next collection">
             <Bone kind="title" className="h-16 w-36 flex-none" />
             <div className="grid min-w-0 flex-1 gap-2.5">
@@ -54,11 +52,10 @@ export function CollectionBand({
       ) : next ? (
         <Body next={next} timezone={timezone} now={now} />
       ) : (
-        <p className="col-span-2 text-base font-semibold max-md:col-span-1">
+        <p className="col-span-full text-base font-semibold">
           No collection runs are set up for your shop yet. Effy will add them.
         </p>
       )}
-      <div className="flex gap-2 self-start max-md:col-span-full max-md:justify-end">{actions}</div>
     </section>
   )
 }

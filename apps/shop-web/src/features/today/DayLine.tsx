@@ -14,16 +14,17 @@ import {
   type LucideIcon,
 } from "lucide-react"
 
-import type { ShopTodayEventDTO } from "@effy/shared-types"
+import type { ShopTodayDTO, ShopTodayEventDTO } from "@effy/shared-types"
 import { cn } from "@effy/design-system"
 import { Button, toast } from "@effy/design-system/ui"
 import { Bone, Loading } from "@effy/web-kit/patterns"
 
 import { fulfillmentMutationError } from "@/features/fulfillment/errorText"
+import { formatMoney } from "@/features/fulfillment/orderConsole"
 import { invalidateOrders } from "@/features/fulfillment/queries"
 import { transitionFulfillment } from "@/features/fulfillment/repo"
 
-import { eventTime, eventWords, type Job } from "./model"
+import { aheadWords, eventTime, eventWords, type Job } from "./model"
 import { todayQuery } from "./queries"
 
 const GLIDE = { type: "spring", stiffness: 380, damping: 34 } as const
@@ -39,12 +40,16 @@ const ABOVE_BAR = 3
  */
 export function DayLine({
   events,
+  ahead,
+  yesterday,
   jobs,
   more,
   timezone,
   onEarlier,
 }: {
   events: readonly ShopTodayEventDTO[]
+  ahead: ShopTodayDTO["ahead"]
+  yesterday: ShopTodayDTO["yesterday"]
   jobs: readonly Job[]
   more: number
   timezone: string
@@ -54,6 +59,21 @@ export function DayLine({
   const above = rest.slice(0, ABOVE_BAR).reverse()
   return (
     <section aria-label="What just happened and what is next" className="dayline">
+      {above.length === 0 && yesterday ? (
+        <p className="dayline__event opacity-75">
+          <span className="dayline__when">Yesterday</span>
+          <span aria-hidden="true" className="dayline__node">
+            <i className="size-2 rounded-full bg-input" />
+          </span>
+          <span className="min-w-0">
+            <span className="mr-2 md:hidden">Yesterday:</span>
+            <span className="font-medium">
+              {yesterday.orders} {yesterday.orders === 1 ? "order" : "orders"}
+            </span>
+            <span className="ml-2 opacity-70">{formatMoney(yesterday.revenue)}</span>
+          </span>
+        </p>
+      ) : null}
       {above.length > 0 ? (
         <ol>
           {above.map((e, i) => (
@@ -78,7 +98,39 @@ export function DayLine({
       ) : null}
       <NowBar latest={latest} events={events} timezone={timezone} onEarlier={onEarlier} />
       <Work jobs={jobs} more={more} />
+      <LaterToday ahead={ahead} timezone={timezone} />
     </section>
+  )
+}
+
+/** The line carries on past the work: what is still to come, so a quiet page has something to look ahead to. */
+function LaterToday({ ahead, timezone }: { ahead: ShopTodayDTO["ahead"]; timezone: string }) {
+  if (ahead.length === 0) return null
+  return (
+    <div className="pt-3">
+      <p className="relative pb-1 pl-[calc(var(--gut)+40px)] text-sm font-medium text-muted-foreground max-md:pl-[34px]">Later today</p>
+      <ol>
+        {ahead.map((a) => {
+          const { words, note } = aheadWords(a)
+          return (
+            <li key={`${a.kind}-${a.at}`} className="dayline__event">
+              <time className="dayline__when" dateTime={a.at}>
+                {eventTime(a.at, timezone)}
+              </time>
+              <span aria-hidden="true" className="dayline__node">
+                <i className="size-2.5 rounded-full border-2 border-input bg-background" />
+              </span>
+              <span className="min-w-0">
+                {/* A phone has no time column, and a line ahead means nothing without its time. */}
+                <span className="mr-2 text-muted-foreground tabular-nums md:hidden">{eventTime(a.at, timezone)}</span>
+                <span className="font-medium">{words}</span>
+                {note ? <span className="ml-2 text-muted-foreground">{note}</span> : null}
+              </span>
+            </li>
+          )
+        })}
+      </ol>
+    </div>
   )
 }
 
@@ -129,7 +181,7 @@ function NowBar({
               <EventText event={latest} />
             </m.span>
           ) : (
-            <span className="opacity-70">Nothing has happened yet today</span>
+            <span className="opacity-70">Nothing yet today</span>
           )}
         </span>
         {latest ? (
@@ -138,23 +190,27 @@ function NowBar({
           </time>
         ) : null}
         {/* The whole log is the one Activity drawer (104): no second way to read it. */}
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-inherit hover:bg-background/15 hover:text-inherit"
-          onClick={() => {
-            setSeen(latest?.id)
-            onEarlier()
-          }}
-        >
-          Earlier
-          {unseen > 1 ? (
-            <span className="grid h-5 min-w-5 place-items-center rounded-md bg-primary-fill px-1 text-xs font-semibold text-primary-foreground">
-              {unseen}
-            </span>
-          ) : null}
-          <ArrowRight aria-hidden="true" />
-        </Button>
+        {latest ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-inherit hover:bg-background/15 hover:text-inherit"
+            onClick={() => {
+              setSeen(latest.id)
+              onEarlier()
+            }}
+          >
+            Earlier
+            {unseen > 1 ? (
+              <span className="grid h-5 min-w-5 place-items-center rounded-md bg-primary-fill px-1 text-xs font-semibold text-primary-foreground">
+                {unseen}
+              </span>
+            ) : null}
+            <ArrowRight aria-hidden="true" />
+          </Button>
+        ) : (
+          <span />
+        )}
       </div>
     </div>
   )
@@ -177,7 +233,7 @@ function Work({ jobs, more }: { jobs: readonly Job[]; more: number }) {
         <span aria-hidden="true" className="dayline__node mt-7">
           <i className="size-2 rounded-full bg-input" />
         </span>
-        <div className="py-6">
+        <div className="py-4">
           <p className="flex items-center gap-2.5 text-2xl font-semibold tracking-[-.02em]">
             <span className="grid size-8 place-items-center rounded-full bg-success-soft text-success">
               <Check aria-hidden="true" className="size-4" />

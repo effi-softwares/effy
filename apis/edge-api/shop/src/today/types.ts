@@ -1,4 +1,4 @@
-import type { ShopNextCollectionDTO, ShopTodayEventDTO } from "@effy/shared-types";
+import type { ShopNextCollectionDTO, ShopTodayAheadDTO, ShopTodayEventDTO } from "@effy/shared-types";
 // Today answers "what needs me, now", counted from live rows on each read; it owns no state. No request
 // type carries a shop id.
 
@@ -30,6 +30,8 @@ export interface StockAttention {
 /** One thing that happened at this shop today: the wire type with a real instant. */
 export type TodayEvent = ShopTodayEventDTO extends infer E ? (E extends unknown ? Omit<E, "at"> & { at: Date } : never) : never;
 
+export type TodayAhead = ShopTodayAheadDTO extends infer E ? (E extends unknown ? Omit<E, "at"> & { at: Date } : never) : never;
+
 /** Derived for this shop's own short lines. */
 export interface ProposedRefund {
   fulfillmentId: string;
@@ -45,6 +47,8 @@ export interface TodaySnapshot {
   stock: StockAttention[];
   proposals: ProposedRefund[];
   events: TodayEvent[];
+  ahead: TodayAhead[];
+  yesterday: { orders: number; revenue: string } | null;
   nextCollection: ShopNextCollectionDTO | null;
 }
 

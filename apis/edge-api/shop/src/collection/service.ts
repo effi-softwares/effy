@@ -1,11 +1,12 @@
 // What the shop console is told about Effy's collection runs (099): Today's "Next collection" and the
 // run each package is expected on. Read only; the planner decides, this only tells.
 import { query } from "@effy/edge-shared";
-import { shopPackageRuns } from "@effy/edge-shared/delivery";
+import { collectionDeadline } from "@effy/edge-shared";
+import { loadCollectionSchedule, shopPackageRuns } from "@effy/edge-shared/delivery";
 import type { ShopNextCollectionDTO, ShopOrderCollectionDTO } from "@effy/shared-types";
 
 import { loadStops, shopTimezone } from "./repository";
-import { dayOffset, driverState, nextCollection } from "./rule";
+import { dayOffset, driverState, nextCollection, runsAhead } from "./rule";
 
 /** Today's panel; null when no collection runs are set up. */
 export async function nextCollectionFor(shopId: string, now = new Date()): Promise<ShopNextCollectionDTO | null> {
@@ -21,6 +22,16 @@ export async function nextCollectionFor(shopId: string, now = new Date()): Promi
     driverOnDuty: next.stop?.driverOnDuty ?? false,
     due: next.due,
   };
+}
+
+/** Today's runs still to come, for Today's timeline. */
+export async function runsAheadFor(shopId: string, now = new Date()): Promise<{ runAt: Date; orders: number }[]> {
+  const [schedule, runs, stops] = await Promise.all([
+    loadCollectionSchedule(now, { query }),
+    shopPackageRuns(shopId, null, now, { query }),
+    loadStops(shopId, now),
+  ]);
+  return runsAhead(schedule.runs.map((r) => collectionDeadline(r, now)), runs.packages, stops, now);
 }
 
 /**

@@ -29,7 +29,7 @@ import type { ShopNextCollectionDTO, ShopTodayDTO, ShopTodayEventDTO } from "@ef
 
 import { orderList, orderRow } from "@/features/fulfillment/__tests__/fixtures"
 
-import { attentionHref, buildJobs, collectionClock, collectionLine, eventWords, openItemCount, todayDate } from "../model"
+import { aheadWords, attentionHref, buildJobs, collectionClock, collectionLine, eventWords, openItemCount, todayDate } from "../model"
 import { TodayScreen } from "../TodayScreen"
 import { useNavBadges } from "../useNavBadges"
 
@@ -75,6 +75,12 @@ function today(over: Partial<ShopTodayDTO> = {}): ShopTodayDTO {
       event({ kind: "collected", orders: 7, fulfillmentId: null, orderNumber: null }, "e4"),
       event({ kind: "picking", fulfillmentId: "f-3", orderNumber: "EFY-4419" }, "e5"),
     ],
+    ahead: [
+      { kind: "busiest", at: inMinutes(20) },
+      { kind: "run", at: inMinutes(38), orders: 8 },
+      { kind: "run", at: inMinutes(158), orders: 0 },
+    ],
+    yesterday: { orders: 23, revenue: "840.00" },
     nextCollection: next(),
     ...over,
   }
@@ -199,10 +205,21 @@ describe("what just happened", () => {
     expect(navigate).toHaveBeenCalled()
   })
 
-  it("says so before anything has happened today", async () => {
+  it("says so before anything has happened today, offers no empty log, and shows how yesterday closed", async () => {
     getToday.mockResolvedValue(today({ events: [] }))
     wrap(<TodayScreen />)
-    expect(await screen.findByText("Nothing has happened yet today")).toBeInTheDocument()
+    expect(await screen.findByText("Nothing yet today")).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /Earlier/ })).not.toBeInTheDocument()
+    expect(screen.getByText("Yesterday")).toBeInTheDocument()
+    expect(screen.getByText("23 orders")).toBeInTheDocument()
+    expect(screen.getByText("AUD 840.00")).toBeInTheDocument()
+  })
+
+  it("keeps yesterday out once today has its own history", async () => {
+    getToday.mockResolvedValue(today())
+    wrap(<TodayScreen />)
+    await screen.findByText("Later today")
+    expect(screen.queryByText("Yesterday")).not.toBeInTheDocument()
   })
 
   it("has words for every kind", () => {
@@ -213,6 +230,31 @@ describe("what just happened", () => {
       expect(eventWords(event({ kind, orderNumber: "E" }, kind)).words).toBeTruthy()
     }
     expect(eventWords(event({ kind: "restocked", name: "Rice" }, "d")).words).toBe("Rice is back in stock")
+  })
+})
+
+describe("later today", () => {
+  it("carries the line past the work, soonest first", async () => {
+    getToday.mockResolvedValue(today())
+    wrap(<TodayScreen />)
+    expect(await screen.findByText("Later today")).toBeInTheDocument()
+    expect(screen.getByText("Usually your busiest hour")).toBeInTheDocument()
+    expect(screen.getByText("8 orders so far")).toBeInTheDocument()
+    expect(screen.getByText("No orders on this run yet")).toBeInTheDocument()
+  })
+
+  it("leaves the section out when the day is over", async () => {
+    getToday.mockResolvedValue(today({ ahead: [] }))
+    wrap(<TodayScreen />)
+    await loaded()
+    await screen.findByText("Do this next")
+    expect(screen.queryByText("Later today")).not.toBeInTheDocument()
+  })
+
+  it("always says a pattern is a pattern", () => {
+    expect(aheadWords({ kind: "orders_start", at: NOW }).words).toMatch(/usually/i)
+    expect(aheadWords({ kind: "busiest", at: NOW }).words).toMatch(/usually/i)
+    expect(aheadWords({ kind: "run", at: NOW, orders: 1 })).toEqual({ words: "Effy driver", note: "1 order so far" })
   })
 })
 
@@ -283,7 +325,21 @@ describe("what is next", () => {
   })
 })
 
-describe("the page's actions", () => {
+describe("the page's head", () => {
+  it("keeps the title, the date and how the day is going on their own row", async () => {
+    getToday.mockResolvedValue(today())
+    wrap(<TodayScreen />)
+    expect(await screen.findByRole("heading", { level: 1, name: "Today" })).toBeInTheDocument()
+    expect(await screen.findByText(/^Monday 14 September · .* from 24 orders so far$/)).toBeInTheDocument()
+  })
+
+  it("says no orders yet, never zero dollars from zero orders", async () => {
+    getInsights.mockResolvedValue({ ...insights(), primary: { ...insights().primary, orders: { ...insights().primary.orders, value: "0" } } })
+    getToday.mockResolvedValue(today())
+    wrap(<TodayScreen />)
+    expect(await screen.findByText("Monday 14 September · No orders yet")).toBeInTheDocument()
+  })
+
   it("keeps quick actions, the pick lists and the team's activity", async () => {
     getToday.mockResolvedValue(today())
     wrap(<TodayScreen />)

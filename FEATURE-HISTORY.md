@@ -7,13 +7,16 @@ read on demand rather than in every session. Newest first. Links are relative to
 **Shop Today redesign (no spec number).** 🔨 **BUILT 2026-11-02; NOT DEPLOYED OR WALKED.** Prototype, research and sources:
 `docs/reference-screens/Today and Insights Redesign/today.html` (git-ignored), version "A + B · Now bar". Insights is prototyped, not built.
 - **The page is one line of time** (`features/today/DayLine.tsx`): the last events, a pinned **Now bar** holding the newest,
-  then the work: a large next job and three more. The old panels (Needs attention, Live orders, Next collection, Today at a
-  glance) are gone. The title row and countdown are one band (`CollectionBand.tsx`); date and sales sit in the header detail.
+  then the work: a large next job and three more, then **Later today**. The old panels (Needs attention, Live orders, Next
+  collection, Today at a glance) are gone. The page head is the standard row (operator); `CollectionBand.tsx` sits under it.
+- **A quiet page looks ahead** (operator: "feels empty"): `ahead` is today's runs still to come plus when orders usually start
+  and peak on this weekday; `yesterday` closes the line when today has no events. ⚠ A "usually" needs 2+ days and 8+ orders of the
+  last 28 days (`today/rhythm.ts`), read from `shop_sales_hour`. Rows leave on the page's clock: nothing re-reads as time passes.
 - **Next up is `buildJobs`** (`model.ts`): orders one by one from the existing Orders list (`tab=new`, oldest first), merged with
   attention: late, then the next run, out of stock, refunds, other orders, low stock. No new route.
 - **Backend** (`shop`): `ShopTodayDTO.events` (`readTodayEvents`, at most `TODAY_EVENT_LIMIT`, today on Effy's clock) replaces
   `live`, which is removed. `nextCollection.due.started` is new: `due.picking` means "not ready", so it could not say how many
-  are being picked. ⚠ A driver's collection writes no `fulfillment_event`, so hand-overs are read from `package_handover`, grouped by
+  are being picked. `ahead` and `yesterday` are new. ⚠ A driver's collection writes no `fulfillment_event`, so hand-overs are read from `package_handover`, grouped by
   `change_id`; arrivals from `package_arrival`. No migration. The privacy tests that read `live` now read the event feed.
 - **"Earlier" opens the Team activity drawer**, not a second log (104): the page shows the last few events as live status only.
 - **Motion** (`motion`, added to shop-web): `LazyMotion` + `m` with `domMax` from `motion-features.ts`, a separate 26 KB (gzip)

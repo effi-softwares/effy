@@ -3,6 +3,7 @@ import {
   type ShopAttentionItemDTO,
   type ShopNextCollectionDTO,
   type ShopOrderRowDTO,
+  type ShopTodayAheadDTO,
   type ShopTodayEventDTO,
   type ShopTodayDTO,
 } from "@effy/shared-types"
@@ -102,6 +103,21 @@ export function eventWords(e: ShopTodayEventDTO): { code: string | null; words: 
       return { code: null, words: `${e.name} sold out`, note: null }
     case "restocked":
       return { code: null, words: `${e.name} is back in stock`, note: null }
+  }
+}
+
+/** What is still to come, in words. A usual time always says "usually": it is a pattern, not a promise. */
+export function aheadWords(a: ShopTodayAheadDTO): { words: string; note: string | null } {
+  switch (a.kind) {
+    case "run":
+      return {
+        words: DELIVERED_BY_WORDS.effy_driver,
+        note: a.orders === 0 ? "No orders on this run yet" : `${a.orders} ${a.orders === 1 ? "order" : "orders"} so far`,
+      }
+    case "orders_start":
+      return { words: "Orders usually start coming in", note: null }
+    case "busiest":
+      return { words: "Usually your busiest hour", note: null }
   }
 }
 

@@ -2,8 +2,11 @@
 import { OPERATING_TZ } from "@effy/shared-types";
 import { proposedRefundsForShop } from "@effy/edge-shared";
 
-import { readBacklog, readClock, readStockAttention, readTodayEvents } from "./repository";
-import type { AttentionItem, AttentionView, ProposedRefund, TodaySnapshot } from "./types";
+import { instantAtLocalTime, localDateParts } from "@effy/edge-shared";
+
+import { readBacklog, readClock, readRhythm, readStockAttention, readTodayEvents, readYesterday } from "./repository";
+import { usualHours } from "./rhythm";
+import type { AttentionItem, AttentionView, ProposedRefund, TodayAhead, TodaySnapshot } from "./types";
 
 /** Every shop's until shops carry their own location. */
 export const DEFAULT_TIMEZONE = OPERATING_TZ;
@@ -28,13 +31,39 @@ export interface TodayDeps {
    */
   nextCollection?: (shopId: string, now: Date) => Promise<ShopNextCollectionDTO | null>;
   events?: boolean;
+  /** Today's runs still to come (`collection/service.ts`). The Today route only, as above. */
+  runsAhead?: (shopId: string, now: Date) => Promise<{ runAt: Date; orders: number }[]>;
+}
+
+/** How many rows of the day ahead the timeline carries. */
+export const AHEAD_LIMIT = 5;
+
+/** What is still to come today: the runs, and the usual hours that have not passed. */
+export function buildAhead(
+  runs: readonly { runAt: Date; orders: number }[],
+  rhythm: { hours: { hour: number; orders: number }[]; days: number },
+  now: Date,
+): TodayAhead[] {
+  const { year, month, day } = localDateParts(now);
+  const usual = usualHours(rhythm.hours, rhythm.days);
+  const at = (hour: number) => instantAtLocalTime(year, month, day, hour, 0);
+  const items: TodayAhead[] = [
+    ...runs.map((r) => ({ kind: "run" as const, at: r.runAt, orders: r.orders })),
+    ...(usual.startHour === undefined ? [] : [{ kind: "orders_start" as const, at: at(usual.startHour) }]),
+    ...(usual.busiestHour === undefined ? [] : [{ kind: "busiest" as const, at: at(usual.busiestHour) }]),
+  ];
+  return items
+    .filter((i) => i.at.getTime() > now.getTime())
+    .sort((a, b) => a.at.getTime() - b.at.getTime())
+    .slice(0, AHEAD_LIMIT);
 }
 
 export async function readToday(actor: Actor, deps: TodayDeps): Promise<TodaySnapshot> {
   const canRefund = await deps.canRefund(actor.sub);
 
   // Independent reads issued together: each RDS hop is ~135 ms.
-  const [clock, backlog, stock, proposals, events, nextCollection] = await Promise.all([
+  const now = new Date();
+  const [clock, backlog, stock, proposals, events, nextCollection, runs, rhythm, yesterday] = await Promise.all([
     readClock(actor.shopId),
     readBacklog(actor.shopId),
     readStockAttention(actor.shopId, STOCK_FETCH),
@@ -42,7 +71,10 @@ export async function readToday(actor: Actor, deps: TodayDeps): Promise<TodaySna
       ? proposedRefundsForShop(actor.shopId, PROPOSAL_FETCH)
       : Promise.resolve([] as Awaited<ReturnType<typeof proposedRefundsForShop>>),
     deps.events ? readTodayEvents(actor.shopId) : Promise.resolve([]),
-    deps.nextCollection ? deps.nextCollection(actor.shopId, new Date()) : Promise.resolve(null),
+    deps.nextCollection ? deps.nextCollection(actor.shopId, now) : Promise.resolve(null),
+    deps.runsAhead ? deps.runsAhead(actor.shopId, now) : Promise.resolve([]),
+    deps.events ? readRhythm(actor.shopId) : Promise.resolve({ hours: [], days: 0 }),
+    deps.events ? readYesterday(actor.shopId) : Promise.resolve(null),
   ]);
 
   // One row per order: the decision a manager makes.
@@ -69,6 +101,8 @@ export async function readToday(actor: Actor, deps: TodayDeps): Promise<TodaySna
     stock,
     proposals: [...byOrder.values()],
     events,
+    ahead: buildAhead(runs, rhythm, now),
+    yesterday,
     nextCollection,
   };
 }

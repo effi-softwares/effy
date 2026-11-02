@@ -40,6 +40,20 @@ export interface NextCollection {
   due: { ready: number; picking: number; started: number };
 }
 
+/** Today's runs still to come from this shop, each with its orders so far. A stop already collected is over. */
+export function runsAhead(
+  runs: readonly Date[],
+  packages: readonly ShopPackageRun[],
+  stops: readonly StopFacts[],
+  now: Date,
+): { runAt: Date; orders: number }[] {
+  return runs
+    .filter((run) => run.getTime() > now.getTime())
+    .filter((run) => stops.find((s) => sameInstant(s.runAt, run))?.stopStatus !== "done")
+    .sort((a, b) => a.getTime() - b.getTime())
+    .map((runAt) => ({ runAt, orders: packages.filter((p) => p.runAt && sameInstant(p.runAt, runAt)).length }));
+}
+
 /**
  * The shop's next collection: the earliest run not yet collected from this shop that has one of its
  * packages due on it (or a driver still on the way to it). With nothing due, the next scheduled run.

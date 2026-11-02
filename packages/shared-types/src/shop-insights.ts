@@ -89,6 +89,19 @@ export type ShopTodayEventDTO = { id: string; at: string } & (
   }
 )
 
+/**
+ * What is still to come today, soonest first: this shop's collection runs, and when its orders usually arrive on this
+ * weekday. A usual time is sent only with enough weeks behind it to mean something.
+ */
+export type ShopTodayAheadDTO = { at: string } & (
+  | {
+    kind: "run"
+    /** This shop's orders on the run so far. */
+    orders: WireInt
+  }
+  | { kind: "orders_start" | "busiest" }
+)
+
 export interface ShopBacklogDTO {
   /** The one value every backlog figure renders from (needs attention, badges, glance cells, Insights). */
   awaitingPick: {
@@ -117,6 +130,9 @@ export interface ShopTodayDTO {
   oldestWaitingAt: string | null
   /** Today's events on Effy's clock, newest first: at most `TODAY_EVENT_LIMIT`. */
   events: ShopTodayEventDTO[]
+  ahead: ShopTodayAheadDTO[]
+  /** Yesterday's close; null when the shop sold nothing. `revenue` is its goods less refunds, as Insights counts it. */
+  yesterday: { orders: WireInt; revenue: string } | null
   /** The next Effy collection run to reach this shop; null when no collection runs are set up (099). */
   nextCollection: ShopNextCollectionDTO | null
 }

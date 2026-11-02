@@ -5,9 +5,9 @@ import { LazyMotion, MotionConfig } from "motion/react"
 import { Printer, Zap } from "lucide-react"
 
 import { ActivityLogDrawer, useActivityAction } from "@effy/web-kit/activity-log"
-import { ErrorState, useHeaderDetail } from "@effy/web-kit/console"
+import { ErrorState } from "@effy/web-kit/console"
 import { Button } from "@effy/design-system/ui"
-import { MoreActions } from "@effy/web-kit/patterns"
+import { MoreActions, PageHeader } from "@effy/web-kit/patterns"
 
 import { orderListQuery } from "@/features/fulfillment/queries"
 import { money } from "@/features/insights/model"
@@ -50,12 +50,15 @@ export function TodayScreen() {
     const parts = [todayDate(data.now, data.timezone)]
     if (figures && sales.data) {
       const orders = Number(figures.orders.value)
-      parts.push(`${money(figures.revenue.value, sales.data.currency)} from ${orders} ${orders === 1 ? "order" : "orders"} so far`)
+      parts.push(
+        orders === 0
+          ? "No orders yet"
+          : `${money(figures.revenue.value, sales.data.currency)} from ${orders} ${orders === 1 ? "order" : "orders"} so far`,
+      )
     }
     if (!online && fetchedAt > 0) parts.push(`last updated ${relativeTime(new Date(fetchedAt).toISOString(), now)}`)
     return parts.join(" · ")
   }, [data, figures, sales.data, online, fetchedAt, now])
-  useHeaderDetail(context)
 
   const { jobs, more } = useMemo(
     () =>
@@ -80,35 +83,41 @@ export function TodayScreen() {
   return (
     <LazyMotion features={motionFeatures} strict>
       <MotionConfig reducedMotion="user">
-        <div className="flex min-w-0 flex-col">
-          <h1 className="sr-only">Today</h1>
-          <CollectionBand
-            next={data?.nextCollection}
-            timezone={data?.timezone}
-            now={now}
-            loading={today.isPending}
+        <div className="flex min-w-0 flex-col gap-4">
+          <PageHeader
+            title="Today"
+            description={context ?? "\u00a0"}
             actions={
               <>
-                <Button variant="outline" title="Quick actions" className="max-xl:w-11 max-xl:px-0" onClick={() => setQuickActionsOpen(true)}>
+                <Button variant="outline" onClick={() => setQuickActionsOpen(true)}>
                   <Zap aria-hidden="true" />
-                  <span className="max-xl:sr-only">Quick actions</span>
+                  Quick actions
                 </Button>
                 <Button
                   variant="outline"
                   disabled={awaitingPick === 0}
-                  title={awaitingPick === 0 ? "Nothing is waiting to be picked" : "Print pick lists"}
-                  className="max-xl:w-11 max-xl:px-0"
+                  title={awaitingPick === 0 ? "Nothing is waiting to be picked" : undefined}
                   onClick={() => void printLists()}
                 >
                   <Printer aria-hidden="true" />
-                  <span className="max-xl:sr-only">Print pick lists</span>
+                  Print pick lists
                 </Button>
                 <MoreActions actions={[{ ...activity, label: "Team activity" }]} />
               </>
             }
           />
+          <CollectionBand next={data?.nextCollection} timezone={data?.timezone} now={now} loading={today.isPending} />
           {data ? (
-            <DayLine events={data.events} jobs={jobs} more={more} timezone={data.timezone} onEarlier={() => activity.onSelect?.()} />
+            <DayLine
+              events={data.events}
+              // Nothing re-reads the page as time passes, so a row leaves on the page's own clock.
+              ahead={data.ahead.filter((x) => new Date(x.at).getTime() > now)}
+              yesterday={data.yesterday}
+              jobs={jobs}
+              more={more}
+              timezone={data.timezone}
+              onEarlier={() => activity.onSelect?.()}
+            />
           ) : (
             <DayLineSkeleton />
           )}
