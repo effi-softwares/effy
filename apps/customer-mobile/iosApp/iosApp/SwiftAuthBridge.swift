@@ -15,44 +15,52 @@ final class SwiftAuthBridge: NSObject, IosAuthBridge {
 
     /// ⚠ THIS RECONCILES; it does not merely read.
     ///
-    /// A session that reports `isSignedIn` but cannot produce a token - an expired refresh token, or a
-    /// Keychain entry that outlived the install that made it, which on iOS happens because **the
-    /// Keychain survives deleting the app** - used to be reported as simply "no session". That left
-    /// Amplify holding a signed-in user while the app showed a guest, and every subsequent `signIn`
-    /// failed with *"There is already a user in signedIn state"*.
+    /// A session Cognito has refused - an expired or revoked refresh token, or a Keychain entry that
+    /// outlived the install that made it, which on iOS happens because **the Keychain survives deleting
+    /// the app** - is signed OUT and reported `ended`. Left in place, Amplify would hold a signed-in user
+    /// while the app showed a guest, and every `signIn` would fail with *"There is already a user in
+    /// signedIn state"*.
     ///
-    /// So an unusable session is signed OUT before reporting "no session", and the two stores agree.
+    /// ⚠ BUT ONLY A REFUSAL. `isSignedIn` stays true with no tokens for a refresh that merely could not
+    /// reach Cognito too, and signing out then would revoke a good session because of a network blip.
+    /// Everything else is `unavailable` and the session is kept.
     ///
-    /// ⚠ This is NOT the only way they diverge, and probably not the common one. `SessionManager`
-    /// deliberately falls back to Guest when the customer record cannot be read at launch - a backend
-    /// outage should not log anyone out, and its own comment says "the Amplify session survives for a
-    /// relaunch". That path produces the same standoff with a session that is perfectly valid, so this
-    /// method cannot see it. `signInRecoveringFromStaleSession` is what actually covers it.
-    func fetchSession(forceRefresh: Bool, onResult: @escaping (BridgeSession?) -> Void) {
+    /// `signInRecoveringFromStaleSession` remains the second line of defence for a sign-out that failed.
+    func fetchSession(forceRefresh: Bool, onResult: @escaping (BridgeSessionResult) -> Void) {
         Task {
             do {
                 let options = AuthFetchSessionRequest.Options(forceRefresh: forceRefresh)
                 let session = try await Amplify.Auth.fetchAuthSession(options: options)
-                guard session.isSignedIn, let cognito = session as? AWSAuthCognitoSession else {
-                    onResult(nil); return
+                guard session.isSignedIn else {
+                    onResult(BridgeSessionResult(outcome: "signedOut", session: nil)); return
+                }
+                guard let cognito = session as? AWSAuthCognitoSession else {
+                    onResult(BridgeSessionResult(outcome: "unavailable", session: nil)); return
                 }
                 let tokens = try cognito.getCognitoTokens().get()
                 let sub = try cognito.getUserSub().get()
-                onResult(BridgeSession(sub: sub, idToken: tokens.idToken, accessToken: tokens.accessToken))
+                let bridged = BridgeSession(sub: sub, idToken: tokens.idToken, accessToken: tokens.accessToken)
+                onResult(BridgeSessionResult(outcome: "session", session: bridged))
             } catch {
-                // Signed in on paper, unusable in practice. Clear it rather than leave the two stores
-                // disagreeing. Sign-out is best-effort: if it fails there is nothing further to try,
-                // and `signInRecoveringFromStaleSession` is the second line of defence.
-                await self.clearStaleSessionIfAny()
-                onResult(nil)
+                guard self.cognitoRefusedSession(error) else {
+                    onResult(BridgeSessionResult(outcome: "unavailable", session: nil)); return
+                }
+                _ = await Amplify.Auth.signOut()
+                onResult(BridgeSessionResult(outcome: "ended", session: nil))
             }
         }
     }
 
-    /// Sign out only if Amplify still believes someone is signed in.
-    private func clearStaleSessionIfAny() async {
-        let stillSignedIn = (try? await Amplify.Auth.fetchAuthSession().isSignedIn) ?? false
-        if stillSignedIn { _ = await Amplify.Auth.signOut() }
+    /// Amplify turns Cognito's `NotAuthorizedException` on a refresh into `sessionExpired`
+    /// (`InformSessionError`); a network failure stays `service`. An unrecognised error is not a refusal.
+    private func cognitoRefusedSession(_ error: Error) -> Bool {
+        guard let authError = error as? CognitoAuthError else { return false }
+        switch authError {
+        case .sessionExpired, .notAuthorized, .signedOut:
+            return true
+        default:
+            return false
+        }
     }
 
     /// Run a sign-in, and if Amplify refuses because a user is already signed in, clear that user and

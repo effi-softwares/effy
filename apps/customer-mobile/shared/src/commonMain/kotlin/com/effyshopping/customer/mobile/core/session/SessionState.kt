@@ -11,6 +11,14 @@ sealed interface SessionState {
     data object Guest : SessionState
     data class Authenticated(val customer: Customer) : SessionState
 
+    /**
+     * Signed in, but the customer's record could not be read: the network, or the platform, is not
+     * answering. Not [Guest], and the difference is the whole point: Guest sends a shopper to sign in, and
+     * signing in cannot fix an outage. The session is untouched, so the app waits here until a retry
+     * reads the record ([SessionManager.retry]).
+     */
+    data object Unreachable : SessionState
+
     /** Signed in with a valid credential, but the platform record refuses access. Offers only sign-out. */
     data object Barred : SessionState
 

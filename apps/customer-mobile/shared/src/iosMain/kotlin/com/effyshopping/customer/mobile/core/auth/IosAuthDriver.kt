@@ -1,5 +1,7 @@
 package com.effyshopping.customer.mobile.core.auth
 
+import com.effyshopping.customer.mobile.core.error.AppError
+import com.effyshopping.customer.mobile.core.error.AppException
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -19,16 +21,28 @@ import kotlin.coroutines.resume
  */
 class IosAuthDriver(private val bridge: IosAuthBridge) : AuthDriver {
 
-    // iOS has no Android-Keystore failure mode, so nothing emits here - the Flow just stays idle.
+    // iOS has no Android-Keystore failure mode and no Hub subscription here; a session found to be dead
+    // while reading a token is what emits. Without it the app would go on looking signed in.
     private val _sessionChanges = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     override val sessionChanges: Flow<Unit> = _sessionChanges.asSharedFlow()
 
-    override suspend fun currentSession(forceRefresh: Boolean): Session? =
-        suspendCancellableCoroutine { cont ->
-            bridge.fetchSession(forceRefresh) { s ->
-                cont.resumeIfActive(s?.let { Session(it.sub, it.idToken, it.accessToken) })
-            }
+    override suspend fun currentSession(forceRefresh: Boolean): Session? {
+        val result = suspendCancellableCoroutine<BridgeSessionResult> { cont ->
+            bridge.fetchSession(forceRefresh) { cont.resumeIfActive(it) }
         }
+        val session = result.session
+        return when {
+            result.outcome == "session" && session != null ->
+                Session(session.sub, session.idToken, session.accessToken)
+            result.outcome == "signedOut" -> null
+            result.outcome == "ended" -> {
+                _sessionChanges.tryEmit(Unit)
+                null
+            }
+            // `unavailable`, and anything this build does not know: never a verdict on the session.
+            else -> throw AppException(AppError.Network)
+        }
+    }
 
     override suspend fun signUpWithPassword(email: String, password: String): AuthStep =
         mapResult(await { cb -> bridge.signUpWithPassword(email, password, cb) })
@@ -67,7 +81,11 @@ class IosAuthDriver(private val bridge: IosAuthBridge) : AuthDriver {
         suspendCancellableCoroutine { cont -> register { cont.resumeIfActive(it) } }
 
     private suspend fun mapResult(r: BridgeAuthResult): AuthStep = when (r.outcome) {
-        "done" -> currentSession()?.let { AuthStep.Done(it) } ?: AuthStep.Failed(AuthError.Unexpected)
+        "done" -> try {
+            currentSession()?.let { AuthStep.Done(it) } ?: AuthStep.Failed(AuthError.Unexpected)
+        } catch (e: AppException) {
+            AuthStep.Failed(AuthError.Network)
+        }
         "otp" -> AuthStep.NeedsOtp(r.destination ?: "your email")
         "signupConfirm" -> AuthStep.NeedsSignUpConfirmation(r.email ?: "")
         else -> AuthStep.Failed(mapErrorKind(r.errorKind))
@@ -91,6 +109,13 @@ class IosAuthDriver(private val bridge: IosAuthBridge) : AuthDriver {
 data class BridgeSession(val sub: String, val idToken: String, val accessToken: String)
 
 /**
+ * What reading the session found. [outcome] is one of `session` (with [session]) | `signedOut` | `ended`
+ * (Cognito refused the session and the bridge has cleared it) | `unavailable` (no token right now; the
+ * session is kept). Primitive for the same reason as [BridgeAuthResult].
+ */
+data class BridgeSessionResult(val outcome: String, val session: BridgeSession? = null)
+
+/**
  * A flat auth result the Swift bridge returns. [outcome] is one of `done` | `otp` | `signupConfirm` |
  * `failed`; [errorKind] (on `failed`) is one of `invalidCredentials` | `codeIncorrect` | `codeExpired`
  * | `rateLimited` | `network` | `unexpected`. Kept primitive so Swift constructs it trivially.
@@ -109,7 +134,7 @@ data class BridgeAuthResult(
  * mirroring [AuthDriver]'s absences.
  */
 interface IosAuthBridge {
-    fun fetchSession(forceRefresh: Boolean, onResult: (BridgeSession?) -> Unit)
+    fun fetchSession(forceRefresh: Boolean, onResult: (BridgeSessionResult) -> Unit)
     fun signUpWithPassword(email: String, password: String, onResult: (BridgeAuthResult) -> Unit)
     fun signUpPasswordless(email: String, onResult: (BridgeAuthResult) -> Unit)
     fun confirmSignUp(email: String, code: String, onResult: (BridgeAuthResult) -> Unit)

@@ -15,13 +15,21 @@ import kotlinx.coroutines.flow.Flow
 interface AuthDriver {
 
     /**
-     * Emits when the SDK drops the session without the app asking - chiefly Amplify Android recreating
-     * a broken Keystore master key, which silently invalidates the stored tokens. The
-     * app treats this as a real state ("signed out unexpectedly"), never a swallowed error.
+     * Emits when a session ends without the app asking: an expired or revoked session found while
+     * reading a token, or Amplify Android recreating a broken Keystore master key, which silently
+     * invalidates the stored tokens. The app treats this as a real state ("signed out unexpectedly"),
+     * never a swallowed error.
      */
     val sessionChanges: Flow<Unit>
 
-    /** The current session, or null if signed out. [forceRefresh] renews via Amplify (never raw HTTP). */
+    /**
+     * The current session, or null if signed out. [forceRefresh] renews via Amplify (never raw HTTP).
+     *
+     * ⚠ NULL IS A VERDICT, so it is returned only when there is no session or Cognito has refused this one
+     * (and the dead session is cleared first). Anything else that stops a token being produced, such as a
+     * refresh that could not reach Cognito, throws `AppException(AppError.Network)` and leaves the session
+     * alone: it will work again once the network does. An error nobody recognises keeps the session too.
+     */
     suspend fun currentSession(forceRefresh: Boolean = false): Session?
 
     // Registration: two routes

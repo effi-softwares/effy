@@ -25,7 +25,9 @@ internal val effyJson = Json {
 
 /**
  * [sessionProvider] delegates to the AuthDriver - Amplify owns refresh, so we never refresh over HTTP.
- * A guest (null session) sends no auth headers, which is correct for public routes.
+ * A guest (null session) sends no auth headers, which is correct for public routes. A session that cannot
+ * produce a token right now throws from here: the request fails as a network failure rather than going out
+ * anonymously and coming back a 401 that says something untrue about who is signed in.
  */
 private fun effyAuth(sessionProvider: suspend () -> Session?) =
     createClientPlugin("EffyAuth") {

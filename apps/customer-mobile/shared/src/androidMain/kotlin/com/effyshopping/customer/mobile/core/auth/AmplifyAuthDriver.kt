@@ -1,11 +1,15 @@
 package com.effyshopping.customer.mobile.core.auth
 
+import com.amplifyframework.auth.AuthException
 import com.amplifyframework.auth.AuthUserAttribute
 import com.amplifyframework.auth.AuthUserAttributeKey
 import com.amplifyframework.auth.cognito.AWSCognitoAuthSession
 import com.amplifyframework.auth.cognito.exceptions.invalidstate.SignedInException
 import com.amplifyframework.auth.cognito.options.AWSCognitoAuthSignInOptions
 import com.amplifyframework.auth.cognito.options.AuthFlowType
+import com.amplifyframework.auth.exceptions.NotAuthorizedException
+import com.amplifyframework.auth.exceptions.SessionExpiredException
+import com.amplifyframework.auth.exceptions.SignedOutException
 import com.amplifyframework.auth.options.AuthFetchSessionOptions
 import com.amplifyframework.auth.options.AuthSignUpOptions
 import com.amplifyframework.auth.result.AuthSignInResult
@@ -13,6 +17,9 @@ import com.amplifyframework.auth.result.step.AuthSignInStep
 import com.amplifyframework.auth.AuthChannelEventName
 import com.amplifyframework.hub.HubChannel
 import com.amplifyframework.kotlin.core.Amplify
+import com.effyshopping.customer.mobile.core.error.AppError
+import com.effyshopping.customer.mobile.core.error.AppException
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -50,33 +57,45 @@ class AmplifyAuthDriver : AuthDriver {
     }
 
     /**
-     * Reconciles, not merely reads (identical to the iOS bridge's `fetchSession`): a session that reports
-     * `isSignedIn` but cannot produce a token (an expired refresh token; on iOS a Keychain entry that outlived
-     * its install) is signed out, or Amplify keeps a user the app shows as a guest and every `signIn` fails
-     * with "There is already a user in signedIn state". The other divergence (SessionManager falling back to
-     * Guest with a valid session) is covered by [signInRecoveringFromStaleSession].
+     * Reconciles, not merely reads (identical to the iOS bridge's `fetchSession`): a session Cognito has
+     * refused (an expired or revoked refresh token) is signed out, or Amplify keeps a user the app shows as
+     * a guest and every `signIn` fails with "There is already a user in signedIn state". The sign-out fires
+     * the Hub event that moves [SessionManager][com.effyshopping.customer.mobile.core.session.SessionManager].
+     *
+     * Only a refusal: `isSignedIn` stays true with no tokens for a refresh that merely could not reach
+     * Cognito too, and signing out then would end a good session over a network blip. That case throws
+     * and keeps the session. [signInRecoveringFromStaleSession] covers a sign-out that failed.
      */
-    override suspend fun currentSession(forceRefresh: Boolean): Session? = try {
-        val options = AuthFetchSessionOptions.builder().forceRefresh(forceRefresh).build()
-        val session = Amplify.Auth.fetchAuthSession(options) as AWSCognitoAuthSession
+    override suspend fun currentSession(forceRefresh: Boolean): Session? {
+        val session = try {
+            val options = AuthFetchSessionOptions.builder().forceRefresh(forceRefresh).build()
+            Amplify.Auth.fetchAuthSession(options) as AWSCognitoAuthSession
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            throw AppException(AppError.Network)
+        }
+        if (!session.isSignedIn) return null
         val tokens = session.userPoolTokensResult.value
         val sub = session.userSubResult.value
-        if (session.isSignedIn && tokens != null && sub != null) {
-            Session(
+        if (tokens != null && sub != null) {
+            return Session(
                 sub = sub,
                 idToken = tokens.idToken.orEmpty(),
                 accessToken = tokens.accessToken.orEmpty(),
             )
-        } else {
-            // Signed in on paper, unusable in practice - clear it rather than leave the two stores
-            // disagreeing. Best-effort: if the purge fails there is nothing further to try here.
-            if (session.isSignedIn) runCatching { Amplify.Auth.signOut() }
-            null
         }
-    } catch (e: Throwable) {
-        clearStaleSessionIfAny()
-        null
+        if (!cognitoRefusedSession(session.userPoolTokensResult.error)) throw AppException(AppError.Network)
+        runCatching { Amplify.Auth.signOut() }
+        return null
     }
+
+    /**
+     * Amplify turns Cognito's `NotAuthorizedException` on a refresh into [SessionExpiredException]; a
+     * network failure stays a service or unknown error. An unrecognised error is not a refusal.
+     */
+    private fun cognitoRefusedSession(error: AuthException?): Boolean =
+        error is SessionExpiredException || error is NotAuthorizedException || error is SignedOutException
 
     override suspend fun signUpWithPassword(email: String, password: String): AuthStep =
         step {
@@ -144,12 +163,6 @@ class AmplifyAuthDriver : AuthDriver {
 
     // helpers
 
-    /** Sign out only if Amplify still believes someone is signed in. */
-    private suspend fun clearStaleSessionIfAny() {
-        val stillSignedIn = runCatching { Amplify.Auth.fetchAuthSession().isSignedIn }.getOrDefault(false)
-        if (stillSignedIn) runCatching { Amplify.Auth.signOut() }
-    }
-
     /**
      * Run a sign-in, and if Amplify refuses because a user is already signed in, clear that user and
      * try once more.
@@ -206,8 +219,11 @@ class AmplifyAuthDriver : AuthDriver {
         else -> AuthStep.Failed(AuthError.Unexpected)
     }
 
-    private suspend fun sessionOrFail(): AuthStep =
+    private suspend fun sessionOrFail(): AuthStep = try {
         currentSession()?.let { AuthStep.Done(it) } ?: AuthStep.Failed(AuthError.Unexpected)
+    } catch (e: AppException) {
+        AuthStep.Failed(AuthError.Network)
+    }
 
     private inline fun step(block: () -> AuthStep): AuthStep =
         try {

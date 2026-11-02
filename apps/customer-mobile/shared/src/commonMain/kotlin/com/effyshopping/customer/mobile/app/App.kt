@@ -4,6 +4,7 @@ import com.effyshopping.customer.mobile.core.platform.phoneInDarkMode
 import com.effyshopping.customer.mobile.core.platform.StatusBarIcons
 import androidx.compose.ui.unit.sp
 import com.effyshopping.customer.mobile.resources.lucide_lock
+import com.effyshopping.customer.mobile.resources.lucide_wifi_off
 import com.effyshopping.customer.mobile.resources.Res
 import com.effyshopping.customer.mobile.core.presentation.EffyInlineError
 import com.effyshopping.customer.mobile.core.presentation.EffyGhostButton
@@ -31,6 +32,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import coil3.SingletonImageLoader
 import com.effyshopping.mobile.kit.live.LiveLifecycle
 import com.effyshopping.customer.mobile.core.image.newImageLoader
@@ -52,8 +55,8 @@ import kotlinx.coroutines.launch
 import com.effyshopping.customer.mobile.core.presentation.EffyPrimaryButton
 
 /**
- * The app root. A top-level **session gate** picks the graph: `Restoring` splash, a `Barred`
- * refusal, or - for both a guest and a signed-in customer - the guest-first [CustomerShell] (adaptive
+ * The app root. A top-level **session gate** picks the graph: `Restoring` splash, `Unreachable` (signed in,
+ * record unreadable), a `Barred` refusal, or - for both a guest and a signed-in customer - the guest-first [CustomerShell] (adaptive
  * bottom bar / navigation rail over Home · Search · Orders · Account). `Restoring` is its own screen so
  * the guest home never flickers in before a signed-in session resolves.
  */
@@ -110,6 +113,8 @@ fun App(container: AppContainer) {
         ) {
             when (val s = session) {
                 SessionState.Restoring -> Inset { CenteredMessage { EffyWordmark(size = 40.sp) } }
+
+                SessionState.Unreachable -> Inset { UnreachableScreen(container) }
 
                 SessionState.Barred -> Inset { CenteredMessage {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -224,6 +229,58 @@ fun App(container: AppContainer) {
             EffyIntro(ready = session !is SessionState.Restoring, darkTheme = dark, onFinished = { introDone = true })
         }
     }
+    }
+}
+
+/**
+ * Signed in, and the record cannot be read. Retries on Try again and whenever the shopper comes back to
+ * the app, which is when the connection has usually returned; never on a timer (071). Sign out stays
+ * offered, as on every other gate, so a session that can never produce a token again is not a dead end.
+ */
+@Composable
+private fun UnreachableScreen(container: AppContainer) {
+    val scope = rememberCoroutineScope()
+    var working by remember { mutableStateOf(false) }
+    fun retry() {
+        if (working) return
+        working = true
+        scope.launch {
+            container.session.retry()
+            working = false
+        }
+    }
+
+    // ON_RESUME is replayed the moment this is composed, which is straight after a read has just failed.
+    var settled by remember { mutableStateOf(false) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { if (settled) retry() else settled = true }
+
+    CenteredMessage {
+        EffyIconChip(Res.drawable.lucide_wifi_off)
+        Text(
+            "We can't reach Effy right now",
+            style = MaterialTheme.typography.titleLarge,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(top = 16.dp),
+        )
+        Text(
+            "You're still signed in. Check your connection and try again.",
+            style = MaterialTheme.typography.bodyMedium,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(top = 8.dp),
+        )
+        EffyPrimaryButton(
+            label = "Try again",
+            onClick = ::retry,
+            loading = working,
+            enabled = !working,
+            modifier = Modifier.padding(top = 16.dp),
+        )
+        EffyGhostButton(
+            "Sign out",
+            onClick = { scope.launch { container.session.signOutLocally() } },
+            enabled = !working,
+            modifier = Modifier.padding(top = 8.dp),
+        )
     }
 }
 
