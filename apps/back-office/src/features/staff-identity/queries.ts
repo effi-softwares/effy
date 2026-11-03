@@ -1,13 +1,14 @@
 import { queryOptions } from "@tanstack/react-query"
 
-import { loadAdminPing, loadMe } from "./repo"
+import { loadMe, loadTeam } from "./repo"
 
 export const meQuery = queryOptions({
   queryKey: ["back-office", "me"] as const,
   queryFn: loadMe,
 })
 
-export const adminPingQuery = queryOptions({
-  queryKey: ["back-office", "admin-ping"] as const,
-  queryFn: loadAdminPing,
+/** Settings › Team and access (admin only). */
+export const teamQuery = queryOptions({
+  queryKey: ["back-office", "team"] as const,
+  queryFn: loadTeam,
 })

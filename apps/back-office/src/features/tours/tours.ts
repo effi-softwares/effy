@@ -14,7 +14,7 @@ export const BACK_OFFICE_TOURS = defineTours([
   // BW - Welcome to Effy Back-Office
   {
     key: "welcome",
-    version: 1,
+    version: 2,
     title: "Welcome to Effy Back-Office",
     anyPage: true,
     steps: [
@@ -26,7 +26,7 @@ export const BACK_OFFICE_TOURS = defineTours([
       {
         target: "nav",
         title: "Find your way",
-        text: "Operations is the day's work. People holds customers, drivers, vehicles and shops. Catalogue is products, review and promotions. Setup is delivery and settings.",
+        text: "Operations is the day's work. People holds customers, drivers, vehicles and shops. Catalogue is products, review and promotions. Settings is delivery, the hub and drivers, checkout and the business.",
         side: "right",
       },
       {
@@ -457,8 +457,7 @@ export const BACK_OFFICE_TOURS = defineTours([
     key: "points-settings",
     version: 1,
     title: "Points settings",
-    path: "/customers",
-    search: { tab: "settings" },
+    path: "/settings/points",
     steps: [
       {
         target: "page-title",
@@ -1418,7 +1417,7 @@ export const BACK_OFFICE_TOURS = defineTours([
     key: "order-rules",
     version: 1,
     title: "Order rules",
-    path: "/promotions/order-rules",
+    path: "/settings/order-rules",
     steps: [
       {
         target: "page-title",
@@ -1440,8 +1439,7 @@ export const BACK_OFFICE_TOURS = defineTours([
     key: "delivery-coverage",
     version: 1,
     title: "Delivery · Coverage",
-    path: "/delivery",
-    search: { tab: "coverage" },
+    path: "/settings/delivery/coverage",
     steps: [
       {
         target: "page-title",
@@ -1490,8 +1488,7 @@ export const BACK_OFFICE_TOURS = defineTours([
     key: "delivery-courier",
     version: 1,
     title: "Delivery · Courier delivery",
-    path: "/delivery",
-    search: { tab: "courier" },
+    path: "/settings/delivery/courier",
     steps: [
       {
         target: "page-title",
@@ -1525,8 +1522,7 @@ export const BACK_OFFICE_TOURS = defineTours([
     key: "delivery-pricing",
     version: 1,
     title: "Delivery · Pricing",
-    path: "/delivery",
-    search: { tab: "pricing" },
+    path: "/settings/delivery/pricing",
     steps: [
       {
         target: "page-title",
@@ -1562,8 +1558,7 @@ export const BACK_OFFICE_TOURS = defineTours([
     key: "delivery-windows",
     version: 1,
     title: "Delivery · Delivery windows",
-    path: "/delivery",
-    search: { tab: "slots" },
+    path: "/settings/delivery/windows",
     steps: [
       {
         target: "page-title",
@@ -1598,50 +1593,52 @@ export const BACK_OFFICE_TOURS = defineTours([
       },
     ],
   },
-  // DY - Delivery · Days and runs
+  // DY - Delivery · Delivery days
   {
     key: "delivery-days",
-    version: 1,
-    title: "Delivery · Days and runs",
-    path: "/delivery",
-    search: { tab: "days" },
+    version: 2,
+    title: "Delivery · Delivery days",
+    path: "/settings/delivery/days",
     steps: [
       {
         target: "page-title",
-        title: "Days, runs and closures",
-        text: "Delivery days, collection runs from shops to the hub, and dates Effy is closed.",
+        title: "Delivery days",
+        text: 'Which days customers can choose, what an "as soon as possible" order is told, and the dates Effy is closed.',
       },
       {
         target: "days.days",
-        title: "Delivery days",
-        text: 'How many days after today are offered, the days with no delivery, and the "as soon as possible" estimate.',
+        title: "Days customers can choose",
+        text: "How many delivery days after today are offered, and the weekdays with no delivery.",
       },
       {
-        target: "days.timings",
-        title: "Timings",
-        text: "Hub turnaround, and how long a place in a window is held while a customer pays.",
+        target: "days.asap",
+        title: "As soon as possible",
+        text: "What a customer who chooses no day is told. Always an estimate, never a promised day.",
       },
       {
-        target: "days.drivers",
-        title: "Drivers' work",
-        text: "When dispatch is told a van isn't loaded or parcels aren't checked in, and whether drivers check their vehicle.",
+        target: "days.hold",
+        title: "Holding a place",
+        text: "How long a place in a window is kept while a customer pays.",
       },
       {
-        target: "days.runs",
-        title: "Collection runs",
-        text: "The times drivers collect from shops. No window today can be offered without a run that makes it.",
+        target: "days.closed",
+        title: "Closed dates",
+        text: "Dates Effy doesn't deliver, such as public holidays. Closing one saves at once.",
       },
-      { target: "days.closed", title: "Closed dates", text: "Dates Effy doesn't deliver, such as public holidays." },
     ],
   },
-  // DH - Delivery · Hub and timings
+  // DH - Hub and runs
   {
     key: "delivery-hub",
-    version: 1,
-    title: "Delivery · Hub and timings",
-    path: "/delivery",
-    search: { tab: "settings" },
+    version: 2,
+    title: "Hub and runs",
+    path: "/settings/hub",
     steps: [
+      {
+        target: "page-title",
+        title: "Hub and runs",
+        text: "Where the hub is, the time shops and the hub need, and when drivers collect from shops.",
+      },
       {
         target: "hub-setup.location",
         title: "The hub",
@@ -1651,6 +1648,50 @@ export const BACK_OFFICE_TOURS = defineTours([
         target: "hub-setup.buffer",
         title: "Prep buffer",
         text: "How long a shop needs to pack before a collection run.",
+      },
+      {
+        target: "hub-setup.turnaround",
+        title: "Hub turnaround",
+        text: "From a collection run reaching the hub to its parcels being ready to leave. An estimate until rounds are timed.",
+      },
+      {
+        target: "days.runs",
+        title: "Collection runs",
+        text: "The times drivers collect from shops. No window today can be offered without a run that makes it.",
+      },
+    ],
+  },
+  // DV - Driver work
+  {
+    key: "driver-work",
+    version: 1,
+    title: "Driver work",
+    path: "/settings/drivers",
+    steps: [
+      {
+        target: "page-title",
+        title: "Driver work",
+        text: "The rules for drivers' work: when rounds open, how they are planned, and when dispatch is told.",
+      },
+      {
+        target: "drivers.open",
+        title: "When work opens",
+        text: "A round opens this long before it starts. Until then the driver sees it but can't start it.",
+      },
+      {
+        target: "drivers.plan",
+        title: "Time at each stop",
+        text: "What the planner allows at each stop when it fills a round.",
+      },
+      {
+        target: "drivers.alerts",
+        title: "Telling dispatch",
+        text: "When a van isn't loaded or parcels aren't checked in in time, it is listed on Exceptions.",
+      },
+      {
+        target: "drivers.vehicle",
+        title: "Vehicle check",
+        text: "Whether drivers check their vehicle once a day before they get work.",
       },
     ],
   },
@@ -1737,19 +1778,64 @@ export const BACK_OFFICE_TOURS = defineTours([
       },
     ],
   },
-  // AA - Admin and access
+  // AA - Team and access
   {
     key: "admin-access",
-    version: 1,
-    title: "Admin and access",
-    path: "/admin",
+    version: 2,
+    title: "Team and access",
+    path: "/settings/team",
     roles: ["admin"],
     steps: [
-      { target: "access.yours", title: "Your access", text: "Your back-office account and your role." },
+      {
+        target: "access.team",
+        title: "The team",
+        text: "Everyone with a back-office account, their role, and when they last opened back-office.",
+      },
       {
         target: "access.roles",
         title: "Roles and permissions",
         text: "What Administrators, Managers and Customer support may each do. The platform's staff record decides.",
+      },
+    ],
+  },
+  // ST - Settings
+  {
+    key: "settings",
+    version: 1,
+    title: "Settings",
+    path: "/settings",
+    steps: [
+      {
+        target: "page-title",
+        title: "All settings",
+        text: "Everything that decides how Effy runs, in one place. Open a page to change it.",
+      },
+      {
+        target: "settings.delivery",
+        title: "Delivery",
+        text: "Where Effy delivers, what it costs, and the windows and days customers choose from.",
+      },
+      {
+        target: "settings.operations",
+        title: "Hub and drivers",
+        text: "The hub, collection runs from shops, and the rules for drivers' work.",
+      },
+      {
+        target: "settings.checkout",
+        title: "Checkout",
+        text: "The limits on every cart, and customers' points.",
+      },
+      {
+        target: "settings.business",
+        title: "Business",
+        text: "Tax and invoices, and the team.",
+        roles: ["admin"],
+        shownWhen: "Admin",
+      },
+      {
+        target: null,
+        title: "Saving",
+        text: "Changes wait on a bar at the bottom: Save or Discard. Leaving a page with unsaved changes asks first.",
       },
     ],
   },

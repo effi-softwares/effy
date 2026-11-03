@@ -50,6 +50,12 @@ export function daysProblems(v: Partial<DeliveryDaysInput>): FieldError[] {
   if (v.checkinOverdueMin !== undefined && !wholeNumber(v.checkinOverdueMin, 5, 240)) {
     errors.push({ field: "checkinOverdueMin", message: "between 5 and 240 minutes" });
   }
+  if (v.planningLeadMin !== undefined && !wholeNumber(v.planningLeadMin, 5, 240)) {
+    errors.push({ field: "planningLeadMin", message: "between 5 and 240 minutes" });
+  }
+  if (v.perStopAllowanceMin !== undefined && !wholeNumber(v.perStopAllowanceMin, 1, 60)) {
+    errors.push({ field: "perStopAllowanceMin", message: "between 1 and 60 minutes" });
+  }
   if (v.vehicleCheckRequired !== undefined && typeof v.vehicleCheckRequired !== "boolean") {
     errors.push({ field: "vehicleCheckRequired", message: "on or off" });
   }
@@ -73,6 +79,8 @@ export async function putDeliveryDays(body: DeliveryDaysInput, actorSub: string,
     ...(body.loadOverdueMin === undefined ? {} : { loadOverdueMin: body.loadOverdueMin }),
     ...(body.checkinOverdueMin === undefined ? {} : { checkinOverdueMin: body.checkinOverdueMin }),
     ...(body.vehicleCheckRequired === undefined ? {} : { vehicleCheckRequired: body.vehicleCheckRequired }),
+    ...(body.planningLeadMin === undefined ? {} : { planningLeadMin: body.planningLeadMin }),
+    ...(body.perStopAllowanceMin === undefined ? {} : { perStopAllowanceMin: body.perStopAllowanceMin }),
   };
   const saved = await repo.save(v, actorSub, (tx) =>
     recordAudit({ actorSub, action: "delivery_days.updated", targetType: "delivery_settings", driverId: null, detail: { ...v } }, tx),

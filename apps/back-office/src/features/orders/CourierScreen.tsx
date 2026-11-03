@@ -95,7 +95,7 @@ export function CourierScreen() {
           description="Parcels going to customers by courier, ready to book, track and record each step."
           actions={
             <Button variant="outline" asChild>
-              <Link to="/delivery" search={{ tab: "coverage" }}>
+              <Link to="/settings/delivery/coverage">
                 <Settings2 aria-hidden="true" />
                 Courier services
               </Link>

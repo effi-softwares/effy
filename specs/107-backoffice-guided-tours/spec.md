@@ -6,6 +6,10 @@
 
 **Status**: Draft
 
+**Amended 2026-11-03 (back-office settings redesign)**: the settings pages moved under one Settings area. DY (now
+"Delivery days"), DH ("Hub and runs") and AA ("Team and access") were rewritten and their versions raised; DV (Driver
+work) and ST (Settings) were added; BW step 2 names the new Settings group. 49 → 51 tours.
+
 **Input**: User description: "Guided tours for the back-office console, on the same tours, Help place, per-person memory
 and rules as 106 (shop console): every back-office page and every important part of it gets a short tour that starts
 by itself the first time a person uses that page, and can be replayed from Help or search. Steps are filtered by the
@@ -56,7 +60,7 @@ support**.
   says so once instead of explaining buttons they cannot use.
 
 **One page, one tour; one tab, one tour.** A page split into tabs that each have their own entry in the sidebar
-(Delivery's six tabs, Customers and Points settings) has a tour per tab. A page whose views are only filters (All
+(Customers and Points settings, until the settings redesign moved Points to Settings) has a tour per tab. A page whose views are only filters (All
 orders, Exceptions' kinds) has one tour.
 
 ## User Scenarios & Testing *(mandatory)*
@@ -167,7 +171,7 @@ step, and the role name, and nothing about an order, customer, product or shop.
 - **The `?` key**: it still opens Keyboard shortcuts. Help is its own button and never steals that key.
 - **A page a role can read but not change** (Order rules, Points settings, Delivery for Customer support): the tour
   shows what the page holds, then one step that says it is read-only for them.
-- **A page only one role may open** (Tax, Admin and access for administrators; Hub station and Imports for
+- **A page only one role may open** (Tax, Team and access for administrators; Hub station and Imports for
   administrators and managers): it has no tour for anyone else, and All tours does not list it for them.
 - **The Classic skin and other built-ins**: a step about editing points at what a built-in skin shows instead; a step
   whose part a built-in hides is skipped.
@@ -242,8 +246,9 @@ step, and the role name, and nothing about an order, customer, product or shop.
 - **Built on 106**: 106 is built (not yet deployed). This slice adds back-office's own list of tours, the role rule,
   the Help button in back-office's header, its search commands, and its own place to keep each person's record.
 - **Roles as they are today**: Administrator (`admin`), Manager (`manager`) and Customer support (`csa`). What each may
-  do is the Admin and access page's table, and the steps' role marks follow it.
-- **Tabs are pages**: Delivery's six tabs and Customers' Points settings each have their own entry in the sidebar, so
+  do is the Team and access page's table, and the steps' role marks follow it.
+- **Settings pages are pages** (settings redesign, 2026-11-03): every page under Settings - the index, Delivery's five,
+  Hub and runs, Driver work, Order rules, Points, Tax and Team and access - has its own address and sidebar entry, so
   each has its own tour. Other in-page sections (a driver's Profile and Clearances, a shop's Overview, Team and
   Products) are steps of one tour.
 - **Record pages**: an order, a round, a customer, a feedback item, a driver, a vehicle, a shop, a product, an import,
@@ -256,7 +261,7 @@ step, and the role name, and nothing about an order, customer, product or shop.
 
 ## Tour Inventory (back-office)
 
-**49 tours**: the Welcome tour and 48 pages and tabs, 273 steps. **Points at** is the part of the page a step outlines. **Shown when** is blank when the step is shown to
+**51 tours**: the Welcome tour and 50 pages and tabs, 286 steps. **Points at** is the part of the page a step outlines. **Shown when** is blank when the step is shown to
 every role whenever its part is on screen. Role marks: **Admin or manager**, **Admin**, **Customer support**.
 
 ### BW - Welcome to Effy Back-Office (the whole console; starts by itself at first sign-in)
@@ -264,7 +269,7 @@ every role whenever its part is on screen. Role marks: **Admin or manager**, **A
 | # | Points at | Title | Text | Shown when |
 |---|---|---|---|---|
 | 1 | Nothing (centred) | Welcome to Effy Back-Office | This is where Effy is run: orders and refunds, drivers and the hub, shops, the catalogue, promotions and delivery. The tour takes about a minute. | |
-| 2 | The sidebar | Find your way | Operations is the day's work. People holds customers, drivers, vehicles and shops. Catalogue is products, review and promotions. Setup is delivery and settings. | |
+| 2 | The sidebar | Find your way | Operations is the day's work. People holds customers, drivers, vehicles and shops. Catalogue is products, review and promotions. Settings is delivery, the hub and drivers, checkout and the business. | |
 | 3 | Sidebar › Exceptions | Numbers mean work | A number beside a page is work waiting there, such as exceptions to deal with or products to review. It updates by itself. | |
 | 4 | Header search | Search and commands | Find an order, a customer or a package, or type a page's name to go there. Press ⌘K (Ctrl K on Windows) on any page. | |
 | 5 | Nothing (centred) | Scan from anywhere | Scan a bag label with a handheld scanner on any page, and its order opens. The hub station has its own scan box. | |
@@ -725,23 +730,35 @@ every role whenever its part is on screen. Role marks: **Admin or manager**, **A
 | 4 | New window | New window | It is offered at checkout as soon as you save. Orders already placed keep their window. | Admin or manager |
 | 5 | Switch off | Switching off | A window switched off is no longer offered. With none active, Effy delivery is offered to no one. | Admin or manager |
 
-### DY - Delivery · Days and runs
+### DY - Delivery · Delivery days
 
 | # | Points at | Title | Text | Shown when |
 |---|---|---|---|---|
-| 1 | Page heading | Days, runs and closures | Delivery days, collection runs from shops to the hub, and dates Effy is closed. | |
-| 2 | Delivery days | Delivery days | How many days after today are offered, the days with no delivery, and the "as soon as possible" estimate. | |
-| 3 | Timings | Timings | Hub turnaround, and how long a place in a window is held while a customer pays. | |
-| 4 | Drivers' work | Drivers' work | When dispatch is told a van isn't loaded or parcels aren't checked in, and whether drivers check their vehicle. | |
+| 1 | Page heading | Delivery days | Which days customers can choose, what an "as soon as possible" order is told, and the dates Effy is closed. | |
+| 2 | Days customers can choose | Days customers can choose | How many delivery days after today are offered, and the weekdays with no delivery. | |
+| 3 | As soon as possible | As soon as possible | What a customer who chooses no day is told. Always an estimate, never a promised day. | |
+| 4 | Holding a place | Holding a place | How long a place in a window is kept while a customer pays. | |
+| 5 | Dates with no delivery | Closed dates | Dates Effy doesn't deliver, such as public holidays. Closing one saves at once. | |
+
+### DH - Hub and runs
+
+| # | Points at | Title | Text | Shown when |
+|---|---|---|---|---|
+| 1 | Page heading | Hub and runs | Where the hub is, the time shops and the hub need, and when drivers collect from shops. | |
+| 2 | Where the hub is | The hub | Every postcode's distance is measured from here. Moving it flags hand-entered distances for another look. | |
+| 3 | Shop prep buffer | Prep buffer | How long a shop needs to pack before a collection run. | |
+| 4 | Hub turnaround | Hub turnaround | From a collection run reaching the hub to its parcels being ready to leave. An estimate until rounds are timed. | |
 | 5 | Collection runs | Collection runs | The times drivers collect from shops. No window today can be offered without a run that makes it. | |
-| 6 | Dates with no delivery | Closed dates | Dates Effy doesn't deliver, such as public holidays. | |
 
-### DH - Delivery · Hub and timings
+### DV - Driver work
 
 | # | Points at | Title | Text | Shown when |
 |---|---|---|---|---|
-| 1 | The hub | The hub | Every postcode's distance is measured from here. Moving it flags hand-entered distances for another look. | |
-| 2 | Shop prep buffer | Prep buffer | How long a shop needs to pack before a collection run. | |
+| 1 | Page heading | Driver work | The rules for drivers' work: when rounds open, how they are planned, and when dispatch is told. | |
+| 2 | When work opens | When work opens | A round opens this long before it starts. Until then the driver sees it but can't start it. | |
+| 3 | Planning a round | Time at each stop | What the planner allows at each stop when it fills a round. | |
+| 4 | Telling dispatch | Telling dispatch | When a van isn't loaded or parcels aren't checked in in time, it is listed on Exceptions. | |
+| 5 | Vehicle check | Vehicle check | Whether drivers check their vehicle once a day before they get work. | |
 
 ### TS - Tax (Admin)
 
@@ -770,12 +787,23 @@ every role whenever its part is on screen. Role marks: **Admin or manager**, **A
 | 3 | Mark as repaired… | Repairing | Re-enable email once you have checked with the person. Say what you checked. | Admin or manager |
 | 4 | Email events | Email events | Every message sent to this address and what happened to it. | |
 
-### AA - Admin and access (Admin)
+### AA - Team and access (Admin)
 
 | # | Points at | Title | Text | Shown when |
 |---|---|---|---|---|
-| 1 | Your access | Your access | Your back-office account and your role. | |
+| 1 | People tab | The team | Everyone with a back-office account, their role, and when they last opened back-office. | |
 | 2 | Roles and permissions | Roles and permissions | What Administrators, Managers and Customer support may each do. The platform's staff record decides. | |
+
+### ST - Settings
+
+| # | Points at | Title | Text | Shown when |
+|---|---|---|---|---|
+| 1 | Page heading | All settings | Everything that decides how Effy runs, in one place. Open a page to change it. | |
+| 2 | Delivery | Delivery | Where Effy delivers, what it costs, and the windows and days customers choose from. | |
+| 3 | Hub and drivers | Hub and drivers | The hub, collection runs from shops, and the rules for drivers' work. | |
+| 4 | Checkout | Checkout | The limits on every cart, and customers' points. | |
+| 5 | Business | Business | Tax and invoices, and the team. | Admin |
+| 6 | Nothing (centred) | Saving | Changes wait on a bar at the bottom: Save or Discard. Leaving a page with unsaved changes asks first. | |
 
 ### Not a tour of its own
 

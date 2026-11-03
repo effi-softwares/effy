@@ -25,11 +25,16 @@ const SLOT_FIELD_COPY: Record<string, string> = {
   noDeliveryWeekdays: "At least one day of the week must have delivery.",
   slotHoldMin: "A place can be held for between 1 and 60 minutes.",
   hubTurnaroundMin: "The hub turnaround must be between 0 and 480 minutes.",
+  asapEstimate: "Say what customers are told, in 1 to 80 characters.",
+  loadOverdueMin: "Between 5 and 240 minutes.",
+  checkinOverdueMin: "Between 5 and 240 minutes.",
+  planningLeadMin: "Between 5 and 240 minutes.",
+  perStopAllowanceMin: "Between 1 and 60 minutes.",
   day: "Enter a real date.",
 }
 
 export const SLOT_DUPLICATE = "There is already a slot with these start and end times."
-export const HUB_NOT_SET = "Set the delivery hub on the Settings tab first - these settings are saved with it."
+export const HUB_NOT_SET = "Set the hub's location in Settings › Hub and runs first - these settings are saved with it."
 
 export function fieldErrors(err: unknown): Record<string, string> {
   const out: Record<string, string> = {}
@@ -57,7 +62,7 @@ const COVERAGE_COPY: Record<string, string> = {
   already_excluded: "That postcode is already excluded.",
   not_excluded: "That postcode is no longer excluded.",
   reason_required: "Say why, in a few words.",
-  courier_plan_missing: "Make a courier fee table active on the Pricing tab before switching courier delivery on.",
+  courier_plan_missing: "Make a courier fee table active in Delivery › Pricing before switching courier delivery on.",
   // What a customer is told about when a courier order arrives.
   courier_estimate_missing: "Say how long a courier usually takes before switching courier delivery on.",
   courier_estimate_in_use: "Switch courier delivery off before removing its estimate.",

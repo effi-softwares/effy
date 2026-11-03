@@ -18,10 +18,16 @@ import {
   ToggleGroupItem,
 } from "@effy/design-system/ui"
 
-import { PageHeader } from "@effy/web-kit/patterns"
+import {
+  PageHeader,
+  SettingsIcon,
+  SettingsList,
+  SettingsPage,
+  SettingsRow,
+  SettingsSection,
+} from "@effy/web-kit/patterns"
 
 import { Page } from "@/components/console/primitives"
-import { SettingsIcon, SettingsList, SettingsPage, SettingsRow, SettingsSection } from "@/components/console/Settings"
 
 import { GEOMETRY, renderLabelSvg, type LabelLayout, type PrinterDpi } from "@/features/fulfillment/labels/render"
 import {

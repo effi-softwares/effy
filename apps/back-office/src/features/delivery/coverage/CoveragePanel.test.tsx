@@ -492,7 +492,7 @@ describe("Coverage - the checker, groups and courier reach", () => {
     renderCourier()
     expect(await screen.findByRole("switch", { name: /offer courier delivery/i })).toBeDisabled()
     expect(screen.getByTestId("courier-locked")).toHaveTextContent(
-      "Make a courier fee table active on the Pricing tab.",
+      "Make a courier fee table active in Delivery › Pricing.",
     )
     expect(screen.getByTestId("courier-locked")).toHaveTextContent(
       "Add a courier service below and make it the default.",

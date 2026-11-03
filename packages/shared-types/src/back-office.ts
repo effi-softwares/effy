@@ -22,6 +22,23 @@ export interface StaffRecord {
   status: StaffStatus;
 }
 
+/** One person on GET /admin/v1/staff (Settings › Team and access): the platform's record, admin only. */
+export interface StaffMemberDTO {
+  subject: string;
+  /** The name staff gave, or null - the console then shows the email alone. */
+  name: string | null;
+  email: string;
+  roles: BackOfficeRole[];
+  status: StaffStatus;
+  /** When they last opened back-office; null if never since the record was made. */
+  lastSeenAt: string | null;
+  createdAt: string;
+}
+
+export interface StaffListDTO {
+  items: StaffMemberDTO[];
+}
+
 /** GET /admin/v1/admin-ping. */
 export interface BackOfficeAdminPingDTO {
   audience: "back-office";

@@ -191,6 +191,18 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
+  # Settings › Team and access: everyone with a back-office record. Admin only, from the staff record.
+  backOfficeStaffListV1:
+    handler: src/functions/back-office-staff-list-v1-get.handler
+    description: The back-office team - name, email, roles, status, last seen (settings redesign)
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/staff
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
   backOfficeAdminPingV1:
     handler: src/functions/back-office-admin-ping-v1-get.handler
     description: Administrator-only proving route - authorizes from the DB record (005)

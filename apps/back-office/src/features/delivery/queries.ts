@@ -1,9 +1,4 @@
-import {
-  keepPreviousData,
-  queryOptions,
-  useMutation,
-  useQueryClient,
-} from "@tanstack/react-query"
+import { keepPreviousData, queryOptions, useMutation, useQueryClient } from "@tanstack/react-query"
 
 import {
   activatePlan,
@@ -62,8 +57,9 @@ export const plansQuery = (kind: FeePlanKind) =>
   queryOptions({ queryKey: [...PLANS_ROOT, kind] as const, queryFn: () => listPlans(kind) })
 export const settingsQuery = () => queryOptions({ queryKey: [...ROOT, "settings"] as const, queryFn: getSettings })
 
+/** Returned, so a mutation resolves once the screens hold the saved values (a settings page's draft is then let go). */
 function invalidate(qc: ReturnType<typeof useQueryClient>) {
-  void qc.invalidateQueries({ queryKey: ROOT })
+  return qc.invalidateQueries({ queryKey: ROOT })
 }
 
 export function useSavePlan() {

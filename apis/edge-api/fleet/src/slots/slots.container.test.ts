@@ -302,7 +302,23 @@ d("069 - the delivery calendar", () => {
       noDeliveryWeekdays: [], slotHoldMin: 10, hubTurnaroundMin: 60, effyLookaheadDays: 3, dates: [],
       // Drivers' work: the defaults, vehicle check off.
       loadOverdueMin: 20, checkinOverdueMin: 30, vehicleCheckRequired: false, asapEstimate: expect.any(String),
+      // Round planning (settings redesign): the migration's defaults.
+      planningLeadMin: 45, perStopAllowanceMin: 12,
     });
+  });
+
+  it("settings redesign - round planning is saved and read back, and a save that does not mention it keeps it", async () => {
+    await hub();
+    const saved = await putDeliveryDays({ ...SETTINGS, planningLeadMin: 30, perStopAllowanceMin: 8 }, ACTOR, scope);
+    expect(saved).toMatchObject({ planningLeadMin: 30, perStopAllowanceMin: 8 });
+    // Delivery days' own page sends neither: both are kept.
+    expect(await putDeliveryDays(SETTINGS, ACTOR, scope)).toMatchObject({ planningLeadMin: 30, perStopAllowanceMin: 8 });
+    // The column the round-opening function reads is the one written.
+    expect(await one(`SELECT planning_lead_min, per_stop_allowance_min FROM public.delivery_settings`)).toEqual({
+      planning_lead_min: 30, per_stop_allowance_min: 8,
+    });
+    const err = await refusal(putDeliveryDays({ ...SETTINGS, planningLeadMin: 4, perStopAllowanceMin: 61 }, ACTOR, scope));
+    expect(err.fields?.map((f) => f.field)).toEqual(["planningLeadMin", "perStopAllowanceMin"]);
   });
 
   it("saves and reads back, weekdays sorted, with who saved it", async () => {

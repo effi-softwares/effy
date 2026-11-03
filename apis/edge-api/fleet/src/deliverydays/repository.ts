@@ -26,6 +26,8 @@ interface SettingsRow {
   load_overdue_min: number;
   checkin_overdue_min: number;
   vehicle_check_required: boolean;
+  planning_lead_min: number;
+  per_stop_allowance_min: number;
 }
 
 /** The migrations' defaults, until the operator saves the settings. */
@@ -38,6 +40,8 @@ const DEFAULTS: Omit<DeliveryDaysDTO, "dates"> = {
   loadOverdueMin: 20,
   checkinOverdueMin: 30,
   vehicleCheckRequired: false,
+  planningLeadMin: 45,
+  perStopAllowanceMin: 12,
 };
 
 async function dates(): Promise<NonDeliveryDateDTO[]> {
@@ -54,7 +58,8 @@ export async function read(): Promise<{ dto: DeliveryDaysDTO; configured: boolea
   const res = await query<SettingsRow>(
     `SELECT standard_no_delivery_weekdays,
             slot_hold_min, sameday_hub_turnaround_min, effy_lookahead_days, asap_estimate,
-            load_overdue_min, checkin_overdue_min, vehicle_check_required
+            load_overdue_min, checkin_overdue_min, vehicle_check_required,
+            planning_lead_min, per_stop_allowance_min
        FROM public.delivery_settings WHERE id = 1`,
   );
   const r = res.rows[0];
@@ -68,6 +73,8 @@ export async function read(): Promise<{ dto: DeliveryDaysDTO; configured: boolea
         loadOverdueMin: r.load_overdue_min,
         checkinOverdueMin: r.checkin_overdue_min,
         vehicleCheckRequired: r.vehicle_check_required,
+        planningLeadMin: r.planning_lead_min,
+        perStopAllowanceMin: r.per_stop_allowance_min,
       }
     : DEFAULTS;
   return { dto: { ...settings, dates: await dates() }, configured: Boolean(r) };
@@ -90,10 +97,13 @@ export async function save(
               load_overdue_min = COALESCE($7, load_overdue_min),
               checkin_overdue_min = COALESCE($8, checkin_overdue_min),
               vehicle_check_required = COALESCE($9, vehicle_check_required),
+              planning_lead_min = COALESCE($10, planning_lead_min),
+              per_stop_allowance_min = COALESCE($11, per_stop_allowance_min),
               updated_by = $5, updated_at = now()
         WHERE id = 1`,
       [v.effyLookaheadDays, v.noDeliveryWeekdays, v.slotHoldMin, v.hubTurnaroundMin, actorSub,
-       v.asapEstimate ?? null, v.loadOverdueMin ?? null, v.checkinOverdueMin ?? null, v.vehicleCheckRequired ?? null],
+       v.asapEstimate ?? null, v.loadOverdueMin ?? null, v.checkinOverdueMin ?? null, v.vehicleCheckRequired ?? null,
+       v.planningLeadMin ?? null, v.perStopAllowanceMin ?? null],
     );
     if (res.rowCount === 0) return false;
     await audit(tx);

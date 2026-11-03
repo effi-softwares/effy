@@ -3,12 +3,11 @@ import { createRouter } from "@tanstack/react-router"
 
 import { StatusPage } from "./components/patterns/StatusPage"
 import { rootRoute } from "./routes/__root"
-import { adminRoute, appIndexRoute, appRoute } from "./routes/app"
+import { appIndexRoute, appRoute } from "./routes/app"
 import { authLayoutRoute, signInRoute } from "./routes/auth"
 import { taxonomyRoute } from "./routes/taxonomy"
 import { customerDetailRoute, customersIndexRoute } from "./routes/customers"
 import { deliverabilityDetailRoute, deliverabilityIndexRoute } from "./routes/deliverability"
-import { deliveryIndexRoute } from "./routes/delivery"
 import { driverDetailRoute, driversIndexRoute } from "./routes/drivers"
 import { exceptionsRoute } from "./routes/exceptions"
 import { feedbackDetailRoute, feedbackIndexRoute } from "./routes/feedback"
@@ -29,7 +28,6 @@ import {
   createPromotionRoute,
   createSkinRoute,
   editPromotionRoute,
-  orderRulesRoute,
   promotionDetailRoute,
   promotionGroupRoute,
   promotionGroupsRoute,
@@ -46,14 +44,29 @@ import {
   productsIndexRoute,
 } from "./routes/products"
 import { handoverReportRoute } from "./routes/reports"
-import { taxSettingsRoute } from "./routes/settings"
+import {
+  deliveryCourierRoute,
+  deliveryCoverageRoute,
+  deliveryDaysRoute,
+  deliveryPricingRoute,
+  deliveryWindowsRoute,
+  driverWorkRoute,
+  hubSettingsRoute,
+  oldAdminRoute,
+  oldDeliveryRoute,
+  oldOrderRulesRoute,
+  orderRulesRoute,
+  pointsSettingsRoute,
+  settingsIndexRoute,
+  taxSettingsRoute,
+  teamRoute,
+} from "./routes/settings"
 import { shopDetailRoute, shopsIndexRoute } from "./routes/shops"
 import { vehicleDetailRoute, vehiclesIndexRoute } from "./routes/vehicles"
 
 const routeTree = rootRoute.addChildren([
   appRoute.addChildren([
     appIndexRoute,
-    adminRoute,
     shopsIndexRoute,
     shopDetailRoute,
     ordersIndexRoute,
@@ -70,10 +83,23 @@ const routeTree = rootRoute.addChildren([
     exceptionsRoute,
     hubRoute,
     handoverReportRoute,
+    settingsIndexRoute,
+    deliveryCoverageRoute,
+    deliveryCourierRoute,
+    deliveryPricingRoute,
+    deliveryWindowsRoute,
+    deliveryDaysRoute,
+    hubSettingsRoute,
+    driverWorkRoute,
+    orderRulesRoute,
+    pointsSettingsRoute,
     taxSettingsRoute,
+    teamRoute,
+    oldDeliveryRoute,
+    oldOrderRulesRoute,
+    oldAdminRoute,
     deliverabilityIndexRoute,
     deliverabilityDetailRoute,
-    deliveryIndexRoute,
     productsIndexRoute,
     productNewRoute,
     productImportsRoute,
@@ -87,7 +113,6 @@ const routeTree = rootRoute.addChildren([
     feedbackDetailRoute,
     taxonomyRoute,
     promotionsIndexRoute,
-    orderRulesRoute,
     createPromotionRoute,
     promotionDetailRoute,
     editPromotionRoute,

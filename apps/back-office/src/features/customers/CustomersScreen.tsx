@@ -18,20 +18,16 @@ import {
   useListState,
   type EffyColumnDef,
 } from "@effy/web-kit/data-table"
-import { ActivityButton, ActivityLogDrawer } from "@effy/web-kit/activity-log"
 import { PageHeader } from "@effy/web-kit/patterns"
 import { initialsOf } from "@/components/shell/identity"
-import { api } from "@/lib/api"
 import { moment } from "@/lib/format"
 
-import { PointsSettingsPanel } from "./components/PointsSettingsPanel"
 import { formatPoints } from "./components/points-format"
 import { fetchCustomerPage } from "./repo"
 import { tourStatus, useTourPage } from "@effy/web-kit/tour"
 
 export function CustomersScreen() {
-  const { tab } = useSearch({ strict: false }) as { tab?: string }
-  return tab === "settings" ? <PointsSettingsPage /> : <CustomerList />
+  return <CustomerList />
 }
 
 /** Customers' view in the address (103), mirroring the orders service's `CUSTOMER_LIST_SPEC`. */
@@ -108,7 +104,7 @@ function CustomerList() {
           description="Everyone with an Effy account: find one by name, email, phone or an order number, then view and adjust their points."
           actions={
             <Button variant="outline" asChild>
-              <Link to="/customers" search={{ tab: "settings" }}>
+              <Link to="/settings/points">
                 <Coins aria-hidden="true" />
                 Points settings
               </Link>
@@ -157,30 +153,5 @@ function CustomerList() {
         }
       />
     </ListPage>
-  )
-}
-
-function PointsSettingsPage() {
-  useTourPage("points-settings", { status: "ready" })
-  return (
-    <div className="flex max-w-220 flex-col gap-6">
-      <PageHeader
-        back={{ label: "Customers", link: { to: "/customers" } }}
-        title="Points settings"
-        description="How customers earn points, what they are worth, and when they expire."
-        actions={<ActivityButton />}
-      />
-      <PointsSettingsPanel />
-      <ActivityLogDrawer
-        app="back-office"
-        log="bo-points-settings"
-        title="Rule changes"
-        description="Every change to the points rules, and who made it."
-        api={api}
-        path="/orders/v1/points/settings/activity"
-        queryKey={["customers", "points-settings"]}
-        fileName="points-rules-activity"
-      />
-    </div>
   )
 }

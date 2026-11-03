@@ -4,6 +4,63 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
+**Back-office settings redesign - One Settings Area** (not spec-first, like the other console redesigns). 🔨 **BUILT 2026-11-03; NOT
+DEPLOYED OR WALKED** (no migration). Every page that configures the platform now lives under **`/settings`**, in one annotated layout
+(Polaris's settings pattern: title and a sentence on the left, rows on the right). Unsaved changes show on the console's one action bar
+(Unsaved changes · Discard · Save), and leaving a page with unsaved changes asks first.
+- **Sidebar**: "Setup" and the old Settings sub-group became one **Settings** group: All settings · Delivery (Coverage, Courier delivery,
+  Pricing, Delivery windows, Delivery days) · Hub and drivers (Hub and runs, Driver work) · Checkout (Order rules, Points) · Tax and
+  invoices (admin) · Team and access (admin).
+  - **Email deliverability** moved to People › Customers. It is a queue of failing addresses, not a setting.
+  - Promotions is one entry now; its only sub was Codes.
+  - ⚠ Fixed a key collision: Orders' "Courier parcels" and Delivery's "Courier delivery" were both `courier`, so the courier settings
+    page lit Orders in the sidebar and breadcrumb. The settings leaf is now `courier-delivery`.
+- **Addresses**: `/settings`, `/settings/delivery/{coverage,courier,pricing,windows,days}`, `/settings/hub`, `/settings/drivers`,
+  `/settings/order-rules`, `/settings/points`, `/settings/tax`, `/settings/team`.
+  - The old addresses redirect: `/delivery?tab=…`, `/promotions/order-rules`, `/customers?tab=settings`, `/admin`.
+- **Pages**:
+  - **All settings**: a new index. Every page is listed by group with one sentence, filtered by role. `SettingsIndexScreen.test.tsx`
+    holds it to the sidebar (same pages, addresses and roles).
+  - **Delivery days** was split out of the old "Days and runs" page, which mixed five things. It now holds days offered, weekdays with
+    no delivery, the ASAP estimate, holding a place and closed dates.
+  - **Hub and runs**: hub location, prep buffer, hub turnaround, and collection runs. One save bar covers both APIs: the hub first,
+    then the delivery-day record.
+  - **Driver work** is new. It holds when rounds open, time at each stop, the two late-work alerts and the vehicle check.
+  - **Courier delivery**: sections replace the stacked controls. Switches still save at once.
+  - **Order rules** moved from Promotions and now shows "Last changed … by" in the page head.
+  - **Points**: its rules are grouped (worth, expiry, customer service, checkout), and only the changed rules are sent.
+  - **Tax and invoices** gained a "Needed first" checklist.
+  - **Team and access** replaces "Admin and access". Its debug panels ("proves this console reaches the backend", the admin ping)
+    are gone; it now lists everyone with a back-office account (name/email, role, status, last seen) beside the role matrix.
+- **Shared**: shop-web's `components/console/Settings.tsx` moved to **`@effy/web-kit/patterns` `Settings.tsx`** (both consoles), with
+  `SettingsLinkRow`, `SettingsReadOnly`, `SettingsSaveBar` (on `useActionBar`; router-optional leave guard) and `useSettingsDraft`
+  (server values with edits on top; `dirty` only while an edit differs).
+  - ⚠ The delivery and order-policy mutations now **await** their invalidation, so a page lets go of its draft only once the
+    saved values are on screen (no flash of the old value).
+- **Server**:
+  - `GET /admin/v1/staff`: admin only, from the staff record; staff gateway 210 → 211/300.
+  - `fleet` `PUT /fleet/v1/delivery-days` gained optional `planningLeadMin` (5–240) and `perStopAllowanceMin` (1–60). These are the
+    two `delivery_settings` columns the planner and `round_opens_at` read, which had no screen until now (defaults 45 / 12).
+  - ⚠ The three pages that share the delivery-day record each send it **whole**, with only their own fields changed (`days-input.ts`).
+    A test pins that no page resets another's.
+- **Tours** (spec 107 amended, 49 → 51 tours):
+  - DY, DH and AA were rewritten and their versions raised.
+  - DV (Driver work) and ST (Settings) were added.
+  - The Welcome tour's step 2 now names the Settings group (version 2).
+- **Removed**: `DeliveryScreen`, `DeliveryDaysPanel`, `PointsSettingsPanel`, `AdminAccessScreen`, `ProvingScreen`, `AdminOnlyScreen`
+  (with their tests), and the client's admin-ping query.
+  - The `/admin/v1/admin-ping` route itself stays deployed and is now unused by any client.
+- **Verified**:
+  - Typecheck: back-office, shop-web, web-kit, shared-types, edge-admin, edge-fleet.
+  - Tests: back-office 416, shop-web 531, web-kit 257, design-system guards, edge-admin 174, edge-fleet 170, edge-shared 997 (incl.
+    gateway capacity and list guards).
+  - The fleet `slots.container.test.ts` (21) passed on a local Postgres 18, with a new round-trip test for the two fields. The staff
+    query was run against the baseline schema.
+  - Back-office production build.
+  - Screenshots through a temporary harness (deleted): every new page at 1440, dark, phone width, csa view, and the dirty save bar.
+- **Open**: operator: commit → `AWS_PROFILE=ef make edge-deploy SERVICE=fleet ENV=dev` and `SERVICE=admin` (either order), THEN
+  back-office. Then walk Settings as admin, manager and csa, including Driver work saving and Hub and runs moving the hub.
+
 **107-backoffice-guided-tours - Guided Tours in Back-Office.** 🔨 **BUILT 2026-11-03; NOT DEPLOYED OR WALKED** (no migration).
 Spec, plan and tasks: `specs/107-backoffice-guided-tours/`. Back-office gets 106's tours: **49 tours, 273 steps**, covering every page
 and each Delivery tab and Points settings. A page's tour starts by itself on first use and can be replayed from Help (?) or ⌘K. Words

@@ -410,6 +410,10 @@ export interface DeliveryDaysDTO {
   checkinOverdueMin?: number;
   /** Drivers check their vehicle once a day before being given work. Off by default. */
   vehicleCheckRequired?: boolean;
+  /** Minutes before its run time (or window start) a round opens to its driver (5–240); `round_opens_at` reads it. */
+  planningLeadMin?: number;
+  /** Minutes the round planner allows at each stop (1–60). */
+  perStopAllowanceMin?: number;
   dates: NonDeliveryDateDTO[];
 }
 

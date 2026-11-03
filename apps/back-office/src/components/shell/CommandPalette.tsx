@@ -109,8 +109,7 @@ const ACTIONS: readonly {
       id: "add-places",
       label: "Add places Effy delivers to",
       icon: MapPinned,
-      to: "/delivery",
-      tab: "coverage",
+      to: "/settings/delivery/coverage",
       roles: ["admin", "manager"],
     },
   ]

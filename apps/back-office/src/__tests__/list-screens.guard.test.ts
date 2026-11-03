@@ -19,7 +19,7 @@ const RAW_TABLE_ALLOWED: Record<string, string> = {
   "overview/TodaysWindows.tsx": "board: today's windows",
   "products/ImportScreens.tsx": "editor/review: an import's column map and outcome",
   "promotions/components/PerformancePanel.tsx": "matrix: metrics by window",
-  "staff-identity/AdminAccessScreen.tsx": "matrix: permissions",
+  "staff-identity/TeamScreen.tsx": "matrix: permissions by role (the team itself is a StaticTable)",
   "taxonomy/AttachmentEditor.tsx": "editor: a category's attributes",
 }
 

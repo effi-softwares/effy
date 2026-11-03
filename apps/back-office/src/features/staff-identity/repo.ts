@@ -1,7 +1,7 @@
 import {
   toBackOfficeRoles,
-  type AdminPingResult,
-  type BackOfficeAdminPingDTO,
+  type StaffListDTO,
+  type StaffMemberDTO,
   type StaffRecord,
   type StaffRecordDTO,
 } from "@effy/shared-types"
@@ -18,7 +18,6 @@ export async function loadMe(): Promise<StaffRecord> {
   }
 }
 
-export async function loadAdminPing(): Promise<AdminPingResult> {
-  const dto = await api.get<BackOfficeAdminPingDTO>("/admin/v1/admin-ping")
-  return { subject: dto.subject }
+export async function loadTeam(): Promise<StaffMemberDTO[]> {
+  return (await api.get<StaffListDTO>("/admin/v1/staff")).items
 }

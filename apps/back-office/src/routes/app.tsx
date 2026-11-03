@@ -9,7 +9,6 @@ import { requireSession } from "@/features/auth/guards"
 import { sessionQuery, useSignOut } from "@/features/auth/queries"
 import { getLiveDescriptor } from "@/features/live/repo"
 import { LIVE_ROUTES } from "@/features/live/routes"
-import { AdminAccessScreen } from "@/features/staff-identity/AdminAccessScreen"
 import { OverviewScreen } from "@/features/overview/OverviewScreen"
 
 import { rootRoute } from "./__root"
@@ -29,12 +28,6 @@ export const appIndexRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/",
   component: OverviewScreen,
-})
-
-export const adminRoute = createRoute({
-  getParentRoute: () => appRoute,
-  path: "admin",
-  component: AdminAccessScreen,
 })
 
 function AppShellRoute() {

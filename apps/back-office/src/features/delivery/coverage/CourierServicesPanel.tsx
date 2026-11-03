@@ -173,16 +173,7 @@ export function CourierServicesPanel({ canManage }: { canManage: boolean }) {
   ]
 
   return (
-    <section data-tour="courier-setup.services" className="space-y-3" aria-labelledby="courier-services">
-      <div className="space-y-1">
-        <h3 id="courier-services" className="text-sm font-medium">
-          Courier services
-        </h3>
-        <p className="max-w-2xl text-sm text-muted-foreground">
-          The courier services Effy books. Checkout tells a courier customer the default's timeframe; each service's
-          pickup days decide when a parcel at the hub is due out.
-        </p>
-      </div>
+    <div data-tour="courier-setup.services" className="grid min-w-0 gap-3">
 
       {services.isPending ? (
         <StaticTable label="Courier services" columns={columns} rows={[]} getRowId={(c) => c.id} loading loadingRows={2} />
@@ -192,7 +183,7 @@ export function CourierServicesPanel({ canManage }: { canManage: boolean }) {
           default.
         </p>
       ) : (
-        <div data-testid="courier-services">
+        <div data-testid="courier-services" className="min-w-0">
           <StaticTable
             label="Courier services"
             columns={columns}
@@ -208,7 +199,7 @@ export function CourierServicesPanel({ canManage }: { canManage: boolean }) {
       ) : null}
 
       {canManage && editing === null ? (
-        <Button variant="outline" size="sm" onClick={() => open(null)}>
+        <Button variant="outline" size="sm" className="justify-self-start" onClick={() => open(null)}>
           Add a courier service
         </Button>
       ) : null}
@@ -317,7 +308,7 @@ export function CourierServicesPanel({ canManage }: { canManage: boolean }) {
           {error}
         </p>
       ) : null}
-    </section>
+    </div>
   )
 }
 

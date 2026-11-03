@@ -10,3 +10,13 @@ export interface StaffRecord {
   status: StaffStatus;
   lastSeenAt: string;
 }
+
+export interface StaffMember {
+  subject: string;
+  name: string | null;
+  email: string;
+  roles: BackOfficeRole[];
+  status: StaffStatus;
+  lastSeenAt: string | null;
+  createdAt: string;
+}

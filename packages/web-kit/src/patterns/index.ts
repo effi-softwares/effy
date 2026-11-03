@@ -18,3 +18,4 @@ export * from "./States";
 export * from "./StatusWord";
 export * from "./Timeline";
 export * from "./Toolbar";
+export * from "./Settings";

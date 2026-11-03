@@ -146,7 +146,7 @@ export function PromotionsListScreen() {
               <MoreActions
                 actions={[
                   { label: "Skins", icon: Palette, link: { to: "/promotions/skins" } },
-                  { label: "Order rules", icon: SlidersHorizontal, link: { to: "/promotions/order-rules" } },
+                  { label: "Order rules", icon: SlidersHorizontal, link: { to: "/settings/order-rules" } },
                 ]}
               />
             </>

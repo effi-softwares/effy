@@ -1,6 +1,10 @@
 import type { LinkProps } from "@tanstack/react-router"
 import {
   BadgePercent,
+  ReceiptText,
+  ShieldCheck,
+  ShoppingCart,
+  Waypoints,
   Boxes,
   ClipboardCheck,
   Contact,
@@ -32,7 +36,6 @@ type NavLeaf = StaffNavLeaf<BackOfficeRole, NavCountKey>
 export type NavGroup = StaffNavGroup<BackOfficeRole, NavCountKey>
 
 export const DEFAULT_TAB: Readonly<Record<string, string>> = {
-  "/delivery": "coverage",
   "/customers": "customers",
 }
 
@@ -77,6 +80,8 @@ export const NAV_GROUPS: readonly NavGroup[] = [
         subs: [
           { key: "customers", label: "Customers", to: "/customers", tab: "customers" },
           { key: "feedback", label: "Feedback", to: "/feedback", count: "feedback" },
+          // Addresses that bounce - work to do, not a setting.
+          { key: "deliverability", label: "Email deliverability", to: "/deliverability", count: "deliverability" },
         ],
       },
       {
@@ -116,48 +121,50 @@ export const NAV_GROUPS: readonly NavGroup[] = [
         ],
       },
       { key: "taxonomy", label: "Categories & attributes", to: "/taxonomy", icon: ListTree },
-      {
-        key: "promotions-group",
-        label: "Promotions",
-        to: "/promotions",
-        icon: BadgePercent,
-        subs: [
-          { key: "promotions", label: "Codes", to: "/promotions" },
-          { key: "order-rules", label: "Order rules", to: "/promotions/order-rules" },
-        ],
-      },
+      { key: "promotions", label: "Promotions", to: "/promotions", icon: BadgePercent },
     ],
   },
   {
-    label: "Setup",
+    label: "Settings",
     items: [
+      // Every settings page, grouped and explained (features/settings/SettingsIndexScreen.tsx - kept in step by its test).
+      { key: "settings", label: "All settings", to: "/settings", icon: Settings },
       {
         key: "delivery-group",
         label: "Delivery",
-        to: "/delivery",
+        to: "/settings/delivery/coverage",
         icon: MapPinned,
         subs: [
-          { key: "coverage", label: "Coverage", to: "/delivery", tab: "coverage" },
-          { key: "courier", label: "Courier delivery", to: "/delivery", tab: "courier" },
-          { key: "pricing", label: "Pricing", to: "/delivery", tab: "pricing" },
-          { key: "windows", label: "Delivery windows", to: "/delivery", tab: "slots" },
-          { key: "days", label: "Days and runs", to: "/delivery", tab: "days" },
-          { key: "hub", label: "Hub and timings", to: "/delivery", tab: "settings" },
+          { key: "coverage", label: "Coverage", to: "/settings/delivery/coverage" },
+          { key: "courier-delivery", label: "Courier delivery", to: "/settings/delivery/courier" },
+          { key: "pricing", label: "Pricing", to: "/settings/delivery/pricing" },
+          { key: "windows", label: "Delivery windows", to: "/settings/delivery/windows" },
+          { key: "days", label: "Delivery days", to: "/settings/delivery/days" },
         ],
       },
       {
-        key: "settings-group",
-        label: "Settings",
-        to: "/settings",
-        icon: Settings,
+        key: "operations-group",
+        label: "Hub and drivers",
+        to: "/settings/hub",
+        icon: Waypoints,
         subs: [
-          { key: "points", label: "Points", to: "/customers", tab: "settings" },
-          // Effy's tax identity and the tax-invoice switch.
-          { key: "tax", label: "Tax", to: "/settings/tax", requiredRole: "admin" },
-          { key: "deliverability", label: "Email deliverability", to: "/deliverability", count: "deliverability" },
-          { key: "admin", label: "Admin and access", to: "/admin", requiredRole: "admin" },
+          { key: "hub", label: "Hub and runs", to: "/settings/hub" },
+          { key: "driver-work", label: "Driver work", to: "/settings/drivers" },
         ],
       },
+      {
+        key: "checkout-group",
+        label: "Checkout",
+        to: "/settings/order-rules",
+        icon: ShoppingCart,
+        subs: [
+          { key: "order-rules", label: "Order rules", to: "/settings/order-rules" },
+          { key: "points", label: "Points", to: "/settings/points" },
+        ],
+      },
+      // Effy's tax identity and the tax-invoice switch.
+      { key: "tax", label: "Tax and invoices", to: "/settings/tax", icon: ReceiptText, requiredRole: "admin" },
+      { key: "team", label: "Team and access", to: "/settings/team", icon: ShieldCheck, requiredRole: "admin" },
     ],
   },
 ]

@@ -43,7 +43,14 @@ export const useUpdatePromotion = (id: string) =>
 export const usePromotionAction = (id: string) =>
   useInvalidating((action: PromotionAction) => actOnPromotion(id, { action }))
 export const useDeletePromotion = () => useInvalidating((id: string) => deletePromotion(id))
-export const useUpdateOrderPolicy = () => useInvalidating((body: UpdateOrderPolicyRequest) => putOrderPolicy(body))
+/** Resolves once the page holds the saved rules (the settings page's draft is then let go). */
+export function useUpdateOrderPolicy() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (body: UpdateOrderPolicyRequest) => putOrderPolicy(body),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: PROMO_ROOT }),
+  })
+}
 
 export const performanceQuery = (id: string) =>
   queryOptions({ queryKey: [...PROMO_ROOT, "performance", id] as const, queryFn: () => getPerformance(id) })

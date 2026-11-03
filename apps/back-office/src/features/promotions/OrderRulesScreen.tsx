@@ -1,220 +1,202 @@
 import { OPERATING_TZ } from "@effy/shared-types"
 import { useState } from "react"
 
-import { useForm } from "@tanstack/react-form"
 import { useQuery } from "@tanstack/react-query"
 
-import { Button, Input, Label } from "@effy/design-system/ui"
+import type { OrderPolicyDTO } from "@effy/shared-types"
+import { Input, toast } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
+import {
+  Bone,
+  Loading,
+  PageHeader,
+  SettingsList,
+  SettingsPage,
+  SettingsReadOnly,
+  SettingsRow,
+  SettingsSaveBar,
+  SettingsSection,
+  useSettingsDraft,
+} from "@effy/web-kit/patterns"
+import { tourStatus, useTourPage } from "@effy/web-kit/tour"
 
-import { FormSkeleton, Loading, PageHeader, Panel, PanelSkeleton } from "@effy/web-kit/patterns"
-
-import { sessionQuery } from "@/features/auth/queries"
+import { useSessionRoles } from "@/features/auth/useSessionRoles"
+import { allWhole, toWhole, UnitInput } from "@/features/settings/fields"
 
 import { canManagePromotions } from "./access"
 import { promotionMutationError } from "./errorText"
 import { orderPolicyQuery, useUpdateOrderPolicy } from "./queries"
-import { tourStatus, useTourPage } from "@effy/web-kit/tour"
 
+const SECTION = {
+  minimum: {
+    title: "Minimum spend",
+    description: "A cart below this can't check out. A change applies to the next cart a shopper opens.",
+  },
+  limits: {
+    title: "Cart limits",
+    description: "Keeps one order to a size Effy can pack and deliver. Carts already paid are not affected.",
+  },
+} as const
+
+/** Settings › Checkout › Order rules. */
 export function OrderRulesScreen() {
-  const { data: session } = useQuery(sessionQuery)
-  const roles = session?.status === "signed-in" ? session.identity.roles : []
-  const canManage = canManagePromotions(roles)
+  const canManage = canManagePromotions(useSessionRoles())
+  const policy = useQuery(orderPolicyQuery())
+  useTourPage("order-rules", { status: tourStatus(policy) })
 
-  const { data: policy, error, isPending, isError, refetch } = useQuery(orderPolicyQuery())
-  useTourPage("order-rules", { status: tourStatus({ isSuccess: !isPending && !isError, isError }) })
-
-  if (isError) return <ErrorState error={error} onRetry={() => void refetch()} />
-  const head = (
-    <PageHeader
-      back={{ label: "Promotion codes", link: { to: "/promotions" } }}
-      title="Order rules"
-      description="The minimum spend needed to check out and the limits on a single cart."
-    />
-  )
-  if (isPending) {
-    return (
-      <>
-        {head}
-        <Loading>
-          <div className="max-w-2xl">
-            <PanelSkeleton
-              title="Every cart is checked against these"
-              description="A change applies to the next cart a shopper opens. Carts already paid are not affected."
-              footer
-            >
-              <FormSkeleton labels={["Minimum spend", "Most of any one item", "Most different items"]} submit={false} />
-            </PanelSkeleton>
-          </div>
-        </Loading>
-      </>
-    )
-  }
-
+  if (policy.isError) return <ErrorState error={policy.error} onRetry={() => void policy.refetch()} />
   return (
     <>
-      {head}
-
-      <OrderRulesForm
-        key={policy.updatedAt}
-        canManage={canManage}
-        initial={{
-          minimumSubtotalAmount: policy.minimumSubtotalAmount,
-          maxLineQuantity: String(policy.maxLineQuantity),
-          maxDistinctItems: String(policy.maxDistinctItems),
-        }}
-        updatedAt={policy.updatedAt}
-        updatedBy={policy.updatedBy}
+      <PageHeader
+        title="Order rules"
+        description="The minimum spend needed to check out and the limits on a single cart."
+        meta={
+          policy.data ? (
+            <span>
+              Last changed {formatTime(policy.data.updatedAt)}
+              {policy.data.updatedBy ? (
+                <>
+                  {" "}
+                  by <span className="font-mono">{policy.data.updatedBy}</span>
+                </>
+              ) : null}
+            </span>
+          ) : null
+        }
       />
+      {policy.isPending ? <RulesSkeleton /> : <RulesForm value={policy.data} canManage={canManage} />}
     </>
   )
 }
 
-function OrderRulesForm({
-  canManage,
-  initial,
-  updatedAt,
-  updatedBy,
-}: {
-  canManage: boolean
-  initial: { minimumSubtotalAmount: string; maxLineQuantity: string; maxDistinctItems: string }
-  updatedAt: string
-  updatedBy: string | null
-}) {
-  const updatePolicy = useUpdateOrderPolicy()
-  const [formError, setFormError] = useState<string | null>(null)
-  const [saved, setSaved] = useState(false)
+type Draft = { minimum: string; maxLine: string; maxDistinct: string }
 
-  const form = useForm({
-    defaultValues: initial,
-    onSubmit: async ({ value }) => {
-      setFormError(null)
-      setSaved(false)
-      try {
-        await updatePolicy.mutateAsync({
-          minimumSubtotalAmount: value.minimumSubtotalAmount.trim() || "0.00",
-          maxLineQuantity: Number(value.maxLineQuantity),
-          maxDistinctItems: Number(value.maxDistinctItems),
-        })
-        setSaved(true)
-      } catch (err) {
-        setFormError(promotionMutationError(err))
-      }
-    },
+function RulesForm({ value, canManage }: { value: OrderPolicyDTO; canManage: boolean }) {
+  const save = useUpdateOrderPolicy()
+  const form = useSettingsDraft<Draft>({
+    minimum: value.minimumSubtotalAmount,
+    maxLine: String(value.maxLineQuantity),
+    maxDistinct: String(value.maxDistinctItems),
   })
+  const d = form.value!
+  const [error, setError] = useState<string | null>(null)
+
+  async function submit() {
+    setError(null)
+    try {
+      await save.mutateAsync({
+        minimumSubtotalAmount: d.minimum.trim() || "0.00",
+        maxLineQuantity: toWhole(d.maxLine),
+        maxDistinctItems: toWhole(d.maxDistinct),
+      })
+      form.discard()
+      toast.success("Saved. The next cart a shopper opens uses these.")
+    } catch (err) {
+      setError(promotionMutationError(err))
+    }
+  }
 
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault()
-        void form.handleSubmit()
-      }}
-      className="max-w-2xl"
-      noValidate
-    >
-      <Panel
-        title="Every cart is checked against these"
-        description="A change applies to the next cart a shopper opens. Carts already paid are not affected."
-        footerBetween
-        footer={
-          <>
-            <span className="mt-0.5 block text-sm text-muted-foreground">
-              Last updated {formatTime(updatedAt)}
-              {updatedBy ? (
-                <>
-                  {" "}
-                  · by <span className="font-mono">{updatedBy}</span>
-                </>
-              ) : null}
+    <SettingsPage>
+      {canManage ? null : <SettingsReadOnly>You have read-only access to the order rules.</SettingsReadOnly>}
+      <SettingsSection {...SECTION.minimum}>
+        <SettingsList>
+          <SettingsRow
+            tour="rules.minimum"
+            htmlFor="policy-minimum"
+            label="Minimum spend"
+            hint="0.00 turns the minimum off entirely - the cart then shows nothing about it at all."
+          >
+            <span className="inline-flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">$</span>
+              <Input
+                id="policy-minimum"
+                inputMode="decimal"
+                placeholder="0.00"
+                className="w-28 text-right tabular-nums"
+                disabled={!canManage}
+                value={d.minimum}
+                onChange={(e) => form.set("minimum", e.target.value)}
+              />
             </span>
-            {canManage ? (
-              <form.Subscribe selector={(s) => s.isSubmitting}>
-                {(isSubmitting) => (
-                  <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting ? "Saving…" : "Save rules"}
-                  </Button>
-                )}
-              </form.Subscribe>
-            ) : (
-              <span className="mt-0.5 block text-sm text-muted-foreground">
-                You have read-only access to the order rules.
-              </span>
-            )}
-          </>
-        }
-      >
-        <div className="space-y-6">
-          <form.Field name="minimumSubtotalAmount">
-            {(field) => (
-              <div data-tour="rules.minimum" className="space-y-2">
-                <Label htmlFor="policy-minimum">Minimum spend</Label>
-                <Input
-                  id="policy-minimum"
-                  inputMode="decimal"
-                  placeholder="0.00"
-                  disabled={!canManage}
-                  value={field.state.value}
-                  onChange={(e) => field.handleChange(e.target.value)}
-                  onBlur={field.handleBlur}
-                />
-                <p className="text-xs text-muted-foreground">
-                  0.00 turns the minimum off entirely - the cart then shows nothing about it at all.
-                </p>
-              </div>
-            )}
-          </form.Field>
+          </SettingsRow>
+        </SettingsList>
+      </SettingsSection>
 
-          <form.Field name="maxLineQuantity">
-            {(field) => (
-              <div data-tour="rules.most-one" className="space-y-2">
-                <Label htmlFor="policy-max-line">Most of any one item</Label>
-                <Input
-                  id="policy-max-line"
-                  type="number"
-                  min={1}
-                  max={99}
-                  disabled={!canManage}
-                  value={field.state.value}
-                  onChange={(e) => field.handleChange(e.target.value)}
-                  onBlur={field.handleBlur}
-                />
-                <p className="text-xs text-muted-foreground">Between 1 and 99.</p>
-              </div>
-            )}
-          </form.Field>
+      <SettingsSection {...SECTION.limits}>
+        <SettingsList>
+          <SettingsRow
+            tour="rules.most-one"
+            htmlFor="policy-max-line"
+            label="Most of any one item"
+            hint="Between 1 and 99."
+          >
+            <UnitInput
+              id="policy-max-line"
+              unit="each"
+              disabled={!canManage}
+              value={d.maxLine}
+              onChange={(e) => form.set("maxLine", e.target.value)}
+            />
+          </SettingsRow>
+          <SettingsRow
+            tour="rules.most-different"
+            htmlFor="policy-max-distinct"
+            label="Most different items"
+            hint="Between 1 and 500."
+          >
+            <UnitInput
+              id="policy-max-distinct"
+              unit="items"
+              disabled={!canManage}
+              value={d.maxDistinct}
+              onChange={(e) => form.set("maxDistinct", e.target.value)}
+            />
+          </SettingsRow>
+        </SettingsList>
+        {error ? (
+          <p role="alert" className="text-sm font-medium text-destructive">
+            {error}
+          </p>
+        ) : null}
+      </SettingsSection>
 
-          <form.Field name="maxDistinctItems">
-            {(field) => (
-              <div data-tour="rules.most-different" className="space-y-2">
-                <Label htmlFor="policy-max-distinct">Most different items</Label>
-                <Input
-                  id="policy-max-distinct"
-                  type="number"
-                  min={1}
-                  max={500}
-                  disabled={!canManage}
-                  value={field.state.value}
-                  onChange={(e) => field.handleChange(e.target.value)}
-                  onBlur={field.handleBlur}
-                />
-                <p className="text-xs text-muted-foreground">Between 1 and 500.</p>
-              </div>
-            )}
-          </form.Field>
+      {canManage ? (
+        <SettingsSaveBar
+          dirty={form.dirty}
+          saving={save.isPending}
+          canSave={allWhole(d.maxLine, d.maxDistinct)}
+          onSave={() => void submit()}
+          onDiscard={() => {
+            form.discard()
+            setError(null)
+          }}
+        />
+      ) : null}
+    </SettingsPage>
+  )
+}
 
-          {formError ? (
-            <p role="alert" className="text-sm font-medium">
-              {formError}
-            </p>
-          ) : null}
-          {saved && !formError ? (
-            <p role="status" className="text-sm text-muted-foreground">
-              Saved.
-            </p>
-          ) : null}
-        </div>
-      </Panel>
-    </form>
+function RulesSkeleton() {
+  const row = (label: string) => (
+    <SettingsRow label={label}>
+      <Bone kind="control" className="w-28" />
+    </SettingsRow>
+  )
+  return (
+    <Loading>
+      <SettingsPage>
+        <SettingsSection {...SECTION.minimum}>
+          <SettingsList>{row("Minimum spend")}</SettingsList>
+        </SettingsSection>
+        <SettingsSection {...SECTION.limits}>
+          <SettingsList>
+            {row("Most of any one item")}
+            {row("Most different items")}
+          </SettingsList>
+        </SettingsSection>
+      </SettingsPage>
+    </Loading>
   )
 }
 
@@ -223,11 +205,11 @@ function formatTime(iso: string): string {
   return Number.isNaN(d.getTime())
     ? iso
     : d.toLocaleString("en-AU", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-      timeZone: OPERATING_TZ,
-    })
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        timeZone: OPERATING_TZ,
+      })
 }

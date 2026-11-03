@@ -117,6 +117,10 @@ See the numbers: `make gateway-usage ENV=<env>` (deployed) · `pnpm --filter @ef
 >
 > **107 - back-office guided tours.** `admin` (staff) gained `GET` and `PATCH /admin/v1/me/tours`, the same pair for a
 > back-office person (audience `admin` in the same table; staff 208 → 210/300).
+>
+> **Back-office settings redesign (2026-11-03).** `admin` (staff) gained `GET /admin/v1/staff`: everyone with a
+> back-office record, for Settings › Team and access, admin only from the staff record (staff 210 → 211/300). `fleet`'s
+> `PUT /fleet/v1/delivery-days` gained two optional fields (`planningLeadMin`, `perStopAllowanceMin`) - no new route.
 | `driver` | shared | driver | driver app |
 | `admin` | **staff** | back-office | staff, shops, delivery configuration |
 | `admin-promotions` (same source as `admin`, 095) | **staff** | back-office | promotions, display groups, skins and pictures (`/admin/v1/promotions…`, `/admin/v1/promotion-groups…`, `/admin/v1/promotion-skins…`) - split out at CloudFormation's 500-resource limit |

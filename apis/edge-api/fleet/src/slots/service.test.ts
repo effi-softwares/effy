@@ -88,3 +88,22 @@ describe("085 - the as-soon-as-possible estimate", () => {
     expect(daysProblems({ ...DAYS, asapEstimate: "x".repeat(81) }).map((e) => e.field)).toEqual(["asapEstimate"])
   })
 })
+
+describe("daysProblems - driver planning (settings redesign)", () => {
+  const DAYS = { effyLookaheadDays: 3, noDeliveryWeekdays: [7], slotHoldMin: 10, hubTurnaroundMin: 60 };
+  const f = (v: Record<string, unknown>) => daysProblems({ ...DAYS, ...v } as never).map((e) => e.field);
+
+  it("keeps the saved values when absent, and accepts the edges", () => {
+    expect(f({})).toEqual([]);
+    expect(f({ planningLeadMin: 5, perStopAllowanceMin: 1 })).toEqual([]);
+    expect(f({ planningLeadMin: 240, perStopAllowanceMin: 60 })).toEqual([]);
+  });
+
+  it("refuses each out of range, by name", () => {
+    expect(f({ planningLeadMin: 4 })).toEqual(["planningLeadMin"]);
+    expect(f({ planningLeadMin: 241 })).toEqual(["planningLeadMin"]);
+    expect(f({ planningLeadMin: 30.5 })).toEqual(["planningLeadMin"]);
+    expect(f({ perStopAllowanceMin: 0 })).toEqual(["perStopAllowanceMin"]);
+    expect(f({ perStopAllowanceMin: 61 })).toEqual(["perStopAllowanceMin"]);
+  });
+});

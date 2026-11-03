@@ -48,10 +48,12 @@ export const CODE_TO_KEY: Readonly<Record<string, string>> = {
   DW: "delivery-windows",
   DY: "delivery-days",
   DH: "delivery-hub",
+  DV: "driver-work",
   TS: "tax",
   ED: "deliverability",
   EA: "deliverability-address",
   AA: "admin-access",
+  ST: "settings",
 }
 
 export const ROLE_MARKS: Readonly<Record<string, readonly string[]>> = {

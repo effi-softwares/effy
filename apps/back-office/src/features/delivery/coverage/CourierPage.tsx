@@ -18,13 +18,9 @@ export function CourierPage({ canManage }: { canManage: boolean }) {
       {coverage.isError ? (
         <ErrorState error={coverage.error} onRetry={() => void coverage.refetch()} />
       ) : !first ? (
-        <div className="settings">
-          <CourierPanelSkeleton />
-        </div>
+        <CourierPanelSkeleton />
       ) : (
-        <div className="settings">
-          <CourierPanel courier={first.courier} canManage={canManage} />
-        </div>
+        <CourierPanel courier={first.courier} canManage={canManage} />
       )}
     </>
   )

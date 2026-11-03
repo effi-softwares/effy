@@ -23,40 +23,65 @@ describe("back-office sidebar - who sees what", () => {
         "/drivers",
         "/shops",
         "/taxonomy",
-        "/delivery",
+        "/settings",
+        "/settings/delivery/coverage",
+        "/settings/hub",
+        "/settings/drivers",
+        "/settings/order-rules",
+        "/settings/points",
+        "/deliverability",
       ]) {
         expect(paths, `${to} for [${roles.join(",")}]`).toContain(to)
       }
     }
   })
 
-  it("shows Admin and access only to an administrator", () => {
-    expect(leafPaths(visibleGroups(NAV_GROUPS, ["admin"]))).toContain("/admin")
-    expect(leafPaths(visibleGroups(NAV_GROUPS, ["manager", "admin"]))).toContain("/admin")
-    for (const roles of [["manager"], ["csa"], []] as const) {
-      expect(leafPaths(visibleGroups(NAV_GROUPS, roles))).not.toContain("/admin")
+  it("shows Tax and Team and access only to an administrator", () => {
+    for (const to of ["/settings/tax", "/settings/team"]) {
+      expect(leafPaths(visibleGroups(NAV_GROUPS, ["admin"]))).toContain(to)
+      expect(leafPaths(visibleGroups(NAV_GROUPS, ["manager", "admin"]))).toContain(to)
+      for (const roles of [["manager"], ["csa"], []] as const) {
+        expect(leafPaths(visibleGroups(NAV_GROUPS, roles))).not.toContain(to)
+      }
     }
   })
 
-  it("groups the rail by the job: Operations · People · Catalogue · Setup", () => {
+  it("groups the rail by the job: Operations · People · Catalogue · Settings", () => {
     expect(visibleGroups(NAV_GROUPS, ["admin"]).map((g) => g.label)).toEqual([
       "Operations",
       "People",
       "Catalogue",
-      "Setup",
+      "Settings",
     ])
   })
 
-  it("keeps the set-and-leave pages under one Settings entry, gated per page", () => {
+  it("puts every page that configures the platform under Settings, and nothing else", () => {
     const settings = (roles: readonly BackOfficeRole[]) =>
       visibleGroups(NAV_GROUPS, roles)
-        .flatMap((g) => g.items)
-        .find((i) => i.key === "settings-group")
-        ?.subs?.map((s) => s.key)
-    expect(settings(["admin"])).toEqual(["points", "tax", "deliverability", "admin"])
+        .find((g) => g.label === "Settings")
+        ?.items.flatMap((i) => (i.subs ?? [i]).map((s) => s.key))
+    expect(settings(["admin"])).toEqual([
+      "settings",
+      "coverage",
+      "courier-delivery",
+      "pricing",
+      "windows",
+      "days",
+      "hub",
+      "driver-work",
+      "order-rules",
+      "points",
+      "tax",
+      "team",
+    ])
     // A manager or csa still has Settings, without the admin-only pages.
-    expect(settings(["manager"])).toEqual(["points", "deliverability"])
-    expect(settings(["csa"])).toEqual(["points", "deliverability"])
+    expect(settings(["manager"])).not.toContain("tax")
+    expect(settings(["csa"])).not.toContain("team")
+  })
+
+  it("files Email deliverability with the people it is about, not under Settings", () => {
+    const customers = NAV_GROUPS.flatMap((g) => g.items).find((i) => i.key === "customers-group")
+    expect(customers?.subs?.map((s) => s.key)).toContain("deliverability")
   })
 })
 
@@ -74,20 +99,24 @@ describe("back-office sidebar - which page is lit", () => {
     expect(key("/orders/assignments/rounds/abc")).toBe("dispatch")
     expect(key("/orders/handover")).toBe("courier")
     expect(key("/orders/0b6f1c2e-0000-0000-0000-000000000000")).toBe("orders")
-    expect(key("/promotions/order-rules")).toBe("order-rules")
+    expect(key("/settings/order-rules")).toBe("order-rules")
     expect(key("/promotions/abc")).toBe("promotions")
   })
 
-  it("lights exactly one Delivery tab, Coverage when the URL names none", () => {
-    expect(key("/delivery")).toBe("coverage")
-    expect(key("/delivery", "pricing")).toBe("pricing")
-    expect(DEFAULT_TAB["/delivery"]).toBe("coverage")
+  it("lights the one settings page, and All settings only on the index", () => {
+    expect(key("/settings")).toBe("settings")
+    expect(key("/settings/delivery/coverage")).toBe("coverage")
+    expect(key("/settings/delivery/pricing")).toBe("pricing")
+    expect(key("/settings/hub")).toBe("hub")
+    expect(key("/settings/drivers")).toBe("driver-work")
+    expect(key("/settings/points")).toBe("points")
+    expect(key("/settings/team")).toBe("team")
   })
 
-  it("tells Customers from Points settings by the tab, and a customer record belongs to Customers", () => {
+  it("a customer record belongs to Customers", () => {
     expect(key("/customers")).toBe("customers")
-    expect(key("/customers", "settings")).toBe("points")
     expect(key("/customers/abc")).toBe("customers")
+    expect(DEFAULT_TAB["/customers"]).toBe("customers")
   })
 
   it("finds a leaf's group and entry for the breadcrumb", () => {

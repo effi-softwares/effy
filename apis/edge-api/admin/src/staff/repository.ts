@@ -1,7 +1,7 @@
 import type { PoolClient } from "pg";
 
 import { query, withTransaction } from "@effy/edge-shared";
-import { KNOWN_ROLES, type BackOfficeRole, type StaffRecord, type StaffStatus } from "./types";
+import { KNOWN_ROLES, type BackOfficeRole, type StaffMember, type StaffRecord, type StaffStatus } from "./types";
 
 // role_keys aggregates staff_role.
 interface StaffRow {
@@ -90,4 +90,38 @@ function mapRow(row: StaffRow): StaffRecord {
     status: row.status,
     lastSeenAt: (row.last_seen_at ?? new Date()).toISOString(),
   };
+}
+
+interface MemberRow {
+  cognito_sub: string;
+  name: string | null;
+  email: string;
+  status: StaffStatus;
+  last_seen_at: Date | null;
+  created_at: Date;
+  role_keys: string[] | null;
+}
+
+/**
+ * Everyone with a back-office record, for Settings › Team and access: a small, staff-made set (the team), so it is
+ * read whole - active people first, then by name or email.
+ */
+export async function listStaff(): Promise<StaffMember[]> {
+  const res = await query<MemberRow>(
+    `SELECT s.cognito_sub, s.name, s.email, s.status, s.last_seen_at, s.created_at,
+            COALESCE(array_agg(sr.role_key ORDER BY sr.role_key) FILTER (WHERE sr.role_key IS NOT NULL), '{}') AS role_keys
+       FROM admin.staff s
+       LEFT JOIN admin.staff_role sr ON sr.staff_id = s.id
+      GROUP BY s.id
+      ORDER BY (s.status = 'active') DESC, lower(COALESCE(s.name, s.email)), s.id`,
+  );
+  return res.rows.map((r) => ({
+    subject: r.cognito_sub,
+    name: r.name,
+    email: r.email,
+    roles: (r.role_keys ?? []).filter((k): k is BackOfficeRole => (KNOWN_ROLES as readonly string[]).includes(k)),
+    status: r.status,
+    lastSeenAt: r.last_seen_at ? r.last_seen_at.toISOString() : null,
+    createdAt: r.created_at.toISOString(),
+  }));
 }

@@ -6,17 +6,19 @@ import { Bell, BellOff, BellRing, CircleCheck, MonitorSmartphone, Play, Share, V
 
 import { Alert, AlertDescription, AlertTitle, Badge, Button, Switch } from "@effy/design-system/ui"
 
-import { Bone, Loading, PageHeader } from "@effy/web-kit/patterns"
-
-import { Page } from "@/components/console/primitives"
 import {
+  Bone,
+  Loading,
+  PageHeader,
   SettingsIcon,
   SettingsList,
   SettingsListHeading,
   SettingsPage,
   SettingsRow,
   SettingsSection,
-} from "@/components/console/Settings"
+} from "@effy/web-kit/patterns"
+
+import { Page } from "@/components/console/primitives"
 import { sessionQuery } from "@/features/auth/queries"
 import { previewChime } from "@/lib/chime"
 import { consoleStore, setSoundOn } from "@/lib/console-store"

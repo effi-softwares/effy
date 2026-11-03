@@ -6,7 +6,6 @@ import { PromotionGroupScreen } from "@/features/promotion-groups/PromotionGroup
 import { PromotionGroupsScreen } from "@/features/promotion-groups/PromotionGroupsScreen"
 import { SkinEditorScreen } from "@/features/promotion-skins/SkinEditorScreen"
 import { SkinsListScreen } from "@/features/promotion-skins/SkinsListScreen"
-import { OrderRulesScreen } from "@/features/promotions/OrderRulesScreen"
 import { chosenCustomersList, codesList } from "@/features/promotions/list"
 import { PromotionDetailScreen } from "@/features/promotions/PromotionDetailScreen"
 import { PromotionEditorScreen } from "@/features/promotions/PromotionEditorScreen"
@@ -19,12 +18,6 @@ export const promotionsIndexRoute = createRoute({
   path: "promotions",
   validateSearch: (raw: Record<string, unknown>) => promotionsList.validateSearch(raw),
   component: PromotionsListScreen,
-})
-
-export const orderRulesRoute = createRoute({
-  getParentRoute: () => appRoute,
-  path: "promotions/order-rules",
-  component: OrderRulesScreen,
 })
 
 export const createPromotionRoute = createRoute({
