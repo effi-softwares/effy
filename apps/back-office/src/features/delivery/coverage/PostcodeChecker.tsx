@@ -27,7 +27,7 @@ export function PostcodeChecker() {
   }
 
   return (
-    <div className="space-y-2">
+    <div data-tour="delivery.checker" className="space-y-2">
       <form onSubmit={check} className="flex items-end gap-2">
         <div className="space-y-2">
           <Label htmlFor="coverage-check">Check a postcode or place</Label>

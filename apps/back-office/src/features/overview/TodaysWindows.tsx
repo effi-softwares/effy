@@ -23,6 +23,7 @@ export function TodaysWindows() {
 
   return (
     <Panel
+      tour="overview.windows"
       title="Today's delivery windows"
       description="Booked against each window's limit, what is at the hub, and who has the round."
       actions={

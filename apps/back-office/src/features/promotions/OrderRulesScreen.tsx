@@ -14,6 +14,7 @@ import { sessionQuery } from "@/features/auth/queries"
 import { canManagePromotions } from "./access"
 import { promotionMutationError } from "./errorText"
 import { orderPolicyQuery, useUpdateOrderPolicy } from "./queries"
+import { tourStatus, useTourPage } from "@effy/web-kit/tour"
 
 export function OrderRulesScreen() {
   const { data: session } = useQuery(sessionQuery)
@@ -21,6 +22,7 @@ export function OrderRulesScreen() {
   const canManage = canManagePromotions(roles)
 
   const { data: policy, error, isPending, isError, refetch } = useQuery(orderPolicyQuery())
+  useTourPage("order-rules", { status: tourStatus({ isSuccess: !isPending && !isError, isError }) })
 
   if (isError) return <ErrorState error={error} onRetry={() => void refetch()} />
   const head = (
@@ -144,7 +146,7 @@ function OrderRulesForm({
         <div className="space-y-6">
           <form.Field name="minimumSubtotalAmount">
             {(field) => (
-              <div className="space-y-2">
+              <div data-tour="rules.minimum" className="space-y-2">
                 <Label htmlFor="policy-minimum">Minimum spend</Label>
                 <Input
                   id="policy-minimum"
@@ -164,7 +166,7 @@ function OrderRulesForm({
 
           <form.Field name="maxLineQuantity">
             {(field) => (
-              <div className="space-y-2">
+              <div data-tour="rules.most-one" className="space-y-2">
                 <Label htmlFor="policy-max-line">Most of any one item</Label>
                 <Input
                   id="policy-max-line"
@@ -183,7 +185,7 @@ function OrderRulesForm({
 
           <form.Field name="maxDistinctItems">
             {(field) => (
-              <div className="space-y-2">
+              <div data-tour="rules.most-different" className="space-y-2">
                 <Label htmlFor="policy-max-distinct">Most different items</Label>
                 <Input
                   id="policy-max-distinct"

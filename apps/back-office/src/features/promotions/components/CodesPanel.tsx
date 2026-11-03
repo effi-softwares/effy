@@ -54,7 +54,7 @@ export function CodesPanel({ promotionId, canManage }: { promotionId: string; ca
   }
 
   return (
-    <Panel
+    <Panel tour="promotion.codes"
       title="Single-use codes"
       description="Each works once, for anyone who has it."
       actions={

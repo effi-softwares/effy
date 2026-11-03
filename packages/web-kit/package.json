@@ -18,7 +18,8 @@
     "./product-page": "./src/product-page/index.ts",
     "./promo-skin": "./src/promo-skin/index.ts",
     "./scanner": "./src/scanner/index.ts",
-    "./tour": "./src/tour/index.ts"
+    "./tour": "./src/tour/index.ts",
+    "./tour/testing": "./src/tour/testing.ts"
   },
   "types": "./src/index.ts",
   "scripts": {

@@ -26,6 +26,7 @@ import { canManageDrivers } from "./access"
 import { BLOCKED_LABEL, DRIVER_LIST_VIEWS, driversList, STATUS_LABEL, type DriverListView } from "./model"
 import { readinessQuery, zonesQuery } from "./queries"
 import { fetchDriverPage, fetchDriverViews } from "./repo"
+import { tourStatus, useTourPage } from "@effy/web-kit/tour"
 
 /** `readiness` is not a slice of the register but its own panel, chosen from the same select. */
 type View = DriverListView | "readiness"
@@ -120,6 +121,7 @@ export function DriversListScreen() {
   const state = useListState(driversList, search)
   const input = { key: KEY, list: driversList, view: state.view, fetch: fetchDriverPage }
   const query = useQuery({ ...listQueryOptions(input), enabled: !readiness })
+  useTourPage("drivers", { status: readiness ? "ready" : tourStatus(query) })
   const views = useQuery({
     ...viewsQueryOptions({ key: KEY, list: driversList, view: state.view, except: ["view"], fetch: fetchDriverViews }),
     enabled: !readiness,
@@ -129,7 +131,7 @@ export function DriversListScreen() {
   const view: View = readiness ? "readiness" : (state.view.filters.view ?? "employed")
 
   const viewSelect = (
-    <ViewSelect
+    <ViewSelect tour="drivers.views"
       label="Driver views"
       value={view}
       onChange={(v) => {
@@ -186,7 +188,7 @@ export function DriversListScreen() {
                 onChange={(v) => state.setFilter("zoneId", v ?? undefined)}
                 options={(zones.data ?? []).map((z) => ({ value: z.id, label: z.name }))}
               />
-              <SearchBox label="Search drivers" placeholder="Search by name or work email…" value={state.draftQ} onChange={state.setQ} />
+              <SearchBox tour="drivers.search" label="Search drivers" placeholder="Search by name or work email…" value={state.draftQ} onChange={state.setQ} />
             </>
           }
         />

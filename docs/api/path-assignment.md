@@ -113,8 +113,10 @@ See the numbers: `make gateway-usage ENV=<env>` (deployed) · `pnpm --filter @ef
 > `GET /shop/v1/catalog/categories/{id}/form` (+1).
 
 > **106 - guided tours.** `shop` (shared) gained `GET` and `PATCH /shop/v1/me/tours`: the caller's own record of which
-> console tours they have been offered (shared 165 → 167/300). Back-office's tours will add the same pair to `admin`
-> (staff) as `/admin/v1/me/tours`.
+> console tours they have been offered (shared 165 → 167/300).
+>
+> **107 - back-office guided tours.** `admin` (staff) gained `GET` and `PATCH /admin/v1/me/tours`, the same pair for a
+> back-office person (audience `admin` in the same table; staff 208 → 210/300).
 | `driver` | shared | driver | driver app |
 | `admin` | **staff** | back-office | staff, shops, delivery configuration |
 | `admin-promotions` (same source as `admin`, 095) | **staff** | back-office | promotions, display groups, skins and pictures (`/admin/v1/promotions…`, `/admin/v1/promotion-groups…`, `/admin/v1/promotion-skins…`) - split out at CloudFormation's 500-resource limit |

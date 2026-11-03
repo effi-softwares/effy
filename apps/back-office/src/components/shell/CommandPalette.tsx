@@ -7,6 +7,8 @@ import {
   type LucideIcon,
   BadgePercent,
   Car,
+  CircleHelp,
+  Map as MapIcon,
   Coins,
   MapPinned,
   Package,
@@ -32,6 +34,8 @@ import {
   toast,
   Kbd,
 } from "@effy/design-system/ui"
+
+import { useTours } from "@effy/web-kit/tour"
 
 import { customerSearchQuery } from "@/features/customers/queries"
 import { ordersListQuery } from "@/features/orders/queries"
@@ -60,6 +64,9 @@ interface Item {
   recent?: RecentEntry
   run?: () => Promise<void>
 }
+
+/** A tour item runs instead of following a link; this one is never followed. */
+const HERE = { to: "." } as LinkProps
 
 interface Section {
   label: string
@@ -158,6 +165,8 @@ export function CommandPalette({ open, onOpenChange, groups, roles }: CommandPal
   const orders = useQuery({ ...ordersListQuery({ q }), enabled: open && searching, placeholderData: keepPreviousData })
   const customers = useQuery({ ...customerSearchQuery(q), enabled: open && searching })
 
+  const tours = useTours()
+
   const sections = useMemo<Section[]>(() => {
     const text = query.trim().toLowerCase()
     const matches = (s: string) => !text || s.toLowerCase().includes(text)
@@ -214,7 +223,7 @@ export function CommandPalette({ open, onOpenChange, groups, roles }: CommandPal
       if (customerItems.length) out.push({ label: "Customers", items: customerItems })
     }
 
-    const actions = ACTIONS.filter((a) => a.roles.some((r) => roles.includes(r)) && matches(a.label)).map<Item>(
+    const actions: Item[] = ACTIONS.filter((a) => a.roles.some((r) => roles.includes(r)) && matches(a.label)).map<Item>(
       (a) => ({
         id: `action:${a.id}`,
         icon: a.icon,
@@ -222,6 +231,16 @@ export function CommandPalette({ open, onOpenChange, groups, roles }: CommandPal
         link: linkOf({ key: a.id, label: a.label, to: a.to, tab: a.tab }),
       }),
     )
+    // Guided tours (107): found by "tour", "help" or "guide"; the palette closes first, the tour starts after.
+    const tourWord = text.length > 0 && ["tour", "help", "guide"].some((w) => w.startsWith(text) || text.startsWith(w))
+    if (tourWord || (text && matches("Tour this page"))) {
+      if (tours.pageStatus === "ready" && tours.page && tours.list.some((t) => t.tour.key === tours.page?.key)) {
+        actions.push({ id: "tour:page", icon: CircleHelp, label: "Tour this page", link: HERE, run: async () => tours.startPage("search") })
+      }
+    }
+    if (tourWord || (text && matches("All tours"))) {
+      actions.push({ id: "tour:all", icon: MapIcon, label: "All tours", link: HERE, run: async () => tours.openAllTours() })
+    }
     if (actions.length) out.push({ label: "Actions", items: actions })
 
     const pages: Item[] = []
@@ -256,7 +275,7 @@ export function CommandPalette({ open, onOpenChange, groups, roles }: CommandPal
     if (!bagFirst) out.push(...bagSection)
     return out.filter((s) => s.items.length > 0)
     // eslint-disable-next-line react-hooks/exhaustive-deps -- readRecent is read when the palette re-renders
-  }, [query, searching, orders.data, customers.data, groups, roles, open])
+  }, [query, searching, orders.data, customers.data, groups, roles, open, tours.page, tours.pageStatus])
 
   const flat = useMemo(() => sections.flatMap((s) => s.items), [sections])
 

@@ -48,11 +48,13 @@ import {
   usePutMembers,
   type MemberChoice,
 } from "./queries"
+import { tourStatus, useTourPage } from "@effy/web-kit/tour"
 
 export function PromotionGroupScreen({ groupId }: { groupId: string }) {
   const canManage = canManagePromotions(useSessionRoles())
   const navigate = useNavigate()
   const group = useQuery(promotionGroupQuery(groupId))
+  useTourPage("display-group", { status: tourStatus(group) })
   const preview = useQuery(promotionGroupPreviewQuery(groupId))
   const candidates = useQuery(promotionListQuery({ page: 1, pageSize: 100 }))
   const put = usePutMembers(groupId)
@@ -117,6 +119,7 @@ export function PromotionGroupScreen({ groupId }: { groupId: string }) {
         <div className="ef-detail__main">
           <LookPanel group={g} skins={skins.data ?? []} canManage={canManage} onError={setError} />
           <Panel
+            tour="group.order"
             title="Promotions, in order"
             description="Shoppers see them in this order, and only the ones they can use right now."
             flush
@@ -187,7 +190,12 @@ export function PromotionGroupScreen({ groupId }: { groupId: string }) {
             )}
           </Panel>
           {canManage && addable.length > 0 ? (
-            <Panel title="Add a promotion" description="Only promotions with a headline can be shown." flush>
+            <Panel
+              tour="group.add"
+              title="Add a promotion"
+              description="Only promotions with a headline can be shown."
+              flush
+            >
               <ul className="divide-y divide-border">
                 {addable.slice(0, 20).map((p) => (
                   <li key={p.id} className="flex items-center justify-between gap-3 px-5 py-3">
@@ -212,6 +220,7 @@ export function PromotionGroupScreen({ groupId }: { groupId: string }) {
         </div>
         <aside className="ef-detail__aside">
           <Panel
+            tour="group.preview"
             title="What a shopper sees now"
             description={`Signed out, in each promotion's skin (${SIZE_WORD[g.size].toLowerCase()} place). Personal offers appear only to the shoppers they are for.`}
           >

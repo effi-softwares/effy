@@ -56,6 +56,7 @@ export function ReadinessPanel() {
       ) : null}
 
       <Panel
+        tour="drivers.readiness"
         title="Drivers who cannot be given work"
         icon={<UserX aria-hidden="true" />}
         description="Fix the cause on their record - the next assignment pass picks them up."

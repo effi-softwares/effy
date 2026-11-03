@@ -20,8 +20,9 @@ import { useTourContext, useTours } from "./TourProvider";
  * tours start by themselves on new pages. A tour started here waits for the menu to close before it begins.
  */
 export function TourHelpButton() {
-  const { tours, state, write } = useTourContext();
-  const { page, pageStatus, start, startPage, openAllTours } = useTours();
+  const { state, write } = useTourContext();
+  const { page, pageStatus, start, startPage, openAllTours, list } = useTours();
+  const tours = list.map((l) => l.tour);
   const welcome = tours.find((t) => t.anyPage);
   const pageHasTour = Boolean(page && tours.some((t) => t.key === page.key));
   const afterClose = useRef<(() => void) | null>(null);

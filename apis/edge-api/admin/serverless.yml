@@ -168,6 +168,29 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
+  # Guided tours: the caller's own record of which back-office tours they have been offered (107).
+  backOfficeToursV1Get:
+    handler: src/functions/back-office-tours-v1-get.handler
+    description: The caller's guided-tour state in back-office (107 FR-002)
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/me/tours
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  backOfficeToursV1Patch:
+    handler: src/functions/back-office-tours-v1-patch.handler
+    description: One change to the caller's guided-tour state in back-office (107)
+    events:
+      - httpApi:
+          method: PATCH
+          path: /admin/v1/me/tours
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
   backOfficeAdminPingV1:
     handler: src/functions/back-office-admin-ping-v1-get.handler
     description: Administrator-only proving route - authorizes from the DB record (005)

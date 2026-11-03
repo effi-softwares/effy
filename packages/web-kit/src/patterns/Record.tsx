@@ -135,10 +135,13 @@ export function RecordNav({
   items,
   compact,
   actions,
+  tour,
 }: {
   items: readonly RecordNavItem[];
   compact?: ReactNode;
   actions?: ReactNode;
+  /** A guided-tour key (106). */
+  tour?: string;
 }) {
   const ref = useRef<HTMLElement>(null);
   const [current, setCurrent] = useState(items[0]?.id ?? "");
@@ -180,7 +183,7 @@ export function RecordNav({
   }, [ids]);
 
   return (
-    <nav ref={ref} className="ef-record__nav" aria-label="Sections" data-stuck={stuck ? "" : undefined}>
+    <nav ref={ref} className="ef-record__nav" aria-label="Sections" data-stuck={stuck ? "" : undefined} data-tour={tour}>
       {compact ? (
         <div className="ef-record__compact" aria-hidden={!stuck}>
           {compact}

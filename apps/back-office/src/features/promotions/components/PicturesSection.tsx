@@ -67,7 +67,7 @@ export function PicturesSection({ promotion, canManage }: { promotion: Promotion
   }
 
   return (
-    <div className="space-y-4">
+    <div data-tour="promotion.pictures" className="space-y-4">
       {canManage ? (
         <Panel
           title="Add a picture"

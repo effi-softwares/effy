@@ -32,6 +32,7 @@ import { canManageVehicles } from "@/features/vehicles/access"
 
 import { AdminOnlyScreen } from "./AdminOnlyScreen"
 import { ProvingScreen } from "./ProvingScreen"
+import { useTourPage } from "@effy/web-kit/tour"
 
 type Rule = (roles: readonly BackOfficeRole[]) => boolean
 
@@ -61,6 +62,7 @@ const ROLES: readonly { role: BackOfficeRole; label: string }[] = [
 ]
 
 export function AdminAccessScreen() {
+  useTourPage("admin-access", { status: "ready" })
   return (
     <>
       <PageHeader
@@ -70,7 +72,7 @@ export function AdminAccessScreen() {
       <Tabs defaultValue="you">
         <div className="ef-tabsbar">
           <div className="ef-tabsbar__list">
-            <TabsList aria-label="Access sections">
+            <TabsList data-tour="access.yours" aria-label="Access sections">
               <TabsTrigger value="you">Your access</TabsTrigger>
               <TabsTrigger value="roles">
                 Roles and permissions
@@ -87,6 +89,7 @@ export function AdminAccessScreen() {
         </TabsContent>
         <TabsContent value="roles" className="ef-tabpanel">
           <Panel
+            tour="access.roles"
             title="Roles and permissions"
             description="Roles are granted in the admin sign-in pool; the platform's staff record decides."
             flush

@@ -34,6 +34,7 @@ import { dateLine, greeting } from "./overviewFormat"
 import { TodaysWindows } from "./TodaysWindows"
 import { OnDuty } from "./OnDuty"
 import { OrdersToday } from "./OrdersToday"
+import { useTourPage } from "@effy/web-kit/tour"
 
 export function OverviewScreen() {
   const session = useQuery(sessionQuery)
@@ -47,6 +48,7 @@ export function OverviewScreen() {
   const feedback = useQuery(feedbackListQuery({ status: "new" }))
   const deliverability = useQuery(deliverabilityListQuery({}))
   const duty = useQuery(dutyQuery())
+  useTourPage("overview", { status: "ready" })
 
   const ex = exceptions.data
   const open = ex?.exceptions.items.filter((e) => e.resolvedAt === null) ?? []
@@ -128,7 +130,7 @@ export function OverviewScreen() {
         description={`${dateLine.format(new Date())} · What needs attention now, and how today's deliveries are going.`}
         actions={
           <>
-            <Button variant="outline" onClick={() => setCommandPaletteOpen(true)}>
+            <Button data-tour="overview.find" variant="outline" onClick={() => setCommandPaletteOpen(true)}>
               <Search aria-hidden="true" />
               Find an order
               <Kbd>⌘K</Kbd>
@@ -152,6 +154,7 @@ export function OverviewScreen() {
       <div className="grid items-start gap-6 xl:grid-cols-3">
         <div className="min-w-0 space-y-6 xl:col-span-2">
           <Panel
+            tour="overview.attention"
             title="Needs attention"
             description="Each count opens the list it comes from. They update live - nothing here refreshes on a timer."
             actions={
@@ -199,7 +202,7 @@ export function OverviewScreen() {
 
         <div className="min-w-0 space-y-6">
           <OnDuty />
-          <Panel title="Shortcuts" flush>
+          <Panel tour="overview.shortcuts" title="Shortcuts" flush>
             <ul className="space-y-1 p-2">
               <li>
                 <Button

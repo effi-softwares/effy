@@ -22,6 +22,7 @@ import { courierServicesQuery } from "@/features/delivery/queries"
 
 import { CONSIGNMENT_STATE_LABEL } from "./components/ConsignmentBlock"
 import { fetchCourierPage } from "./repo"
+import { tourStatus, useTourPage } from "@effy/web-kit/tour"
 
 const VIEWS: { value: CourierView; label: string; empty: string }[] = [
   { value: "hub_due", label: "At the hub", empty: "No courier parcels are waiting at the hub." },
@@ -82,6 +83,7 @@ export function CourierScreen() {
   const state = useListState(courierList, useSearch({ strict: false }))
   const input = { key: ["orders", "courier"] as const, list: courierList, view: state.view, fetch: fetchCourierPage }
   const query = useQuery(listQueryOptions(input))
+  useTourPage("courier-parcels", { status: tourStatus(query) })
   const view: CourierView = state.view.filters.view ?? "hub_due"
   const current = VIEWS.find((v) => v.value === view)!
   const services = useQuery(courierServicesQuery())
@@ -116,13 +118,13 @@ export function CourierScreen() {
         empty={{ icon: Truck, title: current.empty }}
         toolbar={
           <>
-            <ViewSelect
+            <ViewSelect tour="courier.stages"
               label="Courier stages"
               value={view}
               onChange={(v) => state.setFilter("view", v === "hub_due" ? undefined : v)}
               options={VIEWS.map((v) => ({ value: v.value, label: v.label, count: query.data?.views[v.value], attention: v.value !== "with_courier" }))}
             />
-            <Facet
+            <Facet tour="courier.service"
               label="Service"
               anyLabel="Every service"
               value={state.view.filters.service ?? null}
@@ -132,7 +134,7 @@ export function CourierScreen() {
                 return { value: label, label }
               })}
             />
-            <SearchBox label="Search courier parcels" placeholder="Order number or service…" value={state.draftQ} onChange={state.setQ} />
+            <SearchBox tour="courier.search" label="Search courier parcels" placeholder="Order number or service…" value={state.draftQ} onChange={state.setQ} />
           </>
         }
       />

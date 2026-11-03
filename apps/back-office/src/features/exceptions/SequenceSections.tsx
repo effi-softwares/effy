@@ -222,6 +222,7 @@ export function VehicleChecksPanel({ data, canAct }: { data: DeliveryExceptionLi
   const checks = data.vehicleChecks ?? []
   return (
     <Panel
+      tour="exceptions.vehicles"
       title="Vehicle checks today"
       icon={<ShieldAlert aria-hidden="true" />}
       description="Anything unsafe and the driver gets no work until it is cleared."

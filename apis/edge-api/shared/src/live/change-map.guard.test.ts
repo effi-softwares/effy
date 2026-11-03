@@ -69,6 +69,7 @@ const SILENT: Record<string, string> = {
   "shop/shop-devices-v1-id-delete": "push device registration — the other channel",
   "shop/shop-devices-v1-post": "push device registration — the other channel",
   "shop/shop-notification-prefs-v1-patch": "the operator's own notification preferences",
+  "admin/back-office-tours-v1-patch": "a staff member's own guided-tour record (107); only they change it, and the response is their copy",
   "shop/shop-tours-v1-patch": "the operator's own guided-tour record (106); only they change it, and the response is their copy",
   "commerce/order-business-identity-v1-put": "096 — the buyer's business details for a tax invoice not yet issued; no screen shows them live",
   "orders/admin-tax-settings-v1-put": "096 — Effy's tax identity and the invoice switch; read when a document is asked for, shown live nowhere",

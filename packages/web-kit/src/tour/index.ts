@@ -13,6 +13,7 @@ export {
   shouldOffer,
   shownSteps,
   stepVisible,
+  tourAllowed,
   tourStatus,
   welcomeFirst,
   type PageStatus,

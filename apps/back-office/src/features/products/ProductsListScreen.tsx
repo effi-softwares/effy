@@ -44,6 +44,7 @@ import { productsList } from "./model"
 import { productKeys } from "./queries"
 import { fetchProductPage } from "./repo"
 import { STATE_TONE } from "./words"
+import { tourStatus, useTourPage } from "@effy/web-kit/tour"
 
 type Row = BackOfficeProductRowDTO
 
@@ -153,6 +154,7 @@ export function ProductsListScreen({ search }: { search: Record<string, unknown>
   const f = state.view.filters
   const input = { key: productKeys.all, list: productsList, view: state.view, fetch: fetchProductPage }
   const query = useQuery(listQueryOptions(input))
+  useTourPage("products", { status: tourStatus(query) })
   const shops = useQuery(shopListQuery({ page: 1, pageSize: 100 }))
   const tree = useQuery(treeQuery())
 
@@ -217,7 +219,7 @@ export function ProductsListScreen({ search }: { search: Record<string, unknown>
             canManage ? (
               <>
                 <Button variant="outline" asChild>
-                  <Link to="/products/imports">
+                  <Link data-tour="products.add" to="/products/imports">
                     <Upload aria-hidden="true" />
                     Import a list
                   </Link>
@@ -281,7 +283,7 @@ export function ProductsListScreen({ search }: { search: Record<string, unknown>
         above={result ? <BulkResult result={result} names={names} onDismiss={() => setResult(null)} /> : null}
         toolbar={
           <>
-            <ViewSelect
+            <ViewSelect tour="products.states"
               label="Product states"
               value={tab}
               onChange={(v) => state.setFilter("state", v === "all" ? undefined : v)}
@@ -300,7 +302,7 @@ export function ProductsListScreen({ search }: { search: Record<string, unknown>
               options={(shops.data?.items ?? []).map((s) => ({ value: s.id, label: s.name }))}
             />
             <Facet label="Aisle" anyLabel="Every aisle" value={f.categoryId ?? null} onChange={(v) => state.setFilter("categoryId", v ?? undefined)} options={aisles} />
-            <Facet
+            <Facet tour="products.filters"
               label="Storage"
               value={f.storage ?? null}
               onChange={(v) => state.setFilter("storage", v ?? undefined)}
@@ -326,7 +328,7 @@ export function ProductsListScreen({ search }: { search: Record<string, unknown>
               ]}
             />
             {isFiltered(state.view, ["state"]) ? <ResetFilters onReset={state.reset} /> : null}
-            <SearchBox label="Search products" placeholder="Name, SKU or barcode" value={state.draftQ} onChange={state.setQ} />
+            <SearchBox tour="products.search" label="Search products" placeholder="Name, SKU or barcode" value={state.draftQ} onChange={state.setQ} />
           </>
         }
       />

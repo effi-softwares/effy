@@ -18,6 +18,7 @@ import { moment } from "@/lib/format"
 import { DELIVERABILITY_VIEWS, deliverabilityList, STATE_LABEL, type DeliverabilityView, type DeliveryListItem, type EmailDeliveryState } from "./model"
 import { ROOT } from "./queries"
 import { fetchDeliverabilityPage, fetchDeliverabilityViews } from "./repo"
+import { tourStatus, useTourPage } from "@effy/web-kit/tour"
 
 const VIEW_LABEL: Record<DeliverabilityView, string> = {
   problems: "Needs attention",
@@ -63,6 +64,7 @@ export function DeliverabilityListScreen() {
   const state = useListState(deliverabilityList, useSearch({ strict: false }))
   const input = { key: ROOT, list: deliverabilityList, view: state.view, fetch: fetchDeliverabilityPage }
   const query = useQuery(listQueryOptions(input))
+  useTourPage("deliverability", { status: tourStatus(query) })
   const views = useQuery(viewsQueryOptions({ key: ROOT, list: deliverabilityList, view: state.view, except: ["view"], fetch: fetchDeliverabilityViews }))
 
   return (
@@ -88,13 +90,13 @@ export function DeliverabilityListScreen() {
         empty={{ icon: MailCheck, title: "No delivery problems.", description: "Every address the platform has emailed is reachable." }}
         toolbar={
           <>
-            <ViewSelect
+            <ViewSelect tour="deliverability.views"
               label="Deliverability views"
               value={state.view.filters.view ?? "problems"}
               onChange={(v) => state.setFilter("view", v === "problems" ? undefined : v)}
               options={DELIVERABILITY_VIEWS.map((v) => ({ value: v, label: VIEW_LABEL[v], count: views.data?.views[v], attention: v === "problems" }))}
             />
-            <SearchBox label="Search address" placeholder="Search address…" value={state.draftQ} onChange={state.setQ} />
+            <SearchBox tour="deliverability.search" label="Search address" placeholder="Search address…" value={state.draftQ} onChange={state.setQ} />
           </>
         }
       />

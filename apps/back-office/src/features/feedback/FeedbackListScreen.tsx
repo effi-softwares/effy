@@ -32,6 +32,7 @@ import {
 } from "./model"
 import { ROOT } from "./queries"
 import { fetchFeedbackPage, fetchFeedbackViews } from "./repo"
+import { tourStatus, useTourPage } from "@effy/web-kit/tour"
 
 type Item = FeedbackListDTO["items"][number]
 
@@ -106,6 +107,7 @@ export function FeedbackListScreen() {
   const f = state.view.filters
   const input = { key: ROOT, list: feedbackList, view: state.view, fetch: fetchFeedbackPage }
   const query = useQuery(listQueryOptions(input))
+  useTourPage("feedback", { status: tourStatus(query) })
   const views = useQuery(viewsQueryOptions({ key: ROOT, list: feedbackList, view: state.view, except: ["view"], fetch: fetchFeedbackViews }))
 
   return (
@@ -131,7 +133,7 @@ export function FeedbackListScreen() {
         empty={{ icon: MessageSquareText, title: "Nothing needs a look", description: "Every submission has been looked at." }}
         toolbar={
           <>
-            <ViewSelect
+            <ViewSelect tour="feedback.views"
               label="Feedback views"
               value={f.view ?? "open"}
               onChange={(v) => state.setFilter("view", v === "open" ? undefined : v)}
@@ -156,7 +158,7 @@ export function FeedbackListScreen() {
               onChange={(r) => state.setFilters({ receivedFrom: r.from, receivedTo: r.to })}
             />
             {isFiltered(state.view, ["view"]) ? <ResetFilters onReset={state.reset} /> : null}
-            <SearchBox label="Search feedback" placeholder="Message, email or reference…" value={state.draftQ} onChange={state.setQ} />
+            <SearchBox tour="feedback.search" label="Search feedback" placeholder="Message, email or reference…" value={state.draftQ} onChange={state.setQ} />
           </>
         }
       />

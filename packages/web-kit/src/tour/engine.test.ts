@@ -11,6 +11,7 @@ import {
   resolveTarget,
   shouldOffer,
   shownSteps,
+  tourAllowed,
   tourStatus,
   welcomeFirst,
 } from "./engine";
@@ -19,7 +20,7 @@ import {
 const original = Element.prototype.getClientRects;
 beforeEach(() => {
   Element.prototype.getClientRects = function (this: Element) {
-    return (this.closest("[data-test-hidden]") ? [] : [{}]) as unknown as DOMRectList;
+    return (this.closest("[data-test-hidden]") ? [] : [{ width: 10, height: 10 }]) as unknown as DOMRectList;
   };
 });
 afterEach(() => {
@@ -33,7 +34,7 @@ const tour: TourDef = {
   title: "Orders · Table",
   steps: [
     { target: "a", title: "A", text: "a" },
-    { target: "b", title: "B", text: "b", managersOnly: true },
+    { target: "b", title: "B", text: "b", roles: ["manager"] },
     { target: ["c", "c-button"], title: "C", text: "c" },
     { target: "d", title: "D", text: "d" },
   ],
@@ -50,13 +51,13 @@ function page(html: string) {
 describe("which steps show (106 FR-011, FR-012)", () => {
   it("skips a manager-only step for staff and keeps it for a manager", () => {
     page(`<i data-tour="a"></i><i data-tour="b"></i><i data-tour="c"></i><i data-tour="d"></i>`);
-    expect(shownSteps(tour, { manager: false })).toEqual([0, 2, 3]);
-    expect(shownSteps(tour, { manager: true })).toEqual([0, 1, 2, 3]);
+    expect(shownSteps(tour, { roles: new Set<string>() })).toEqual([0, 2, 3]);
+    expect(shownSteps(tour, { roles: new Set(["manager"]) })).toEqual([0, 1, 2, 3]);
   });
 
   it("skips a step whose part is absent or hidden", () => {
     page(`<i data-tour="a"></i><div hidden><i data-tour="c"></i></div><i data-tour="d" data-test-hidden></i>`);
-    expect(shownSteps(tour, { manager: true })).toEqual([0]);
+    expect(shownSteps(tour, { roles: new Set(["manager"]) })).toEqual([0]);
   });
 
   it("uses the narrow-screen stand-in when the first key is folded away", () => {
@@ -76,12 +77,30 @@ describe("which steps show (106 FR-011, FR-012)", () => {
 
   it("a centred step is always shown", () => {
     expect(resolveTarget(null)).toBeNull();
-    expect(shownSteps(welcome, { manager: false })).toEqual([0]);
+    expect(shownSteps(welcome, { roles: new Set<string>() })).toEqual([0]);
   });
 
   it("every step absent leaves nothing to show", () => {
     page(``);
-    expect(shownSteps(tour, { manager: true })).toEqual([]);
+    expect(shownSteps(tour, { roles: new Set(["manager"]) })).toEqual([]);
+  });
+});
+
+describe("roles (107 FR-004, FR-005)", () => {
+  it("shows a step to anyone holding any of its roles", () => {
+    page(`<i data-tour="a"></i><i data-tour="b"></i>`);
+    const t: TourDef = { key: "x", version: 1, title: "X", steps: [{ target: "a", title: "A", text: "a" }, { target: "b", title: "B", text: "b", roles: ["admin", "manager"] }] };
+    expect(shownSteps(t, { roles: new Set(["csa"]) })).toEqual([0]);
+    expect(shownSteps(t, { roles: new Set(["manager"]) })).toEqual([0, 1]);
+    expect(shownSteps(t, { roles: new Set(["admin", "csa"]) })).toEqual([0, 1]);
+  });
+
+  it("a tour limited to roles is nobody else's", () => {
+    const t: TourDef = { key: "tax", version: 1, title: "Tax", roles: ["admin"], steps: [{ target: null, title: "T", text: "t" }] };
+    expect(tourAllowed(t, new Set(["admin"]))).toBe(true);
+    expect(tourAllowed(t, new Set(["manager"]))).toBe(false);
+    expect(tourAllowed({ ...t, roles: undefined }, new Set())).toBe(true);
+    expect(welcomeFirst([{ ...welcome, roles: ["admin"] }], state(), new Set(["csa"]))).toBeNull();
   });
 });
 
@@ -89,16 +108,16 @@ describe("moving through a tour (FR-009)", () => {
   beforeEach(() => page(`<i data-tour="a"></i><i data-tour="b"></i><i data-tour="d"></i>`));
 
   it("Next and Back step over what is not shown", () => {
-    expect(nextShown(tour, 0, 1, { manager: false })).toBe(3);
-    expect(nextShown(tour, 3, -1, { manager: false })).toBe(0);
-    expect(nextShown(tour, 3, 1, { manager: false })).toBeNull();
-    expect(nextShown(tour, 0, -1, { manager: false })).toBeNull();
+    expect(nextShown(tour, 0, 1, { roles: new Set<string>() })).toBe(3);
+    expect(nextShown(tour, 3, -1, { roles: new Set<string>() })).toBe(0);
+    expect(nextShown(tour, 3, 1, { roles: new Set<string>() })).toBeNull();
+    expect(nextShown(tour, 0, -1, { roles: new Set<string>() })).toBeNull();
   });
 
   it("the counter counts only the steps shown", () => {
-    expect(counter(tour, 0, { manager: false })).toEqual({ step: 1, of: 2 });
-    expect(counter(tour, 3, { manager: false })).toEqual({ step: 2, of: 2 });
-    expect(counter(tour, 3, { manager: true })).toEqual({ step: 3, of: 3 });
+    expect(counter(tour, 0, { roles: new Set<string>() })).toEqual({ step: 1, of: 2 });
+    expect(counter(tour, 3, { roles: new Set<string>() })).toEqual({ step: 2, of: 2 });
+    expect(counter(tour, 3, { roles: new Set(["manager"]) })).toEqual({ step: 3, of: 3 });
   });
 });
 

@@ -17,6 +17,7 @@ import {
 } from "@effy/web-kit/patterns"
 
 import { handoverReportQuery } from "./queries"
+import { tourStatus, useTourPage } from "@effy/web-kit/tour"
 
 const melbourneDay = (d: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: OPERATING_TZ }).format(d)
 
@@ -31,6 +32,7 @@ export function HandoverReportScreen() {
   const [from, setFrom] = useState(melbourneDay(new Date(Date.now() - 6 * 86_400_000)))
   const [to, setTo] = useState(today)
   const { data, error, isError, isPending, refetch } = useQuery(handoverReportQuery(from, to))
+  useTourPage("handover-report", { status: tourStatus({ isSuccess: !isPending && !isError, isError }) })
 
   return (
     <>
@@ -39,7 +41,7 @@ export function HandoverReportScreen() {
         description="Every bag hand-over between shops, drivers and the hub, and how it was recorded."
         actions={
           <div className="flex flex-wrap items-end gap-2">
-            <label className="space-y-1 text-sm">
+            <label data-tour="handovers.from" className="space-y-1 text-sm">
               <span className="text-muted-foreground">From</span>
               <DateField value={from} max={to} onChange={(v) => v && setFrom(v)} className="w-40" />
             </label>
@@ -82,7 +84,7 @@ export function HandoverReportScreen() {
         </Loading>
       ) : (
         <div className="space-y-6">
-          <Panel title="Summary">
+          <Panel tour="handovers.summary" title="Summary">
             <DetailRows
               rows={[
                 { label: "Hand-overs", value: total(data.overall) },
@@ -111,7 +113,7 @@ export function HandoverReportScreen() {
             />
           </Panel>
 
-          <Panel
+          <Panel tour="handovers.by-shop"
             title="By shop"
             description="Least scanned first - a shop low here is usually printing labels badly."
             flush
@@ -123,7 +125,7 @@ export function HandoverReportScreen() {
             />
           </Panel>
 
-          <Panel title="By driver" description="Least scanned first." flush>
+          <Panel tour="handovers.by-driver" title="By driver" description="Least scanned first." flush>
             <MixTable
               rows={data.byDriver.map((r) => ({ key: r.driverId, name: r.driverName, ...r }))}
               label="By driver"
@@ -132,7 +134,7 @@ export function HandoverReportScreen() {
           </Panel>
 
           <div className="grid gap-6 lg:grid-cols-2">
-            <Panel title="Refused reads" flush>
+            <Panel tour="handovers.problems" title="Refused reads" flush>
               {data.refused.length === 0 ? (
                 <p className="px-5 py-4 text-sm text-muted-foreground">No read was refused in this period.</p>
               ) : (

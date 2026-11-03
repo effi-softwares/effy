@@ -9,15 +9,18 @@ export function EditorSection({
   description,
   aside,
   children,
+  tour,
 }: {
   title?: ReactNode;
   description?: ReactNode;
   /** Beside the heading: a count, a status. */
   aside?: ReactNode;
+  /** A guided-tour key (106). */
+  tour?: string;
   children: ReactNode;
 }) {
   return (
-    <section className="ef-editor__section">
+    <section className="ef-editor__section" data-tour={tour}>
       {title ? (
         <div className="ef-editor__section-head">
           <h3 className="ef-editor__section-title">

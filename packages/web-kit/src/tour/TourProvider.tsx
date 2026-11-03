@@ -10,6 +10,7 @@ import {
   counter,
   EMPTY_TOUR_SENTENCE,
   shouldOffer,
+  tourAllowed,
   welcomeFirst,
   isPresent,
   nextShown,
@@ -22,19 +23,22 @@ import { createTourStore, patchTourUi, type TourStore, type TourVia } from "./st
 
 /** What the provider reports for product analytics (106 research R10). Keys and step numbers only. */
 export type TourEvent =
-  | { name: "tour_started"; tour: string; version: number; via: TourVia }
-  | { name: "tour_finished"; tour: string; version: number }
-  | { name: "tour_closed"; tour: string; version: number; step: number; of: number }
-  | { name: "tour_declined"; tour: string; version: number };
+  | { name: "tour_started"; tour: string; version: number; via: TourVia; role?: string }
+  | { name: "tour_finished"; tour: string; version: number; role?: string }
+  | { name: "tour_closed"; tour: string; version: number; step: number; of: number; role?: string }
+  | { name: "tour_declined"; tour: string; version: number; role?: string };
 
 export interface TourProviderProps {
   tours: readonly TourDef[];
-  roles: { manager: boolean };
+  /** The person's role keys (`shop_manager`; `admin`, `manager`, `csa`). */
+  roles: readonly string[];
+  /** A role NAME added to every analytics event (107 FR-012); omit to add none. */
+  analyticsRole?: string;
   /** The person's tour state - from `tourStateQueries(...).stateQuery`. */
   state: { data: ConsoleTourStateDTO | undefined; isSuccess: boolean };
   write: (patch: ConsoleTourPatch) => void;
   /** Opens the newest order or product for a tour that needs one; false when there is none (the app says so). */
-  openRecord: (kind: "order" | "product") => Promise<boolean>;
+  openRecord: (kind: string) => Promise<boolean>;
   onEvent?: (event: TourEvent) => void;
   /** Warn in the console when a page's tour names something the page does not show (development only). */
   devWarnings?: boolean;
@@ -44,11 +48,11 @@ export interface TourProviderProps {
 interface TourContextValue {
   tours: readonly TourDef[];
   byKey: ReadonlyMap<string, TourDef>;
-  manager: boolean;
+  roles: ReadonlySet<string>;
   state: ConsoleTourStateDTO | null;
   store: TourStore;
   write: (patch: ConsoleTourPatch) => void;
-  openRecord: (kind: "order" | "product") => Promise<boolean>;
+  openRecord: (kind: string) => Promise<boolean>;
   emit: (event: TourEvent) => void;
   start: (key: string, via: TourVia) => void;
   decline: (key: string) => void;
@@ -82,6 +86,7 @@ const PAGE_WAIT_MS = 15_000;
 export function TourProvider({
   tours,
   roles,
+  analyticsRole,
   state,
   write,
   openRecord,
@@ -91,20 +96,28 @@ export function TourProvider({
 }: TourProviderProps) {
   const [store] = useState(createTourStore);
   const byKey = useMemo(() => new Map(tours.map((t) => [t.key, t])), [tours]);
-  const manager = roles.manager;
+  const roleKey = roles.join(",");
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed by the roles' content
+  const roleSet = useMemo<ReadonlySet<string>>(() => new Set(roles), [roleKey]);
   const emitRef = useRef(onEvent);
   emitRef.current = onEvent;
   const writeRef = useRef(write);
   writeRef.current = write;
 
-  const emit = useCallback((event: TourEvent) => emitRef.current?.(event), []);
+  const roleRef = useRef(analyticsRole);
+  roleRef.current = analyticsRole;
+  const emit = useCallback(
+    (event: TourEvent) => emitRef.current?.(roleRef.current ? { ...event, role: roleRef.current } : event),
+    [],
+  );
 
   const start = useCallback(
     (key: string, via: TourVia) => {
-      if (!byKey.has(key)) return;
+      const tour = byKey.get(key);
+      if (!tour || !tourAllowed(tour, roleSet)) return;
       patchTourUi(store, { pendingStart: { key, via, since: Date.now() }, active: null });
     },
-    [byKey, store],
+    [byKey, roleSet, store],
   );
 
   const decline = useCallback(
@@ -135,7 +148,7 @@ export function TourProvider({
       }
       const pageReady = s.page?.status === "ready" && (tour.anyPage || s.page.key === tour.key);
       if (pageReady && (!openerStillOpen() || waited > OPENER_WAIT_MS)) {
-        const ctx: StepContext = { manager };
+        const ctx: StepContext = { roles: roleSet };
         const first = shownSteps(tour, ctx)[0];
         // Recorded the moment it starts, so a reload mid-tour does not start it again (research R13).
         writeRef.current({ tour: tour.key, version: tour.version, outcome: "closed" });
@@ -151,7 +164,7 @@ export function TourProvider({
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [pending, byKey, emit, manager, store]);
+  }, [pending, byKey, emit, roleSet, store]);
 
   // A running tour ends (as closed) when the page changes under it.
   const pageKey = useStore(store, (s) => s.page?.key ?? null);
@@ -170,7 +183,7 @@ export function TourProvider({
     if (!tour) return;
     const t = window.setTimeout(() => {
       for (const step of tour.steps) {
-        if (step.managersOnly || step.shownWhen || step.target === null) continue;
+        if (step.roles || step.shownWhen || step.target === null) continue;
         if (resolveTarget(step.target) === undefined) console.warn(`[tours] ${tour.key}: nothing on the page carries`, step.target);
       }
     }, 500);
@@ -181,7 +194,7 @@ export function TourProvider({
     () => ({
       tours,
       byKey,
-      manager,
+      roles: roleSet,
       state: state.isSuccess && state.data ? state.data : null,
       store,
       write: (patch) => writeRef.current(patch),
@@ -190,7 +203,7 @@ export function TourProvider({
       start,
       decline,
     }),
-    [tours, byKey, manager, state.isSuccess, state.data, store, openRecord, emit, start, decline],
+    [tours, byKey, roleSet, state.isSuccess, state.data, store, openRecord, emit, start, decline],
   );
 
   return (
@@ -211,7 +224,7 @@ const SETTLE_MS = 700;
  * Welcome tour comes first (FR-003). Nothing starts while a tour runs, waits, or All tours is open.
  */
 function AutoStart() {
-  const { tours, byKey, state, store, start } = useTourContext();
+  const { tours, byKey, roles, state, store, start } = useTourContext();
   const ui = useStore(store, (s) => ({
     page: s.page,
     busy: s.active !== null || s.pendingStart !== null || s.allToursOpen,
@@ -220,9 +233,9 @@ function AutoStart() {
 
   let next: string | null = null;
   if (state && !ui.busy && ui.page?.status === "ready") {
-    const welcome = welcomeFirst(tours, state);
+    const welcome = welcomeFirst(tours, state, roles);
     const pageTour = byKey.get(ui.page.key);
-    const tour = welcome ?? (pageTour && shouldOffer(pageTour, state) ? pageTour : null);
+    const tour = welcome ?? (pageTour && tourAllowed(pageTour, roles) && shouldOffer(pageTour, state) ? pageTour : null);
     if (tour && !ui.dismissed.includes(tour.key)) next = tour.key;
   }
 
@@ -263,11 +276,11 @@ function useDomTick(active: boolean): number {
 }
 
 function ActiveTour() {
-  const { byKey, manager, store, write, emit } = useTourContext();
+  const { byKey, roles, store, write, emit } = useTourContext();
   const active = useStore(store, (s) => s.active);
   const tour = active ? byKey.get(active.key) : undefined;
   useDomTick(Boolean(active));
-  const ctx: StepContext = { manager };
+  const ctx: StepContext = { roles };
 
   const step = tour && active && !active.empty ? tour.steps[active.index] : undefined;
   const target = step ? resolveTarget(step.target) : null;
@@ -281,7 +294,7 @@ function ActiveTour() {
         write({ tour: t.key, version: t.version, outcome: "finished" });
         emit({ name: "tour_finished", tour: t.key, version: t.version });
       } else {
-        const c = a.empty ? { step: 1, of: 1 } : counter(t, a.index, { manager });
+        const c = a.empty ? { step: 1, of: 1 } : counter(t, a.index, { roles });
         emit({ name: "tour_closed", tour: t.key, version: t.version, step: c.step, of: c.of });
         // Closing the Welcome tour early means "not now": the page's own tour waits for the next visit.
         const page = store.state.page;
@@ -291,7 +304,7 @@ function ActiveTour() {
       }
       patchTourUi(store, { active: null });
     },
-    [byKey, emit, manager, store, write],
+    [byKey, emit, roles, store, write],
   );
 
   const go = useCallback(
@@ -299,14 +312,14 @@ function ActiveTour() {
       const a = store.state.active;
       const t = a ? byKey.get(a.key) : undefined;
       if (!a || !t || a.empty) return;
-      const next = nextShown(t, a.index, dir, { manager });
+      const next = nextShown(t, a.index, dir, { roles });
       if (next === null) {
         if (dir === 1) end("finished");
         return;
       }
       patchTourUi(store, { active: { ...a, index: next } });
     },
-    [byKey, end, manager, store],
+    [byKey, end, roles, store],
   );
 
   // The thing the step points at went away (a live update, a resize): on to the next one shown, or the end.
@@ -390,7 +403,8 @@ export function useTours() {
       openAllTours: () => {},
     };
   }
-  const { tours, state, start } = ctx;
+  const { tours: allTours, state, start, roles } = ctx;
+  const tours = allTours.filter((t) => tourAllowed(t, roles));
   const list: TourListItem[] = tours.map((tour) => {
     const seen = state?.seen[tour.key];
     return { tour, seen: !seen ? "new" : seen.version < tour.version ? "updated" : "seen" };

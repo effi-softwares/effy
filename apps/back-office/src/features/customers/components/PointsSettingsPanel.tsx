@@ -16,6 +16,14 @@ import { pointsSettingsQuery, useUpdatePointsSettings } from "../queries"
 
 type Field = "centsPerPoint" | "expiryMonths" | "csaCreditLimitPoints" | "warningDays" | "holdMinutes"
 
+/** Guided-tour keys (107) for the rules a tour explains. */
+const FIELD_TOUR: Partial<Record<Field, string>> = {
+  centsPerPoint: "points.value",
+  expiryMonths: "points.expiry",
+  csaCreditLimitPoints: "points.credit-limit",
+  holdMinutes: "points.hold",
+}
+
 const FIELDS: { key: Field; label: string; help: string }[] = [
   {
     key: "centsPerPoint",
@@ -119,7 +127,11 @@ export function PointsSettingsPanel() {
         >
           <div>
             {FIELDS.map((f) => (
-              <div key={f.key} className="flex items-center justify-between gap-4 border-b py-3 last:border-b-0">
+              <div
+                key={f.key}
+                data-tour={FIELD_TOUR[f.key]}
+                className="flex items-center justify-between gap-4 border-b py-3 last:border-b-0"
+              >
                 <div className="min-w-0">
                   <Label htmlFor={`ps-${f.key}`}>{f.label}</Label>
                   <p className="mt-1 text-sm text-muted-foreground">{f.help}</p>

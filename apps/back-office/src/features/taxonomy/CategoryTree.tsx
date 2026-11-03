@@ -186,7 +186,12 @@ export function CategoryTree({ categories, selectedId, canManage, onSelect, onAd
   // Render functions, not components: a component declared in here would remount every row on each render.
   function level(nodes: TreeNode[], root = false) {
     return (
-      <ul role={root ? "tree" : "group"} aria-label={root ? "Categories" : undefined} className="space-y-0.5">
+      <ul
+        data-tour="taxonomy.tree"
+        role={root ? "tree" : "group"}
+        aria-label={root ? "Categories" : undefined}
+        className="space-y-0.5"
+      >
         {nodes.map((n, i) => row(n, nodes, i))}
       </ul>
     )

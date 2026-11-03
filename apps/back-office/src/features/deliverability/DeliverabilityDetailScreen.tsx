@@ -21,9 +21,11 @@ import { RepairDialog } from "./components/RepairDialog"
 import { StateLabel } from "./DeliverabilityListScreen"
 import { STATE_MEANING } from "./model"
 import { deliverabilityDetailQuery, ROOT } from "./queries"
+import { tourStatus, useTourPage } from "@effy/web-kit/tour"
 
 export function DeliverabilityDetailScreen({ address }: { address: string }) {
   const { data, isPending, isError, error, refetch } = useQuery(deliverabilityDetailQuery(address))
+  useTourPage("deliverability-address", { status: tourStatus({ isSuccess: !isPending && !isError, isError }) })
   const { data: session } = useQuery(sessionQuery)
   const roles = session?.status === "signed-in" ? session.identity.roles : []
   const mayRepair = canRepairDelivery(roles)
@@ -65,7 +67,7 @@ export function DeliverabilityDetailScreen({ address }: { address: string }) {
 
       {/* Its email events - every send the platform heard back about - are its activity (104). */}
       <div className="max-w-220">
-        <Panel title="Address">
+        <Panel tour="address.server-said" title="Address">
           <dl className="ef-dl ef-dl--tight">
             <Row label="State">
               <StateLabel state={data.state} />

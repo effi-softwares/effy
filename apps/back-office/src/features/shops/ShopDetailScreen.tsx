@@ -33,6 +33,7 @@ import { ShopStockPanel } from "./ShopStockPanel"
 import { shopLowStockCountsQuery } from "./stockQueries"
 import { ShopRoster } from "./ShopRoster"
 import { formatTime, labelScanningText } from "./shopText"
+import { tourStatus, useTourPage } from "@effy/web-kit/tour"
 
 export function ShopDetailScreen({ shopId }: { shopId: string }) {
   const { data: session } = useQuery(sessionQuery)
@@ -41,6 +42,7 @@ export function ShopDetailScreen({ shopId }: { shopId: string }) {
 
   const navigate = useNavigate()
   const { data, error, isPending, isError, refetch } = useQuery(shopDetailQuery(shopId))
+  useTourPage("shop", { status: tourStatus({ isSuccess: !isPending && !isError, isError }) })
   const lowStock = useQuery(shopLowStockCountsQuery(shopId))
   useHeaderDetail(data?.name ?? null)
 
@@ -114,7 +116,7 @@ export function ShopDetailScreen({ shopId }: { shopId: string }) {
               </>
             ) : null}
             {/* Every product of this shop, in Catalogue › Products (102). Read by anyone who sees the shop. */}
-            <MoreActions
+            <MoreActions tour="page-more"
               actions={[
                 activity,
                 { label: "Products", icon: Boxes, link: { to: "/products", search: { shopId: shop.id } } as never },
@@ -129,7 +131,7 @@ export function ShopDetailScreen({ shopId }: { shopId: string }) {
           <Tabs defaultValue="overview">
             <div className="ef-tabsbar">
               <div className="ef-tabsbar__list">
-                <TabsList aria-label="Shop sections">
+                <TabsList data-tour="shop.sections" aria-label="Shop sections">
                   <TabsTrigger value="overview">Overview</TabsTrigger>
                   <TabsTrigger value="team">
                     Team
@@ -144,7 +146,7 @@ export function ShopDetailScreen({ shopId }: { shopId: string }) {
             </div>
 
             <TabsContent value="overview" className="ef-tabpanel">
-              <Panel
+              <Panel tour="shop.details"
                 title="Details"
                 description="The address is for drivers only and is never shown to customers."
                 actions={
@@ -204,7 +206,7 @@ export function ShopDetailScreen({ shopId }: { shopId: string }) {
                 </Panel>
               ) : null}
 
-              <Panel title="Packing" description="What this shop must do before an order can be marked ready.">
+              <Panel tour="shop.packing" title="Packing" description="What this shop must do before an order can be marked ready.">
                 <label className="flex items-start justify-between gap-4">
                   <span className="space-y-1">
                     <span className="block text-sm font-medium">Require pack scanning</span>
@@ -229,7 +231,7 @@ export function ShopDetailScreen({ shopId }: { shopId: string }) {
               </Panel>
 
               {canManage ? (
-                <Panel title="Danger zone" flush>
+                <Panel tour="shop.danger" title="Danger zone" flush>
                   <ul className="divide-y divide-border">
                     {shop.status !== "suspended" ? (
                       <DangerRow
@@ -271,7 +273,7 @@ export function ShopDetailScreen({ shopId }: { shopId: string }) {
             </TabsContent>
 
             <TabsContent value="stock" className="ef-tabpanel">
-              <Panel title="Stock" description="Products at or below their low-stock threshold, out of stock first.">
+              <Panel tour="shop.stock" title="Stock" description="Products at or below their low-stock threshold, out of stock first.">
                 <ShopStockPanel shopId={shop.id} canManage={canManage} />
               </Panel>
             </TabsContent>

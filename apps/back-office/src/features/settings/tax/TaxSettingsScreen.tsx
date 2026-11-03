@@ -21,12 +21,14 @@ import { ErrorState } from "@effy/web-kit/console"
 import { Bone, FormSkeleton, Loading, PageHeader, Panel, PanelSkeleton } from "@effy/web-kit/patterns"
 
 import { getTaxSettings, putTaxSettings } from "./repo"
+import { tourStatus, useTourPage } from "@effy/web-kit/tour"
 
 const KEY = ["settings", "tax"] as const
 
 export function TaxSettingsScreen() {
   const queryClient = useQueryClient()
   const settings = useQuery({ queryKey: KEY, queryFn: getTaxSettings })
+  useTourPage("tax", { status: tourStatus(settings) })
   const [legalName, setLegalName] = useState("")
   const [abn, setAbn] = useState("")
   const [fee, setFee] = useState<"" | GstStatus>("")
@@ -107,6 +109,7 @@ export function TaxSettingsScreen() {
       {head}
       <div className="space-y-6">
         <Panel
+          tour="tax.details"
           title="Effy's tax details"
           description="Printed on every tax invoice and adjustment note. Enter them exactly as registered with the ABR."
         >
@@ -122,7 +125,7 @@ export function TaxSettingsScreen() {
             <label className="space-y-1 text-sm">
               <span className="font-medium">Delivery and order fees</span>
               <Select value={fee} onValueChange={(v) => setFee(v as GstStatus)}>
-                <SelectTrigger aria-label="Delivery and order fees">
+                <SelectTrigger data-tour="tax.fees" aria-label="Delivery and order fees">
                   <SelectValue placeholder="Choose how fees are taxed" />
                 </SelectTrigger>
                 <SelectContent>
@@ -138,6 +141,7 @@ export function TaxSettingsScreen() {
         </Panel>
 
         <Panel
+          tour="tax.invoices"
           title="Tax invoices"
           description="Customers can view and download a tax invoice for any paid order once this is on."
         >

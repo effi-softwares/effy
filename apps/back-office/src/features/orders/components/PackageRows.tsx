@@ -255,7 +255,7 @@ function PackageRow({
               placeholder="Leave blank if none"
             />
           </label>
-          <Button disabled={busy} onClick={() => onHandoff(pkg.fulfillmentId, reference, carrierName)}>
+          <Button data-tour="order.record" disabled={busy} onClick={() => onHandoff(pkg.fulfillmentId, reference, carrierName)}>
             Record handover
           </Button>
         </div>

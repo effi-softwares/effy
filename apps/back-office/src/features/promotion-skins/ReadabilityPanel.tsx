@@ -10,7 +10,11 @@ interface Props {
 
 export function ReadabilityPanel({ issues, pairs }: Props) {
   return (
-    <Panel title="Readable?" description="Every piece of text against what it sits on - normal text 4.5:1, large 3:1.">
+    <Panel
+      tour="skin.readability"
+      title="Readable?"
+      description="Every piece of text against what it sits on - normal text 4.5:1, large 3:1."
+    >
       {issues.length > 0 ? (
         <ul className="space-y-1 text-sm" data-testid="skin-issues">
           {issues.map((i) => (

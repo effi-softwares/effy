@@ -127,6 +127,7 @@ export function CapabilityEditor({ driverId }: { driverId: string }) {
           </div>
 
           <Button
+            data-tour="driver.grant"
             type="button"
             disabled={grant.isPending}
             onClick={() => {

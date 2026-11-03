@@ -4,7 +4,7 @@ import { Panel } from "@effy/web-kit/patterns"
 export function SkinUsage({ skin }: { skin: AdminSkinDTO }) {
   const { usage } = skin
   return (
-    <Panel title="Where it's used">
+    <Panel tour="skin.usage" title="Where it's used">
       {usage.placements === 0 && usage.defaultOf.length === 0 ? (
         <p className="mt-0.5 block text-sm text-muted-foreground">Nowhere yet. Choose it on a display group's page.</p>
       ) : (

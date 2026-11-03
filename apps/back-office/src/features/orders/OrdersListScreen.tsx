@@ -37,6 +37,7 @@ import {
 } from "./list"
 import { AWAITING_LABEL, DELIVERY_FILTER_LABEL, deliveryTypeText, PROMISE_LABEL, STAGE_LABEL, type OrderSummary } from "./model"
 import { fetchOrderPage, fetchOrderViews } from "./repo"
+import { tourStatus, useTourPage } from "@effy/web-kit/tour"
 
 const VIEW_LABEL: Record<OrderListView, string> = {
   all: "All orders",
@@ -138,6 +139,7 @@ export function OrdersListScreen() {
   const f = state.view.filters
   const input = { key: ORDERS_LIST_KEY, list: ordersList, view: state.view, cursor: state.cursor, fetch: fetchOrderPage }
   const query = useQuery(listQueryOptions(input))
+  useTourPage("orders", { status: tourStatus(query) })
   const counts = useQuery(viewsQueryOptions({ key: ORDERS_LIST_KEY, list: ordersList, view: state.view, except: ["view"], fetch: fetchOrderViews }))
   const shops = useQuery(shopListQuery({ page: 1, pageSize: 100 }))
   const view: OrderListView = f.view ?? "all"
@@ -151,7 +153,7 @@ export function OrdersListScreen() {
           actions={
             <>
               <Button variant="outline" asChild>
-                <Link to="/orders/assignments">
+                <Link data-tour="orders.desks" to="/orders/assignments">
                   <Route aria-hidden="true" />
                   Dispatch
                 </Link>
@@ -179,7 +181,7 @@ export function OrdersListScreen() {
         empty={{ icon: Package, title: "No orders yet", description: "Paid orders appear here as they arrive." }}
         toolbar={
           <>
-            <ViewSelect
+            <ViewSelect tour="orders.views"
               label="Order views"
               value={view}
               onChange={(v) => state.setFilter("view", v === "all" ? undefined : v)}
@@ -202,7 +204,7 @@ export function OrdersListScreen() {
               onChange={(v) => state.setFilters({ deliveryType: v ?? undefined, promise: v === "effy" ? f.promise : undefined })}
               options={ADMIN_ORDER_DELIVERY_FILTERS.map((d) => ({ value: d, label: DELIVERY_FILTER_LABEL[d] }))}
             />
-            <Facet
+            <Facet tour="orders.filters"
               label="Sold as"
               value={f.promise ?? null}
               onChange={(v) => state.setFilters({ promise: v ?? undefined, deliveryType: v ? "effy" : f.deliveryType })}
@@ -221,7 +223,7 @@ export function OrdersListScreen() {
               onChange={(r) => state.setFilters({ placedFrom: r.from, placedTo: r.to })}
             />
             {isFiltered(state.view, ["view"]) ? <ResetFilters onReset={state.reset} /> : null}
-            <SearchBox label="Search orders" placeholder="Order number, customer email or bag code…" value={state.draftQ} onChange={state.setQ} />
+            <SearchBox tour="orders.search" label="Search orders" placeholder="Order number, customer email or bag code…" value={state.draftQ} onChange={state.setQ} />
           </>
         }
       />

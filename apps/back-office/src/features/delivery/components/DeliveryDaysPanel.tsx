@@ -137,7 +137,7 @@ function SettingsForm({ value, canManage }: { value: DeliveryDaysDTO; canManage:
 
   return (
     <form onSubmit={submit} className="space-y-6" noValidate>
-      <section className="space-y-4">
+      <section data-tour="days.days" className="space-y-4">
         <h2 className="text-base font-semibold">Delivery days</h2>
         {number(
           "effyLookaheadDays",
@@ -197,7 +197,7 @@ function SettingsForm({ value, canManage }: { value: DeliveryDaysDTO; canManage:
         </fieldset>
       </section>
 
-      <section className="space-y-4 border-t pt-6">
+      <section data-tour="days.timings" className="space-y-4 border-t pt-6">
         <h2 className="text-base font-semibold">Timings</h2>
         {number(
           "hubTurnaroundMin",
@@ -215,7 +215,7 @@ function SettingsForm({ value, canManage }: { value: DeliveryDaysDTO; canManage:
         )}
       </section>
 
-      <section className="space-y-4 border-t pt-6">
+      <section data-tour="days.drivers" className="space-y-4 border-t pt-6">
         <h2 className="text-base font-semibold">Drivers&apos; work</h2>
         {number(
           "loadOverdueMin",
@@ -297,7 +297,7 @@ function ClosedDates({ value, canManage }: { value: DeliveryDaysDTO; canManage: 
   }
 
   return (
-    <section className="space-y-4 border-t pt-6">
+    <section data-tour="days.closed" className="space-y-4 border-t pt-6">
       <h2 className="text-base font-semibold">Dates with no delivery</h2>
       {value.dates.length === 0 ? (
         <p className="text-sm text-muted-foreground">No dates are closed.</p>

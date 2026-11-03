@@ -32,6 +32,7 @@ import {
   type VehicleListView,
 } from "./model"
 import { fetchVehiclePage, fetchVehicleViews } from "./repo"
+import { tourStatus, useTourPage } from "@effy/web-kit/tour"
 
 const VIEW_LABEL: Record<VehicleListView, string> = {
   fleet: "In the fleet",
@@ -121,6 +122,7 @@ export function VehiclesListScreen() {
   const f = state.view.filters
   const input = { key: KEY, list: vehiclesList, view: state.view, fetch: fetchVehiclePage }
   const query = useQuery(listQueryOptions(input))
+  useTourPage("vehicles", { status: tourStatus(query) })
   const views = useQuery(viewsQueryOptions({ key: KEY, list: vehiclesList, view: state.view, except: ["view"], fetch: fetchVehicleViews }))
 
   return (
@@ -150,13 +152,13 @@ export function VehiclesListScreen() {
         }}
         toolbar={
           <>
-            <ViewSelect
+            <ViewSelect tour="vehicles.views"
               label="Vehicle views"
               value={f.view ?? "fleet"}
               onChange={(v) => state.setFilter("view", v === "fleet" ? undefined : v)}
               options={VEHICLE_LIST_VIEWS.map((v) => ({ value: v, label: VIEW_LABEL[v], count: views.data?.views[v] }))}
             />
-            <Facet
+            <Facet tour="vehicles.filters"
               label="Refrigeration"
               value={f.refrigeration ?? null}
               onChange={(v) => state.setFilter("refrigeration", v ?? undefined)}
@@ -179,7 +181,7 @@ export function VehiclesListScreen() {
               options={[{ value: "issues" as const, label: "Non-compliant only" }]}
             />
             {isFiltered(state.view, ["view"]) ? <ResetFilters onReset={state.reset} /> : null}
-            <SearchBox label="Search vehicles" placeholder="Plate, make or model…" value={state.draftQ} onChange={state.setQ} />
+            <SearchBox tour="vehicles.search" label="Search vehicles" placeholder="Plate, make or model…" value={state.draftQ} onChange={state.setQ} />
           </>
         }
       />

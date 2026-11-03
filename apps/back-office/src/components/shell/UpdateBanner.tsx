@@ -11,7 +11,9 @@ export function UpdateBanner() {
   if (!updateReady) return null
 
   return (
+    // Stays bright and clickable during a guided tour (106 FR-013).
     <div
+      data-tour-above=""
       role="status"
       className="flex min-h-12 items-center gap-3 rounded-lg bg-muted px-4 py-3 text-sm text-foreground"
     >

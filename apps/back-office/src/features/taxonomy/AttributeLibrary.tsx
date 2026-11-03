@@ -114,7 +114,7 @@ export function AttributeLibrary({ canManage }: { canManage: boolean }) {
   )
 
   return (
-    <div className="space-y-4">
+    <div data-tour="taxonomy.attributes" className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
         <ToggleGroup
           type="single"

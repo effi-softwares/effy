@@ -64,6 +64,7 @@ import { downloadTemplate, isSheetFile, readSheetFile, sha256Hex } from "./impor
 import { importQuery, productKeys } from "./queries"
 import { createImport, fetchImportPage, getImportTemplate, startImport } from "./repo"
 import { productErrorText } from "./words"
+import { tourStatus, useTourPage } from "@effy/web-kit/tour"
 
 const STATE_TONE: Record<ProductImportState, StatusTone> = {
   checking: "moving",
@@ -136,6 +137,7 @@ export function ImportsScreen() {
   const fileInput = useRef<HTMLInputElement>(null)
   const historyState = useListState(importsList, useSearch({ strict: false }))
   const history = useQuery(listQueryOptions({ key: productKeys.all, list: importsList, view: historyState.view, fetch: fetchImportPage }))
+  useTourPage("imports", { status: tourStatus(history) })
   const leaves = useMemo(() => leavesWithPaths((tree.data ?? []).filter((c) => c.status === "active")), [tree.data])
 
   const template = useMutation({
@@ -184,7 +186,7 @@ export function ImportsScreen() {
       />
 
       {canManage ? (
-        <Panel title="New import">
+        <Panel tour="imports.new" title="New import">
           <div className="grid gap-5">
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
@@ -213,7 +215,7 @@ export function ImportsScreen() {
             </div>
 
             <div className="space-y-2">
-              <p id="import-leaves" className="text-sm font-medium">
+              <p data-tour="imports.aisles" id="import-leaves" className="text-sm font-medium">
                 Aisles in the list (for their detail columns)
               </p>
               <ul
@@ -244,7 +246,7 @@ export function ImportsScreen() {
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
-              <Button variant="outline" onClick={() => template.mutate()} disabled={template.isPending}>
+              <Button data-tour="imports.template" variant="outline" onClick={() => template.mutate()} disabled={template.isPending}>
                 <Download aria-hidden="true" />
                 Download the template
               </Button>
@@ -309,7 +311,7 @@ export function ImportsScreen() {
         </div>
       </Panel>
 
-      <Panel title="Imports" flush>
+      <Panel tour="imports.list" title="Imports" flush>
         <DataTable
           app="back-office"
           label="Imports"
@@ -356,6 +358,7 @@ const RESULT: Record<ProductImportProductDTO["result"], { word: string; tone: St
 export function ImportScreen({ importId }: { importId: string }) {
   useHeaderBack({ label: "Imports", link: { to: "/products/imports" } } as never)
   const imp = useQuery(importQuery(importId))
+  useTourPage("import", { status: tourStatus(imp) })
   if (imp.isError) return <ErrorState error={imp.error} onRetry={() => void imp.refetch()} />
   if (imp.isPending) {
     return (
@@ -406,7 +409,7 @@ function Import({ i }: { i: ProductImportDTO }) {
         }
         actions={
           canManage && i.state === "checked" ? (
-            <Button disabled={go.isPending || i.counts.ready === 0} onClick={() => go.mutate()}>
+            <Button data-tour="import.create" disabled={go.isPending || i.counts.ready === 0} onClick={() => go.mutate()}>
               {go.isPending ? "Asking…" : `Create ${ready.length} ${ready.length === 1 ? "product" : "products"}`}
             </Button>
           ) : undefined
@@ -447,7 +450,7 @@ function Import({ i }: { i: ProductImportDTO }) {
       ) : null}
 
       {notReady.length > 0 ? (
-        <Panel
+        <Panel tour="import.problems"
           title={i.state === "done" ? "Left out" : "Not ready"}
           icon={<CircleAlert aria-hidden="true" />}
           description="Fix these in the file and upload it again - rows already created are recognised by their SKU."
@@ -456,7 +459,7 @@ function Import({ i }: { i: ProductImportDTO }) {
           <ProductTable products={notReady} />
         </Panel>
       ) : null}
-      <Panel title={i.state === "done" ? "Created" : "Ready"} icon={<CircleCheck aria-hidden="true" />} flush>
+      <Panel tour="import.rows" title={i.state === "done" ? "Created" : "Ready"} icon={<CircleCheck aria-hidden="true" />} flush>
         {ready.length === 0 ? (
           <p className="px-5 py-4 text-sm text-muted-foreground">None.</p>
         ) : (

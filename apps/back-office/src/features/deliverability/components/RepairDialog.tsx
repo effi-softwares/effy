@@ -36,7 +36,9 @@ export function RepairDialog({ address, state }: { address: string; state: Email
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger asChild>
-        <Button variant="outline">Mark as repaired…</Button>
+        <Button data-tour="address.repair" variant="outline">
+          Mark as repaired…
+        </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>

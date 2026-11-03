@@ -21,10 +21,12 @@ import { canManagePromotions } from "@/features/promotions/access"
 
 import { promotionSkinsQuery } from "./queries"
 import { LAYOUT_WORD, SAMPLES, SkinPreviewItem } from "./SkinPreview"
+import { tourStatus, useTourPage } from "@effy/web-kit/tour"
 
 export function SkinsListScreen() {
   const canManage = canManagePromotions(useSessionRoles())
   const { data, error, isPending, isError, refetch } = useQuery(promotionSkinsQuery())
+  useTourPage("skins", { status: tourStatus({ isSuccess: !isPending && !isError, isError }) })
   const [q, setQ] = useState("")
   // The whole set is here (capped at 500, 103 FR-024): searched and sorted in the browser.
   const rows = useMemo(() => {
@@ -41,7 +43,7 @@ export function SkinsListScreen() {
         actions={
           canManage ? (
             <Button asChild>
-              <Link to="/promotions/skins/new">
+              <Link data-tour="skins.new" to="/promotions/skins/new">
                 <Plus aria-hidden="true" />
                 New skin
               </Link>

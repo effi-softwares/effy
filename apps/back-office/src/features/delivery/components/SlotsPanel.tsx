@@ -52,7 +52,7 @@ export function SlotsPanel({ canManage }: { canManage: boolean }) {
           <span className="font-mono font-medium tabular-nums">
             {row.original.startTime} – {row.original.endTime}
           </span>
-          {row.original.anyTime ? <Badge variant="outline">Any time</Badge> : null}
+          {row.original.anyTime ? <Badge data-tour="windows.any-time" variant="outline">Any time</Badge> : null}
         </span>
       ),
     },
@@ -112,7 +112,7 @@ export function SlotsPanel({ canManage }: { canManage: boolean }) {
                 Edit
               </Button>
               {row.original.anyTime ? null : row.original.status === "active" ? (
-                <Button
+                <Button data-tour="windows.switch"
                   variant="ghost"
                   size="sm"
                   disabled={patch.isPending}
@@ -150,7 +150,7 @@ export function SlotsPanel({ canManage }: { canManage: boolean }) {
           deliveries are booked into each window today and on the delivery days after it.
         </p>
         {canManage ? (
-          <Button onClick={() => setEditing("new")}>
+          <Button data-tour="windows.new" onClick={() => setEditing("new")}>
             <Plus className="size-4" aria-hidden="true" />
             New window
           </Button>

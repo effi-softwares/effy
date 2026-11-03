@@ -80,7 +80,9 @@ export function CourierPanel({ courier, canManage }: { courier: CourierReachDTO;
             disabled={!canManage || locked || update.isPending}
             onCheckedChange={(v) => void change({ offered: v })}
           />
-          <Label htmlFor="courier-offered">Offer courier delivery</Label>
+          <Label data-tour="courier-setup.switch" htmlFor="courier-offered">
+            Offer courier delivery
+          </Label>
         </div>
         {locked ? (
           <div className="text-sm text-muted-foreground" data-testid="courier-locked">
@@ -108,7 +110,7 @@ export function CourierPanel({ courier, canManage }: { courier: CourierReachDTO;
         </p>
       </div>
 
-      <div className="space-y-2">
+      <div data-tour="courier-setup.route" className="space-y-2">
         <p id="courier-collection-label" className="text-sm font-medium">
           How courier parcels reach the courier
         </p>
@@ -157,7 +159,7 @@ export function CourierPanel({ courier, canManage }: { courier: CourierReachDTO;
         </p>
       </div>
 
-      <div className="space-y-2">
+      <div data-tour="courier-setup.excluded" className="space-y-2">
         <h3 className="text-sm font-medium">Excluded postcodes</h3>
         {courier.exclusions.length === 0 ? (
           <p className="text-sm text-muted-foreground">

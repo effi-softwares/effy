@@ -49,6 +49,7 @@ import { promotionMutationError } from "./errorText"
 import { usesLabel, type Promotion } from "./model"
 import { activeDates, PromotionStateWord } from "./PromotionsListScreen"
 import { PROMO_ROOT, promotionQuery, useDeletePromotion, usePromotionAction } from "./queries"
+import { tourStatus, useTourPage } from "@effy/web-kit/tour"
 
 const timeFmt = new Intl.DateTimeFormat("en-AU", {
   weekday: "short",
@@ -87,6 +88,7 @@ export function PromotionDetailScreen({ promoId }: { promoId: string }) {
   const canManage = canManagePromotions(roles)
   const navigate = useNavigate()
   const { data: p, error, isPending, isError, refetch } = useQuery(promotionQuery(promoId))
+  useTourPage("promotion", { status: tourStatus({ isSuccess: !isPending && !isError, isError }) })
   const act = usePromotionAction(promoId)
   const del = useDeletePromotion()
   const [confirming, setConfirming] = useState<PromotionAction | "delete" | null>(null)
@@ -144,7 +146,7 @@ export function PromotionDetailScreen({ promoId }: { promoId: string }) {
         actions={
           // Anyone who reads the promotion reads its activity; the rest is for those who manage it.
           !canManage ? (
-            <MoreActions actions={[activity]} />
+            <MoreActions tour="page-more" actions={[activity]} />
           ) : (
             <>
               {p.state !== "archived" ? (
@@ -156,7 +158,7 @@ export function PromotionDetailScreen({ promoId }: { promoId: string }) {
                 </Button>
               ) : null}
               {moves[0] ? (
-                <Button
+                <Button data-tour="promotion.status"
                   variant={moves[0].action === "publish" || moves[0].action === "resume" ? "default" : "outline"}
                   disabled={act.isPending}
                   onClick={() => ask(moves[0]!.action)}
@@ -165,6 +167,7 @@ export function PromotionDetailScreen({ promoId }: { promoId: string }) {
                 </Button>
               ) : null}
               <MoreActions
+                tour="page-more"
                 actions={[
                   activity,
                   ...moves.slice(1).map((m) => ({
@@ -210,7 +213,7 @@ export function PromotionDetailScreen({ promoId }: { promoId: string }) {
           <Tabs defaultValue="overview">
             <div className="ef-tabsbar">
               <div className="ef-tabsbar__list">
-                <TabsList aria-label="Promotion sections">
+                <TabsList data-tour="promotion.sections" aria-label="Promotion sections">
                   <TabsTrigger value="overview">Overview</TabsTrigger>
                   <TabsTrigger value="groups">
                     Shown in
@@ -250,7 +253,7 @@ export function PromotionDetailScreen({ promoId }: { promoId: string }) {
               </TabsContent>
             ) : null}
             <TabsContent value="groups" className="ef-tabpanel">
-              <Panel
+              <Panel tour="promotion.shown-in"
                 title="Shown in"
                 description="Each group is a place the customer website and app show promotions, in the group's order."
                 flush

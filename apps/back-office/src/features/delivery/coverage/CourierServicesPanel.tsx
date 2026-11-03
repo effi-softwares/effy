@@ -173,7 +173,7 @@ export function CourierServicesPanel({ canManage }: { canManage: boolean }) {
   ]
 
   return (
-    <section className="space-y-3" aria-labelledby="courier-services">
+    <section data-tour="courier-setup.services" className="space-y-3" aria-labelledby="courier-services">
       <div className="space-y-1">
         <h3 id="courier-services" className="text-sm font-medium">
           Courier services

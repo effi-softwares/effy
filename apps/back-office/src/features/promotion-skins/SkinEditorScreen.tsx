@@ -62,9 +62,11 @@ import { relayout } from "./relayout"
 import { ColourField, Choice, Strength, TextStyleFields, Toggle } from "./SkinFields"
 import { LAYOUT_WORD, SIZE_WORD, SkinPreview } from "./SkinPreview"
 import { SkinUsage } from "./SkinUsage"
+import { tourStatus, useTourPage } from "@effy/web-kit/tour"
 
 export function SkinEditorScreen({ skinId }: { skinId?: string }) {
   const skin = useQuery({ ...promotionSkinQuery(skinId ?? ""), enabled: Boolean(skinId) })
+  useTourPage("skin", { status: skinId ? tourStatus(skin) : "ready" })
   useHeaderDetail(skin.data?.name ?? (skinId ? null : "New skin"))
   if (!skinId) return <Editor current={null} />
   if (skin.isError) return <ErrorState error={skin.error} onRetry={() => void skin.refetch()} />
@@ -181,7 +183,7 @@ function Editor({ current }: { current: AdminSkinDTO | null }) {
 
       <div className="ef-detail">
         <fieldset className="ef-detail__main min-w-0 space-y-4" disabled={!canManage}>
-          <Panel title="Name and layout">
+          <Panel tour="skin.name" title="Name and layout">
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="skin-name">Name</Label>
@@ -228,7 +230,7 @@ function Editor({ current }: { current: AdminSkinDTO | null }) {
             </div>
           </Panel>
 
-          <Panel title="Background">
+          <Panel tour="skin.background" title="Background">
             <div className="grid gap-4 sm:grid-cols-2">
               <ColourField
                 id="bg"
@@ -338,7 +340,7 @@ function Editor({ current }: { current: AdminSkinDTO | null }) {
             </div>
           </Panel>
 
-          <Panel title="Words">
+          <Panel tour="skin.words" title="Words">
             <div className="space-y-5">
               <div className="grid gap-4 sm:grid-cols-2">
                 <Toggle
@@ -415,7 +417,7 @@ function Editor({ current }: { current: AdminSkinDTO | null }) {
             </div>
           </Panel>
 
-          <Panel title="Button and code">
+          <Panel tour="skin.button" title="Button and code">
             <div className="grid gap-4 sm:grid-cols-2">
               <Choice
                 id="btn-style"
@@ -636,7 +638,7 @@ function Editor({ current }: { current: AdminSkinDTO | null }) {
         </fieldset>
 
         <aside className="ef-detail__aside space-y-4">
-          <Panel title="Preview" description="Exactly as the website draws it.">
+          <Panel tour="skin.preview" title="Preview" description="Exactly as the website draws it.">
             <SkinPreview layout={layout} settings={s} />
           </Panel>
           <ReadabilityPanel issues={issues} pairs={pairs} />

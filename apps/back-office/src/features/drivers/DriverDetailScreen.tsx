@@ -41,6 +41,7 @@ import { StatusControl } from "./components/StatusControl"
 import { canManageDrivers } from "./access"
 import { BLOCKED_LABEL, formatDate, formatDateTime, STATUS_LABEL, STATUS_MEANING } from "./model"
 import { driverDetailQuery, driverKeys } from "./queries"
+import { tourStatus, useTourPage } from "@effy/web-kit/tour"
 
 const dash = <span className="text-muted-foreground">-</span>
 
@@ -63,6 +64,7 @@ export function DriverDetailScreen({ driverId }: { driverId: string }) {
   const [editing, setEditing] = useState(false)
 
   const { data, error, isPending, isError, refetch } = useQuery(driverDetailQuery(driverId))
+  useTourPage("driver", { status: tourStatus({ isSuccess: !isPending && !isError, isError }) })
   useHeaderDetail(data?.name ?? null)
 
   if (isError) return <ErrorState error={error} onRetry={() => void refetch()} />
@@ -143,7 +145,7 @@ export function DriverDetailScreen({ driverId }: { driverId: string }) {
           <Tabs defaultValue="profile">
             <div className="ef-tabsbar">
               <div className="ef-tabsbar__list">
-                <TabsList aria-label="Driver sections">
+                <TabsList data-tour="driver.sections" aria-label="Driver sections">
                   <TabsTrigger value="profile">
                     <UserRound aria-hidden="true" />
                     Profile
@@ -184,7 +186,7 @@ export function DriverDetailScreen({ driverId }: { driverId: string }) {
                   ]}
                 />
               </Panel>
-              <Panel title="Work assignment" icon={<Car aria-hidden="true" />}>
+              <Panel tour="driver.licence" title="Work assignment" icon={<Car aria-hidden="true" />}>
                 <DetailRows
                   rows={[
                     { label: "Hub", value: d.hub ?? dash },
@@ -235,6 +237,7 @@ export function DriverDetailScreen({ driverId }: { driverId: string }) {
 
             <TabsContent value="clearances" className="ef-tabpanel">
               <Panel
+                tour="driver.clearances"
                 title="Cleared for"
                 icon={<BadgeCheck aria-hidden="true" />}
                 description="Each clearance is one kind of work in one area, or everywhere."
@@ -246,7 +249,7 @@ export function DriverDetailScreen({ driverId }: { driverId: string }) {
         </div>
 
         <aside className="ef-detail__aside">
-          <Panel title="Employment">
+          <Panel tour="driver.employment" title="Employment">
             <div className="space-y-4">
               <div>
                 <StatusWord tone={statusTone(d.status)}>{STATUS_LABEL[d.status]}</StatusWord>

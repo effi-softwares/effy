@@ -24,6 +24,7 @@ import { ShopStatusBadge } from "./components/StatusBadge"
 import { SHOP_STATUSES, SHOPS_LIST_KEY, shopsList, type ShopView } from "./list"
 import type { ShopListItem } from "./model"
 import { fetchShopPage, fetchShopViews } from "./repo"
+import { tourStatus, useTourPage } from "@effy/web-kit/tour"
 
 const VIEW_LABEL: Record<ShopView, string> = {
   all: "All shops",
@@ -85,6 +86,7 @@ export function ShopsListScreen() {
   const state = useListState(shopsList, useSearch({ strict: false }))
   const input = { key: SHOPS_LIST_KEY, list: shopsList, view: state.view, fetch: fetchShopPage }
   const query = useQuery(listQueryOptions(input))
+  useTourPage("shops", { status: tourStatus(query) })
   const views = useQuery(
     viewsQueryOptions({ key: SHOPS_LIST_KEY, list: shopsList, view: state.view, except: ["status"], fetch: fetchShopViews }),
   )
@@ -98,7 +100,7 @@ export function ShopsListScreen() {
           description="The fulfilment shops that pack Effy orders, and the operators who run them."
           actions={
             canManage ? (
-              <Button onClick={() => setCreateOpen(true)}>
+              <Button data-tour="shops.create" onClick={() => setCreateOpen(true)}>
                 <Plus aria-hidden="true" />
                 Create shop
               </Button>
@@ -120,7 +122,7 @@ export function ShopsListScreen() {
         empty={{ icon: Store, title: "No shops yet", description: "Create the first shop to give its operators a sign-in." }}
         toolbar={
           <>
-            <ViewSelect
+            <ViewSelect tour="shops.views"
               label="Shop views"
               value={view}
               onChange={(v) => state.setFilter("status", v === "all" ? undefined : v)}
@@ -130,7 +132,7 @@ export function ShopsListScreen() {
                 count: views.data?.views[v],
               }))}
             />
-            <SearchBox label="Search shops" placeholder="Search by code or name…" value={state.draftQ} onChange={state.setQ} />
+            <SearchBox tour="shops.search" label="Search shops" placeholder="Search by code or name…" value={state.draftQ} onChange={state.setQ} />
           </>
         }
       />

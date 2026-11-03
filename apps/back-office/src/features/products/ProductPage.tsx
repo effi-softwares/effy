@@ -60,6 +60,7 @@ function Actions({ product, onNotice }: { product: BackOfficeProductDTO; onNotic
         </Button>
       ) : (
         <Button
+          data-tour="product.hold"
           variant="outline"
           onClick={() => {
             onNotice(null)

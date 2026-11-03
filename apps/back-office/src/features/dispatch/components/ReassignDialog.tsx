@@ -53,7 +53,7 @@ export function ReassignDialog({ roundId, currentDriverName, expectedUpdatedAt, 
 
   return (
     <>
-      <Button type="button" variant="outline" size="sm" onClick={() => setOpen(true)}>
+      <Button data-tour="round.reassign" type="button" variant="outline" size="sm" onClick={() => setOpen(true)}>
         Reassign
       </Button>
 

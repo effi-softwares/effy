@@ -32,6 +32,7 @@ import { canManagePromotions } from "./access"
 import { KIND_WORD, STATE_TONE, STATE_WORD, usesLabel } from "./model"
 import { PROMO_ROOT } from "./queries"
 import { fetchPromotionPage } from "./repo"
+import { tourStatus, useTourPage } from "@effy/web-kit/tour"
 
 type View = "all" | PromotionState
 
@@ -109,6 +110,7 @@ export function PromotionsListScreen() {
   const f = state.view.filters
   const input = { key: PROMO_ROOT, list: promotionsList, view: state.view, fetch: fetchPromotionPage }
   const query = useQuery(listQueryOptions(input))
+  useTourPage("promotions", { status: tourStatus(query) })
   const counts = query.data?.counts
   const countOf = (v: View) =>
     counts
@@ -128,14 +130,14 @@ export function PromotionsListScreen() {
           actions={
             <>
               <Button variant="outline" asChild>
-                <Link to="/promotions/groups">
+                <Link data-tour="promotions.links" to="/promotions/groups">
                   <LayoutList aria-hidden="true" />
                   Display groups
                 </Link>
               </Button>
               {canManage ? (
                 <Button asChild>
-                  <Link to="/promotions/new">
+                  <Link data-tour="promotions.create" to="/promotions/new">
                     <Plus aria-hidden="true" />
                     Create promotion
                   </Link>
@@ -169,13 +171,13 @@ export function PromotionsListScreen() {
         }}
         toolbar={
           <>
-            <ViewSelect
+            <ViewSelect tour="promotions.views"
               label="Promotion views"
               value={(f.state ?? "all") as View}
               onChange={(v) => state.setFilter("state", v === "all" ? undefined : v)}
               options={(["all", ...PROMOTION_STATES] as View[]).map((v) => ({ value: v, label: v === "all" ? "All" : STATE_WORD[v], count: countOf(v) }))}
             />
-            <Facet
+            <Facet tour="promotions.filters"
               label="Kind"
               value={f.kind ?? null}
               onChange={(v) => state.setFilter("kind", v ?? undefined)}
@@ -198,7 +200,7 @@ export function PromotionsListScreen() {
               options={(groups.data ?? []).map((g) => ({ value: g.id, label: g.name }))}
             />
             {isFiltered(state.view, ["state"]) ? <ResetFilters onReset={state.reset} /> : null}
-            <SearchBox label="Search promotions" placeholder="Name or code…" value={state.draftQ} onChange={state.setQ} />
+            <SearchBox tour="promotions.search" label="Search promotions" placeholder="Name or code…" value={state.draftQ} onChange={state.setQ} />
           </>
         }
       />

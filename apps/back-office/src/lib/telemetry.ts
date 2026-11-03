@@ -16,6 +16,17 @@ type AnalyticsEvent =
   | { name: "shop_status_changed"; shopId: string }
   | { name: "shop_pack_scanning_changed"; required: boolean }
   | { name: "hub_checkin_scanned"; outcome: string; method: "scan" | "typed" }
+  // Guided tours (107): the tour key, step numbers and the person's role NAME only.
+  | {
+      name: "tour_started"
+      tour: string
+      version: number
+      via: "auto" | "help" | "search" | "all-tours"
+      role?: string
+    }
+  | { name: "tour_finished"; tour: string; version: number; role?: string }
+  | { name: "tour_closed"; tour: string; version: number; step: number; of: number; role?: string }
+  | { name: "tour_declined"; tour: string; version: number; role?: string }
   | { name: "promotion_action"; promotionId: string; action: "publish" | "pause" | "resume" | "end" | "archive" }
   | { name: "promotion_group_changed"; groupId: string }
   | { name: "promotion_skin_saved"; skinId: string; layout: string; created: boolean }

@@ -30,6 +30,7 @@ export function RoundTable({ rounds }: { rounds: DispatchRoundSummaryDTO[] }) {
 
   return (
     <Panel
+      tour="dispatch.rounds"
       title={
         <>
           Rounds <span className="font-normal text-muted-foreground">· {rounds.length} held today</span>

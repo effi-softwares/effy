@@ -5,6 +5,7 @@ import { ErrorState, useHeaderBack } from "@effy/web-kit/console"
 
 import { EffyProductForm, EffyProductFormSkeleton } from "./EffyProductForm"
 import { productQuery } from "./queries"
+import { tourStatus, useTourPage } from "@effy/web-kit/tour"
 
 const BACK = { label: "Products", link: { to: "/products" } } as const
 
@@ -12,6 +13,7 @@ const BACK = { label: "Products", link: { to: "/products" } } as const
 export function NewProductScreen() {
   const navigate = useNavigate()
   useHeaderBack(BACK)
+  useTourPage("product-new", { status: "ready" })
   return (
     <EffyProductForm
       mode={{ kind: "create" }}
@@ -25,6 +27,7 @@ export function NewProductScreen() {
 export function FinishProductScreen({ productId }: { productId: string }) {
   const navigate = useNavigate()
   const product = useQuery(productQuery(productId))
+  useTourPage("product-finish", { status: tourStatus(product) })
   useHeaderBack({ label: "Product", link: { to: "/products/$productId", params: { productId } } } as never)
   const back = () => void navigate({ to: "/products/$productId", params: { productId } })
 

@@ -22,6 +22,7 @@ import { treeQuery } from "@/features/taxonomy/queries"
 
 import { missingDetailsList, REVIEW_KEY } from "./list"
 import { fetchMissingDetailsPage } from "./repo"
+import { tourStatus, useTourPage } from "@effy/web-kit/tour"
 
 const columns: EffyColumnDef<MissingDetailsItemDTO>[] = [
   {
@@ -58,6 +59,7 @@ export function MissingDetailsScreen() {
   const state = useListState(missingDetailsList, useSearch({ strict: false }))
   const input = { key: REVIEW_KEY, list: missingDetailsList, view: state.view, fetch: fetchMissingDetailsPage }
   const query = useQuery(listQueryOptions(input))
+  useTourPage("missing-details", { status: tourStatus(query) })
   const shops = useQuery(shopListQuery({ page: 1, pageSize: 100 }))
   const tree = useQuery(treeQuery())
   // Departments only: deep enough to narrow a list of exceptions.
@@ -103,6 +105,7 @@ export function MissingDetailsScreen() {
               options={(shops.data?.items ?? []).map((s) => ({ value: s.id, label: s.name }))}
             />
             <Facet
+              tour="missing.department"
               label="Department"
               anyLabel="Every department"
               value={state.view.filters.categoryId ?? null}

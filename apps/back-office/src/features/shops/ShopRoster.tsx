@@ -30,7 +30,7 @@ export function ShopRoster({ shop, canManage, onAdd }: { shop: ShopDetail; canMa
   const activeManagerCount = shop.users.filter((u) => u.status === "active" && u.roles.includes("shop_manager")).length
 
   return (
-    <Panel
+    <Panel tour="shop.team"
       title="Team"
       description="Operators provisioned for this shop. They sign in to the shop console with a six-digit code."
       actions={

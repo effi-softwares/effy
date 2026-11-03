@@ -91,7 +91,7 @@ export function PricingPanel({ canManage }: { canManage: boolean }) {
               </Button>
             ) : null}
             {canManage && p.state === "draft" ? (
-              <Button variant="outline" size="sm" onClick={() => setActivating(p)}>
+              <Button data-tour="pricing.activate" variant="outline" size="sm" onClick={() => setActivating(p)}>
                 Activate
               </Button>
             ) : null}
@@ -104,12 +104,14 @@ export function PricingPanel({ canManage }: { canManage: boolean }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <section className="space-y-4">
+      <section data-tour="pricing.plans" className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Tabs value={kind} onValueChange={(v) => setKind(v as FeePlanKind)}>
             <TabsList>
               <TabsTrigger value="effy">Delivered by Effy</TabsTrigger>
-              <TabsTrigger value="courier">Courier</TabsTrigger>
+              <TabsTrigger data-tour="pricing.courier" value="courier">
+                Courier
+              </TabsTrigger>
             </TabsList>
           </Tabs>
           {canManage ? (
@@ -153,7 +155,7 @@ export function PricingPanel({ canManage }: { canManage: boolean }) {
         )}
       </section>
 
-      <section className="space-y-3 border-t pt-6">
+      <section data-tour="pricing.simulator" className="space-y-3 border-t pt-6">
         <h2 className="text-base font-semibold">Try a plan</h2>
         <FeeSimulator plans={plans.data ?? []} kind={kind} />
       </section>

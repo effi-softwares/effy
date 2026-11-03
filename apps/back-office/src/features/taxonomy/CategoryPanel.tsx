@@ -98,9 +98,13 @@ export function CategoryPanel({
         </header>
         <div className="px-5 py-4 max-md:px-4 space-y-4">
           <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
-            <TabsList aria-label="Category views">
+            <TabsList data-tour="taxonomy.category" aria-label="Category views">
               {tabs.map((t) => (
-                <TabsTrigger key={t.key} value={t.key}>
+                <TabsTrigger
+                  key={t.key}
+                  value={t.key}
+                  data-tour={t.key === "defaults" ? "taxonomy.defaults" : undefined}
+                >
                   {t.label}
                 </TabsTrigger>
               ))}
@@ -464,7 +468,13 @@ function StatusControl({ category, categories }: { category: Category; categorie
   return (
     <div className="flex flex-col items-end gap-1">
       {category.status === "active" ? (
-        <Button type="button" variant="outline" size="sm" onClick={() => setConfirm("retire")}>
+        <Button
+          data-tour="taxonomy.retire"
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => setConfirm("retire")}
+        >
           Retire
         </Button>
       ) : (

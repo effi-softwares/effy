@@ -7,8 +7,7 @@ import { defineTours } from "@effy/web-kit/tour"
  * rewritten - people who saw the old one are then offered the new one (FR-021).
  *
  * `target` names `data-tour` keys on the page (the first present wins); `null` is a centred card. A step whose part
- * is not on screen is skipped, so steps for things that come and go need no flag; `managersOnly` hides a step from
- * staff, and `shownWhen` repeats the spec's condition.
+ * is not on screen is skipped, so steps for things that come and go need no flag; `roles` limits a step to those roles, and `shownWhen` repeats the spec's condition.
  */
 export const SHOP_TOURS = defineTours([
   // W - Welcome to Effy Shop
@@ -40,7 +39,7 @@ export const SHOP_TOURS = defineTours([
         title: "Your team",
         text: "Invite colleagues and choose what each one can do. Only managers see this.",
         side: "right",
-        managersOnly: true,
+        roles: ["shop_manager"],
         shownWhen: "Manager",
       },
       {
@@ -277,7 +276,7 @@ export const SHOP_TOURS = defineTours([
         target: "order.refund",
         title: "Refunds",
         text: "Choose the lines to refund. Effy returns the money to the customer's card.",
-        managersOnly: true,
+        roles: ["shop_manager"],
         shownWhen: "Manager, and something is refundable",
       },
       {

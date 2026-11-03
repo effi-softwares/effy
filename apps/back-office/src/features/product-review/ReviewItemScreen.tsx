@@ -81,6 +81,7 @@ import { reviewItemQuery, reviewQueueQuery, useApprove, useSendBack } from "./qu
 import { DiffLayoutToggle, ReviewChanges, useDiffLayout } from "./ReviewChanges"
 import { ReviewVariants } from "./ReviewVariants"
 import { SendBackDialog } from "./SendBackDialog"
+import { tourStatus, useTourPage } from "@effy/web-kit/tour"
 
 const BACK = { label: "Product review", link: { to: "/product-review" } } as const
 
@@ -108,6 +109,7 @@ const ABOUT_FIELD: Record<(typeof ABOUT)[number], string> = {
 export function ReviewItemScreen({ productId }: { productId: string }) {
   // The submission on screen stays while the next one reads: moving through the queue never flashes a skeleton.
   const item = useQuery({ ...reviewItemQuery(productId), placeholderData: keepPreviousData })
+  useTourPage("review-item", { status: tourStatus(item) })
   useHeaderBack(item.isSuccess ? null : BACK)
 
   if (item.isError) return <ErrorState error={item.error} onRetry={() => void item.refetch()} />
@@ -241,7 +243,7 @@ function ReviewItem({ item, onChanged }: { item: ReviewItemDetailDTO; onChanged:
       railTitle="Decision"
       rail={
         <>
-          <InspectorSection
+          <InspectorSection tour="review.margin"
             title="Margin"
             actions={
               <span className="text-[13px] text-muted-foreground">
@@ -432,7 +434,7 @@ function ReviewItem({ item, onChanged }: { item: ReviewItemDetailDTO; onChanged:
       />
 
       {notices.length > 0 ? (
-        <div className="mt-8">
+        <div data-tour="review.notice" className="mt-8">
           <BannerStack key={item.productId} items={notices} label="Things to notice" />
         </div>
       ) : null}
@@ -462,7 +464,7 @@ function ReviewItem({ item, onChanged }: { item: ReviewItemDetailDTO; onChanged:
       />
 
       {isChange ? (
-        <RecordSection
+        <RecordSection tour="review.changes"
           id="changes"
           icon={Diff}
           title="What changed"
@@ -473,7 +475,7 @@ function ReviewItem({ item, onChanged }: { item: ReviewItemDetailDTO; onChanged:
         </RecordSection>
       ) : null}
 
-      <RecordSection
+      <RecordSection tour="review.pictures"
         id="pictures"
         icon={ImageIcon}
         title="Pictures"
@@ -493,7 +495,7 @@ function ReviewItem({ item, onChanged }: { item: ReviewItemDetailDTO; onChanged:
         )}
       </RecordSection>
 
-      <RecordSection
+      <RecordSection tour="review.sizes"
         id="sizes"
         icon={Layers}
         title="Sizes and prices"
@@ -586,7 +588,7 @@ function ReviewItem({ item, onChanged }: { item: ReviewItemDetailDTO; onChanged:
         />
       </RecordSection>
 
-      <RecordSection
+      <RecordSection tour="review.placements"
         id="aisles"
         icon={Folder}
         title="Aisles"
@@ -761,7 +763,7 @@ function DecisionControls({
           {position} of {total}
         </b>
       ) : null}
-      <ActionBarButton
+      <ActionBarButton data-tour="review.prev-next"
         size="icon-sm"
         disabled={!prev}
         onClick={() => prev && onOpen(prev)}
@@ -831,7 +833,7 @@ function DecisionControls({
             </ActionBarButton>
           )}
           <span className="ef-selbar__rule" aria-hidden="true" />
-          <ActionBarButton className={blocked ? SOLID_INVERSE : undefined} disabled={busy} onClick={onSendBack}>
+          <ActionBarButton data-tour="review.decision" className={blocked ? SOLID_INVERSE : undefined} disabled={busy} onClick={onSendBack}>
             Send back
             {roomy ? <Kbd className="ml-1">B</Kbd> : null}
           </ActionBarButton>

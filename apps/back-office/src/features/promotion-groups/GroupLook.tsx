@@ -65,7 +65,7 @@ export function LookPanel({
     })
   }
   return (
-    <Panel
+    <Panel tour="group.look"
       title="How this place looks"
       description={`Layouts that fit a ${SIZE_WORD[group.size].toLowerCase()} place: ${fitsWords(group.size)} - and Classic, as it always looked.`}
     >

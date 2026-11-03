@@ -15,8 +15,8 @@ export interface TourStepDef {
   /** ≤ 220 characters; one or two sentences. */
   text: string;
   side?: TourSide;
-  /** Shown only to managers (FR-012). */
-  managersOnly?: boolean;
+  /** Shown only to people holding any of these roles (106 FR-012, 107 FR-004); absent = everyone. */
+  roles?: readonly string[];
   /**
    * The spec's "Shown when" column, when it has one. Documentation, plus: a step with a condition may be absent on
    * its page without the development warning firing.
@@ -35,7 +35,9 @@ export interface TourDef {
   path?: string;
   search?: Record<string, string>;
   /** The page needs a record (an order, a product); All tours opens the newest one first (FR-007). */
-  needsRecord?: "order" | "product";
+  needsRecord?: string;
+  /** The whole tour exists only for these roles: it never starts, is offered or listed for anyone else (107 FR-005). */
+  roles?: readonly string[];
   /** Runs on any page (the Welcome tour). */
   anyPage?: boolean;
   steps: readonly TourStepDef[];

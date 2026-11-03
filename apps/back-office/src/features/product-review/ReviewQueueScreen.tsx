@@ -32,6 +32,7 @@ import { MarginField } from "./MarginField"
 import { KIND_LABEL, toMargin, waitingLabel, type MarginEntry } from "./model"
 import { reviewQueueQuery, useSetMargin } from "./queries"
 import { fetchMarginNotSetPage, fetchQueuePage, fetchQueueViews } from "./repo"
+import { tourStatus, useTourPage } from "@effy/web-kit/tour"
 
 /** One line on what a queue row is: what a change touches, or how a new product is sold. */
 function queueLine(r: ReviewQueueItemDTO): string {
@@ -116,6 +117,7 @@ export function ReviewQueueScreen() {
     void navigate({ to: ".", search: { view: v === "waiting" ? undefined : v } as never })
 
   const oldest = useQuery(reviewQueueQuery({}))
+  useTourPage("review-queue", { status: tourStatus(oldest) })
   const margin = useQuery(
     listQueryOptions({
       key: REVIEW_KEY,
@@ -128,6 +130,7 @@ export function ReviewQueueScreen() {
 
   const viewSelect = (
     <ViewSelect
+      tour="review.views"
       label="Review views"
       value={view}
       onChange={setView}
@@ -147,7 +150,7 @@ export function ReviewQueueScreen() {
           actions={
             first ? (
               <Button asChild>
-                <Link to="/product-review/$productId" params={{ productId: first.productId }}>
+                <Link data-tour="review.start" to="/product-review/$productId" params={{ productId: first.productId }}>
                   Start reviewing
                 </Link>
               </Button>
@@ -216,6 +219,7 @@ function Queue({ viewSelect, search }: { viewSelect: React.ReactNode; search: Re
             options={(shops.data?.items ?? []).map((s) => ({ value: s.id, label: s.name }))}
           />
           <SearchBox
+            tour="review.search"
             label="Search review"
             placeholder="Product or shop name"
             value={state.draftQ}

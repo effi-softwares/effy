@@ -28,11 +28,13 @@ import { CreditPointsSheet } from "./components/CreditPointsSheet"
 import { DebitPointsSheet } from "./components/DebitPointsSheet"
 import { formatDay, formatPoints } from "./components/points-format"
 import { customerDetailQuery, customersKeys, pointsSettingsQuery } from "./queries"
+import { tourStatus, useTourPage } from "@effy/web-kit/tour"
 
 export function CustomerDetailScreen({ customerId }: { customerId: string }) {
   const { data: session } = useQuery(sessionQuery)
   const roles = session?.status === "signed-in" ? session.identity.roles : []
   const detail = useQuery(customerDetailQuery(customerId))
+  useTourPage("customer", { status: tourStatus(detail) })
   const settings = useQuery(pointsSettingsQuery)
   const [crediting, setCrediting] = useState(false)
   const [debiting, setDebiting] = useState(false)
@@ -66,11 +68,11 @@ export function CustomerDetailScreen({ customerId }: { customerId: string }) {
         }
         actions={
           <>
-            <Button onClick={() => setCrediting(true)}>
+            <Button data-tour="customer.credit" onClick={() => setCrediting(true)}>
               <CirclePlus aria-hidden="true" />
               Credit points
             </Button>
-            <MoreActions
+            <MoreActions tour="customer.more"
               actions={[
                 { ...activity, label: "Points activity" },
                 mayDebit
@@ -90,7 +92,7 @@ export function CustomerDetailScreen({ customerId }: { customerId: string }) {
 
       <div className="ef-detail">
         <div className="ef-detail__main">
-          <Panel
+          <Panel tour="customer.points"
             title="Points"
             icon={<Coins aria-hidden="true" />}
             description="Points are a way of paying, never a discount. The balance is worked out from the ledger, never stored."
@@ -118,7 +120,7 @@ export function CustomerDetailScreen({ customerId }: { customerId: string }) {
             </dl>
           </Panel>
 
-          <Panel
+          <Panel tour="customer.orders"
             title="Recent orders"
             icon={<ShoppingBag aria-hidden="true" />}
             description="Every change to the points balance is under Points activity."

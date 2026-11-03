@@ -39,6 +39,7 @@ import { useRoundEditing } from "./components/ReorderControl"
 import { WaiveSequenceButton } from "./components/WaiveSequenceButton"
 import { WINDOW_STATE_LABEL, momentText, roundOpenState, windowNoteFor } from "./model"
 import { dispatchDayQuery, dispatchRoundQuery } from "./queries"
+import { tourStatus, useTourPage } from "@effy/web-kit/tour"
 
 interface RoundDetail {
   id: string
@@ -67,6 +68,7 @@ interface RoundDetail {
 
 export function RoundDetailScreen({ roundId }: { roundId: string }) {
   const { data, isPending, isError } = useQuery(dispatchRoundQuery(roundId))
+  useTourPage("round", { status: tourStatus({ isSuccess: !isPending && !isError, isError }) })
   const day = useQuery(dispatchDayQuery())
   const roles = useSessionRoles()
   const round = data as RoundDetail | undefined
@@ -132,6 +134,7 @@ export function RoundDetailScreen({ roundId }: { roundId: string }) {
                 drivers={drivers.filter((d) => d.driverId !== round.driverId)}
               />
               <MoreActions
+                tour="round.more"
                 actions={[
                   !round.waiver
                     ? { label: "Let this run go ahead", icon: FastForward, onSelect: () => setWaiving(true) }
@@ -183,6 +186,7 @@ export function RoundDetailScreen({ roundId }: { roundId: string }) {
       {editing.error ? <Callout tone="destructive" title={editing.error} /> : null}
 
       <Panel
+        tour="round.stops"
         title={
           <span id="stops-heading">
             Stops{" "}
@@ -248,6 +252,7 @@ export function RoundDetailScreen({ roundId }: { roundId: string }) {
                   {mayChange && !finished ? (
                     <div className="flex gap-1">
                       <Button
+                        data-tour="round.arrows"
                         type="button"
                         variant="ghost"
                         size="icon-sm"

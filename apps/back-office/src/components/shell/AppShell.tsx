@@ -8,9 +8,14 @@ import { useStore } from "@tanstack/react-store"
 import type { BackOfficeRole } from "@effy/shared-types"
 import { DropdownMenuItem, DropdownMenuShortcut } from "@effy/design-system/ui"
 import { StaffShell, StaffUserMenu } from "@effy/web-kit/console"
+import { AllToursDialog, TourHelpButton, TourProvider } from "@effy/web-kit/tour"
 import { IdCard, Keyboard } from "lucide-react"
 
 import { meQuery } from "@/features/staff-identity/queries"
+import { useOpenRecord } from "@/features/tours/openRecord"
+import { tourStateQuery, useTourWrite } from "@/features/tours/repo"
+import { BACK_OFFICE_TOURS } from "@/features/tours/tours"
+import { track } from "@/lib/telemetry"
 import { setCommandPaletteOpen, setSidebarOpen, setTheme, uiStore } from "@/lib/ui-store"
 
 import { CHORDS } from "./chords"
@@ -42,6 +47,9 @@ export function AppShell({ email, roles, onSignOut, signingOut, children }: AppS
   const counts = useNavCounts(email !== "")
   const me = useQuery({ ...meQuery, enabled: email !== "" })
   const status = me.data?.status
+  const tourState = useQuery({ ...tourStateQuery, enabled: email !== "" })
+  const tourWrite = useTourWrite()
+  const openRecord = useOpenRecord()
 
   // ⌘K / Ctrl+K anywhere, even from inside a field - it is how people leave one.
   useHotkey("Mod+K", () => setCommandPaletteOpen(!uiStore.state.commandPaletteOpen), {
@@ -63,51 +71,65 @@ export function AppShell({ email, roles, onSignOut, signingOut, children }: AppS
   }
 
   return (
-    <StaffShell
-      brand={{ name: "Effy", surface: "Back-Office" }}
-      title="Effy Back-Office"
-      groups={groups}
-      defaultTabs={DEFAULT_TAB}
-      counts={counts}
-      onOpenSearch={() => setCommandPaletteOpen(true)}
-      searchPrompt="Order, customer, package…"
-      sidebarOpen={sidebarOpen}
-      onSidebarOpenChange={setSidebarOpen}
-      userMenu={
-        <StaffUserMenu
-          email={email}
-          roleLabel={roleLabel(roles)}
-          statusLabel={status ? (status === "active" ? "Active" : "Disabled") : null}
-          theme={theme}
-          onSetTheme={setTheme}
-          items={
-            <>
-              <DropdownMenuItem onSelect={() => setRecordOpen(true)}>
-                <IdCard aria-hidden="true" />
-                Your back-office record
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setShortcutsOpen(true)}>
-                <Keyboard aria-hidden="true" />
-                Keyboard shortcuts
-                <DropdownMenuShortcut>?</DropdownMenuShortcut>
-              </DropdownMenuItem>
-            </>
-          }
-          onSignOut={onSignOut}
-          signingOut={signingOut}
-        />
-      }
-      overlays={
-        <>
-          <ScanBox />
-          <CommandPalette open={paletteOpen} onOpenChange={setCommandPaletteOpen} groups={groups} roles={roles} />
-          <ShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
-          <StaffRecordDialog open={recordOpen} onOpenChange={setRecordOpen} />
-        </>
-      }
+    // Guided tours (107): a page's tour starts by itself the first time, once per person; replayed from Help.
+    <TourProvider
+      tours={BACK_OFFICE_TOURS}
+      roles={roles}
+      analyticsRole={roleLabel(roles) ?? undefined}
+      state={tourState}
+      write={tourWrite.mutate}
+      openRecord={openRecord}
+      onEvent={track}
+      devWarnings={import.meta.env.DEV}
     >
-      <UpdateBanner />
-      {children}
-    </StaffShell>
+      <StaffShell
+        brand={{ name: "Effy", surface: "Back-Office" }}
+        title="Effy Back-Office"
+        groups={groups}
+        defaultTabs={DEFAULT_TAB}
+        counts={counts}
+        onOpenSearch={() => setCommandPaletteOpen(true)}
+        searchPrompt="Order, customer, package…"
+        sidebarOpen={sidebarOpen}
+        onSidebarOpenChange={setSidebarOpen}
+        headerActions={<TourHelpButton />}
+        userMenu={
+          <StaffUserMenu
+            email={email}
+            roleLabel={roleLabel(roles)}
+            statusLabel={status ? (status === "active" ? "Active" : "Disabled") : null}
+            theme={theme}
+            onSetTheme={setTheme}
+            items={
+              <>
+                <DropdownMenuItem onSelect={() => setRecordOpen(true)}>
+                  <IdCard aria-hidden="true" />
+                  Your back-office record
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setShortcutsOpen(true)}>
+                  <Keyboard aria-hidden="true" />
+                  Keyboard shortcuts
+                  <DropdownMenuShortcut>?</DropdownMenuShortcut>
+                </DropdownMenuItem>
+              </>
+            }
+            onSignOut={onSignOut}
+            signingOut={signingOut}
+          />
+        }
+        overlays={
+          <>
+            <ScanBox />
+            <CommandPalette open={paletteOpen} onOpenChange={setCommandPaletteOpen} groups={groups} roles={roles} />
+            <ShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
+            <StaffRecordDialog open={recordOpen} onOpenChange={setRecordOpen} />
+            <AllToursDialog />
+          </>
+        }
+      >
+        <UpdateBanner />
+        {children}
+      </StaffShell>
+    </TourProvider>
   )
 }

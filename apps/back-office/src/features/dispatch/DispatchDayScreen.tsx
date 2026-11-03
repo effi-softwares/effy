@@ -25,11 +25,13 @@ import { RoundTable } from "./components/RoundTable"
 import { UnassignedPanel } from "./components/UnassignedPanel"
 import { WindowsByDay } from "./components/WindowsByDay"
 import { dispatchDayQuery } from "./queries"
+import { tourStatus, useTourPage } from "@effy/web-kit/tour"
 
 type Section = "driver" | "windows" | "rounds"
 
 export function DispatchDayScreen() {
   const { data, error, isPending, isError, refetch } = useQuery(dispatchDayQuery())
+  useTourPage("dispatch", { status: tourStatus({ isSuccess: !isPending && !isError, isError }) })
   const mayAssign = canDispatch(useSessionRoles())
   const [section, setSection] = useState<Section>("driver")
 
@@ -88,7 +90,7 @@ export function DispatchDayScreen() {
           <Tabs value={section} onValueChange={(v) => setSection(v as Section)}>
             <div className="ef-tabsbar">
               <div className="ef-tabsbar__list">
-                <TabsList aria-label="Dispatch sections">
+                <TabsList data-tour="dispatch.sections" aria-label="Dispatch sections">
                   <TabsTrigger value="driver">
                     <UserX aria-hidden="true" />
                     Needs a driver

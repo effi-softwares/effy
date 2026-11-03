@@ -70,7 +70,9 @@ export function FeedbackPanel({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <StatusControl detail={detail} />
+          <div data-tour="feedback.status" className="inline-flex">
+            <StatusControl detail={detail} />
+          </div>
           {showOpenLink ? (
             <Button variant="ghost" size="icon" asChild>
               <Link
@@ -108,7 +110,7 @@ export function FeedbackPanel({
           <Composer detail={detail} mayReply={mayReply} />
         </div>
 
-        <div className="min-w-0 space-y-4 p-6 max-md:p-4">
+        <div data-tour="feedback.details" className="min-w-0 space-y-4 p-6 max-md:p-4">
           <h3 className="text-xs font-medium text-muted-foreground">Details</h3>
           <dl className="ef-dl [&_.ef-dl__row]:grid-cols-[minmax(0,1fr)] [&_.ef-dl__row]:gap-1">
             <Row label="Category">{FEEDBACK_CATEGORY_LABELS[detail.category]}</Row>
@@ -224,11 +226,11 @@ function Composer({ detail, mayReply }: { detail: FeedbackDetailDTO; mayReply: b
     <div className="space-y-2">
       <Tabs value={mode} onValueChange={(v) => setMode(v as "reply" | "note")}>
         <TabsList aria-label="Write">
-          <TabsTrigger value="reply">
+          <TabsTrigger value="reply" data-tour="feedback.reply">
             <Reply aria-hidden="true" />
             Reply
           </TabsTrigger>
-          <TabsTrigger value="note">
+          <TabsTrigger value="note" data-tour="feedback.note">
             <Lock aria-hidden="true" />
             Internal note
           </TabsTrigger>

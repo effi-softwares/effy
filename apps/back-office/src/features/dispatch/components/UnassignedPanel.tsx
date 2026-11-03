@@ -26,6 +26,7 @@ export function UnassignedPanel({
 
   return (
     <Panel
+      tour="dispatch.needs-driver"
       title={
         <span id="unassigned-heading">
           Needs a driver{" "}
@@ -73,7 +74,7 @@ export function UnassignedPanel({
                 <TableCell data-m="hide" className="text-muted-foreground">
                   {item.zoneName ?? "No area"}
                 </TableCell>
-                <TableCell data-m="trail" className="text-right w-auto!">
+                <TableCell data-tour="dispatch.assign" data-m="trail" className="text-right w-auto!">
                   {renderAssign?.(item)}
                 </TableCell>
               </TableRow>

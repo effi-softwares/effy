@@ -312,7 +312,9 @@ The spine in five rules:
 - ⚠ **EVERY CONSOLE PAGE HAS A GUIDED TOUR (106).** A routed screen calls `useTourPage(key, { status: tourStatus(query) })` and
   carries the `data-tour` keys its steps name. The words live in the app's `features/tours/tours.ts`, word for word from its spec. A
   rewritten tour RAISES its `version`. The look is `TourStepView` (`@effy/design-system/ui`, Radix Popover) and the behaviour is
-  `@effy/web-kit/tour`; never a tour library. `tours.guard.test.ts` fails a page without a tour or a step that points at nothing.
+  `@effy/web-kit/tour`; never a tour library. Both consoles' `tours.guard.test.ts` / `tours.test.ts` (shared helpers in
+  `@effy/web-kit/tour/testing`) fail a page without a tour, a step that points at nothing, or words or role marks that differ from
+  the spec. Steps and whole tours are limited by `roles` (107).
 - ⚠ **EVERY CONSOLE LIST IS `@effy/web-kit/data-table` AND `parseListQuery` (103); THE URL IS A LIST'S STATE.** A
   list is `DataTable` over a route that parses with `@effy/edge-shared` `parseListQuery` (whitelisted sort ending in
   the id, no fixed `LIMIT`); a bounded or capped set is `StaticTable`. The raw `Table` is for named boards, editors,
@@ -654,6 +656,7 @@ the entries carry gotchas and deploy-ordering rules that the code does not. Slic
 
 Features recorded:
 
+- **107-backoffice-guided-tours** - Guided Tours in Back-Office (49 tours on 106's pieces; steps and whole tours limited by role; `/admin/v1/me/tours`) - built 2026-11-03; not deployed or walked
 - **106-guided-tours** - Guided Tours in the Shop Console (16 tours that start by themselves on a page's first use, once per person; replayed from Help or ⌘K; one Radix tour primitive; words in `tours.ts`, held to the spec) - built 2026-11-03; not migrated, deployed or walked
 - **105-category-driven-variants** - Variants Only From Category Attributes (no platform "Pack size" option; net quantity per variant; clothing Size removed; import columns renamed) - built 2026-10-30; not migrated, deployed or walked
 - **104-activity-log-drawer** - Every Activity Log in One Drawer (twelve logs; one server helper; search, type, dates, paging, CSV export; state in the address) - built 2026-10-29; not deployed or walked
@@ -737,5 +740,5 @@ Features recorded:
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/106-guided-tours/plan.md
+at specs/107-backoffice-guided-tours/plan.md
 <!-- SPECKIT END -->

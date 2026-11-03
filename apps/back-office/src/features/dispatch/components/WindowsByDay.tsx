@@ -32,6 +32,7 @@ export function WindowsByDay() {
 
   return (
     <Panel
+      tour="dispatch.windows"
       title={<span id="windows-heading">Delivery windows</span>}
       icon={<CalendarClock aria-hidden="true" />}
       description="Parcels booked into each window, and the round that carries them."

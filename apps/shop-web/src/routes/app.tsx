@@ -86,7 +86,7 @@ function AppShell() {
       {/* Guided tours (106): a page's tour starts by itself the first time, once per person; replayed from Help. */}
       <TourProvider
         tours={SHOP_TOURS}
-        roles={{ manager: roles.includes("shop_manager") }}
+        roles={roles}
         state={tourState}
         write={tourWrite.mutate}
         openRecord={openRecord}

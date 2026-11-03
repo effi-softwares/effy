@@ -41,6 +41,7 @@ export function DutyPanel() {
 
   return (
     <Panel
+      tour="drivers.duty"
       title="On duty now"
       icon={<Radio aria-hidden="true" />}
       description={

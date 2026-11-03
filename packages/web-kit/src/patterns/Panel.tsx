@@ -25,6 +25,7 @@ export function Panel({
   flush = false,
   className,
   children,
+  tour,
 }: {
   title?: ReactNode;
   description?: ReactNode;
@@ -36,9 +37,11 @@ export function Panel({
   flush?: boolean;
   className?: string;
   children: ReactNode;
+  /** A guided-tour key (106). */
+  tour?: string;
 }) {
   return (
-    <section className={cn("min-w-0", className)}>
+    <section className={cn("min-w-0", className)} data-tour={tour}>
       <Card className="gap-0 overflow-hidden py-0">
         {title ? (
           <CardHeader className="border-b py-4 [.border-b]:pb-4">

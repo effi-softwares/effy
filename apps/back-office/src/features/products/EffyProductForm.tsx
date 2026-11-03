@@ -306,7 +306,7 @@ export function EffyProductForm({
       case "shop":
         return (
           <div className="ef-editor__body">
-            <EditorSection
+            <EditorSection tour="product-form.shop"
               title="The shop"
               description="The product is the shop's: it sees it, fulfils its orders and owns it once it is on sale."
             >
@@ -332,7 +332,7 @@ export function EffyProductForm({
                 </Select>
               </FormField>
             </EditorSection>
-            <EditorSection
+            <EditorSection tour="product-form.margin"
               title="Effy's margin"
               description="Added to every variant's shop price to make what shoppers pay."
             >
@@ -520,7 +520,7 @@ export function EffyProductForm({
         }
         end={
           last ? (
-            <Button type="button" onClick={() => void save()} disabled={busy}>
+            <Button data-tour="product-form.send" type="button" onClick={() => void save()} disabled={busy}>
               {busy ? "Saving…" : goesOnSale ? "Save and put on sale" : "Save as Effy's draft"}
             </Button>
           ) : (

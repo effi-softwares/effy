@@ -14,7 +14,7 @@ import { useTourPage } from "../useTourPage";
 const original = Element.prototype.getClientRects;
 beforeEach(() => {
   Element.prototype.getClientRects = function (this: Element) {
-    return (this.closest("[data-test-hidden]") ? [] : [{}]) as unknown as DOMRectList;
+    return (this.closest("[data-test-hidden]") ? [] : [{ width: 10, height: 10 }]) as unknown as DOMRectList;
   };
   Element.prototype.scrollIntoView = () => {};
   if (!("ResizeObserver" in window)) {
@@ -36,7 +36,7 @@ const TOURS: readonly TourDef[] = [
     title: "Orders",
     steps: [
       { target: "lane", title: "Awaiting pick", text: "Oldest first." },
-      { target: "refund", title: "Refunds", text: "Managers only.", managersOnly: true },
+      { target: "refund", title: "Refunds", text: "Managers only.", roles: ["manager"] },
       { target: "ready", title: "Ready", text: "Packed." },
     ],
   },
@@ -58,15 +58,16 @@ function Page() {
 const seen = (version = 1) => ({ version, outcome: "finished" as const, at: "2026-11-03T00:00:00.000Z" });
 
 /** Writes land in the state the way the app's optimistic cache does. */
-function setup(initial: ConsoleTourStateDTO, manager = false) {
+function setup(initial: ConsoleTourStateDTO, roles: readonly string[] = [], analyticsRole?: string, tours: readonly TourDef[] = TOURS) {
   const writes: ConsoleTourPatch[] = [];
   const events: TourEvent[] = [];
   function Harness() {
     const [state, setState] = useState(initial);
     return (
       <TourProvider
-        tours={TOURS}
-        roles={{ manager }}
+        tours={tours}
+        roles={roles}
+        analyticsRole={analyticsRole}
         state={{ data: state, isSuccess: true }}
         write={(p) => {
           writes.push(p);
@@ -129,7 +130,7 @@ describe("TourProvider (106) - tours start by themselves the first time", () => 
   });
 
   it("shows the manager step to a manager", async () => {
-    setup({ offerTours: true, seen: { welcome: seen() } }, true);
+    setup({ offerTours: true, seen: { welcome: seen() } }, ["manager"]);
     expect(await screen.findByText("Step 1 of 3", {}, SLOW)).toBeInTheDocument();
   });
 
@@ -148,6 +149,36 @@ describe("TourProvider (106) - tours start by themselves the first time", () => 
     await user.click(screen.getByRole("button", { name: "Help tour" }));
     expect(await screen.findByRole("heading", { name: "Awaiting pick" })).toBeInTheDocument();
     expect(events[0]).toEqual({ name: "tour_started", tour: "orders", version: 1, via: "help" });
+  });
+
+  it("adds the role name to every event when one is given (107 FR-012)", async () => {
+    const { events } = setup({ offerTours: true, seen: { welcome: seen() } }, ["csa"], "Customer support");
+    await screen.findByRole("heading", { name: "Awaiting pick" }, SLOW);
+    expect(events[0]).toEqual({ name: "tour_started", tour: "orders", version: 1, via: "auto", role: "Customer support" });
+  });
+
+  it("never starts a tour limited to a role the person lacks (107 FR-005)", async () => {
+    const limited = TOURS.map((t) => (t.key === "orders" ? { ...t, roles: ["admin"] } : t));
+    setup({ offerTours: true, seen: { welcome: seen() } }, ["csa"], undefined, limited);
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 1200));
+    });
+    expect(screen.queryByRole("heading", { name: "Awaiting pick" })).toBeNull();
+  });
+
+  it("moves on when the part a step points at goes away, and ends when nothing is left (107 US4)", async () => {
+    const { events } = setup({ offerTours: true, seen: { welcome: seen() } });
+    expect(await screen.findByRole("heading", { name: "Awaiting pick" }, SLOW)).toBeInTheDocument();
+    // A live update removes the lane the step points at.
+    await act(async () => {
+      document.querySelector('[data-tour="lane"]')!.setAttribute("data-test-hidden", "");
+    });
+    expect(await screen.findByRole("heading", { name: "Ready" })).toBeInTheDocument();
+    await act(async () => {
+      document.querySelector('[data-tour="ready"]')!.setAttribute("data-test-hidden", "");
+    });
+    await waitFor(() => expect(screen.queryByRole("heading", { name: "Ready" })).toBeNull());
+    expect(events.at(-1)).toMatchObject({ name: "tour_closed", tour: "orders" });
   });
 
   it("starts nothing by itself when tours are turned off", async () => {

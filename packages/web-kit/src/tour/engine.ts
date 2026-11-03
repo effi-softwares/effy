@@ -17,13 +17,14 @@ export function tourStatus(query: { isSuccess: boolean; isError: boolean }): Pag
 }
 
 /**
- * On screen now: connected, laid out, and not inside `[hidden]` or `[inert]`. `aria-hidden` is deliberately not a
+ * On screen now: connected, laid out with a size, and not inside `[hidden]` or `[inert]`. `aria-hidden` is deliberately not a
  * test - Radix modal layers set it on the whole page while they are open or closing (research R2, R7).
  */
 export function isPresent(el: Element | null | undefined): el is HTMLElement {
   if (!el || !el.isConnected) return false;
   if (el.closest("[hidden], [inert]")) return false;
-  return el.getClientRects().length > 0;
+  // Laid out with a size: an empty wrapper (a section with nothing in it) is not something to point at.
+  return Array.from(el.getClientRects()).some((r) => r.width > 0 || r.height > 0);
 }
 
 const keysOf = (target: TourStepDef["target"]): readonly string[] =>
@@ -44,12 +45,21 @@ export function resolveTarget(target: TourStepDef["target"], root: ParentNode = 
 }
 
 export interface StepContext {
-  manager: boolean;
+  /** The person's role keys. */
+  roles: ReadonlySet<string>;
   root?: ParentNode;
 }
 
+const hasAnyRole = (needed: readonly string[] | undefined, held: ReadonlySet<string>): boolean =>
+  !needed || needed.length === 0 || needed.some((r) => held.has(r));
+
+/** May this person have this tour at all? A tour limited to roles is nobody else's (107 FR-005). */
+export function tourAllowed(tour: TourDef, roles: ReadonlySet<string>): boolean {
+  return hasAnyRole(tour.roles, roles);
+}
+
 export function stepVisible(step: TourStepDef, ctx: StepContext): boolean {
-  if (step.managersOnly && !ctx.manager) return false;
+  if (!hasAnyRole(step.roles, ctx.roles)) return false;
   return resolveTarget(step.target, ctx.root) !== undefined;
 }
 
@@ -91,8 +101,12 @@ export function isRevised(tour: TourDef, state: ConsoleTourStateDTO): boolean {
 }
 
 /** The whole-console tour comes first: while it would start, no page tour does (FR-003). */
-export function welcomeFirst(tours: readonly TourDef[], state: ConsoleTourStateDTO): TourDef | null {
-  const welcome = tours.find((t) => t.anyPage);
+export function welcomeFirst(
+  tours: readonly TourDef[],
+  state: ConsoleTourStateDTO,
+  roles: ReadonlySet<string> = new Set(),
+): TourDef | null {
+  const welcome = tours.find((t) => t.anyPage && tourAllowed(t, roles));
   return welcome && shouldOffer(welcome, state) ? welcome : null;
 }
 

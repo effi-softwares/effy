@@ -91,7 +91,7 @@ export function CreateVehicleDialog() {
   return (
     <Dialog open={open} onOpenChange={(o) => (o ? setOpen(true) : close())}>
       <DialogTrigger asChild>
-        <Button>Add vehicle</Button>
+        <Button data-tour="vehicles.add">Add vehicle</Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>

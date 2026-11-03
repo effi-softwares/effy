@@ -8,7 +8,7 @@ export function OrdersToday() {
   const today = useQuery(ordersTodayQuery())
   const t = today.data
   return (
-    <Panel title="Orders today" description="Placed since midnight, by who delivers them.">
+    <Panel tour="overview.today" title="Orders today" description="Placed since midnight, by who delivers them.">
       {today.isPending ? (
         <Loading label="Loading today's orders">
           <DetailRowsSkeleton tight labels={["Delivered by Effy", "Courier delivery", "Refunded"]} />

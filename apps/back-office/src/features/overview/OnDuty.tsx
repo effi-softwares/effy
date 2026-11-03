@@ -23,6 +23,7 @@ export function OnDuty() {
 
   return (
     <Panel
+      tour="overview.duty"
       title="On duty now"
       description={
         duty.data

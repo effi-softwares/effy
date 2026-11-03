@@ -27,6 +27,7 @@ import { fetchExceptionsBoard } from "./repo"
 import { RecordReturnButton } from "./RecordReturnDialog"
 import { OUTCOME_WORDS, ResolveDialog } from "./ResolveDialog"
 import { HeldPanel, OverduePanel, VehicleChecksPanel } from "./SequenceSections"
+import { tourStatus, useTourPage } from "@effy/web-kit/tour"
 
 type Section = "failed" | "runs" | "vehicles" | "missing"
 
@@ -36,6 +37,7 @@ export function ExceptionsScreen() {
   const state = useListState(exceptionsList, useSearch({ strict: false }))
   const input = { key: [...EXCEPTIONS_KEY, "list"] as const, list: exceptionsList, view: state.view, fetch: fetchExceptionsBoard }
   const query = useQuery(listQueryOptions(input))
+  useTourPage("exceptions", { status: tourStatus(query) })
   const open = query
   const data = query.data?.board
   const view = state.view.filters.view ?? "open"
@@ -91,7 +93,7 @@ export function ExceptionsScreen() {
         <Tabs value={section} onValueChange={(v) => setSection(v as Section)}>
           <div className="ef-tabsbar">
             <div className="ef-tabsbar__list">
-              <TabsList aria-label="Exception kinds">
+              <TabsList data-tour="exceptions.kinds" aria-label="Exception kinds">
                 <TabsTrigger value="failed">
                   <PackageX aria-hidden="true" />
                   Failed deliveries
@@ -137,7 +139,7 @@ export function ExceptionsScreen() {
               }
               toolbar={
                 <>
-                  <ViewSelect
+                  <ViewSelect tour="exceptions.show"
                     label="Show"
                     value={view}
                     onChange={(v) => state.setFilter("view", v === "open" ? undefined : v)}
@@ -147,7 +149,7 @@ export function ExceptionsScreen() {
                       { value: "all" as const, label: "All" },
                     ]}
                   />
-                  <SearchBox label="Search exceptions" placeholder="Order, driver or suburb…" value={state.draftQ} onChange={state.setQ} />
+                  <SearchBox tour="exceptions.search" label="Search exceptions" placeholder="Order, driver or suburb…" value={state.draftQ} onChange={state.setQ} />
                 </>
               }
             />

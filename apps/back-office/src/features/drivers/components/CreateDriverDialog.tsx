@@ -39,7 +39,9 @@ export function CreateDriverDialog() {
         if (!o) reset()
       }}
     >
-      <Button onClick={() => setOpen(true)}>Add driver</Button>
+      <Button data-tour="drivers.add" onClick={() => setOpen(true)}>
+        Add driver
+      </Button>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Add a driver</DialogTitle>

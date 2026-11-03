@@ -37,6 +37,7 @@ import {
 } from "./model"
 import { vehicleDetailQuery, vehicleKeys } from "./queries"
 import { vehicleStatusTone } from "./VehiclesListScreen"
+import { tourStatus, useTourPage } from "@effy/web-kit/tour"
 
 const dash = <span className="text-muted-foreground">-</span>
 
@@ -51,6 +52,7 @@ export function VehicleDetailScreen({ vehicleId }: { vehicleId: string }) {
   const roles = useSessionRoles()
   const canManage = canManageVehicles(roles)
   const query = useQuery(vehicleDetailQuery(vehicleId))
+  useTourPage("vehicle", { status: tourStatus(query) })
   useHeaderDetail(query.data?.registrationPlate ?? null)
 
   if (query.isError) return <ErrorState error={query.error} onRetry={() => void query.refetch()} />
@@ -114,7 +116,7 @@ export function VehicleDetailScreen({ vehicleId }: { vehicleId: string }) {
               </div>
             </div>
             <TabsContent value="details" className="ef-tabpanel">
-              <Panel title="Details" icon={<Truck aria-hidden="true" />}>
+              <Panel tour="vehicle.details" title="Details" icon={<Truck aria-hidden="true" />}>
                 <DetailRows
                   rows={[
                     {
@@ -153,7 +155,7 @@ export function VehicleDetailScreen({ vehicleId }: { vehicleId: string }) {
         </div>
 
         <aside className="ef-detail__aside is-first">
-          <Panel title="Who has it" icon={<UserRound aria-hidden="true" />}>
+          <Panel tour="vehicle.holder" title="Who has it" icon={<UserRound aria-hidden="true" />}>
             {canManage ? (
               <HoldingControl vehicle={v} />
             ) : v.currentHolderDriverId ? (
@@ -162,7 +164,7 @@ export function VehicleDetailScreen({ vehicleId }: { vehicleId: string }) {
               <p className="text-sm text-muted-foreground">Available - nobody has this vehicle.</p>
             )}
           </Panel>
-          <Panel title="Compliance" icon={<ShieldCheck aria-hidden="true" />}>
+          <Panel tour="vehicle.compliance" title="Compliance" icon={<ShieldCheck aria-hidden="true" />}>
             <DetailRows
               tight
               rows={[
@@ -193,7 +195,7 @@ export function VehicleDetailScreen({ vehicleId }: { vehicleId: string }) {
             />
           </Panel>
           {canManage ? (
-            <Panel title="Status">
+            <Panel tour="vehicle.status" title="Status">
               <div className="space-y-3">
                 <p className="mt-0.5 block text-sm text-muted-foreground">
                   Off the road is temporary - in the workshop, or awaiting repair. Retired is for good.

@@ -126,7 +126,7 @@ export function CoveragePanel({ canManage }: { canManage: boolean }) {
         description="The postcodes Effy's own drivers deliver to, organised into optional groups."
         actions={
           canManage ? (
-            <Button onClick={() => setAddOpen(true)}>
+            <Button data-tour="delivery.add" onClick={() => setAddOpen(true)}>
               <Plus aria-hidden="true" />
               Add places
             </Button>
@@ -137,7 +137,7 @@ export function CoveragePanel({ canManage }: { canManage: boolean }) {
       <Tabs defaultValue="postcodes">
         <div className="ef-tabsbar">
           <div className="ef-tabsbar__list">
-            <TabsList aria-label="Coverage sections">
+            <TabsList data-tour="delivery.groups" aria-label="Coverage sections">
               <TabsTrigger value="postcodes">
                 Postcodes
                 {first ? <TabsCount>{first.counts.listed}</TabsCount> : null}

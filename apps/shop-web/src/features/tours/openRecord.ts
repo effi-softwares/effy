@@ -7,7 +7,7 @@ import { toast } from "@effy/design-system/ui"
 import { productListQuery } from "@/features/catalog/queries"
 import { orderListQuery } from "@/features/fulfillment/queries"
 
-const NONE: Record<"order" | "product", string> = {
+const NONE: Record<string, string> = {
   order: "There's no order to show this tour on yet.",
   product: "There's no product to show this tour on yet.",
 }
@@ -21,7 +21,7 @@ export function useOpenRecord() {
   const navigate = useNavigate()
 
   return useCallback(
-    async (kind: "order" | "product"): Promise<boolean> => {
+    async (kind: string): Promise<boolean> => {
       try {
         if (kind === "order") {
           const page = await queryClient.fetchQuery(orderListQuery({ sort: "placed", dir: "desc" }))
@@ -30,7 +30,7 @@ export function useOpenRecord() {
             await navigate({ to: "/orders/$fulfillmentId", params: { fulfillmentId: first.id } })
             return true
           }
-        } else {
+        } else if (kind === "product") {
           const page = await queryClient.fetchQuery(
             productListQuery({ page: 1, pageSize: 1, sort: "recent", order: "desc" }),
           )
@@ -43,7 +43,7 @@ export function useOpenRecord() {
       } catch {
         // A failed read is the same answer for the person: nothing to show the tour on now.
       }
-      toast(NONE[kind])
+      toast(NONE[kind] ?? "There's nothing to show this tour on yet.")
       return false
     },
     [queryClient, navigate],

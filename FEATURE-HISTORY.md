@@ -4,6 +4,39 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
+**107-backoffice-guided-tours - Guided Tours in Back-Office.** 🔨 **BUILT 2026-11-03; NOT DEPLOYED OR WALKED** (no migration).
+Spec, plan and tasks: `specs/107-backoffice-guided-tours/`. Back-office gets 106's tours: **49 tours, 273 steps**, covering every page
+and each Delivery tab and Points settings. A page's tour starts by itself on first use and can be replayed from Help (?) or ⌘K. Words
+are generated from the spec and held to it by `tours.test.ts`.
+- **Roles**: 106's `managersOnly` became `roles` on a step and on a whole tour (`@effy/web-kit/tour`), and shop-web was migrated
+  (`["shop_manager"]`).
+  - The spec marks map to roles: "Admin or manager" → admin, manager; "Admin" → admin; "Customer support" → csa (the read-only
+    steps).
+  - Tours limited to a role (hub station, imports and an import for admin/manager; Tax and Admin and access for admin) never start,
+    and aren't offered or listed, for anyone else.
+  - `checkRoleFiltering` checks every role against the spec.
+- **Server**: `GET` and `PATCH /admin/v1/me/tours` (admin service, staff gateway 208 → 210/300), `audience = 'admin'` in 106's
+  table, kept apart from the person's shop-console record. The `change-map` guard has an exemption with its reason.
+- **Back-office wiring**:
+  - `TourProvider` and Help in `AppShell`; the `?` key still opens Keyboard shortcuts.
+  - ⌘K offers "Tour this page" and "All tours".
+  - Analytics `tour_*` events carry the role NAME.
+  - `openRecord` opens a record kind's list and follows its first record (15 kinds).
+  - `UpdateBanner` stays above a tour.
+- **Shared checks**: `@effy/web-kit/tour/testing` provides `checkToursAgainstSpec`, `tourCoverage` and `checkRoleFiltering`, used
+  by both consoles' tests. The guard was proven by deleting `hub.scan`.
+- **Shared parts gained a `tour` prop**: `Panel`, `RecordNav`, `EditorSection`. ⚠ "On screen" now needs a size (`isPresent`), so
+  an empty wrapper is never pointed at.
+- **Verified**:
+  - Typecheck: web-kit, shop-web, back-office, customer-web, edge-admin, edge-shared, edge-shop, design-system.
+  - Tests: web-kit 257, shop-web 531, back-office 407, edge-admin 170, edge-shared 997 (tours store, change-map guard, gateway
+    capacity), edge-shop 388.
+  - Builds of both consoles; the no-refresh-timers check.
+  - ⚠ back-office `lint` (prettier) was already failing on files this slice did not touch; every file it touched is formatted.
+    Not looked at in a browser.
+- **Open**: operator, after 106's steps: commit → `AWS_PROFILE=ef make edge-deploy SERVICE=admin` → back-office. Then the
+  three-role walk in `specs/107-backoffice-guided-tours/quickstart.md`.
+
 **106-guided-tours - Guided Tours in the Shop Console.** 🔨 **BUILT 2026-11-03; NOT MIGRATED, DEPLOYED OR WALKED.**
 Spec, plan and tasks: `specs/106-guided-tours/`. ⚠ **A page's tour STARTS BY ITSELF the first time a person uses that page** (operator
 decision, 2026-11-03, replacing the first draft's corner invitation): once the page has loaded, after 700ms on screen, and after any menu

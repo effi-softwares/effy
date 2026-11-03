@@ -9,9 +9,11 @@ import { sessionQuery } from "@/features/auth/queries"
 import { canReplyFeedback } from "./access"
 import { FeedbackPanel, FeedbackPanelSkeleton } from "./FeedbackPanel"
 import { feedbackDetailQuery } from "./queries"
+import { tourStatus, useTourPage } from "@effy/web-kit/tour"
 
 export function FeedbackDetailScreen({ referenceCode }: { referenceCode: string }) {
   const { data, isPending, isError, error, refetch } = useQuery(feedbackDetailQuery(referenceCode))
+  useTourPage("feedback-item", { status: tourStatus({ isSuccess: !isPending && !isError, isError }) })
   const { data: session } = useQuery(sessionQuery)
   const roles = session?.status === "signed-in" ? session.identity.roles : []
   useHeaderDetail(referenceCode)

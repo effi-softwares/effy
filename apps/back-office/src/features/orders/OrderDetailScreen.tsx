@@ -77,6 +77,7 @@ import {
 } from "./model"
 import { orderDetailQuery, ordersKeys, useRecordArrival, useRecordHandoff } from "./queries"
 import { fetchOrderPage } from "./repo"
+import { tourStatus, useTourPage } from "@effy/web-kit/tour"
 
 const BACK = { label: "Orders", link: { to: "/orders" } } as const
 
@@ -99,6 +100,7 @@ export function OrderDetailScreen({
 }) {
   // The order on screen stays while the next one reads: stepping through orders never flashes a skeleton.
   const q = useQuery({ ...orderDetailQuery(orderId), placeholderData: keepPreviousData })
+  useTourPage("order", { status: tourStatus(q) })
   if (q.isError) return <ErrorState error={q.error} onRetry={() => void q.refetch()} />
   if (q.isPending) {
     return (
@@ -252,6 +254,7 @@ function OrderPage({
       rail={
         <>
           <InspectorSection
+            tour="order.customer-view"
             title="What the customer sees"
             actions={<span className="text-[13px] text-muted-foreground">{stage?.label}</span>}
           >
@@ -416,6 +419,7 @@ function OrderPage({
           <>
             <ActivityButton />
             <MoreActions
+              tour="order.actions"
               actions={[
                 canRecord && isPaid(order)
                   ? { label: "Issue a refund…", icon: ReceiptText, onSelect: () => refund() }
@@ -477,7 +481,7 @@ function OrderPage({
       />
 
       {notices.length > 0 ? (
-        <div className="mt-8">
+        <div data-tour="order.notice" className="mt-8">
           <BannerStack key={order.id} items={notices} label="Things to notice" />
         </div>
       ) : null}
@@ -502,6 +506,7 @@ function OrderPage({
       />
 
       <RecordSection
+        tour="order.packages"
         id="packages"
         icon={Package}
         title="Packages"
@@ -537,6 +542,7 @@ function OrderPage({
       </RecordSection>
 
       <RecordSection
+        tour="order.items"
         id="items"
         icon={List}
         title="Items"
@@ -563,6 +569,7 @@ function OrderPage({
       </RecordSection>
 
       <RecordSection
+        tour="order.delivery"
         id="delivery"
         icon={Truck}
         title="Delivery"
@@ -597,6 +604,7 @@ function OrderPage({
       </RecordSection>
 
       <RecordSection
+        tour="order.payment"
         id="payment"
         icon={CreditCard}
         title="Payment & refunds"

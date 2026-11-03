@@ -31,6 +31,7 @@ import { canManagePromotions } from "@/features/promotions/access"
 import { promotionMutationError } from "@/features/promotions/errorText"
 
 import { promotionGroupsQuery, useCreateGroup } from "./queries"
+import { tourStatus, useTourPage } from "@effy/web-kit/tour"
 
 const GROUP_COLUMNS: EffyColumnDef<AdminPromotionGroupDTO>[] = [
   {
@@ -69,6 +70,7 @@ const GROUP_COLUMNS: EffyColumnDef<AdminPromotionGroupDTO>[] = [
 export function PromotionGroupsScreen() {
   const canManage = canManagePromotions(useSessionRoles())
   const { data, error, isPending, isError, refetch } = useQuery(promotionGroupsQuery())
+  useTourPage("display-groups", { status: tourStatus({ isSuccess: !isPending && !isError, isError }) })
   const [creating, setCreating] = useState(false)
   const [q, setQ] = useState("")
   // The whole set is here (capped at 500, 103 FR-024), so it is searched in the browser, in the groups' own order.
@@ -85,7 +87,7 @@ export function PromotionGroupsScreen() {
         description="The places on the website and app where promotions are shown, and their order."
         actions={
           canManage ? (
-            <Button onClick={() => setCreating(true)}>
+            <Button data-tour="groups.new" onClick={() => setCreating(true)}>
               <Plus aria-hidden="true" />
               New group
             </Button>

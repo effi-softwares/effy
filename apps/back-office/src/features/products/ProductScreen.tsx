@@ -77,6 +77,7 @@ import { moment } from "@/lib/format"
 import { canManageProducts } from "./access"
 import { productKeys, productQuery } from "./queries"
 import { STATE_TONE } from "./words"
+import { tourStatus, useTourPage } from "@effy/web-kit/tour"
 
 const BACK = { label: "Products", link: { to: "/products" } } as const
 
@@ -117,6 +118,7 @@ export function ProductScreen({
   sizeAction?: (p: BackOfficeProductDTO, v: BackOfficeVariantDTO) => ReactNode
 }) {
   const product = useQuery(productQuery(productId))
+  useTourPage("product", { status: tourStatus(product) })
   useHeaderBack(BACK)
 
   if (product.isError) return <ErrorState error={product.error} onRetry={() => void product.refetch()} />
@@ -252,7 +254,7 @@ function Product({
       railTitle="About this product"
       rail={
         <>
-          <InspectorSection title="How shoppers see it">
+          <InspectorSection tour="product.preview" title="How shoppers see it">
             <ShopperPreview
               imageUrl={main?.url ?? null}
               brand={row("Brand")}
@@ -297,7 +299,7 @@ function Product({
             <ListingQuality items={quality} />
           </InspectorSection>
 
-          <InspectorSection title="Shop and facts">
+          <InspectorSection tour="product.facts" title="Shop and facts">
             <InspectorRows
               rows={[
                 {
@@ -500,6 +502,7 @@ function Product({
       />
 
       <RecordSection
+        tour="product.sizes"
         id="sizes"
         icon={Layers}
         title="Sizes and stock"
@@ -543,6 +546,7 @@ function Product({
       </RecordSection>
 
       <RecordSection
+        tour="product.pictures"
         id="pictures"
         icon={ImageIcon}
         title="Pictures"
@@ -552,6 +556,7 @@ function Product({
       </RecordSection>
 
       <RecordSection
+        tour="product.description"
         id="about"
         icon={FileText}
         title="Description"
@@ -594,6 +599,7 @@ function Product({
       </RecordSection>
 
       <RecordSection
+        tour="product.aisles"
         id="aisles"
         icon={Folder}
         title="Aisles"

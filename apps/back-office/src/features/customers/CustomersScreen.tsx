@@ -27,6 +27,7 @@ import { moment } from "@/lib/format"
 import { PointsSettingsPanel } from "./components/PointsSettingsPanel"
 import { formatPoints } from "./components/points-format"
 import { fetchCustomerPage } from "./repo"
+import { tourStatus, useTourPage } from "@effy/web-kit/tour"
 
 export function CustomersScreen() {
   const { tab } = useSearch({ strict: false }) as { tab?: string }
@@ -97,6 +98,7 @@ function CustomerList() {
   const f = state.view.filters
   const input = { key: ["customers"] as const, list: customersList, view: state.view, fetch: fetchCustomerPage }
   const query = useQuery(listQueryOptions(input))
+  useTourPage("customers", { status: tourStatus(query) })
 
   return (
     <ListPage
@@ -128,6 +130,7 @@ function CustomerList() {
         toolbar={
           <>
             <Facet
+              tour="customers.ordered"
               label="Has ordered"
               value={f.hasOrdered === undefined ? null : f.hasOrdered ? "yes" : "no"}
               onChange={(v) => state.setFilter("hasOrdered", v === null ? undefined : v === "yes")}
@@ -144,6 +147,7 @@ function CustomerList() {
             />
             {isFiltered(state.view) ? <ResetFilters onReset={state.reset} /> : null}
             <SearchBox
+              tour="customers.search"
               label="Search customers"
               placeholder="Name, email, phone or order number…"
               value={state.draftQ}
@@ -157,6 +161,7 @@ function CustomerList() {
 }
 
 function PointsSettingsPage() {
+  useTourPage("points-settings", { status: "ready" })
   return (
     <div className="flex max-w-220 flex-col gap-6">
       <PageHeader

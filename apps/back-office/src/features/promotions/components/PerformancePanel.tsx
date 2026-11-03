@@ -23,6 +23,7 @@ export function PerformancePanel({ promotionId }: { promotionId: string }) {
   ]
   return (
     <Panel
+      tour="promotion.performance"
       title="Performance"
       description={
         !data ? (

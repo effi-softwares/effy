@@ -12,11 +12,13 @@ import { EmptyState, Loading, PageHeader, Panel, PanelSkeleton, TableSkeleton } 
 import { track } from "@/lib/telemetry"
 
 import { hubExpectedQuery, useHubCheckin } from "./queries"
+import { tourStatus, useTourPage } from "@effy/web-kit/tour"
 
 const TOKEN = /^EFY1:[2-9A-HJKMNP-TV-Z]{6}$/
 
 export function HubStationScreen() {
   const { data, error, isError, isPending, refetch } = useQuery(hubExpectedQuery())
+  useTourPage("hub-station", { status: tourStatus({ isSuccess: !isPending && !isError, isError }) })
   const checkin = useHubCheckin()
   const [last, setLast] = useState<HubCheckinResultDTO | null>(null)
   const [failed, setFailed] = useState(false)
@@ -50,7 +52,7 @@ export function HubStationScreen() {
       />
 
       <div className="space-y-6">
-        <section aria-label="Scan" className="space-y-4">
+        <section data-tour="hub.scan" aria-label="Scan" className="space-y-4">
           <ScanField
             size="large"
             accept={(t) => TOKEN.test(t)}
@@ -70,7 +72,7 @@ export function HubStationScreen() {
             )}
           </div>
           {recent.length > 1 ? (
-            <ol className="space-y-1 text-sm text-muted-foreground" aria-label="Earlier scans">
+            <ol data-tour="hub.earlier" className="space-y-1 text-sm text-muted-foreground" aria-label="Earlier scans">
               {recent.slice(1).map((r) => (
                 <li key={r.clientReadId}>
                   <span className="font-mono">{r.code ?? "-"}</span> · {r.words}
@@ -100,6 +102,7 @@ export function HubStationScreen() {
             const inCount = run.bags.filter((b) => b.checkedIn).length
             return (
               <Panel
+                tour="hub.incoming"
                 key={run.runId}
                 title={`${run.driverName}'s collection run`}
                 description={`${inCount} of ${run.bags.length} bags checked in`}

@@ -25,6 +25,7 @@ import {
   useDeleteCollectionRun,
   usePutSettings,
 } from "./queries"
+import { useTourPage } from "@effy/web-kit/tour"
 
 const TABS: readonly string[] = ["coverage", "courier", "pricing", "slots", "days", "schedule", "settings"]
 
@@ -54,6 +55,20 @@ export function DeliveryScreen() {
   const search = useSearch({ strict: false }) as { tab?: string }
   const raw = TABS.includes(search.tab ?? "") ? search.tab! : "coverage"
   const tab = raw === "schedule" ? "days" : raw
+  useTourPage(
+    tab === "courier"
+      ? "delivery-courier"
+      : tab === "pricing"
+        ? "delivery-pricing"
+        : tab === "slots"
+          ? "delivery-windows"
+          : tab === "days"
+            ? "delivery-days"
+            : tab === "settings"
+              ? "delivery-hub"
+              : "delivery-coverage",
+    { status: "ready" },
+  )
 
   if (tab === "coverage") return <CoveragePanel canManage={canManage} />
   if (tab === "courier") return <CourierPage canManage={canManage} />
@@ -102,6 +117,7 @@ function SchedulePanel({ canManage }: { canManage: boolean }) {
 
   return (
     <Panel
+      tour="days.runs"
       title="Collection runs"
       description={`Effy's drivers collect from shops on these runs (${OPERATING_CITY} time). A window today is offered while a run can still be made and reaches the hub before the window starts, allowing the prep buffer set in Hub and timings.`}
       flush
@@ -218,6 +234,7 @@ function SettingsPanel({ canManage }: { canManage: boolean }) {
   return (
     <form onSubmit={submit} className="max-w-2xl">
       <Panel
+        tour="hub-setup.location"
         title="The hub"
         description="Every postcode's distance is measured from here. Moving it recalculates the distances the platform worked out, and flags the ones entered by hand for another look."
         footerBetween
@@ -259,7 +276,7 @@ function SettingsPanel({ canManage }: { canManage: boolean }) {
               />
             </div>
           </div>
-          <div className="space-y-2">
+          <div data-tour="hub-setup.buffer" className="space-y-2">
             <Label htmlFor="buffer">Shop prep buffer (minutes)</Label>
             <Input
               id="buffer"

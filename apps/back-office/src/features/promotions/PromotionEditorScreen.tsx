@@ -40,11 +40,13 @@ import {
   type Draft,
 } from "./promotionDraft"
 import { promotionQuery, useCreatePromotion, useUpdatePromotion } from "./queries"
+import { tourStatus, useTourPage } from "@effy/web-kit/tour"
 
 const toggleIn = <T,>(list: T[], item: T, on: boolean): T[] => (on ? [...list, item] : list.filter((x) => x !== item))
 
 export function PromotionEditorScreen({ promoId }: { promoId?: string }) {
   const existing = useQuery({ ...promotionQuery(promoId ?? ""), enabled: Boolean(promoId) })
+  useTourPage("promotion-editor", { status: promoId ? tourStatus(existing) : "ready" })
   if (promoId && existing.isError) return <ErrorState error={existing.error} onRetry={() => void existing.refetch()} />
   if (promoId && !existing.data) return <EditorSkeleton promoId={promoId} />
   return <Editor key={existing.data?.updatedAt ?? "new"} current={existing.data ?? null} />
@@ -124,7 +126,7 @@ function Editor({ current }: { current: Promotion | null }) {
         noValidate
       >
         <div className="ef-detail__main">
-          <Panel title="Basics">
+          <Panel tour="promo.basics" title="Basics">
             <div className="space-y-5">
               <Field
                 id="promo-name"
@@ -140,7 +142,7 @@ function Editor({ current }: { current: Promotion | null }) {
                   autoFocus={!current}
                 />
               </Field>
-              <div className="space-y-2">
+              <div data-tour="promo.applies" className="space-y-2">
                 <span className="flex items-center gap-2 text-sm font-medium">How it applies {locked}</span>
                 <Choice
                   label="How it applies"
@@ -195,7 +197,7 @@ function Editor({ current }: { current: Promotion | null }) {
             </div>
           </Panel>
 
-          <Panel title={<span className="flex items-center gap-2">What it gives {locked}</span>}>
+          <Panel tour="promo.kind" title={<span className="flex items-center gap-2">What it gives {locked}</span>}>
             <div className="space-y-5">
               <Choice
                 label="Kind"
@@ -351,7 +353,7 @@ function Editor({ current }: { current: Promotion | null }) {
             </div>
           </Panel>
 
-          <Panel title={<span className="flex items-center gap-2">Who {locked}</span>}>
+          <Panel tour="promo.who" title={<span className="flex items-center gap-2">Who {locked}</span>}>
             <div className="space-y-5">
               <Choice
                 label="Who"
@@ -393,6 +395,7 @@ function Editor({ current }: { current: Promotion | null }) {
           </Panel>
 
           <Panel
+            tour="promo.when"
             title="When"
             description={`${OPERATING_CITY} time. Leave a date empty for no bound; no days chosen means every day.`}
           >
@@ -440,7 +443,11 @@ function Editor({ current }: { current: Promotion | null }) {
             </div>
           </Panel>
 
-          <Panel title="Limits" description="Leave empty for no limit. A promotion that reaches one stops at once.">
+          <Panel
+            tour="promo.limits"
+            title="Limits"
+            description="Leave empty for no limit. A promotion that reaches one stops at once."
+          >
             <div className="grid gap-4 sm:grid-cols-3">
               <Field id="promo-max" label="Total uses" invalid={bad.has("maxUses")}>
                 <Input
@@ -471,7 +478,7 @@ function Editor({ current }: { current: Promotion | null }) {
                 />
               </Field>
             </div>
-            <label className="mt-5 flex items-start gap-3 text-sm">
+            <label data-tour="promo.combines" className="mt-5 flex items-start gap-3 text-sm">
               <Switch
                 checked={d.combinable}
                 onCheckedChange={(v) => set("combinable", v)}
@@ -583,7 +590,7 @@ function Editor({ current }: { current: Promotion | null }) {
           </div>
         </div>
 
-        <aside className="ef-detail__aside">
+        <aside data-tour="promo.summary" className="ef-detail__aside">
           <PromotionSummary d={d} />
         </aside>
       </form>

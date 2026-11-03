@@ -16,6 +16,7 @@ import { CategoryTree } from "./CategoryTree"
 import { taxonomyErrorText } from "./errorText"
 import { index, type Category } from "./model"
 import { attributesQuery, treeQuery, useMoveCategory } from "./queries"
+import { tourStatus, useTourPage } from "@effy/web-kit/tour"
 
 /** Categories (tree left, the selected category right; stacked below 1024px) and the attribute library. */
 export function TaxonomyScreen({ tab, categoryId }: { tab: "categories" | "attributes"; categoryId: string | null }) {
@@ -23,6 +24,7 @@ export function TaxonomyScreen({ tab, categoryId }: { tab: "categories" | "attri
   const roles = session?.status === "signed-in" ? session.identity.roles : []
   const canManage = canManageTaxonomy(roles)
   const tree = useQuery(treeQuery())
+  useTourPage("taxonomy", { status: tourStatus(tree) })
   const attributes = useQuery(attributesQuery())
   const navigate = useNavigate()
 
@@ -43,7 +45,7 @@ export function TaxonomyScreen({ tab, categoryId }: { tab: "categories" | "attri
       />
       <div className="space-y-4">
         <Tabs value={tab} activationMode="manual">
-          <TabsList aria-label="Taxonomy views">
+          <TabsList data-tour="taxonomy.views" aria-label="Taxonomy views">
             {views.map((v) => (
               <TabsTrigger key={v.key} value={v.key} asChild>
                 <Link
