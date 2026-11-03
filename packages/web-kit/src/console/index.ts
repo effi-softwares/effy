@@ -19,6 +19,7 @@ export {
 export { OtpSignInCard, type OtpSignInCardProps } from "./OtpSignInCard";
 export { ErrorState, type ErrorStateProps } from "./ErrorState";
 export { visibleNav, type NavItem } from "./nav";
+export { railLabelOf, railLabelProblems, railTextWidth, RAIL_LINE_PX } from "./rail-label";
 export { LiveProvider, useLiveStatus, type LiveProviderProps, type LiveStatusValue } from "../live/LiveProvider";
 export { LiveStatus } from "./LiveStatus";
 export { PackageStatusPill } from "./PackageStatusPill";

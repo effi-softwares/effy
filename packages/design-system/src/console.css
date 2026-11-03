@@ -536,7 +536,9 @@ body {
 [data-collapsible="icon"] .ef-sb-rule { @apply m-3 block h-px flex-none bg-sidebar-border; }
 [data-collapsible="icon"] .ef-sb-btn:not(.ef-sb-brand) { @apply flex-col justify-center gap-1 rounded-lg text-sidebar-muted; }
 [data-collapsible="icon"] .ef-sb-btn:not(.ef-sb-brand) > svg { @apply size-5; }
-[data-collapsible="icon"] .ef-sb-btn:not(.ef-sb-brand) > .ef-sb-label { @apply line-clamp-2 max-w-full flex-none text-center text-xs leading-3 font-medium wrap-anywhere whitespace-normal; }
+/* The rail's word: two lines at most, broken only BETWEEN words, never inside one ("Managemen / t"). A name too
+   wide for 72px is caught by `railLabelProblems` in each console's nav test and given a `railLabel`. */
+[data-collapsible="icon"] .ef-sb-btn:not(.ef-sb-brand) > .ef-sb-label { @apply line-clamp-2 max-w-full flex-none text-center text-xs leading-4 font-medium wrap-normal break-normal hyphens-none whitespace-normal; }
 [data-collapsible="icon"] .ef-sb-btn:not(.ef-sb-brand),
 [data-collapsible="icon"] .ef-sb-btn:not(.ef-sb-brand):hover,
 [data-collapsible="icon"] .ef-sb-btn:not(.ef-sb-brand):active,

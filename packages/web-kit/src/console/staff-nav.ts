@@ -30,6 +30,11 @@ export interface StaffNavLeaf<TRole extends string = string, TCount extends stri
 export interface StaffNavEntry<TRole extends string = string, TCount extends string = string>
   extends StaffNavLeaf<TRole, TCount> {
   icon: LucideIcon;
+  /**
+   * A shorter name for the folded rail, when `label` does not fit it (`railLabelTooWide`). The rail wraps only
+   * between words, two lines at most, and never splits a word.
+   */
+  railLabel?: string;
   subs?: readonly StaffNavLeaf<TRole, TCount>[];
 }
 

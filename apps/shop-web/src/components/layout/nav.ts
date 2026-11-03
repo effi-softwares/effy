@@ -1,4 +1,4 @@
-import { BarChart3, ClipboardList, LayoutDashboard, Package, Settings, Shield } from "lucide-react"
+import { BarChart3, ClipboardList, LayoutDashboard, Package, Settings, Users } from "lucide-react"
 
 import type { ShopRole } from "@effy/shared-types"
 import { visibleStaffGroups, type NavItem, type StaffNavGroup } from "@effy/web-kit/console"
@@ -42,7 +42,8 @@ const NAV_GROUPS: readonly StaffNavGroup<ShopRole>[] = [
   {
     label: "Workspace",
     items: [
-      { key: "manager", label: "Management", to: "/manager", icon: Shield, requiredRole: "shop_manager" },
+      // The page is the team roster, titled "Team"; the menu says what the page says.
+      { key: "manager", label: "Team", to: "/manager", icon: Users, requiredRole: "shop_manager" },
       {
         key: "settings-group",
         label: "Settings",

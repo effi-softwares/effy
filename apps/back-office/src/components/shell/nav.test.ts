@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import type { BackOfficeRole } from "@effy/shared-types"
+import { railLabelOf, railLabelProblems } from "@effy/web-kit/console"
 
 import { activeKey, DEFAULT_TAB, locate, NAV_GROUPS, visibleGroups, type NavGroup } from "./nav"
 
@@ -94,5 +95,12 @@ describe("back-office sidebar - which page is lit", () => {
     expect(where?.group.label).toBe("Operations")
     expect(where?.item.label).toBe("Orders")
     expect(where?.leaf.label).toBe("Dispatch")
+  })
+})
+
+describe("the folded rail", () => {
+  it("every entry's name fits it, broken only between words", () => {
+    const all = NAV_GROUPS.flatMap((g) => g.items)
+    expect(all.flatMap((e) => railLabelProblems(railLabelOf(e)))).toEqual([])
   })
 })

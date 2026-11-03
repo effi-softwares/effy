@@ -37,6 +37,7 @@ import {
   type StaffNavGroup,
   type StaffNavLeaf,
 } from "./staff-nav";
+import { railLabelOf } from "./rail-label";
 
 /**
  * The consoles' sidebar - shadcn sidebar-07 (`collapsible="icon"`), dressed as the redesign's
@@ -59,6 +60,8 @@ export function StaffSidebar({ brand, groups, defaultTabs, counts }: StaffSideba
   const active = staffActiveKey(groups, { pathname, tab, query: search as Record<string, unknown> }, defaultTabs);
   const { isMobile, openMobile, setOpenMobile, state } = useSidebar();
   const { scroller, more } = useOverflow([groups, state, isMobile, openMobile]);
+  // The folded rail may show an entry's shorter name; the tooltip and the open sidebar keep the full one.
+  const rail = state === "collapsed" && !isMobile;
 
   // Below 768 the rail is a sheet: choosing a page closes it, so the page is what the person sees.
   useEffect(() => {
@@ -115,7 +118,7 @@ export function StaffSidebar({ brand, groups, defaultTabs, counts }: StaffSideba
                     <SidebarMenuButton asChild isActive={active === item.key} tooltip={item.label} className="ef-sb-btn">
                       <Link {...staffLinkOf(item)} aria-current={active === item.key ? "page" : undefined}>
                         <item.icon aria-hidden="true" />
-                        <span className="ef-sb-label">{item.label}</span>
+                        <span className="ef-sb-label">{rail ? railLabelOf(item) : item.label}</span>
                         <CountBadge n={item.count ? counts[item.count] : undefined} strong={item.countTone === "strong"} />
                       </Link>
                     </SidebarMenuButton>
@@ -214,7 +217,7 @@ function NavGroupItem({
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton isActive={holdsActive} className="ef-sb-btn" aria-label={`${item.label}: ${subs.length} pages`}>
               <item.icon aria-hidden="true" />
-              <span className="ef-sb-label">{item.label}</span>
+              <span className="ef-sb-label">{railLabelOf(item)}</span>
               <ChevronRight aria-hidden="true" className="ef-sb-flyhint" />
               <CountBadge n={total} strong={strong} />
             </SidebarMenuButton>

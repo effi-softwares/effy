@@ -1,4 +1,4 @@
-import { staffActiveKey, visibleNav } from "@effy/web-kit/console"
+import { railLabelOf, railLabelProblems, staffActiveKey, visibleNav } from "@effy/web-kit/console"
 import { describe, expect, it } from "vitest"
 
 import { NAV, navGroups } from "./nav"
@@ -10,7 +10,7 @@ describe("shop-web nav (role-aware)", () => {
     }
   })
 
-  it("shows the Management item only to a shop manager", () => {
+  it("shows the Team item only to a shop manager", () => {
     expect(visibleNav(NAV, ["shop_manager"]).map((i) => i.to)).toContain("/manager")
     expect(visibleNav(NAV, ["shop_staff", "shop_manager"]).map((i) => i.to)).toContain("/manager")
   })
@@ -37,8 +37,13 @@ describe("shop-web nav (role-aware)", () => {
     expect(NAV.map((i) => i.label)).not.toContain("Restock")
   })
 
-  it("hides the Management item from shop_staff and role-less operators", () => {
+  it("hides the Team item from shop_staff and role-less operators", () => {
     expect(visibleNav(NAV, ["shop_staff"]).map((i) => i.to)).not.toContain("/manager")
     expect(visibleNav(NAV, []).map((i) => i.to)).not.toContain("/manager")
+  })
+
+  it("every entry's name fits the folded rail, broken only between words", () => {
+    const all = navGroups(["shop_manager", "shop_staff"]).flatMap((g) => g.items)
+    expect(all.flatMap((e) => railLabelProblems(railLabelOf(e)))).toEqual([])
   })
 })
