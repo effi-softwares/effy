@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils"
  * a stack of boxes.
  */
 export function SettingsPage({ children }: { children: ReactNode }) {
-  return <div className="grid max-w-5xl gap-0">{children}</div>
+  return <div className="grid min-w-0 gap-0">{children}</div>
 }
 
 export function SettingsSection({
@@ -21,7 +21,7 @@ export function SettingsSection({
   children: ReactNode
 }) {
   return (
-    <section className="grid gap-x-10 gap-y-4 border-t py-8 first:border-t-0 first:pt-2 lg:grid-cols-[minmax(0,17rem)_minmax(0,1fr)]">
+    <section className="grid gap-x-10 gap-y-4 border-t py-8 first:border-t-0 first:pt-2 lg:grid-cols-[minmax(0,17rem)_minmax(0,1fr)] 2xl:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]">
       <div className="grid content-start gap-1">
         <h2 className="text-base leading-6 font-semibold">{title}</h2>
         <p className="text-sm text-pretty text-muted-foreground">{description}</p>

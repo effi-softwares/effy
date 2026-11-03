@@ -5,7 +5,7 @@ verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
 **Shop settings redesign: Notifications + Printing (no spec number).** 🔨 **BUILT 2026-11-03; NOT DEPLOYED OR WALKED.** No prototype.
-- **One settings layout** (`components/console/Settings.tsx`): ruled sections, the title and a sentence on the left, one bordered
+- **One settings layout** (`components/console/Settings.tsx`), full width: ruled sections, the title and a sentence on the left, one bordered
   list on the right (stacked below 1024px). It replaces the single card of prose and selects on both pages.
 - **Notifications**: a device row (status badge, "Chrome on macOS", Turn on / Turn off), **Send a test** (shown by our own worker;
   nothing is sent through the server), the **Sound** chime switch with Play (the same store as the header's Sound button), and the alert
