@@ -17,7 +17,7 @@ import { useTourContext, useTours } from "./TourProvider";
 
 /**
  * The one Help place (106 FR-005): replay this page's tour or the Welcome tour, see every tour, and choose whether
- * tours are offered. A tour started here waits for the menu to close before it begins.
+ * tours start by themselves on new pages. A tour started here waits for the menu to close before it begins.
  */
 export function TourHelpButton() {
   const { tours, state, write } = useTourContext();
@@ -64,7 +64,7 @@ export function TourHelpButton() {
           onSelect={(e) => e.preventDefault()}
           onCheckedChange={(on) => write({ offerTours: on === true })}
         >
-          Offer tours on new pages
+          Show tours on new pages
         </DropdownMenuCheckboxItem>
         <DropdownMenuItem disabled={!state} onSelect={() => write({ reset: true })}>
           Show every tour again

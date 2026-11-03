@@ -8,7 +8,7 @@ One row per person per console. Written and read only by `@effy/edge-shared/tour
 |---|---|---|
 | `audience` | `text NOT NULL` | `CHECK (audience IN ('shop','admin'))`. Set by the service, never by the client. |
 | `subject` | `text NOT NULL` | The caller's Cognito `sub`, from their own token. |
-| `offer_tours` | `boolean NOT NULL DEFAULT true` | "Offer tours on new pages". |
+| `offer_tours` | `boolean NOT NULL DEFAULT true` | "Show tours on new pages" (tours start by themselves). |
 | `seen` | `jsonb NOT NULL DEFAULT '{}'` | `{ "<tourKey>": { "v": int, "outcome": "finished"\|"closed"\|"declined", "at": ISO } }` |
 | `updated_at` | `timestamptz NOT NULL DEFAULT now()` | |
 
@@ -24,15 +24,14 @@ One row per person per console. Written and read only by `@effy/edge-shared/tour
 ### State transitions (per tour key, per person)
 
 ```
-(absent) ──offered & declined──▶ declined
-   └─started──▶ closed (written at once, R13) ──finished──▶ finished
+(absent) ──started (by itself or by hand)──▶ closed (written at once, R13) ──finished──▶ finished
                               └─closed early / page changed / reload──▶ stays closed
 any ──"Show every tour again"──▶ (absent)   (the whole `seen` map is emptied)
 any ──later write──────────────▶ the latest outcome and version overwrite the earlier ones
 ```
 
-**Offer rule** (client, `shouldOffer(tour, state)`): offer when `state.offer_tours` is true AND
-(`seen[key]` is absent OR `seen[key].v < tour.version`). The second case uses the "This page has changed" wording.
+**Start rule** (client, `shouldOffer(tour, state)`): a tour starts by itself when `state.offer_tours` is true AND
+(`seen[key]` is absent OR `seen[key].v < tour.version`). The second case shows "Updated" in All tours. `declined` stays a valid outcome on the wire but is no longer written (2026-11-03: tours start by themselves).
 `welcome` follows the **same** rule: the switch suppresses it, and a raised version re-offers it. Its only
 difference is **precedence**: while `welcome` would be offered, no page tour is offered.
 
@@ -77,7 +76,7 @@ nothing (presence decides: R2, FR-011).
 |---|---|
 | `page` | `{ key, status: "loading" \| "ready" \| "error" }`, registered by `useTourPage` (research R6) |
 | `active` | `{ key, via, index, shown: number[] } \| null`. `shown` is the step indexes present when each step was reached, so "Step N of M" counts only those (FR-009). |
-| `invitation` | `{ key, revised: boolean } \| null` |
+| `dismissed` | tour keys not to start by themselves again this session (started already, or a page whose Welcome was closed early) |
 | `pendingStart` | `{ key, via } \| null`: a start waiting for its opener (menu, palette, dialog) to close (research R7) |
 
 **Every step skipped**: the provider shows one centred card with the tour's `title` and the fixed sentence

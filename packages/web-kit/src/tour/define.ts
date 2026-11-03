@@ -27,12 +27,10 @@ export interface TourStepDef {
 export interface TourDef {
   /** Unique; lower-case words joined by hyphens. */
   key: string;
-  /** Raise it when the tour is rewritten: people who saw an older version are offered it again (FR-021). */
+  /** Raise it when the tour is rewritten: people who saw an older version see it start by itself again (FR-021). */
   version: number;
   /** As listed in All tours. */
   title: string;
-  /** The invitation's question; "Take a quick tour of <title>?" when absent. */
-  invite?: string;
   /** Where the tour runs, for All tours. Absent for the whole-console tour. */
   path?: string;
   search?: Record<string, string>;

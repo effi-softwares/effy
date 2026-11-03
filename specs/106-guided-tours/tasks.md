@@ -162,6 +162,13 @@ something refundable differs exactly by steps 4, 7 and 11; a new-order banner st
 
 ---
 
+## Phase 8b: Change - tours start by themselves (operator, 2026-11-03)
+
+- [X] T066 Amend spec.md (the rule, US1/US2/US3/US6, FR-002/003/004/005/020/021, SC-003/005, assumptions) and research R16: a page's tour starts by itself on first use; no invitation
+- [X] T067 Replace `TourInvitation` with `AutoStart` in `packages/web-kit/src/tour/TourProvider.tsx` (ready + 700ms settle + opener closed; Welcome first; Welcome closed early leaves the page for the next visit); `TourVia` "invitation" → "auto"; remove `isWorkKey`, `REVISED_INVITE`, `TourDef.invite`; Help says "Show tours on new pages"
+- [X] T068 Remove `<TourInvitation />` from `apps/shop-web/src/routes/app.tsx`; `tour_started.via` "auto" in `apps/shop-web/src/lib/telemetry.ts`; regenerate `apps/shop-web/src/features/tours/tours.ts`
+- [X] T069 Rewrite `packages/web-kit/src/tour/__tests__/TourProvider.test.tsx` for automatic starts (Welcome then page; Welcome closed early; once only; switch off)
+
 ## Phase 9: Polish & cross-cutting
 
 - [X] T061 Guard `apps/shop-web/src/features/tours/tours.guard.test.ts` (R9): (1) every screen component rendered by a route under `apps/shop-web/src/routes/` (all except `auth.tsx`), **following one level of wrapper components** (`ManagerOnlyScreen` → `TeamRoster`), calls `useTourPage(` with keys in `SHOP_TOURS`; (2) every `SHOP_TOURS` key is used or is `welcome`; (3) every step target appears as `data-tour="key"` / `tour="key"` in `apps/shop-web/src` or `packages/web-kit/src`, or is `nav.<key>` for a key in `apps/shop-web/src/components/layout/nav.ts`, or `nav`, `page-title`, `header.*` set by web-kit; (4) **per screen** for shared keys: a tour that targets `page-more` must have `tour="page-more"` in its own screen's files (screen + the components it imports from its feature folder), and one that targets `page-title` must render `PageHeader` or `RecordHeader` there; (5) all 16 tours of the spec's inventory are defined; prove it by deleting one attribute and watching it fail

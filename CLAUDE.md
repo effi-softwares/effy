@@ -654,7 +654,7 @@ the entries carry gotchas and deploy-ordering rules that the code does not. Slic
 
 Features recorded:
 
-- **106-guided-tours** - Guided Tours in the Shop Console (16 tours offered once per person, replayed from Help or ⌘K; one Radix tour primitive; words in `tours.ts`, held to the spec) - built 2026-11-03; not migrated, deployed or walked
+- **106-guided-tours** - Guided Tours in the Shop Console (16 tours that start by themselves on a page's first use, once per person; replayed from Help or ⌘K; one Radix tour primitive; words in `tours.ts`, held to the spec) - built 2026-11-03; not migrated, deployed or walked
 - **105-category-driven-variants** - Variants Only From Category Attributes (no platform "Pack size" option; net quantity per variant; clothing Size removed; import columns renamed) - built 2026-10-30; not migrated, deployed or walked
 - **104-activity-log-drawer** - Every Activity Log in One Drawer (twelve logs; one server helper; search, type, dates, paging, CSV export; state in the address) - built 2026-10-29; not deployed or walked
 - **103-console-data-tables** - One Data Table for Every Console List (server-driven search/filter/sort/paging in the address; fills the window; capped sets refuse past 500; no silent truncation) - MVP deployed to dev; the rest built 2026-10-28, not deployed or walked

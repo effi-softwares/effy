@@ -17,7 +17,6 @@ export const SHOP_TOURS = defineTours([
     version: 1,
     title: "Welcome to Effy Shop",
     anyPage: true,
-    invite: "New to Effy Shop? Take a one-minute tour of the console.",
     steps: [
       {
         target: null,

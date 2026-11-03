@@ -7,7 +7,6 @@ import {
   applyPatch,
   counter,
   isRevised,
-  isWorkKey,
   nextShown,
   resolveTarget,
   shouldOffer,
@@ -140,24 +139,13 @@ describe("the offer rule (data-model, FR-003, FR-021)", () => {
   });
 });
 
-describe("page status and starting work", () => {
+describe("page status", () => {
   it("only a loaded page is ready", () => {
     expect(tourStatus({ isSuccess: false, isError: false })).toBe("loading");
     expect(tourStatus({ isSuccess: true, isError: false })).toBe("ready");
     expect(tourStatus({ isSuccess: false, isError: true })).toBe("error");
   });
 
-  it("typing or activating is work; moving around is not (FR-014)", () => {
-    const k = (key: string, mods: Partial<KeyboardEvent> = {}) => isWorkKey({ key, ctrlKey: false, metaKey: false, altKey: false, ...mods });
-    expect(k("Enter")).toBe(true);
-    expect(k(" ")).toBe(true);
-    expect(k("a")).toBe(true);
-    expect(k("Tab")).toBe(false);
-    expect(k("ArrowDown")).toBe(false);
-    expect(k("Escape")).toBe(false);
-    expect(k("Shift")).toBe(false);
-    expect(k("k", { metaKey: true })).toBe(false);
-  });
 });
 
 describe("validateTours (FR-017)", () => {

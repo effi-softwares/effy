@@ -6,7 +6,7 @@ import { useHotkey } from "@tanstack/react-hotkeys"
 import { useStore } from "@tanstack/react-store"
 import type { ShopRole } from "@effy/shared-types"
 import { LiveProvider, StaffShell, StaffUserMenu } from "@effy/web-kit/console"
-import { AllToursDialog, TourHelpButton, TourInvitation, TourProvider } from "@effy/web-kit/tour"
+import { AllToursDialog, TourHelpButton, TourProvider } from "@effy/web-kit/tour"
 
 import { CommandPalette } from "@/components/console/CommandPalette"
 import { NewOrderAlert } from "@/components/console/NewOrderAlert"
@@ -83,7 +83,7 @@ function AppShell() {
 
   return (
     <LiveProvider enabled={identity !== null} loadDescriptor={getLiveDescriptor} routes={LIVE_ROUTES}>
-      {/* Guided tours (106): a page's tour is offered once per person and replayed from Help. */}
+      {/* Guided tours (106): a page's tour starts by itself the first time, once per person; replayed from Help. */}
       <TourProvider
         tours={SHOP_TOURS}
         roles={{ manager: roles.includes("shop_manager") }}
@@ -128,8 +128,7 @@ function AppShell() {
                 roles={roles}
                 onScan={() => setScanOpen(true)}
               />
-              <TourInvitation />
-              <AllToursDialog />
+                <AllToursDialog />
             </>
           }
         >

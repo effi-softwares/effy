@@ -4,7 +4,8 @@ import type { PageStatus } from "./engine";
 
 /** Which tour is running and what is waiting - genuine client state (constitution VI). Server state is the query. */
 
-export type TourVia = "invitation" | "help" | "search" | "all-tours";
+/** How a tour began: by itself on a first visit (106, operator 2026-11-03), or from Help, search or All tours. */
+export type TourVia = "auto" | "help" | "search" | "all-tours";
 
 export interface TourUiState {
   /** The page on screen and its tour, from `useTourPage`. */
@@ -14,7 +15,7 @@ export interface TourUiState {
   /** A start waiting for its page to be ready and for the menu or dialog that started it to close. */
   pendingStart: { key: string; via: TourVia; since: number } | null;
   allToursOpen: boolean;
-  /** Invitations closed in this session, so a failed write never brings one straight back. */
+  /** Tours not to start by themselves again in this session (already started, or a page whose Welcome was closed). */
   dismissed: readonly string[];
 }
 

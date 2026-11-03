@@ -9,6 +9,8 @@ import type { TourDef } from "./define";
 import {
   counter,
   EMPTY_TOUR_SENTENCE,
+  shouldOffer,
+  welcomeFirst,
   isPresent,
   nextShown,
   resolveTarget,
@@ -135,7 +137,7 @@ export function TourProvider({
       if (pageReady && (!openerStillOpen() || waited > OPENER_WAIT_MS)) {
         const ctx: StepContext = { manager };
         const first = shownSteps(tour, ctx)[0];
-        // Recorded as offered the moment it starts, so a reload mid-tour does not bring it back (research R13).
+        // Recorded the moment it starts, so a reload mid-tour does not start it again (research R13).
         writeRef.current({ tour: tour.key, version: tour.version, outcome: "closed" });
         emit({ name: "tour_started", tour: tour.key, version: tour.version, via: p.via });
         patchTourUi(store, {
@@ -194,9 +196,43 @@ export function TourProvider({
   return (
     <TourContext.Provider value={value}>
       {children}
+      <AutoStart />
       <ActiveTour />
     </TourContext.Provider>
   );
+}
+
+/** How long a loaded page shows before its tour starts, so passing through a page on the way to another starts nothing. */
+const SETTLE_MS = 700;
+
+/**
+ * The first time a person reaches a page, its tour starts by itself (106 FR-002; operator decision 2026-11-03): once
+ * the page has loaded and settled, and - through `start` - once any menu or dialog the person opened has closed. The
+ * Welcome tour comes first (FR-003). Nothing starts while a tour runs, waits, or All tours is open.
+ */
+function AutoStart() {
+  const { tours, byKey, state, store, start } = useTourContext();
+  const ui = useStore(store, (s) => ({
+    page: s.page,
+    busy: s.active !== null || s.pendingStart !== null || s.allToursOpen,
+    dismissed: s.dismissed,
+  }));
+
+  let next: string | null = null;
+  if (state && !ui.busy && ui.page?.status === "ready") {
+    const welcome = welcomeFirst(tours, state);
+    const pageTour = byKey.get(ui.page.key);
+    const tour = welcome ?? (pageTour && shouldOffer(pageTour, state) ? pageTour : null);
+    if (tour && !ui.dismissed.includes(tour.key)) next = tour.key;
+  }
+
+  useEffect(() => {
+    if (!next) return;
+    const t = window.setTimeout(() => start(next, "auto"), SETTLE_MS);
+    return () => window.clearTimeout(t);
+  }, [next, start]);
+
+  return null;
 }
 
 /** Re-renders when the page's DOM or layout changes, so a step follows what is on screen. */
@@ -247,6 +283,11 @@ function ActiveTour() {
       } else {
         const c = a.empty ? { step: 1, of: 1 } : counter(t, a.index, { manager });
         emit({ name: "tour_closed", tour: t.key, version: t.version, step: c.step, of: c.of });
+        // Closing the Welcome tour early means "not now": the page's own tour waits for the next visit.
+        const page = store.state.page;
+        if (t.anyPage && page && !store.state.dismissed.includes(page.key)) {
+          patchTourUi(store, { dismissed: [...store.state.dismissed, page.key] });
+        }
       }
       patchTourUi(store, { active: null });
     },

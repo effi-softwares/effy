@@ -7,11 +7,9 @@ export {
   EMPTY_TOUR_SENTENCE,
   isPresent,
   isRevised,
-  isWorkKey,
   nextShown,
   PAGE_NOT_LOADED_HINT,
   resolveTarget,
-  REVISED_INVITE,
   shouldOffer,
   shownSteps,
   stepVisible,
@@ -24,6 +22,5 @@ export { tourStateQueries, TOUR_STATE_KEY, TOUR_WRITE_KEY, type TourStateFetcher
 export type { TourVia } from "./store";
 export { TourProvider, useTours, type TourEvent, type TourListItem, type TourProviderProps } from "./TourProvider";
 export { useTourPage } from "./useTourPage";
-export { TourInvitation } from "./TourInvitation";
 export { TourHelpButton } from "./TourHelpButton";
 export { AllToursDialog } from "./AllToursDialog";

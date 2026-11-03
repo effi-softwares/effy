@@ -14,7 +14,7 @@ once per person (remembered across devices), never forced, and can be replayed f
    through `PopoverAnchor virtualRef`), a spotlight cut out of the shared blurred backdrop, and a centred variant. It
    adds no new dependency (research R1). Dice UI's Tour was evaluated and rejected: it now depends on Base UI.
 2. **`@effy/web-kit/tour`**: the behaviour. Provider, offer rule, step filtering by role and presence, `data-tour`
-   lookup, scrolling, the Help button, the invitation, the All tours dialog.
+   lookup, scrolling, the Help button, the automatic first-visit start, the All tours dialog.
 3. **`@effy/edge-shared/tours` + shop service**: one table, `public.console_tour_state` (one row per person), with one
    writer, behind `GET|PATCH /shop/v1/me/tours` (shared gateway 165 → 167 / 300).
 4. **shop-web**: `features/tours/tours.ts`, the one reviewable list holding the spec's 16 tours word for word; a
@@ -115,14 +115,13 @@ packages/design-system/src/ui/
 packages/web-kit/src/tour/                            # NEW: export "./tour"
 ├── index.ts
 ├── define.ts                                         # defineTours + dev asserts
-├── store.ts                                          # TanStack Store: page, active, invitation
+├── store.ts                                          # TanStack Store: page, active, pending start, dismissed
 ├── engine.ts                                         # shouldOffer, resolveTarget, nextShown, counter (pure)
 ├── state.ts                                          # tourStateQueries({ load, save }) (R14)
 ├── engine.test.ts
 ├── TourProvider.tsx                                  # wires state/write/openRecord/onEvent; renders TourStepView
 ├── useTourPage.ts
 ├── TourHelpButton.tsx                                # header "?" menu
-├── TourInvitation.tsx
 └── AllToursDialog.tsx
 packages/web-kit/src/console/{StaffSidebar,StaffHeader}.tsx  # data-tour on nav items, search, account
 packages/web-kit/src/patterns/{Page,Record,MoreActions}.tsx  # data-tour="page-title" on PageHeader + RecordHeader; `tour` prop
@@ -134,7 +133,7 @@ apps/shop-web/src/
 │   ├── openRecord.ts                                 # newest order / product (R12)
 │   ├── tours.test.ts                                 # limits, unique keys
 │   └── tours.guard.test.ts                           # every page registers; every target exists (R9)
-├── routes/app.tsx                                    # provider, Help button, invitation, All tours
+├── routes/app.tsx                                    # provider, Help button, All tours
 ├── lib/query-persist.ts                              # tour mutation defaults + resume after restore
 ├── components/console/{CommandPalette,SoundChip,ScanButton,NewOrderAlert,PwaBanners}.tsx
 ├── lib/telemetry.ts                                  # four tour_* events
@@ -150,7 +149,7 @@ edge-shared), so back-office's slice adds only `admin` routes, its own `tours.ts
 1. **Foundation**: shared-types DTO → migration → edge-shared store + validate + guard → shop handlers + serverless →
    `tour.tsx` → web-kit engine (pure, tested) → provider/hooks/components.
 2. **US1 + US2 (P1, the MVP)**: shop-web `tours.ts` with the Orders Queue tour first, then wiring in `app.tsx`, Help,
-   invitation, ⌘K; then the remaining page tours screen by screen, adding each screen's `data-tour` keys.
+   automatic start, ⌘K; then the remaining page tours screen by screen, adding each screen's `data-tour` keys.
 3. **US3**: Welcome tour + first-sign-in precedence + shell keys.
 4. **US4**: presence/role filtering on the order and product pages, narrow-screen stand-ins, `data-tour-above`.
 5. **US5**: telemetry events. **US6**: version re-offer wording.
@@ -165,7 +164,7 @@ edge-shared), so back-office's slice adds only `admin` routes, its own `tours.ts
   caught only on review, so the FEATURE-HISTORY entry tells future redesigns to re-read the page's tour.
 - **Radix modal layers hide the page while closing**: a tour started from Help, ⌘K or All tours waits until the
   opener has closed (R7), and presence ignores `aria-hidden` (R2).
-- **Invitation fatigue**: offered once, dismissed by starting work, one switch to turn it off. SC-006 is measured in
+- **Tour fatigue**: each tour starts by itself once per person, Esc closes it at once, one switch turns it off. SC-006 is measured in
   PostHog.
 
 ## Complexity Tracking

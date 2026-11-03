@@ -47,9 +47,10 @@ tourStateQueries({ load, save }): {                           // R14 - the one q
 }
 EMPTY_TOUR_SENTENCE                                           // the all-steps-skipped card (data-model)
 useTours(): { startPage(via): void; start(key, via): void; current: string | null; list: TourListItem[] }
-<TourHelpButton />    // header "?"; menu: Tour this page · Welcome tour · All tours… · Offer tours on new pages ✓ · Show every tour again
-<TourInvitation />    // bottom-right card (bottom sheet on a phone): "Take a quick tour of <title>?" [Take the tour] [Not now]
-                      // revised: "This page has changed. Take the new tour?"
+<TourHelpButton />    // header "?"; menu: Tour this page · Welcome tour · All tours… · Show tours on new pages ✓ · Show every tour again
+// (no invitation) - the provider's AutoStart starts a page's tour by itself the first time (operator, 2026-11-03):
+// once the page is ready, has settled 700ms, and any menu or dialog has closed. Welcome first; after Welcome is
+// finished the page's tour follows; closed early, the page's tour waits for the next visit. `via: "auto"`.
 <AllToursDialog />    // the list: title, Seen / New, Start. Opened from Help and search
 ```
 
@@ -75,7 +76,7 @@ shared parts:
 
 | Where | Change |
 |---|---|
-| `routes/app.tsx` | `TourProvider` inside `LiveProvider`; `<TourHelpButton/>` in `headerActions` (after Scan); `<TourInvitation/>` and `<AllToursDialog/>` in `overlays` |
+| `routes/app.tsx` | `TourProvider` inside `LiveProvider`; `<TourHelpButton/>` in `headerActions` (after Scan); `<AllToursDialog/>` in `overlays` |
 | `CommandPalette.tsx` | Two actions: **Tour this page**, **All tours** (keywords "tour", "help", "guide") |
 | `SoundChip` / `ScanButton` | `data-tour="header.sound"` / `"header.scan"` |
 | `NewOrderAlert`, `PwaBanners` | `data-tour-above` |

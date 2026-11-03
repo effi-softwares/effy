@@ -203,3 +203,16 @@ the fetch functions are the only thing an app supplies (shop-web: `/shop/v1/me/t
 **Decision**: `apis/edge-api/shared/src/tours/service.ts` exports `getTourState(audience, sub)` and
 `changeTourState(audience, sub, body)` (parse → write → map `full` to a typed refusal). Both handlers call only the
 service, keeping the handler → service → repository shape.
+
+## R16 - Tours start by themselves (operator decision, 2026-11-03; supersedes the invitation)
+
+**Decision**: There is no invitation. The first time a person reaches a page whose tour they have not seen, the
+tour **starts by itself** (`AutoStart` in `TourProvider`, `via: "auto"`): once the page is `ready`, has been on
+screen 700ms (passing through a page starts nothing), and any menu or dialog the person opened has closed (R7).
+Welcome comes first; finished, it is followed by the page's tour; closed early, the page's tour waits for the next
+visit. "Offer tours on new pages" is now **"Show tours on new pages"** and stops automatic starts (Welcome included).
+`declined` is no longer written. R7's "invitation is not declined by moving around" rule and `isWorkKey` are gone.
+
+**Why**: the operator asked that a tour show automatically the first time any page is used. Urgent work stays
+protected by FR-013 (alerts cut out of the dim and clickable), Esc closing a tour at once, and the wait for the page
+to load.

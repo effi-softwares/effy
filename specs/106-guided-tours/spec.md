@@ -41,14 +41,14 @@ done. A person can open it again whenever they need it.
 
 - **It points at the real thing.** The step outlines the part of the page it describes and dims the rest. Its
   explanation sits beside that part without covering it.
-- **It is offered, never forced.** The first time a person reaches a page that has a tour, a small invitation in the
-  corner offers it: **Take the tour** · **Not now**. The invitation never covers the page's work or stops it, and it
-  goes away by itself when the person starts working on the page.
-- **The first sign-in is different.** On a person's first sign-in, they are offered the **Welcome** tour of the
-  console as a whole. Its first step can be closed with one press.
-- **Each tour is offered once.** Starting a tour, finishing it, closing it part-way or pressing **Not now** all
-  count as offered, and the invitation does not come back. A tour counts as offered the moment it starts, so a reload
-  mid-tour does not bring the invitation back. The tour can still be replayed at any time (below).
+- **It starts by itself the first time.** *(Operator decision, 2026-11-03: shown automatically, not offered.)* The
+  first time a person reaches a page that has a tour, the tour starts on its own once the page has loaded. **Esc** or
+  **✕** closes it at once, from any step.
+- **The first sign-in is different.** On a person's first sign-in, the **Welcome** tour of the console starts first.
+  When it is finished (Done), the page's own tour follows; when it is closed early, the page's tour waits for the next
+  visit.
+- **Each tour starts by itself once.** A tour counts as shown the moment it starts, whether it is then finished or
+  closed, so a reload mid-tour does not start it again. The tour can still be replayed at any time (below).
 - **It can be replayed at any time** from the one **Help** place in the header (and from search: "Tour this page").
 - **It only explains.** A tour never presses a button for the person, never changes an order, a product or a
   setting, and never navigates away. While a step is showing, the dimmed page cannot be clicked. **Esc** or **✕**
@@ -70,28 +70,28 @@ done. A person can open it again whenever they need it.
 
 ### User Story 1 - A new team member learns a page from its tour (Priority: P1)
 
-A new member of shop staff opens Orders for the first time. A small invitation offers the tour. They take it. Each
+A new member of shop staff opens Orders for the first time. The Orders tour starts by itself. Each
 step outlines one part of the page (the Queue/Table switch, each lane, Left the shop) and explains what it is for.
 They finish the tour and start picking.
 
 **Why this priority**: This is the reason the feature exists. One page's tour, once it works, already helps a new
 hire.
 
-**Independent Test**: Sign in as a person who has not seen any tours. Open Orders, take the tour and step through
-it. Each step outlines the right part and shows its text. Reload Orders: the invitation is not offered again.
+**Independent Test**: Sign in as a person who has seen the Welcome tour but no page tours. Open Orders: its tour
+starts by itself. Step through it; each step outlines the right part and shows its text. Reload Orders: the tour does
+not start again.
 
 **Acceptance Scenarios**:
 
-1. **Given** a person who has never opened Orders, **When** they open it, **Then** an invitation offers the Orders
-   tour without covering the lanes.
+1. **Given** a person who has never opened Orders, **When** it has loaded, **Then** the Orders tour starts by itself.
 2. **Given** the tour is running, **When** they press Next or **→**, **Then** the next step outlines its part of the
    page, and the counter says which step it is out of how many.
 3. **Given** the tour is running, **When** they press **Esc** or **✕**, **Then** the tour closes at once and the page
    is exactly as it was before.
-4. **Given** they took, closed or declined the tour, **When** they open Orders again on any device, **Then** the
-   invitation is not offered again.
-5. **Given** the person starts working on the page (opens an order, types in search), **When** the invitation is
-   showing, **Then** it goes away and counts as declined.
+4. **Given** they finished or closed the tour, **When** they open Orders again on any device, **Then** it does not
+   start again.
+5. **Given** a menu or dialog the person opened is still open, **When** the page finishes loading, **Then** the tour
+   waits until it has closed.
 
 ---
 
@@ -116,28 +116,28 @@ and choose All tours: every tour is listed, and a tour for another page opens th
    none, it says so in one sentence instead of starting an empty tour.
 3. **Given** search is open, **When** they type "tour", **Then** **Tour this page** and **All tours** are offered as
    commands.
-4. **Given** the person turned off "Offer tours on new pages", **When** they reach a page they have not seen,
-   **Then** no invitation appears, and Help still replays any tour.
-5. **Given** the person chooses **Show every tour again**, **When** they next reach each page, **Then** its
-   invitation is offered once more.
+4. **Given** the person turned off "Show tours on new pages", **When** they reach a page they have not seen,
+   **Then** no tour starts by itself, and Help still replays any tour.
+5. **Given** the person chooses **Show every tour again**, **When** they next reach each page, **Then** its tour
+   starts by itself once more.
 
 ---
 
 ### User Story 3 - The Welcome tour on first sign-in (Priority: P2)
 
-On their first sign-in, a new member of staff is offered a one-minute Welcome tour of the console. It covers what
+On their first sign-in, a one-minute Welcome tour of the console starts by itself. It covers what
 each page in the sidebar is for, the numbers beside them, search, scan, the chime, the account menu and where Help
 is.
 
 **Why this priority**: It ties the pages together, but the page tours (P1) carry most of the value on their own.
 
-**Independent Test**: Sign in as a person with no tour history. The Welcome tour is offered. Run it: Team is
+**Independent Test**: Sign in as a person with no tour history. The Welcome tour starts by itself. Run it: Team is
 explained to a manager and left out for staff.
 
 **Acceptance Scenarios**:
 
-1. **Given** a person's first sign-in, **When** the console opens, **Then** the Welcome tour is offered, and that
-   page's own invitation waits until the Welcome tour is taken or declined.
+1. **Given** a person's first sign-in, **When** the console opens, **Then** the Welcome tour starts by itself; when
+   it is finished, that page's own tour follows; when it is closed early, the page's tour waits for the next visit.
 2. **Given** a person with the Staff role, **When** they run the Welcome tour, **Then** the Team step is not shown
    and the counter does not count it.
 
@@ -178,24 +178,24 @@ Nothing about an order, a product or a customer is recorded.
 **Acceptance Scenarios**:
 
 1. **Given** a person starts, finishes or closes a tour, **When** the product analytics are read, **Then** they show
-   the tour, how it was started (invitation, Help or search), and the last step seen.
+   the tour, how it was started (by itself, Help, search or All tours), and the last step seen.
 
 ---
 
 ### User Story 6 - A changed page is offered its tour again (Priority: P3)
 
-When a page changes enough that its tour is rewritten, people who already saw the old tour are offered the new one
-once, as "This page has changed. Take the new tour?".
+When a page changes enough that its tour is rewritten, people who already saw the old tour are shown the new one
+once, by itself, as they would a new page's.
 
 **Why this priority**: It keeps tours useful as the console keeps being redesigned, but it is not needed at launch.
 
-**Independent Test**: Mark one tour as revised. A person who saw the old version is offered it once. A person who
-never saw it gets the normal invitation.
+**Independent Test**: Mark one tour as revised. A person who saw the old version has it start by itself once more;
+All tours marks it "Updated".
 
 **Acceptance Scenarios**:
 
 1. **Given** a tour marked as revised, **When** a person who saw the earlier version reaches its page, **Then**
-   they are offered it once with the "page has changed" wording.
+   it starts by itself once.
 
 ---
 
@@ -203,11 +203,11 @@ never saw it gets the normal invitation.
 
 - **A new order arrives during a tour**: the alert and chime come through above the tour. The tour stays where it
   is.
-- **The page's data is still loading**: the invitation waits until the page has loaded. A tour started from Help
+- **The page's data is still loading**: the tour waits until the page has loaded. A tour started from Help
   while the page is loading begins once it has loaded, never on loading shapes.
-- **The page errored**: no invitation is shown. Tour this page says the tour is available once the page loads.
+- **The page errored**: no tour starts. Tour this page says the tour is available once the page loads.
 - **Offline**: tours still run, because their words are part of the console. If remembering "offered" cannot be
-  saved, it is saved later. In the meantime the invitation is not shown again on this device.
+  saved, it is saved later. In the meantime the tour does not start again on this device.
 - **The window is resized or rotated mid-tour**: the outline and its text follow the part they describe. If a part
   is folded away at the new size, the tour moves on to the next step that is shown.
 - **The thing a step points at disappears mid-step** (for example, a live update moves the order out of a lane): the
@@ -215,13 +215,14 @@ never saw it gets the normal invitation.
 - **Every step of a tour would be skipped** (for example, an empty catalog): the tour shows one centred card with
   the tour's title and the sentence "There's nothing here to show yet. Try this tour again once the page has
   something in it." It counts as offered (closed).
-- **Two tours could be offered at once** (Welcome and a page): only one invitation shows at a time. Welcome comes
-  first.
+- **Two tours could start at once** (Welcome and a page): only one runs at a time. Welcome comes first.
 - **The page changes mid-tour** (the person follows the new-order banner, or the console signs out): the tour ends
   and counts as closed. It was already recorded as offered the moment it started.
 - **A manager loses the manager role**: steps about manager-only things stop being shown, and nothing else changes.
-- **A shared bench computer**: tours are remembered per person, not per device, so the next person who signs in is
-  offered tours they have not yet seen.
+- **A shared bench computer**: tours are remembered per person, not per device, so the next person who signs in sees
+  the tours they have not yet seen.
+- **A person moves on quickly**: a tour starts only after the page has been on screen for a moment, so passing
+  through a page on the way to another starts nothing.
 
 ## Requirements *(mandatory)*
 
@@ -231,15 +232,15 @@ never saw it gets the normal invitation.
 
 - **FR-001**: Every page listed in the Tour Inventory MUST have a tour, and the console MUST NOT have a page without
   one. A new page added later without a tour MUST be caught before release.
-- **FR-002**: The first time a person reaches a page with a tour, the console MUST offer that tour with a
-  non-blocking invitation (**Take the tour** · **Not now**). The invitation MUST NOT cover or stop the page's work.
-- **FR-003**: On a person's first sign-in, the console MUST offer the Welcome tour before any page invitation. The
-  Welcome tour follows the same rules as every other tour: "Offer tours on new pages" turned off stops its invitation
-  too, and a revised Welcome tour is offered again (FR-021).
-- **FR-004**: Whether each tour has been offered MUST be remembered **per person**, across every device they use.
-  Starting (recorded the moment it starts), finishing, closing part-way and declining all count as offered.
+- **FR-002**: The first time a person reaches a page with a tour, that tour MUST start by itself once the page has
+  loaded and any menu or dialog the person opened has closed. It MUST be closable at once from any step (**Esc**, ✕).
+- **FR-003**: On a person's first sign-in, the Welcome tour MUST start before any page tour; when it is finished, the
+  page's own tour follows. The Welcome tour follows the same rules as every other tour: "Show tours on new pages"
+  turned off stops it too, and a revised Welcome tour starts again (FR-021).
+- **FR-004**: Whether each tour has been shown MUST be remembered **per person**, across every device they use. A tour
+  counts as shown the moment it starts; finishing or closing it part-way is recorded too.
 - **FR-005**: The header MUST carry one **Help** place on every page. It offers **Tour this page**, **Welcome tour**,
-  **All tours** (each tour with whether the person has seen it), **Offer tours on new pages** (on/off, per person,
+  **All tours** (each tour with whether the person has seen it), **Show tours on new pages** (on/off, per person,
   on by default) and **Show every tour again**.
 - **FR-006**: Search MUST offer **Tour this page** and **All tours** as commands.
 - **FR-007**: Starting a tour for another page from All tours MUST open that page first. For a page that needs a
@@ -280,10 +281,10 @@ never saw it gets the normal invitation.
 **Measurement and revision**
 
 - **FR-020**: Starting, finishing and closing a tour MUST be recorded in product analytics: the tour, how it was
-  started (invitation, Help, search) and the last step seen. Nothing about an order, product, customer or shop
+  started (by itself, Help, search, All tours) and the last step seen. Nothing about an order, product, customer or shop
   record is recorded.
-- **FR-021**: A tour MAY be marked as revised. People who saw an earlier version are then offered it once more, with
-  the wording "This page has changed. Take the new tour?".
+- **FR-021**: A tour MAY be marked as revised. People who saw an earlier version then have it start by itself once
+  more, and All tours marks it "Updated".
 
 **Shared with back-office**
 
@@ -306,10 +307,10 @@ never saw it gets the normal invitation.
 - **SC-001**: 100% of the shop console's pages have a tour, and an automatic check fails a page without one or a
   step that points at nothing.
 - **SC-002**: Each page tour can be read through in under 90 seconds. The Welcome tour takes under 2 minutes.
-- **SC-003**: The invitation and a running tour never stop urgent work. A new-order alert shows within the same
+- **SC-003**: A running tour never hides urgent work. A new-order alert shows within the same
   second whether or not a tour is running.
 - **SC-004**: Any tour can be replayed from any page in at most 2 presses (Help → Tour this page).
-- **SC-005**: A person is offered each tour at most once (until it is revised or they ask to see tours again),
+- **SC-005**: Each tour starts by itself at most once per person (until it is revised or they ask to see tours again),
   whichever device they use.
 - **SC-006**: In the first month, at least 60% of tours that are started are finished. Tours finished less often
   than that are rewritten, using the step where people closed them.
@@ -321,8 +322,9 @@ never saw it gets the normal invitation.
 
 - **Remembered per person, not per device**: bench computers are shared, and one person uses several devices.
   Remembering per device would show a tour to the second person on a shared computer only by chance.
-- **Offered, not auto-started**: the console is a place of work where an order may be urgent, so even the Welcome
-  tour waits to be taken.
+- **Shown automatically** *(operator decision, 2026-11-03; the first draft only offered tours)*: a new person sees
+  each page explained without having to ask. Urgent work is protected instead by FR-013 (alerts stay above the
+  tour), Esc closing it at once, and the tour waiting for the page to load and for the person's own menus to close.
 - **Tours point at openers, not inside them**: a step about something inside a menu or drawer (Team activity,
   Manage sections) points at the button that opens it. A tour never opens anything (FR-010).
 - **The record-dependent tours** (an order, a product) run on whatever record is open. Their steps follow that
@@ -338,7 +340,7 @@ never saw it gets the normal invitation.
 Sixteen tours. In each table, **Points at** is the part of the page the step outlines. **Shown when** is blank when
 the step is always shown. Text in quotes elsewhere in this spec is the console's own wording.
 
-### W - Welcome to Effy Shop (the whole console; offered at first sign-in)
+### W - Welcome to Effy Shop (the whole console; starts by itself at first sign-in)
 
 | # | Points at | Title | Text | Shown when |
 |---|---|---|---|---|

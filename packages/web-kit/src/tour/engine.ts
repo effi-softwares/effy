@@ -6,7 +6,6 @@ import type { TourDef, TourStepDef } from "./define";
 
 export const EMPTY_TOUR_SENTENCE = "There's nothing here to show yet. Try this tour again once the page has something in it.";
 export const PAGE_NOT_LOADED_HINT = "The tour is available once this page loads.";
-export const REVISED_INVITE = "This page has changed. Take the new tour?";
 
 export type PageStatus = "loading" | "ready" | "error";
 
@@ -78,20 +77,20 @@ export function counter(tour: TourDef, index: number, ctx: StepContext): { step:
   return { step: at < 0 ? shown.filter((i) => i < index).length + 1 : at + 1, of: Math.max(shown.length, 1) };
 }
 
-/** Offered when tours are on, and never seen or seen at an older version (data-model offer rule). */
+/** Starts by itself when tours are on, and it was never shown or shown at an older version (data-model rule). */
 export function shouldOffer(tour: TourDef, state: ConsoleTourStateDTO): boolean {
   if (!state.offerTours) return false;
   const seen = state.seen[tour.key];
   return !seen || seen.version < tour.version;
 }
 
-/** Seen before, at an older version: the "This page has changed" wording. */
+/** Seen before, at an older version (All tours says "Updated"). */
 export function isRevised(tour: TourDef, state: ConsoleTourStateDTO): boolean {
   const seen = state.seen[tour.key];
   return Boolean(seen && seen.version < tour.version);
 }
 
-/** The whole-console tour comes first: while it would be offered, no page tour is (FR-003). */
+/** The whole-console tour comes first: while it would start, no page tour does (FR-003). */
 export function welcomeFirst(tours: readonly TourDef[], state: ConsoleTourStateDTO): TourDef | null {
   const welcome = tours.find((t) => t.anyPage);
   return welcome && shouldOffer(welcome, state) ? welcome : null;
@@ -105,11 +104,4 @@ export function applyPatch(state: ConsoleTourStateDTO, patch: ConsoleTourPatch, 
     ...state,
     seen: { ...state.seen, [patch.tour]: { version: patch.version, outcome: patch.outcome, at: now.toISOString() } },
   };
-}
-
-/** A key that types or activates counts as starting work; moving around does not (research R7, FR-014). */
-export function isWorkKey(e: Pick<KeyboardEvent, "key" | "ctrlKey" | "metaKey" | "altKey">): boolean {
-  if (e.ctrlKey || e.metaKey || e.altKey) return false;
-  if (e.key === "Enter" || e.key === " ") return true;
-  return e.key.length === 1;
 }
