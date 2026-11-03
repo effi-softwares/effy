@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { render, screen } from "@testing-library/react"
-import { describe, expect, it, vi } from "vitest"
+import { fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import type { ShopTeamMemberDTO } from "@effy/shared-types"
 
@@ -11,6 +11,8 @@ const sessionQuery = vi.hoisted(() => ({ queryKey: ["session"], queryFn: vi.fn()
 vi.mock("@/features/auth/queries", () => ({ sessionQuery }))
 
 import { TeamRoster } from "../TeamRoster"
+
+beforeEach(() => vi.clearAllMocks())
 
 function member(over: Partial<ShopTeamMemberDTO> = {}): ShopTeamMemberDTO {
   return {
@@ -47,13 +49,12 @@ describe("team roster visibility", () => {
     expect(screen.getByText("maya@effy.shop")).toBeInTheDocument()
   })
 
-  it("offers no invite, no role control and no stand-down to shop_staff", async () => {
+  it("offers no invite and no edit to shop_staff", async () => {
     wrap(["shop_staff"], [member()])
     await screen.findByText("Maya Oyelaran")
 
     expect(screen.queryByRole("button", { name: /invite/i })).not.toBeInTheDocument()
-    expect(screen.queryByRole("combobox")).not.toBeInTheDocument()
-    expect(screen.queryByRole("button", { name: /stand down/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /edit/i })).not.toBeInTheDocument()
   })
 
   it("renders the role as plain text for a non-manager", async () => {
@@ -61,25 +62,61 @@ describe("team roster visibility", () => {
     expect(await screen.findByText("Manager")).toBeInTheDocument()
   })
 
-  it("offers every control to a manager", async () => {
-    wrap(["shop_manager"], [member()])
+  it("offers invite and an edit for every colleague to a manager", async () => {
+    wrap(["shop_manager"], [member(), member({ staffId: "st-2", name: "Sam", status: "disabled" })])
     await screen.findByText("Maya Oyelaran")
 
     expect(screen.getByRole("button", { name: /invite/i })).toBeInTheDocument()
-    expect(screen.getByRole("combobox")).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: /stand down/i })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Edit Maya Oyelaran" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Edit Sam" })).toBeInTheDocument()
+  })
+
+  it("saves only what changed: a new name", async () => {
+    api.patch.mockResolvedValue(undefined)
+    wrap(["shop_manager"], [member()])
+    fireEvent.click(await screen.findByRole("button", { name: "Edit Maya Oyelaran" }))
+
+    const save = screen.getByRole("button", { name: "Save" })
+    expect(save).toBeDisabled()
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "  Maya O.  " } })
+    fireEvent.click(save)
+
+    await waitFor(() => expect(api.patch).toHaveBeenCalledWith("/shop/v1/team/st-1", { name: "Maya O." }))
+  })
+
+  it("shows the email but never lets it be edited", async () => {
+    wrap(["shop_manager"], [member()])
+    fireEvent.click(await screen.findByRole("button", { name: "Edit Maya Oyelaran" }))
+    expect(screen.getByLabelText("Work email")).toHaveValue("maya@effy.shop")
+    expect(screen.getByLabelText("Work email")).toBeDisabled()
+  })
+
+  it("stands a colleague down only after confirming", async () => {
+    api.patch.mockResolvedValue(undefined)
+    wrap(["shop_manager"], [member()])
+    fireEvent.click(await screen.findByRole("button", { name: "Edit Maya Oyelaran" }))
+    fireEvent.click(screen.getByRole("button", { name: "Stand down" }))
+    expect(api.patch).not.toHaveBeenCalled()
+
+    // The confirmation sheet opens over the edit dialog; its "Stand down" is the last one.
+    await screen.findByText("Stand down Maya Oyelaran?")
+    fireEvent.click(screen.getAllByRole("button", { name: "Stand down" }).at(-1)!)
+    await waitFor(() => expect(api.patch).toHaveBeenCalledWith("/shop/v1/team/st-1", { status: "disabled" }))
   })
 
   it("withholds stand-down on the manager's own row", async () => {
     wrap(["shop_manager"], [member({ isSelf: true, roles: ["shop_manager"] })])
-    await screen.findByText("Maya Oyelaran")
+    fireEvent.click(await screen.findByRole("button", { name: "Edit Maya Oyelaran" }))
     expect(screen.queryByRole("button", { name: /stand down/i })).not.toBeInTheDocument()
   })
 
-  it("offers no stand-down for someone already stood down", async () => {
+  it("reinstates someone who was stood down", async () => {
+    api.patch.mockResolvedValue(undefined)
     wrap(["shop_manager"], [member({ status: "disabled" })])
-    expect(await screen.findByText("Stood down")).toBeInTheDocument()
+    fireEvent.click(await screen.findByRole("button", { name: "Edit Maya Oyelaran" }))
     expect(screen.queryByRole("button", { name: /stand down/i })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "Reinstate" }))
+    await waitFor(() => expect(api.patch).toHaveBeenCalledWith("/shop/v1/team/st-1", { status: "active" }))
   })
 
   it("distinguishes active from stood down without relying on colour", async () => {

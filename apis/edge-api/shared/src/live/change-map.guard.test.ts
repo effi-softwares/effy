@@ -72,9 +72,8 @@ const SILENT: Record<string, string> = {
   "commerce/order-business-identity-v1-put": "096 — the buyer's business details for a tax invoice not yet issued; no screen shows them live",
   "orders/admin-tax-settings-v1-put": "096 — Effy's tax identity and the invoice switch; read when a document is asked for, shown live nowhere",
   "fleet/shop-pack-scanning-v1-put": "096 — a shop rule read only when the shop next marks an order ready; no screen shows it live, so nothing is announced",
-  "shop/team-deactivate-v1-post": "team administration; a deactivated operator's own channel closes at the next epoch (research R5), which needs no announcement",
   "shop/team-invite-v1-post": "team administration",
-  "shop/team-role-v1-patch": "team administration",
+  "shop/team-member-v1-patch": "team administration; a stood-down operator's own channel closes at the next epoch (research R5), which needs no announcement",
 
   "shop/insights-reconcile": "rebuilds the prepared analytics rollup; Insights is not a live screen (FR-030)",
 

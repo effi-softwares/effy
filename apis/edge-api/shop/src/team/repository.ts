@@ -89,54 +89,66 @@ export async function upsertMember(
   });
 }
 
-/** Replaced, not added to, or a role change would grant both. */
-export async function setRole(shopId: string, staffId: string, role: ShopRole): Promise<string> {
-  return withTransaction(async (tx) => {
-    const member = await tx.query<{ email: string | null }>(
-      `SELECT email FROM public.shop_staff WHERE id = $1 AND shop_id = $2 FOR UPDATE`,
-      [staffId, shopId],
-    );
-    if (member.rowCount === 0) throw new ProductError("not_found", "team member not found");
-
-    await tx.query(`DELETE FROM public.shop_staff_role WHERE staff_id = $1`, [staffId]);
-    await tx.query(`INSERT INTO public.shop_staff_role (staff_id, role_key) VALUES ($1, $2)`, [
-      staffId,
-      role,
-    ]);
-    return member.rows[0]!.email ?? "";
-  });
-}
-
-export async function deactivate(shopId: string, staffId: string): Promise<string> {
-  const res = await query<{ email: string | null }>(
-    `UPDATE public.shop_staff SET status = 'disabled', updated_at = now()
-      WHERE id = $1 AND shop_id = $2
-      RETURNING email`,
-    [staffId, shopId],
-  );
-  if (res.rowCount === 0) throw new ProductError("not_found", "team member not found");
-  return res.rows[0]!.email ?? "";
+export interface MemberPatch {
+  name?: string;
+  role?: ShopRole;
+  status?: "active" | "disabled";
 }
 
 /**
- * Active managers left if `excludingStaffId` went. The last manager is not removable. Counted in the
- * same transaction as the write, so two managers standing each other down cannot both succeed.
+ * One transaction: the shop's team rows are locked first, so two managers editing each other at once
+ * cannot both leave the shop with no active manager. Returns the member's email (the Cognito username)
+ * and which of role / status actually changed, for the caller to mirror into Cognito.
  */
-export async function activeManagersExcluding(
+export async function updateMember(
   shopId: string,
-  excludingStaffId: string,
-): Promise<number> {
-  const res = await query<{ n: number }>(
-    `SELECT COUNT(*)::int AS n
-       FROM public.shop_staff s
-       JOIN public.shop_staff_role sr ON sr.staff_id = s.id
-      WHERE s.shop_id = $1
-        AND s.status = 'active'
-        AND sr.role_key = 'shop_manager'
-        AND s.id <> $2`,
-    [shopId, excludingStaffId],
-  );
-  return res.rows[0]?.n ?? 0;
+  staffId: string,
+  callerSub: string,
+  patch: MemberPatch,
+): Promise<{ email: string; roleChanged: boolean; statusChanged: boolean }> {
+  return withTransaction(async (tx) => {
+    const team = await tx.query<{ id: string; cognito_sub: string; email: string | null; status: string; is_manager: boolean }>(
+      `SELECT s.id::text AS id, s.cognito_sub, s.email, s.status,
+              EXISTS (SELECT 1 FROM public.shop_staff_role r WHERE r.staff_id = s.id AND r.role_key = 'shop_manager') AS is_manager
+         FROM public.shop_staff s
+        WHERE s.shop_id = $1
+        ORDER BY s.id
+          FOR UPDATE OF s`,
+      [shopId],
+    );
+    const target = team.rows.find((m) => m.id === staffId);
+    if (!target) throw new ProductError("not_found", "team member not found");
+
+    const roleChanged = patch.role !== undefined && (patch.role === "shop_manager") !== target.is_manager;
+    const statusChanged = patch.status !== undefined && patch.status !== target.status;
+
+    if (statusChanged && patch.status === "disabled" && target.cognito_sub === callerSub) {
+      throw new ProductError("conflict", "you cannot stand yourself down");
+    }
+
+    // After this edit, would any active manager remain?
+    const willBeManager = patch.role !== undefined ? patch.role === "shop_manager" : target.is_manager;
+    const willBeActive = (patch.status ?? target.status) === "active";
+    const otherManagers = team.rows.filter((m) => m.id !== staffId && m.status === "active" && m.is_manager).length;
+    if (otherManagers === 0 && !(willBeManager && willBeActive)) {
+      throw new ProductError("conflict", "this shop would be left with no manager");
+    }
+
+    if (patch.name !== undefined || statusChanged) {
+      await tx.query(
+        `UPDATE public.shop_staff
+            SET name = COALESCE($3, name), status = COALESCE($4, status), updated_at = now()
+          WHERE id = $1 AND shop_id = $2`,
+        [staffId, shopId, patch.name ?? null, statusChanged ? patch.status : null],
+      );
+    }
+    if (roleChanged) {
+      // Replaced, not added to, or a role change would grant both.
+      await tx.query(`DELETE FROM public.shop_staff_role WHERE staff_id = $1`, [staffId]);
+      await tx.query(`INSERT INTO public.shop_staff_role (staff_id, role_key) VALUES ($1, $2)`, [staffId, patch.role]);
+    }
+    return { email: target.email ?? "", roleChanged, statusChanged };
+  });
 }
 
 /** 103 FR-024: a shop's team is shown whole, so it is capped (`setIsFull`). */

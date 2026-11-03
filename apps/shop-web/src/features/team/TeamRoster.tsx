@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { UserPlus } from "lucide-react"
+import { Pencil, UserPlus } from "lucide-react"
 
 import { CAPPED_SET_LIMIT, isShopManager, listFullSentence, SHOP_ROLES, type ShopRole, type ShopTeamMemberDTO } from "@effy/shared-types"
 import {
@@ -27,10 +27,10 @@ import { PageHeader } from "@effy/web-kit/patterns"
 
 import { DesignSheet } from "@/components/console/DesignSheet"
 
-import { productMutationError } from "@/features/catalog/errorText"
 import { sessionQuery } from "@/features/auth/queries"
 
-import { teamQuery, useChangeRole, useDeactivateStaff, useInviteStaff } from "./queries"
+import { teamError } from "./errorText"
+import { teamQuery, useInviteStaff, useUpdateMember, type TeamMemberPatch } from "./queries"
 
 const ROLE_LABEL: Record<ShopRole, string> = {
   shop_manager: "Manager",
@@ -41,6 +41,8 @@ export function TeamRoster() {
   const { data, error, isPending, isError, refetch } = useQuery(teamQuery)
   const { data: session } = useQuery(sessionQuery)
   const [inviteOpen, setInviteOpen] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const editing = data?.find((m) => m.staffId === editingId) ?? null
 
   const canManage = session?.status === "signed-in" && isShopManager(session.identity.roles)
 
@@ -68,7 +70,7 @@ export function TeamRoster() {
       ) : isPending ? (
         <StaticTable
           label="Team"
-          columns={teamColumns(canManage)}
+          columns={teamColumns(canManage, setEditingId)}
           rows={[]}
           getRowId={(m) => m.staffId}
           loading
@@ -77,7 +79,7 @@ export function TeamRoster() {
         <>
           <StaticTable
             label="Team"
-            columns={teamColumns(canManage)}
+            columns={teamColumns(canManage, setEditingId)}
             rows={data}
             getRowId={(m) => m.staffId}
             initialSort={{ id: "name" }}
@@ -89,6 +91,9 @@ export function TeamRoster() {
       )}
 
       <InviteDialog open={inviteOpen} onOpenChange={setInviteOpen} />
+      {editing ? (
+        <EditMemberDialog key={editing.staffId} member={editing} onClose={() => setEditingId(null)} />
+      ) : null}
     </div>
   )
 }
@@ -96,7 +101,7 @@ export function TeamRoster() {
 const roleOf = (m: ShopTeamMemberDTO): ShopRole => (m.roles.includes("shop_manager") ? "shop_manager" : "shop_staff")
 
 /** The shop's team, shown whole (103 FR-024: a capped set) and sorted in the browser. */
-function teamColumns(canManage: boolean): EffyColumnDef<ShopTeamMemberDTO>[] {
+function teamColumns(canManage: boolean, onEdit: (staffId: string) => void): EffyColumnDef<ShopTeamMemberDTO>[] {
   return [
     {
       id: "name",
@@ -121,7 +126,7 @@ function teamColumns(canManage: boolean): EffyColumnDef<ShopTeamMemberDTO>[] {
       id: "role",
       accessorFn: (m) => (roleOf(m) === "shop_manager" ? 0 : 1),
       header: "Role",
-      cell: ({ row }) => <RoleCell member={row.original} canManage={canManage} />,
+      cell: ({ row }) => ROLE_LABEL[roleOf(row.original)],
       meta: { label: "Role" },
     },
     {
@@ -138,7 +143,17 @@ function teamColumns(canManage: boolean): EffyColumnDef<ShopTeamMemberDTO>[] {
           id: "actions",
           header: () => <span className="sr-only">Actions</span>,
           enableSorting: false,
-          cell: ({ row }) => <StandDownCell member={row.original} />,
+          cell: ({ row }) => (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onEdit(row.original.staffId)}
+              aria-label={`Edit ${row.original.name ?? row.original.email ?? "colleague"}`}
+            >
+              <Pencil aria-hidden="true" />
+              Edit
+            </Button>
+          ),
           meta: { label: "Actions", phone: "full", className: "text-right" },
         } satisfies EffyColumnDef<ShopTeamMemberDTO>,
       ]
@@ -146,76 +161,118 @@ function teamColumns(canManage: boolean): EffyColumnDef<ShopTeamMemberDTO>[] {
   ]
 }
 
-function RoleCell({ member, canManage }: { member: ShopTeamMemberDTO; canManage: boolean }) {
-  const changeRole = useChangeRole()
+/**
+ * A manager edits a colleague: name and role, and whether they may sign in. The email is their sign-in
+ * address and is shown, not edited: a different address is a new invitation.
+ */
+function EditMemberDialog({ member, onClose }: { member: ShopTeamMemberDTO; onClose: () => void }) {
+  const update = useUpdateMember()
+  const [name, setName] = useState(member.name ?? "")
+  const [role, setRole] = useState<ShopRole>(roleOf(member))
   const [error, setError] = useState<string | null>(null)
-  const role = roleOf(member)
-  return (
-    <>
-      {canManage && member.status === "active" ? (
-        <Select
-          value={role}
-          disabled={changeRole.isPending}
-          onValueChange={(v) =>
-            changeRole.mutate({ staffId: member.staffId, role: v as ShopRole }, { onError: (e) => setError(productMutationError(e)) })
-          }
-        >
-          <SelectTrigger size="sm" className="w-40" aria-label={`Role for ${member.name ?? member.email}`}>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {SHOP_ROLES.map((r) => (
-              <SelectItem key={r} value={r}>
-                {ROLE_LABEL[r]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      ) : (
-        ROLE_LABEL[role]
-      )}
-      {error ? (
-        <span role="alert" className="mt-1 block text-sm font-medium">
-          {error}
-        </span>
-      ) : null}
-    </>
-  )
-}
+  const [confirmStandDown, setConfirmStandDown] = useState(false)
 
-function StandDownCell({ member }: { member: ShopTeamMemberDTO }) {
-  const deactivate = useDeactivateStaff()
-  const [error, setError] = useState<string | null>(null)
-  const [confirm, setConfirm] = useState(false)
+  const who = member.name ?? member.email ?? "this colleague"
+  const active = member.status === "active"
+  const patch: TeamMemberPatch = {}
+  if (name.trim() !== (member.name ?? "")) patch.name = name.trim()
+  if (role !== roleOf(member)) patch.role = role
+  const changed = Object.keys(patch).length > 0
+
+  function send(p: TeamMemberPatch, after?: () => void) {
+    setError(null)
+    update.mutate(
+      { staffId: member.staffId, patch: p },
+      {
+        onSuccess: () => (after ? after() : onClose()),
+        onError: (e) => {
+          setConfirmStandDown(false)
+          setError(teamError(e))
+        },
+      },
+    )
+  }
+
   return (
     <>
-      {member.status === "active" && !member.isSelf ? (
-        <Button variant="outline" size="sm" disabled={deactivate.isPending} onClick={() => setConfirm(true)}>
-          Stand down
-        </Button>
-      ) : null}
-      {error ? (
-        <span role="alert" className="mt-1 block text-sm font-medium">
-          {error}
-        </span>
-      ) : null}
+      <ResponsiveModal open onOpenChange={(o) => !o && !update.isPending && onClose()}>
+        <ResponsiveModalContent className="sm:max-w-md">
+          <ResponsiveModalHeader>
+            <ResponsiveModalTitle>Edit {who}</ResponsiveModalTitle>
+            <ResponsiveModalDescription>
+              {active ? "Change their name or what they can do in this console." : "Stood down: they can't sign in to this shop."}
+            </ResponsiveModalDescription>
+          </ResponsiveModalHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-name">Name</Label>
+              <Input id="edit-name" value={name} maxLength={120} onChange={(e) => setName(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-email">Work email</Label>
+              <Input id="edit-email" value={member.email ?? ""} readOnly disabled />
+              <p className="text-sm text-muted-foreground">
+                Their sign-in address. To use another, invite that address and stand this one down.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-role">Role</Label>
+              <Select value={role} onValueChange={(v) => setRole(v as ShopRole)}>
+                <SelectTrigger id="edit-role">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SHOP_ROLES.map((r) => (
+                    <SelectItem key={r} value={r}>
+                      {ROLE_LABEL[r]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {error ? (
+              <p role="alert" className="text-sm font-medium">
+                {error}
+              </p>
+            ) : null}
+          </div>
+
+          <ResponsiveModalFooter className="sm:justify-between">
+            {active ? (
+              member.isSelf ? (
+                <span />
+              ) : (
+                <Button variant="outline" disabled={update.isPending} onClick={() => setConfirmStandDown(true)}>
+                  Stand down
+                </Button>
+              )
+            ) : (
+              <Button variant="outline" disabled={update.isPending} onClick={() => send({ status: "active" }, () => undefined)}>
+                Reinstate
+              </Button>
+            )}
+            <div className="flex flex-col-reverse gap-2 sm:flex-row">
+              <Button variant="ghost" disabled={update.isPending} onClick={onClose}>
+                Cancel
+              </Button>
+              <Button disabled={update.isPending || !changed || !name.trim()} onClick={() => send(patch)}>
+                {update.isPending ? "Saving…" : "Save"}
+              </Button>
+            </div>
+          </ResponsiveModalFooter>
+        </ResponsiveModalContent>
+      </ResponsiveModal>
+
       <DesignSheet
-        open={confirm}
-        onOpenChange={setConfirm}
-        title={`Stand down ${member.name ?? member.email ?? "this colleague"}?`}
-        description="They can no longer sign in to this shop. You can reinstate them by inviting the same email again."
+        open={confirmStandDown}
+        onOpenChange={setConfirmStandDown}
+        title={`Stand down ${who}?`}
+        description="They can no longer sign in to this shop. You can reinstate them from this list later."
         saveLabel="Stand down"
         destructive
-        saving={deactivate.isPending}
-        onSave={() =>
-          deactivate.mutate(member.staffId, {
-            onSuccess: () => setConfirm(false),
-            onError: (e) => {
-              setConfirm(false)
-              setError(productMutationError(e))
-            },
-          })
-        }
+        saving={update.isPending}
+        onSave={() => send({ status: "disabled" })}
       >
         {null}
       </DesignSheet>
@@ -240,7 +297,7 @@ function InviteDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (op
           setName("")
           onOpenChange(false)
         },
-        onError: (e) => setError(productMutationError(e)),
+        onError: (e) => setError(teamError(e)),
       },
     )
   }

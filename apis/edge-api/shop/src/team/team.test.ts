@@ -5,9 +5,7 @@ const repo = vi.hoisted(() => ({
   isFull: vi.fn(async () => false),
   findByEmail: vi.fn(),
   upsertMember: vi.fn(),
-  setRole: vi.fn(),
-  deactivate: vi.fn(),
-  activeManagersExcluding: vi.fn(),
+  updateMember: vi.fn(),
 }));
 vi.mock("./repository", () => repo);
 
@@ -19,7 +17,7 @@ const cognito = vi.hoisted(() => ({
 }));
 vi.mock("./cognito", () => cognito);
 
-import { changeRole, deactivate, invite } from "./service";
+import { invite, updateMember } from "./service";
 
 const SHOP = "shop-1";
 const ME = "sub-manager";
@@ -45,18 +43,18 @@ function callerIsManager() {
 beforeEach(() => {
   vi.clearAllMocks();
   callerIsManager();
-  repo.activeManagersExcluding.mockResolvedValue(1);
   cognito.ensureShopUser.mockResolvedValue("sub-new");
-  repo.setRole.mockResolvedValue("them@effy.shop");
-  repo.deactivate.mockResolvedValue("them@effy.shop");
+  repo.updateMember.mockResolvedValue({ email: "them@effy.shop", roleChanged: true, statusChanged: true });
 });
 
 /** Decided from the platform record, not `cognito:groups`. */
 describe("team management is manager-only, from the record", () => {
   const attempts: [string, () => Promise<unknown>][] = [
     ["invite", () => invite(SHOP, ME, { email: "new@effy.shop", name: "New", role: "shop_staff" })],
-    ["changeRole", () => changeRole(SHOP, ME, "st-2", { role: "shop_staff" })],
-    ["deactivate", () => deactivate(SHOP, ME, "st-2")],
+    ["rename", () => updateMember(SHOP, ME, "st-2", { name: "New name" })],
+    ["changeRole", () => updateMember(SHOP, ME, "st-2", { role: "shop_staff" })],
+    ["standDown", () => updateMember(SHOP, ME, "st-2", { status: "disabled" })],
+    ["reinstate", () => updateMember(SHOP, ME, "st-2", { status: "active" })],
   ];
 
   it.each(attempts)("refuses %s for shop_staff", async (_name, run) => {
@@ -135,42 +133,58 @@ describe("inviting a reused email refuses instead of resurrecting an account", (
   });
 });
 
-/** A shop must never be left without an active manager; demotion and deactivation are both guarded. */
-describe("the last manager cannot be removed", () => {
-  it("refuses to deactivate the last active manager", async () => {
-    repo.activeManagersExcluding.mockResolvedValue(0);
-    await expect(deactivate(SHOP, ME, "st-1")).rejects.toMatchObject({ kind: "conflict" });
-    expect(repo.deactivate).not.toHaveBeenCalled();
+/** Editing a colleague: the record is written once, then Cognito mirrors what actually changed. */
+describe("editing a colleague", () => {
+  it("renames without touching Cognito", async () => {
+    repo.updateMember.mockResolvedValue({ email: "them@effy.shop", roleChanged: false, statusChanged: false });
+    await updateMember(SHOP, ME, "st-2", { name: "  Sam Perera  " });
+    expect(repo.updateMember).toHaveBeenCalledWith(SHOP, "st-2", ME, { name: "Sam Perera" });
+    expect(cognito.setUserGroups).not.toHaveBeenCalled();
     expect(cognito.disableUser).not.toHaveBeenCalled();
+    expect(cognito.enableUser).not.toHaveBeenCalled();
   });
 
-  it("refuses to DEMOTE the last active manager — the same lockout by another route", async () => {
-    repo.activeManagersExcluding.mockResolvedValue(0);
-    await expect(changeRole(SHOP, ME, "st-1", { role: "shop_staff" })).rejects.toMatchObject({
-      kind: "conflict",
-    });
-    expect(repo.setRole).not.toHaveBeenCalled();
-  });
-
-  it("allows PROMOTING to manager even when none would otherwise remain", async () => {
-    repo.activeManagersExcluding.mockResolvedValue(0);
-    await expect(changeRole(SHOP, ME, "st-2", { role: "shop_manager" })).resolves.toBeUndefined();
-    expect(repo.setRole).toHaveBeenCalledWith(SHOP, "st-2", "shop_manager");
-  });
-
-  it("allows removal while another manager remains", async () => {
-    repo.activeManagersExcluding.mockResolvedValue(1);
-    await deactivate(SHOP, ME, "st-2");
-    expect(repo.deactivate).toHaveBeenCalledWith(SHOP, "st-2");
-    expect(cognito.disableUser).toHaveBeenCalledWith("them@effy.shop");
-  });
-});
-
-/** A role change touches Cognito, or the next sign-in reinstates the old group. */
-describe("role changes reconcile both systems", () => {
-  it("replaces the Cognito groups rather than adding to them", async () => {
-    await changeRole(SHOP, ME, "st-2", { role: "shop_staff" });
+  it("replaces the Cognito groups on a role change, or the next sign-in reinstates the old group", async () => {
+    repo.updateMember.mockResolvedValue({ email: "them@effy.shop", roleChanged: true, statusChanged: false });
+    await updateMember(SHOP, ME, "st-2", { role: "shop_staff" });
     expect(cognito.setUserGroups).toHaveBeenCalledWith("them@effy.shop", ["shop_staff"]);
+  });
+
+  it("leaves Cognito alone when the role is unchanged", async () => {
+    repo.updateMember.mockResolvedValue({ email: "them@effy.shop", roleChanged: false, statusChanged: false });
+    await updateMember(SHOP, ME, "st-2", { name: "Sam", role: "shop_staff" });
+    expect(cognito.setUserGroups).not.toHaveBeenCalled();
+  });
+
+  it("disables the sign-in on stand-down and enables it on reinstatement", async () => {
+    repo.updateMember.mockResolvedValue({ email: "them@effy.shop", roleChanged: false, statusChanged: true });
+    await updateMember(SHOP, ME, "st-2", { status: "disabled" });
+    expect(cognito.disableUser).toHaveBeenCalledWith("them@effy.shop");
+
+    await updateMember(SHOP, ME, "st-2", { status: "active" });
+    expect(cognito.enableUser).toHaveBeenCalledWith("them@effy.shop");
+  });
+
+  it("never reaches Cognito when the record refuses (last manager, self stand-down)", async () => {
+    const { ProductError } = await import("../products/types");
+    repo.updateMember.mockRejectedValue(new ProductError("conflict", "this shop would be left with no manager"));
+    await expect(updateMember(SHOP, ME, "st-1", { status: "disabled" })).rejects.toMatchObject({ kind: "conflict" });
+    expect(cognito.disableUser).not.toHaveBeenCalled();
+    expect(cognito.setUserGroups).not.toHaveBeenCalled();
+  });
+
+  it("refuses an empty edit, a blank or overlong name, an unknown role or status — before any write", async () => {
+    for (const body of [
+      {},
+      { name: "   " },
+      { name: "x".repeat(121) },
+      { role: "admin" },
+      { status: "deleted" },
+      { email: "new@effy.shop" },
+    ]) {
+      await expect(updateMember(SHOP, ME, "st-2", body)).rejects.toMatchObject({ kind: "validation" });
+    }
+    expect(repo.updateMember).not.toHaveBeenCalled();
   });
 });
 

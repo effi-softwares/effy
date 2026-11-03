@@ -661,24 +661,13 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
 
-  teamRoleV1:
-    handler: src/functions/team-role-v1-patch.handler
-    description: Change a colleague's role (manager only) — 057
+  teamMemberV1:
+    handler: src/functions/team-member-v1-patch.handler
+    description: Edit a colleague — name, role, stand down / reinstate (manager only)
     events:
       - httpApi:
           method: PATCH
-          path: /shop/v1/team/{staffId}/role
-          authorizer:
-            type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
-
-  teamDeactivateV1:
-    handler: src/functions/team-deactivate-v1-post.handler
-    description: Stand a colleague down (manager only) — 057
-    events:
-      - httpApi:
-          method: POST
-          path: /shop/v1/team/{staffId}/deactivate
+          path: /shop/v1/team/{staffId}
           authorizer:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}

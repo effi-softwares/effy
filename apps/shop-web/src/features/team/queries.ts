@@ -29,21 +29,20 @@ export function useInviteStaff() {
   })
 }
 
-export function useChangeRole() {
-  const invalidate = useInvalidate()
-  return useMutation({
-    mutationFn: ({ staffId, role }: { staffId: string; role: ShopRole }) =>
-      api.patch<void>(`/shop/v1/team/${staffId}/role`, { role }),
-    onSuccess: invalidate,
-  })
+export interface TeamMemberPatch {
+  name?: string
+  role?: ShopRole
+  status?: "active" | "disabled"
 }
 
-export function useDeactivateStaff() {
+/** One edit route: name, role, stand down / reinstate. */
+export function useUpdateMember() {
   const invalidate = useInvalidate()
   return useMutation({
-    mutationFn: (staffId: string) => api.post<void>(`/shop/v1/team/${staffId}/deactivate`, {}),
-    onSuccess: () => {
-      track({ name: "shop_staff_deactivated" })
+    mutationFn: ({ staffId, patch }: { staffId: string; patch: TeamMemberPatch }) =>
+      api.patch<void>(`/shop/v1/team/${staffId}`, patch),
+    onSuccess: (_r, { patch }) => {
+      if (patch.status === "disabled") track({ name: "shop_staff_deactivated" })
       invalidate()
     },
   })

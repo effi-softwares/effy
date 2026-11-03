@@ -68,7 +68,7 @@ export async function invite(
     throw new ProductError(
       "conflict",
       existing.status === "disabled"
-        ? "that email belongs to someone who was stood down here — re-activate them instead of inviting again"
+        ? "that email belongs to someone who was stood down here — reinstate them from the team list instead of inviting again"
         : "that email is already on your team",
     );
   }
@@ -79,37 +79,59 @@ export async function invite(
   await repo.upsertMember(shopId, sub, email, name, role);
 }
 
-export async function changeRole(
+const NAME_MAX = 120;
+
+function parseName(value: unknown): string {
+  const name = typeof value === "string" ? value.trim() : "";
+  if (!name || name.length > NAME_MAX) {
+    throw new ProductError("validation", "invalid name", [
+      { field: "name", message: `is required, at most ${NAME_MAX} characters` },
+    ]);
+  }
+  return name;
+}
+
+function parseStatus(value: unknown): "active" | "disabled" {
+  if (value !== "active" && value !== "disabled") {
+    throw new ProductError("validation", "invalid status", [
+      { field: "status", message: "must be active or disabled" },
+    ]);
+  }
+  return value;
+}
+
+/**
+ * A manager edits a colleague: their name, their role, and whether they may sign in (stand down /
+ * reinstate). The email is the sign-in address and is never changed here — a new address is a new
+ * invitation. Every field is optional; at least one is required.
+ */
+export async function updateMember(
   shopId: string,
   callerSub: string,
   staffId: string,
   body: Record<string, unknown>,
 ): Promise<void> {
   await requireManager(shopId, callerSub);
-  const role = parseRole(body.role);
 
-  // Demoting the last manager locks the shop out too.
-  if (role !== "shop_manager" && (await repo.activeManagersExcluding(shopId, staffId)) === 0) {
-    throw new ProductError("conflict", "this shop would be left with no manager");
+  const patch: repo.MemberPatch = {};
+  if (body.name !== undefined) patch.name = parseName(body.name);
+  if (body.role !== undefined) patch.role = parseRole(body.role);
+  if (body.status !== undefined) patch.status = parseStatus(body.status);
+  if (patch.name === undefined && patch.role === undefined && patch.status === undefined) {
+    throw new ProductError("validation", "nothing to update", [
+      { field: "body", message: "provide name, role and/or status" },
+    ]);
   }
 
-  const email = await repo.setRole(shopId, staffId, role);
+  // Refusals (self stand-down, last manager) are decided under the team's row locks.
+  const result = await repo.updateMember(shopId, staffId, callerSub, patch);
+  if (!result.email) return;
+
   // The shop service reconciles from the groups claim, so a role change must touch Cognito too.
-  if (email) await cognito.setUserGroups(email, [role]);
-}
-
-export async function deactivate(
-  shopId: string,
-  callerSub: string,
-  staffId: string,
-): Promise<void> {
-  await requireManager(shopId, callerSub);
-
-  if ((await repo.activeManagersExcluding(shopId, staffId)) === 0) {
-    throw new ProductError("conflict", "this shop would be left with no manager");
+  if (result.roleChanged && patch.role) await cognito.setUserGroups(result.email, [patch.role]);
+  if (result.statusChanged) {
+    // Defence in depth: a stood-down colleague cannot obtain a session at all.
+    if (patch.status === "disabled") await cognito.disableUser(result.email);
+    else await cognito.enableUser(result.email);
   }
-
-  const email = await repo.deactivate(shopId, staffId);
-  // Defence in depth: no session can be obtained at all.
-  if (email) await cognito.disableUser(email);
 }
