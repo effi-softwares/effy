@@ -87,7 +87,7 @@ export function RecordHeader({
           </Link>
         ) : null}
         {eyebrow ? <div className="ef-record__eyebrow">{eyebrow}</div> : null}
-        <h1 className="ef-record__title">{title}</h1>
+        <h1 data-tour="page-title" className="ef-record__title">{title}</h1>
         {meta ? <div className="ef-record__meta">{meta}</div> : null}
       </div>
       {actions ? <div className="ef-record__actions">{actions}</div> : null}
@@ -215,6 +215,7 @@ export function RecordSection({
   description,
   actions,
   children,
+  tour,
 }: {
   id: string;
   icon: LucideIcon;
@@ -222,9 +223,11 @@ export function RecordSection({
   description?: ReactNode;
   actions?: ReactNode;
   children: ReactNode;
+  /** A guided-tour key (106). */
+  tour?: string;
 }) {
   return (
-    <section id={id} className="ef-record__section" aria-labelledby={`${id}-title`}>
+    <section id={id} className="ef-record__section" aria-labelledby={`${id}-title`} data-tour={tour}>
       <div className="ef-record__section-head">
         <span className="ef-record__section-icon" aria-hidden="true">
           <Icon />
@@ -247,13 +250,16 @@ export function InspectorSection({
   title,
   actions,
   children,
+  tour,
 }: {
   title?: ReactNode;
   actions?: ReactNode;
   children: ReactNode;
+  /** A guided-tour key (106). */
+  tour?: string;
 }) {
   return (
-    <section className="ef-record__rs">
+    <section className="ef-record__rs" data-tour={tour}>
       {title || actions ? (
         <div className="ef-record__rs-head">
           {title ? <h2 className="ef-record__rs-title">{title}</h2> : null}

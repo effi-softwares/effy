@@ -56,6 +56,13 @@ export function OrderQueue({
   )
 }
 
+/** Guided-tour keys (106) for the three lanes. */
+const LANE_TOUR: Partial<Record<ShopOrderTab, string>> = {
+  new: "orders.lane-new",
+  picking: "orders.lane-picking",
+  ready_for_pickup: "orders.lane-ready",
+}
+
 const QUEUE_HELP = "Orders to pick and pack, oldest first; scan a bag label to open its order."
 
 /** The queue's line under its title: the next collection, or what the page is for when none is planned. */
@@ -65,7 +72,7 @@ export function QueueDescription({ now }: { now: number }) {
   const next = data?.nextCollection
   if (!next) return QUEUE_HELP
   return (
-    <span role="status">
+    <span role="status" data-tour="orders.collection">
       <span className="font-medium text-foreground">Next collection {runTime(next, data?.timezone)}</span> ·{" "}
       {next.due.ready} ready, {next.due.picking} still picking · {DRIVER_WORDS[driverWord(next, now)]}
     </span>
@@ -97,6 +104,7 @@ function Lane({
       )}
       role="listitem"
       aria-label={lane.title}
+      data-tour={LANE_TOUR[lane.tab]}
     >
       <h2 className="flex h-12 shrink-0 items-center gap-2 border-b px-3 text-base font-semibold whitespace-nowrap">
         {lane.title}

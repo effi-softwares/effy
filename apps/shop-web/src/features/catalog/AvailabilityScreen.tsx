@@ -13,6 +13,7 @@ import { track } from "@/lib/telemetry"
 
 import { AVAILABILITY_ROOT, availabilityList, fetchAvailabilityPage, useToggleSale } from "./availability"
 import { productMutationError } from "./errorText"
+import { tourStatus, useTourPage } from "@effy/web-kit/tour"
 
 const VIEWS: readonly { key: AvailabilityFilter; label: string; count: keyof ShopAvailabilityDTO["counts"] }[] = [
   { key: "needs_look", label: "Needs a look", count: "needsLook" },
@@ -75,6 +76,7 @@ export function AvailabilityScreen() {
   const state = useListState(availabilityList, useSearch({ strict: false }))
   const input = { key: AVAILABILITY_ROOT, list: availabilityList, view: state.view, fetch: fetchAvailabilityPage }
   const query = useQuery(listQueryOptions(input))
+  useTourPage("availability", { status: tourStatus(query) })
   const filter: AvailabilityFilter = state.view.filters.filter ?? "needs_look"
 
   return (
@@ -109,12 +111,13 @@ export function AvailabilityScreen() {
         toolbar={
           <>
             <ViewSelect
+              tour="availability.show"
               label="Show"
               value={filter}
               onChange={(v) => state.setFilter("filter", v === "needs_look" ? undefined : v)}
               options={VIEWS.map((v) => ({ value: v.key, label: v.label, count: query.data?.counts[v.count], attention: v.key === "out_of_stock" }))}
             />
-            <SearchBox label="Search sizes" placeholder="Product, size or barcode…" value={state.draftQ} onChange={state.setQ} />
+            <SearchBox tour="availability.search" label="Search sizes" placeholder="Product, size or barcode…" value={state.draftQ} onChange={state.setQ} />
           </>
         }
       />
@@ -159,6 +162,7 @@ function SaleSwitch({ row }: { row: ShopAvailabilityRowDTO }) {
     <Label className="gap-3 font-normal" onClick={(e) => e.stopPropagation()}>
       <span className="text-muted-foreground">{row.onSale ? "On sale" : "Off sale"}</span>
       <Switch
+        data-tour="availability.switch"
         checked={row.onSale}
         aria-label={`${name} on sale`}
         disabled={toggle.isPending || row.lastOnSale}

@@ -188,6 +188,7 @@ export function DataTable<T extends RowData, S extends string, F extends Record<
           key={header.id}
           numeric={numeric}
           className={cls}
+          data-tour={`list.col.${header.column.id}`}
           direction={active ? view.dir : null}
           onSort={() => state.toggleSort(meta.sortKey as S)}
         >
@@ -196,7 +197,7 @@ export function DataTable<T extends RowData, S extends string, F extends Record<
       );
     }
     return (
-      <TableHead key={header.id} numeric={numeric} className={cls}>
+      <TableHead key={header.id} numeric={numeric} className={cls} data-tour={`list.col.${header.column.id}`}>
         {content}
       </TableHead>
     );
@@ -319,13 +320,20 @@ export function DataTable<T extends RowData, S extends string, F extends Record<
                     <TableRow
                       key={row.id}
                       data-row-index={i}
+                      // Guided tours (106) point at the first row and its tick box on any list.
+                      data-tour={i === 0 ? "list.first-row" : undefined}
                       data-state={sel ? "selected" : undefined}
                       data-focused={i === focus ? "" : undefined}
                       onClick={rowHref ? () => void navigate(rowHref(r) as never) : undefined}
                       className={cn(rowHref && "cursor-pointer", rowClassName?.(r))}
                     >
                       {selection ? (
-                        <TableCell className="w-12 pr-0" data-m="check" onClick={(e) => e.stopPropagation()}>
+                        <TableCell
+                          className="w-12 pr-0"
+                          data-m="check"
+                          data-tour={i === 0 ? "list.row-select" : undefined}
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           <Checkbox
                             aria-label={`Select ${selection.label(r)}`}
                             checked={sel}

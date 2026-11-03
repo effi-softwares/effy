@@ -15,7 +15,7 @@ export function SoundChip() {
 
   if (soundOn && !audioReady) {
     return (
-      <Button type="button" size="sm" className="rounded-full" onClick={unlockAudio}>
+      <Button type="button" size="sm" className="rounded-full" data-tour="header.sound" onClick={unlockAudio}>
         <VolumeX aria-hidden="true" />
         <span className="max-md:sr-only">Tap to turn sound on</span>
       </Button>
@@ -27,6 +27,7 @@ export function SoundChip() {
       variant="secondary"
       size="sm"
       className="rounded-full"
+      data-tour="header.sound"
       aria-pressed={soundOn}
       onClick={() => {
         setSoundOn(!soundOn)

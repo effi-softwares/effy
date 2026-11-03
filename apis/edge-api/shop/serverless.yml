@@ -638,6 +638,29 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
 
+  # Guided tours: the caller's own record of which console tours they have been offered (106).
+  shopToursV1Get:
+    handler: src/functions/shop-tours-v1-get.handler
+    description: The caller's guided-tour state - tours offered, and whether to offer them (106 FR-004)
+    events:
+      - httpApi:
+          method: GET
+          path: /shop/v1/me/tours
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  shopToursV1Patch:
+    handler: src/functions/shop-tours-v1-patch.handler
+    description: One change to the caller's guided-tour state - an outcome, the offer switch, or a reset (106)
+    events:
+      - httpApi:
+          method: PATCH
+          path: /shop/v1/me/tours
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
   # Team management
   teamListV1:
     handler: src/functions/team-list-v1-get.handler

@@ -133,6 +133,7 @@ export function ProductSizes({
   return (
     <RecordSection
       id="sizes"
+      tour="product.sizes"
       icon={Layers}
       title="Sizes and prices"
       description={

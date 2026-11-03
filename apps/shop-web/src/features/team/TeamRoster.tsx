@@ -31,6 +31,7 @@ import { sessionQuery } from "@/features/auth/queries"
 
 import { teamError } from "./errorText"
 import { teamQuery, useInviteStaff, useUpdateMember, type TeamMemberPatch } from "./queries"
+import { tourStatus, useTourPage } from "@effy/web-kit/tour"
 
 const ROLE_LABEL: Record<ShopRole, string> = {
   shop_manager: "Manager",
@@ -45,6 +46,8 @@ export function TeamRoster() {
   const editing = data?.find((m) => m.staffId === editingId) ?? null
 
   const canManage = session?.status === "signed-in" && isShopManager(session.identity.roles)
+  // A Staff member's roster read is refused: an error page, so no tour is offered there.
+  useTourPage("team", { status: tourStatus({ isSuccess: !isPending && !isError, isError }) })
 
   return (
     <div className="flex flex-col gap-6 max-md:gap-4">
@@ -53,7 +56,7 @@ export function TeamRoster() {
         description="The people who can sign in to this shop console, and what each can do."
         actions={
           canManage ? (
-            <Button onClick={() => setInviteOpen(true)}>
+            <Button data-tour="team.invite" onClick={() => setInviteOpen(true)}>
               <UserPlus aria-hidden="true" />
               Invite
             </Button>
@@ -147,6 +150,7 @@ function teamColumns(canManage: boolean, onEdit: (staffId: string) => void): Eff
             <Button
               variant="outline"
               size="sm"
+              data-tour="team.actions"
               onClick={() => onEdit(row.original.staffId)}
               aria-label={`Edit ${row.original.name ?? row.original.email ?? "colleague"}`}
             >

@@ -42,9 +42,12 @@ export interface MoreAction {
 export function MoreActions({
   actions,
   label = "More actions",
+  tour,
 }: {
   actions: readonly (MoreAction | false | null | undefined)[];
   label?: string;
+  /** A guided-tour key (106) for the trigger, e.g. "page-more". */
+  tour?: string;
 }) {
   const shown = actions.filter((a): a is MoreAction => Boolean(a));
   const ordered = [...shown.filter((a) => !a.destructive), ...shown.filter((a) => a.destructive)];
@@ -67,7 +70,7 @@ export function MoreActions({
   };
 
   const trigger = (onClick?: () => void) => (
-    <Button variant="outline" size="icon" aria-label={label} title={label} onClick={onClick}>
+    <Button variant="outline" size="icon" aria-label={label} title={label} onClick={onClick} data-tour={tour}>
       <MoreHorizontal aria-hidden="true" />
     </Button>
   );

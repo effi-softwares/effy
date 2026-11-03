@@ -36,6 +36,7 @@ import {
   type PrinterChoice,
   type ZebraDevice,
 } from "@/features/fulfillment/labels/printer"
+import { useTourPage } from "@effy/web-kit/tour"
 
 type Discovery = ZebraDevice[] | null | "looking"
 
@@ -67,6 +68,9 @@ export function PrintingSettingsScreen() {
     rememberLayout(next)
   }
 
+  // This computer's own setting: nothing to load.
+  useTourPage("settings-printing", { status: "ready" })
+
   return (
     <Page>
       <PageHeader
@@ -75,13 +79,14 @@ export function PrintingSettingsScreen() {
       />
       <SettingsPage>
         <SettingsSection
+          tour="printing.printer"
           title="Printer"
           description="Labels go straight to a Zebra label printer when Zebra Browser Print runs on this computer. Otherwise they open in the print window."
         >
           <PrinterPicker choice={choice} zebras={zebras} onChange={save} onLook={look} />
         </SettingsSection>
 
-        <SettingsSection title="Label size" description="Match the labels loaded in the printer.">
+        <SettingsSection tour="printing.size" title="Label size" description="Match the labels loaded in the printer.">
           <SizePicker value={layout} onChange={saveLayout} />
           {choice.kind === "zebra" && layout === "a4x4" ? (
             <Alert role="status" variant="info">
@@ -94,6 +99,7 @@ export function PrintingSettingsScreen() {
         </SettingsSection>
 
         <SettingsSection
+          tour="printing.resolution"
           title="Resolution"
           description="On the printer's own label or in its manual. Most label printers are 203 dpi."
         >
@@ -114,6 +120,7 @@ export function PrintingSettingsScreen() {
         </SettingsSection>
 
         <SettingsSection
+          tour="printing.test"
           title="Test label"
           description="Prints this sample with the settings above. Nothing is recorded against an order."
         >

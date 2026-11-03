@@ -63,6 +63,7 @@ export function LeftShopColumn({
   return (
     <aside
       ref={column}
+      data-tour="orders.left-shop"
       aria-label={TITLE}
       onTransitionEnd={() => {
         if (open) reveal(column.current)
@@ -134,7 +135,12 @@ export function LeftShopSheet({
   const rows = list.data?.items ?? []
   return (
     <>
-      <Button variant="outline" className="justify-between md:hidden" onClick={() => onOpenChange(true)}>
+      <Button
+        variant="outline"
+        className="justify-between md:hidden"
+        data-tour="orders.left-shop"
+        onClick={() => onOpenChange(true)}
+      >
         {TITLE}
         {list.data ? <TabsCount>{list.data.total}</TabsCount> : null}
       </Button>

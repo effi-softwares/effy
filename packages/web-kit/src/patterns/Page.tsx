@@ -36,7 +36,7 @@ export function PageHeader({
             {back.label}
           </Link>
         ) : null}
-        <h1 className="flex flex-wrap items-center gap-x-3 gap-y-2 text-2xl leading-8 font-semibold tracking-[-0.02em] max-md:text-2xl max-md:leading-7">
+        <h1 data-tour="page-title" className="flex flex-wrap items-center gap-x-3 gap-y-2 text-2xl leading-8 font-semibold tracking-[-0.02em] max-md:text-2xl max-md:leading-7">
           {title}
         </h1>
         {description ? (

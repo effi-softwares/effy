@@ -89,7 +89,7 @@ export function StaticTable<T extends RowData>({
                     );
                   }
                   return (
-                    <TableHead key={header.id} numeric={meta?.align === "numeric"} className={cls}>
+                    <TableHead key={header.id} numeric={meta?.align === "numeric"} className={cls} data-tour={`list.col.${header.column.id}`}>
                       {content}
                     </TableHead>
                   );

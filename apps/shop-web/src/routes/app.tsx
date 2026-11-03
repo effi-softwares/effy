@@ -6,6 +6,7 @@ import { useHotkey } from "@tanstack/react-hotkeys"
 import { useStore } from "@tanstack/react-store"
 import type { ShopRole } from "@effy/shared-types"
 import { LiveProvider, StaffShell, StaffUserMenu } from "@effy/web-kit/console"
+import { AllToursDialog, TourHelpButton, TourInvitation, TourProvider } from "@effy/web-kit/tour"
 
 import { CommandPalette } from "@/components/console/CommandPalette"
 import { NewOrderAlert } from "@/components/console/NewOrderAlert"
@@ -25,6 +26,10 @@ import { useNavBadges } from "@/features/today/useNavBadges"
 import { ManagerOnlyScreen } from "@/features/shop-identity/ManagerOnlyScreen"
 import { meQuery } from "@/features/shop-identity/queries"
 import { setScanOpen } from "@/lib/console-store"
+import { track } from "@/lib/telemetry"
+import { useOpenRecord } from "@/features/tours/openRecord"
+import { tourStateQuery, useTourWrite } from "@/features/tours/repo"
+import { SHOP_TOURS } from "@/features/tours/tours"
 import { setCommandPaletteOpen, setSidebarOpen, setTheme, uiStore } from "@/lib/ui-store"
 
 import { rootRoute } from "./__root"
@@ -68,6 +73,9 @@ function AppShell() {
   useNotificationNavigation()
   const { data: me } = useQuery(meQuery)
   const record = useHeaderRecord()
+  const tourState = useQuery({ ...tourStateQuery, enabled: data?.status === "signed-in" })
+  const tourWrite = useTourWrite()
+  const openRecord = useOpenRecord()
 
   const identity = data?.status === "signed-in" ? data.identity : null
   const roles = useMemo(() => identity?.roles ?? [], [identity])
@@ -75,45 +83,61 @@ function AppShell() {
 
   return (
     <LiveProvider enabled={identity !== null} loadDescriptor={getLiveDescriptor} routes={LIVE_ROUTES}>
-      <StaffShell
-        brand={{ name: "Effy Shop", surface: me?.shop?.name ?? "Shop console" }}
-        title="Effy Shop"
-        groups={groups}
-        counts={navBadges}
-        onOpenSearch={() => setCommandPaletteOpen(true)}
-        searchPrompt="Order, product, code…"
-        headerDetail={record}
-        headerActions={
-          <>
-            <SoundChip />
-            <ScanButton />
-          </>
-        }
-        userMenu={
-          <StaffUserMenu
-            email={identity?.email ?? ""}
-            roleLabel={roleLabel(roles)}
-            theme={theme}
-            onSetTheme={setTheme}
-            onSignOut={() => signOut.mutate(undefined, { onSuccess: () => navigate({ to: "/auth/sign-in" }) })}
-            signingOut={signOut.isPending}
-          />
-        }
-        sidebarOpen={sidebarOpen}
-        onSidebarOpenChange={setSidebarOpen}
-        overlays={
-          <CommandPalette
-            open={paletteOpen}
-            onOpenChange={setCommandPaletteOpen}
-            roles={roles}
-            onScan={() => setScanOpen(true)}
-          />
-        }
+      {/* Guided tours (106): a page's tour is offered once per person and replayed from Help. */}
+      <TourProvider
+        tours={SHOP_TOURS}
+        roles={{ manager: roles.includes("shop_manager") }}
+        state={tourState}
+        write={tourWrite.mutate}
+        openRecord={openRecord}
+        onEvent={track}
+        devWarnings={import.meta.env.DEV}
       >
-        <NewOrderAlert />
-        <PwaBanners />
-        <Outlet />
-      </StaffShell>
+        <StaffShell
+          brand={{ name: "Effy Shop", surface: me?.shop?.name ?? "Shop console" }}
+          title="Effy Shop"
+          groups={groups}
+          counts={navBadges}
+          onOpenSearch={() => setCommandPaletteOpen(true)}
+          searchPrompt="Order, product, code…"
+          headerDetail={record}
+          headerActions={
+            <>
+              <SoundChip />
+              <ScanButton />
+              <TourHelpButton />
+            </>
+          }
+          userMenu={
+            <StaffUserMenu
+              email={identity?.email ?? ""}
+              roleLabel={roleLabel(roles)}
+              theme={theme}
+              onSetTheme={setTheme}
+              onSignOut={() => signOut.mutate(undefined, { onSuccess: () => navigate({ to: "/auth/sign-in" }) })}
+              signingOut={signOut.isPending}
+            />
+          }
+          sidebarOpen={sidebarOpen}
+          onSidebarOpenChange={setSidebarOpen}
+          overlays={
+            <>
+              <CommandPalette
+                open={paletteOpen}
+                onOpenChange={setCommandPaletteOpen}
+                roles={roles}
+                onScan={() => setScanOpen(true)}
+              />
+              <TourInvitation />
+              <AllToursDialog />
+            </>
+          }
+        >
+          <NewOrderAlert />
+          <PwaBanners />
+          <Outlet />
+        </StaffShell>
+      </TourProvider>
     </LiveProvider>
   )
 }

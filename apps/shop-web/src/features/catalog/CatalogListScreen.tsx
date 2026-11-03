@@ -32,6 +32,7 @@ import type { ProductListItem } from "./model"
 import { REVIEW_FILTERS, reviewChip } from "./review"
 import { PRODUCTS_ROOT, productListQuery, sectionsQuery, taxonomyQuery } from "./queries"
 import { fetchProductPage } from "./repo"
+import { tourStatus, useTourPage } from "@effy/web-kit/tour"
 
 const STATUSES = ["active", "draft", "unavailable", "archived"] as const satisfies readonly ProductStatus[]
 type StatusView = "all" | ProductStatus
@@ -137,6 +138,7 @@ export function CatalogListScreen() {
   const query = useQuery(listQueryOptions(input))
   const [sectionsOpen, setSectionsOpen] = useState(false)
   const [stockSettingsOpen, setStockSettingsOpen] = useState(false)
+  useTourPage("catalog", { status: tourStatus(query) })
 
   // Departments: the filter takes everything filed beneath one.
   const departments = (taxonomy.data?.categories ?? []).filter((c) => c.parentId === null)
@@ -158,13 +160,14 @@ export function CatalogListScreen() {
                   Availability
                 </Link>
               </Button>
-              <Button asChild>
+              <Button asChild data-tour="catalog.new">
                 <Link to="/catalog/new">
                   <Plus aria-hidden="true" />
                   New product
                 </Link>
               </Button>
               <MoreActions
+                tour="page-more"
                 actions={[
                   { label: "Manage sections", icon: Tags, onSelect: () => setSectionsOpen(true) },
                   { label: "Stock settings", icon: Boxes, onSelect: () => setStockSettingsOpen(true) },
@@ -201,12 +204,14 @@ export function CatalogListScreen() {
         toolbar={
           <>
             <ViewSelect
+              tour="catalog.status"
               label="Filter by status"
               value={status}
               onChange={(v) => state.setFilter("status", v === "all" ? undefined : v)}
               options={(["all", ...STATUSES] as const).map((v) => ({ value: v, label: STATUS_LABEL[v] }))}
             />
             <Facet
+              tour="catalog.category-section"
               label="Category"
               value={f.category ?? null}
               options={departments.map((c) => ({ value: c.id, label: c.name }))}
@@ -233,6 +238,7 @@ export function CatalogListScreen() {
               </Button>
             ) : null}
             <Facet
+              tour="catalog.review"
               label="Review"
               value={f.reviewState ?? null}
               options={REVIEW_FILTERS.map((r) => ({ value: r.value, label: r.label }))}
@@ -245,7 +251,7 @@ export function CatalogListScreen() {
               onChange={(r) => state.setFilters({ priceMin: r.min, priceMax: r.max })}
             />
             {isFiltered(state.view, ["status"]) ? <ResetFilters onReset={state.reset} /> : null}
-            <SearchBox label="Search products" placeholder="Name, brand, SKU or barcode…" value={state.draftQ} onChange={state.setQ} />
+            <SearchBox tour="catalog.search" label="Search products" placeholder="Name, brand, SKU or barcode…" value={state.draftQ} onChange={state.setQ} />
           </>
         }
       />

@@ -4,6 +4,38 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
+**106-guided-tours - Guided Tours in the Shop Console.** 🔨 **BUILT 2026-11-03; NOT MIGRATED, DEPLOYED OR WALKED.**
+Spec, plan and tasks: `specs/106-guided-tours/`. Every shop-web page offers its own short tour once per person, never forced, and any
+tour can be replayed from the header's **Help** (?) or from ⌘K ("Tour this page", "All tours"). There are 16 tours with 104 steps, plus
+a Welcome tour of the console offered first. Back-office tours are the next spec, built on the same pieces.
+- **The look**: `@effy/design-system/ui` `tour.tsx` (`TourStepView`), built on Radix Popover (`PopoverAnchor virtualRef` points the
+  card at any element), a spotlight cut from the shared blurred backdrop, and `FocusScope` from `radix-ui/internal`. ⚠ **Dice UI's Tour
+  was recommended and then rejected**: its current source needs `@base-ui/react`, a second primitive family beside Radix. No new package.
+- **The behaviour**: `@effy/web-kit/tour` holds the provider, the offer rule, steps filtered by role and by what is on screen, the
+  invitation, the Help button, All tours, and the tour-state query with an optimistic, offline-resumable write (`tourStateQueries`).
+  `useTourPage` and `useTours` do nothing outside a provider, so screens render in tests unchanged.
+- **The words**: `apps/shop-web/src/features/tours/tours.ts` is the ONE list. Generated from the spec's Tour Inventory and held to it
+  word for word by `tours.test.ts`. ⚠ **A redesign re-reads its page's tour, and RAISES `version` when the tour is rewritten**, so people
+  who saw the old one are offered the new one.
+- **Targets are `data-tour` keys.** Shared ones are set in web-kit: `page-title` (`PageHeader`, `RecordHeader`), `page-activity`,
+  `nav.<key>`, `header.*`, `list.first-row`, `list.row-select`, `list.col.<id>`, plus a `tour` prop on `MoreActions`, `Facet`,
+  `ViewSelect`, `SearchBox`, `RecordSection` and `InspectorSection`. `data-tour-above` keeps the new-order banner and the PWA banners
+  bright and clickable mid-tour.
+- **Server**: one table, `public.console_tour_state` (one row per person per console), with one reader and writer,
+  `@effy/edge-shared/tours` `store.ts` (guarded). `GET` and `PATCH /shop/v1/me/tours` (shop service, shared gateway 165 → 167/300).
+  A tour is recorded as offered the moment it starts.
+- **Guards**: `tours.guard.test.ts` follows every route to its screen. It fails a page with no tour, a tour no page uses, a step key
+  nothing carries, or a page-level key not on that tour's own screen. Proven by deleting `today.print`. It already caught one fault:
+  `catalog.filters-button` pointed at nothing.
+- **Verified**: typecheck of design-system, web-kit, shared-types, edge-shared, edge-shop, shop-web, back-office and customer-web.
+  Tests: shop-web 544, back-office 396, web-kit (17 engine + 6 provider render tests), edge-shop 388, edge-shared tours (24 unit +
+  7 against real Postgres) and the live change-map guard. shop-web production build. The only failing test is 099's
+  `package-status.guard` (`fulfillment/collection.ts`), which was failing before this work.
+- **Open**: (1) operator: commit → `AWS_PROFILE=ef make db-up-one ENV=dev` (`20261103120000_console_tour_state.sql`) →
+  `AWS_PROFILE=ef make edge-deploy SERVICE=shop` → shop-web. Out of order is safe: the read fails, so no invitation shows, and Help still
+  runs every tour. (2) The quickstart walk (`specs/106-guided-tours/quickstart.md`), including T056: stand-ins at 375/768/1280px, a
+  toast mid-tour. ⚠ Not looked at in a browser yet.
+
 **Folded sidebar labels (no spec number).** 🔨 **BUILT 2026-11-03; NOT DEPLOYED.** The 96px rail printed "Managemen / t": its label used
 `wrap-anywhere`. It now wraps only between words (two lines at most). An entry may give a shorter `railLabel` for the rail; the tooltip
 and the open sidebar keep the full name. `railLabelProblems` (`@effy/web-kit/console`, Geist SemiBold 12px widths from the font file,

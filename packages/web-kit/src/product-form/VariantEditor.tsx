@@ -296,7 +296,9 @@ export function VariantEditor({
                   <TableHeader>
                     <TableRow>
                       <Th>Variant</Th>
-                      <Th width="160px">{priceLabel} *</Th>
+                      <Th width="160px">
+                        <span data-tour="product-form.price">{priceLabel} *</span>
+                      </Th>
                       <Th width="160px">Was price</Th>
                       <Th width="96px">
                         <span className="sr-only">Details and remove</span>
@@ -532,7 +534,7 @@ export function VariantEditor({
                 Effy code <span className="font-mono text-foreground">{one.code}</span>
               </p>
             ) : null}
-            <div className="grid gap-5 sm:grid-cols-2">
+            <div className="grid gap-5 sm:grid-cols-2" data-tour="product-form.price">
               <FormField
                 id="v-price"
                 label={priceLabel}

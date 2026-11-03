@@ -42,6 +42,7 @@ export function SearchBox({
   placeholder,
   label,
   className,
+  tour,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -49,6 +50,8 @@ export function SearchBox({
   label: string;
   /** Overrides its width (the activity drawer's search takes what the row leaves). */
   className?: string;
+  /** A guided-tour key (106). */
+  tour?: string;
 }) {
   const ref = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -63,7 +66,7 @@ export function SearchBox({
     return () => window.removeEventListener("keydown", onKey);
   }, []);
   return (
-    <label className={cn("relative flex w-72 max-w-full items-center max-md:w-full md:order-last md:ml-auto", className)}>
+    <label className={cn("relative flex w-72 max-w-full items-center max-md:w-full md:order-last md:ml-auto", className)} data-tour={tour}>
       <Search aria-hidden="true" className="pointer-events-none absolute left-3 size-4 text-muted-foreground" />
       <span className="sr-only">{label}</span>
       <Input
@@ -90,6 +93,7 @@ export function Facet<T extends string>({
   onChange,
   anyLabel = "Any",
   className,
+  tour,
 }: {
   label: string;
   value: T | null;
@@ -97,13 +101,15 @@ export function Facet<T extends string>({
   onChange: (value: T | null) => void;
   anyLabel?: string;
   className?: string;
+  /** A guided-tour key (106) for the trigger. */
+  tour?: string;
 }) {
   const chosen = options.find((o) => o.value === value);
   let lastGroup: string | undefined;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" className={cn(!chosen && "border-dashed", className)}>
+        <Button variant="outline" className={cn(!chosen && "border-dashed", className)} data-tour={tour}>
           <CirclePlus aria-hidden="true" className="text-muted-foreground" />
           {label}
           {chosen ? (
@@ -161,18 +167,21 @@ export function ViewSelect<T extends string>({
   options,
   onChange,
   className,
+  tour,
 }: {
   label: string;
   value: T;
   options: readonly ViewOption<T>[];
   onChange: (value: T) => void;
   className?: string;
+  /** A guided-tour key (106) for the trigger. */
+  tour?: string;
 }) {
   const has = (o: ViewOption<T>) => Number.parseInt(String(o.count ?? 0), 10) > 0;
   const waiting = options.some((o) => o.value !== value && o.attention && has(o));
   return (
     <Select value={value} onValueChange={(v) => onChange(v as T)}>
-      <SelectTrigger aria-label={label} className={cn("min-w-44 font-medium", className)}>
+      <SelectTrigger aria-label={label} className={cn("min-w-44 font-medium", className)} data-tour={tour}>
         <SelectValue />
         {waiting ? (
           <span aria-label="Another view needs attention" className="ml-auto size-2 shrink-0 rounded-full bg-primary-fill" />

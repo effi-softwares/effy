@@ -110,6 +110,7 @@ export function ProductHeaderActions({
       ) : null}
 
       <MoreActions
+        tour="page-more"
         actions={[
           { ...activity, label: "Stock activity" },
           removal ? { label: removal.label, icon: Trash2, destructive: true, onSelect: () => setRemoving(true) } : null,

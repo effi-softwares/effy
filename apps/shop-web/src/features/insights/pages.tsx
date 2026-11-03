@@ -52,7 +52,7 @@ function Series({ dto, current, previous, format, label }: { dto: Dto; current: 
       <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2">
         <h2 className="text-[15px] font-semibold">{label}</h2>
         <ChartLegend names={names} />
-        <Button variant="ghost" size="sm" className="ml-auto" onClick={() => setAsTable(!asTable)}>
+        <Button variant="ghost" size="sm" className="ml-auto" data-tour="insights.view-toggle" onClick={() => setAsTable(!asTable)}>
           {asTable ? <BarChart3 aria-hidden="true" /> : <Table2 aria-hidden="true" />}
           {asTable ? "Show chart" : "Show table"}
         </Button>
@@ -91,7 +91,7 @@ export function OverviewPage({ dto }: { dto: Dto }) {
   const figure = "underline decoration-input decoration-2 underline-offset-[6px] hover:decoration-foreground"
   return (
     <>
-      <m.h2 {...enter} className="max-w-[900px] text-[40px] leading-[50px] font-semibold tracking-[-.03em] text-balance max-lg:text-[32px] max-lg:leading-10 max-md:text-[26px] max-md:leading-[34px]">
+      <m.h2 {...enter} data-tour="insights.figures" className="max-w-[900px] text-[40px] leading-[50px] font-semibold tracking-[-.03em] text-balance max-lg:text-[32px] max-lg:leading-10 max-md:text-[26px] max-md:leading-[34px]">
         {line.mood}
         {line.revenue === null ? null : (
           <>
@@ -212,6 +212,7 @@ export function SalesPage({ dto }: { dto: Dto }) {
           type="single"
           variant="outline"
           aria-label="Measure"
+          data-tour="insights.measure"
           className="ml-auto"
           value={measure}
           onValueChange={(v) => v && setMeasure(v as Measure)}
@@ -227,11 +228,11 @@ export function SalesPage({ dto }: { dto: Dto }) {
       <Series dto={dto} label={name} current={view.now} previous={view.then} format={view.format} />
 
       <div className="mt-9 grid grid-cols-2 gap-10 max-lg:gap-6 max-md:grid-cols-1">
-        <section aria-label="When your orders come in">
+        <section aria-label="When your orders come in" data-tour="insights.rhythm">
           <h2 className="mb-2 text-[15px] font-semibold">When your orders come in</h2>
           <Rhythm rhythm={dto.rhythm} />
         </section>
-        <section aria-label="Behind the revenue">
+        <section aria-label="Behind the revenue" data-tour="insights.behind">
           <h2 className="mb-1 text-[15px] font-semibold">Behind the revenue</h2>
           <Behind label="Refunds" note={`${refunds.orders} ${refunds.orders === 1 ? "order" : "orders"}`} value={moneyCents(refunds.value, dto.currency)} search={{ view: "table", payment: "refunded" }} />
           <Behind label="Can't supply" note={`${cantSupply.units} ${cantSupply.units === 1 ? "unit" : "units"}`} value={cantSupply.value} search={{ view: "table", tab: "unfulfillable" }} />
@@ -266,7 +267,7 @@ export function ProductsPage({ dto, today }: { dto: Dto; today: ShopTodayDTO | u
   if (dto.topProducts.length === 0) return <p className="py-10 text-center text-muted-foreground">Nothing sold in this window yet.</p>
   return (
     <div className="grid grid-cols-[minmax(0,7fr)_minmax(0,5fr)] gap-10 max-lg:gap-6 max-md:grid-cols-1">
-      <section aria-label="Best sellers">
+      <section aria-label="Best sellers" data-tour="insights.best">
         <h2 className="mb-2 text-[15px] font-semibold">Best sellers, {periodNames(dto.range)[0].toLowerCase()}</h2>
         <div className="grid grid-cols-[24px_40px_minmax(0,1fr)_64px_96px] gap-3 border-b pb-1.5 text-xs text-muted-foreground max-md:grid-cols-[20px_36px_minmax(0,1fr)_84px] max-md:gap-2">
           <span />
@@ -306,21 +307,21 @@ export function ProductsPage({ dto, today }: { dto: Dto; today: ShopTodayDTO | u
         </ol>
       </section>
       <aside className="grid content-start gap-7">
-        <SideList title="Moving up" empty="Nothing has climbed this period.">
+        <SideList tour="insights.up" title="Moving up" empty="Nothing has climbed this period.">
           {up.map((x) => (
             <Row key={x.product.productId} title={x.product.name} note={`Now number ${x.rank}`}>
               <Places places={x.places} />
             </Row>
           ))}
         </SideList>
-        <SideList title="Slipping" empty="Nothing has slipped this period.">
+        <SideList tour="insights.slipping" title="Slipping" empty="Nothing has slipped this period.">
           {down.map((x) => (
             <Row key={x.product.productId} title={x.product.name} note={`Now number ${x.rank}`}>
               <Places places={x.places} />
             </Row>
           ))}
         </SideList>
-        <SideList title="Selling but out of stock" empty="Everything that is selling is in stock.">
+        <SideList tour="insights.oos" title="Selling but out of stock" empty="Everything that is selling is in stock.">
           {out.map((a) => (
             <Row key={a.variantId} title={a.name} note={`Sold ${a.soldLast7Days} in the last 7 days`}>
               <Button variant="outline" asChild>
@@ -334,9 +335,9 @@ export function ProductsPage({ dto, today }: { dto: Dto; today: ShopTodayDTO | u
   )
 }
 
-function SideList({ title, empty, children }: { title: string; empty: string; children: ReactNode[] }) {
+function SideList({ title, empty, tour, children }: { title: string; empty: string; tour?: string; children: ReactNode[] }) {
   return (
-    <section aria-label={title}>
+    <section aria-label={title} data-tour={tour}>
       <h2 className="mb-1 text-[15px] font-semibold">{title}</h2>
       {children.length > 0 ? children : <p className="py-2 text-sm text-muted-foreground">{empty}</p>}
     </section>
@@ -376,13 +377,13 @@ export function ServicePage({ dto }: { dto: Dto }) {
   return (
     <>
       <div className="grid grid-cols-3 gap-8 max-md:grid-cols-1 max-md:gap-5">
-        <Measure title="Found rate" value={foundRate ? `${foundRate.value}%` : "-"} figure={foundRate} unit=" pts" against={against}>
+        <Measure tour="insights.found" title="Found rate" value={foundRate ? `${foundRate.value}%` : "-"} figure={foundRate} unit=" pts" against={against}>
           <LineChart compact labels={labels} current={buckets.map((b) => num(b.foundRate))} format={(n) => `${n.toFixed(1)}%`} names={["Found rate"]} label="Found rate over the period" className="mt-2.5" />
         </Measure>
-        <Measure title="Can't supply" value={cantSupplyRate ? `${cantSupplyRate.value}%` : "-"} figure={cantSupplyRate} unit=" pts" goodWhenUp={false} against={against}>
+        <Measure tour="insights.cant" title="Can't supply" value={cantSupplyRate ? `${cantSupplyRate.value}%` : "-"} figure={cantSupplyRate} unit=" pts" goodWhenUp={false} against={against}>
           <LineChart compact labels={labels} current={buckets.map((b) => num(b.cantSupplyRate))} format={(n) => `${n.toFixed(1)}%`} names={["Can't supply"]} label="Can't supply over the period" className="mt-2.5" />
         </Measure>
-        <Measure title="Time to ready" value={averageTimeToReady ? minutes(averageTimeToReady.value) : "-"} figure={averageTimeToReady} goodWhenUp={false} against={against}>
+        <Measure tour="insights.ready" title="Time to ready" value={averageTimeToReady ? minutes(averageTimeToReady.value) : "-"} figure={averageTimeToReady} goodWhenUp={false} against={against}>
           <LineChart compact labels={labels} current={buckets.map((b) => b.averageTimeToReady)} format={(n) => minutes(String(n))} names={["Time to ready"]} label="Time to ready over the period" className="mt-2.5" />
         </Measure>
       </div>
@@ -418,7 +419,7 @@ export function ServicePage({ dto }: { dto: Dto }) {
             </>
           )}
         </section>
-        <SideList title="What you could not supply" empty="You supplied everything this period.">
+        <SideList tour="insights.missed" title="What you could not supply" empty="You supplied everything this period.">
           {dto.cantSupplyProducts.map((p) => (
             <Row key={p.productId} title={p.name} note={`${p.units} ${p.units === 1 ? "unit" : "units"}`}>
               <Button variant="ghost" size="sm" asChild>
@@ -442,6 +443,7 @@ function Measure({
   unit,
   goodWhenUp,
   against,
+  tour,
   children,
 }: {
   title: string
@@ -450,10 +452,12 @@ function Measure({
   unit?: string
   goodWhenUp?: boolean
   against: string
+  /** A guided-tour key (106). */
+  tour?: string
   children: ReactNode
 }) {
   return (
-    <section aria-label={title}>
+    <section aria-label={title} data-tour={tour}>
       <p className="text-sm text-muted-foreground">{title}</p>
       <p className="text-4xl leading-11 font-semibold tracking-[-.03em]">{value}</p>
       {figure ? <Delta figure={figure} unit={unit} goodWhenUp={goodWhenUp} label={against} /> : <span className="text-sm text-muted-foreground">Nothing finished yet</span>}

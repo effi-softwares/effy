@@ -22,6 +22,7 @@ import { buildJobs, relativeTime, todayDate } from "./model"
 import { printLists, QuickActionsSheet } from "./QuickActionsSheet"
 import { todayQuery } from "./queries"
 import { useNow } from "./useNow"
+import { tourStatus, useTourPage } from "@effy/web-kit/tour"
 
 /** The orders that make up Next up: the same oldest-first list the queue's first column reads. */
 const WAITING = { tab: "new", dir: "asc" } as const
@@ -34,6 +35,7 @@ export function TodayScreen() {
   const activity = useActivityAction()
   const now = useNow(15_000)
   const { online } = useStore(onlineStore)
+  useTourPage("today", { status: tourStatus(today) })
 
   useEffect(() => {
     track({ name: "today_viewed" })
@@ -86,12 +88,13 @@ export function TodayScreen() {
             description={context ?? "\u00a0"}
             actions={
               <>
-                <Button variant="outline" onClick={() => setQuickActionsOpen(true)}>
+                <Button variant="outline" data-tour="today.quick-actions" onClick={() => setQuickActionsOpen(true)}>
                   <Zap aria-hidden="true" />
                   Quick actions
                 </Button>
                 <Button
                   variant="outline"
+                  data-tour="today.print"
                   disabled={awaitingPick === 0}
                   title={awaitingPick === 0 ? "Nothing is waiting to be picked" : undefined}
                   onClick={() => void printLists()}
@@ -99,7 +102,7 @@ export function TodayScreen() {
                   <Printer aria-hidden="true" />
                   Print pick lists
                 </Button>
-                <MoreActions actions={[{ ...activity, label: "Team activity" }]} />
+                <MoreActions tour="page-more" actions={[{ ...activity, label: "Team activity" }]} />
               </>
             }
           />

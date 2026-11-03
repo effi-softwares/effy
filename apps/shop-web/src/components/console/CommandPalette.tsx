@@ -5,7 +5,9 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
 import { useStore } from "@tanstack/react-store"
 import {
+  CircleHelp,
   ClipboardList,
+  Map as MapIcon,
   Download,
   Moon,
   Package,
@@ -37,6 +39,8 @@ import { Kbd } from "@effy/design-system/ui"
 import { NAV } from "@/components/layout/nav"
 import { productListQuery } from "@/features/catalog/queries"
 import { formatMoney } from "@/features/fulfillment/orderConsole"
+import { useTours } from "@effy/web-kit/tour"
+
 import { orderListQuery } from "@/features/fulfillment/queries"
 import { exportOrders, printLists } from "@/features/today/QuickActionsSheet"
 import { setTheme, uiStore } from "@/lib/ui-store"
@@ -48,8 +52,12 @@ interface Item {
   mono?: boolean
   meta?: string
   hint?: string
+  /** More words it is found by ("tour" finds the tours). */
+  keywords?: readonly string[]
   run: () => void
 }
+
+const TOUR_WORDS = ["tour", "help", "guide"] as const
 
 interface Section {
   label: string
@@ -69,6 +77,8 @@ export function CommandPalette({
 }) {
   const isMobile = useIsMobile()
   const navigate = useNavigate()
+  const tours = useTours()
+  const tourKeys = useMemo(() => new Set(tours.list.map((t) => t.tour.key)), [tours.list])
   const theme = useStore(uiStore, (s) => s.theme)
   const [query, setQuery] = useState("")
   const [focus, setFocus] = useState(0)
@@ -150,7 +160,26 @@ export function CommandPalette({
         label: dark ? "Switch to light appearance" : "Switch to dark appearance",
         run: () => (close(), setTheme(dark ? "light" : "dark")),
       },
-    ].filter((a) => matches(a.label))
+      // Guided tours (106): the palette closes first; the tour starts once it has gone.
+      ...(tours.pageStatus === "ready" && tours.page && tourKeys.has(tours.page.key)
+        ? [
+            {
+              id: "tour-page",
+              icon: CircleHelp,
+              label: "Tour this page",
+              keywords: TOUR_WORDS,
+              run: () => (close(), tours.startPage("search")),
+            },
+          ]
+        : []),
+      {
+        id: "tours",
+        icon: MapIcon,
+        label: "All tours",
+        keywords: TOUR_WORDS,
+        run: () => (close(), tours.openAllTours()),
+      },
+    ].filter((a: Item) => matches(a.label) || (a.keywords ?? []).some(matches))
     if (actions.length) out.push({ label: "Actions", items: actions })
 
     const pages = visibleNav(NAV, roles)
@@ -165,7 +194,7 @@ export function CommandPalette({
 
     return out
     // eslint-disable-next-line react-hooks/exhaustive-deps -- close/navigate are stable for the palette's life
-  }, [query, searching, orders.data, products.data, roles, theme])
+  }, [query, searching, orders.data, products.data, roles, theme, tours.page, tours.pageStatus])
 
   const flat = useMemo(() => sections.flatMap((s) => s.items), [sections])
 

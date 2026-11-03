@@ -69,7 +69,7 @@ export function StaffSidebar({ brand, groups, defaultTabs, counts }: StaffSideba
   }, [pathname, tab, setOpenMobile]);
 
   return (
-    <Sidebar collapsible="icon" className="ef-sidebar">
+    <Sidebar collapsible="icon" className="ef-sidebar" data-tour="nav">
       {isMobile && openMobile ? (
         <Button
           variant="outline"
@@ -114,7 +114,7 @@ export function StaffSidebar({ brand, groups, defaultTabs, counts }: StaffSideba
                 item.subs && item.subs.length > 0 ? (
                   <NavGroupItem key={item.key} item={item} active={active} counts={counts} />
                 ) : (
-                  <SidebarMenuItem key={item.key}>
+                  <SidebarMenuItem key={item.key} data-tour={`nav.${item.key}`}>
                     <SidebarMenuButton asChild isActive={active === item.key} tooltip={item.label} className="ef-sb-btn">
                       <Link {...staffLinkOf(item)} aria-current={active === item.key ? "page" : undefined}>
                         <item.icon aria-hidden="true" />
@@ -212,7 +212,7 @@ function NavGroupItem({
   // page on screen is marked. A small chevron on the rail item says it holds more than one page.
   if (state === "collapsed" && !isMobile) {
     return (
-      <SidebarMenuItem>
+      <SidebarMenuItem data-tour={`nav.${item.key}`}>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton isActive={holdsActive} className="ef-sb-btn" aria-label={`${item.label}: ${subs.length} pages`}>
@@ -254,7 +254,7 @@ function NavGroupItem({
         setOpen(next);
       }}
     >
-      <SidebarMenuItem>
+      <SidebarMenuItem data-tour={`nav.${item.key}`}>
         <CollapsibleTrigger asChild>
           <SidebarMenuButton tooltip={item.label} className="ef-sb-btn" data-open={open ? "true" : "false"}>
             <item.icon aria-hidden="true" />

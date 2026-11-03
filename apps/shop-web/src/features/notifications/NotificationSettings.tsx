@@ -24,11 +24,14 @@ import { consoleStore, setSoundOn } from "@/lib/console-store"
 import type { NotificationSection } from "./api"
 import { showTestNotification, thisDevice } from "./messaging"
 import { useNotifications } from "./useNotifications"
+import { useTourPage } from "@effy/web-kit/tour"
 
 type State = ReturnType<typeof useNotifications>
 
 export function NotificationSettingsScreen() {
   const n = useNotifications()
+  // Nothing to load: what this device can do is known at once.
+  useTourPage("settings-notifications", { status: "ready" })
 
   return (
     <Page>
@@ -38,6 +41,7 @@ export function NotificationSettingsScreen() {
       />
       <SettingsPage>
         <SettingsSection
+          tour="notifications.device"
           title="This device"
           description="Each computer, tablet or phone is turned on separately. Nothing about a customer is ever included."
         >
@@ -45,6 +49,7 @@ export function NotificationSettingsScreen() {
         </SettingsSection>
 
         <SettingsSection
+          tour="notifications.sound"
           title="Sound"
           description="A chime in this tab while the console is open, whether or not notifications are on."
         >
@@ -52,6 +57,7 @@ export function NotificationSettingsScreen() {
         </SettingsSection>
 
         <SettingsSection
+          tour="notifications.types"
           title="What you're told about"
           description="Choose which alerts reach this device. Everything is on until you turn it off."
         >
@@ -148,6 +154,7 @@ function DeviceStatus({ state }: { state: State }) {
           >
             <Button
               variant="outline"
+              data-tour="notifications.test"
               onClick={() => {
                 setTested(null)
                 void showTestNotification().then((ok) => setTested(ok ? "sent" : "failed"))
@@ -191,7 +198,7 @@ function StateHelp({ state }: { state: State }) {
 
     case "needs-install":
       return (
-        <Alert role="status" variant="info">
+        <Alert role="status" variant="info" data-tour="notifications.home-screen">
           <MonitorSmartphone aria-hidden="true" />
           <AlertTitle>On iPad and iPhone, notifications only work for apps on the home screen</AlertTitle>
           <AlertDescription>

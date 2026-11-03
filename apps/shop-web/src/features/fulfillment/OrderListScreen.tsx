@@ -38,6 +38,7 @@ import {
 } from "./orderConsole"
 import { downloadOrdersCsv, exportOrdersCsv } from "./exportOrders"
 import { orderListQuery } from "./queries"
+import { tourStatus, useTourPage } from "@effy/web-kit/tour"
 
 const NONE: ReadonlySet<string> = new Set()
 
@@ -110,6 +111,7 @@ export function OrderListScreen({
   }
 
   const view = search.view === "table" ? "table" : "queue"
+  useTourPage(view === "table" ? "orders-table" : "orders-queue", { status: tourStatus(query) })
 
   return (
     <ListPage>
@@ -123,6 +125,7 @@ export function OrderListScreen({
         actions={
           <>
             <Segmented
+              tour="orders.view-switch"
               ariaLabel="Show orders as"
               value={view}
               onChange={(v) =>
@@ -155,6 +158,7 @@ export function OrderListScreen({
               ]}
             />
             <MoreActions
+              tour="page-more"
               actions={[
                 {
                   label: "Export CSV",
@@ -197,6 +201,7 @@ export function OrderListScreen({
             toolbar={
               <>
                 <ViewSelect
+              tour="orders.status"
               label="Order status"
               value={tab}
               onChange={(t) => update({ tab: t })}
@@ -209,6 +214,7 @@ export function OrderListScreen({
             />
             <OrderSearchBox value={search.q ?? ""} onChange={(q) => update({ q })} />
             <Facet
+              tour="orders.filters"
               label="Placed"
               className="max-lg:hidden"
               anyLabel={RANGE_LABEL.any}
@@ -234,7 +240,7 @@ export function OrderListScreen({
               options={SHOP_ORDER_PAYMENT_STATES.map((p) => ({ value: p, label: PAYMENT_LABEL[p] }))}
               onChange={(payment) => update({ payment: payment ?? undefined })}
             />
-            <Button variant="outline" className="lg:hidden" onClick={() => setFiltersOpen(true)}>
+            <Button variant="outline" className="lg:hidden" data-tour="orders.filters-button" onClick={() => setFiltersOpen(true)}>
               <SlidersHorizontal aria-hidden="true" />
               Filters
               {filterCount > 0 ? <TabsCount tone="primary">{filterCount}</TabsCount> : null}

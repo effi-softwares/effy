@@ -30,7 +30,9 @@ function Strip({
   children: React.ReactNode
 }) {
   return (
+    // Stays bright and clickable during a guided tour (106).
     <div
+      data-tour-above=""
       className={`flex min-h-12 items-center gap-3 rounded-lg bg-muted px-4 py-3 text-sm text-foreground ${tone === "warning" ? "font-medium" : ""}`}
       role="status"
     >

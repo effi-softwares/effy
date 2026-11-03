@@ -82,7 +82,7 @@ export function LivePreview({
   );
 
   return (
-    <div className="flex min-h-full flex-col">
+    <div className="flex min-h-full flex-col" data-tour="product-form.preview">
       <p className="pt-1 pr-5 pl-8 text-xs leading-5 text-muted-foreground">{description}</p>
 
       <Tabs defaultValue="aisle" className="gap-4 px-5 pt-4 pb-5">

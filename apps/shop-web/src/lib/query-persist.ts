@@ -28,10 +28,14 @@ function createPersister(): Persister {
   }
 }
 
-export function startQueryPersistence(queryClient: QueryClient, buildId: string): void {
-  if (typeof indexedDB === "undefined") return
+/**
+ * Saves the cache between visits. Resolves once the saved cache is back, so writes paused while offline (they are
+ * saved too) can be resumed - their functions must be registered with `setMutationDefaults` before this runs.
+ */
+export function startQueryPersistence(queryClient: QueryClient, buildId: string): Promise<void> {
+  if (typeof indexedDB === "undefined") return Promise.resolve()
 
-  persistQueryClient({
+  const [, restored] = persistQueryClient({
     queryClient,
     persister: createPersister(),
     maxAge: MAX_AGE_MS,
@@ -40,6 +44,7 @@ export function startQueryPersistence(queryClient: QueryClient, buildId: string)
       shouldDehydrateQuery: (q) => q.state.status === "success",
     },
   })
+  return restored.catch(() => undefined)
 }
 
 export async function clearPersistedQueries(): Promise<void> {

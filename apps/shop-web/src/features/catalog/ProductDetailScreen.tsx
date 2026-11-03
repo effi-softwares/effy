@@ -71,6 +71,7 @@ import { isApproved, reviewChip, workingDetail } from "./review"
 import { ReviewPanel } from "./ReviewPanel"
 import { SectionAssignment } from "./SectionAssignment"
 import { defaultStockVariantId } from "@effy/web-kit/product-form"
+import { tourStatus, useTourPage } from "@effy/web-kit/tour"
 
 type EditTarget = "basics" | "sizes" | "category" | "facts" | { section: string } | null
 
@@ -96,6 +97,7 @@ function ProductDetailBody({ productId, initialSize }: { productId: string; init
   const activity = useActivityLog()
   // Prices being typed in the spreadsheet: the preview follows them before anything is saved.
   const [typedPrices, setTypedPrices] = useState<Record<string, string> | null>(null)
+  useTourPage("product", { status: tourStatus({ isSuccess: !isPending && !isError, isError }) })
 
   if (isError) return <ErrorState error={error} onRetry={() => void refetch()} />
   if (isPending) {
@@ -144,7 +146,7 @@ function ProductDetailBody({ productId, initialSize }: { productId: string; init
       railTitle="About this product"
       rail={
         <>
-          <InspectorSection title="How shoppers see it">
+          <InspectorSection title="How shoppers see it" tour="product.preview">
             <ShopperPreview
               imageUrl={orderedMedia(working)[0]?.url ?? null}
               brand={working.brand}
@@ -170,6 +172,7 @@ function ProductDetailBody({ productId, initialSize }: { productId: string; init
           </InspectorSection>
 
           <InspectorSection
+            tour="product.quality"
             title="Listing quality"
             actions={
               <span className="text-[13px] text-muted-foreground tabular-nums">
@@ -180,7 +183,7 @@ function ProductDetailBody({ productId, initialSize }: { productId: string; init
             <ListingQuality items={quality} />
           </InspectorSection>
 
-          <InspectorSection title="Organisation and facts" actions={editButton("facts")}>
+          <InspectorSection title="Organisation and facts" tour="product.facts" actions={editButton("facts")}>
             <InspectorRows
               rows={[
                 {
@@ -205,7 +208,7 @@ function ProductDetailBody({ productId, initialSize }: { productId: string; init
             />
           </InspectorSection>
 
-          <InspectorSection title="Sections">
+          <InspectorSection title="Sections" tour="product.sections">
             <p className="mb-3 text-[13px] text-muted-foreground">
               Your own groupings in the catalog. Shoppers don't see them.
             </p>
@@ -340,7 +343,7 @@ function ProductDetailBody({ productId, initialSize }: { productId: string; init
         ]}
       />
 
-      <div className="mt-8 grid gap-4 empty:hidden">
+      <div className="mt-8 grid gap-4 empty:hidden" data-tour="product.status">
         <ReviewPanel detail={detail} />
 
         {detail.missingRequired.length > 0 ? (
@@ -417,6 +420,7 @@ function ProductDetailBody({ productId, initialSize }: { productId: string; init
 
       <RecordSection
         id="about"
+        tour="product.description"
         icon={FileText}
         title="Description"
         description="What shoppers read on the product page."
@@ -427,6 +431,7 @@ function ProductDetailBody({ productId, initialSize }: { productId: string; init
 
       <RecordSection
         id="details"
+        tour="product.details"
         icon={List}
         title="Details"
         description={`What ${detail.categoryPath[detail.categoryPath.length - 1]} asks for. Shoppers filter and compare by these.`}

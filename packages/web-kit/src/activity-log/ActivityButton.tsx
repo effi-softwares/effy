@@ -12,7 +12,7 @@ import { useActivityLog } from "./search";
 export function ActivityButton() {
   const { show } = useActivityLog();
   return (
-    <Button variant="outline" onClick={() => show()}>
+    <Button variant="outline" data-tour="page-activity" onClick={() => show()}>
       <History aria-hidden="true" />
       Activity
     </Button>

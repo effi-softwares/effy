@@ -60,7 +60,7 @@ export function DayLine({
   return (
     <section aria-label="What just happened and what is next" className="dayline">
       {above.length === 0 && yesterday ? (
-        <p className="dayline__event opacity-75">
+        <p data-tour="today.yesterday" className="dayline__event opacity-75">
           <span className="dayline__when">Yesterday</span>
           <span aria-hidden="true" className="dayline__node">
             <i className="size-2 rounded-full bg-input" />
@@ -107,7 +107,7 @@ export function DayLine({
 function LaterToday({ ahead, timezone }: { ahead: ShopTodayDTO["ahead"]; timezone: string }) {
   if (ahead.length === 0) return null
   return (
-    <div className="pt-3">
+    <div data-tour="today.later" className="pt-3">
       <p className="relative pb-1 pl-[calc(var(--gut)+40px)] text-sm font-medium text-muted-foreground max-md:pl-[34px]">Later today</p>
       <ol>
         {ahead.map((a) => {
@@ -169,7 +169,7 @@ function NowBar({
   const unseen = seen === undefined ? events.length : Math.max(0, events.findIndex((e) => e.id === seen))
 
   return (
-    <div className="now-bar" aria-label="Live activity">
+    <div data-tour="today.now" className="now-bar" aria-label="Live activity">
       <div className={cn("now-bar__in", ping && "is-ping")} onAnimationEnd={() => setPing(false)}>
         <span className="pr-2 text-right font-semibold max-md:pr-0">Now</span>
         <span aria-hidden="true" className="grid place-items-center max-md:hidden">
@@ -248,7 +248,7 @@ function Work({ jobs, more }: { jobs: readonly Job[]; more: number }) {
   const LeadIcon = JOB_ICON[lead.kind]
   return (
     <>
-      <div className="dayline__row">
+      <div data-tour="today.next" className="dayline__row">
         <span className={cn("dayline__when pt-[18px]", lead.late && "font-medium text-destructive")}>{lead.when}</span>
         <span aria-hidden="true" className="dayline__node mt-4 size-6 text-foreground">
           <LeadIcon className="size-[15px]" />

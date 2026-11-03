@@ -75,15 +75,18 @@ export function Segmented<T extends string>({
   onChange,
   options,
   ariaLabel,
+  tour,
 }: {
   value: T
   onChange: (next: T) => void
   options: readonly { value: T; label: ReactNode }[]
   ariaLabel: string
+  /** A guided-tour key (106). */
+  tour?: string
 }) {
   return (
     <Tabs value={value} onValueChange={(v) => onChange(v as T)}>
-      <TabsList aria-label={ariaLabel}>
+      <TabsList aria-label={ariaLabel} data-tour={tour}>
         {options.map((o) => (
           <TabsTrigger key={o.value} value={o.value}>
             {o.label}

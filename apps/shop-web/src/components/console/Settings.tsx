@@ -15,13 +15,19 @@ export function SettingsSection({
   title,
   description,
   children,
+  tour,
 }: {
   title: ReactNode
   description: ReactNode
   children: ReactNode
+  /** A guided-tour key (106). */
+  tour?: string
 }) {
   return (
-    <section className="grid gap-x-10 gap-y-4 border-t py-8 first:border-t-0 first:pt-2 lg:grid-cols-[minmax(0,17rem)_minmax(0,1fr)] 2xl:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]">
+    <section
+      data-tour={tour}
+      className="grid gap-x-10 gap-y-4 border-t py-8 first:border-t-0 first:pt-2 lg:grid-cols-[minmax(0,17rem)_minmax(0,1fr)] 2xl:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]"
+    >
       <div className="grid content-start gap-1">
         <h2 className="text-base leading-6 font-semibold">{title}</h2>
         <p className="text-sm text-pretty text-muted-foreground">{description}</p>

@@ -29,6 +29,7 @@ import {
 
 import { Badge, Button, Kbd } from "@effy/design-system/ui"
 import { ActionBarButton, useActionBar, useActionBarDensity } from "@effy/web-kit/action-bar"
+import { tourStatus, useTourPage } from "@effy/web-kit/tour"
 import { ActivityButton, ActivityLogDrawer } from "@effy/web-kit/activity-log"
 import { ErrorState, PackageStatusPill, useHeaderDetail, type HeaderBack } from "@effy/web-kit/console"
 import {
@@ -91,6 +92,7 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
   const q = useQuery({ ...orderDetailQuery(fulfillmentId), placeholderData: keepPreviousData })
   // Back to the list as it was left: its view rides in this order's address.
   const back: HeaderBack = { label: "Orders", link: { to: "/orders", search: { ...search } } }
+  useTourPage("order", { status: tourStatus(q) })
 
   if (q.isError) {
     return (
@@ -208,7 +210,7 @@ function OrderPage({ detail, search, back }: { detail: OrderDetail; search: Orde
       railTitle="About this order"
       rail={
         <>
-          <InspectorSection title="Where it is">
+          <InspectorSection title="Where it is" tour="order.where">
             <div className="grid gap-3">
               <div>
                 <PackageStatusPill view={detail.statusView} />
@@ -278,12 +280,16 @@ function OrderPage({ detail, search, back }: { detail: OrderDetail; search: Orde
               The address is on each bag’s label. The bill-to address is held by Effy with the payment.
             </p>
             {detail.courierPickup ? (
-              <div className="mt-4 border-t pt-4">
+              <div className="mt-4 border-t pt-4" data-tour="order.courier-pickup">
                 <CourierPickup fulfillmentId={detail.id} status={detail.status} pickup={detail.courierPickup} />
               </div>
             ) : null}
           </InspectorSection>
-          <InspectorSection title="Your money" actions={<PaymentPill state={detail.payment.state} />}>
+          <InspectorSection
+            title="Your money"
+            tour="order.money"
+            actions={<PaymentPill state={detail.payment.state} />}
+          >
             <dl className="m-0 grid text-sm tabular-nums [&_div]:flex [&_div]:justify-between [&_div]:gap-6 [&_div]:py-1.5 [&_dd]:m-0 [&_dt]:text-muted-foreground">
               <div>
                 <dt>Your items</dt>
@@ -306,13 +312,19 @@ function OrderPage({ detail, search, back }: { detail: OrderDetail; search: Orde
               {paymentMethodText(detail.payment)} · {formatMoney(detail.payment.amount, currency)} captured at checkout
             </p>
             {refundable ? (
-              <Button variant="outline" className="mt-4 w-full" onClick={() => setRefundOpen(true)}>
+              <Button
+                variant="outline"
+                className="mt-4 w-full"
+                data-tour="order.refund"
+                onClick={() => setRefundOpen(true)}
+              >
                 <ReceiptText aria-hidden="true" />
                 Refund
               </Button>
             ) : null}
           </InspectorSection>
           <InspectorSection
+            tour="order.tags"
             title="Tags"
             actions={
               <Button variant="ghost" size="sm" onClick={() => setTagsOpen(true)}>
@@ -465,6 +477,7 @@ function OrderPage({ detail, search, back }: { detail: OrderDetail; search: Orde
 
       <RecordSection
         id="pick"
+        tour="order.pick-list"
         icon={ClipboardList}
         title="Pick list"
         description="In walking order — the shelves first, cold things last. Tick a line as it goes in the bag, or scan its barcode."
@@ -474,6 +487,7 @@ function OrderPage({ detail, search, back }: { detail: OrderDetail; search: Orde
 
       <RecordSection
         id="bags"
+        tour="order.bags"
         icon={ShoppingBag}
         title="Bags & labels"
         description="One bag per temperature, each with its own label, scanned as it is packed."
@@ -483,6 +497,7 @@ function OrderPage({ detail, search, back }: { detail: OrderDetail; search: Orde
 
       <RecordSection
         id="notes"
+        tour="order.notes"
         icon={MessageSquare}
         title="Team notes"
         description="Only your team sees notes. They can't be edited once added."
@@ -549,6 +564,7 @@ function OrderPage({ detail, search, back }: { detail: OrderDetail; search: Orde
                   label: "Start picking",
                   icon: ListChecks,
                   primary: true,
+                  tour: "order.next-step",
                   busy: transition.isPending,
                   onClick: () => transition.mutate({ to: "picking", from: detail.status }),
                 },
@@ -556,11 +572,12 @@ function OrderPage({ detail, search, back }: { detail: OrderDetail; search: Orde
             : []),
           ...(detail.status === "picking"
             ? [
-                { label: "Can't supply…", onClick: () => setCancelOpen(true) },
+                { label: "Can't supply…", tour: "order.cant-supply", onClick: () => setCancelOpen(true) },
                 {
                   label: "Mark ready",
                   icon: PackageCheck,
                   primary: true,
+                  tour: "order.next-step",
                   hint: "R",
                   onClick: () => setFulfilOpen(true),
                 },
@@ -665,6 +682,8 @@ interface BarAction {
   primary?: boolean
   busy?: boolean
   hint?: string
+  /** A guided-tour key (106). */
+  tour?: string
   onClick: () => void
 }
 
@@ -737,6 +756,7 @@ function OrderBarControls({ position, total, prev, next, back, lead, actions }: 
         <ActionBarButton
           key={a.label}
           className={a.primary ? SOLID_BRAND : undefined}
+          data-tour={a.tour}
           disabled={a.busy}
           onClick={a.onClick}
         >

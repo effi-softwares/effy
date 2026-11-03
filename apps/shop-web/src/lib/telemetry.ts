@@ -28,6 +28,11 @@ type ShopAnalyticsEvent =
   | { name: "availability_toggled"; onSale: boolean }
   | { name: "collection_panel_viewed"; driver: string }
   | { name: "shop_order_queue_viewed"; state: "active" | "completed" }
+  // Guided tours (106): the tour key and step numbers only.
+  | { name: "tour_started"; tour: string; version: number; via: "invitation" | "help" | "search" | "all-tours" }
+  | { name: "tour_finished"; tour: string; version: number }
+  | { name: "tour_closed"; tour: string; version: number; step: number; of: number }
+  | { name: "tour_declined"; tour: string; version: number }
   | { name: "shop_order_opened"; fulfillmentId: string; status: string }
   | { name: "shop_order_state_changed"; fulfillmentId: string; from: string; to: string }
   | { name: "shop_order_reversed"; fulfillmentId: string }

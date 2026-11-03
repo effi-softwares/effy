@@ -108,13 +108,14 @@ export function StaffHeader({ title, groups, defaultTabs, onOpenSearch, searchPr
           variant="outline"
           className="w-64 justify-start font-normal text-muted-foreground max-lg:hidden"
           aria-label="Search and commands"
+          data-tour="header.search"
           onClick={onOpenSearch}
         >
           <Search aria-hidden="true" />
           <span className="truncate">{searchPrompt}</span>
           <Kbd className="ml-auto">⌘K</Kbd>
         </Button>
-        <Button variant="ghost" size="icon" className="lg:hidden" aria-label="Search" onClick={onOpenSearch}>
+        <Button variant="ghost" size="icon" className="lg:hidden" aria-label="Search" data-tour="header.search" onClick={onOpenSearch}>
           <Search aria-hidden="true" />
         </Button>
         {account}

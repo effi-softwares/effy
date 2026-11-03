@@ -9,6 +9,7 @@ import { cn } from "@effy/design-system"
 import { ToggleGroup, ToggleGroupItem } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 import { Bone, Loading, MoreActions, PageHeader } from "@effy/web-kit/patterns"
+import { tourStatus, useTourPage } from "@effy/web-kit/tour"
 
 import { MotionScope } from "@/components/console/MotionScope"
 import { todayQuery } from "@/features/today/queries"
@@ -40,6 +41,7 @@ export function InsightsScreen({ page, range }: { page: InsightsTab; range: Insi
   const insights = useQuery(insightsQuery(range))
   // The one source for what is out of stock, shared with Today.
   const today = useQuery(todayQuery)
+  useTourPage(page === "overview" ? "insights" : `insights-${page}`, { status: tourStatus(insights) })
   const now = useNow(60_000)
   const dto = insights.data
   const search = range === "7d" ? {} : { range }
@@ -64,6 +66,7 @@ export function InsightsScreen({ page, range }: { page: InsightsTab; range: Insi
                 type="single"
                 variant="outline"
                 aria-label="Range"
+                data-tour="insights.range"
                 value={range}
                 onValueChange={(v) => {
                   if (!v) return
@@ -78,6 +81,7 @@ export function InsightsScreen({ page, range }: { page: InsightsTab; range: Insi
                 ))}
               </ToggleGroup>
               <MoreActions
+                tour="page-more"
                 actions={[
                   {
                     label: "Export CSV",
@@ -95,7 +99,11 @@ export function InsightsScreen({ page, range }: { page: InsightsTab; range: Insi
           }
         />
 
-        <nav aria-label="Insights pages" className="mb-5 flex gap-5 overflow-x-auto border-b [scrollbar-width:none]">
+        <nav
+          aria-label="Insights pages"
+          data-tour="insights.pages"
+          className="mb-5 flex gap-5 overflow-x-auto border-b [scrollbar-width:none]"
+        >
           {TABS.map((t) => (
             <Link
               key={t.page}

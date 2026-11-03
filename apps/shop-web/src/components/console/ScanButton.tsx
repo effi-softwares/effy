@@ -48,7 +48,7 @@ export function ScanButton() {
 
   return (
     <>
-      <Button type="button" variant="outline" onClick={() => setOpen(true)} aria-label="Scan">
+      <Button type="button" variant="outline" data-tour="header.scan" onClick={() => setOpen(true)} aria-label="Scan">
         <ScanBarcode aria-hidden="true" />
         <span className="max-sm:hidden">Scan</span>
       </Button>

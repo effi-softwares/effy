@@ -34,6 +34,7 @@ export function PhotoStep({
       <EditorSection>
         <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
           <div
+            data-tour="product-form.photo"
             className="flex min-h-80 flex-col gap-3"
             data-invalid={error ? "true" : undefined}
           >

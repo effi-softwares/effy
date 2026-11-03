@@ -97,7 +97,7 @@ export function NameCategoryStep({
         }
         description="Where shoppers find it. It also decides the details asked for later."
       >
-        <div className="grid gap-2" data-invalid={errors.category ? "true" : undefined}>
+        <div className="grid gap-2" data-tour="product-form.category" data-invalid={errors.category ? "true" : undefined}>
           <CategoryPicker
             categories={taxonomy.categories}
             recentLeafIds={taxonomy.recentLeafIds}

@@ -46,7 +46,7 @@ export function ReceiveStockButton({ variantId, onReceive }: { variantId: string
   const tracked = data?.stock.tracked ?? false
 
   return (
-    <Button variant="outline" onClick={onReceive} disabled={loading}>
+    <Button variant="outline" data-tour="product.stock" onClick={onReceive} disabled={loading}>
       <PackagePlus aria-hidden="true" />
       {loading || tracked ? "Receive stock" : "Add stock"}
     </Button>

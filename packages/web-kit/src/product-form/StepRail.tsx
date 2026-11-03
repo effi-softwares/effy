@@ -16,7 +16,7 @@ interface Props {
  */
 export function StepRail({ steps, onStep, disabled }: Props) {
   return (
-    <nav aria-label="Steps">
+    <nav aria-label="Steps" data-tour="product-form.steps">
       <ol className="ef-steps">
         {steps.map((s, i) => {
           const next = steps[i + 1];

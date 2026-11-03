@@ -78,6 +78,7 @@ export function MediaGallery({
   return (
     <RecordSection
       id="pictures"
+      tour="product.pictures"
       icon={ImageIcon}
       title="Pictures"
       description={

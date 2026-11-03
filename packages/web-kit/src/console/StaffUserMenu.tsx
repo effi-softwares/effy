@@ -58,7 +58,7 @@ export function StaffUserMenu({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="ml-1 rounded-full" aria-label={`Account and appearance - ${name}`}>
+        <Button variant="ghost" size="icon" className="ml-1 rounded-full" data-tour="header.account" aria-label={`Account and appearance - ${name}`}>
           <Avatar aria-hidden="true" className="size-8">
             <AvatarFallback className="bg-primary-muted text-xs font-semibold text-primary">{initialsOf(name)}</AvatarFallback>
           </Avatar>

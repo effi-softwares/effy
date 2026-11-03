@@ -26,6 +26,7 @@ export function CollectionBand({
 }) {
   return (
     <section
+      data-tour="today.collection"
       aria-label="Next collection"
       className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-7 pb-4 max-md:gap-x-3.5 max-md:gap-y-2.5"
     >

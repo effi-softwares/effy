@@ -7,6 +7,7 @@ import { followDefaults, formRows, recategorise, type CreateProductRequest } fro
 import { Alert, AlertTitle, Button } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 import { FormSkeleton, Loading } from "@effy/web-kit/patterns"
+import { tourStatus, useTourPage } from "@effy/web-kit/tour"
 import {
   ChooseCategoryFirst,
   clearDraft,
@@ -80,6 +81,8 @@ function StepLoading() {
 export function ProductCreateFlow(props: Props) {
   const session = useQuery(sessionQuery)
   const me = useQuery(meQuery)
+  const taxonomy = useQuery(taxonomyQuery)
+  useTourPage("product-new", { status: tourStatus(taxonomy) })
   const subject = session.data?.status === "signed-in" ? session.data.identity.subject : null
   const shopId = me.data?.shop?.id ?? null
 
@@ -426,7 +429,7 @@ function CreateFlow({ shopId, subject, onCancel, onCreated }: Props & { shopId: 
         }
         end={
           last ? (
-            <Button type="button" onClick={() => void publish()} disabled={busy}>
+            <Button type="button" data-tour="product-form.send" onClick={() => void publish()} disabled={busy}>
               {busy ? "Sending to Effy…" : "Send to Effy for review"}
             </Button>
           ) : (

@@ -56,3 +56,4 @@ export * from "./brand-mark";
 export * from "./documents";
 export * from "./shop-availability"
 export * from "./activity-log";
+export * from "./tours";

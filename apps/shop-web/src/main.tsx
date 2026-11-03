@@ -16,6 +16,7 @@ import { startQueryPersistence } from "./lib/query-persist"
 import { initTelemetry, reportError } from "./lib/telemetry"
 import { applyTheme, uiStore } from "./lib/ui-store"
 import { createAppRouter } from "./router"
+import { registerTourMutationDefaults } from "./features/tours/repo"
 import "./styles.css"
 
 const rootEl = document.getElementById("root")
@@ -33,7 +34,9 @@ try {
 
   const queryClient = createQueryClient()
 
-  startQueryPersistence(queryClient, __BUILD_ID__)
+  // A tour decline made offline is saved with the cache and sent after a reload (106 research R11).
+  registerTourMutationDefaults(queryClient)
+  void startQueryPersistence(queryClient, __BUILD_ID__).then(() => queryClient.resumePausedMutations())
 
   watchConnectivity(() => {
     void queryClient.invalidateQueries({ refetchType: "active" })
