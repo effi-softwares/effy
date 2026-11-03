@@ -78,3 +78,59 @@ export async function forgetToken(): Promise<void> {
     await deleteToken(getMessaging(app))
   } catch {}
 }
+
+/** Shows one notification through our own worker, so a person can see the OS lets it through. Nothing is sent. */
+export async function showTestNotification(): Promise<boolean> {
+  const registration = getRegistration()
+  if (!registration || permissionState() !== "granted") return false
+  try {
+    await registration.showNotification("Test notification", {
+      body: "New orders and alerts will appear like this on this device.",
+      tag: "effy-test",
+      icon: "/web-app-icon-192.png",
+      badge: "/notification-badge-96.png",
+      data: { webPath: "/settings/notifications" },
+    })
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** "Chrome on macOS" - how the settings screen names this device. A label only, never sent anywhere. */
+export function thisDevice(): string {
+  if (typeof navigator === "undefined") return "This device"
+  const ua = navigator.userAgent
+  const touchMac = ua.includes("Macintosh") && navigator.maxTouchPoints > 1
+  const os =
+    /iPad/.test(ua) || touchMac
+      ? "iPad"
+      : /iPhone|iPod/.test(ua)
+        ? "iPhone"
+        : /Android/.test(ua)
+          ? "Android"
+          : /CrOS/.test(ua)
+            ? "ChromeOS"
+            : /Mac OS X/.test(ua)
+              ? "macOS"
+              : /Windows/.test(ua)
+                ? "Windows"
+                : /Linux/.test(ua)
+                  ? "Linux"
+                  : null
+  const browser = /Edg\//.test(ua)
+    ? "Edge"
+    : /OPR\//.test(ua)
+      ? "Opera"
+      : /Firefox\/|FxiOS/.test(ua)
+        ? "Firefox"
+        : /Chrome\/|CriOS/.test(ua)
+          ? "Chrome"
+          : /Safari\//.test(ua)
+            ? "Safari"
+            : null
+  const standalone = window.matchMedia?.("(display-mode: standalone)").matches
+  if (standalone) return os ? `Effy Shop app on ${os}` : "Effy Shop app"
+  if (browser && os) return `${browser} on ${os}`
+  return browser ?? os ?? "This device"
+}

@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query"
 
 import { track } from "@/lib/telemetry"
 
-import { preferencesQuery, registerDevice, unregisterDevice, useSetMutedTypes } from "./api"
+import { preferencesQuery, registerDevice, unregisterDevice, useSetMutedTypes, type NotificationSection } from "./api"
 import { forgetToken, obtainToken, permissionState, pushSupport, requestPermission } from "./messaging"
 
 type NotificationStatus = "unsupported" | "needs-install" | "blocked" | "off" | "on"
@@ -12,7 +12,16 @@ interface NotificationsState {
   status: NotificationStatus
   fcmToken: string | null
   mutedTypes: string[]
-  availableTypes: Array<{ type: string; label: string; group: string; requiresRole?: string }>
+  availableTypes: Array<{
+    type: string
+    label: string
+    group: string
+    section: NotificationSection
+    requiresRole?: string
+  }>
+  /** The type list has not been read yet (first visit, or the read failed and is retrying). */
+  typesLoading: boolean
+  typesFailed: boolean
   busy: boolean
   hint: string | null
 }
@@ -103,6 +112,8 @@ export function useNotifications() {
     fcmToken,
     mutedTypes: prefs.data?.mutedTypes ?? [],
     availableTypes: prefs.data?.availableTypes ?? [],
+    typesLoading: prefs.isPending,
+    typesFailed: prefs.isError && !prefs.data,
     busy: busy || setMuted.isPending,
     hint,
   }

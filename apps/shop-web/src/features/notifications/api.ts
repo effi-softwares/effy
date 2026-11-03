@@ -1,11 +1,14 @@
-import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query"
+import { keepPreviousData, queryOptions, useMutation, useQueryClient } from "@tanstack/react-query"
 
 import { api } from "@/lib/api"
+
+export type NotificationSection = "orders" | "stock" | "refunds" | "effy"
 
 interface NotificationTypeInfo {
   type: string
   label: string
   group: string
+  section: NotificationSection
   requiresRole?: string
 }
 
@@ -21,13 +24,16 @@ const PREFS_KEY = ["shop", "notification-preferences"] as const
 export function preferencesQuery(fcmToken: string | null) {
   return queryOptions({
     queryKey: [...PREFS_KEY, fcmToken ?? "none"],
-    queryFn: async (): Promise<NotificationPreferences> => {
-      if (!fcmToken) {
-        return { registered: false, platform: null, mutedTypes: [], availableTypes: [] }
-      }
-      return api.get<NotificationPreferences>(`/shop/v1/notification-preferences?token=${encodeURIComponent(fcmToken)}`)
-    },
+    // Without a token the server answers the unregistered shape, so the screen lists the types before sign-up.
+    queryFn: (): Promise<NotificationPreferences> =>
+      api.get<NotificationPreferences>(
+        fcmToken
+          ? `/shop/v1/notification-preferences?token=${encodeURIComponent(fcmToken)}`
+          : "/shop/v1/notification-preferences",
+      ),
     staleTime: 30_000,
+    // Turning on swaps the key from "none" to the token; keep the list on screen meanwhile.
+    placeholderData: keepPreviousData,
   })
 }
 

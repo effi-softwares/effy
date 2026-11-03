@@ -25,35 +25,92 @@ export interface ShopNotificationTypeInfo {
   label: string;
   /** See `worker/copy.ts`. */
   group: "orders" | "attention";
+  /** Where the settings screen lists it. Display only; `group` decides coalescing. */
+  section: "orders" | "stock" | "refunds" | "effy";
   /** A rendering hint, never the gate: the evaluator filters by the platform record at enqueue. */
   requiresRole?: "shop_manager";
 }
 
 export const SHOP_NOTIFICATION_TYPES: readonly ShopNotificationTypeInfo[] = [
-  { type: "shop_new_order", label: "New orders", group: "orders" },
-  { type: "shop_awaiting_pick", label: "Orders waiting to be picked", group: "attention" },
-  { type: "shop_out_of_stock", label: "Products out of stock", group: "attention" },
-  { type: "shop_low_stock", label: "Products below reorder point", group: "attention" },
+  {
+    type: "shop_new_order",
+    label: "New orders",
+    group: "orders",
+    section: "orders",
+  },
+  {
+    type: "shop_awaiting_pick",
+    label: "Orders waiting to be picked",
+    group: "attention",
+    section: "orders",
+  },
+  {
+    type: "shop_out_of_stock",
+    label: "Products out of stock",
+    group: "attention",
+    section: "stock",
+  },
+  {
+    type: "shop_low_stock",
+    label: "Products below reorder point",
+    group: "attention",
+    section: "stock",
+  },
   {
     type: "shop_refund_proposed",
     label: "Refunds waiting for approval",
     group: "attention",
+    section: "refunds",
     requiresRole: "shop_manager",
   },
   // Raised by a review decision; grouped with attention because they coalesce the same way.
-  { type: "shop_product_approved", label: "Products approved by Effy", group: "attention" },
-  { type: "shop_product_sent_back", label: "Products sent back by Effy", group: "attention" },
-  { type: "shop_product_held", label: "Products held by Effy", group: "attention" },
-  { type: "shop_product_released", label: "Products released by Effy", group: "attention" },
-  { type: "shop_product_added_by_effy", label: "Products added by Effy", group: "attention" },
-  { type: "shop_products_imported", label: "Product lists imported by Effy", group: "attention" },
+  {
+    type: "shop_product_approved",
+    label: "Products approved by Effy",
+    group: "attention",
+    section: "effy",
+  },
+  {
+    type: "shop_product_sent_back",
+    label: "Products sent back by Effy",
+    group: "attention",
+    section: "effy",
+  },
+  {
+    type: "shop_product_held",
+    label: "Products held by Effy",
+    group: "attention",
+    section: "effy",
+  },
+  {
+    type: "shop_product_released",
+    label: "Products released by Effy",
+    group: "attention",
+    section: "effy",
+  },
+  {
+    type: "shop_product_added_by_effy",
+    label: "Products added by Effy",
+    group: "attention",
+    section: "effy",
+  },
+  {
+    type: "shop_products_imported",
+    label: "Product lists imported by Effy",
+    group: "attention",
+    section: "effy",
+  },
 ];
 
 export const KNOWN_SHOP_NOTIFICATION_TYPES: readonly ShopNotificationType[] =
   SHOP_NOTIFICATION_TYPES.map((t) => t.type);
 
 /** Four conditions, four types, independently mutable, one of them manager-only. */
-export type AttentionKind = "awaiting_pick" | "out_of_stock" | "low_stock" | "refund_proposed";
+export type AttentionKind =
+  | "awaiting_pick"
+  | "out_of_stock"
+  | "low_stock"
+  | "refund_proposed";
 
 export const ATTENTION_TYPE: Record<AttentionKind, ShopNotificationType> = {
   awaiting_pick: "shop_awaiting_pick",

@@ -56,9 +56,18 @@ describe("GET — N1: an unregistered device renders, it does not error", () => 
     expect(res.statusCode).toBe(401);
   });
 
-  it("400 without the token parameter", async () => {
+  it("without the token parameter, answers the unregistered shape (the screen lists types before sign-up)", async () => {
     const res = await getHandler(event("sub-1"), ctx);
-    expect(res.statusCode).toBe(400);
+    expect(res.statusCode).toBe(200);
+    const dto = JSON.parse(res.body as string);
+    expect(dto.registered).toBe(false);
+    expect(dto.mutedTypes).toEqual([]);
+    expect(dto.availableTypes).toEqual(SHOP_NOTIFICATION_TYPES);
+    expect(readRegistration).not.toHaveBeenCalled();
+  });
+
+  it("every type names the settings section it is listed under", () => {
+    for (const t of SHOP_NOTIFICATION_TYPES) expect(["orders", "stock", "refunds", "effy"]).toContain(t.section);
   });
 });
 

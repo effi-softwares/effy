@@ -55,3 +55,16 @@ export function playChime(): void {
     osc.stop(start + 0.34)
   }
 }
+
+/** Plays the chime once on a person's click (which is also what lets the browser play sound at all). */
+export function previewChime(): void {
+  const c = context()
+  if (!c) return
+  void c
+    .resume()
+    .then(() => {
+      setAudioReady(c.state === "running")
+      playChime()
+    })
+    .catch(() => setAudioReady(false))
+}

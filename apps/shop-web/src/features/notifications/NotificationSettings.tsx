@@ -1,12 +1,31 @@
-import { Bell, BellOff, Share } from "lucide-react"
+import { useState } from "react"
 
-import { Alert, AlertDescription, AlertTitle, Button, Card, CardContent, Label, Switch } from "@effy/design-system/ui"
+import { useQuery } from "@tanstack/react-query"
+import { useStore } from "@tanstack/react-store"
+import { Bell, BellOff, BellRing, CircleCheck, MonitorSmartphone, Play, Share, Volume2, VolumeX } from "lucide-react"
 
-import { PageHeader } from "@effy/web-kit/patterns"
+import { Alert, AlertDescription, AlertTitle, Badge, Button, Switch } from "@effy/design-system/ui"
+
+import { Bone, Loading, PageHeader } from "@effy/web-kit/patterns"
 
 import { Page } from "@/components/console/primitives"
+import {
+  SettingsIcon,
+  SettingsList,
+  SettingsListHeading,
+  SettingsPage,
+  SettingsRow,
+  SettingsSection,
+} from "@/components/console/Settings"
+import { sessionQuery } from "@/features/auth/queries"
+import { previewChime } from "@/lib/chime"
+import { consoleStore, setSoundOn } from "@/lib/console-store"
 
+import type { NotificationSection } from "./api"
+import { showTestNotification, thisDevice } from "./messaging"
 import { useNotifications } from "./useNotifications"
+
+type State = ReturnType<typeof useNotifications>
 
 export function NotificationSettingsScreen() {
   const n = useNotifications()
@@ -15,114 +34,290 @@ export function NotificationSettingsScreen() {
     <Page>
       <PageHeader
         title="Notifications"
-        description="Get alerts on this device for new orders and urgent issues, even when closed."
-        actions={
-          n.status === "on" ? (
-            <Button variant="outline" disabled={n.busy} onClick={() => void n.disable()}>
-              <BellOff aria-hidden="true" />
-              Turn off on this device
-            </Button>
-          ) : null
-        }
+        description="Alerts on this device for new orders and anything that needs attention, even when the console is closed."
       />
-      <Card className="max-w-3xl gap-0 overflow-hidden py-0">
-        <CardContent className="py-4">
-          <StateBlock state={n} />
-        </CardContent>
-        {n.status === "on" ? <TypeToggles state={n} /> : null}
-      </Card>
+      <SettingsPage>
+        <SettingsSection
+          title="This device"
+          description="Each computer, tablet or phone is turned on separately. Nothing about a customer is ever included."
+        >
+          <DeviceStatus state={n} />
+        </SettingsSection>
+
+        <SettingsSection
+          title="Sound"
+          description="A chime in this tab while the console is open, whether or not notifications are on."
+        >
+          <SoundSetting />
+        </SettingsSection>
+
+        <SettingsSection
+          title="What you're told about"
+          description="Choose which alerts reach this device. Everything is on until you turn it off."
+        >
+          <TypeList state={n} />
+        </SettingsSection>
+      </SettingsPage>
     </Page>
   )
 }
 
-type State = ReturnType<typeof useNotifications>
-
-function Note({ children }: { children: React.ReactNode }) {
-  return <p className="max-w-[70ch] text-sm text-muted-foreground">{children}</p>
+const STATUS: Record<
+  State["status"],
+  { title: string; tone: "on" | "off" | "muted"; icon: React.ReactNode; badge: React.ReactNode }
+> = {
+  on: {
+    title: "Notifications are on",
+    tone: "on",
+    icon: <BellRing />,
+    badge: <Badge variant="success">On</Badge>,
+  },
+  off: {
+    title: "Notifications are off",
+    tone: "muted",
+    icon: <Bell />,
+    badge: <Badge variant="muted">Off</Badge>,
+  },
+  blocked: {
+    title: "Blocked by the browser",
+    tone: "off",
+    icon: <BellOff />,
+    badge: <Badge variant="destructive">Blocked</Badge>,
+  },
+  "needs-install": {
+    title: "Add Effy Shop to your home screen first",
+    tone: "muted",
+    icon: <MonitorSmartphone />,
+    badge: <Badge variant="muted">Not set up</Badge>,
+  },
+  unsupported: {
+    title: "This browser can't show notifications",
+    tone: "muted",
+    icon: <BellOff />,
+    badge: <Badge variant="muted">Unavailable</Badge>,
+  },
 }
 
-function StateBlock({ state }: { state: State }) {
-  switch (state.status) {
-    case "unsupported":
-      return (
-        <Note>This browser cannot show notifications. Open the console in Safari, Chrome or Edge to turn them on.</Note>
-      )
+function DeviceStatus({ state }: { state: State }) {
+  const s = STATUS[state.status]
+  const [tested, setTested] = useState<"sent" | "failed" | null>(null)
 
-    case "needs-install":
-      return (
-        <div className="grid gap-2">
-          <Note>
-            <span className="text-foreground font-medium">Add the console to your home screen first.</span> On iPad and
-            iPhone, notifications only work for apps on the home screen.
-          </Note>
-          <Note>
-            Tap <Share className="inline size-4 align-text-bottom" aria-label="Share" /> Share, then{" "}
-            <span className="text-foreground font-medium">Add to Home Screen</span>. Open Effy Shop from there and come
-            back to this screen.
-          </Note>
-        </div>
-      )
+  return (
+    <>
+      <SettingsList>
+        <SettingsRow
+          leading={<SettingsIcon tone={s.tone}>{s.icon}</SettingsIcon>}
+          label={
+            <span className="flex flex-wrap items-center gap-2">
+              {s.title}
+              {s.badge}
+            </span>
+          }
+          hint={thisDevice()}
+        >
+          {state.status === "off" ? (
+            <Button disabled={state.busy} onClick={() => void state.enable()}>
+              <Bell aria-hidden="true" />
+              Turn on notifications
+            </Button>
+          ) : state.status === "on" ? (
+            <Button variant="outline" disabled={state.busy} onClick={() => void state.disable()}>
+              <BellOff aria-hidden="true" />
+              Turn off
+            </Button>
+          ) : null}
+        </SettingsRow>
+
+        {state.status === "on" ? (
+          <SettingsRow
+            label="Send a test"
+            hint={
+              tested === "sent" ? (
+                <span role="status" className="inline-flex items-center gap-1.5 text-foreground">
+                  <CircleCheck aria-hidden="true" className="size-4 text-success" />
+                  Sent. If nothing appeared, check this computer's notification settings for the browser.
+                </span>
+              ) : tested === "failed" ? (
+                <span role="status" className="text-foreground">
+                  This device couldn't show it. Close the console fully, open it again and try once more.
+                </span>
+              ) : (
+                "Shows one notification on this device now, to check it gets through."
+              )
+            }
+          >
+            <Button
+              variant="outline"
+              onClick={() => {
+                setTested(null)
+                void showTestNotification().then((ok) => setTested(ok ? "sent" : "failed"))
+              }}
+            >
+              <BellRing aria-hidden="true" />
+              Send a test
+            </Button>
+          </SettingsRow>
+        ) : null}
+      </SettingsList>
+
+      <StateHelp state={state} />
+    </>
+  )
+}
+
+function StateHelp({ state }: { state: State }) {
+  switch (state.status) {
+    case "off":
+      return state.hint ? (
+        <Alert role="status" variant="muted">
+          <AlertDescription>{state.hint}</AlertDescription>
+        </Alert>
+      ) : null
 
     case "blocked":
       return (
         <Alert role="status" variant="destructive">
           <BellOff aria-hidden="true" />
-          <AlertTitle>Notifications are blocked in your browser.</AlertTitle>
+          <AlertTitle>The console can't turn them back on for you</AlertTitle>
           <AlertDescription>
-            The console cannot turn them back on for you. Allow notifications for this site in your browser&apos;s
-            settings, then return here.
+            <ol className="list-decimal space-y-1 pl-4">
+              <li>Click the icon at the left of the address bar.</li>
+              <li>Set Notifications to Allow.</li>
+              <li>Reload this page and turn notifications on.</li>
+            </ol>
           </AlertDescription>
         </Alert>
       )
 
-    case "off":
+    case "needs-install":
       return (
-        <div className="grid gap-3">
-          <Note>
-            You will be notified when a new order arrives for this shop, and when orders, stock or a refund need
-            attention. Nothing about a customer is ever included.
-          </Note>
-          <Note>You can turn any of these off individually once they are on.</Note>
-          {state.hint && <p className="max-w-[70ch] text-sm font-medium">{state.hint}</p>}
-          <div>
-            <Button disabled={state.busy} onClick={() => void state.enable()}>
-              <Bell aria-hidden="true" />
-              Turn on notifications
-            </Button>
-          </div>
-        </div>
+        <Alert role="status" variant="info">
+          <MonitorSmartphone aria-hidden="true" />
+          <AlertTitle>On iPad and iPhone, notifications only work for apps on the home screen</AlertTitle>
+          <AlertDescription>
+            <ol className="list-decimal space-y-1 pl-4">
+              <li>
+                Tap <Share className="inline size-4 align-text-bottom" aria-label="Share" /> Share, then{" "}
+                <span className="font-medium">Add to Home Screen</span>.
+              </li>
+              <li>Open Effy Shop from the home screen.</li>
+              <li>Come back to Settings › Notifications and turn them on.</li>
+            </ol>
+          </AlertDescription>
+        </Alert>
+      )
+
+    case "unsupported":
+      return (
+        <Alert role="status" variant="muted">
+          <AlertDescription>Open the console in Chrome, Edge or Safari to turn notifications on.</AlertDescription>
+        </Alert>
       )
 
     case "on":
-      return (
-        <p className="flex items-center gap-2 text-sm font-medium">
-          <span aria-hidden="true" className="inline-block size-2 rounded-full bg-success" />
-          This device is receiving notifications for this shop.
-        </p>
-      )
+      return null
   }
 }
 
-function TypeToggles({ state }: { state: State }) {
-  if (state.availableTypes.length === 0) return null
+function SoundSetting() {
+  const soundOn = useStore(consoleStore, (s) => s.soundOn)
   return (
-    <div className="border-t">
-      {state.availableTypes.map((t) => {
-        const muted = state.mutedTypes.includes(t.type)
-        return (
-          <div key={t.type} className="flex min-h-14 items-center gap-4 border-b px-5 py-3 last:border-b-0">
-            <Label htmlFor={`notif-${t.type}`} className="min-w-0 flex-auto">
-              {t.label}
-            </Label>
-            <Switch
-              id={`notif-${t.type}`}
-              checked={!muted}
-              disabled={state.busy}
-              onCheckedChange={(on) => void state.toggleType(t.type, !on)}
-            />
+    <SettingsList>
+      <SettingsRow
+        leading={<SettingsIcon tone={soundOn ? "on" : "muted"}>{soundOn ? <Volume2 /> : <VolumeX />}</SettingsIcon>}
+        label="Chime for new orders"
+        htmlFor="sound-on"
+        hint="The Sound button at the top of every page does the same."
+      >
+        <Button variant="ghost" onClick={previewChime}>
+          <Play aria-hidden="true" />
+          Play
+        </Button>
+        <Switch id="sound-on" checked={soundOn} onCheckedChange={setSoundOn} />
+      </SettingsRow>
+    </SettingsList>
+  )
+}
+
+const SECTIONS: ReadonlyArray<{ key: NotificationSection; title: string; rows: number }> = [
+  { key: "orders", title: "Orders", rows: 2 },
+  { key: "stock", title: "Stock", rows: 2 },
+  { key: "refunds", title: "Refunds", rows: 1 },
+  { key: "effy", title: "From Effy", rows: 6 },
+]
+
+function TypeList({ state }: { state: State }) {
+  const { data: session } = useQuery(sessionQuery)
+  const isManager = session?.status === "signed-in" && session.identity.roles.includes("shop_manager")
+  const on = state.status === "on"
+
+  if (state.typesLoading) {
+    return (
+      <Loading label="Reading the alert types">
+        <SettingsList>
+          {SECTIONS.map((s) => (
+            <div key={s.key} className="divide-y">
+              <SettingsListHeading>{s.title}</SettingsListHeading>
+              {Array.from({ length: s.rows }, (_, i) => (
+                <SettingsRow key={i} label={<Bone className={i % 2 ? "w-40" : "w-56"} />}>
+                  <Bone className="h-6 w-11 rounded-full" />
+                </SettingsRow>
+              ))}
+            </div>
+          ))}
+        </SettingsList>
+      </Loading>
+    )
+  }
+
+  if (state.typesFailed) {
+    return (
+      <Alert role="status" variant="muted">
+        <AlertDescription>
+          The list of alerts couldn't be read. It will try again when you come back here.
+        </AlertDescription>
+      </Alert>
+    )
+  }
+
+  const groups = SECTIONS.map((s) => ({ ...s, types: state.availableTypes.filter((t) => t.section === s.key) })).filter(
+    (g) => g.types.length > 0,
+  )
+
+  return (
+    <>
+      {!on ? <p className="text-sm text-muted-foreground">Turn notifications on for this device to choose.</p> : null}
+      <SettingsList>
+        {groups.map((g) => (
+          <div key={g.key} role="group" aria-label={g.title} className="divide-y">
+            <SettingsListHeading>{g.title}</SettingsListHeading>
+            {g.types.map((t) => {
+              const managersOnly = t.requiresRole === "shop_manager"
+              return (
+                <SettingsRow
+                  key={t.type}
+                  htmlFor={`notif-${t.type}`}
+                  className="min-h-14"
+                  label={
+                    <span className="flex flex-wrap items-center gap-2">
+                      {t.label}
+                      {managersOnly ? <Badge variant="quiet">Managers only</Badge> : null}
+                    </span>
+                  }
+                  hint={managersOnly && !isManager ? "Only sent to shop managers." : undefined}
+                >
+                  <Switch
+                    id={`notif-${t.type}`}
+                    checked={!state.mutedTypes.includes(t.type)}
+                    disabled={!on || state.busy}
+                    onCheckedChange={(next) => void state.toggleType(t.type, !next)}
+                  />
+                </SettingsRow>
+              )
+            })}
           </div>
-        )
-      })}
-    </div>
+        ))}
+      </SettingsList>
+    </>
   )
 }

@@ -155,24 +155,26 @@ async function flushPendingPrints(record: RecordPrints): Promise<void> {
   write(PENDING_KEY, left)
 }
 
+/** The one sample the test prints and the settings screen previews. */
+export const TEST_LABEL: LabelDocument = {
+  common: {
+    service: "effy_driver",
+    orderNumber: "EFY-TEST01",
+    packedOn: null,
+    recipientName: "Test label",
+    line1: "1 Sample Street",
+    line2: null,
+    suburb: "Melbourne",
+    state: "VIC",
+    postcode: "3000",
+    country: "AU",
+    phone: null,
+  },
+  parcel: { code: "22222X", seq: 1, of: 1, zone: "ambient" },
+}
+
 export async function printTestLabel(printer: PrinterChoice, layout: LabelLayout): Promise<PrintOutcome> {
-  const sample: LabelDocument = {
-    common: {
-      service: "effy_driver",
-      orderNumber: "EFY-TEST01",
-      packedOn: null,
-      recipientName: "Test label",
-      line1: "1 Sample Street",
-      line2: null,
-      suburb: "Melbourne",
-      state: "VIC",
-      postcode: "3000",
-      country: "AU",
-      phone: null,
-    },
-    parcel: { code: "22222X", seq: 1, of: 1, zone: "ambient" },
-  }
-  const svg = renderLabelSvg(sample, layout, printer.dpi)
+  const svg = renderLabelSvg(TEST_LABEL, layout, printer.dpi)
   if (printer.kind === "zebra" && layout !== "a4x4") {
     try {
       await sendZebra(printer.device, await svgsToZpl([svg], layout, printer.dpi))

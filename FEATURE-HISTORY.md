@@ -4,6 +4,21 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
+**Shop settings redesign: Notifications + Printing (no spec number).** 🔨 **BUILT 2026-11-03; NOT DEPLOYED OR WALKED.** No prototype.
+- **One settings layout** (`components/console/Settings.tsx`): ruled sections, the title and a sentence on the left, one bordered
+  list on the right (stacked below 1024px). It replaces the single card of prose and selects on both pages.
+- **Notifications**: a device row (status badge, "Chrome on macOS", Turn on / Turn off), **Send a test** (shown by our own worker;
+  nothing is sent through the server), the **Sound** chime switch with Play (the same store as the header's Sound button), and the alert
+  types **grouped Orders / Stock / Refunds / From Effy**, listed (switched off) before the device is on.
+- **Server (`shop`)**: each type in `SHOP_NOTIFICATION_TYPES` gained a display `section`. `GET /shop/v1/notification-preferences`
+  **without `token`** now answers the unregistered shape (it was 400), so the list shows before sign-up.
+- **Printing**: printers are a radio list (print window + each Zebra found; one remembered but missing is marked "Not found now"). The
+  Browser Print status is a quiet row with Look again, and setup steps fold out. Label size is three tiles with the paper drawn to
+  scale, resolution is a 203/300 toggle, and the **test label is previewed** (`TEST_LABEL`, now exported from `printer.ts`) beside the
+  print button. Zebra + A4 says it falls back to the print window.
+- **Verified**: tsc, prettier, shop-web tests (520), shop notification tests (23). ⚠ Not looked at in a browser.
+- **Open**: deploy `SERVICE=shop` BEFORE shop-web. An older `shop` refuses the tokenless read, so the type list would show its error line.
+
 **Shop Insights redesign (no spec number).** 🔨 **BUILT 2026-11-02; NOT MIGRATED, DEPLOYED OR WALKED.** Prototype, research and sources:
 `docs/reference-screens/Today and Insights Redesign/insights.html` (git-ignored).
 - **Four pages with their own addresses** (`/insights`, `/sales`, `/products`, `/service`), the range in the search (7 days when absent):

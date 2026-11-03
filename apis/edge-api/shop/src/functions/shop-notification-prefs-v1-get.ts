@@ -1,4 +1,5 @@
 // One registration, not one person: keyed by token, so each device is controlled separately.
+// Without a token it answers the unregistered shape (the type list, nothing muted).
 // "Not yours" and "no such token" both answer `registered: false`.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
@@ -29,18 +30,9 @@ export const handler = async (
     );
   }
 
+  // No token = a device that has not registered yet: the settings screen still lists what it would get.
   const token = event.queryStringParameters?.token?.trim();
-  if (!token) {
-    return problem(
-      400,
-      ProblemType.ValidationFailed,
-      "Invalid request",
-      "token is required",
-      scope,
-    );
-  }
-
-  const row = await readRegistration(sub, token);
+  const row = token ? await readRegistration(sub, token) : null;
 
   // Served, not hardcoded in the console: the labels are notification copy.
   return json(
