@@ -61,7 +61,6 @@ describe("back-office sidebar - who sees what", () => {
         .find((g) => g.label === "Settings")
         ?.items.flatMap((i) => (i.subs ?? [i]).map((s) => s.key))
     expect(settings(["admin"])).toEqual([
-      "settings",
       "coverage",
       "courier-delivery",
       "pricing",
@@ -73,6 +72,8 @@ describe("back-office sidebar - who sees what", () => {
       "points",
       "tax",
       "team",
+      // The index comes last.
+      "settings",
     ])
     // A manager or csa still has Settings, without the admin-only pages.
     expect(settings(["manager"])).not.toContain("tax")
