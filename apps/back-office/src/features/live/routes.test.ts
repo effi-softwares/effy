@@ -18,6 +18,7 @@ const SOURCES = [
   "promotion-groups",
   "taxonomy",
   "products",
+  "overview",
 ].map((slice) => readFileSync(resolve(features, slice, "queries.ts"), "utf8"))
 
 describe("LIVE_ROUTES", () => {

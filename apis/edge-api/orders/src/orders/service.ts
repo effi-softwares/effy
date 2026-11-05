@@ -21,7 +21,7 @@ import { COUNTED_REFUND_STATUSES, imageUrlOrNull, keysetListPage, offsetListPage
 import type { ListPage } from "@effy/shared-types";
 
 import type { CourierListRequest, OrderListRequest } from "./list";
-import { CONSIGNMENT_PROBLEMS, COURIER_VIEWS, leastAdvanced, parcelCustodyOf, type OrderAssignment, type PackageStatusView, type ParcelZone, OPERATING_TZ } from "@effy/shared-types";
+import { CONSIGNMENT_PROBLEMS, COURIER_VIEWS, PACKAGE_STATUSES, type PackageStatus, leastAdvanced, parcelCustodyOf, type OrderAssignment, type PackageStatusView, type ParcelZone, OPERATING_TZ } from "@effy/shared-types";
 
 import { judgePromise } from "./promise";
 import { consignmentsFor, nextCourierPickup, parseClock } from "@effy/edge-shared/delivery";
@@ -102,12 +102,43 @@ export async function orderViewCounts(
 }
 
 export async function ordersToday(): Promise<import("@effy/shared-types").AdminOrdersTodayDTO> {
-  const r = await repo.today(COUNTED_REFUND_STATUSES);
+  const [r, f, hours, t, board] = await Promise.all([
+    repo.today(COUNTED_REFUND_STATUSES),
+    repo.todayFigures(),
+    repo.todayHours(),
+    repo.onTime(),
+    repo.boardPackages(),
+  ]);
+  const statuses = await packageStatuses(db, board.map((p) => p.id));
+  const counts = () => Object.fromEntries(PACKAGE_STATUSES.map((s) => [s, 0])) as Record<PackageStatus, number>;
+  const packages = { effy: counts(), courier: counts() };
+  for (const p of board) {
+    const v = statuses.get(p.id);
+    if (v) packages[p.delivered_by][v.status] += 1;
+  }
+  const money2 = (v: string | number) => Number(v).toFixed(2);
+  const hour = (h: number, today: boolean) => hours.find((x) => x.hour === h && x.today === today);
   return {
     date: r.date,
     effy: Number(r.effy),
     courier: Number(r.courier),
     refunded: { orders: Number(r.refunded_orders), amount: Number(r.refunded_amount).toFixed(2), currency: "AUD" },
+    cancelled: Number(f.cancelled),
+    sales: { amount: money2(f.sales), currency: "AUD" },
+    lastWeek: { date: f.last_week_date, orders: Number(f.last_week_orders), sales: money2(f.last_week_sales) },
+    hours: Array.from({ length: 24 }, (_, h) => ({
+      hour: h,
+      orders: Number(hour(h, true)?.orders ?? 0),
+      sales: money2(hour(h, true)?.sales ?? 0),
+      lastWeekOrders: Number(hour(h, false)?.orders ?? 0),
+      lastWeekSales: money2(hour(h, false)?.sales ?? 0),
+    })),
+    onTime: {
+      delivered: Number(t.delivered),
+      onTime: Number(t.on_time),
+      last7: { delivered: Number(t.delivered_7), onTime: Number(t.on_time_7) },
+    },
+    packages,
   };
 }
 

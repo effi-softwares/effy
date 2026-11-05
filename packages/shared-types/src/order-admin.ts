@@ -19,7 +19,7 @@ import type { DeliveryFeeLineDTO } from "./delivery-fee";
 import type { DeliveryInstructionsDTO } from "./delivery-instructions";
 import type { DeliveryPromise, DeliveryType, DeliveryTypeReason } from "./delivery-type";
 import type { DeliveryWindow } from "./delivery-window";
-import type { PackageStatusView } from "./package-status";
+import type { PackageStatus, PackageStatusView } from "./package-status";
 
 /** How an arrival came to be known (`public.package_arrival.source`). */
 export type ArrivalSource = "driver_proof" | "staff_recorded" | "carrier_signal";
@@ -411,13 +411,39 @@ export interface RecordArrivalRequest {
 }
 
 /** The list response. */
-/** GET /orders/v1/summary/today: orders placed since Melbourne midnight, by who delivers them, and today's refunds. */
+/**
+ * GET /orders/v1/summary/today: orders placed since midnight on Effy's clock, by who delivers them, today's refunds,
+ * and (Overview, 2026-11-05) sales, the same weekday a week ago, where every package is and delivered on time.
+ */
 export interface AdminOrdersTodayDTO {
-  /** The Melbourne date the figures are for, `YYYY-MM-DD`. */
+  /** The local date the figures are for, `YYYY-MM-DD`. */
   date: string;
   effy: WireInt;
   courier: WireInt;
   refunded: { orders: WireInt; amount: string; currency: string };
+  /** Placed today and since cancelled (counted in `effy` / `courier` too). */
+  cancelled: WireInt;
+  /** The grand total of today's orders still paid. */
+  sales: { amount: string; currency: string };
+  /** The same weekday a week ago, up to the same time of day: what "vs last Thursday" compares with. */
+  lastWeek: { date: string; orders: WireInt; sales: string };
+  /** Orders placed and sales, per local hour (0–23): today, and the same weekday a week ago (the whole day). */
+  hours: AdminOrdersHourDTO[];
+  /** Effy packages delivered today against the window sold; `last7` is the seven days before today. */
+  onTime: { delivered: WireInt; onTime: WireInt; last7: { delivered: WireInt; onTime: WireInt } };
+  /**
+   * Where every package on today's board is, in the nine words (`packageStatus`): Effy packages sold a window
+   * today, and courier packages not yet delivered (or delivered today).
+   */
+  packages: { effy: Record<PackageStatus, WireInt>; courier: Record<PackageStatus, WireInt> };
+}
+
+export interface AdminOrdersHourDTO {
+  hour: WireInt;
+  orders: WireInt;
+  sales: string;
+  lastWeekOrders: WireInt;
+  lastWeekSales: string;
 }
 
 /** GET /orders/v1/summary/views: how many orders each saved view holds, under the list's `q`, `deliveryType`, `open` and `promise` filters. */

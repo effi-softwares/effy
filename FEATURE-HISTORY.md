@@ -4,6 +4,33 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
+**Back-office Overview redesign** (not spec-first, like the other console redesigns; prototype
+`docs/reference-screens/Back-Office Overview Redesign/index.html`, Layout A). 🔨 **BUILT 2026-11-05; NOT DEPLOYED OR WALKED** (no
+migration). The page answers three questions in order and stays grey until something is wrong:
+- **Status sentence** (`features/overview/model.ts` `briefOf`, pure and tested): "Nobody is on duty…" (the old callout's words, now on a
+  rose ground), "One of six windows is behind…", "A quiet start…" or "Nothing needs you right now…", figures as links. A failed read is
+  named ("Refunds couldn't be checked just now"), never shown as good news. Then the next three things on the clock (`comingUp`).
+- **Day line**: every window (today, or a later day by tab) on one clock with its order-by tick, the collection runs and a Now line; a
+  bar split by Delivered / Out / At hub / Not at the hub yet / Problem; booked against the limit; a hover/focus read-out and a table view.
+  A window is "behind" only when its end has passed with parcels still on their way (a Problem parcel is Needs attention's, not lateness).
+- **Needs attention** in three tiers (Stops work now · Customers are waiting · When you have time); rows at zero fold into an "all clear"
+  line; urgent rows show their age and fold out to the orders and drivers behind them. New row: courier parcels late or with a problem.
+- **On duty** (problems first, "Running late" added), **Where every package is** (the nine words, All / Effy / Courier), **Orders today**
+  (orders, sales, average, delivered on time, each against the same weekday last week; hourly chart with table view), **Courier parcels**,
+  **Shops behind** for the next run, **Fleet readiness**, Shortcuts. Below 1360px it folds into one column, Needs attention first.
+- **APIs**: `GET /fleet/v1/overview` (new, staff gateway: today's runs done/late/next/later, the shops still preparing for the next run via
+  the one run rule `everyShopPackageRuns` in `@effy/edge-shared/delivery`). `GET /orders/v1/summary/today` gained `cancelled`, `sales`,
+  `lastWeek`, `hours` (24), `onTime` (judgePromise's rule: arrived by the window's end; today and the 7 days before) and `packages`
+  (counts by `packageStatus`, Effy and courier). `VehicleCheckDTO.driverId` added.
+- **Defects fixed from the old page**: a failed read said "Nobody is on duty" / "No delivery windows are set up" or left a bone forever;
+  a blocked driver was matched by name; Failed deliveries counted one page of 100 instead of `openCount`; two different "waiting" figures;
+  "updates live" claimed for feedback and deliverability, which have no live route (the claim is gone); "Undeliverable" overstated the
+  deliverability count (now "Email addresses having trouble"). `TodaysWindows.tsx` deleted.
+- **Tour**: OV rewritten in `specs/107…/spec.md` and `tours.ts`, version 2 (same seven targets).
+- **Verified**: back-office tsc + 431 tests (15 new in `overview/model.test.ts`); fleet/orders/shared tsc + tests; the new SQL run against a
+  migrated local Postgres; every state, light/dark, 1440/1024/390 in Chrome through a temporary harness (no overflow, no console errors).
+- **Operator steps**: deploy `SERVICE=fleet` and `SERVICE=orders` (the new fields are required on the wire), then back-office. Walk it.
+
 **Back-office settings redesign - One Settings Area** (not spec-first, like the other console redesigns). 🔨 **BUILT 2026-11-03; NOT
 DEPLOYED OR WALKED** (no migration). Every page that configures the platform now lives under **`/settings`**, in one annotated layout
 (Polaris's settings pattern: title and a sentence on the left, rows on the right). Unsaved changes show on the console's one action bar

@@ -647,3 +647,114 @@ export async function today(countedRefundStatuses: readonly string[]): Promise<T
   );
   return res.rows[0]!;
 }
+
+// The back-office Overview (2026-11-05). "Today" is Effy's clock; "last week" is the same weekday seven days back.
+const TZ = OPERATING_TZ;
+const DAY0 = `date_trunc('day', now() AT TIME ZONE '${TZ}')`;
+const at = (local: string) => `((${local}) AT TIME ZONE '${TZ}')`;
+const PLACED = `o.placed_at IS NOT NULL AND o.status <> 'pending_payment'`;
+
+export interface TodayFiguresRow {
+  cancelled: string;
+  sales: string;
+  last_week_date: string;
+  last_week_orders: string;
+  last_week_sales: string;
+}
+
+/** Today's cancelled and sales, and last week's figures up to the same time of day. */
+export async function todayFigures(): Promise<TodayFiguresRow> {
+  const res = await query<TodayFiguresRow>(
+    `SELECT (SELECT count(*) FROM public."order" o
+              WHERE ${PLACED} AND o.status = 'canceled' AND o.placed_at >= ${at(DAY0)})::text AS cancelled,
+            (SELECT COALESCE(sum(o.grand_total_amount), 0) FROM public."order" o
+              WHERE ${PLACED} AND o.status = 'paid' AND o.placed_at >= ${at(DAY0)})::text AS sales,
+            (${DAY0} - interval '7 days')::date::text AS last_week_date,
+            (SELECT count(*) FROM public."order" o
+              WHERE ${PLACED} AND o.placed_at >= ${at(`${DAY0} - interval '7 days'`)}
+                AND o.placed_at <= now() - interval '7 days')::text AS last_week_orders,
+            (SELECT COALESCE(sum(o.grand_total_amount), 0) FROM public."order" o
+              WHERE ${PLACED} AND o.status = 'paid' AND o.placed_at >= ${at(`${DAY0} - interval '7 days'`)}
+                AND o.placed_at <= now() - interval '7 days')::text AS last_week_sales`,
+  );
+  return res.rows[0]!;
+}
+
+export interface HourRow {
+  hour: number;
+  today: boolean;
+  orders: string;
+  sales: string;
+}
+
+/** Orders and sales per local hour, today and the whole of the same weekday last week. */
+export async function todayHours(): Promise<HourRow[]> {
+  const res = await query<HourRow>(
+    `SELECT EXTRACT(HOUR FROM o.placed_at AT TIME ZONE '${TZ}')::int AS hour,
+            (o.placed_at >= ${at(DAY0)}) AS today,
+            count(*)::text AS orders,
+            COALESCE(sum(o.grand_total_amount) FILTER (WHERE o.status = 'paid'), 0)::text AS sales
+       FROM public."order" o
+      WHERE ${PLACED}
+        AND (o.placed_at >= ${at(DAY0)}
+             OR (o.placed_at >= ${at(`${DAY0} - interval '7 days'`)} AND o.placed_at < ${at(`${DAY0} - interval '6 days'`)}))
+      GROUP BY 1, 2`,
+  );
+  return res.rows;
+}
+
+export interface OnTimeRow {
+  delivered: string;
+  on_time: string;
+  delivered_7: string;
+  on_time_7: string;
+}
+
+/**
+ * Effy packages delivered against the window sold - `judgePromise`'s rule (arrived by the window's end).
+ * Today, and the seven days before it.
+ */
+export async function onTime(): Promise<OnTimeRow> {
+  const res = await query<OnTimeRow>(
+    `WITH a AS (
+       SELECT DISTINCT ON (pa.shop_fulfillment_id) pa.shop_fulfillment_id, pa.arrived_at
+         FROM public.package_arrival pa
+        WHERE pa.arrived_at >= ${at(`${DAY0} - interval '7 days'`)}
+        ORDER BY pa.shop_fulfillment_id, pa.arrived_at
+     )
+     SELECT count(*) FILTER (WHERE a.arrived_at >= ${at(DAY0)})::text AS delivered,
+            count(*) FILTER (WHERE a.arrived_at >= ${at(DAY0)} AND a.arrived_at <= opd.window_end)::text AS on_time,
+            count(*) FILTER (WHERE a.arrived_at < ${at(DAY0)})::text AS delivered_7,
+            count(*) FILTER (WHERE a.arrived_at < ${at(DAY0)} AND a.arrived_at <= opd.window_end)::text AS on_time_7
+       FROM a
+       JOIN public.shop_fulfillment sf ON sf.id = a.shop_fulfillment_id
+       JOIN public."order" o ON o.id = sf.order_id AND o.delivery_type = 'effy'
+       JOIN public.order_package_delivery opd ON opd.order_id = sf.order_id AND opd.shop_id = sf.shop_id
+      WHERE opd.window_end IS NOT NULL`,
+  );
+  return res.rows[0]!;
+}
+
+/**
+ * The packages on today's board: Effy packages sold a window today, and courier packages still on their way
+ * (or delivered today). Their words come from \`packageStatuses\`, never from here.
+ */
+export async function boardPackages(): Promise<{ id: string; delivered_by: "effy" | "courier" }[]> {
+  const res = await query<{ id: string; delivered_by: "effy" | "courier" }>(
+    `SELECT sf.id::text AS id, o.delivery_type AS delivered_by
+       FROM public.shop_fulfillment sf
+       JOIN public."order" o ON o.id = sf.order_id
+       LEFT JOIN public.order_package_delivery opd ON opd.order_id = sf.order_id AND opd.shop_id = sf.shop_id
+      WHERE o.status IN ('paid', 'canceled')
+        AND (
+          (o.delivery_type = 'effy'
+            AND opd.window_start >= ${at(DAY0)} AND opd.window_start < ${at(`${DAY0} + interval '1 day'`)})
+          OR (o.delivery_type = 'courier'
+            AND (EXISTS (SELECT 1 FROM public.package_arrival pa
+                          WHERE pa.shop_fulfillment_id = sf.id AND pa.arrived_at >= ${at(DAY0)})
+                 OR (o.status = 'paid' AND sf.status <> 'withdrawn'
+                     AND NOT EXISTS (SELECT 1 FROM public.package_arrival pa WHERE pa.shop_fulfillment_id = sf.id))))
+        )`,
+  );
+  return res.rows;
+}

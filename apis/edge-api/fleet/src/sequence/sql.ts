@@ -64,7 +64,7 @@ export const OVERDUE_CROSSED_SINCE = `
 
 /** Today's (Melbourne) checks that found anything, newest first. */
 export const VEHICLE_CHECKS_TODAY = `
-  SELECT vc.id AS check_id, d.name AS driver_name,
+  SELECT vc.id AS check_id, d.id::text AS driver_id, d.name AS driver_name,
          concat_ws(' ', v.make, v.model) || ' · ' || v.registration_plate AS vehicle_label,
          vc.answers, vc.unsafe, vc.created_at, vc.cleared_at, vc.clear_note
     FROM public.vehicle_check vc

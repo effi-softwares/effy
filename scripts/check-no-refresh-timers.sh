@@ -8,6 +8,7 @@
 #
 # Allowed (a clock that re-words loaded data is not a refresh):
 # apps/shop-web/src/features/today/useNow.ts re-words "3 minutes ago"; reads nothing
+# apps/back-office/src/features/overview/useNow.ts moves the Overview's Now line; reads nothing
 # apps/shop-web/src/lib/pwa.ts checks for a new app version, not for data
 # …/driver/…/delivery/presentation/WindowLine.kt re-words a delivery window; reads nothing
 # …/driver/…/core/presentation/OpensLine.kt notices a round's opening time arrive; reads nothing

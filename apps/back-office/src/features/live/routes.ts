@@ -12,9 +12,11 @@ const REVIEW: QueryKey = ["product-review"]
 const CUSTOMERS: QueryKey = ["customers"]
 const TAXONOMY: QueryKey = ["taxonomy"]
 const PRODUCTS: QueryKey = ["products"]
+// The Overview's runs and shops behind: a run changes on `dispatch`, a shop readying a package on `orders`.
+const OVERVIEW_RUNS: QueryKey = ["dispatch", "overview"]
 
 export const LIVE_ROUTES: Partial<Record<LiveKind, readonly QueryKey[]>> = {
-  orders: [ORDERS],
+  orders: [ORDERS, OVERVIEW_RUNS],
   dispatch: [DISPATCH, DRIVERS, EXCEPTIONS],
   slots: [SLOTS],
   review: [REVIEW],

@@ -642,6 +642,17 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
+  overviewV1:
+    handler: src/functions/overview-v1-get.handler
+    description: Back-office Overview - today's collection runs and the shops still preparing for the next one. Read = any active staff.
+    events:
+      - httpApi:
+          method: GET
+          path: /fleet/v1/overview
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
 resources:
   Resources:
 

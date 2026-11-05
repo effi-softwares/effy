@@ -10,6 +10,9 @@
 "Delivery days"), DH ("Hub and runs") and AA ("Team and access") were rewritten and their versions raised; DV (Driver
 work) and ST (Settings) were added; BW step 2 names the new Settings group. 49 → 51 tours.
 
+**Amended 2026-11-05 (back-office Overview redesign)**: OV was rewritten for the new page (status sentence, tiered Needs
+attention, the day line, orders against last week) and its version raised to 2. Same seven targets.
+
 **Input**: User description: "Guided tours for the back-office console, on the same tours, Help place, per-person memory
 and rules as 106 (shop console): every back-office page and every important part of it gets a short tour that starts
 by itself the first time a person uses that page, and can be replayed from Help or search. Steps are filtered by the
@@ -280,12 +283,12 @@ every role whenever its part is on screen. Role marks: **Admin or manager**, **A
 
 | # | Points at | Title | Text | Shown when |
 |---|---|---|---|---|
-| 1 | Page heading | The day at a glance | What needs a person now, today's delivery windows, who is on duty and today's orders. It updates live. | |
+| 1 | Page heading | The day at a glance | One sentence says whether today is on track, then the next three things on the clock. Everything here updates live. | |
 | 2 | Find an order | Find an order | Type an order number or a customer to jump straight to it. | |
-| 3 | Needs attention | Needs attention | Failed deliveries, packages without a driver, refund decisions, products to review and more. Each count opens the list it comes from. | |
-| 4 | Today's delivery windows | Today's delivery windows | What is booked against each window's limit, what is at the hub, and which round carries it. | |
-| 5 | On duty now | On duty now | The drivers working now and what each is doing. Drivers go on duty in the driver app; back-office can't do it for them. | |
-| 6 | Orders today | Orders today | Orders placed since midnight, by who delivers them: Delivered by Effy or Courier delivery. | |
+| 3 | Needs attention | Needs attention | Most urgent first: what stops work now, what customers are waiting on, and what can wait. Each count opens the list it comes from. | |
+| 4 | Today's delivery windows | Today's delivery windows | Every window on one clock, with its order-by time, the collection runs and a Now line. Point at a bar to see where its packages are. | |
+| 5 | On duty now | On duty now | The drivers working now, problems first, and what each is doing. Drivers go on duty in the driver app; back-office can't do it for them. | |
+| 6 | Orders today | Orders today | Orders, sales and deliveries on time, against the same day last week. Choose a figure to chart it. | |
 | 7 | Shortcuts | Shortcuts | The pages you go to most, one press away. | |
 
 ### OL - Orders · All orders

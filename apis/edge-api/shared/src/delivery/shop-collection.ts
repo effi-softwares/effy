@@ -25,11 +25,12 @@ SELECT sameday_hub_turnaround_min, standard_no_delivery_weekdays
 `;
 
 /**
- * A shop's packages an Effy driver will collect: still at the shop, not held for a dispatcher, and not
- * a courier's own pickup from the supplier. `$2` narrows to some packages (NULL = all).
+ * The packages an Effy driver will collect: still at the shop, not held for a dispatcher, and not a
+ * courier's own pickup from the supplier. `where` narrows them (one shop, or every shop).
  */
-const PACKAGES = `
+const packagesSql = (where: string) => `
 SELECT sf.id::text AS id,
+       sf.shop_id::text AS shop_id,
        sf.status,
        o.delivery_type AS delivered_by,
        opd.window_start,
@@ -45,13 +46,19 @@ SELECT sf.id::text AS id,
   FROM public.shop_fulfillment sf
   JOIN public."order" o ON o.id = sf.order_id
   LEFT JOIN public.order_package_delivery opd ON opd.order_id = sf.order_id AND opd.shop_id = sf.shop_id
- WHERE sf.shop_id = $1::uuid
-   AND sf.status IN ('pending', 'received', 'picking', 'ready_for_pickup')
+ WHERE sf.status IN ('pending', 'received', 'picking', 'ready_for_pickup')
    AND o.delivery_type IS NOT NULL
    AND ${COURIER_COLLECTION_SQL("o")} <> 'supplier'
    AND NOT ${heldSql("sf.id")}
-   AND ($2::uuid[] IS NULL OR sf.id = ANY($2::uuid[]))
+   ${where}
 `;
+
+/** `$2` narrows to some packages (NULL = all). */
+const PACKAGES = packagesSql(`AND sf.shop_id = $1::uuid
+   AND ($2::uuid[] IS NULL OR sf.id = ANY($2::uuid[]))`);
+
+/** Every shop's: the back-office Overview's "Shops behind". */
+const EVERY_SHOP_PACKAGES = packagesSql("");
 
 export interface CollectionSchedule {
   runs: readonly CollectionRun[];
@@ -127,6 +134,36 @@ export async function shopPackageRuns(
     nextRun: nextRunInstant(schedule.runs, now),
     packages: res.rows.map((r) => ({
       id: r.id,
+      status: r.status,
+      runAt: runForPackage(
+        { deliveredBy: r.delivered_by, windowStart: r.window_start, assignedRunAt: r.assigned_run_at },
+        schedule,
+        now,
+      ),
+    })),
+  };
+}
+
+/** Every shop's packages an Effy driver will collect, and the run expected to collect each (back-office Overview). */
+export async function everyShopPackageRuns(
+  now: Date,
+  db: Queryable = pooled,
+): Promise<{ schedule: CollectionSchedule; nextRun: Date | null; packages: (ShopPackageRun & { shopId: string })[] }> {
+  const schedule = await loadCollectionSchedule(now, db);
+  const res = await db.query<{
+    id: string;
+    shop_id: string;
+    status: string;
+    delivered_by: "effy" | "courier";
+    window_start: Date | null;
+    assigned_run_at: Date | null;
+  }>(EVERY_SHOP_PACKAGES);
+  return {
+    schedule,
+    nextRun: nextRunInstant(schedule.runs, now),
+    packages: res.rows.map((r) => ({
+      id: r.id,
+      shopId: r.shop_id,
       status: r.status,
       runAt: runForPackage(
         { deliveredBy: r.delivered_by, windowStart: r.window_start, assignedRunAt: r.assigned_run_at },

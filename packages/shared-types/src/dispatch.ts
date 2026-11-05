@@ -264,6 +264,8 @@ export interface OverdueRunDTO {
 /** One driver's vehicle check. */
 export interface VehicleCheckDTO {
   checkId: string;
+  /** Who did the check: match a driver by this, never by name. */
+  driverId: string;
   driverName: string;
   vehicleLabel: string;
   answers: Array<{ item: string; answer: string; note: string | null }>;
@@ -338,4 +340,36 @@ export interface DispatchWindowsResponse {
   days: DispatchCalendarDayDTO[];
   date: string;
   windows: DispatchWindowDTO[];
+}
+
+// The back-office Overview (2026-11-05)
+
+/** One of today's collection runs. `late`: its time has passed and a collection round for it is not finished. */
+export interface OverviewRunDTO {
+  at: string;
+  state: "done" | "late" | "next" | "later";
+  /** Collection rounds planned for it. */
+  rounds: WireInt;
+}
+
+/** A shop with packages not yet ready for the next run. */
+export interface OverviewShopBehindDTO {
+  shopId: string;
+  name: string;
+  /** Still being prepared (not yet "Ready"). */
+  notReady: WireInt;
+  /** Every package the next run is expected to collect from it. */
+  of: WireInt;
+}
+
+/** `GET /fleet/v1/overview`: today's collection runs and the shops behind for the next one. */
+export interface FleetOverviewDTO {
+  /** Today's runs in time order; empty when no run is set up. */
+  runs: OverviewRunDTO[];
+  /** The next run after now (today or tomorrow); null with no runs. */
+  nextRunAt: string | null;
+  /** For `nextRunAt`, the shops still preparing, most first. */
+  shopsBehind: OverviewShopBehindDTO[];
+  /** What the next run is expected to collect, from how many shops. */
+  nextRun: { shops: WireInt; packages: WireInt };
 }

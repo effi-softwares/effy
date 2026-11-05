@@ -136,6 +136,7 @@ export async function vehicleChecksToday(): Promise<VehicleCheckDTO[]> {
   const res = await query<any>(VEHICLE_CHECKS_TODAY);
   return res.rows.map((r) => ({
     checkId: r.check_id,
+    driverId: r.driver_id,
     driverName: r.driver_name,
     vehicleLabel: r.vehicle_label,
     answers: (Array.isArray(r.answers) ? r.answers : []).map((a: any) => ({ item: String(a.item), answer: String(a.answer), note: a.note ?? null })),

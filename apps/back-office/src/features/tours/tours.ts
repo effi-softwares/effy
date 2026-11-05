@@ -57,17 +57,17 @@ export const BACK_OFFICE_TOURS = defineTours([
       },
     ],
   },
-  // OV - Overview
+  // OV - Overview (rewritten for the redesign, 2026-11-05)
   {
     key: "overview",
-    version: 1,
+    version: 2,
     title: "Overview",
     path: "/",
     steps: [
       {
         target: "page-title",
         title: "The day at a glance",
-        text: "What needs a person now, today's delivery windows, who is on duty and today's orders. It updates live.",
+        text: "One sentence says whether today is on track, then the next three things on the clock. Everything here updates live.",
       },
       {
         target: "overview.find",
@@ -77,22 +77,22 @@ export const BACK_OFFICE_TOURS = defineTours([
       {
         target: "overview.attention",
         title: "Needs attention",
-        text: "Failed deliveries, packages without a driver, refund decisions, products to review and more. Each count opens the list it comes from.",
+        text: "Most urgent first: what stops work now, what customers are waiting on, and what can wait. Each count opens the list it comes from.",
       },
       {
         target: "overview.windows",
         title: "Today's delivery windows",
-        text: "What is booked against each window's limit, what is at the hub, and which round carries it.",
+        text: "Every window on one clock, with its order-by time, the collection runs and a Now line. Point at a bar to see where its packages are.",
       },
       {
         target: "overview.duty",
         title: "On duty now",
-        text: "The drivers working now and what each is doing. Drivers go on duty in the driver app; back-office can't do it for them.",
+        text: "The drivers working now, problems first, and what each is doing. Drivers go on duty in the driver app; back-office can't do it for them.",
       },
       {
         target: "overview.today",
         title: "Orders today",
-        text: "Orders placed since midnight, by who delivers them: Delivered by Effy or Courier delivery.",
+        text: "Orders, sales and deliveries on time, against the same day last week. Choose a figure to chart it.",
       },
       { target: "overview.shortcuts", title: "Shortcuts", text: "The pages you go to most, one press away." },
     ],
