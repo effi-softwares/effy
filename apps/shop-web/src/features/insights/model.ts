@@ -1,4 +1,4 @@
-import { READY_SPREAD_LABELS, type InsightsFigureDTO, type InsightsRange, type InsightsRhythmDTO, type InsightsTopProductDTO, type ShopInsightsDTO } from "@effy/shared-types"
+import { ORDER_SIZE_LABELS, READY_SPREAD_LABELS, type InsightsFigureDTO, type InsightsRange, type InsightsRhythmDTO, type InsightsTopProductDTO, type ShopInsightsDTO } from "@effy/shared-types"
 
 export const RANGE_TITLE: Record<InsightsRange, string> = {
   today: "Today",
@@ -11,6 +11,7 @@ export const PAGE_PATH = {
   overview: "/insights",
   sales: "/insights/sales",
   products: "/insights/products",
+  stock: "/insights/stock",
   service: "/insights/service",
 } as const
 
@@ -157,3 +158,163 @@ export function money(amount: string, currency = "AUD"): string {
 export function moneyCents(amount: string, currency = "AUD"): string {
   return new Intl.NumberFormat("en-AU", { style: "currency", currency, minimumFractionDigits: 2 }).format(Number(amount))
 }
+
+// ---- redesign 2 ---------------------------------------------------------------------------------------------------
+
+export const plural = (n: number, word: string, many = `${word}s`) => `${n} ${n === 1 ? word : many}`
+
+/** "14:30" → "2:30 pm"; "15:00" → "3 pm". */
+export function timeWords(hhmm: string): string {
+  const [h, m] = hhmm.split(":").map(Number) as [number, number]
+  return `${h % 12 || 12}${m ? `:${String(m).padStart(2, "0")}` : ""} ${h < 12 ? "am" : "pm"}`
+}
+
+/** "1-2" → "1 to 2"; "21+" → "21 or more". */
+export function rangeWords(label: string): string {
+  return label.endsWith("+") ? `${label.slice(0, -1)} or more` : label.replace("-", " to ")
+}
+
+/** The order-size range most orders fall in. */
+export function commonestSize(sizes: readonly number[]): string | null {
+  const max = Math.max(0, ...sizes)
+  return max === 0 ? null : ORDER_SIZE_LABELS[sizes.indexOf(max)]!
+}
+
+/** The run with most orders not ready when its driver came; null when every order was ready. */
+export function worstRun(runs: ShopInsightsDTO["runs"]) {
+  return runs.filter((r) => r.due > r.ready).sort((a, b) => b.due - b.ready - (a.due - a.ready))[0] ?? null
+}
+
+/** The busiest weekday-and-hour over the rhythm's weeks, with its average orders an hour. */
+export function busiest(rhythm: InsightsRhythmDTO | null): { weekday: number; hour: number; perHour: number } | null {
+  if (!rhythm || rhythm.cells.length === 0) return null
+  const top = rhythm.cells.reduce((a, b) => (b.orders > a.orders ? b : a))
+  return { weekday: top.weekday, hour: top.hour, perHour: top.orders / Math.max(1, rhythm.weeks) }
+}
+
+export type WorthTier = "sales" | "week" | "later"
+export const WORTH_TIER_WORDS: Record<WorthTier, string> = {
+  sales: "Costing you sales",
+  week: "To get right this week",
+  later: "When you have time",
+}
+
+export interface WorthItem {
+  key: string
+  primary: string
+  secondary: string
+  to: string
+  action: string
+}
+
+export interface WorthRow {
+  id: "oos" | "runningOut" | "missedRun" | "cantSupply" | "busiest" | "notSelling" | "writtenOff"
+  tier: WorthTier
+  /** Null for a row that is advice, not a count. */
+  n: number | null
+  title: string
+  desc: string
+  to: string
+  items: WorthItem[]
+  /** Its figures could not be read; said, never shown as nothing to do. */
+  failed?: boolean
+}
+
+/** What the period's figures say to do, biggest cost first. The wording is here; the facts are the server's. */
+export function worthDoing(dto: ShopInsightsDTO): WorthRow[] {
+  const stock = dto.stock
+  const run = worstRun(dto.runs)
+  const peak = busiest(dto.rhythm)
+  const cant = dto.cantSupplyProducts
+  const cantUnits = dto.secondary.cantSupply.units
+  const written = stock ? stock.writtenOff.expired.units + stock.writtenOff.damaged.units : 0
+  const writtenValue = stock ? Number(stock.writtenOff.expired.value) + Number(stock.writtenOff.damaged.value) : 0
+  return [
+    {
+      id: "oos",
+      tier: "sales",
+      n: stock ? stock.outOfStock.length : null,
+      failed: !stock,
+      title: "Selling but out of stock",
+      desc: "Customers can’t buy these until you restock",
+      to: PAGE_PATH.stock,
+      items: (stock?.outOfStock ?? []).map((o) => ({
+        key: o.variantId,
+        primary: o.name,
+        secondary: `Sold ${o.sold} ${RANGE_IN[dto.range]}`,
+        to: `/catalog/${o.productId}?size=${o.variantId}`,
+        action: "Restock",
+      })),
+    },
+    {
+      id: "runningOut",
+      tier: "sales",
+      n: stock ? stock.runningOut.length : null,
+      failed: !stock,
+      title: "Will run out within 3 days",
+      desc: "At the pace of the last 4 weeks",
+      to: PAGE_PATH.stock,
+      items: (stock?.runningOut ?? []).map((r) => ({
+        key: r.productId,
+        primary: r.name,
+        secondary: `${r.left} left · sells about ${Math.round(Number(r.perDay))} a day`,
+        to: `/catalog/${r.productId}`,
+        action: "Restock",
+      })),
+    },
+    {
+      id: "missedRun",
+      tier: "week",
+      n: run ? run.due - run.ready : 0,
+      title: run ? `Not ready for the ${timeWords(run.time)} driver` : "Ready for every driver",
+      desc: run ? "The run you miss most. Start its orders earlier." : "Every order was ready when its driver came",
+      to: PAGE_PATH.service,
+      items: [],
+    },
+    {
+      id: "cantSupply",
+      tier: "week",
+      n: cantUnits,
+      title: "Items you couldn’t supply",
+      desc: cant[0] ? `${cant[0].name} caused ${cant[0].units}. Check its stock count.` : "You supplied everything",
+      to: PAGE_PATH.service,
+      items: [],
+    },
+    {
+      id: "busiest",
+      tier: "week",
+      n: null,
+      title: peak ? `${WEEKDAY_NAME[peak.weekday]} around ${hourWords(peak.hour)} is your busiest` : "Your busiest time",
+      desc: peak
+        ? `About ${Math.round(peak.perHour)} ${Math.round(peak.perHour) === 1 ? "order" : "orders"} an hour.${peak.perHour >= 5 ? " Plan two people picking." : ""}`
+        : "Appears after two weeks of orders",
+      to: PAGE_PATH.sales,
+      items: [],
+    },
+    {
+      id: "notSelling",
+      tier: "later",
+      n: stock ? (stock.notSelling?.length ?? 0) : null,
+      failed: !stock,
+      title: "Not sold in 30 days",
+      desc: stock?.notSelling
+        ? `${money(String(stock.notSelling.reduce((n, p) => n + Number(p.value), 0)), dto.currency)} of stock at your prices`
+        : "Appears after 30 days of sales",
+      to: PAGE_PATH.stock,
+      items: [],
+    },
+    {
+      id: "writtenOff",
+      tier: "later",
+      n: stock ? written : null,
+      failed: !stock,
+      title: "Written off",
+      desc: `Expired or damaged, ${money(String(writtenValue), dto.currency)} at your prices`,
+      to: PAGE_PATH.stock,
+      items: [],
+    },
+  ]
+}
+
+/** "this week", for a sentence. */
+export const RANGE_IN: Record<InsightsRange, string> = { today: "today", "7d": "this week", "30d": "in 30 days" }

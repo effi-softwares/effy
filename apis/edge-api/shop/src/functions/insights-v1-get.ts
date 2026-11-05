@@ -5,6 +5,7 @@ import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 import type { AuthedEvent } from "@effy/edge-shared";
 import { json, preamble, problem, ProblemType } from "@effy/edge-shared";
 
+import { authorizeShopManager } from "../staff/repository";
 import { readClock } from "../today/repository";
 import { DEFAULT_TIMEZONE } from "../today/service";
 import { gate, mapTodayError } from "../today/handler-support";
@@ -29,7 +30,8 @@ export const handler = async (
       );
     }
     const dto = await readInsights(
-      { shopId: g.actor.shopId },
+      // Who picked is a manager's view; staff get the rest.
+      { shopId: g.actor.shopId, manager: await authorizeShopManager(g.actor.sub) },
       range,
       clock.timezone ?? DEFAULT_TIMEZONE,
       clock.now,

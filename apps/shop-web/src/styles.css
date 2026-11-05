@@ -209,3 +209,20 @@
     box-shadow: 0 0 0 7px transparent;
   }
 }
+
+/* Insights: a bar grows from its base as it draws (used by every Insights chart and card). */
+@keyframes grow-x {
+  from {
+    transform: scaleX(0);
+  }
+}
+@keyframes grow-y {
+  from {
+    transform: scaleY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  [class*="animate-[grow-"] {
+    animation: none !important;
+  }
+}

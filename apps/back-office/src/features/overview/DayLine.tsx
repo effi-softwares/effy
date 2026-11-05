@@ -61,7 +61,7 @@ export function DayLine({ now, runs }: { now: number; runs: FleetOverviewDTO | u
       id="ov-day-t"
       tour="overview.windows"
       order={2}
-      className="ov-day"
+      className="ef-tl-host"
       title={isToday ? "Today’s delivery windows" : `Delivery windows, ${day?.label ?? ""}`}
       description={
         lines
@@ -149,10 +149,10 @@ function Plot({
 
   return (
     <>
-      <div className="ov-dl" onPointerLeave={() => setTip(null)}>
-        <div className="ov-dl__axis">
+      <div className="ef-tl" onPointerLeave={() => setTip(null)}>
+        <div className="ef-tl__axis">
           <div className="text-[12.5px]">Window</div>
-          <div className="ov-dl__hrs" aria-hidden="true">
+          <div className="ef-tl__hrs" aria-hidden="true">
             {ticks.map((h) => (
               <span
                 key={h}
@@ -163,18 +163,18 @@ function Plot({
             ))}
           </div>
           <div className="text-[12.5px]">Booked</div>
-          <div className="ov-dl__col text-right text-[12.5px]">At hub</div>
-          <div className="ov-dl__col text-[12.5px]">Round</div>
+          <div className="ef-tl__col text-right text-[12.5px]">At hub</div>
+          <div className="ef-tl__col text-[12.5px]">Round</div>
           <div className="text-right text-[12.5px]">State</div>
         </div>
-        <div className="ov-dl__over" aria-hidden="true">
+        <div className="ef-tl__over" aria-hidden="true">
           {ticks.map((h) => (
-            <i key={h} className="ov-dl__grid" style={{ left: `${pct(h)}%` }} />
+            <i key={h} className="ef-tl__grid" style={{ left: `${pct(h)}%` }} />
           ))}
           {isToday && nowH >= from && nowH <= to ? (
             <>
-              <i className="ov-dl__past" style={{ width: `${pct(nowH)}%` }} />
-              <div className="ov-dl__now" style={{ left: `${pct(nowH)}%` }}>
+              <i className="ef-tl__past" style={{ width: `${pct(nowH)}%` }} />
+              <div className="ef-tl__now" style={{ left: `${pct(nowH)}%` }}>
                 <b>{clockWords(nowH)}</b>
               </div>
             </>
@@ -182,18 +182,18 @@ function Plot({
         </div>
 
         {isToday && runHours.length > 0 ? (
-          <div className="ov-dl__row ov-dl__runs">
+          <div className="ef-tl__row ef-tl__runs">
             <div>
               <b className="block font-medium whitespace-nowrap">Collection runs</b>
               <small className="block text-[12.5px] whitespace-nowrap text-muted-foreground">
                 {nextRun ? `Next ${clockWords(nextRun.h)}` : "None left today"}
               </small>
             </div>
-            <div className="ov-dl__plot">
+            <div className="ef-tl__plot">
               {runHours.map((r) => (
                 <span
                   key={r.at}
-                  className="ov-dl__run"
+                  className="ef-tl__run"
                   data-state={r.state}
                   style={{ left: `${pct(r.h)}%` }}
                   title={`${clockWords(r.h)} run · ${r.state === "done" ? "done" : r.state === "late" ? "not finished" : r.state === "next" ? "next" : "later"}`}
@@ -202,7 +202,7 @@ function Plot({
                 </span>
               ))}
             </div>
-            <div className="ov-dl__runs-word">
+            <div className="ef-tl__runs-word">
               {done} of {runHours.length} done
             </div>
           </div>
@@ -223,7 +223,7 @@ function Plot({
       <div className="flex flex-wrap gap-x-3.5 gap-y-1 border-t px-2 pt-2.5 text-[12.5px] text-muted-foreground">
         {SEGMENTS.map(([, label, v]) => (
           <span key={v} className="inline-flex items-center gap-1.5 whitespace-nowrap">
-            <i className="ov-sw" style={{ background: `var(${v})` }} />
+            <i className="ef-sw" style={{ background: `var(${v})` }} />
             {label}
           </span>
         ))}
@@ -274,15 +274,15 @@ function WindowRow({
   return (
     <Link
       to="/orders/assignments"
-      className="ov-dl__row"
+      className="ef-tl__row"
       aria-label={`${l.anyTime ? `Any time, ${span}` : span}: ${l.booked} booked${l.capacity !== null ? ` of ${l.capacity}` : ""}${late ? `, ${late}` : ""}`}
       onPointerMove={(e) => {
-        const plot = (e.target as HTMLElement).closest(".ov-dl__plot")
+        const plot = (e.target as HTMLElement).closest(".ef-tl__plot")
         if (plot) onTip(e.clientX, e.clientY)
         else onTip(null)
       }}
       onFocus={(e) => {
-        const b = e.currentTarget.querySelector(".ov-dl__plot")?.getBoundingClientRect()
+        const b = e.currentTarget.querySelector(".ef-tl__plot")?.getBoundingClientRect()
         if (b) onTip(b.left + b.width / 2, b.bottom)
       }}
       onBlur={() => onTip(null)}
@@ -293,31 +293,31 @@ function WindowRow({
           {l.anyTime ? span : l.cutoffWords ? `Order by ${l.cutoffWords}` : ""}
         </small>
       </div>
-      <div className="ov-dl__plot">
+      <div className="ef-tl__plot">
         {l.cutoff !== null ? (
           <>
             <span
-              className="ov-dl__whisk"
+              className="ef-tl__whisk"
               style={{ left: `${pct(l.cutoff)}%`, width: `${pct(l.start) - pct(l.cutoff)}%` }}
             />
-            <span className="ov-dl__tick" data-soon={soon ? "" : undefined} style={{ left: `${pct(l.cutoff)}%` }} />
+            <span className="ef-tl__tick" data-soon={soon ? "" : undefined} style={{ left: `${pct(l.cutoff)}%` }} />
           </>
         ) : null}
-        <span className="ov-dl__bar" style={{ left: `${left}%`, width: `${width}%` }}>
+        <span className="ef-tl__bar" style={{ left: `${left}%`, width: `${width}%` }}>
           {segs.length ? (
             segs.map(([n, v]) => <i key={v} style={{ flex: n, background: `var(${v})` } as CSSProperties} />)
           ) : (
             <i style={{ flex: 1, background: "var(--muted)" }} />
           )}
         </span>
-        <span className="ov-dl__cap" style={capLeft ? { left: `${left}%` } : { right: `${100 - (left + width)}%` }}>
+        <span className="ef-tl__cap" style={capLeft ? { left: `${left}%` } : { right: `${100 - (left + width)}%` }}>
           {late ? <em className="font-medium text-destructive not-italic">{late} · </em> : null}
           {l.counts.atHub ? `${l.counts.atHub} at the hub · ` : ""}
           {roundWord}
           {opens ? ` · ${opens}` : ""}
         </span>
       </div>
-      <div className="ov-dl__booked">
+      <div className="ef-tl__booked">
         <b className="block font-medium whitespace-nowrap tabular-nums">
           {l.booked}{" "}
           <small className="text-[12.5px] font-normal text-muted-foreground">
@@ -334,8 +334,8 @@ function WindowRow({
           </span>
         ) : null}
       </div>
-      <div className="ov-dl__col text-right tabular-nums">{l.counts.atHub}</div>
-      <div className="ov-dl__col min-w-0">
+      <div className="ef-tl__col text-right tabular-nums">{l.counts.atHub}</div>
+      <div className="ef-tl__col min-w-0">
         <span className="block truncate">{roundWord}</span>
         {late ? (
           <small className="block text-[12.5px] font-medium whitespace-nowrap text-destructive">{late}</small>
@@ -343,7 +343,7 @@ function WindowRow({
           <small className="block text-[12.5px] whitespace-nowrap text-muted-foreground">{opens}</small>
         ) : null}
       </div>
-      <div className="ov-dl__state flex justify-end">
+      <div className="ef-tl__state flex justify-end">
         <WindowState line={l} isToday={isToday} />
       </div>
     </Link>
@@ -371,12 +371,12 @@ function WindowTip({ line: l, x, y }: { line: WindowLine; x: number; y: number }
   const left = Math.min(x + 14, window.innerWidth - 200)
   const top = Math.min(y + 14, window.innerHeight - 180)
   return (
-    <div className="ov-tip" style={{ left, top }} role="presentation">
+    <div className="ef-tip" style={{ left, top }} role="presentation">
       <b>{l.anyTime ? `Any time · ${spanWords(l.start, l.end)}` : spanWords(l.start, l.end)}</b>
       {rows.length ? (
         rows.map(([label, n, v]) => (
           <div key={v}>
-            <i className="ov-sw" style={{ background: `var(${v})` }} />
+            <i className="ef-sw" style={{ background: `var(${v})` }} />
             {label}
             <strong>{n}</strong>
           </div>
@@ -384,7 +384,7 @@ function WindowTip({ line: l, x, y }: { line: WindowLine; x: number; y: number }
       ) : (
         <div>Nothing booked yet</div>
       )}
-      <div className="ov-tip__foot">
+      <div className="ef-tip__foot">
         {l.cutoffWords ? `Order by ${l.cutoffWords}` : ""}
         {l.capacity !== null ? ` · limit ${l.capacity}` : " · no limit"}
       </div>
@@ -441,30 +441,30 @@ function WindowsTable({ lines }: { lines: readonly WindowLine[] }) {
 
 function DayLineSkeleton() {
   return (
-    <div className="ov-dl">
-      <div className="ov-dl__axis">
+    <div className="ef-tl">
+      <div className="ef-tl__axis">
         <div className="text-[12.5px]">Window</div>
-        <div className="ov-dl__hrs" />
+        <div className="ef-tl__hrs" />
         <div className="text-[12.5px]">Booked</div>
-        <div className="ov-dl__col text-right text-[12.5px]">At hub</div>
-        <div className="ov-dl__col text-[12.5px]">Round</div>
+        <div className="ef-tl__col text-right text-[12.5px]">At hub</div>
+        <div className="ef-tl__col text-[12.5px]">Round</div>
         <div className="text-right text-[12.5px]">State</div>
       </div>
       {[0, 1, 2, 3, 4].map((i) => (
-        <div key={i} className="ov-dl__row">
+        <div key={i} className="ef-tl__row">
           <div className="space-y-1.5">
             <Bone className="h-3 w-20" />
             <Bone className="h-3 w-16" />
           </div>
-          <div className="ov-dl__plot">
+          <div className="ef-tl__plot">
             <Bone className="absolute top-1 h-3.5" style={{ left: `${10 + i * 14}%`, width: "14%" }} />
           </div>
-          <div className="ov-dl__booked">
+          <div className="ef-tl__booked">
             <Bone className="h-3 w-12" />
           </div>
-          <div className="ov-dl__col" />
-          <div className="ov-dl__col" />
-          <div className="ov-dl__state flex justify-end">
+          <div className="ef-tl__col" />
+          <div className="ef-tl__col" />
+          <div className="ef-tl__state flex justify-end">
             <Bone className="h-6 w-20" />
           </div>
         </div>

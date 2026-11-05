@@ -10,6 +10,7 @@ import { describe, expect, it } from "vitest";
 
 const REPOSITORY = resolve(import.meta.dirname, "repository.ts");
 const SERVICE = resolve(import.meta.dirname, "service.ts");
+const STOCK = resolve(import.meta.dirname, "stock.ts");
 
 const FORBIDDEN = [
   "public.\"order\"",
@@ -19,7 +20,13 @@ const FORBIDDEN = [
   "public.refund_line",
 ];
 
-const ALLOWED = ["public.shop_sales_hour", "public.shop_product_sales_day"];
+const ALLOWED = [
+  "public.shop_sales_hour",
+  "public.shop_product_sales_day",
+  "public.shop_run_figures",
+  "public.shop_picker_day",
+  "public.shop_product_pair_day",
+];
 
 function stripComments(source: string): string {
   return source
@@ -32,6 +39,8 @@ describe("Insights reads only prepared figures (FR-026)", () => {
   const files = [
     ["repository.ts", stripComments(readFileSync(REPOSITORY, "utf8"))],
     ["service.ts", stripComments(readFileSync(SERVICE, "utf8"))],
+    // Stock is read live from the shelves (the rollups keep sales); it may still never open an order table.
+    ["stock.ts", stripComments(readFileSync(STOCK, "utf8"))],
   ] as const;
 
   it.each(files)("%s names no raw commerce table", (name, source) => {

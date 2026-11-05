@@ -4,12 +4,12 @@ import type { InsightsBucketDTO, InsightsFigureDTO, InsightsTopProductDTO } from
 import { buildBriefing, moodOf } from "./briefing";
 
 const pct = (amount: string | null): InsightsFigureDTO => ({ value: "100.00", previous: "90.00", change: amount === null ? { kind: "none", amount } : { kind: "pct", amount } });
-const bucket = (label: string, revenue: string): InsightsBucketDTO => ({ start: "", label, partial: false, revenue, orders: 1, previousRevenue: null, previousOrders: null, foundRate: null, cantSupplyRate: null, averageTimeToReady: null });
-const product = (name: string, previousRank: number | null): InsightsTopProductDTO => ({ productId: name, name, sku: null, thumbnailUrl: null, units: 10, revenue: "10.00", share: 1, previousRank });
+const bucket = (label: string, revenue: string): InsightsBucketDTO => ({ start: "", label, partial: false, revenue, orders: 1, units: 3, previousRevenue: null, previousOrders: null, previousUnits: null, foundRate: null, cantSupplyRate: null, averageTimeToReady: null });
+const product = (name: string, previousRank: number | null): InsightsTopProductDTO => ({ productId: name, name, sku: null, thumbnailUrl: null, units: 10, revenue: "10.00", share: 1, shareOfSales: "10.0", previousRank, stockLeft: null });
 const found = (value: string, previous: string, amount: string): InsightsFigureDTO => ({ value, previous, change: { kind: "abs", amount } });
 const base = {
   range: "7d" as const, weekday: "Monday", currency: "AUD", revenue: pct("12"), buckets: [] as InsightsBucketDTO[],
-  quality: { foundRate: null, cantSupplyRate: null, averageTimeToReady: null, readySpread: [0, 0, 0, 0, 0, 0] },
+  quality: { foundRate: null, cantSupplyRate: null, averageTimeToReady: null, readyBeforeDriver: null as InsightsFigureDTO | null, readySpread: [0, 0, 0, 0, 0, 0] },
   topProducts: [] as InsightsTopProductDTO[], cantSupplyProducts: [] as { name: string; units: number }[],
 };
 
@@ -62,5 +62,31 @@ describe("what changed", () => {
     expect(buildBriefing(base).comparedWith).toBe("the week before");
     expect(buildBriefing({ ...base, range: "30d" }).comparedWith).toBe("the 30 days before");
     expect(buildBriefing({ ...base, range: "today" }).comparedWith).toBe("last Monday at this time");
+  });
+});
+
+describe("the new lines (Insights redesign 2)", () => {
+  it("says what selling out cost, and opens Stock", () => {
+    const { changes } = buildBriefing({ ...base, soldOut: { name: "Sourdough loaf", times: 3, missedRevenue: "160.00" } });
+    expect(changes).toContainEqual({ tone: "down", title: "Sourdough loaf sold out 3 times", detail: "About $160 of sales it could have had", page: "stock" });
+  });
+
+  it("stays quiet about a sell-out that cost little", () => {
+    const { changes } = buildBriefing({ ...base, soldOut: { name: "Tahini", times: 1, missedRevenue: "8.00" } });
+    expect(changes.some((c) => c.page === "stock")).toBe(false);
+  });
+
+  it("names the driver missed most when the ready rate moved", () => {
+    const { changes } = buildBriefing({
+      ...base,
+      quality: { ...base.quality, readyBeforeDriver: found("93.2", "88.0", "5.2") },
+      worstRun: { time: "12:30", due: 61, ready: 52 },
+    });
+    expect(changes).toContainEqual({
+      tone: "up",
+      title: "93% ready before the driver",
+      detail: "From 88% the week before. The 12:30 pm driver is the one you miss most.",
+      page: "service",
+    });
   });
 });

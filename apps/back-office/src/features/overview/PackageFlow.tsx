@@ -121,7 +121,7 @@ function Columns({ render }: { render: (s: PackageStatus) => ReactNode }) {
           className="grid content-start gap-0.5 bg-background px-2.5 py-2.5 first:pl-0 @max-[640px]:[&:nth-child(5)]:pl-0"
         >
           <dt className="flex min-h-8 items-start gap-1.5 text-[12.5px] leading-4 text-muted-foreground">
-            <i className="ov-sw mt-[3px]" style={{ background: `var(${v})` }} />
+            <i className="ef-sw mt-[3px]" style={{ background: `var(${v})` }} />
             {STATUS_WORD[s]}
           </dt>
           <dd>{render(s)}</dd>

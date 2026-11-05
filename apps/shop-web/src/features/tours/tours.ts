@@ -78,38 +78,49 @@ export const SHOP_TOURS = defineTours([
   // T - Today
   {
     key: "today",
-    version: 1,
+    version: 2,
     title: "Today",
     path: "/",
     steps: [
-      { target: "page-title", title: "Your day at a glance", text: "Today's date and what you've sold so far today." },
       {
-        target: "today.collection",
-        title: "Next collection",
-        text: "When the Effy driver next collects, and how many of the orders due are ready. Have them packed and labelled before this time.",
+        target: "page-title",
+        title: "Your day at a glance",
+        text: "Today's date and what you've sold so far today.",
+      },
+      {
+        target: "today.brief",
+        title: "How the day is going",
+        text: "One sentence on what matters most right now, then the next three things on the clock. A rose ground means orders missed a driver.",
       },
       {
         target: "today.next",
-        title: "What to do next",
-        text: "Your work, in the order to do it: the oldest order waiting first, then anything that needs a look. Open a row to start.",
-        shownWhen: "There is work",
+        title: "Needs you",
+        text: "Your work, most urgent first: what the next driver needs, then what costs sales, then what can wait. Each count opens its list.",
+      },
+      {
+        target: "today.collection",
+        title: "Today's Effy drivers",
+        text: "Every Effy collection run today on one clock. Each bar runs from its first order to the time the driver comes, split by how far each order is.",
+      },
+      {
+        target: "today.picking",
+        title: "Being picked now",
+        text: "Who is picking which order, and for which driver.",
+      },
+      {
+        target: "today.flow",
+        title: "Where today's orders are",
+        text: "Every order that came in today, after it leaves your hands too, in the same words as the order page.",
+      },
+      {
+        target: "today.sales",
+        title: "Orders today",
+        text: "Orders, sales, average order and time to ready since midnight, against the same day last week.",
       },
       {
         target: "today.now",
-        title: "Now",
-        text: "Above the line is what has just happened today. Below it is what's still to come.",
-      },
-      {
-        target: "today.later",
-        title: "Later today",
-        text: "Collections and other things already planned for the rest of the day.",
-        shownWhen: "Something is planned",
-      },
-      {
-        target: "today.yesterday",
-        title: "Yesterday",
-        text: "How yesterday ended, to compare with today.",
-        shownWhen: "Shown",
+        title: "Just happened",
+        text: "The latest from your team and your orders. Team activity has everything.",
       },
       {
         target: "today.quick-actions",
@@ -471,14 +482,14 @@ export const SHOP_TOURS = defineTours([
   // I - Insights · Overview
   {
     key: "insights",
-    version: 1,
+    version: 2,
     title: "Insights · Overview",
     path: "/insights",
     steps: [
       {
         target: "insights.pages",
-        title: "Four views",
-        text: "Overview at a glance, then Sales, Products and Service in more depth. Each one has its own short tour.",
+        title: "Five views",
+        text: "Overview at a glance, then Sales, Products, Stock and Service in more depth. Each one has its own short tour.",
       },
       {
         target: "insights.range",
@@ -487,47 +498,77 @@ export const SHOP_TOURS = defineTours([
       },
       {
         target: "insights.figures",
-        title: "Your figures",
-        text: "Revenue, orders and average order. Revenue counts your goods only, and a refund comes off on the day it was issued.",
+        title: "How the period went",
+        text: "Sales and orders for the period, against the one before. Sales count your goods only, and a refund comes off on the day it was issued.",
+      },
+      {
+        target: "insights.worth",
+        title: "Worth doing",
+        text: "What the figures say to do, biggest cost first. Each row opens the page behind it.",
       },
       {
         target: "insights.view-toggle",
         title: "Chart or table",
         text: "The same figures as a chart or as exact numbers.",
       },
-      { target: "page-more", title: "Export", text: "Download the period's figures as a spreadsheet." },
+      {
+        target: "insights.cards",
+        title: "Look closer",
+        text: "Each card is one finding. Open it for the whole chart, its table and how it's counted.",
+      },
+      {
+        target: "page-more",
+        title: "Export",
+        text: "Download the period's figures as a spreadsheet.",
+      },
     ],
   },
   // IS - Insights · Sales
   {
     key: "insights-sales",
-    version: 1,
+    version: 2,
     title: "Insights · Sales",
     path: "/insights/sales",
     steps: [
-      { target: "insights.measure", title: "What to chart", text: "Choose the measure the chart shows." },
+      {
+        target: "insights.measure",
+        title: "What to chart",
+        text: "Choose the measure the chart shows.",
+      },
       {
         target: "insights.rhythm",
-        title: "When orders come in",
-        text: "Your busiest hours and days, to plan who's on the bench. It appears after two weeks of orders.",
+        title: "Look closer",
+        text: "By aisle, your average day, when orders come in, order size and who buys. Each card opens its chart.",
       },
       {
         target: "insights.behind",
-        title: "Behind the revenue",
-        text: "What moved revenue this period: cancellations, refunds and what you couldn't supply.",
+        title: "Behind the sales",
+        text: "What moved sales this period: refunds, what you couldn't supply and cancellations.",
       },
     ],
   },
   // IP - Insights · Products
   {
     key: "insights-products",
-    version: 1,
+    version: 2,
     title: "Insights · Products",
     path: "/insights/products",
     steps: [
-      { target: "insights.best", title: "Best sellers", text: "Your products by what they sold this period." },
-      { target: "insights.up", title: "Moving up", text: "Products selling more than the period before." },
-      { target: "insights.slipping", title: "Slipping", text: "Products selling less than the period before." },
+      {
+        target: "insights.best",
+        title: "Best sellers",
+        text: "Your products by what they sold this period, with their share, their place and the stock you have now.",
+      },
+      {
+        target: "insights.up",
+        title: "Moving up",
+        text: "Products selling more than the period before.",
+      },
+      {
+        target: "insights.slipping",
+        title: "Slipping",
+        text: "Products selling less than the period before.",
+      },
       {
         target: "insights.oos",
         title: "Selling but out of stock",
@@ -535,32 +576,92 @@ export const SHOP_TOURS = defineTours([
       },
     ],
   },
+  // IK - Insights · Stock
+  {
+    key: "insights-stock",
+    version: 1,
+    title: "Insights · Stock",
+    path: "/insights/stock",
+    steps: [
+      {
+        target: "insights.running-out",
+        title: "Running out",
+        text: "When each product runs out if it keeps selling like the last four weeks. Restock the soonest first.",
+      },
+      {
+        target: "insights.sold-out",
+        title: "Sold out",
+        text: "What reached none this period, for how long, and roughly the sales that cost.",
+      },
+      {
+        target: "insights.not-selling",
+        title: "Not sold in 30 days",
+        text: "In stock and on sale, but nobody bought one in 30 days.",
+      },
+      {
+        target: "insights.written-off",
+        title: "Written off",
+        text: "Stock you recorded as expired or damaged, at your prices.",
+      },
+    ],
+  },
   // IV - Insights · Service
   {
     key: "insights-service",
-    version: 1,
+    version: 2,
     title: "Insights · Service",
     path: "/insights/service",
     steps: [
       {
         target: "insights.found",
-        title: "Found rate",
-        text: "Of everything ordered, how much you supplied. The higher the better.",
-      },
-      {
-        target: "insights.cant",
-        title: "Can't supply",
-        text: "How much you couldn't supply. Each miss is a disappointed customer.",
+        title: "Your four measures",
+        text: "Found rate, couldn't supply, time to ready and ready before the driver. Open one for its chart.",
       },
       {
         target: "insights.ready",
-        title: "Time to ready",
-        text: "Minutes from payment to Ready. Faster orders make the collection.",
+        title: "Look closer",
+        text: "Which driver you miss most, when you're slowest and how long orders take.",
       },
       {
         target: "insights.missed",
         title: "What you could not supply",
         text: "The products you missed most, so you can fix stock or switch them off sooner.",
+      },
+      {
+        target: "insights.pickers",
+        title: "Who picked",
+        text: "Orders each person finished and how long they took. For planning shifts, not for ranking people.",
+        roles: ["shop_manager"],
+        shownWhen: "Manager",
+      },
+    ],
+  },
+  // IC - Insights · A chart
+  {
+    key: "insights-chart",
+    version: 1,
+    title: "Insights · A chart",
+    path: "/insights/$section/$chart",
+    steps: [
+      {
+        target: "insights.back",
+        title: "Back to the page",
+        text: "Returns to the page this chart came from.",
+      },
+      {
+        target: "insights.range",
+        title: "Choose the period",
+        text: "Today, 7 days or 30 days. The chart and its finding follow.",
+      },
+      {
+        target: "insights.chart",
+        title: "The whole chart",
+        text: "The finding in one sentence, then the chart. Point at it, or use the arrow keys, for each value.",
+      },
+      {
+        target: "insights.view-toggle",
+        title: "Chart or table",
+        text: "The same figures as a chart or as exact numbers.",
       },
     ],
   },

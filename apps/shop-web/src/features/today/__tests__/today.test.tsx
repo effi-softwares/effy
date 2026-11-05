@@ -1,16 +1,20 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { render, screen, within, waitFor } from "@testing-library/react"
+import { render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import type { ReactNode } from "react"
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 
 const navigate = vi.hoisted(() => vi.fn())
 vi.mock("@tanstack/react-router", () => ({
-  Link: ({ children, to, className, ...rest }: { children: ReactNode; to?: string; className?: string }) => (
-    <a href={to ?? "#"} className={className} {...rest}>
-      {children}
-    </a>
-  ),
+  Link: ({ children, to, params, className, search: _s, ...rest }: { children: ReactNode; to?: string; params?: Record<string, string>; className?: string; search?: unknown }) => {
+    let href = to ?? "#"
+    for (const [k, v] of Object.entries(params ?? {})) href = href.replace(`$${k}`, v)
+    return (
+      <a href={href} className={className} {...rest}>
+        {children}
+      </a>
+    )
+  },
   useNavigate: () => navigate,
   useSearch: () => ({}),
 }))
@@ -25,63 +29,68 @@ const listOrders = vi.hoisted(() => vi.fn())
 const transitionFulfillment = vi.hoisted(() => vi.fn())
 vi.mock("@/features/fulfillment/repo", () => ({ listOrders, transitionFulfillment }))
 
-import type { ShopNextCollectionDTO, ShopTodayDTO, ShopTodayEventDTO } from "@effy/shared-types"
+import { PACKAGE_STATUSES, type PackageStatus, type ShopTodayDTO, type ShopTodayRunDTO } from "@effy/shared-types"
 
 import { orderList, orderRow } from "@/features/fulfillment/__tests__/fixtures"
+import { insightsDto } from "@/features/insights/__tests__/fixtures"
 
-import { aheadWords, attentionHref, buildJobs, collectionClock, collectionLine, eventWords, openItemCount, todayDate } from "../model"
+import { briefOf, comingUp, eventWords, needsRows, runState, tiersOf, todayDate } from "../model"
 import { TodayScreen } from "../TodayScreen"
 import { useNavBadges } from "../useNavBadges"
 
 /** Every loading shape has gone: a skeleton writes the page's real titles, so a title alone does not mean loaded. */
 const loaded = () => waitFor(() => expect(screen.queryAllByRole("status", { busy: true })).toHaveLength(0))
 
-const NOW = "2026-09-14T04:00:00.000Z"
+const NOW = "2026-09-14T04:00:00.000Z" // 2 pm in Melbourne
 const nowMs = new Date(NOW).getTime()
 const inMinutes = (m: number) => new Date(nowMs + m * 60_000).toISOString()
 const TZ = "Australia/Melbourne"
 
-const next = (over: Partial<ShopNextCollectionDTO> = {}): ShopNextCollectionDTO => ({
-  runAt: inMinutes(38),
-  dayOffset: 0,
+const zero = (): Record<PackageStatus, number> => Object.fromEntries(PACKAGE_STATUSES.map((s) => [s, 0])) as Record<PackageStatus, number>
+
+const run = (over: Partial<ShopTodayRunDTO> = {}): ShopTodayRunDTO => ({
+  runAt: inMinutes(30),
   driver: "assigned",
-  opensAt: null,
-  driverOnDuty: false,
-  due: { ready: 3, picking: 5, started: 2 },
+  collectedAt: null,
+  firstPaidAt: inMinutes(-90),
+  collected: 0,
+  ready: 5,
+  picking: 2,
+  waiting: 3,
+  missed: 0,
   ...over,
 })
-
-const event = (e: Record<string, unknown>, id: string): ShopTodayEventDTO => ({ id, at: NOW, ...e }) as ShopTodayEventDTO
 
 function today(over: Partial<ShopTodayDTO> = {}): ShopTodayDTO {
   return {
     now: NOW,
     timezone: TZ,
     backlog: {
-      awaitingPick: { orders: 3, units: 11, oldestPaidAt: "2026-09-14T00:48:00.000Z" },
-      readyForPickup: 2,
-      lowStock: { skus: 2, outOfStock: 1 },
+      awaitingPick: { orders: 3, units: 11, oldestPaidAt: inMinutes(-72) },
+      readyForPickup: 5,
+      lowStock: { skus: 4, outOfStock: 1 },
     },
-    attention: [
-      { kind: "awaiting_pick", orders: 3, units: 11, since: "2026-09-14T00:48:00.000Z" },
-      { kind: "out_of_stock", productId: "p5", variantId: "v5", name: "Beeswax wrap set", soldLast7Days: 17, since: "2026-09-14T01:00:00.000Z" },
+    runs: [
+      run({ runAt: inMinutes(-90), driver: "collected", collectedAt: inMinutes(-86), collected: 7, ready: 0, picking: 0, waiting: 0 }),
+      run(),
+      run({ runAt: inMinutes(150), firstPaidAt: inMinutes(-10), ready: 0, picking: 0, waiting: 2 }),
     ],
-    attentionMore: 0,
-    oldestWaitingAt: "2026-09-14T00:48:00.000Z",
+    courierPickups: [{ from: inMinutes(60), to: inMinutes(180), courierName: "Sendle", parcels: 2, handedOver: 0 }],
+    packages: { effy_driver: { ...zero(), preparing: 5, ready: 5, at_hub: 7, delivered: 3 }, courier: { ...zero(), with_carrier: 2 } },
+    picking: [{ fulfillmentId: "f-p1", orderNumber: "EFY-4422", units: 8, startedAt: inMinutes(-6), picker: "Kim Tran", runAt: inMinutes(30), deliveredBy: "effy_driver" }],
+    late: [],
+    outOfStock: [{ productId: "p5", variantId: "v5", name: "Beeswax wrap set", soldLast7Days: 17, since: inMinutes(-60) }],
+    outOfStockMore: 0,
+    refunds: [],
+    selling: [{ productId: "p1", name: "Sourdough loaf", units: 9, stockLeft: 0 }],
+    catalog: { missingDetails: 3, inReview: 2, sentBack: 0 },
     events: [
-      event({ kind: "came_in", fulfillmentId: "f-1", orderNumber: "EFY-4421", itemCount: 4, deliveredBy: "effy_driver" }, "e1"),
-      event({ kind: "ready", fulfillmentId: "f-2", orderNumber: "EFY-4420" }, "e2"),
-      event({ kind: "sold_out", productId: "p5", variantId: "v5", name: "Beeswax wrap set" }, "e3"),
-      event({ kind: "collected", orders: 7, fulfillmentId: null, orderNumber: null }, "e4"),
-      event({ kind: "picking", fulfillmentId: "f-3", orderNumber: "EFY-4419" }, "e5"),
+      { id: "e1", at: inMinutes(-2), kind: "came_in", fulfillmentId: "f-1", orderNumber: "EFY-4421", itemCount: 4, deliveredBy: "effy_driver" },
+      { id: "e2", at: inMinutes(-5), kind: "ready", fulfillmentId: "f-2", orderNumber: "EFY-4420" },
     ],
-    ahead: [
-      { kind: "busiest", at: inMinutes(20) },
-      { kind: "run", at: inMinutes(38), orders: 8 },
-      { kind: "run", at: inMinutes(158), orders: 0 },
-    ],
+    ahead: [{ kind: "busiest", at: inMinutes(180) }],
     yesterday: { orders: 23, revenue: "840.00" },
-    nextCollection: next(),
+    nextCollection: null,
     ...over,
   }
 }
@@ -95,86 +104,39 @@ afterAll(() => {
 })
 beforeEach(() => {
   vi.clearAllMocks()
-  getInsights.mockResolvedValue(insights())
-  listOrders.mockResolvedValue(orderList([orderRow({ id: "o1", orderNumber: "EFY-9001", status: "received", itemCount: 7, atRisk: true })]))
+  getInsights.mockResolvedValue(insightsDto({}, "today"))
+  listOrders.mockResolvedValue(orderList([orderRow({ id: "o1", orderNumber: "EFY-9001", status: "received", itemCount: 7 })]))
 })
-
-function insights() {
-  return {
-    range: "today" as const,
-    timezone: "Australia/Melbourne",
-    window: { from: NOW, to: NOW },
-    comparison: { basis: "same_weekday_last_week" as const, from: NOW, to: NOW },
-    computedAt: NOW,
-    currency: "AUD",
-    primary: {
-      revenue: { value: "1842.00", previous: "1644.00", change: { kind: "pct" as const, amount: "12" } },
-      orders: {
-        value: "24",
-        previous: "20",
-        change: { kind: "abs" as const, amount: "4" },
-        perDay: null,
-        lastHour: 6,
-      },
-      averageOrderValue: {
-        value: "76.75",
-        previous: "74.50",
-        change: { kind: "pct" as const, amount: "3.0" },
-      },
-    },
-    secondary: {
-      refunds: { value: "0.00", previous: "0.00", change: { kind: "none" as const, amount: null }, orders: 0 },
-      cantSupply: { value: "0", previous: "0", change: { kind: "none" as const, amount: null }, units: 0 },
-      cancelled: { value: "0", previous: "0", change: { kind: "none" as const, amount: null } },
-    },
-    series: {
-      grain: "hour" as const,
-      buckets: [],
-      revenueTotal: { value: "1842.00", previous: "1644.00", change: { kind: "pct" as const, amount: "12" } },
-      ordersTotal: { value: "24", previous: "20", change: { kind: "abs" as const, amount: "4" } },
-    },
-    topProducts: [],
-  }
-}
 
 function wrap(children: ReactNode) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(<QueryClientProvider client={qc}>{children}</QueryClientProvider>)
 }
 
-describe("the countdown", () => {
-  it("reads as one sentence, with one bar and how many are being picked", async () => {
-    getToday.mockResolvedValue(today())
-    wrap(<TodayScreen />)
-    await loaded()
-    const band = await screen.findByRole("region", { name: "Next collection" })
-    expect(within(band).getByText("38")).toBeInTheDocument()
-    expect(within(band).getByText(/until the .* driver\. 5 orders still to pack\./)).toBeInTheDocument()
-    expect(within(band).getByRole("progressbar", { name: "3 of 8 orders ready" })).toBeInTheDocument()
-    expect(within(band).getByText(/2 being picked/)).toBeInTheDocument()
+describe("the sentence", () => {
+  it("says what the next driver still needs, and what costs sales", () => {
+    const b = briefOf(today(), nowMs)
+    expect(b.tone).toBe("warn")
+    expect(b.label).toBe("30 min to the next driver")
+    expect(b.lead.map((p) => p.text).join("")).toBe("5 orders still to pack for the 2:30 pm Effy driver.")
+    expect(b.rest.map((p) => p.text).join("")).toBe("5 of 10 are ready. Beeswax wrap set is out of stock.")
   })
 
-  it("says so when no runs are set up, rather than showing a zero", async () => {
-    getToday.mockResolvedValue(today({ nextCollection: null }))
-    wrap(<TodayScreen />)
-    expect(await screen.findByText(/No collection runs are set up/)).toBeInTheDocument()
-    expect(screen.queryByRole("progressbar")).not.toBeInTheDocument()
+  it("puts orders that missed a driver first, on a rose ground", () => {
+    const b = briefOf(
+      today({ late: [{ fulfillmentId: "f9", orderNumber: "EFY-1", units: 3, missedRunAt: inMinutes(-90), nextRunAt: inMinutes(30), stage: "picking", picker: "Jo" }] }),
+      nowMs,
+    )
+    expect(b.stopped).toBe(true)
+    expect(b.lead.map((p) => p.text).join("")).toBe("1 order missed the 12:30 pm Effy driver.")
+    expect(b.rest[0]!.text).toMatch(/^It goes with the 2:30 pm driver if it’s ready by then/)
   })
 
-  it("counts minutes only while that means something", () => {
-    expect(collectionClock(next(), nowMs, TZ)).toMatchObject({ minutes: 38, unit: "min" })
-    expect(collectionClock(next({ runAt: inMinutes(90) }), nowMs, TZ)).toMatchObject({ minutes: null, big: "1 h", unit: "30 min" })
-    expect(collectionClock(next({ runAt: inMinutes(-3) }), nowMs, TZ)).toMatchObject({ minutes: null, big: "Due" })
-    const tomorrow = next({ runAt: inMinutes(1200), dayOffset: 1 })
-    expect(collectionClock(tomorrow, nowMs, TZ)).toMatchObject({ minutes: null, unit: "Tomorrow" })
-    expect(collectionLine(tomorrow, collectionClock(tomorrow, nowMs, TZ), TZ)).toMatch(/^is your next driver\./)
-  })
-
-  it("says when everything is ready, and when nothing is due", () => {
-    const ready = next({ due: { ready: 4, picking: 0, started: 0 } })
-    expect(collectionLine(ready, collectionClock(ready, nowMs, TZ), TZ)).toMatch(/Every order is ready\.$/)
-    const none = next({ due: { ready: 0, picking: 0, started: 0 } })
-    expect(collectionLine(none, collectionClock(none, nowMs, TZ), TZ)).toMatch(/None of your orders are due/)
+  it("says everything is packed when it is", () => {
+    const b = briefOf(today({ runs: [run({ ready: 4, picking: 0, waiting: 0 })], backlog: { awaitingPick: { orders: 0, units: 0, oldestPaidAt: null }, readyForPickup: 4, lowStock: { skus: 0, outOfStock: 0 } }, outOfStock: [] }), nowMs)
+    expect(b.tone).toBe("good")
+    expect(b.lead[0]!.text).toBe("Everything is packed.")
+    expect(b.rest.map((p) => p.text).join("")).toBe("The 2:30 pm Effy driver collects 4 orders. Nothing else needs you right now.")
   })
 
   it("dates the page from the SERVER's clock and the shop's timezone", () => {
@@ -182,123 +144,41 @@ describe("the countdown", () => {
   })
 })
 
-describe("what just happened", () => {
-  it("holds the newest in the Now bar and the three before it on the line, oldest first", async () => {
-    getToday.mockResolvedValue(today())
-    wrap(<TodayScreen />)
-    await loaded()
-    const bar = await screen.findByLabelText("Live activity")
-    expect(within(bar).getByText("came in")).toBeInTheDocument()
-    expect(within(bar).getByText(/EFY-4421/)).toBeInTheDocument()
-    const line = screen.getAllByRole("listitem").map((l) => l.textContent)
-    expect(line[0]).toContain("7 orders collected")
-    expect(line[2]).toContain("is ready")
-    // The fifth event stays in the log.
-    expect(screen.queryByText(/EFY-4419/)).not.toBeInTheDocument()
-  })
-
-  it("opens the one Activity drawer for anything earlier", async () => {
-    getToday.mockResolvedValue(today())
-    wrap(<TodayScreen />)
-    await loaded()
-    await userEvent.click(await screen.findByRole("button", { name: /Earlier/ }))
-    expect(navigate).toHaveBeenCalled()
-  })
-
-  it("says so before anything has happened today, offers no empty log, and shows how yesterday closed", async () => {
-    getToday.mockResolvedValue(today({ events: [] }))
-    wrap(<TodayScreen />)
-    expect(await screen.findByText("Nothing yet today")).toBeInTheDocument()
-    expect(screen.queryByRole("button", { name: /Earlier/ })).not.toBeInTheDocument()
-    expect(screen.getByText("Yesterday")).toBeInTheDocument()
-    expect(screen.getByText("23 orders")).toBeInTheDocument()
-    expect(screen.getByText("AUD 840.00")).toBeInTheDocument()
-  })
-
-  it("keeps yesterday out once today has its own history", async () => {
-    getToday.mockResolvedValue(today())
-    wrap(<TodayScreen />)
-    await screen.findByText("Later today")
-    expect(screen.queryByText("Yesterday")).not.toBeInTheDocument()
-  })
-
-  it("has words for every kind", () => {
-    expect(eventWords(event({ kind: "came_in", orderNumber: "E", itemCount: 1, deliveredBy: "courier" }, "a"))).toEqual({ code: "E", words: "came in", note: "1 item · Courier" })
-    expect(eventWords(event({ kind: "collected", orders: 1, orderNumber: "E", fulfillmentId: "f" }, "b")).words).toBe("was collected")
-    expect(eventWords(event({ kind: "collected", orders: 7, orderNumber: null, fulfillmentId: null }, "c")).words).toBe("7 orders collected")
-    for (const kind of ["picking", "ready", "delivered", "cant_supply", "cancelled"]) {
-      expect(eventWords(event({ kind, orderNumber: "E" }, kind)).words).toBeTruthy()
-    }
-    expect(eventWords(event({ kind: "restocked", name: "Rice" }, "d")).words).toBe("Rice is back in stock")
+describe("what comes next", () => {
+  it("is the next three things on the clock: drivers, the courier, the busiest hour", () => {
+    const c = comingUp(today(), nowMs)
+    expect(c.map((x) => x.title)).toEqual(["2:30 pm Effy driver", "Courier pickup", "4:30 pm Effy driver"])
+    expect(c[0]!.detail).toBe("5 of 10 ready")
+    expect(c[1]!.detail).toBe("Sendle collects 2 parcels")
   })
 })
 
-describe("later today", () => {
-  it("carries the line past the work, soonest first", async () => {
-    getToday.mockResolvedValue(today())
-    wrap(<TodayScreen />)
-    expect(await screen.findByText("Later today")).toBeInTheDocument()
-    expect(screen.getByText("Usually your busiest hour")).toBeInTheDocument()
-    expect(screen.getByText("8 orders so far")).toBeInTheDocument()
-    expect(screen.getByText("No orders on this run yet")).toBeInTheDocument()
-  })
-
-  it("leaves the section out when the day is over", async () => {
-    getToday.mockResolvedValue(today({ ahead: [] }))
-    wrap(<TodayScreen />)
-    await loaded()
-    await screen.findByText("Do this next")
-    expect(screen.queryByText("Later today")).not.toBeInTheDocument()
-  })
-
-  it("always says a pattern is a pattern", () => {
-    expect(aheadWords({ kind: "orders_start", at: NOW }).words).toMatch(/usually/i)
-    expect(aheadWords({ kind: "busiest", at: NOW }).words).toMatch(/usually/i)
-    expect(aheadWords({ kind: "run", at: NOW, orders: 1 })).toEqual({ words: "Effy driver", note: "1 order so far" })
+describe("the runs", () => {
+  it("names each run's state in one word", () => {
+    const t = today()
+    const next = t.runs[1]!
+    expect(runState(t.runs[0]!, next, nowMs).word).toBe("Collected")
+    expect(runState(next, next, nowMs).word).toBe("Packing")
+    expect(runState(run({ ready: 3, picking: 0, waiting: 0 }), next, nowMs).word).toBe("Ready")
+    expect(runState(run({ runAt: inMinutes(-10), driver: "collected", missed: 2 }), next, nowMs).word).toBe("Missed")
+    expect(runState(run({ ready: 0, picking: 0, waiting: 0 }), next, nowMs).word).toBe("No orders yet")
   })
 })
 
-describe("what is next", () => {
-  const order = (id: string, over: Parameters<typeof orderRow>[0] = {}) => orderRow({ id, orderNumber: `EFY-${id}`, status: "received", ...over })
-  const runAt = inMinutes(38)
-  const collection = { runAt, dayOffset: 0, driver: "none" as const }
-  const jobs = (waiting: ReturnType<typeof orderRow>[], attention: ShopTodayDTO["attention"] = [], extra = {}) =>
-    buildJobs({ waiting, waitingTotal: waiting.length, attention, attentionMore: 0, nextRunAt: runAt, timezone: TZ, now: nowMs, ...extra })
-  const low = { kind: "low_stock" as const, productId: "p", variantId: "low", name: "Oat milk", onHand: 3, daysOfCover: 2, since: NOW }
-  const out = { kind: "out_of_stock" as const, productId: "p", variantId: "out", name: "Rice", soldLast7Days: 4, since: NOW }
-  const refund = { kind: "refund_proposed" as const, fulfillmentId: "f", orderNumber: "EFY-R", amount: "5.40", since: NOW }
-
-  it("puts late work first, then the next driver's, then what costs sales, then the rest", () => {
-    const list = jobs([order("later"), order("run", { collection }), order("late", { atRisk: true })], [low, refund, out]).jobs
-    expect(list.map((j) => j.key)).toEqual(["order-late", "order-run", "stock-out", "refund-f"])
+describe("needs you", () => {
+  it("ranks in three tiers and folds the rows at zero into one line", () => {
+    const tiers = tiersOf(needsRows(today(), [], nowMs))
+    expect(tiers.map((t) => t.live.map((r) => r.id))).toEqual([["pick", "handover"], ["oos"], ["low", "details", "review"]])
+    expect(tiers[0]!.clear.map((r) => r.id)).toEqual(["late"])
+    // In review with Effy is information, never "all clear".
+    expect(tiers[2]!.clear.map((r) => r.id)).toEqual(["sentBack"])
   })
 
-  it("lists orders one by one, never the group row", () => {
-    const list = jobs([order("a")], [{ kind: "awaiting_pick", orders: 1, units: 3, since: NOW }]).jobs
-    expect(list.map((j) => j.key)).toEqual(["order-a"])
-  })
-
-  it("counts everything it could not show, including what the server held back", () => {
-    const waiting = ["a", "b", "c", "d", "e"].map((id) => order(id))
-    expect(jobs(waiting).more).toBe(1)
-    expect(jobs(waiting, [], { waitingTotal: 9, attentionMore: 2 }).more).toBe(7)
-  })
-
-  it("an order nobody has opened is opened; one that has been is picked", () => {
-    const list = jobs([order("p", { status: "pending" }), order("r")]).jobs
-    expect(list.map((j) => [j.kind, j.action])).toEqual([["open", "Open order"], ["pick", "Start picking"]])
-  })
-
-  it("shows the next job largest, with the only filled button", async () => {
-    getToday.mockResolvedValue(today())
-    wrap(<TodayScreen />)
-    await loaded()
-    expect(await screen.findByText("Do this next")).toBeInTheDocument()
-    expect(await screen.findByRole("heading", { name: "Pick EFY-9001" })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Start picking" })).toHaveAttribute("data-variant", "default")
-    const restock = screen.getByRole("link", { name: "Restock" })
-    expect(restock).toHaveAttribute("href", "/catalog/p5?size=v5")
-    expect(restock).toHaveAttribute("data-variant", "outline")
+  it("says who takes each order waiting to be picked", () => {
+    const rows = needsRows(today(), [orderRow({ id: "o1", orderNumber: "EFY-9001", status: "received", itemCount: 7, placedAt: inMinutes(-41) })], nowMs)
+    const pick = rows.find((r) => r.id === "pick")!
+    expect(pick.items[0]).toMatchObject({ primary: "EFY-9001", action: { label: "Start picking", pick: "o1" } })
+    expect(pick.items[0]!.secondary).toMatch(/^7 items · .* · waited 41 m$/)
   })
 
   it("starts the pick, then opens the order", async () => {
@@ -309,76 +189,64 @@ describe("what is next", () => {
     await waitFor(() => expect(transitionFulfillment).toHaveBeenCalledWith("o1", { to: "picking" }))
     await waitFor(() => expect(navigate).toHaveBeenCalledWith({ to: "/orders/$fulfillmentId", params: { fulfillmentId: "o1" } }))
   })
-
-  it("says all clear, with no zeroed card, when nothing needs anyone", async () => {
-    listOrders.mockResolvedValue(orderList([]))
-    getToday.mockResolvedValue(today({ attention: [], attentionMore: 0, oldestWaitingAt: null }))
-    wrap(<TodayScreen />)
-    expect(await screen.findByText("All clear")).toBeInTheDocument()
-  })
-
-  it("surfaces a read failure instead of rendering an empty shop", async () => {
-    getToday.mockRejectedValue({ kind: "unavailable", status: 503, title: "x", detail: "y" })
-    wrap(<TodayScreen />)
-    expect(await screen.findByRole("button", { name: /retry/i })).toBeInTheDocument()
-    expect(screen.queryByText("All clear")).not.toBeInTheDocument()
-  })
 })
 
-describe("the page's head", () => {
-  it("keeps the title, the date and how the day is going on their own row", async () => {
-    getToday.mockResolvedValue(today())
-    wrap(<TodayScreen />)
-    expect(await screen.findByRole("heading", { level: 1, name: "Today" })).toBeInTheDocument()
-    expect(await screen.findByText(/^Monday 14 September · .* from 24 orders so far$/)).toBeInTheDocument()
-  })
-
-  it("says no orders yet, never zero dollars from zero orders", async () => {
-    getInsights.mockResolvedValue({ ...insights(), primary: { ...insights().primary, orders: { ...insights().primary.orders, value: "0" } } })
-    getToday.mockResolvedValue(today())
-    wrap(<TodayScreen />)
-    expect(await screen.findByText("Monday 14 September · No orders yet")).toBeInTheDocument()
-  })
-
-  it("keeps quick actions, the pick lists and the team's activity", async () => {
+describe("the page", () => {
+  it("keeps the title, the date and how the day is going in the head", async () => {
     getToday.mockResolvedValue(today())
     wrap(<TodayScreen />)
     await loaded()
-    expect(await screen.findByRole("button", { name: "Quick actions" })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Print pick lists" })).toBeInTheDocument()
-    await userEvent.click(screen.getByRole("button", { name: "More actions" }))
-    expect(await screen.findByRole("menuitem", { name: "Team activity" })).toBeInTheDocument()
+    expect(screen.getByRole("heading", { level: 1, name: "Today" })).toBeInTheDocument()
+    expect(await screen.findByText("Monday 14 September · $8,443 from 196 orders so far")).toBeInTheDocument()
+  })
+
+  it("shows every section from live figures", async () => {
+    getToday.mockResolvedValue(today())
+    wrap(<TodayScreen />)
+    await loaded()
+    for (const title of ["Today’s Effy drivers", "Needs you", "Being picked now", "Where today’s orders are", "Orders today", "Selling today", "Just happened"]) {
+      expect(screen.getByRole("heading", { name: title })).toBeInTheDocument()
+    }
+    expect(screen.getByText(/Kim Tran/)).toBeInTheDocument()
+    expect(screen.getAllByText("Out of stock").length).toBeGreaterThan(0)
+    const drivers = screen.getByRole("region", { name: "Today’s Effy drivers" })
+    expect(within(drivers).getByText("Courier pickups")).toBeInTheDocument()
+  })
+
+  it("says sales couldn't load, and keeps everything else", async () => {
+    getToday.mockResolvedValue(today())
+    getInsights.mockRejectedValue({ kind: "unavailable", status: 503, title: "x", detail: "y" })
+    wrap(<TodayScreen />)
+    expect(await screen.findByText(/Sales couldn’t load/)).toBeInTheDocument()
+    expect(await screen.findByText(/Couldn’t load today’s figures/)).toBeInTheDocument()
+    expect(screen.getByRole("heading", { name: "Needs you" })).toBeInTheDocument()
+  })
+
+  it("keeps the head and its actions when Today itself fails", async () => {
+    getToday.mockRejectedValue({ kind: "unavailable", status: 503, title: "x", detail: "y" })
+    wrap(<TodayScreen />)
+    expect(await screen.findByRole("button", { name: /retry/i })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /Quick actions/ })).toBeInTheDocument()
+  })
+
+  it("puts the orders to pick on the nav badge", async () => {
+    getToday.mockResolvedValue(today())
+    function Badge() {
+      const badges = useNavBadges()
+      return <p>{badges["/orders"]}</p>
+    }
+    wrap(<Badge />)
+    expect(await screen.findByText("3")).toBeInTheDocument()
   })
 })
 
-describe("⚠ FR-006 — one value, everywhere it appears", () => {
-  it("the sidebar badge reads the same cache entry, not a count of its own", () => {
-    const dto = today({ attentionMore: 4 })
-    expect(openItemCount(dto)).toBe(6)
-    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-    qc.setQueryData(["shop", "today"], dto)
-    expect(renderHookValue(qc)["/orders"]).toBe(dto.backlog.awaitingPick.orders)
-  })
-
-  it("098 — a stock row opens its product on the size that needs stock", () => {
-    expect(attentionHref({ kind: "low_stock", productId: "p5", variantId: "v5-1kg", name: "Rice — 1 kg", onHand: 2, daysOfCover: null, since: NOW })).toBe("/catalog/p5?size=v5-1kg")
-  })
-
-  it("routes a proposed refund to the order it is about", () => {
-    expect(attentionHref({ kind: "refund_proposed", fulfillmentId: "f-9", orderNumber: "EFY-4413", amount: "5.40", since: NOW })).toBe("/orders/f-9")
+describe("the words", () => {
+  it("has words for every kind of event", () => {
+    expect(eventWords({ id: "x", at: NOW, kind: "came_in", fulfillmentId: "f", orderNumber: "EFY-1", itemCount: 1, deliveredBy: "courier" })).toEqual({
+      code: "EFY-1",
+      words: "came in",
+      note: "1 item · Courier",
+    })
+    expect(eventWords({ id: "x", at: NOW, kind: "collected", orders: 7, fulfillmentId: null, orderNumber: null }).words).toBe("7 orders collected")
   })
 })
-
-function renderHookValue(qc: QueryClient): Record<string, number | undefined> {
-  let captured: Record<string, number | undefined> = {}
-  function Probe() {
-    captured = useNavBadges()
-    return null
-  }
-  render(
-    <QueryClientProvider client={qc}>
-      <Probe />
-    </QueryClientProvider>,
-  )
-  return captured
-}

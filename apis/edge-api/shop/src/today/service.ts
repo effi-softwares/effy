@@ -4,6 +4,8 @@ import { proposedRefundsForShop } from "@effy/edge-shared";
 
 import { instantAtLocalTime, localDateParts } from "@effy/edge-shared";
 
+import type { TodayRun } from "../collection/rule";
+import { readCatalogCounts, readLate, readPackageCounts, readPickupsToday, readPicking, readSelling } from "./board";
 import { readBacklog, readClock, readRhythm, readStockAttention, readTodayEvents, readYesterday } from "./repository";
 import { usualHours } from "./rhythm";
 import type { AttentionItem, AttentionView, ProposedRefund, TodayAhead, TodaySnapshot } from "./types";
@@ -13,9 +15,10 @@ export const DEFAULT_TIMEZONE = OPERATING_TZ;
 
 /** Rows before deferring to "Open queue →". */
 export const ATTENTION_LIMIT = 8;
-/** A few more than shown, so `attentionMore` needs no extra count. */
-const STOCK_FETCH = ATTENTION_LIMIT + 1;
-const PROPOSAL_FETCH = ATTENTION_LIMIT + 1;
+/** Today lists every kind on its own; 20 out of stock are shown, one more says there are more. */
+export const OUT_OF_STOCK_LIMIT = 20;
+const STOCK_FETCH = 60;
+const PROPOSAL_FETCH = 21;
 
 /** Today writes nothing, so it attributes nothing; it reuses the fulfilment gate's Actor. */
 export type { Actor } from "../fulfillments/service";
@@ -33,6 +36,8 @@ export interface TodayDeps {
   events?: boolean;
   /** Today's runs still to come (`collection/service.ts`). The Today route only, as above. */
   runsAhead?: (shopId: string, now: Date) => Promise<{ runAt: Date; orders: number }[]>;
+  /** Every run today and the run each package goes on (`collection/service.ts`): turns on the board's reads too. */
+  runsToday?: (shopId: string, now: Date) => Promise<{ runs: TodayRun[]; packageRuns: Map<string, Date | null> }>;
 }
 
 /** How many rows of the day ahead the timeline carries. */
@@ -63,7 +68,8 @@ export async function readToday(actor: Actor, deps: TodayDeps): Promise<TodaySna
 
   // Independent reads issued together: each RDS hop is ~135 ms.
   const now = new Date();
-  const [clock, backlog, stock, proposals, events, nextCollection, runs, rhythm, yesterday] = await Promise.all([
+  const board = deps.runsToday !== undefined;
+  const [clock, backlog, stock, proposals, events, nextCollection, runs, rhythm, yesterday, today, pickups, packages, picking, late, selling, catalog] = await Promise.all([
     readClock(actor.shopId),
     readBacklog(actor.shopId),
     readStockAttention(actor.shopId, STOCK_FETCH),
@@ -75,6 +81,14 @@ export async function readToday(actor: Actor, deps: TodayDeps): Promise<TodaySna
     deps.runsAhead ? deps.runsAhead(actor.shopId, now) : Promise.resolve([]),
     deps.events ? readRhythm(actor.shopId) : Promise.resolve({ hours: [], days: 0 }),
     deps.events ? readYesterday(actor.shopId) : Promise.resolve(null),
+    deps.runsToday ? deps.runsToday(actor.shopId, now) : Promise.resolve({ runs: [], packageRuns: new Map<string, Date | null>() }),
+    board ? readPickupsToday(actor.shopId) : Promise.resolve([]),
+    // The nine words come from the one status rule; if it cannot be read the rest of Today still shows.
+    board ? readPackageCounts(actor.shopId).catch(() => null) : Promise.resolve(null),
+    board ? readPicking(actor.shopId) : Promise.resolve([]),
+    board ? readLate(actor.shopId) : Promise.resolve([]),
+    board ? readSelling(actor.shopId) : Promise.resolve([]),
+    board ? readCatalogCounts(actor.shopId) : Promise.resolve({ missingDetails: 0, inReview: 0, sentBack: 0 }),
   ]);
 
   // One row per order: the decision a manager makes.
@@ -104,6 +118,13 @@ export async function readToday(actor: Actor, deps: TodayDeps): Promise<TodaySna
     ahead: buildAhead(runs, rhythm, now),
     yesterday,
     nextCollection,
+    runs: today.runs,
+    pickups,
+    packages,
+    picking: picking.map((p) => ({ ...p, runAt: today.packageRuns.get(p.fulfillmentId) ?? null })),
+    late: late.map((l) => ({ ...l, nextRunAt: today.packageRuns.get(l.fulfillmentId) ?? null })),
+    selling,
+    catalog,
   };
 }
 

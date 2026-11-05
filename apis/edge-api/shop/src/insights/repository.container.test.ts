@@ -619,4 +619,72 @@ SELECT id FROM p`,
       expect(total("readySeconds")).toBeLessThanOrEqual(31 * 60);
     });
   });
+
+  describe("redesign 2 — the new figures", () => {
+    it("counts who takes the orders, returning customers, order sizes and products bought together", async () => {
+      await pool.query(`SELECT public.rebuild_category_derived()`);
+      const bread = await product("Bread");
+      const eggs = await product("Eggs");
+      // The same customer twice: the second order is from someone who bought here before.
+      const first = await paidOrder({ number: "EFY-R1", qty: 2, productId: bread, minutesAgo: 50 });
+      await pool.query(
+        `INSERT INTO public.order_item (order_id, product_id, variant_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount, shop_unit_price_amount, shop_line_subtotal_amount)
+         VALUES ($1, $2, (SELECT v.id FROM public.product_variant v WHERE v.product_id = $2 LIMIT 1), $3, 'Eggs', 10, 4, 40, 10, 40)`,
+        [first.orderId, eggs, SHOP],
+      );
+      await paidOrder({ number: "EFY-R2", qty: 1, productId: bread, minutesAgo: 20 });
+      await runRollup();
+
+      const dto = await readInsights({ shopId: SHOP }, "today", TZ);
+      expect(dto.customers).toEqual({ effyDriver: 2, courier: 0, returning: 1 });
+      // 6 units and 1 unit: one order of 6-10 items, one of 1-2.
+      expect(dto.orderSizes).toEqual([1, 0, 1, 0, 0]);
+      // One order holds both: a pair needs two orders before it is worth showing.
+      expect(dto.together).toEqual([]);
+      expect(dto.concentration.products).toBe(2);
+      expect(dto.primary.itemsPerOrder.value).toBe("3.5");
+      expect(dto.aisles.map((a) => a.name)).toEqual(["Dairy"]);
+      expect(dto.stock).not.toBeNull();
+      // Staff are never told who picked.
+      expect(dto.pickers).toBeNull();
+    });
+
+    it("keeps a pair once two orders share it", async () => {
+      const bread = await product("Bread");
+      const eggs = await product("Eggs");
+      for (const n of ["EFY-P1", "EFY-P2"]) {
+        const o = await paidOrder({ number: n, qty: 1, productId: bread });
+        await pool.query(
+          `INSERT INTO public.order_item (order_id, product_id, variant_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount, shop_unit_price_amount, shop_line_subtotal_amount)
+           VALUES ($1, $2, (SELECT v.id FROM public.product_variant v WHERE v.product_id = $2 LIMIT 1), $3, 'Eggs', 10, 1, 10, 10, 10)`,
+          [o.orderId, eggs, SHOP],
+        );
+      }
+      await runRollup();
+      const dto = await readInsights({ shopId: SHOP }, "today", TZ);
+      expect(dto.together).toHaveLength(1);
+      expect(dto.together[0]!.orders).toBe(2);
+      expect([dto.together[0]!.a.name, dto.together[0]!.b.name].sort()).toEqual(["Bread", "Eggs"]);
+    });
+
+    it("tells a manager who picked, from who moved the order to picking", async () => {
+      const staff = await pool.query<{ id: string }>(
+        `INSERT INTO public.shop_staff (cognito_sub, email, name, shop_id) VALUES ('sub-s1', 'kim@shop.test', 'Kim Tran', $1) RETURNING id`,
+        [SHOP],
+      );
+      const { fulfillmentId } = await paidOrder({ number: "EFY-K1", qty: 2, minutesAgo: 25 });
+      await pool.query(
+        `INSERT INTO public.fulfillment_event (shop_fulfillment_id, actor_staff_id, event_type, from_status, to_status, occurred_at)
+         VALUES ($1, $2, 'state_changed', 'received', 'picking', now() - interval '20 minutes'),
+                ($1, $2, 'state_changed', 'picking', 'ready_for_pickup', now() - interval '10 minutes')`,
+        [fulfillmentId, staff.rows[0]!.id],
+      );
+      await pool.query(`UPDATE public.shop_fulfillment SET status = 'ready_for_pickup' WHERE id = $1`, [fulfillmentId]);
+      await runRollup();
+
+      const dto = await readInsights({ shopId: SHOP, manager: true }, "today", TZ);
+      expect(dto.pickers).toEqual([{ staffId: staff.rows[0]!.id, name: "Kim Tran", orders: 1, averageTimeToReady: 900, cantSupplyUnits: 0 }]);
+    });
+  });
 });
+

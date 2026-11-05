@@ -264,7 +264,7 @@ function SplitRow({ link, swatch, label, value }: { link?: LinkProps; swatch?: s
   const body = (
     <>
       <span className="flex min-w-0 items-center gap-1.5 text-muted-foreground">
-        {swatch ? <i className="ov-sw" style={{ background: swatch }} /> : null}
+        {swatch ? <i className="ef-sw" style={{ background: swatch }} /> : null}
         {label}
       </span>
       <b className="font-medium whitespace-nowrap tabular-nums">{value}</b>
@@ -389,7 +389,7 @@ function HourChart({ t, metric, last, nowH }: { t: AdminOrdersTodayDTO; metric: 
         </span>
         <span className="ml-auto">{metric === "sales" ? "Sales" : "Orders"} per hour</span>
       </div>
-      <div ref={host} className="ov-chart">
+      <div ref={host} className="ef-chart">
         {w > 0 ? (
           <svg
             role="img"
@@ -477,24 +477,24 @@ function HourChart({ t, metric, last, nowH }: { t: AdminOrdersTodayDTO; metric: 
         ) : null}
         {tip ? (
           <div
-            className="ov-tip absolute"
+            className="ef-tip absolute"
             style={{ position: "absolute", left: Math.min(Math.max(x(at!) - 90, 0), Math.max(0, w - 190)), top: -6 }}
           >
             <b>{clockWords(tip.hour)}</b>
             {tip.cur !== null ? (
               <div>
-                <i className="ov-sw h-0.5 w-3" style={{ background: "var(--series)" }} />
+                <i className="ef-sw h-0.5 w-3" style={{ background: "var(--series)" }} />
                 Today
                 <strong>{fmt(tip.cur)}</strong>
               </div>
             ) : null}
             <div>
-              <i className="ov-sw h-0.5 w-3" style={{ background: "var(--series-prev)" }} />
+              <i className="ef-sw h-0.5 w-3" style={{ background: "var(--series-prev)" }} />
               <span className="first-letter:uppercase">{last}</span>
               <strong>{fmt(tip.prev)}</strong>
             </div>
             {pct !== null ? (
-              <div className="ov-tip__foot">
+              <div className="ef-tip__foot">
                 {pct >= 0 ? "+" : ""}
                 {pct.toFixed(0)}% on {last}
               </div>

@@ -32,6 +32,7 @@ const packagesSql = (where: string) => `
 SELECT sf.id::text AS id,
        sf.shop_id::text AS shop_id,
        sf.status,
+       COALESCE(o.placed_at, o.created_at) AS paid_at,
        o.delivery_type AS delivered_by,
        opd.window_start,
        (SELECT dr.deadline_at
@@ -91,6 +92,8 @@ export function runForPackage(p: PackageRunFacts, schedule: CollectionSchedule, 
 export interface ShopPackageRun {
   id: string;
   status: string;
+  /** When the customer paid: where a run's bar starts on the shop's Today. */
+  paidAt: Date;
   runAt: Date | null;
 }
 
@@ -125,6 +128,7 @@ export async function shopPackageRuns(
   const res = await db.query<{
     id: string;
     status: string;
+    paid_at: Date;
     delivered_by: "effy" | "courier";
     window_start: Date | null;
     assigned_run_at: Date | null;
@@ -135,6 +139,7 @@ export async function shopPackageRuns(
     packages: res.rows.map((r) => ({
       id: r.id,
       status: r.status,
+      paidAt: r.paid_at,
       runAt: runForPackage(
         { deliveredBy: r.delivered_by, windowStart: r.window_start, assignedRunAt: r.assigned_run_at },
         schedule,
@@ -154,6 +159,7 @@ export async function everyShopPackageRuns(
     id: string;
     shop_id: string;
     status: string;
+    paid_at: Date;
     delivered_by: "effy" | "courier";
     window_start: Date | null;
     assigned_run_at: Date | null;
@@ -165,6 +171,7 @@ export async function everyShopPackageRuns(
       id: r.id,
       shopId: r.shop_id,
       status: r.status,
+      paidAt: r.paid_at,
       runAt: runForPackage(
         { deliveredBy: r.delivered_by, windowStart: r.window_start, assignedRunAt: r.assigned_run_at },
         schedule,

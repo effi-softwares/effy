@@ -337,7 +337,9 @@ All tours marks it "Updated".
 
 ## Tour Inventory (shop console)
 
-Sixteen tours. In each table, **Points at** is the part of the page the step outlines. **Shown when** is blank when
+> **Amended 2026-11-05 (Today and Insights redesign 2):** Today and the four Insights tours were rewritten for the new pages (their versions rose to 2), and two tours were added: IK (Insights · Stock, a new page) and IC (one chart on its own page). Sixteen tours became eighteen.
+
+Eighteen tours. In each table, **Points at** is the part of the page the step outlines. **Shown when** is blank when
 the step is always shown. Text in quotes elsewhere in this spec is the console's own wording.
 
 ### W - Welcome to Effy Shop (the whole console; starts by itself at first sign-in)
@@ -359,15 +361,17 @@ the step is always shown. Text in quotes elsewhere in this spec is the console's
 
 | # | Points at | Title | Text | Shown when |
 |---|---|---|---|---|
-| 1 | Page heading and its line | Your day at a glance | Today's date and what you've sold so far today. | |
-| 2 | Next collection band | Next collection | When the Effy driver next collects, and how many of the orders due are ready. Have them packed and labelled before this time. | |
-| 3 | Do this next | What to do next | Your work, in the order to do it: the oldest order waiting first, then anything that needs a look. Open a row to start. | There is work |
-| 4 | The Now line | Now | Above the line is what has just happened today. Below it is what's still to come. | |
-| 5 | Later today | Later today | Collections and other things already planned for the rest of the day. | Something is planned |
-| 6 | Yesterday | Yesterday | How yesterday ended, to compare with today. | Shown |
-| 7 | Quick actions | Quick actions | Shortcuts to what you start most: a new product, receiving stock, exporting orders, or the orders that need attention. | |
-| 8 | Print pick lists | Print pick lists | One pick list for every order waiting to be picked, in walking order. It's greyed out when nothing is waiting. | |
-| 9 | More (⋯) | Team activity | Everything your team has done, including picks, notes, stock and refunds, in one log you can search and export. | |
+| 1 | Page heading and its line | Your day at a glance | Today's date and what you've sold so far today. |  |
+| 2 | The sentence and what comes next | How the day is going | One sentence on what matters most right now, then the next three things on the clock. A rose ground means orders missed a driver. |  |
+| 3 | Needs you | Needs you | Your work, most urgent first: what the next driver needs, then what costs sales, then what can wait. Each count opens its list. |  |
+| 4 | Today's Effy drivers | Today's Effy drivers | Every Effy collection run today on one clock. Each bar runs from its first order to the time the driver comes, split by how far each order is. |  |
+| 5 | Being picked now | Being picked now | Who is picking which order, and for which driver. |  |
+| 6 | Where today's orders are | Where today's orders are | Every order that came in today, after it leaves your hands too, in the same words as the order page. |  |
+| 7 | Orders today | Orders today | Orders, sales, average order and time to ready since midnight, against the same day last week. |  |
+| 8 | Just happened | Just happened | The latest from your team and your orders. Team activity has everything. |  |
+| 9 | Quick actions | Quick actions | Shortcuts to what you start most: a new product, receiving stock, exporting orders, or the orders that need attention. |  |
+| 10 | Print pick lists | Print pick lists | One pick list for every order waiting to be picked, in walking order. It's greyed out when nothing is waiting. |  |
+| 11 | More (⋯) | Team activity | Everything your team has done, including picks, notes, stock and refunds, in one log you can search and export. |  |
 
 ### OQ - Orders · Queue
 
@@ -463,37 +467,57 @@ the step is always shown. Text in quotes elsewhere in this spec is the console's
 
 | # | Points at | Title | Text | Shown when |
 |---|---|---|---|---|
-| 1 | Pages: Overview, Sales, Products, Service | Four views | Overview at a glance, then Sales, Products and Service in more depth. Each one has its own short tour. | |
-| 2 | Range | Choose the period | Today, 7 days or 30 days. Each figure is compared with the period before. | |
-| 3 | Headline figures | Your figures | Revenue, orders and average order. Revenue counts your goods only, and a refund comes off on the day it was issued. | |
-| 4 | Show chart / Show table | Chart or table | The same figures as a chart or as exact numbers. | |
-| 5 | More (⋯) | Export | Download the period's figures as a spreadsheet. | |
+| 1 | Pages: Overview, Sales, Products, Stock, Service | Five views | Overview at a glance, then Sales, Products, Stock and Service in more depth. Each one has its own short tour. |  |
+| 2 | Range | Choose the period | Today, 7 days or 30 days. Each figure is compared with the period before. |  |
+| 3 | The sentence | How the period went | Sales and orders for the period, against the one before. Sales count your goods only, and a refund comes off on the day it was issued. |  |
+| 4 | Worth doing | Worth doing | What the figures say to do, biggest cost first. Each row opens the page behind it. |  |
+| 5 | Show chart / Show table | Chart or table | The same figures as a chart or as exact numbers. |  |
+| 6 | Look closer | Look closer | Each card is one finding. Open it for the whole chart, its table and how it's counted. |  |
+| 7 | More (⋯) | Export | Download the period's figures as a spreadsheet. |  |
 
 ### IS - Insights · Sales
 
 | # | Points at | Title | Text | Shown when |
 |---|---|---|---|---|
-| 1 | Measure | What to chart | Choose the measure the chart shows. | |
-| 2 | When your orders come in | When orders come in | Your busiest hours and days, to plan who's on the bench. It appears after two weeks of orders. | |
-| 3 | Behind the revenue | Behind the revenue | What moved revenue this period: cancellations, refunds and what you couldn't supply. | |
+| 1 | Measure | What to chart | Choose the measure the chart shows. |  |
+| 2 | Look closer | Look closer | By aisle, your average day, when orders come in, order size and who buys. Each card opens its chart. |  |
+| 3 | Behind the sales | Behind the sales | What moved sales this period: refunds, what you couldn't supply and cancellations. |  |
 
 ### IP - Insights · Products
 
 | # | Points at | Title | Text | Shown when |
 |---|---|---|---|---|
-| 1 | Best sellers | Best sellers | Your products by what they sold this period. | |
-| 2 | Moving up | Moving up | Products selling more than the period before. | |
-| 3 | Slipping | Slipping | Products selling less than the period before. | |
-| 4 | Selling but out of stock | Selling but out of stock | Shoppers want these, but you have none. Restock them first. | |
+| 1 | Best sellers | Best sellers | Your products by what they sold this period, with their share, their place and the stock you have now. |  |
+| 2 | Moving up | Moving up | Products selling more than the period before. |  |
+| 3 | Slipping | Slipping | Products selling less than the period before. |  |
+| 4 | Selling but out of stock | Selling but out of stock | Shoppers want these, but you have none. Restock them first. |  |
+
+### IK - Insights · Stock
+
+| # | Points at | Title | Text | Shown when |
+|---|---|---|---|---|
+| 1 | Running out | Running out | When each product runs out if it keeps selling like the last four weeks. Restock the soonest first. |  |
+| 2 | Sold out | Sold out | What reached none this period, for how long, and roughly the sales that cost. |  |
+| 3 | Not sold in 30 days | Not sold in 30 days | In stock and on sale, but nobody bought one in 30 days. |  |
+| 4 | Written off | Written off | Stock you recorded as expired or damaged, at your prices. |  |
 
 ### IV - Insights · Service
 
 | # | Points at | Title | Text | Shown when |
 |---|---|---|---|---|
-| 1 | Found rate | Found rate | Of everything ordered, how much you supplied. The higher the better. | |
-| 2 | Can't supply | Can't supply | How much you couldn't supply. Each miss is a disappointed customer. | |
-| 3 | Time to ready | Time to ready | Minutes from payment to Ready. Faster orders make the collection. | |
-| 4 | What you could not supply | What you could not supply | The products you missed most, so you can fix stock or switch them off sooner. | |
+| 1 | Your four measures | Your four measures | Found rate, couldn't supply, time to ready and ready before the driver. Open one for its chart. |  |
+| 2 | Look closer | Look closer | Which driver you miss most, when you're slowest and how long orders take. |  |
+| 3 | What you could not supply | What you could not supply | The products you missed most, so you can fix stock or switch them off sooner. |  |
+| 4 | Who picked | Who picked | Orders each person finished and how long they took. For planning shifts, not for ranking people. | Manager |
+
+### IC - Insights · A chart (one chart on its own page)
+
+| # | Points at | Title | Text | Shown when |
+|---|---|---|---|---|
+| 1 | Back | Back to the page | Returns to the page this chart came from. |  |
+| 2 | Range | Choose the period | Today, 7 days or 30 days. The chart and its finding follow. |  |
+| 3 | The chart | The whole chart | The finding in one sentence, then the chart. Point at it, or use the arrow keys, for each value. |  |
+| 4 | Show chart / Show table | Chart or table | The same figures as a chart or as exact numbers. |  |
 
 ### TM - Team (Manager only)
 

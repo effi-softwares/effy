@@ -12,6 +12,7 @@ const EXEMPT: Record<string, string> = {
   "insights/sales": "reached from the tabs at the top of Insights",
   "insights/products": "reached from the tabs at the top of Insights",
   "insights/service": "reached from the tabs at the top of Insights",
+  "insights/stock": "reached from the tabs at the top of Insights",
 }
 
 function declaredPaths(): Array<{ file: string; path: string }> {

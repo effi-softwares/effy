@@ -12,6 +12,9 @@ export interface LineChartProps {
   names: readonly [string, string?]
   /** A small trend: no axes, no end labels. */
   compact?: boolean
+  /** Draw over the range the values move in, not from zero: for a rate, never for money or counts. */
+  fit?: boolean
+  height?: number
   label: string
   className?: string
 }
@@ -52,24 +55,29 @@ const pathOf = (values: readonly (number | null)[], x: (i: number) => number, y:
  * One axis, one thin line, the comparison dashed behind it. A crosshair and a readout on hover, the same from the
  * arrow keys; the table view beside it carries every value for anyone who cannot use either.
  */
-export function LineChart({ labels, current, previous, format, names, compact = false, label, className }: LineChartProps) {
+export function LineChart({ labels, current, previous, format, names, compact = false, fit = false, height: tall, label, className }: LineChartProps) {
   const { ref, width } = useWidth()
   const calm = useReducedMotion()
   const [at, setAt] = useState<number | null>(null)
-  const height = compact ? 120 : 280
+  const height = tall ?? (compact ? 120 : 280)
 
   const shape = useMemo(() => {
     const m = compact ? BARE : AXIS
     const all = [...current, ...(previous ?? [])].filter((v): v is number => v !== null)
     const top = Math.max(0, ...all)
-    const step = axisStep(top)
-    const max = compact ? top * 1.04 || 1 : step * 4
-    const min = compact ? Math.min(...all, top) * 0.96 : 0
+    const low = Math.min(...all, top)
+    // A fitted axis still starts on a round step, so its labels stay readable.
+    const fitStep = axisStep(Math.max(top - low, top * 0.02, 0.4))
+    const step = fit ? fitStep : axisStep(top)
+    const base = fit ? Math.max(0, Math.floor(low / step) * step) : 0
+    const max = compact ? top * 1.04 || 1 : fit ? Math.max(base + step * 4, top) : step * 4
+    const min = compact ? low * 0.96 : base
     const span = max - min || 1
     const x = (i: number) => m.left + (i / Math.max(labels.length - 1, 1)) * (width - m.left - m.right)
     const y = (v: number) => m.top + (1 - (v - min) / span) * (height - m.top - m.bottom)
-    return { m, x, y, ticks: compact ? [] : [0, 1, 2, 3, 4].map((k) => k * step) }
-  }, [compact, current, previous, labels.length, width, height])
+    const tickStep = (max - min) / 4
+    return { m, x, y, ticks: compact ? [] : [0, 1, 2, 3, 4].map((k) => min + k * tickStep) }
+  }, [compact, fit, current, previous, labels.length, width, height])
 
   const { m: margin, x, y, ticks } = shape
   const every = Math.max(1, Math.ceil(labels.length / (width < 520 ? 5 : 9)))

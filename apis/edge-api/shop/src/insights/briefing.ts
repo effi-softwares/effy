@@ -9,7 +9,11 @@ const QUIET_BELOW = -8;
 const RATE_MOVE = 0.1;
 /** Places a product must climb to be worth a line. */
 const CLIMB = 2;
-const MAX_LINES = 3;
+const MAX_LINES = 4;
+/** Missed sales below this are not worth a line. */
+const SOLD_OUT_FROM = 20;
+/** Percentage points the ready-before-the-driver rate must move to be worth a line. */
+const DRIVER_MOVE = 1;
 
 const WEEKDAY: Record<string, string> = {
   Mon: "Monday", Tue: "Tuesday", Wed: "Wednesday", Thu: "Thursday", Fri: "Friday", Sat: "Saturday", Sun: "Sunday",
@@ -73,6 +77,43 @@ function foundLine(
   };
 }
 
+function soldOutLine(
+  soldOut: { name: string; times: number; missedRevenue: string } | null,
+  currency: string,
+): InsightsBriefingDTO["changes"][number] | null {
+  if (!soldOut || Number(soldOut.missedRevenue) < SOLD_OUT_FROM) return null;
+  const times = soldOut.times === 1 ? "once" : soldOut.times === 2 ? "twice" : `${soldOut.times} times`;
+  return {
+    tone: "down",
+    title: `${soldOut.name} sold out ${times}`,
+    detail: `About ${dollars(Number(soldOut.missedRevenue), currency)} of sales it could have had`,
+    page: "stock",
+  };
+}
+
+const runWords = (time: string) => {
+  const [h, m] = time.split(":").map(Number) as [number, number];
+  return `${h % 12 || 12}${m ? `:${String(m).padStart(2, "0")}` : ""} ${h < 12 ? "am" : "pm"}`;
+};
+
+function driverLine(
+  ready: InsightsFigureDTO | null,
+  worst: { time: string; due: number; ready: number } | null,
+  against: string,
+): InsightsBriefingDTO["changes"][number] | null {
+  if (!ready || ready.change.kind !== "abs" || ready.change.amount === null) return null;
+  const move = Number(ready.change.amount);
+  if (Math.abs(move) < DRIVER_MOVE) return null;
+  const pct = Math.round(Number(ready.value));
+  const miss = worst ? ` The ${runWords(worst.time)} driver is the one you miss most.` : "";
+  return {
+    tone: move > 0 ? "up" : "down",
+    title: `${pct}% ready before the driver`,
+    detail: `From ${Math.round(Number(ready.previous))}% ${against}.${miss}`,
+    page: "service",
+  };
+}
+
 function productLine(products: readonly InsightsTopProductDTO[]): InsightsBriefingDTO["changes"][number] | null {
   const climbs = products
     .map((p, i) => ({ p, rank: i + 1, up: p.previousRank === null ? 0 : p.previousRank - (i + 1) }))
@@ -95,12 +136,18 @@ export function buildBriefing(input: {
   quality: ShopInsightsDTO["quality"];
   topProducts: readonly InsightsTopProductDTO[];
   cantSupplyProducts: readonly { name: string; units: number }[];
+  /** The size whose selling out cost most in the window, from the live stock read. */
+  soldOut?: { name: string; times: number; missedRevenue: string } | null;
+  /** The run with most orders not ready when its driver came. */
+  worstRun?: { time: string; due: number; ready: number } | null;
 }): InsightsBriefingDTO {
   const against = comparedWith(input.range, input.weekday);
   const units = input.cantSupplyProducts.reduce((n, p) => n + p.units, 0);
   const changes = [
     bestLine(input.range, input.buckets, input.currency),
-    foundLine(input.quality.foundRate, input.cantSupplyProducts[0], units, against),
+    soldOutLine(input.soldOut ?? null, input.currency),
+    driverLine(input.quality.readyBeforeDriver ?? null, input.worstRun ?? null, against) ??
+      foundLine(input.quality.foundRate, input.cantSupplyProducts[0], units, against),
     productLine(input.topProducts),
   ].filter((c) => c !== null);
   return { mood: moodOf(input.revenue), comparedWith: against, changes: changes.slice(0, MAX_LINES) };

@@ -83,3 +83,68 @@ export function nextCollection(
   }
   return { runAt, stop: stops.find((s) => sameInstant(s.runAt, runAt)), due };
 }
+
+/** What a run already collected from this shop took, and what its driver found not ready. */
+export interface RunTaken {
+  runAt: Date;
+  collected: number;
+  missed: number;
+  collectedAt: Date | null;
+  firstPaidAt: Date | null;
+}
+
+export interface TodayRun {
+  runAt: Date;
+  driver: CollectionDriver;
+  collectedAt: Date | null;
+  firstPaidAt: Date | null;
+  collected: number;
+  ready: number;
+  picking: number;
+  waiting: number;
+  missed: number;
+}
+
+/**
+ * Every collection run today, earliest first: the scheduled ones, and any other run a package or a stop names today.
+ * A package still at the shop counts on the run expected to take it, by how far it is; what a run already took counts
+ * as collected, and what its driver found not ready as missed (those also count again on the run they go on now).
+ */
+export function todayRuns(input: {
+  scheduled: readonly Date[];
+  packages: readonly ShopPackageRun[];
+  stops: readonly StopFacts[];
+  taken: readonly RunTaken[];
+  now: Date;
+  timezone: string;
+}): TodayRun[] {
+  const isToday = (d: Date) => dayOffset(d, input.now, input.timezone) === 0;
+  const instants = new Map<number, Date>();
+  for (const d of [
+    ...input.scheduled,
+    ...input.taken.map((t) => t.runAt),
+    ...input.stops.filter((s) => s.stopStatus !== "skipped").map((s) => s.runAt),
+    ...input.packages.flatMap((p) => (p.runAt ? [p.runAt] : [])),
+  ]) {
+    if (isToday(d)) instants.set(d.getTime(), d);
+  }
+  return [...instants.values()]
+    .sort((a, b) => a.getTime() - b.getTime())
+    .map((runAt) => {
+      const on = input.packages.filter((p) => p.runAt && sameInstant(p.runAt, runAt));
+      const taken = input.taken.find((t) => sameInstant(t.runAt, runAt));
+      const paid = [...on.map((p) => p.paidAt), ...(taken?.firstPaidAt ? [taken.firstPaidAt] : [])];
+      const firstPaidAt = paid.length ? new Date(Math.min(...paid.map((d) => d.getTime()))) : null;
+      return {
+        runAt,
+        driver: driverState(input.stops.find((s) => sameInstant(s.runAt, runAt)), input.now),
+        collectedAt: taken?.collectedAt ?? null,
+        firstPaidAt,
+        collected: taken?.collected ?? 0,
+        ready: on.filter((p) => p.status === "ready_for_pickup").length,
+        picking: on.filter((p) => p.status === "picking").length,
+        waiting: on.filter((p) => p.status !== "ready_for_pickup" && p.status !== "picking").length,
+        missed: taken?.missed ?? 0,
+      };
+    });
+}

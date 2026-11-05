@@ -36,7 +36,7 @@ export function OverviewScreen() {
   useTourPage("overview", { status: "ready" })
 
   return (
-    <div className="ov">
+    <div className="ef-board">
       <PageHeader
         title={first ? `${greeting()}, ${first}` : greeting()}
         description={`${dateLine.format(new Date(now))} · What needs attention now, and how today's deliveries are going.`}
@@ -59,8 +59,8 @@ export function OverviewScreen() {
 
       <StatusBrief brief={o.brief} coming={o.coming} nowH={o.nowH} />
 
-      <div className="ov-layout">
-        <div className="ov-main">
+      <div className="ef-board-layout">
+        <div className="ef-board-main">
           <DayLine now={now} runs={o.runs} />
           <PackageFlow />
           <OrdersToday nowH={o.nowH} />
@@ -73,7 +73,7 @@ export function OverviewScreen() {
             <Shortcuts />
           </div>
         </div>
-        <div className="ov-rail">
+        <div className="ef-board-rail">
           <NeedsAttention rows={o.rows} />
           <OnDuty unsafe={o.unsafe} waiting={o.waiting} />
         </div>

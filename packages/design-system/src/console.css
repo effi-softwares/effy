@@ -566,3 +566,447 @@ body {
 }
 [data-collapsible="icon"] .ef-count-dot.is-strong { @apply bg-foreground; }
 
+/* ---- Boards: the back-office Overview and the shop's Today and Insights ----------------------------------------
+   One day line (`ef-tl`, every window or run on one clock), one chart read-out (`ef-tip`), one swatch (`ef-sw`), one
+   line chart host (`ef-chart`) and one two-column board layout (`ef-board-layout`), shared by both consoles. */
+.ef-board {
+  /* Package colours for the day line and "Where every package is": grey until it is at the hub, blue on the
+     way, green when done, rose for a problem. Every hex is a Tailwind palette value. */
+  --pkg-preparing: #e4e4e7;
+  --pkg-ready: #d4d4d8;
+  --pkg-with-driver: #a1a1aa;
+  --pkg-earlier: #d4d4d8;
+  --pkg-at-hub: #60a5fa;
+  --pkg-out: #1e40af;
+  --pkg-carrier: #172554;
+  --pkg-delivered: #059669;
+  --pkg-problem: #f43f5e;
+  --pkg-cancelled: #f4f4f5;
+  --series: var(--primary-fill);
+  --series-prev: #a1a1aa;
+}
+.dark .ef-board {
+  --pkg-preparing: #3f3f46;
+  --pkg-ready: #52525b;
+  --pkg-with-driver: #71717a;
+  --pkg-earlier: #52525b;
+  --pkg-at-hub: #93c5fd;
+  --pkg-out: #2563eb;
+  --pkg-carrier: #dbeafe;
+  --pkg-delivered: #059669;
+  --pkg-problem: #f43f5e;
+  --pkg-cancelled: #27272a;
+  --series-prev: #71717a;
+}
+
+/* The day line: every window on one clock. Columns widen into their own at 900px of section width. */
+.ef-tl-host {
+  container: ef-tl-host / inline-size;
+  min-width: 0;
+}
+.ef-tl {
+  --c1: 128px;
+  --c3: 96px;
+  --c6: 128px;
+  --g: 12px;
+  --px: 8px;
+  --right: calc(var(--c3) + var(--c6) + var(--g) * 2 + var(--px));
+  position: relative;
+  border-top: 1px solid var(--border);
+}
+.ef-tl__axis,
+.ef-tl__row {
+  display: grid;
+  grid-template-columns: var(--c1) minmax(0, 1fr) var(--c3) var(--c6);
+  gap: 0 var(--g);
+  padding: 0 var(--px);
+  align-items: center;
+}
+.ef-tl__col {
+  display: none;
+}
+.ef-tl__axis {
+  position: relative;
+  height: 34px;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.ef-tl__hrs {
+  position: relative;
+  height: 100%;
+}
+.ef-tl__hrs span {
+  position: absolute;
+  top: 9px;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.ef-tl__hrs span:first-child {
+  transform: none;
+}
+.ef-tl__hrs span:last-child {
+  transform: translateX(-100%);
+}
+.ef-tl__over {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--c1) + var(--g) + var(--px));
+  right: var(--right);
+  pointer-events: none;
+}
+.ef-tl__grid {
+  position: absolute;
+  top: 34px;
+  bottom: 0;
+  width: 1px;
+  background: var(--border);
+  opacity: 0.7;
+}
+.ef-tl__past {
+  position: absolute;
+  left: 0;
+  top: 34px;
+  bottom: 0;
+  background: color-mix(in srgb, var(--muted) 62%, transparent);
+}
+.ef-tl__now {
+  position: absolute;
+  top: 6px;
+  bottom: 0;
+  width: 0;
+  z-index: 4;
+}
+.ef-tl__now::before {
+  content: "";
+  position: absolute;
+  top: 22px;
+  bottom: 0;
+  left: -1px;
+  width: 2px;
+  background: var(--foreground);
+}
+.ef-tl__now b {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform: translateX(-50%);
+  height: 22px;
+  padding: 0 7px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--radius-md);
+  background: var(--foreground);
+  color: var(--background);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.ef-tl__row {
+  position: relative;
+  min-height: 62px;
+  padding-block: 8px;
+  border-top: 1px solid var(--border);
+  color: inherit;
+  text-decoration: none;
+}
+a.ef-tl__row:hover,
+a.ef-tl__row:focus-visible {
+  background: var(--row-hover);
+}
+a.ef-tl__row:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
+}
+.ef-tl__plot {
+  position: relative;
+  height: 42px;
+}
+.ef-tl__bar {
+  position: absolute;
+  top: 4px;
+  height: 14px;
+  display: flex;
+  gap: 2px;
+  min-width: 6px;
+}
+.ef-tl__bar i {
+  display: block;
+  min-width: 3px;
+  height: 100%;
+}
+.ef-tl__bar i:first-child {
+  border-radius: 4px 0 0 4px;
+}
+.ef-tl__bar i:last-child {
+  border-radius: 0 4px 4px 0;
+}
+.ef-tl__bar i:only-child {
+  border-radius: 4px;
+}
+.ef-tl__whisk {
+  position: absolute;
+  top: 10px;
+  height: 2px;
+  background: var(--border);
+}
+.ef-tl__tick {
+  position: absolute;
+  top: 5px;
+  width: 2px;
+  height: 12px;
+  margin-left: -1px;
+  background: var(--muted-foreground);
+  border-radius: 1px;
+}
+.ef-tl__tick[data-soon] {
+  background: var(--accent2);
+}
+.ef-tl__cap {
+  position: absolute;
+  z-index: 5;
+  top: 21px;
+  padding: 0 4px;
+  margin-inline: -4px;
+  border-radius: 3px;
+  background: var(--background);
+  font-size: 12.5px;
+  line-height: 18px;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ef-tl__run {
+  position: absolute;
+  top: 3px;
+  width: 16px;
+  height: 16px;
+  margin-left: -8px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1.5px solid var(--muted-foreground);
+  background: var(--background);
+  color: var(--background);
+}
+.ef-tl__run[data-state="done"] {
+  background: var(--muted-foreground);
+}
+.ef-tl__run[data-state="late"] {
+  border-color: var(--destructive-fill);
+  background: var(--destructive-fill);
+}
+.ef-tl__run[data-state="next"] {
+  border-color: var(--accent2);
+  border-width: 2px;
+  box-shadow: 0 0 0 3px var(--accent2-soft);
+}
+.ef-tl__runs {
+  min-height: 46px;
+}
+.ef-tl__runs .ef-tl__plot {
+  height: 22px;
+}
+.ef-tl__runs-word {
+  grid-column: 3 / -1;
+  text-align: right;
+  font-size: 13px;
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+@container ef-tl-host (min-width: 900px) {
+  .ef-tl {
+    --c1: 136px;
+    --c3: 112px;
+    --c4: 64px;
+    --c5: 150px;
+    --c6: 136px;
+    --right: calc(var(--c3) + var(--c4) + var(--c5) + var(--c6) + var(--g) * 4 + var(--px));
+  }
+  .ef-tl__axis,
+  .ef-tl__row {
+    grid-template-columns: var(--c1) minmax(0, 1fr) var(--c3) var(--c4) var(--c5) var(--c6);
+  }
+  .ef-tl__col {
+    display: block;
+  }
+  .ef-tl__cap {
+    display: none;
+  }
+  .ef-tl__plot {
+    height: 22px;
+  }
+  .ef-tl__row {
+    min-height: 58px;
+  }
+}
+@container ef-tl-host (max-width: 600px) {
+  .ef-tl__over,
+  .ef-tl__axis,
+  .ef-tl__whisk,
+  .ef-tl__tick,
+  .ef-tl__runs .ef-tl__plot {
+    display: none;
+  }
+  .ef-tl__row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px 12px;
+    padding-inline: 0;
+  }
+  .ef-tl__plot {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    height: auto;
+  }
+  .ef-tl__bar {
+    position: relative;
+    left: 0 !important;
+    width: 100% !important;
+    top: 0;
+  }
+  .ef-tl__cap {
+    position: static;
+    display: block;
+    margin-top: 6px;
+    white-space: normal;
+    max-width: none;
+  }
+  .ef-tl__booked {
+    grid-row: 3;
+    grid-column: 1 / -1;
+  }
+  .ef-tl__state {
+    grid-row: 1;
+    grid-column: 2;
+  }
+  .ef-tl__runs-word {
+    grid-column: 2;
+  }
+}
+
+/* Swatches and the floating read-out shared by the day line, the package bar and the chart. */
+.ef-sw {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex: none;
+}
+.ef-tip {
+  position: fixed;
+  z-index: 40;
+  min-width: 176px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--popover);
+  color: var(--popover-foreground);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.12);
+  font-size: 13px;
+  pointer-events: none;
+}
+.ef-tip > b {
+  display: block;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+.ef-tip > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted-foreground);
+  line-height: 20px;
+}
+.ef-tip strong {
+  margin-left: auto;
+  padding-left: 14px;
+  font-weight: 600;
+  color: var(--foreground);
+  font-variant-numeric: tabular-nums;
+}
+.ef-tip__foot {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border);
+}
+
+/* The chart. */
+.ef-chart {
+  position: relative;
+  height: 220px;
+  touch-action: pan-y;
+}
+.ef-chart svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.ef-chart text {
+  font-size: 12px;
+  fill: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+.ef-chart text[data-end] {
+  font-weight: 600;
+  fill: var(--foreground);
+}
+
+/* Layout A: the day in the main column, a rail for what needs a person. One column below 1360px. */
+.ef-board-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 36px;
+}
+.ef-board-layout > .ef-board-main,
+.ef-board-layout > .ef-board-rail {
+  display: contents;
+}
+@media (min-width: 1360px) {
+  .ef-board-layout {
+    grid-template-columns: minmax(0, 1fr) 352px;
+    gap: 0 32px;
+    align-items: start;
+  }
+  .ef-board-layout > .ef-board-main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 36px;
+    min-width: 0;
+  }
+  .ef-board-layout > .ef-board-rail {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 32px;
+    min-width: 0;
+    padding-left: 32px;
+    border-left: 1px solid var(--border);
+  }
+}
+@media (max-width: 1359px) {
+  .ef-board-layout [data-order="1"] {
+    order: 1;
+  }
+  .ef-board-layout [data-order="2"] {
+    order: 2;
+  }
+  .ef-board-layout [data-order="3"] {
+    order: 3;
+  }
+  .ef-board-layout [data-order="4"] {
+    order: 4;
+  }
+  .ef-board-layout [data-order="5"] {
+    order: 5;
+  }
+  .ef-board-layout [data-order="6"] {
+    order: 6;
+  }
+  .ef-board-layout [data-order="7"] {
+    order: 7;
+  }
+}

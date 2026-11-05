@@ -29,6 +29,13 @@ function snapshot(over: Partial<TodaySnapshot> = {}): TodaySnapshot {
     ahead: [],
     yesterday: null,
     nextCollection: null,
+    runs: [],
+    pickups: [],
+    packages: null,
+    picking: [],
+    late: [],
+    selling: [],
+    catalog: { missingDetails: 0, inReview: 0, sentBack: 0 },
     ...over,
   };
 }

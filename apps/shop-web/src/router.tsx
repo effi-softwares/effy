@@ -7,7 +7,7 @@ import { catalogRoute } from "./routes/catalog"
 import { catalogNewRoute } from "./routes/catalog.new"
 import { catalogAvailabilityRoute } from "./routes/catalog.availability"
 import { catalogProductRoute } from "./routes/catalog.$productId"
-import { insightsProductsRoute, insightsRoute, insightsSalesRoute, insightsServiceRoute } from "./routes/insights"
+import { insightsChartRoute, insightsProductsRoute, insightsRoute, insightsSalesRoute, insightsServiceRoute, insightsStockRoute } from "./routes/insights"
 import { notificationSettingsRoute } from "./routes/settings.notifications"
 import { printingSettingsRoute } from "./routes/settings.printing"
 import { ordersRoute } from "./routes/orders"
@@ -30,6 +30,8 @@ const routeTree = rootRoute.addChildren([
     insightsSalesRoute,
     insightsProductsRoute,
     insightsServiceRoute,
+    insightsStockRoute,
+    insightsChartRoute,
   ]),
   authLayoutRoute.addChildren([signInRoute]),
 ])

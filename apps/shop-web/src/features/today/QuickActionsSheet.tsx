@@ -95,7 +95,7 @@ export function QuickActionsSheet({
         {
           icon: BarChart3,
           title: "Open insights",
-          description: "Revenue, volume, conversion and top products.",
+          description: "Sales, products, stock and how fast orders leave.",
           run: () => {
             close()
             track({ name: "quick_action_used", action: "open_insights" })

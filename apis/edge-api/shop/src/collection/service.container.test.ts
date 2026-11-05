@@ -13,7 +13,8 @@ vi.mock("@effy/edge-shared", async () => {
 
 import { nextRunInstant } from "@effy/edge-shared";
 
-import { collectionsFor, nextCollectionFor } from "./service";
+import { readCatalogCounts, readLate, readPackageCounts, readPicking, readPickupsToday, readSelling } from "../today/board";
+import { collectionsFor, nextCollectionFor, runsTodayFor } from "./service";
 
 const RUN = process.env.CONTAINER_TESTS === "1";
 
@@ -152,4 +153,44 @@ describe.skipIf(!RUN)("collection facts for a shop — real PostgreSQL, real mig
     await pool.query(`TRUNCATE public.delivery_collection_run CASCADE`);
     expect(await nextCollectionFor(SHOP, new Date())).toBeNull();
   });
+
+  describe("Today's board (redesign 2)", () => {
+    it("counts what a run took and what its driver found not ready, and lists the order left behind", async () => {
+      const now = new Date();
+      // A run a minute ago, today on the shop's clock (skipped in the first minute after midnight).
+      const runAt = new Date(now.getTime() - 60_000);
+      const taken = await order("collected");
+      const behind = await order("received");
+      await round(runAt, { onDuty: true, stopStatus: "done", packages: [taken, behind] });
+      await pool.query(`UPDATE public.round_package SET state = 'picked_up', settled_at = now() WHERE shop_fulfillment_id = $1`, [taken]);
+      await pool.query(`UPDATE public.round_package SET state = 'not_available', settled_at = now() WHERE shop_fulfillment_id = $1`, [behind]);
+
+      const { runs, packageRuns } = await runsTodayFor(SHOP, now);
+      const run = runs.find((r) => r.runAt.getTime() === runAt.getTime());
+      if (run) {
+        expect(run).toMatchObject({ collected: 1, missed: 1, driver: "collected" });
+        expect(run.collectedAt).not.toBeNull();
+      }
+      // The order left behind goes on a later run.
+      expect(packageRuns.get(behind)?.getTime()).toBeGreaterThan(now.getTime());
+      const late = await readLate(SHOP);
+      expect(late.map((l) => l.fulfillmentId)).toEqual([behind]);
+      expect(late[0]).toMatchObject({ stage: "waiting", picker: null });
+    });
+
+    it("counts today's orders by status, and reads picking, selling, catalogue and pickups without error", async () => {
+      await order("received");
+      await order("ready_for_pickup");
+      await order("received", { courierSupplier: true });
+      const counts = await readPackageCounts(SHOP);
+      const total = (r: Record<string, number>) => Object.values(r).reduce((n, x) => n + x, 0);
+      expect(total(counts.effy_driver)).toBe(2);
+      expect(total(counts.courier)).toBe(1);
+      expect(await readPicking(SHOP)).toEqual([]);
+      expect(await readSelling(SHOP)).toEqual([]);
+      expect(await readCatalogCounts(SHOP)).toEqual({ missingDetails: 0, inReview: 0, sentBack: 0 });
+      expect(await readPickupsToday(SHOP)).toEqual([]);
+    });
+  });
 });
+

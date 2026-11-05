@@ -5,8 +5,9 @@ import { collectionDeadline } from "@effy/edge-shared";
 import { loadCollectionSchedule, shopPackageRuns } from "@effy/edge-shared/delivery";
 import type { ShopNextCollectionDTO, ShopOrderCollectionDTO } from "@effy/shared-types";
 
+import { readRunsDone } from "../today/board";
 import { loadStops, shopTimezone } from "./repository";
-import { dayOffset, driverState, nextCollection, runsAhead } from "./rule";
+import { dayOffset, driverState, nextCollection, runsAhead, todayRuns, type TodayRun } from "./rule";
 
 /** Today's panel; null when no collection runs are set up. */
 export async function nextCollectionFor(shopId: string, now = new Date()): Promise<ShopNextCollectionDTO | null> {
@@ -53,4 +54,26 @@ export async function collectionsFor(
     out.set(p.id, { runAt: runAt.toISOString(), dayOffset: dayOffset(runAt, now, timezone), driver: driverState(stop, now) });
   }
   return out;
+}
+
+/** Every collection run today with this shop's orders on it, and the run each package still here goes on. */
+export async function runsTodayFor(shopId: string, now = new Date()): Promise<{ runs: TodayRun[]; packageRuns: Map<string, Date | null> }> {
+  const [schedule, packages, stops, taken, timezone] = await Promise.all([
+    loadCollectionSchedule(now, { query }),
+    shopPackageRuns(shopId, null, now, { query }),
+    loadStops(shopId, now),
+    readRunsDone(shopId),
+    shopTimezone(shopId),
+  ]);
+  return {
+    runs: todayRuns({
+      scheduled: schedule.runs.map((r) => collectionDeadline(r, now)),
+      packages: packages.packages,
+      stops,
+      taken,
+      now,
+      timezone,
+    }),
+    packageRuns: new Map(packages.packages.map((p) => [p.id, p.runAt])),
+  };
 }

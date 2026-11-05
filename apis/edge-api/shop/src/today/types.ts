@@ -1,4 +1,7 @@
 import type { ShopNextCollectionDTO, ShopTodayAheadDTO, ShopTodayEventDTO } from "@effy/shared-types";
+
+import type { TodayRun } from "../collection/rule";
+import type { LateRow, PackageCounts, PickingRow, PickupRow } from "./board";
 // Today answers "what needs me, now", counted from live rows on each read; it owns no state. No request
 // type carries a shop id.
 
@@ -50,6 +53,14 @@ export interface TodaySnapshot {
   ahead: TodayAhead[];
   yesterday: { orders: number; revenue: string } | null;
   nextCollection: ShopNextCollectionDTO | null;
+  /** The board (redesign 2): read by the Today route only. */
+  runs: TodayRun[];
+  pickups: PickupRow[];
+  packages: PackageCounts | null;
+  picking: (PickingRow & { runAt: Date | null })[];
+  late: (LateRow & { nextRunAt: Date | null })[];
+  selling: { productId: string; name: string; units: number; stockLeft: number | null }[];
+  catalog: { missingDetails: number; inReview: number; sentBack: number };
 }
 
 /** A discriminated union: each kind resolves somewhere different with different facts. */

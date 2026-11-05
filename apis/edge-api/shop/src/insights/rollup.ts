@@ -45,6 +45,7 @@ INSERT INTO public.shop_sales_hour AS t (
   shop_id, bucket_start, gross_goods, refunds, refunded_orders, orders, units,
   cant_supply, cant_supply_units, cancelled,
   finished_orders, finished_units_ordered, finished_units_supplied, ready_orders, ready_seconds, ready_spread,
+  effy_orders, courier_orders, returning_orders, size_spread,
   computed_at)
 SELECT $1::uuid,
        b.bucket_start,
@@ -62,6 +63,10 @@ SELECT $1::uuid,
        COALESCE(q.ready_orders, 0),
        COALESCE(q.ready_seconds, 0),
        q.ready_spread,
+       COALESCE(mix.effy_orders, 0),
+       COALESCE(mix.courier_orders, 0),
+       COALESCE(mix.returning_orders, 0),
+       COALESCE(mix.size_spread, '{0,0,0,0,0}'),
        now()
   FROM unnest($2::timestamptz[]) AS b(bucket_start)
   LEFT JOIN LATERAL (
@@ -166,6 +171,37 @@ SELECT $1::uuid,
                     AND (e2.occurred_at < fe.occurred_at OR (e2.occurred_at = fe.occurred_at AND e2.id < fe.id)))
       ) f
   ) q ON true
+  LEFT JOIN LATERAL (
+    -- The bucket's orders by who takes them, whether the customer had bought this shop's goods before (counted,
+    -- never named), and how many of this shop's units each held.
+    SELECT COUNT(*) FILTER (WHERE x.delivery_type = 'effy')::int    AS effy_orders,
+           COUNT(*) FILTER (WHERE x.delivery_type = 'courier')::int AS courier_orders,
+           COUNT(*) FILTER (WHERE x.returning)::int                 AS returning_orders,
+           ARRAY[
+             COUNT(*) FILTER (WHERE x.units <= 2),
+             COUNT(*) FILTER (WHERE x.units BETWEEN 3 AND 5),
+             COUNT(*) FILTER (WHERE x.units BETWEEN 6 AND 10),
+             COUNT(*) FILTER (WHERE x.units BETWEEN 11 AND 20),
+             COUNT(*) FILTER (WHERE x.units > 20)
+           ]::integer[] AS size_spread
+      FROM (
+        SELECT o.delivery_type,
+               (SELECT COALESCE(SUM(oi.quantity), 0)
+                  FROM public.order_item oi WHERE oi.order_id = o.id AND oi.shop_id = $1::uuid) AS units,
+               EXISTS (
+                 SELECT 1
+                   FROM public."order" o2
+                   JOIN public.order_item oi2 ON oi2.order_id = o2.id AND oi2.shop_id = $1::uuid
+                  WHERE o2.customer_id = o.customer_id
+                    AND o2.id <> o.id
+                    AND o2.status IN ('paid', 'canceled')
+                    AND COALESCE(o2.placed_at, o2.created_at) < COALESCE(o.placed_at, o.created_at)) AS returning
+          FROM public."order" o
+         WHERE o.status IN ('paid', 'canceled')
+           AND EXISTS (SELECT 1 FROM public.shop_fulfillment sf WHERE sf.order_id = o.id AND sf.shop_id = $1::uuid)
+           AND public.shop_local_hour(COALESCE(o.placed_at, o.created_at), $3) = b.bucket_start
+      ) x
+  ) mix ON true
 ON CONFLICT (shop_id, bucket_start) DO UPDATE SET
   gross_goods       = EXCLUDED.gross_goods,
   refunds           = EXCLUDED.refunds,
@@ -181,6 +217,10 @@ ON CONFLICT (shop_id, bucket_start) DO UPDATE SET
   ready_orders            = EXCLUDED.ready_orders,
   ready_seconds           = EXCLUDED.ready_seconds,
   ready_spread            = EXCLUDED.ready_spread,
+  effy_orders       = EXCLUDED.effy_orders,
+  courier_orders    = EXCLUDED.courier_orders,
+  returning_orders  = EXCLUDED.returning_orders,
+  size_spread       = EXCLUDED.size_spread,
   computed_at       = EXCLUDED.computed_at
 `;
 
@@ -223,6 +263,116 @@ SELECT $1::uuid,
  GROUP BY 2, 3
 `;
 
+/**
+ * Each Effy collection run that came to this shop on the touched days: the packages its driver came for, and those
+ * that were ready (anything but `not_available`). Wiped first, so a run cancelled since drops out.
+ */
+const WIPE_RUNS = `
+DELETE FROM public.shop_run_figures r
+ USING (${TOUCHED_DAYS}) d
+ WHERE r.shop_id = $1::uuid AND (r.run_at AT TIME ZONE $3)::date = d.local_date
+`;
+
+const RECOMPUTE_RUNS = `
+WITH days AS (${TOUCHED_DAYS})
+INSERT INTO public.shop_run_figures (shop_id, run_at, due, ready, computed_at)
+SELECT $1::uuid,
+       dr.deadline_at,
+       COUNT(*)::int,
+       COUNT(*) FILTER (WHERE rp.state <> 'not_available')::int,
+       now()
+  FROM public.round_stop rs
+  JOIN public.driver_round dr ON dr.id = rs.round_id
+  JOIN public.round_package rp ON rp.stop_id = rs.id
+ WHERE rs.kind = 'shop_pickup'
+   AND rs.shop_id = $1::uuid
+   AND rs.status = 'done'
+   AND dr.kind = 'collection'
+   AND dr.status <> 'cancelled'
+   AND rp.state <> 'assigned'
+   AND (dr.deadline_at AT TIME ZONE $3)::date IN (SELECT local_date FROM days)
+ GROUP BY dr.deadline_at
+`;
+
+/**
+ * Who finished the touched days' portions: the colleague who moved each to picking first. A portion nobody started on
+ * the console (moved straight to ready) has no picker and is not counted here.
+ */
+const WIPE_PICKERS = `
+DELETE FROM public.shop_picker_day p
+ USING (${TOUCHED_DAYS}) d
+ WHERE p.shop_id = $1::uuid AND p.local_date = d.local_date
+`;
+
+const RECOMPUTE_PICKERS = `
+WITH days AS (${TOUCHED_DAYS}),
+finished AS (
+  SELECT fe.to_status,
+         (fe.occurred_at AT TIME ZONE $3)::date AS local_date,
+         GREATEST(0, EXTRACT(EPOCH FROM (fe.occurred_at - COALESCE(o.placed_at, o.created_at)))) AS seconds,
+         (SELECT pe.actor_staff_id
+            FROM public.fulfillment_event pe
+           WHERE pe.shop_fulfillment_id = sf.id
+             AND pe.event_type = 'state_changed'
+             AND pe.to_status = 'picking'
+             AND pe.actor_staff_id IS NOT NULL
+           ORDER BY pe.occurred_at, pe.id
+           LIMIT 1) AS staff_id,
+         (SELECT COALESCE(SUM(fi.unavailable_quantity), 0)
+            FROM public.fulfillment_item fi WHERE fi.shop_fulfillment_id = sf.id) AS cant_units
+    FROM public.fulfillment_event fe
+    JOIN public.shop_fulfillment sf ON sf.id = fe.shop_fulfillment_id AND sf.shop_id = $1::uuid
+    JOIN public."order" o ON o.id = sf.order_id
+   WHERE fe.event_type = 'state_changed'
+     AND fe.to_status IN ('ready_for_pickup', 'unfulfillable')
+     AND sf.status <> 'withdrawn'
+     AND (fe.occurred_at AT TIME ZONE $3)::date IN (SELECT local_date FROM days)
+     AND NOT EXISTS (
+           SELECT 1 FROM public.fulfillment_event e2
+            WHERE e2.shop_fulfillment_id = fe.shop_fulfillment_id
+              AND e2.event_type = 'state_changed'
+              AND e2.to_status IN ('ready_for_pickup', 'unfulfillable')
+              AND (e2.occurred_at < fe.occurred_at OR (e2.occurred_at = fe.occurred_at AND e2.id < fe.id)))
+)
+INSERT INTO public.shop_picker_day (shop_id, local_date, staff_id, orders, ready_orders, ready_seconds, cant_units)
+SELECT $1::uuid,
+       f.local_date,
+       f.staff_id,
+       COUNT(*)::int,
+       COUNT(*) FILTER (WHERE f.to_status = 'ready_for_pickup')::int,
+       COALESCE(SUM(f.seconds) FILTER (WHERE f.to_status = 'ready_for_pickup'), 0)::bigint,
+       COALESCE(SUM(f.cant_units), 0)::int
+  FROM finished f
+ WHERE f.staff_id IS NOT NULL
+ GROUP BY f.local_date, f.staff_id
+`;
+
+/** Pairs of this shop's products in the same order, by the day it was paid. */
+const WIPE_PAIRS = `
+DELETE FROM public.shop_product_pair_day p
+ USING (${TOUCHED_DAYS}) d
+ WHERE p.shop_id = $1::uuid AND p.local_date = d.local_date
+`;
+
+const RECOMPUTE_PAIRS = `
+WITH days AS (${TOUCHED_DAYS}),
+lines AS (
+  SELECT DISTINCT o.id AS order_id,
+         oi.product_id,
+         (public.shop_local_hour(COALESCE(o.placed_at, o.created_at), $3) AT TIME ZONE $3)::date AS local_date
+    FROM public."order" o
+    JOIN public.order_item oi ON oi.order_id = o.id AND oi.shop_id = $1::uuid
+   WHERE o.status IN ('paid', 'canceled')
+     AND (public.shop_local_hour(COALESCE(o.placed_at, o.created_at), $3) AT TIME ZONE $3)::date
+         IN (SELECT local_date FROM days)
+)
+INSERT INTO public.shop_product_pair_day (shop_id, local_date, product_a, product_b, orders)
+SELECT $1::uuid, a.local_date, a.product_id, b.product_id, COUNT(*)::int
+  FROM lines a
+  JOIN lines b ON b.order_id = a.order_id AND a.product_id < b.product_id
+ GROUP BY a.local_date, a.product_id, b.product_id
+`;
+
 const CLEAR_CLAIMED = `
 DELETE FROM public.insights_dirty
  WHERE shop_id = $1::uuid AND bucket_start = ANY($2::timestamptz[])
@@ -255,6 +405,9 @@ export async function runRollup(limit = CLAIM_LIMIT): Promise<RollupResult> {
       await tx.query(RECOMPUTE, [shopId, buckets, timezone]);
       await tx.query(WIPE_PRODUCTS, [shopId, buckets, timezone]);
       await tx.query(RECOMPUTE_PRODUCTS, [shopId, buckets, timezone]);
+      for (const sql of [WIPE_RUNS, RECOMPUTE_RUNS, WIPE_PICKERS, RECOMPUTE_PICKERS, WIPE_PAIRS, RECOMPUTE_PAIRS]) {
+        await tx.query(sql, [shopId, buckets, timezone]);
+      }
       await tx.query(CLEAR_CLAIMED, [shopId, buckets]);
       await tx.query(TOUCH_STATE, [shopId, timezone]);
     }

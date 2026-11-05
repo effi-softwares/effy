@@ -4,6 +4,47 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
+**Shop Today and Insights redesign 2** (not spec-first, like the other console redesigns; prototypes
+`docs/reference-screens/Shop Today Redesign/index.html` and `…/Shop Insights Redesign/index.html`). 🔨 **BUILT 2026-11-05; NOT MIGRATED,
+DEPLOYED OR WALKED.** Both pages now follow the back-office Overview: one sentence, what comes next, a ranked list, then the detail.
+- **Today**: status sentence (`today/model.ts` `briefOf`, rose ground when orders missed a driver) and the next three things (drivers,
+  courier pickups, the usual busiest hour); **Today's Effy drivers**, every collection run today on one clock (bar from its first order to
+  the run, split Collected / Ready / Being picked / Not started; courier pickups row; read-out and table view); **Needs you** in three
+  tiers (before the next driver · costing you sales · when you have time) with Start picking kept; Being picked now (who); Where today's
+  orders are (nine words, Effy driver / Courier); Orders today (from Insights today, hourly chart); Selling today (stock left); Just
+  happened (Team activity drawer); Shortcuts. Old `CollectionBand.tsx` and `DayLine.tsx` deleted.
+- **Insights**: five pages (Overview, Sales, Products, **Stock** new, Service). Overview: the server's sentence, up to four "what changed"
+  lines (new rules: what selling out cost; ready before the driver), pace by close (Today), four chart figures (Items per order new), How
+  you're doing, **Worth doing** in three tiers. ⚠ **Operator rule (2026-11-05): no two charts side by side.** Every secondary chart is a card
+  (finding, glimpse, footer) that opens **its own page** `/insights/$section/$chart` (range, table view, export, "How it's counted", more
+  cards); `features/insights/charts.tsx` is the one registry. Sales: by aisle, average day, rhythm (hover/keyboard read-out), order size,
+  who takes them / returning customers. Products: share, place, stock left, 80% line, bought together. Stock: running out (stock ÷ units a
+  day over 28 days), sold out with a missed-sales guess, not sold in 30 days, written off. Service: four measure cards, ready for each
+  driver, when you're slowest, how long orders take, who picked (**managers only**: the server sends `pickers: null` to staff).
+- **APIs** (shop service, shared gateway, no new route): `GET /shop/v1/today` gained `runs`, `courierPickups`, `packages`, `picking`, `late`,
+  `outOfStock`(+`More`), `refunds`, `selling`, `catalog`; `attention`/`attentionMore`/`oldestWaitingAt` removed from the wire (the
+  attention evaluator still uses `buildAttention`). `GET /shop/v1/insights` gained `itemsPerOrder`, `pace`, `weekdays`, `readyByHour`,
+  `aisles`, `orderSizes`, `customers`, `concentration`, `together`, `runs`, `quality.readyBeforeDriver`, `pickers`, `stock` (live read in
+  `insights/stock.ts`, held by the rollup-only guard; a failure there is `stock: null`, never the page), buckets' `units`; top products 10
+  with `shareOfSales` and `stockLeft`. `ShopPackageRun.paidAt` added in `@effy/edge-shared/delivery`.
+- **Migration** `20261105090000_insights_more.sql`: `shop_sales_hour` + `effy_orders`, `courier_orders`, `returning_orders`, `size_spread`;
+  new rollups `shop_run_figures` (per run: due / ready, from `round_package` `not_available`), `shop_picker_day`, `shop_product_pair_day`;
+  re-queues 60 days so the rollup job fills them. ⚠ Returning customers supersede 058 FR-034's omission of "New customers" (there was no
+  data then); counted on the shop's goods only, never named.
+- **CSS**: the Overview's `ov-dl`/`ov-tip`/`ov-sw`/`ov-chart`/`ov-layout` moved to `console.css` as `ef-tl`, `ef-tip`, `ef-sw`, `ef-chart`,
+  `ef-board-layout` (+ `ef-board` scope for the package colours), used by both consoles; back-office renamed to match.
+- **Defects fixed**: Insights' error replaced the whole page (range and tabs now stay; same for Today's head and actions); "Selling but
+  out of stock" read Today's 8-item attention list, said "all in stock" when Today failed and ignored the range; every Insights page loaded
+  with the Overview's skeleton; Quick actions promised "conversion"; Today's countdown used the browser clock while the date used the
+  server's (one clock now); only four jobs showed; later runs showed no ready state.
+- **Tours**: T, I, IS, IP, IV rewritten (version 2); IK (Stock) and IC (a chart) added: 18 tours, spec 106 amended.
+- **Verified**: shop tsc + 399 unit tests; 62 container tests against a migrated local Postgres (new: today's runs and the board reads,
+  returning / sizes / pairs / pickers); shop-web tsc + 517 tests (Today 35, Insights 29 rewritten); back-office tsc + 431 tests; shared 997,
+  fleet 170, orders 23; token, timer and shop-wording guards; every page and state in Chrome through a temporary harness (no errors, no
+  overflow at 1600 / 390, dark).
+- **Operator steps**: `make db-up ENV=dev` (the migration), deploy `SERVICE=shop` (and `SERVICE=fleet`, which reads the shared run code),
+  then push for shop-web and back-office (back-office's class rename ships with the shared `console.css`). Walk both pages.
+
 **Back-office Overview redesign** (not spec-first, like the other console redesigns; prototype
 `docs/reference-screens/Back-Office Overview Redesign/index.html`, Layout A). 🔨 **BUILT 2026-11-05; NOT DEPLOYED OR WALKED** (no
 migration). The page answers three questions in order and stays grey until something is wrong:

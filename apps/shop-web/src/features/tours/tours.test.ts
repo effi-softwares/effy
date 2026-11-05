@@ -27,7 +27,9 @@ const CODE_TO_KEY: Record<string, string> = {
   I: "insights",
   IS: "insights-sales",
   IP: "insights-products",
+  IK: "insights-stock",
   IV: "insights-service",
+  IC: "insights-chart",
   TM: "team",
   NS: "settings-notifications",
   PS: "settings-printing",
@@ -38,7 +40,7 @@ const ROLE_MARKS = { Manager: ["shop_manager"] } as const
 
 describe("the shop console's tours (106)", () => {
   it("found the spec's inventory (the test must not pass vacuously)", () => {
-    expect(readTourInventory(SPEC).size).toBe(16)
+    expect(readTourInventory(SPEC).size).toBe(18)
   })
 
   it("are within the limits: titles ≤ 40, texts ≤ 220, ≤ 12 steps, unique keys", () => {

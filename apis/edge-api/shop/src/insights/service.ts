@@ -7,11 +7,32 @@ import type {
 } from "@effy/shared-types";
 
 import { buildBriefing } from "./briefing";
-import { readCantSupplyProducts, readComputedAt, readHours, readProductRanks, readRhythm, readTopProducts, signThumbnails } from "./repository";
+import {
+  readAisles,
+  readCantSupplyProducts,
+  readComputedAt,
+  readHours,
+  readPairs,
+  readPickers,
+  readProductRanks,
+  readProductSales,
+  readReadyByHour,
+  readRhythm,
+  readRuns,
+  readTopProducts,
+  readWeekdaySales,
+  signThumbnails,
+} from "./repository";
 import type { HourRow } from "./repository";
-import { addLocalDays, bucketsFor, localParts, planFor } from "./window";
+import { DEMAND_DAYS, NOT_SELLING_DAYS, readStock } from "./stock";
+import { addLocalDays, bucketsFor, localParts, planFor, startOfLocalDay } from "./window";
 
-export const TOP_PRODUCT_LIMIT = 8;
+export const TOP_PRODUCT_LIMIT = 10;
+export const PAIR_LIMIT = 5;
+/** Weeks the weekday averages cover. */
+export const WEEKDAY_WEEKS = 4;
+/** A pace needs this much of a usual day behind it before it says anything. */
+export const PACE_MIN_SHARE = 0.15;
 export const CANT_SUPPLY_LIMIT = 5;
 /** A week's rhythm needs more than one week behind it. */
 export const RHYTHM_MIN_WEEKS = 2;
@@ -114,10 +135,16 @@ function rateFigure(num: number, den: number, prevNum: number, prevDen: number):
  * supplied of units ordered), can't-supply rate (portions it could not supply of portions finished),
  * and the average time from payment to ready, in whole seconds. Customer cancellations never count.
  */
-export function qualityOf(current: Totals, previous: Totals, readySpread: number[] = [0, 0, 0, 0, 0, 0]): ShopInsightsDTO["quality"] {
+export function qualityOf(
+  current: Totals,
+  previous: Totals,
+  readySpread: number[] = [0, 0, 0, 0, 0, 0],
+  runs: { due: number; ready: number; previousDue: number; previousReady: number } = { due: 0, ready: 0, previousDue: 0, previousReady: 0 },
+): ShopInsightsDTO["quality"] {
   const avg = (t: Totals) => (t.readyOrders > 0 ? t.readySeconds / t.readyOrders : 0);
   return {
     readySpread,
+    readyBeforeDriver: rateFigure(runs.ready, runs.due, runs.previousReady, runs.previousDue),
     foundRate: rateFigure(current.finishedUnitsSupplied, current.finishedUnitsOrdered, previous.finishedUnitsSupplied, previous.finishedUnitsOrdered),
     cantSupplyRate: rateFigure(current.cantSupply, current.finishedOrders, previous.cantSupply, previous.finishedOrders),
     averageTimeToReady:
@@ -131,6 +158,44 @@ export function qualityOf(current: Totals, previous: Totals, readySpread: number
 
 export interface Actor {
   shopId: string;
+  /** Managers see who picked; staff do not. */
+  manager?: boolean;
+}
+
+/** How many of the products that sold make 80% of the sales: most first, counted until the share is reached. */
+export function concentrationOf(sales: readonly number[]): { products: number; top80: number } {
+  const sorted = [...sales].sort((a, b) => b - a);
+  const total = sorted.reduce((n, x) => n + x, 0);
+  if (total <= 0) return { products: 0, top80: 0 };
+  let sum = 0;
+  let top80 = 0;
+  for (const x of sorted) {
+    sum += x;
+    top80 += 1;
+    if (sum >= total * 0.8) break;
+  }
+  return { products: sorted.length, top80 };
+}
+
+/**
+ * Where today ends if the rest goes as this weekday usually does: the orders so far over the usual share of a day sold
+ * by now (the current hour counted by its minutes). Null with too little of a usual day behind it.
+ */
+export function paceOf(
+  cells: readonly { weekday: number; hour: number; orders: number }[],
+  isoWeekday: number,
+  hour: number,
+  minute: number,
+  sold: { orders: number; revenue: number },
+): { orders: number; revenue: string } | null {
+  const day = cells.filter((c) => c.weekday === isoWeekday);
+  const usualDay = day.reduce((n, c) => n + c.orders, 0);
+  if (usualDay <= 0 || sold.orders <= 0) return null;
+  const soFar = day.reduce((n, c) => n + (c.hour < hour ? c.orders : c.hour === hour ? (c.orders * minute) / 60 : 0), 0);
+  const share = soFar / usualDay;
+  if (share < PACE_MIN_SHARE) return null;
+  if (share >= 1) return { orders: sold.orders, revenue: sold.revenue.toFixed(2) };
+  return { orders: Math.round(sold.orders / share), revenue: (Math.round(sold.revenue / share / 10) * 10).toFixed(2) };
 }
 
 export class InvalidRangeError extends Error {
@@ -170,11 +235,17 @@ export async function readInsights(
 ): Promise<ShopInsightsDTO> {
   const plan = planFor(range, now, timezone);
 
-  const [currentRows, previousRows, computedAt, rhythm] = await Promise.all([
+  const today = startOfLocalDay(now, timezone);
+  const [currentRows, previousRows, computedAt, rhythm, weekdaySales, readyByHour, runs, previousRuns] = await Promise.all([
     readHours(actor.shopId, plan.window.from, plan.window.to),
     readHours(actor.shopId, plan.comparison.from, plan.comparison.to),
     readComputedAt(actor.shopId),
     readRhythm(actor.shopId, timezone),
+    // The last four whole weeks, today left out: a day still running would pull its weekday down.
+    readWeekdaySales(actor.shopId, timezone, addLocalDays(today, timezone, -7 * WEEKDAY_WEEKS), today),
+    readReadyByHour(actor.shopId, timezone, plan.window.from, plan.window.to),
+    readRuns(actor.shopId, timezone, plan.window.from, plan.window.to),
+    readRuns(actor.shopId, timezone, plan.comparison.from, plan.comparison.to),
   ]);
 
   const current = sum(currentRows);
@@ -187,7 +258,9 @@ export async function readInsights(
   const from = localDate(plan.window.from);
   // The window's last day, inclusive.
   const to = localDate(addLocalDays(plan.window.to, timezone, 0));
-  const [topRows, ranks, cantSupplyProducts] = await Promise.all([
+  const previousFrom = localDate(plan.comparison.from);
+  const previousTo = localDate(range === "today" ? plan.comparison.from : addLocalDays(plan.comparison.to, timezone, -1));
+  const [topRows, ranks, cantSupplyProducts, aisles, previousAisles, productSales, together, pickers, stock] = await Promise.all([
     readTopProducts(actor.shopId, from, to, TOP_PRODUCT_LIMIT),
     // A comparison window's end is exclusive, except today's, whose day is still the one to compare with.
     readProductRanks(
@@ -196,6 +269,21 @@ export async function readInsights(
       localDate(range === "today" ? plan.comparison.from : addLocalDays(plan.comparison.to, timezone, -1)),
     ),
     readCantSupplyProducts(actor.shopId, from, to, CANT_SUPPLY_LIMIT),
+    readAisles(actor.shopId, from, to),
+    readAisles(actor.shopId, previousFrom, previousTo),
+    readProductSales(actor.shopId, from, to),
+    readPairs(actor.shopId, from, to, PAIR_LIMIT),
+    actor.manager ? readPickers(actor.shopId, from, to) : Promise.resolve(null),
+    // The shelves are read live; a failure there costs the stock figures, never the page.
+    readStock(actor.shopId, {
+      from: plan.window.from,
+      to: plan.window.to,
+      fromDate: from,
+      toDate: to,
+      demandFrom: localDate(addLocalDays(today, timezone, -DEMAND_DAYS)),
+      demandTo: localDate(addLocalDays(today, timezone, -1)),
+      notSellingSince: localDate(addLocalDays(today, timezone, -NOT_SELLING_DAYS)),
+    }).catch(() => null),
   ]);
   const thumbnails = await signThumbnails(topRows);
   const topRevenue = topRows.length > 0 ? Number(topRows[0]!.revenue) : 0;
@@ -217,8 +305,10 @@ export async function readInsights(
       partial: b.partial,
       revenue: money(revenueOf(t)),
       orders: t.orders,
+      units: t.units,
       previousRevenue: was ? money(revenueOf(was)) : null,
       previousOrders: was ? was.orders : null,
+      previousUnits: was ? was.units : null,
       ...bucketQuality(t),
     };
   });
@@ -229,7 +319,39 @@ export async function readInsights(
   const lastHourRow = currentRows.at(-1);
   const days = range === "today" ? 1 : range === "7d" ? 7 : 30;
 
-  const quality = qualityOf(current, previous, spreadOf(currentRows));
+  const runTotals = {
+    due: runs.reduce((n, r) => n + r.due, 0),
+    ready: runs.reduce((n, r) => n + r.ready, 0),
+    previousDue: previousRuns.reduce((n, r) => n + r.due, 0),
+    previousReady: previousRuns.reduce((n, r) => n + r.ready, 0),
+  };
+  const quality = qualityOf(current, previous, spreadOf(currentRows), runTotals);
+  const totalGross = productSales.reduce((n, x) => n + x, 0);
+  const ipo = (t: Totals) => (t.orders > 0 ? t.units / t.orders : 0);
+  const itemsPerOrder: InsightsFigureDTO =
+    current.orders === 0
+      ? { value: "0.0", previous: null, change: { kind: "none", amount: null } }
+      : previous.orders === 0
+        ? { value: ipo(current).toFixed(1), previous: null, change: { kind: "none", amount: null } }
+        : {
+            value: ipo(current).toFixed(1),
+            previous: ipo(previous).toFixed(1),
+            change: { kind: "pct", amount: (((ipo(current) - ipo(previous)) / ipo(previous)) * 100).toFixed(1) },
+          };
+  const local = localParts(now, timezone);
+  const rhythmOk = rhythm.weeks >= RHYTHM_MIN_WEEKS;
+  const pace =
+    range === "today" && rhythmOk
+      ? paceOf(rhythm.cells, local.weekday === 0 ? 7 : local.weekday, local.hour, local.minute, {
+          orders: current.orders,
+          revenue: revenueOf(current),
+        })
+      : null;
+  const previousAisle = new Map(previousAisles.map((a) => [a.categoryId, a.revenue]));
+  const sizes = currentRows.reduce((total, r) => total.map((n, i) => n + (r.sizeSpread[i] ?? 0)), [0, 0, 0, 0, 0]);
+  const worstRun = runs
+    .filter((r) => r.due > r.ready)
+    .sort((a, b) => b.due - b.ready - (a.due - a.ready))[0];
   const revenue = figure(revenueOf(current), revenueOf(previous), "pct", true);
   const topProducts = topRows.map((r, i) => ({
     productId: r.productId,
@@ -240,7 +362,9 @@ export async function readInsights(
     revenue: r.revenue,
     // A bar width relative to the top row.
     share: topRevenue > 0 ? Number(r.revenue) / topRevenue : 0,
+    shareOfSales: totalGross > 0 ? ((Number(r.revenue) / totalGross) * 100).toFixed(1) : "0.0",
     previousRank: ranks.get(r.productId) ?? null,
+    stockLeft: r.stockLeft,
   }));
 
   return {
@@ -262,7 +386,32 @@ export async function readInsights(
         lastHour: range === "today" ? (lastHourRow?.orders ?? 0) : null,
       },
       averageOrderValue: figure(aov, previousAov, "pct", true),
+      itemsPerOrder,
     },
+    pace,
+    weekdays: rhythmOk
+      ? [1, 2, 3, 4, 5, 6, 7].map((weekday) => ({ weekday, revenue: money((weekdaySales.get(weekday) ?? 0) / WEEKDAY_WEEKS) }))
+      : null,
+    readyByHour,
+    aisles: aisles.map((a) => ({ ...a, previous: previousAisle.get(a.categoryId) ?? (previous.orders > 0 ? "0.00" : null) })),
+    orderSizes: sizes,
+    customers: {
+      effyDriver: currentRows.reduce((n, r) => n + r.effyOrders, 0),
+      courier: currentRows.reduce((n, r) => n + r.courierOrders, 0),
+      returning: currentRows.reduce((n, r) => n + r.returningOrders, 0),
+    },
+    concentration: concentrationOf(productSales),
+    together,
+    runs,
+    pickers:
+      pickers?.map((p) => ({
+        staffId: p.staffId,
+        name: p.name,
+        orders: p.orders,
+        averageTimeToReady: p.readyOrders > 0 ? Math.round(p.readySeconds / p.readyOrders) : null,
+        cantSupplyUnits: p.cantUnits,
+      })) ?? null,
+    stock,
     secondary: {
       refunds: {
         ...figure(current.refunds, previous.refunds, "pct", true),
@@ -283,8 +432,10 @@ export async function readInsights(
     quality,
     topProducts,
     cantSupplyProducts,
-    rhythm: rhythm.weeks >= RHYTHM_MIN_WEEKS ? rhythm : null,
+    rhythm: rhythmOk ? rhythm : null,
     briefing: buildBriefing({
+      soldOut: stock?.soldOut.find((s) => s.times > 0) ?? null,
+      worstRun: worstRun ?? null,
       range,
       weekday: WEEKDAYS[localParts(now, timezone).weekday]!,
       currency: "AUD",

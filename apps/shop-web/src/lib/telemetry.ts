@@ -54,6 +54,7 @@ type ShopAnalyticsEvent =
   | { name: "insights_range_changed"; range: string }
   | { name: "insights_drilled"; metric: string }
   | { name: "insights_exported"; range: string }
+  | { name: "insights_chart_opened"; chart: string }
   | { name: "pwa_install_prompted"; method: string }
   | { name: "pwa_installed" }
   | { name: "sw_update_applied" }

@@ -1,8 +1,8 @@
-import { createRoute, useSearch } from "@tanstack/react-router"
+import { createRoute, useParams, useSearch } from "@tanstack/react-router"
 
 import { INSIGHTS_RANGES, type InsightsRange } from "@effy/shared-types"
 
-import { InsightsScreen, type InsightsTab } from "@/features/insights/InsightsScreen"
+import { ChartScreen, InsightsScreen, type InsightsTab } from "@/features/insights/InsightsScreen"
 
 import { appRoute } from "./app"
 
@@ -46,4 +46,23 @@ export const insightsServiceRoute = createRoute({
   ...shared,
   path: "insights/service",
   component: () => <Page tab="service" />,
+})
+
+export const insightsStockRoute = createRoute({
+  ...shared,
+  path: "insights/stock",
+  component: () => <Page tab="stock" />,
+})
+
+function Chart() {
+  const { chart } = useParams({ strict: false }) as { chart: string }
+  const { range } = useSearch({ strict: false }) as InsightsSearch
+  return <ChartScreen slug={chart} range={range ?? "7d"} />
+}
+
+/** One chart on its own page: `/insights/sales/by-aisle`. */
+export const insightsChartRoute = createRoute({
+  ...shared,
+  path: "insights/$section/$chart",
+  component: Chart,
 })
