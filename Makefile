@@ -242,10 +242,10 @@ create-first-admin: ## OPERATOR: bootstrap the FIRST back-office super-admin (EM
 
 
 
-load-localities: ## OPERATOR: load the AU locality reference dataset into public.locality (ENV=dev [CSVREL=path]) - specs/047
+load-localities: ## OPERATOR: load the AU locality reference dataset into public.locality (ENV=dev [CSVREL=path] [REPLACE=1 empties it first]) - specs/047
 	@DSN="$$($(DB_DSN_CMD))" || exit 1; \
 	EFFY_ENV=$(ENV) DB_DSN="$$DSN" AWS_PROFILE=$(AWS_PROFILE) \
-		pnpm --filter @effy/edge-ops exec tsx src/load-localities.ts --csv "$(CURDIR)/$(or $(CSVREL),db/reference/au-localities.csv)"
+		pnpm --filter @effy/edge-ops exec tsx src/load-localities.ts --csv "$(CURDIR)/$(or $(CSVREL),db/reference/au-localities.csv)" $(if $(REPLACE),--replace,)
 
 delete-admin: ## OPERATOR: COMPLETELY delete a back-office admin (EMAIL=.. ENV=dev [FORCE=1]) - irreversible - specs/006
 	@test -n "$(EMAIL)" || { echo 'usage: make delete-admin EMAIL=jane@effy.test ENV=dev [FORCE=1]'; exit 1; }

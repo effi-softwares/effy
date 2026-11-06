@@ -1,4 +1,4 @@
-// make load-localities ENV=dev [CSVREL=path]. Idempotent.
+// make load-localities ENV=dev [CSVREL=path] [REPLACE=1]. Idempotent; --replace empties the table first, in the same transaction.
 import { readFileSync } from "node:fs";
 
 import { parseFlags, runTool, withDatabase } from "./db";
@@ -12,7 +12,7 @@ function progressPrinter(): (done: number, total: number) => void {
   let lastDecile = -1;
   return (done, total) => {
     if (done === 0) {
-      process.stderr.write(`load-localities: connected, upserting ${total} rows\n`);
+      process.stderr.write(`load-localities: connected, loading ${total} rows in one transaction\n`);
       return;
     }
     const pct = total === 0 ? 100 : Math.floor((done / total) * 100);
@@ -35,10 +35,11 @@ function progressPrinter(): (done: number, total: number) => void {
 }
 
 runTool("load-localities", async () => {
-  const flags = parseFlags(process.argv.slice(2), { csv: "string" });
+  const flags = parseFlags(process.argv.slice(2), { csv: "string", replace: "boolean" });
   const path = typeof flags.csv === "string" ? flags.csv : "db/reference/au-localities.csv";
   const csv = readFileSync(path, "utf8");
+  const replace = flags.replace === true;
   console.log(`load-localities: reading ${path}, connecting to the database…`);
-  const result = await withDatabase((db) => loadLocalities(db, csv, progressPrinter()));
-  console.log(`load-localities: read ${result.read}, upserted ${result.upserted} from ${path}`);
+  const result = await withDatabase((db) => loadLocalities(db, csv, { replace, onProgress: progressPrinter() }));
+  console.log(`load-localities: read ${result.read}, ${replace ? "replaced the table with" : "upserted"} ${result.upserted} from ${path}`);
 });
