@@ -26,7 +26,7 @@ TF_ROOTS := $(BOOTSTRAP_DIR) $(GLOBAL_DIR) $(INFRA_DIR)/envs/dev $(INFRA_DIR)/en
 .PHONY: gateway-usage help bootstrap-init bootstrap-apply init plan apply destroy output fmt validate lint preflight \
         global-init global-plan global-apply global-output dns-verify mail-verify mail-events-verify edge-health \
         db-new db-status db-up db-up-one db-down db-shopper-role check-goose \
-        live-guards shop-words-guard driver-words-guard purge-orders reset-dev-data wipe-dev create-first-admin load-localities delete-admin edge-install edge-offline edge-test edge-deploy edge-remove \
+        live-guards shop-words-guard driver-words-guard purge-orders reset-dev-data seed-delivery wipe-dev create-first-admin load-localities delete-admin edge-install edge-offline edge-test edge-deploy edge-remove \
         verify-pool-credentials \
         bo-dev bo-build bo-lint bo-test \
         shop-dev shop-build shop-lint shop-test \
@@ -153,6 +153,11 @@ purge-orders: ## OPERATOR: delete every order + all order-derived data (ENV=dev;
 reset-dev-data: ## OPERATOR: delete all dev data but back-office staff, shops, shop users and localities; customer + driver Cognito users too (DRY_RUN=1 to preview)
 	@ENV=$(ENV) AWS_PROFILE=$(AWS_PROFILE) AWS_REGION=$(AWS_REGION) \
 		bash scripts/reset-dev-data.sh $(if $(DRY_RUN),--dry-run,)
+
+seed-delivery: ## OPERATOR: seed the Melbourne delivery setup - hub, postcodes, windows, runs, fee plans (ENV=dev only) - docs/runbooks/melbourne-delivery-setup.md
+	@test "$(ENV)" = "dev" || { echo "seed-delivery: refusing ENV=$(ENV) - dev only"; exit 1; }
+	@DSN="$$($(DB_DSN_CMD))" || exit 1; \
+		psql "$$DSN" -v ON_ERROR_STOP=1 -q -f db/seeds/047_delivery_dev.sql
 
 wipe-dev: check-goose ## OPERATOR: reset dev to empty - DB rebuilt from all migrations, all Cognito users and media deleted
 	@ENV=$(ENV) AWS_PROFILE=$(AWS_PROFILE) AWS_REGION=$(AWS_REGION) bash scripts/wipe-dev.sh
