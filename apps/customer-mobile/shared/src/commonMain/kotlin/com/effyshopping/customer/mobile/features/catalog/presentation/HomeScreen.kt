@@ -440,6 +440,7 @@ private fun CategoryRow(items: List<CategoryShortcut>, onCategoryClick: (Categor
             EffyCategoryShortcut(
                 label = shortcut.label,
                 icon = categoryIcon(shortcut.icon),
+                imageUrl = shortcut.imageUrl,
                 onClick = { onCategoryClick(shortcut) },
             )
         }

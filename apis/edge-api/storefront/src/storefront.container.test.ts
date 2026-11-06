@@ -351,6 +351,9 @@ d("070 — storefront reads against the real schema", () => {
         expect(url).not.toMatch(/[?#]|X-Amz|Signature|amazonaws/i);
       }
       expect(urls.some((u) => u.includes("courier-label"))).toBe(false);
+      // A category with no picture of its own has none: a product's photograph is never its face.
+      const cats = answers[3] as { key: string; imageUrl: string | null }[];
+      expect(cats.find((c) => c.key === "sft-dairy")?.imageUrl).toBeNull();
       const loaf = answers[5] as { imageUrl: string | null; gallery: unknown[] };
       expect(loaf.imageUrl).toBeNull();
       expect(loaf.gallery).toEqual([]);

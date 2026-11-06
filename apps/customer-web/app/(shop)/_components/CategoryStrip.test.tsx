@@ -113,14 +113,31 @@ describe("CategoryStrip - a shortcut must lead somewhere with products in it", (
   })
 })
 
-describe("CategoryStrip - imagery degrades, never breaks (FR-014)", () => {
-  it("renders a neutral initial tile instead of a broken frame when there is no image", () => {
+describe("CategoryStrip - picture, then icon, then the default glyph (FR-014)", () => {
+  it("shows the category's chosen icon, not a letter, when it has no picture", () => {
     const { container } = render(
-      <CategoryStrip categories={[category({ name: "Bakery", imageUrl: null })]} />,
+      <CategoryStrip categories={[category({ name: "Bakery", imageUrl: null, icon: "croissant" })]} />,
     )
 
     expect(container.querySelector("img")).toBeNull()
-    expect(screen.getByText("B")).toBeTruthy()
+    expect(screen.queryByText("B")).toBeNull()
+    expect(container.querySelector("[data-testid=category-icon-tile] svg.lucide-croissant")).not.toBeNull()
+  })
+
+  it("falls back to the default glyph when it has neither a picture nor an icon", () => {
+    const { container } = render(
+      <CategoryStrip categories={[category({ name: "Bakery", imageUrl: null, icon: null })]} />,
+    )
+
+    expect(container.querySelector("img")).toBeNull()
+    expect(container.querySelector("[data-testid=category-icon-tile] svg")).not.toBeNull()
+  })
+
+  it("prefers the picture over the icon when there is both", () => {
+    const { container } = render(<CategoryStrip categories={[category({ icon: "croissant" })]} />)
+
+    expect(container.querySelector("img")).not.toBeNull()
+    expect(container.querySelector("[data-testid=category-icon-tile]")).toBeNull()
   })
 
   it("renders the image when there is one", () => {

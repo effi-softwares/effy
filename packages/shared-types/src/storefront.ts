@@ -116,8 +116,8 @@ export interface StorefrontCategoryDTO {
   /** Purchasable products in this category and everything under it, so an aisle's number is what its
    * page shows. */
   productCount: number;
-  /** The category's own picture, else one derived from a product in it, chosen deterministically; null
-   * renders a brand tile. */
+  /** The picture staff attached to the category, and only that (never a product's photograph). Null →
+   * the client shows `icon`, else the default glyph. */
   imageUrl: string | null;
   /** Widths (px) of this picture's smaller copies, ascending; absent or [] means only `imageUrl`. Build each with `renditionUrl`. */
   imageWidths?: number[];

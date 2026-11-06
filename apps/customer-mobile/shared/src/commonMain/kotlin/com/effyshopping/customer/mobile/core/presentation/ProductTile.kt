@@ -33,7 +33,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.layout.ContentScale
+import coil3.compose.AsyncImagePainter
+import coil3.compose.SubcomposeAsyncImage
+import coil3.compose.SubcomposeAsyncImageContent
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -382,6 +388,8 @@ fun EffyCategoryShortcut(
     icon: DrawableResource,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    /** The category's own picture. Shown first; none, or one that fails to load, shows [icon]. */
+    imageUrl: String? = null,
 ) {
     val interactions = remember { MutableInteractionSource() }
     Column(
@@ -397,7 +405,27 @@ fun EffyCategoryShortcut(
             modifier = Modifier.size(72.dp).clip(CircleShape).background(EffySurface.tint),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(painterResource(icon), contentDescription = null, modifier = Modifier.size(30.dp), tint = MaterialTheme.colorScheme.onSurface)
+            val glyph: @Composable () -> Unit = {
+                Icon(painterResource(icon), contentDescription = null, modifier = Modifier.size(30.dp), tint = MaterialTheme.colorScheme.onSurface)
+            }
+            if (imageUrl.isNullOrBlank()) {
+                glyph()
+            } else {
+                SubcomposeAsyncImage(
+                    model = imageUrl,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                ) {
+                    // `collectAsState`: Coil 3's state is a StateFlow (see ProductImage).
+                    val state by painter.state.collectAsState()
+                    when (state) {
+                        is AsyncImagePainter.State.Loading -> EffyShimmer(Modifier.fillMaxSize())
+                        is AsyncImagePainter.State.Error -> glyph()
+                        else -> SubcomposeAsyncImageContent()
+                    }
+                }
+            }
         }
         Text(
             label,

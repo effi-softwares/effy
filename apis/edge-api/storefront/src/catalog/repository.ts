@@ -123,22 +123,6 @@ counts AS (
     FROM membership m
     JOIN public.category_ancestor a ON a.category_id = m.category_id
     GROUP BY a.ancestor_id
-),
-pictures AS (
-    SELECT DISTINCT ON (a.ancestor_id) a.ancestor_id AS category_id, m.storage_key
-    FROM public.category_ancestor a
-    -- availability-exempt: public.product, DELIBERATELY status ONLY. This picks a category's
-    -- representative PICTURE when staff gave it none, not something to buy. Letting stock choose it
-    -- would make a category change its face as units come and go.
-    JOIN public.product p ON p.primary_category_id = a.category_id AND p.status = 'active'
-    JOIN LATERAL (
-        SELECT storage_key
-        FROM public.product_media
-        WHERE product_id = p.id
-        ORDER BY is_primary DESC, display_order ASC, created_at ASC
-        LIMIT 1
-    ) m ON true
-    ORDER BY a.ancestor_id, p.created_at ASC, p.id ASC
 )
 SELECT c.key AS key,
        c.name AS name,
@@ -147,14 +131,15 @@ SELECT c.key AS key,
        r.is_leaf AS is_leaf,
        c.icon AS icon,
        COALESCE(counts.n, 0) AS product_count,
-       COALESCE(c.image_key, pictures.storage_key) AS image_key,
-       ${renditionWidthsSql("COALESCE(c.image_key, pictures.storage_key)")} AS image_widths
+       -- The picture staff attached, and ONLY that: a product photograph is never a category's face
+       -- (an aisle tile showing one product misdescribes the aisle). None → the client shows the icon.
+       c.image_key AS image_key,
+       ${renditionWidthsSql("c.image_key")} AS image_widths
 FROM public.category c
 -- availability-exempt: public.category — category_resolved holds active categories only.
 JOIN public.category_resolved r ON r.category_id = c.id
 LEFT JOIN public.category pc ON pc.id = c.parent_id
 LEFT JOIN counts ON counts.category_id = c.id
-LEFT JOIN pictures ON pictures.category_id = c.id
 ORDER BY r.depth ASC, c."position" ASC, c.name ASC`)
       ).rows;
     },

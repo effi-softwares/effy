@@ -2,11 +2,14 @@ import Link from "next/link"
 
 import type { StorefrontCategoryDTO } from "@effy/shared-types"
 
+import { categoryIcon } from "@/components/chrome/category-icon"
 import { MediaFrame, SectionShell } from "@/components/storefront/kit"
 import { Bone } from "@/components/ui/skeletons"
 
 /**
- * The category shortcut row: circular image tiles and a "Shop all products" action into `/search`.
+ * The category shortcut row: circular tiles and a "Shop all products" action into `/search`. A tile is
+ * the picture staff attached to the category, else the icon they chose, else the default glyph - never a
+ * product's photograph (the server sends only the category's own picture).
  * Stocked categories only (filtering is exact-match, and `productCount` does not roll up from children,
  * so in practice leaves only). The scrollbar is hidden but scrolling is not; the fixed 80/96px tiles
  * leave a partial tile at the edge as the affordance, so keep them fixed.
@@ -29,16 +32,7 @@ export function CategoryStrip({ categories }: { categories: StorefrontCategoryDT
                 className="group flex w-22 flex-col items-center gap-3 rounded-lg py-2 text-center sm:w-28"
               >
                 {/* The whole tile is the target, past the 44px minimum. */}
-                <MediaFrame
-                  src={category.imageUrl}
-                  widths={category.imageWidths}
-                  alt=""
-                  ratio="square"
-                  rounded="rounded-full"
-                  fallbackLabel={category.name.charAt(0).toUpperCase()}
-                  sizes="112px"
-                  className="w-18 transition-shadow sm:w-24"
-                />
+                <CategoryFace category={category} />
                 {/* The name is the caption + a hidden count, not an aria-label: a label that drops the
                     fallback letter on screen fails WCAG 2.5.3 (label in name). */}
                 <span className="text-xs leading-tight font-medium sm:text-sm">
@@ -54,6 +48,33 @@ export function CategoryStrip({ categories }: { categories: StorefrontCategoryDT
         </ul>
       ) : null}
     </SectionShell>
+  )
+}
+
+/** Picture → chosen icon → default glyph (`categoryIcon` resolves the last two). */
+function CategoryFace({ category }: { category: StorefrontCategoryDTO }) {
+  if (category.imageUrl) {
+    return (
+      <MediaFrame
+        src={category.imageUrl}
+        widths={category.imageWidths}
+        alt=""
+        ratio="square"
+        rounded="rounded-full"
+        sizes="112px"
+        className="w-18 transition-shadow sm:w-24"
+      />
+    )
+  }
+  const Icon = categoryIcon(category.icon)
+  return (
+    <span
+      aria-hidden="true"
+      data-testid="category-icon-tile"
+      className="flex aspect-square w-18 items-center justify-center rounded-full bg-muted text-foreground sm:w-24"
+    >
+      <Icon className="size-8 sm:size-10" strokeWidth={1.5} />
+    </span>
   )
 }
 

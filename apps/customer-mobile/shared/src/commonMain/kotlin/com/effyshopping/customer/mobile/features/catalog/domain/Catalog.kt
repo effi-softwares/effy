@@ -161,7 +161,7 @@ data class Category(
     val parentKey: String?,
     /** Active products in this category. Drives "N items" and the empty-category case. */
     val productCount: Int,
-    /** Staff's picture, else one of its products'. Null → a brand tile. */
+    /** The picture staff attached, and only that (never a product's). Null → [icon], else the default glyph. */
     val imageUrl: String?,
     /** 1 for a department, down to 5 (101). */
     val depth: Int = 1,

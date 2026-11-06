@@ -46,7 +46,13 @@ const val MAX_OFFERS = 6
  * `commonTest` - for a value the render site can resolve from [key] in one call. The icon is looked
  * up at render time by `categoryIcon(icon)`, which is itself pure and separately tested.
  */
-data class CategoryShortcut(val key: String, val label: String, val icon: String? = null)
+data class CategoryShortcut(
+    val key: String,
+    val label: String,
+    val icon: String? = null,
+    /** The category's own picture; shown first, before [icon]. */
+    val imageUrl: String? = null,
+)
 
 /**
  * Resolve [HomeContent] and the categories into Home's ordered blocks. Pure. Category shortcuts first, then
@@ -61,7 +67,7 @@ fun composeHome(home: HomeContent, categories: List<Category>): List<HomeBlock> 
     // Categories with something to sell (`productCount` counts a category's own products).
     val shortcuts = categories
         .filter { it.productCount > 0 }
-        .map { CategoryShortcut(key = it.key, label = it.name, icon = it.icon) }
+        .map { CategoryShortcut(key = it.key, label = it.name, icon = it.icon, imageUrl = it.imageUrl) }
 
     // Exclusive placement: a banner is in the carousel OR between sections, never both.
     val carousel = home.banners

@@ -6,6 +6,7 @@ import com.effyshopping.customer.mobile.features.catalog.domain.Category
 import com.effyshopping.customer.mobile.features.catalog.domain.HomeContent
 import com.effyshopping.customer.mobile.features.catalog.domain.ProductCard
 import com.effyshopping.customer.mobile.features.catalog.domain.Rail
+import com.effyshopping.customer.mobile.features.catalog.presentation.CategoryShortcut
 import com.effyshopping.customer.mobile.features.catalog.presentation.HomeBlock
 import com.effyshopping.customer.mobile.features.catalog.presentation.MAX_OFFERS
 import com.effyshopping.customer.mobile.features.catalog.presentation.composeHome
@@ -137,6 +138,26 @@ class HomeBlocksTest {
             "the row must carry the categories a shopper can actually tap into. A top-level shortcut " +
                 "would open a results screen with zero products, because category filtering is an " +
                 "exact primary-category match server-side with no rollup.",
+        )
+    }
+
+    @Test
+    fun `a shortcut carries the category's own picture and icon, so the tile can show picture then icon`() {
+        val blocks = composeHome(
+            HomeContent(banners = emptyList(), rails = listOf(rail("featured"))),
+            listOf(
+                category("bakery").copy(imageUrl = "https://media.test/categories/bakery.png", icon = "croissant"),
+                category("dairy").copy(icon = "milk"),
+            ),
+        )
+
+        val shortcuts = blocks.filterIsInstance<HomeBlock.Categories>().single().items
+        assertEquals(
+            listOf(
+                CategoryShortcut("bakery", "Bakery", icon = "croissant", imageUrl = "https://media.test/categories/bakery.png"),
+                CategoryShortcut("dairy", "Dairy", icon = "milk", imageUrl = null),
+            ),
+            shortcuts,
         )
     }
 
