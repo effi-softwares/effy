@@ -26,7 +26,7 @@ TF_ROOTS := $(BOOTSTRAP_DIR) $(GLOBAL_DIR) $(INFRA_DIR)/envs/dev $(INFRA_DIR)/en
 .PHONY: gateway-usage help bootstrap-init bootstrap-apply init plan apply destroy output fmt validate lint preflight \
         global-init global-plan global-apply global-output dns-verify mail-verify mail-events-verify edge-health \
         db-new db-status db-up db-up-one db-down db-shopper-role check-goose \
-        live-guards shop-words-guard driver-words-guard purge-orders reset-dev-data seed-delivery wipe-dev create-first-admin load-localities delete-admin edge-install edge-offline edge-test edge-deploy edge-remove \
+        live-guards shop-words-guard driver-words-guard purge-orders reset-dev-data seed-delivery seed-catalogue wipe-dev create-first-admin load-localities delete-admin edge-install edge-offline edge-test edge-deploy edge-remove \
         verify-pool-credentials \
         bo-dev bo-build bo-lint bo-test \
         shop-dev shop-build shop-lint shop-test \
@@ -158,6 +158,11 @@ seed-delivery: ## OPERATOR: seed the Melbourne delivery setup - hub, postcodes, 
 	@test "$(ENV)" = "dev" || { echo "seed-delivery: refusing ENV=$(ENV) - dev only"; exit 1; }
 	@DSN="$$($(DB_DSN_CMD))" || exit 1; \
 		psql "$$DSN" -v ON_ERROR_STOP=1 -q -f db/seeds/047_delivery_dev.sql
+
+seed-catalogue: ## OPERATOR: seed the starting category tree + attribute library (replays migration 101's taxonomy; ENV=dev only, refuses while products exist) - db/seeds/101_catalogue_dev.sql
+	@test "$(ENV)" = "dev" || { echo "seed-catalogue: refusing ENV=$(ENV) - dev only"; exit 1; }
+	@DSN="$$($(DB_DSN_CMD))" || exit 1; \
+		psql "$$DSN" -v ON_ERROR_STOP=1 -q -f db/seeds/101_catalogue_dev.sql
 
 wipe-dev: check-goose ## OPERATOR: reset dev to empty - DB rebuilt from all migrations, all Cognito users and media deleted
 	@ENV=$(ENV) AWS_PROFILE=$(AWS_PROFILE) AWS_REGION=$(AWS_REGION) bash scripts/wipe-dev.sh
