@@ -5,7 +5,7 @@
 --   1. the hub (Fishermans Bend, Port Melbourne) and the delivery settings;
 --   2. seven groups and 86 real Melbourne postcodes, each with its distance from the hub; delivery TODAY is
 --      offered only within 15 km of the hub;
---   3. six two-hour delivery windows 09:00-21:00, with limits, plus the built-in "Any time" window;
+--   3. six two-hour delivery windows 09:00-21:00, no order limits, plus the built-in "Any time" window;
 --   4. six collection runs, one an hour before each window;
 --   5. the Effy fee plan and a courier fee table (courier delivery stays OFF);
 --   6. the days Effy does not deliver (Christmas Day, Good Friday, Anzac Day);
@@ -134,15 +134,16 @@ SELECT ('22222222-0000-0000-0000-00000000000' || s.zone_no)::uuid, s.postcode,
 
 -- ── 3. Delivery windows ─────────────────────────────────────────────────────────────────────────────
 -- Six two-hour windows. Each window's cutoff is 2 h 30 min before it starts: its collection run is an hour
--- before the start (hub turnaround) and the shop needs 90 minutes before that. The limit is orders per window
--- per day: 12 drops is one van's two-hour round at 10 minutes a drop; the evening has three vans.
+-- before the start (hub turnaround) and the shop needs 90 minutes before that. No window has an order limit
+-- (capacity NULL): a window never fills, so it closes only at its cutoff. Set a limit in back-office later if
+-- the vans can't keep up.
 INSERT INTO public.delivery_slot (id, start_time, end_time, cutoff_time, capacity, status, updated_by) VALUES
-    ('44444444-0000-0000-0000-000000000009', '09:00', '11:00', '06:30', 12, 'active', 'seed:delivery'),
-    ('44444444-0000-0000-0000-000000000011', '11:00', '13:00', '08:30', 12, 'active', 'seed:delivery'),
-    ('44444444-0000-0000-0000-000000000013', '13:00', '15:00', '10:30', 12, 'active', 'seed:delivery'),
-    ('44444444-0000-0000-0000-000000000015', '15:00', '17:00', '12:30', 24, 'active', 'seed:delivery'),
-    ('44444444-0000-0000-0000-000000000017', '17:00', '19:00', '14:30', 36, 'active', 'seed:delivery'),
-    ('44444444-0000-0000-0000-000000000019', '19:00', '21:00', '16:30', 24, 'active', 'seed:delivery')
+    ('44444444-0000-0000-0000-000000000009', '09:00', '11:00', '06:30', NULL, 'active', 'seed:delivery'),
+    ('44444444-0000-0000-0000-000000000011', '11:00', '13:00', '08:30', NULL, 'active', 'seed:delivery'),
+    ('44444444-0000-0000-0000-000000000013', '13:00', '15:00', '10:30', NULL, 'active', 'seed:delivery'),
+    ('44444444-0000-0000-0000-000000000015', '15:00', '17:00', '12:30', NULL, 'active', 'seed:delivery'),
+    ('44444444-0000-0000-0000-000000000017', '17:00', '19:00', '14:30', NULL, 'active', 'seed:delivery'),
+    ('44444444-0000-0000-0000-000000000019', '19:00', '21:00', '16:30', NULL, 'active', 'seed:delivery')
 ON CONFLICT (id) DO UPDATE SET start_time = EXCLUDED.start_time, end_time = EXCLUDED.end_time,
     cutoff_time = EXCLUDED.cutoff_time, capacity = EXCLUDED.capacity, status = EXCLUDED.status,
     updated_by = EXCLUDED.updated_by, updated_at = now();
@@ -150,9 +151,9 @@ ON CONFLICT (id) DO UPDATE SET start_time = EXCLUDED.start_time, end_time = EXCL
 DELETE FROM public.delivery_slot WHERE NOT any_time AND id::text NOT LIKE '44444444-0000-0000-0000-0000000000__';
 
 -- "Any time" (its migration made it; only its hours and limit are edited): a day with no time, delivered
--- 09:00-21:00 on whichever round has room. Its cutoff matches the first window's, since the first run serves it.
+-- 09:00-21:00 on any round that day, with no limit. Its cutoff matches the first window's, since the first run serves it.
 UPDATE public.delivery_slot
-   SET start_time = '09:00', end_time = '21:00', cutoff_time = '06:30', capacity = 24,
+   SET start_time = '09:00', end_time = '21:00', cutoff_time = '06:30', capacity = NULL,
        updated_by = 'seed:delivery', updated_at = now()
  WHERE any_time;
 

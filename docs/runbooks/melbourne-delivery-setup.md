@@ -78,25 +78,25 @@ at 11:00 three (15–17, 17–19, 19–21); at 16:00 one (19–21); at 17:00 non
 What a customer chooses at checkout: **one window for the whole order**, either today (shown under
 "Same-day delivery") or on one of the next 6 delivery days (shown under "Standard delivery").
 
-| Window (Melbourne) | SL (summer) | SL (winter) | Order by (Melbourne) | Order by (SL summer) | Limit / day | Extra charge |
-|---|---|---|---|---|---|---|
-| 09:00–11:00 | 03:30–05:30 | 04:30–06:30 | 06:30 | 01:00 | 12 | – |
-| 11:00–13:00 | 05:30–07:30 | 06:30–08:30 | 08:30 | 03:00 | 12 | – |
-| 13:00–15:00 | 07:30–09:30 | 08:30–10:30 | 10:30 | 05:00 | 12 | – |
-| 15:00–17:00 | 09:30–11:30 | 10:30–12:30 | 12:30 | 07:00 | 24 | – |
-| 17:00–19:00 | 11:30–13:30 | 12:30–14:30 | 14:30 | 09:00 | 36 | **+$2.00** (dinner peak) |
-| 19:00–21:00 | 13:30–15:30 | 14:30–16:30 | 16:30 | 11:00 | 24 | **+$1.00** |
-| **Any time** (09:00–21:00) | 03:30–15:30 | 04:30–16:30 | 06:30 | 01:00 | 24 | – |
+| Window (Melbourne) | SL (summer) | SL (winter) | Order by (Melbourne) | Order by (SL summer) | Extra charge |
+|---|---|---|---|---|---|
+| 09:00–11:00 | 03:30–05:30 | 04:30–06:30 | 06:30 | 01:00 | – |
+| 11:00–13:00 | 05:30–07:30 | 06:30–08:30 | 08:30 | 03:00 | – |
+| 13:00–15:00 | 07:30–09:30 | 08:30–10:30 | 10:30 | 05:00 | – |
+| 15:00–17:00 | 09:30–11:30 | 10:30–12:30 | 12:30 | 07:00 | – |
+| 17:00–19:00 | 11:30–13:30 | 12:30–14:30 | 14:30 | 09:00 | **+$2.00** (dinner peak) |
+| 19:00–21:00 | 13:30–15:30 | 14:30–16:30 | 16:30 | 11:00 | **+$1.00** |
+| **Any time** (09:00–21:00) | 03:30–15:30 | 04:30–16:30 | 06:30 | 01:00 | – |
 
 - **The "order by" time applies on the delivery day itself.** It is the window's cutoff, 2 h 30 min before the
   window starts: 90 minutes for the shop to pick and pack, then the collection run, then 60 minutes at the hub.
   For a later day the cutoff is far away, so in practice only today's windows close during the day.
-- **The limit** is orders per window per day. One van does about 12 drops in a two-hour window at 10 minutes a
-  drop. Daytime has one van, 15–17 has two, the dinner peak (17–19) has three, 19–21 has two. That is
-  **120 timed orders a day, plus 24 "Any time" orders**. When a window is full it disappears for that day;
-  nothing is moved to another window.
+- **No order limit.** No window (Any time included) has a limit, so a window never fills: it closes only at its
+  "order by" time. One van does about 12 drops in a two-hour window at 10 minutes a drop, so watch the rounds; if
+  the vans can't keep up, set a limit per window in back-office › Settings › Delivery windows. A full window then
+  disappears for that day, and nothing is moved to another window.
 - **Any time** is the default under "Standard delivery": the customer picks a day, not a time, and the order goes
-  on whichever round has room that day. **ASAP** orders go into the first day that has room in Any time: today if
+  on any round that day. **ASAP** orders go into Any time on the first delivery day still open: today if
   the order is placed before 06:30, otherwise tomorrow. The customer is told **"usually today or tomorrow"**,
   never the exact day. Any time pays the plain fee: no window charge and no "Delivery today" charge.
 - **Delivery today costs $3.00 more** (see section 7).
