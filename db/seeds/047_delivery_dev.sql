@@ -7,7 +7,8 @@
 --      offered only within 15 km of the hub;
 --   3. six two-hour delivery windows 09:00-21:00, no order limits, plus the built-in "Any time" window;
 --   4. six collection runs, one an hour before each window;
---   5. the Effy fee plan and a courier fee table (courier delivery stays OFF);
+--   5. fee plans: the active Effy plan and courier table (courier delivery stays OFF), the retired soft-launch
+--      plan, and drafts for Christmas, a free-delivery promotion and 2027;
 --   6. the days Effy does not deliver (Christmas Day, Good Friday, Anzac Day);
 --   7. the order minimum.
 --
@@ -19,8 +20,8 @@
 -- from them, and the seed stops rather than guess one. Refuses to run while any order exists: windows and
 -- plans are replaced, and orders point at windows.
 --
--- Re-runnable: groups and windows keep their ids (driver clearances and fee surcharges stay attached); the
--- postcode list, fee plans, runs and closed days are replaced.
+-- Re-runnable: groups and windows keep their ids (driver clearances stay attached); the postcode list, fee
+-- plans, runs and closed days are replaced.
 
 \set ON_ERROR_STOP on
 
@@ -169,63 +170,116 @@ INSERT INTO public.delivery_collection_run (run_time, label, status, updated_by)
     ('18:00', 'Evening run',    'active', 'seed:delivery');
 
 -- ── 5. Fee plans ────────────────────────────────────────────────────────────────────────────────────
+-- One plan of each kind prices orders at a time (the active one). The others are what a real business keeps:
+-- the plan it launched with (retired, kept as the record) and drafts ready for the next season, which staff
+-- switch to in back-office › Settings › Pricing. A plan that has been active can never be edited again.
+--
+--   Effy    | Soft launch Oct 2026        | retired | staff & friends trial, flat and cheap
+--           | Melbourne launch 2026       | ACTIVE  | what customers pay now
+--           | Christmas peak 2026         | draft   | 1-24 Dec: busier evenings, free from $200
+--           | Free delivery fortnight     | draft   | a marketing push: free from $60
+--           | Melbourne 2027              | draft   | after launch: base $7, free from $200
+--   Courier | Australia-wide courier 2026 | ACTIVE  | (courier delivery itself stays OFF)
+--           | Courier Christmas peak 2026 | draft   | December carrier surcharges
+--
+-- Effy sells groceries AND household, electronics and general goods (a Walmart-style range), so every Effy plan's
+-- weight bands go to 100 kg and its cap leaves room for heavy baskets (drinks, pet food, cat litter, appliances).
 DELETE FROM public.delivery_fee_plan;  -- cascades bands and window surcharges
 
--- Effy: base $6 + distance + weight + window, rounded up to 50c, between $6 and $25. Free from $150.
--- Under $50 adds a $5 small-order fee. A window today costs $3 more. Effy sells groceries AND household,
--- electronics and general goods (a Walmart-style range), so the weight bands go to 100 kg and the cap leaves room
--- for heavy baskets (drinks, pet food, cat litter, small appliances).
 INSERT INTO public.delivery_fee_plan
     (id, kind, name, base_amount, today_premium_amount, rounding_step, floor_amount, cap_amount,
      free_over_amount, small_order_under_amount, small_order_fee_amount, created_by, updated_by)
 VALUES
-    ('33333333-0000-0000-0000-000000000001', 'effy', 'Melbourne launch 2026', 6.00, 3.00, 0.50, 6.00, 25.00,
-     150.00, 50.00, 5.00, 'seed:delivery', 'seed:delivery');
+    -- base, today +, step, floor, cap, free from, small-order under, small-order fee
+    ('33333333-0000-0000-0000-000000000003', 'effy', 'Soft launch Oct 2026',
+        5.00, 0.00, 0.50, 5.00, 15.00, 100.00, NULL, NULL, 'seed:delivery', 'seed:delivery'),
+    ('33333333-0000-0000-0000-000000000001', 'effy', 'Melbourne launch 2026',
+        6.00, 3.00, 0.50, 6.00, 25.00, 150.00, 50.00, 5.00, 'seed:delivery', 'seed:delivery'),
+    ('33333333-0000-0000-0000-000000000004', 'effy', 'Christmas peak 2026',
+        6.00, 5.00, 0.50, 6.00, 30.00, 200.00, 50.00, 5.00, 'seed:delivery', 'seed:delivery'),
+    ('33333333-0000-0000-0000-000000000005', 'effy', 'Free delivery fortnight',
+        6.00, 3.00, 0.50, 6.00, 25.00, 60.00, 40.00, 4.00, 'seed:delivery', 'seed:delivery'),
+    ('33333333-0000-0000-0000-000000000006', 'effy', 'Melbourne 2027',
+        7.00, 4.00, 0.50, 7.00, 27.00, 200.00, 50.00, 5.00, 'seed:delivery', 'seed:delivery');
 
--- Straight-line km from the hub (roads are about 1.3 times longer). 6 km keeps the whole City group, the CBD
--- included (5.22 km), in the first band.
-INSERT INTO public.delivery_distance_band (plan_id, upper_km, add_amount) VALUES
-    ('33333333-0000-0000-0000-000000000001',  6.00, 0.00),
-    ('33333333-0000-0000-0000-000000000001', 10.00, 1.00),
-    ('33333333-0000-0000-0000-000000000001', 15.00, 2.00),
-    ('33333333-0000-0000-0000-000000000001', 20.00, 3.50),
-    ('33333333-0000-0000-0000-000000000001', 30.00, 5.00),
-    ('33333333-0000-0000-0000-000000000001',  NULL, 8.00);
-
--- The whole basket's weight; the heaviest band also prices anything above it.
-INSERT INTO public.delivery_weight_band (plan_id, upper_grams, add_amount) VALUES
-    ('33333333-0000-0000-0000-000000000001',  10000,  0.00),   -- a top-up shop, a gadget, a few household items
-    ('33333333-0000-0000-0000-000000000001',  20000,  1.50),   -- a weekly shop for 1-2 people
-    ('33333333-0000-0000-0000-000000000001',  30000,  3.00),   -- a family weekly shop
-    ('33333333-0000-0000-0000-000000000001',  45000,  5.00),   -- drinks cases, a microwave, an air fryer
-    ('33333333-0000-0000-0000-000000000001',  70000,  8.00),   -- bulk pet food, cat litter, a large TV
-    ('33333333-0000-0000-0000-000000000001', 100000, 12.00);   -- the heaviest band, also above 100 kg
-
--- The dinner-time windows cost a little more, to spread the evening rush.
-INSERT INTO public.delivery_slot_premium (plan_id, slot_id, add_amount) VALUES
-    ('33333333-0000-0000-0000-000000000001', '44444444-0000-0000-0000-000000000017', 2.00),
-    ('33333333-0000-0000-0000-000000000001', '44444444-0000-0000-0000-000000000019', 1.00);
-
-DO $$ BEGIN PERFORM public.delivery_plan_activate('33333333-0000-0000-0000-000000000001', 'seed:delivery', false); END $$;
-
--- Courier: a flat $10 + weight, rounded up to 50c, between $10 and $40, free from $99 (Kmart charges $10 metro,
--- Big W $8 metro / $10 regional and free over $99 regional; parcels over 30 kg cost carriers more). Active, but courier
--- delivery is OFF and no courier service exists, so nothing sells it until back-office adds one.
+-- Courier plans: a flat fee + weight; no distance, no window, no small-order fee.
 INSERT INTO public.delivery_fee_plan
     (id, kind, name, base_amount, rounding_step, floor_amount, cap_amount, free_over_amount, created_by, updated_by)
 VALUES
-    ('33333333-0000-0000-0000-000000000002', 'courier', 'Australia-wide courier 2026', 10.00, 0.50, 10.00, 40.00,
-     99.00, 'seed:delivery', 'seed:delivery');
+    -- Kmart charges $10 metro; Big W $8 metro / $10 regional, free over $99 regional.
+    ('33333333-0000-0000-0000-000000000002', 'courier', 'Australia-wide courier 2026',
+        10.00, 0.50, 10.00, 40.00,  99.00, 'seed:delivery', 'seed:delivery'),
+    -- December: carriers add peak surcharges and parcels take longer.
+    ('33333333-0000-0000-0000-000000000007', 'courier', 'Courier Christmas peak 2026',
+        12.00, 0.50, 12.00, 45.00, 129.00, 'seed:delivery', 'seed:delivery');
 
-INSERT INTO public.delivery_weight_band (plan_id, upper_grams, add_amount) VALUES
-    ('33333333-0000-0000-0000-000000000002',  3000,  0.00),
-    ('33333333-0000-0000-0000-000000000002',  5000,  3.00),
-    ('33333333-0000-0000-0000-000000000002', 10000,  6.00),
-    ('33333333-0000-0000-0000-000000000002', 20000, 12.00),
-    ('33333333-0000-0000-0000-000000000002', 30000, 18.00),
-    ('33333333-0000-0000-0000-000000000002', 50000, 28.00);
+-- Distance from the hub (straight line; roads are about 1.3 times longer). 6 km keeps the whole City group, the
+-- CBD included (5.22 km), in the first band. The soft launch had three coarse bands.
+INSERT INTO public.delivery_distance_band (plan_id, upper_km, add_amount)
+SELECT p.id::uuid, b.upper_km, b.add_amount
+  FROM (VALUES ('33333333-0000-0000-0000-000000000001'), ('33333333-0000-0000-0000-000000000004'),
+               ('33333333-0000-0000-0000-000000000005')) p(id)
+ CROSS JOIN (VALUES (6.00, 0.00), (10.00, 1.00), (15.00, 2.00), (20.00, 3.50), (30.00, 5.00), (NULL, 8.00))
+            b(upper_km, add_amount)
+UNION ALL
+SELECT '33333333-0000-0000-0000-000000000006'::uuid, b.upper_km, b.add_amount
+  FROM (VALUES (6.00, 0.00), (10.00, 1.00), (15.00, 2.50), (20.00, 4.00), (30.00, 6.00), (NULL, 9.00))
+       b(upper_km, add_amount)
+UNION ALL
+SELECT '33333333-0000-0000-0000-000000000003'::uuid, b.upper_km, b.add_amount
+  FROM (VALUES (10.00, 0.00), (20.00, 2.00), (NULL, 5.00)) b(upper_km, add_amount);
 
-DO $$ BEGIN PERFORM public.delivery_plan_activate('33333333-0000-0000-0000-000000000002', 'seed:delivery', false); END $$;
+-- The whole basket's weight; each plan's heaviest band also prices anything above it.
+--   up to 10 kg: a top-up shop, a gadget  | 20 kg: a weekly shop for 1-2 | 30 kg: a family weekly shop
+--   45 kg: drinks cases, a microwave      | 70 kg: bulk pet food, cat litter, a large TV | 100 kg: the heaviest
+INSERT INTO public.delivery_weight_band (plan_id, upper_grams, add_amount)
+SELECT p.id::uuid, b.upper_grams, b.add_amount
+  FROM (VALUES ('33333333-0000-0000-0000-000000000001'), ('33333333-0000-0000-0000-000000000004'),
+               ('33333333-0000-0000-0000-000000000005'), ('33333333-0000-0000-0000-000000000006')) p(id)
+ CROSS JOIN (VALUES (10000, 0.00), (20000, 1.50), (30000, 3.00), (45000, 5.00), (70000, 8.00), (100000, 12.00))
+            b(upper_grams, add_amount)
+UNION ALL
+SELECT '33333333-0000-0000-0000-000000000003'::uuid, b.upper_grams, b.add_amount
+  FROM (VALUES (20000, 0.00), (45000, 3.00), (100000, 6.00)) b(upper_grams, add_amount)
+UNION ALL  -- courier 2026
+SELECT '33333333-0000-0000-0000-000000000002'::uuid, b.upper_grams, b.add_amount
+  FROM (VALUES (3000, 0.00), (5000, 3.00), (10000, 6.00), (20000, 12.00), (30000, 18.00), (50000, 28.00))
+       b(upper_grams, add_amount)
+UNION ALL  -- courier Christmas peak
+SELECT '33333333-0000-0000-0000-000000000007'::uuid, b.upper_grams, b.add_amount
+  FROM (VALUES (3000, 0.00), (5000, 4.00), (10000, 8.00), (20000, 15.00), (30000, 22.00), (50000, 33.00))
+       b(upper_grams, add_amount);
+
+-- Window surcharges: the dinner-time windows cost more, to spread the evening rush. Christmas adds the
+-- afternoon too; the soft launch had none.
+INSERT INTO public.delivery_slot_premium (plan_id, slot_id, add_amount) VALUES
+    ('33333333-0000-0000-0000-000000000001', '44444444-0000-0000-0000-000000000017', 2.00),
+    ('33333333-0000-0000-0000-000000000001', '44444444-0000-0000-0000-000000000019', 1.00),
+    ('33333333-0000-0000-0000-000000000004', '44444444-0000-0000-0000-000000000015', 1.00),
+    ('33333333-0000-0000-0000-000000000004', '44444444-0000-0000-0000-000000000017', 3.00),
+    ('33333333-0000-0000-0000-000000000004', '44444444-0000-0000-0000-000000000019', 2.00),
+    ('33333333-0000-0000-0000-000000000005', '44444444-0000-0000-0000-000000000017', 2.00),
+    ('33333333-0000-0000-0000-000000000005', '44444444-0000-0000-0000-000000000019', 1.00),
+    ('33333333-0000-0000-0000-000000000006', '44444444-0000-0000-0000-000000000017', 2.50),
+    ('33333333-0000-0000-0000-000000000006', '44444444-0000-0000-0000-000000000019', 1.50);
+
+-- Activate through the one function, in history order: the soft launch, then the launch plan (which retires
+-- it), then the courier table. The drafts stay drafts.
+DO $$
+BEGIN
+    PERFORM public.delivery_plan_activate('33333333-0000-0000-0000-000000000003', 'seed:delivery', false);
+    PERFORM public.delivery_plan_activate('33333333-0000-0000-0000-000000000001', 'seed:delivery', false);
+    PERFORM public.delivery_plan_activate('33333333-0000-0000-0000-000000000002', 'seed:delivery', false);
+END
+$$;
+
+-- Back-date the history (Melbourne time) so the Pricing list reads like a real one.
+UPDATE public.delivery_fee_plan SET created_at = '2026-10-13 10:00 Australia/Melbourne',
+       activated_at = '2026-10-20 06:00 Australia/Melbourne'
+ WHERE id = '33333333-0000-0000-0000-000000000003';
+UPDATE public.delivery_fee_plan SET created_at = '2026-10-27 10:00 Australia/Melbourne',
+       activated_at = '2026-11-02 06:00 Australia/Melbourne'
+ WHERE id IN ('33333333-0000-0000-0000-000000000001', '33333333-0000-0000-0000-000000000002');
 
 -- ── 6. Days Effy does not deliver ───────────────────────────────────────────────────────────────────
 -- Victoria's restricted trading days: shops are closed on Christmas Day and Good Friday, and until 1 pm on

@@ -34,7 +34,7 @@ In the tables below, **SL (summer)** is the column to read today. **SL (winter)*
 - **Area:** 86 real Melbourne postcodes in 7 groups, all within about 20 km of the hub in a straight line.
 - **Windows:** six two-hour windows a day, 09:00–21:00, seven days a week, plus "Any time".
 - **Collection runs:** six a day, each one hour before a window starts.
-- **Price:** usually **$6–$14** for delivery, never more than **$18**. Free from **$150** of goods.
+- **Price:** usually **$6–$14** for delivery, never more than **$25**. Free from **$150** of goods. One active plan, plus a retired one and drafts for Christmas, a free-delivery fortnight and 2027 (section 7).
 
 ---
 
@@ -168,6 +168,50 @@ Example: on 23 December the customer is offered 23, 24, 26, 27, 28, 29 and 30 De
 
 ## 7. Pricing - Effy delivery
 
+### The plans
+
+Only **one Effy plan prices orders at a time**: the active one. The seed also adds the plans a real business would
+keep: the one it launched with (retired, kept as the record) and drafts ready for the next season. Staff switch
+plans in back-office › Settings › Pricing; activating a draft retires the active plan on the spot. A plan that has
+ever been active can't be edited again, only copied to a new draft.
+
+| Plan | State | When | Base | Today + | Evening + | Highest | Free from | Small order |
+|---|---|---|---|---|---|---|---|---|
+| Soft launch Oct 2026 | retired | 20 Oct – 2 Nov 2026, staff and friends trial | $5 | – | – | $15 | $100 | – |
+| **Melbourne launch 2026** | **active** | since 2 Nov 2026 06:00 Melbourne | $6 | $3 | 17–19 $2, 19–21 $1 | $25 | $150 | $5 under $50 |
+| Christmas peak 2026 | draft | 1 Dec, then Melbourne 2027 from 27 Dec | $6 | $5 | 15–17 $1, 17–19 $3, 19–21 $2 | $30 | $200 | $5 under $50 |
+| Free delivery fortnight | draft | a two-week marketing push | $6 | $3 | 17–19 $2, 19–21 $1 | $25 | **$60** | $4 under $40 |
+| Melbourne 2027 | draft | from 27 Dec 2026, after the Christmas peak | $7 | $4 | 17–19 $2.50, 19–21 $1.50 | $27 | $200 | $5 under $50 |
+
+- **Soft launch:** three coarse distance bands (up to 10 km +$0, 10–20 km +$2, beyond +$5) and three weight bands
+  (up to 20 kg +$0, 20–45 kg +$3, beyond +$6).
+- **Melbourne 2027:** slightly steeper distance (10–15 km +$2.50, 15–20 +$4, 20–30 +$6, beyond +$9). This is how
+  a delivery business prices once customers rely on it. Free from $200 sits closer to the supermarkets' $250.
+- **Every other plan** uses the launch plan's distance and weight bands below.
+- **Christmas:** the busy evenings cost more, and free delivery needs a bigger basket. Woolworths and Coles keep
+  their thresholds year-round but raise window prices at peak.
+- **The calendar:** launch now, Christmas peak on 1 Dec, Melbourne 2027 on 27 Dec. Staff activate each one by hand;
+  nothing switches plans by date. ⚠ **A retired plan can't be switched back on**, only copied to a new draft. So to
+  return to launch prices after the free-delivery fortnight, copy "Melbourne launch 2026" to a draft first.
+
+**The same basket under each plan** (from the platform's fee engine):
+
+| Basket | Soft launch | **Launch** | Christmas | Free fortnight | 2027 |
+|---|---|---|---|---|---|
+| Southbank, 6 kg, $85, tomorrow 13–15 | $5.00 | **$6.00** | $6.00 | free | $7.00 |
+| Brunswick, 14 kg, $120, tomorrow 17–19 | free | **$10.50** | $11.50 | free | $12.00 |
+| the same, **today** 17–19 | free | **$13.50** | $16.50 | free | $16.00 |
+| Camberwell, 22 kg, $95, **today** 11–13 | $10.00 | **$14.00** | $16.00 | free | $16.50 |
+| Doncaster, 25 kg, $110, Friday 19–21 | free | **$13.50** | $14.50 | free | $15.50 |
+| Footscray, 55 kg (pet food, drinks), $120, tomorrow 15–17 | free | **$14.00** | $15.00 | free | $15.00 |
+| St Kilda, 4 kg, $38, Any time | $5.00 | **$12.00** | $12.00 | $11.00 | $13.00 |
+| Footscray, 18 kg, $165, **today** 17–19 | free | **free** | $15.50 | free | $15.00 |
+| Camberwell, 80 kg, $140, **today** 17–19 | free | **$25.00** | $28.00 | free | $27.00 (highest) |
+
+The St Kilda row includes the small-order fee in every plan but the soft launch.
+
+### The active plan: Melbourne launch 2026
+
 **One fee per order**, never per shop. It is worked out like this:
 
 ```
@@ -269,6 +313,17 @@ list gets *"Sorry, we can't deliver to this address."*
 
 Examples: 2 kg, $60 → **$10**; 8 kg, $90 → **$16**; 25 kg, $98 → **$28**; 45 kg, $80 → **$38**; 8 kg, $110 →
 **free**.
+
+A second courier table, **Courier Christmas peak 2026** (draft), covers December, when carriers add peak
+surcharges:
+
+| | Active 2026 | Christmas peak (draft) |
+|---|---|---|
+| Flat fee | $10 | $12 |
+| 3–5 / 5–10 / 10–20 / 20–30 / over 30 kg | +$3 / +$6 / +$12 / +$18 / +$28 | +$4 / +$8 / +$15 / +$22 / +$33 |
+| Highest fee / free from | $40 / $99 | $45 / $129 |
+| 2 kg, $60 → 8 kg, $90 → 25 kg, $98 → 45 kg, $80 | $10 → $16 → $28 → $38 | $12 → $20 → $34 → $45 |
+| 8 kg, $110 | free | $20 |
 
 **To turn it on:** back-office → Delivery → Coverage → Courier delivery. Add a courier service, make it the
 default, then switch courier delivery on.
