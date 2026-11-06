@@ -67,9 +67,15 @@ export function parseLocalities(csv: string): LocalityRow[] {
   });
 }
 
-export async function loadLocalities(db: Pick<pg.Client, "query">, csv: string): Promise<{ read: number; upserted: number }> {
+/** `onProgress` is called after every row (and once with 0 before the first), with rows done and the total. */
+export async function loadLocalities(
+  db: Pick<pg.Client, "query">,
+  csv: string,
+  onProgress?: (done: number, total: number) => void,
+): Promise<{ read: number; upserted: number }> {
   const rows = parseLocalities(csv);
   let upserted = 0;
+  onProgress?.(0, rows.length);
   for (const [i, r] of rows.entries()) {
     try {
       await db.query(
@@ -86,6 +92,7 @@ SET latitude      = EXCLUDED.latitude,
       throw new Error(`upsert row ${i + 1} (${r.name} ${r.state} ${r.postcode}): ${(err as Error).message}`);
     }
     upserted++;
+    onProgress?.(upserted, rows.length);
   }
   return { read: rows.length, upserted };
 }
