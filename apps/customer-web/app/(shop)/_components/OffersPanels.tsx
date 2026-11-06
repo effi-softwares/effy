@@ -43,7 +43,8 @@ export function OffersPanels({
       {offers.length > 0 ? (
         <ul className="grid gap-4 md:grid-cols-3">
           {offers.map((banner, i) => (
-            <li key={banner.key}>
+            // A skin keeps its own height; `flex` lets it fill the row, so a row of skins is one height.
+            <li key={banner.key} className={isDesigned(banner) ? "flex" : undefined}>
               {isDesigned(banner) ? (
                 <SkinnedPromotion banner={banner} groupKey="home-between" imageSizes="(min-width: 768px) 33vw, 100vw" />
               ) : (

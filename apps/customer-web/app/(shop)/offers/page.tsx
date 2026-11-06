@@ -93,7 +93,8 @@ async function OfferList() {
   return (
     <ul className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
       {offers.map((offer) => (
-        <li key={offer.key}>
+        // A skin keeps its own height; `flex` lets it fill the row, so a row of skins is one height.
+        <li key={offer.key} className={isDesigned(offer) ? "flex" : undefined}>
           {isDesigned(offer) ? (
             <SkinnedPromotion banner={offer} groupKey="offers" imageSizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw" />
           ) : offer.code ? (

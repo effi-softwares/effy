@@ -45,6 +45,9 @@ money.
   (`PromoCarousel` `h-full`). (3) The aisles menu's list ran under its footer with the full taxonomy: its grid row is now
   `minmax(0,1fr)` so each column scrolls. (4) A between-sections block of banners only is headed "From Effy", not "Offers" (website
   and app). Seed: compact skins beside the hero, Panels between sections, short-headline plain tiles in the aisles menu (13 banners).
+  (5) Skins in one row were different heights (each keeps its content height inside a stretched grid cell): the Offers page and the
+  between-sections row give a designed skin's `<li>` `flex`, as the side cards already did. The Offers page showing two of three was
+  correct behaviour - dev's order minimum is $0, so the `{order_minimum}` banner was hidden (FR-011); the seed no longer uses it.
 - **Verified**: edge-shared 1007, admin 179, storefront 165, commerce 249, back-office 431, customer-web 719 tests; promotion container
   tests (banners + uses) on a local Postgres; the app's `CatalogMappersTest` (host); the seed run twice and read through `groupPromotions`.
   ⚠ Pre-existing, not 108: admin `promotions.container.test.ts` "groups" fails locally (`isFull` uses the global pool, `DB_HOST` unset).

@@ -4,7 +4,7 @@
 --   Home hero (large)          Range · Delivery promise · Free delivery
 --   Home side cards (medium)   Local shops · Household essentials     (compact skins: the hero is as tall as these)
 --   Between Home sections      Tech and gadgets · Fresh bread · Pets  (all Panels, so the row is even)
---   Offers page (medium)       Free delivery · Small orders · On sale
+--   Offers page (medium)       Free delivery · Party supplies · On sale
 --   Cart (strip)               Free delivery · Search                 (no surface reads this group yet)
 --   Aisles menu (small)        Fresh fruit & veg · Shop electronics   (short words, plain tiles)
 --
@@ -12,8 +12,8 @@
 -- (green, night, warm sand and sky variants of the 095 layouts); each was checked with skinProblems (valid settings, every
 -- text readable on its ground) before it was written here.
 --
--- No banner types a fact a setting owns: the free-delivery amount and the order minimum are live values, filled from their
--- settings each time they are shown (an empty one hides that banner). No pictures: the skins give the look, and pictures
+-- No banner types a fact a setting owns: the free-delivery amount is a live value, filled from the active plan each time it is
+-- shown (no free amount hides that banner). The order minimum is not used: a banner naming it is hidden while there is none. No pictures: the skins give the look, and pictures
 -- are uploaded in back-office.
 --
 -- Re-runnable: the banner and skin ids are fixed (55555555-… and 66666666-…); banners are removed and written again,
@@ -71,9 +71,10 @@ INSERT INTO seed_banner VALUES
     ('55555555-0000-0000-0000-000000000008', 'Pets',
      'Everything for your pets',
      'Food, litter and treats, delivered to your door.', NULL, 'category', 'pet'),
-    ('55555555-0000-0000-0000-000000000009', 'Small orders',
-     'Need just a few things? Orders start at {order_minimum}',
-     'Add what you need and choose a delivery window.', NULL, 'search', NULL),
+    -- No live value here: a banner naming the order minimum is hidden while there is none (dev has none).
+    ('55555555-0000-0000-0000-000000000009', 'Party supplies',
+     'Party supplies, delivered',
+     'Balloons, mixers, ice and everything for the table.', NULL, 'category', 'party-and-entertaining'),
     ('55555555-0000-0000-0000-000000000010', 'On sale',
      'Everything on sale, in one place',
      'Browse every product with a lower price right now.', NULL, 'sale', NULL),
