@@ -20,6 +20,9 @@ const nextConfig: NextConfig = {
   ],
 
   experimental: {
+    // Agent-driven Next.js upgrades stay on security releases only.
+    agentUpgrade: "security",
+
     // Rewrites barrel imports to deep imports, so one `import { X } from "@effy/..."`
     // does not drag a package's whole module graph into a client chunk. Next optimizes
     // `lucide-react` out of the box; our own packages it does not know about.
