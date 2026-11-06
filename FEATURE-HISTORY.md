@@ -4,6 +4,42 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
+**108-information-banners** - Information Banners ([spec](specs/108-information-banners/spec.md)). 🔨 **BUILT 2026-11-06; NOT
+MIGRATED, DEPLOYED OR WALKED.** A fifth promotion kind, `banner`, that says something to shoppers and carries no offer: words, pictures,
+a skin, where a tap leads (search, the sale page, an aisle, a product), a schedule and display groups, exactly like an offer, and never
+money.
+- **Migration** `20261106090000_information_banners.sql`: kind `banner`; `trigger`, `value_type` and `applies_to` nullable;
+  `link_kind` + `link_category_id` / `link_product_id` (FKs, ON DELETE SET NULL); `promotion_banner_shape_ck` (a banner has none of an
+  offer's settings, an offer has all three columns) and `promotion_link_ck`; `promotion_value_chk` / `promotion_applies_to_chk` rewritten
+  to pass a banner (⚠ the old value CHECK would have FAILED on a banner's NULL value type, so it could not be left alone). Up/down/up
+  tested.
+- **Never money**: `loadPromotions(automaticOnly)` says `p.kind <> 'banner'` outright, `toCandidate` throws on a banner, and the
+  promotions guard holds both. Codes, chosen customers and figures answer 409 `not_an_offer` (one `assertPromotion`). A container test
+  prices a basket with banners present exactly as without (SC-002).
+- **Live values** (`@effy/edge-shared/promotions/live-values.ts`, the one parser/filler; the guard fails a service that spells a token):
+  `{free_delivery_amount}` (active Effy plan's free-over, via `loadActivePlan`) and `{order_minimum}` (via `loadCartPolicy`), filled at
+  read by `candidates.ts`, loaded only when a banner in the read names one. An empty value hides the banner (`hiddenBecause` →
+  `live_value_missing`), never a blank. Refused in an offer's words; an unknown `{…}` is refused by name.
+- **Contract**: `ShopperPromotionDTO.target` is `BannerTarget | null` (null = a banner whose aisle or product has gone → not tappable).
+  The commerce Kotlin contract was regenerated: `PromotionKind.Banner`, and quicktype RENAMED `BannerTargetKind` → `TargetKind` (the app's
+  mapper and its test follow). customer-web builds a banner's `href` from its target (`bannerHref`); a banner has no `/promotions/{id}`
+  page (storefront answers 404).
+- **Admin** (stack `admin-promotions`, staff gateway 212 → 213 / 300): `parseWrite` banner branch (every offer field refused by name,
+  headline required, `kind` fixed: 409 `kind_fixed`); `GET /admin/v1/promotions/live-values`; list filter `kind=banner`; detail `link`;
+  group detail/preview fill live values.
+- **Back-office**: `BannerEditorScreen` (`/promotions/banners/new`; the edit route opens it for a banner) with `LinkPicker` and
+  `LiveValueWords` (insert at the cursor, shows what each reads now, warns when the banner would be hidden, hints when a free-delivery
+  amount is typed); list action **New information banner**; the detail page hides figures, codes and customers and warns when the
+  target has gone. Tours: **BE** added and **PR** v2 (new step), spec 107's inventory 51 → 52.
+- **Seed**: `make seed-banners ENV=dev` (`db/seeds/108_banners_dev.sql`): four banners (range, delivery promise, free delivery with the
+  live amount, local shops) in Home hero / Home side cards on 095's designed skins; re-runnable; an aisle missing → search, with a NOTICE.
+- **Verified**: edge-shared 1007, admin 179, storefront 165, commerce 249, back-office 431, customer-web 719 tests; promotion container
+  tests (banners + uses) on a local Postgres; the app's `CatalogMappersTest` (host); the seed run twice and read through `groupPromotions`.
+  ⚠ Pre-existing, not 108: admin `promotions.container.test.ts` "groups" fails locally (`isFull` uses the global pool, `DB_HOST` unset).
+- **Operator steps**: `make db-up ENV=dev` → `make edge-deploy ENV=dev SERVICE=admin-promotions`, `SERVICE=storefront`, `SERVICE=commerce`
+  → back-office and customer-web (push) → the customer app → `make seed-banners ENV=dev` → the walk in
+  [quickstart.md](specs/108-information-banners/quickstart.md).
+
 **Shop Today and Insights redesign 2** (not spec-first, like the other console redesigns; prototypes
 `docs/reference-screens/Shop Today Redesign/index.html` and `…/Shop Insights Redesign/index.html`). 🔨 **BUILT 2026-11-05; NOT MIGRATED,
 DEPLOYED OR WALKED.** Both pages now follow the back-office Overview: one sentence, what comes next, a ranked list, then the detail.

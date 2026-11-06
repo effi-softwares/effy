@@ -598,7 +598,7 @@ function Editor({ current }: { current: Promotion | null }) {
   )
 }
 
-function Field({
+export function Field({
   id,
   label,
   hint,

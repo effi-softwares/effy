@@ -9,6 +9,7 @@ export const KIND_LABEL: Record<PromotionKind, string> = {
   item: "Off items",
   bxgy: "Buy X get Y",
   delivery: "Off delivery",
+  banner: "Information banner",
 }
 export const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 export const AUDIENCE_LABEL: Record<PromotionAudience, string> = {
@@ -86,13 +87,13 @@ export const EMPTY_DRAFT: Draft = {
   groupIds: [],
 }
 
-const toLocal = (iso: string | null) => {
+export const toLocal = (iso: string | null) => {
   if (!iso) return ""
   const d = new Date(iso)
   const p = (n: number) => String(n).padStart(2, "0")
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`
 }
-const fromLocal = (v: string) => (v ? new Date(v).toISOString() : null)
+export const fromLocal = (v: string) => (v ? new Date(v).toISOString() : null)
 const intOrNull = (v: string) => (v.trim() === "" ? null : Number(v))
 const moneyOrNull = (v: string) => (v.trim() === "" ? null : Number(v).toFixed(2))
 
@@ -100,16 +101,17 @@ export function draftOf(p: Promotion): Draft {
   return {
     name: p.name,
     kind: p.kind,
-    trigger: p.trigger,
+    // The offer editor opens offers only; a banner opens BannerEditorScreen.
+    trigger: p.trigger ?? "automatic",
     codeMode: p.trigger === "code" && !p.sharedCode && p.singleUseCodeCount > 0 ? "single_use" : "shared",
     sharedCode: p.sharedCode ?? "",
-    valueType: p.valueType,
+    valueType: p.valueType ?? "percent",
     percentOff: p.percentOff?.toString() ?? "",
     amountOff: p.amountOff ?? "",
     maxDiscount: p.maxDiscount ?? "",
     minSubtotal: p.minSubtotal,
     minQuantity: p.minQuantity?.toString() ?? "",
-    appliesTo: p.appliesTo === "cart" ? "products" : p.appliesTo,
+    appliesTo: p.appliesTo === "cart" || p.appliesTo === null ? "products" : p.appliesTo,
     targets: {
       products: p.targets.products,
       categoryIds: p.targets.categories.map((c) => c.id),

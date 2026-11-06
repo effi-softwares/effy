@@ -3,6 +3,7 @@ import { cache } from "react"
 import type { BannerTarget, PromotionGroupsDTO, ShopperPromotionDTO, ShopperSkinDTO } from "@effy/shared-types"
 
 import { edgeApi, uncached } from "@/lib/api/edge"
+import { aisleHref } from "@/lib/categories"
 import { getSession } from "@/lib/session"
 
 import { readPublicGroups } from "./promotion-groups-public"
@@ -33,6 +34,26 @@ export type GroupBanner = Banner & { label: string | null; skin?: ShopperSkinDTO
 /** What a promotion component draws: a banner, perhaps with a label and the skin of its place. */
 export type PlacedBanner = Banner & { label?: string | null; skin?: ShopperSkinDTO }
 
+/**
+ * Where an information banner (108) goes: its own target, never an offer page (it has none). Null when its aisle or
+ * product has gone: the tile is drawn, not tappable.
+ */
+export function bannerHref(target: BannerTarget | null): string | null {
+  if (!target) return null
+  switch (target.kind) {
+    case "search":
+      return "/search"
+    case "sale":
+      return "/search?saleOnly=true"
+    case "category":
+      return aisleHref(target.categoryKey)
+    case "product":
+      return `/product/${target.productId}`
+    case "promotion":
+      return null
+  }
+}
+
 /** A group's promotion in the shape the existing banner components draw. */
 export function toGroupBanner(p: ShopperPromotionDTO): GroupBanner {
   return {
@@ -40,7 +61,7 @@ export function toGroupBanner(p: ShopperPromotionDTO): GroupBanner {
     title: p.headline,
     subtitle: p.supportingLine,
     imageUrl: null,
-    href: `/promotions/${p.id}`,
+    href: p.kind === "banner" ? bannerHref(p.target) : `/promotions/${p.id}`,
     code: p.code,
     terms: p.terms,
     target: p.target,

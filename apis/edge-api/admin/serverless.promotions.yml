@@ -105,6 +105,17 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
+  promotionsLiveValuesV1:
+    handler: src/functions/promotions-live-values-v1-get.handler
+    description: The live values an information banner may name, with what each reads now - 108
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/promotions/live-values
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
   promotionsProductsV1:
     handler: src/functions/promotions-products-v1-get.handler
     description: Products a promotion can target, by name, SKU or brand - 094

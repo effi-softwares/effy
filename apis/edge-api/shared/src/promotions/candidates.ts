@@ -1,9 +1,10 @@
-import type { BannerTarget, ShopperPromotionDTO } from "@effy/shared-types";
+import type { BannerLinkKind, BannerTarget, LiveValueKey, ShopperPromotionDTO } from "@effy/shared-types";
 
 import type { Queryable } from "../lib/db";
 import { parseCents } from "../lib/money";
 
 import type { BasketLine, Candidate } from "./engine";
+import { fillText, loadLiveValues, tokensIn, type LiveValues } from "./live-values";
 import { loadPictures, loadSkins, type PictureRow, type Placement, PLACEMENT_COLUMNS, placementOf, skinIdsOf, type SkinRow, resolveSkin } from "./skins";
 import { type CodeRefusal, endsInOf, offerLabelOf, type PromotionWords, termsOf } from "./terms";
 
@@ -17,11 +18,18 @@ export type PromotionStateName = "draft" | "scheduled" | "active" | "paused" | "
 export interface PromotionRecord {
   id: string;
   name: string;
+  /** `banner` (108): an information banner, never a candidate, never money. */
+  kind: PromotionWords["kind"];
+  /** A banner's stored destination; null for an offer. `categoryKey` / `productId` are null when gone or off sale. */
+  link: { kind: BannerLinkKind; categoryKey: string | null; productId: string | null; broken: boolean } | null;
+  /** The live values a banner's words name (empty for an offer: its words are as typed). */
+  liveTokens: LiveValueKey[];
   headline: string | null;
   supportingLine: string | null;
   label: string | null;
   state: PromotionStateName;
-  trigger: "automatic" | "code";
+  /** null for a banner. */
+  trigger: "automatic" | "code" | null;
   audience: PromotionWords["audience"];
   combinable: boolean;
   startsAt: Date | null;
@@ -35,7 +43,8 @@ export interface PromotionRecord {
   givenCents: number;
   sharedCode: string | null;
   sharedCodeId: string | null;
-  appliesTo: Candidate["appliesTo"];
+  /** null for a banner. */
+  appliesTo: Candidate["appliesTo"] | null;
   targets: { productIds: Set<string>; categoryIds: Set<string>; brands: Set<string> };
   /** Where a tap goes, when it covers exactly one product or category. */
   singleProductId: string | null;
@@ -51,7 +60,7 @@ interface Row {
   label: string | null;
   state: PromotionStateName;
   kind: PromotionWords["kind"];
-  trigger: "automatic" | "code";
+  trigger: "automatic" | "code" | null;
   value_type: PromotionWords["valueType"];
   percent_off: string | null;
   amount_off: string | null;
@@ -59,7 +68,12 @@ interface Row {
   bxgy_buy_qty: number | null;
   bxgy_get_qty: number | null;
   bxgy_max_per_order: number | null;
-  applies_to: Candidate["appliesTo"];
+  applies_to: Candidate["appliesTo"] | null;
+  link_kind: BannerLinkKind | null;
+  link_category_id: string | null;
+  link_category_key: string | null;
+  link_product_id: string | null;
+  link_product_live: boolean | null;
   delivery_types: ("effy" | "courier")[];
   audience: PromotionWords["audience"];
   min_subtotal_amount: string;
@@ -101,8 +115,12 @@ const PROMOTION_SELECT = `
          sc.code AS shared_code, sc.id::text AS shared_code_id,
          coalesce(t.product_ids, '{}') AS product_ids, coalesce(t.category_ids, '{}') AS category_ids,
          coalesce(t.brands, '{}') AS brands, coalesce(t.product_names, '{}') AS product_names,
-         coalesce(t.category_names, '{}') AS category_names, coalesce(t.category_keys, '{}') AS category_keys
+         coalesce(t.category_names, '{}') AS category_names, coalesce(t.category_keys, '{}') AS category_keys,
+         p.link_kind, p.link_category_id::text, lc.key AS link_category_key, p.link_product_id::text,
+         (lp.status = 'active') AS link_product_live
     FROM public.promotion p
+    LEFT JOIN public.category lc ON lc.id = p.link_category_id AND lc.status = 'active'
+    LEFT JOIN public.product lp ON lp.id = p.link_product_id
     CROSS JOIN LATERAL (
       SELECT count(*) AS uses, coalesce(sum(x.goods_amount + x.delivery_amount), 0) AS given
         FROM public.promotion_use x
@@ -125,7 +143,7 @@ const PROMOTION_SELECT = `
 const cents = (s: string | null): number | null => (s === null ? null : parseCents(s));
 
 function coversWords(r: Row): string | null {
-  if (r.applies_to === "cart") return null;
+  if (r.applies_to === null || r.applies_to === "cart") return null;
   const names = r.applies_to === "products" ? r.product_names : r.applies_to === "categories" ? r.category_names : r.brands.map(titleCase);
   if (names.length === 0) return null;
   if (names.length <= 2) return names.join(" and ");
@@ -153,9 +171,23 @@ function toRecord(r: Row): PromotionRecord {
     minuteTo: r.minute_to,
     maxUsesPerCustomer: r.max_uses_per_customer,
   };
+  const link: PromotionRecord["link"] =
+    r.kind !== "banner" || r.link_kind === null
+      ? null
+      : {
+          kind: r.link_kind,
+          categoryKey: r.link_kind === "category" ? r.link_category_key : null,
+          productId: r.link_kind === "product" && r.link_product_live ? r.link_product_id : null,
+          broken:
+            (r.link_kind === "category" && r.link_category_key === null) ||
+            (r.link_kind === "product" && !r.link_product_live),
+        };
   return {
     id: r.id,
     name: r.name,
+    kind: r.kind,
+    link,
+    liveTokens: r.kind === "banner" ? tokensIn(r.headline, r.supporting_line, r.label) : [],
     headline: r.headline,
     supportingLine: r.supporting_line,
     label: r.label,
@@ -190,7 +222,8 @@ export async function loadPromotions(db: Queryable, filter: { ids?: readonly str
     where.push(`p.id = ANY($${args.length}::uuid[])`);
   }
   if (filter.live) where.push(`p.published_at IS NOT NULL AND p.archived_at IS NULL`);
-  if (filter.automaticOnly) where.push(`p.trigger = 'automatic'`);
+  // A banner has no trigger, so it is never automatic; said outright because the engine must never see one (108).
+  if (filter.automaticOnly) where.push(`p.trigger = 'automatic' AND p.kind <> 'banner'`);
   const res = await db.query<Row>(`${PROMOTION_SELECT} ${where.length ? `WHERE ${where.join(" AND ")}` : ""} ORDER BY p.created_at`, args);
   return res.rows.map(toRecord);
 }
@@ -250,6 +283,10 @@ export function eligibility(rec: PromotionRecord, facts: ShopperFacts | null): "
 
 export function toCandidate(rec: PromotionRecord, code: { id: string; text: string } | null = null): Candidate {
   const w = rec.words;
+  // An information banner gives nothing; reaching here is a defect, never a zero discount (108 FR-007).
+  if (w.kind === "banner" || w.valueType === null || rec.appliesTo === null) {
+    throw new Error(`promotions: ${rec.id} is an information banner and is never a candidate`);
+  }
   return {
     id: rec.id,
     name: rec.name,
@@ -400,13 +437,47 @@ export async function basketLinesFor(
 
 // What the clients are shown
 
-function targetOf(rec: PromotionRecord): BannerTarget {
+function targetOf(rec: PromotionRecord): BannerTarget | null {
+  if (rec.link) {
+    switch (rec.link.kind) {
+      case "search":
+        return { kind: "search" };
+      case "sale":
+        return { kind: "sale" };
+      case "category":
+        return rec.link.categoryKey ? { kind: "category", categoryKey: rec.link.categoryKey } : null;
+      case "product":
+        return rec.link.productId ? { kind: "product", productId: rec.link.productId } : null;
+    }
+  }
   if (rec.singleProductId) return { kind: "product", productId: rec.singleProductId };
   if (rec.singleCategoryKey) return { kind: "category", categoryKey: rec.singleCategoryKey };
   return { kind: "promotion", promotionId: rec.id };
 }
 
-export function shopperPromotion(rec: PromotionRecord, now: Date): ShopperPromotionDTO {
+/**
+ * A banner's words with their live values filled (108). Null when a value it names has nothing to show: the banner is
+ * then not shown at all (`hiddenBecause` says so), never shown with a blank.
+ */
+export function bannerWords(
+  rec: PromotionRecord,
+  live: LiveValues | null,
+): { headline: string; supportingLine: string | null; label: string | null } | null {
+  if (rec.liveTokens.length > 0 && live === null) return null;
+  const values = live ?? { free_delivery_amount: null, order_minimum: null };
+  const h = fillText(rec.headline ?? rec.name, values);
+  const s = fillText(rec.supportingLine, values);
+  const l = fillText(rec.label, values);
+  if (h.missing.length + s.missing.length + l.missing.length > 0) return null;
+  return { headline: h.text ?? rec.name, supportingLine: s.text, label: l.text };
+}
+
+export function shopperPromotion(rec: PromotionRecord, now: Date, live: LiveValues | null = null): ShopperPromotionDTO {
+  if (rec.kind === "banner") {
+    const words = bannerWords(rec, live) ?? { headline: rec.headline ?? rec.name, supportingLine: rec.supportingLine, label: rec.label };
+    // No code, no conditions, no countdown: a banner offers nothing (108 FR-016).
+    return { id: rec.id, kind: "banner", ...words, code: null, terms: null, endsIn: null, target: targetOf(rec) };
+  }
   return {
     id: rec.id,
     kind: rec.words.kind,
@@ -422,8 +493,14 @@ export function shopperPromotion(rec: PromotionRecord, now: Date): ShopperPromot
 }
 
 /** Why a member of a group is not shown to this shopper now, or null when it is. */
-export function hiddenBecause(rec: PromotionRecord, facts: ShopperFacts | null, personal: boolean): PromotionStateName | "personal" | null {
+export function hiddenBecause(
+  rec: PromotionRecord,
+  facts: ShopperFacts | null,
+  personal: boolean,
+  live: LiveValues | null = null,
+): PromotionStateName | "personal" | "live_value_missing" | null {
   if (rec.state !== "active") return rec.state;
+  if (rec.kind === "banner") return bannerWords(rec, live) === null ? "live_value_missing" : null;
   if (!personal && rec.audience !== "everyone") return "personal";
   const e = eligibility(rec, facts);
   if (e === "sign_in" && rec.audience === "everyone") return null;
@@ -458,13 +535,15 @@ export async function groupPromotions(
   ]);
   const byId = new Map(recs.map((r) => [r.id, r]));
   const personal = input.customerId !== null;
+  // Read only when a banner here names one (108): the common read stays as it was.
+  const live = recs.some((r) => r.liveTokens.length > 0) ? await loadLiveValues(db) : null;
   return keys.map((key) => ({
     key,
     promotions: members.rows.flatMap((m, i) => {
       if (m.key !== key) return [];
       const r = byId.get(m.promotion_id);
-      if (r === undefined || hiddenBecause(r, facts, personal) !== null) return [];
-      return [placedPromotion(r, placements[i]!, skins, pictures.get(r.id) ?? [], input.now)];
+      if (r === undefined || hiddenBecause(r, facts, personal, live) !== null) return [];
+      return [placedPromotion(r, placements[i]!, skins, pictures.get(r.id) ?? [], input.now, live)];
     }),
   }));
 }
@@ -476,8 +555,9 @@ export function placedPromotion(
   skins: ReadonlyMap<string, SkinRow>,
   pictures: readonly PictureRow[],
   now: Date,
+  live: LiveValues | null = null,
 ): ShopperPromotionDTO {
-  const dto = shopperPromotion(rec, now);
+  const dto = shopperPromotion(rec, now, live);
   const skin = resolveSkin(placement, dto.code !== null, skins, pictures);
   return skin ? { ...dto, skin } : dto;
 }

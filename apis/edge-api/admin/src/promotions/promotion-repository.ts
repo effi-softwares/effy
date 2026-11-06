@@ -3,7 +3,7 @@
 import { likePattern, limitOffsetClause, orderBy, query, runOffsetPage, withTransaction, type Queryable } from "@effy/edge-shared";
 import { loadPromotions, type PromotionRecord } from "@effy/edge-shared/promotions";
 
-import type { AdminPromotionImageDTO } from "@effy/shared-types";
+import type { AdminBannerLinkDTO, AdminPromotionImageDTO, BannerLinkKind } from "@effy/shared-types";
 
 import { listImages } from "./images";
 import { PROMOTION_LIST, type PromotionListRequest } from "./list";
@@ -15,7 +15,7 @@ export type PromotionState = (typeof PROMOTION_STATES)[number];
 /** Undefined leaves a column as it is (PATCH). */
 export interface PromotionWrite {
   name?: string;
-  kind?: "cart" | "item" | "bxgy" | "delivery";
+  kind?: "cart" | "item" | "bxgy" | "delivery" | "banner";
   trigger?: "automatic" | "code";
   valueType?: "percent" | "amount" | "free";
   percentOff?: number | null;
@@ -41,6 +41,10 @@ export interface PromotionWrite {
   headline?: string | null;
   supportingLine?: string | null;
   label?: string | null;
+  /** An information banner's destination (108). */
+  linkKind?: BannerLinkKind;
+  linkCategoryId?: string | null;
+  linkProductId?: string | null;
 }
 
 export interface PromotionWriteExtras {
@@ -78,6 +82,9 @@ const COLUMN: Record<keyof PromotionWrite, string> = {
   headline: "headline",
   supportingLine: "supporting_line",
   label: "label",
+  linkKind: "link_kind",
+  linkCategoryId: "link_category_id",
+  linkProductId: "link_product_id",
 };
 
 async function audit(tx: Queryable, actor: string, action: string, targetType: string, targetId: string | null, detail: Record<string, unknown>) {
@@ -171,6 +178,8 @@ export interface DetailExtras {
   groups: { id: string; key: string; name: string; position: number }[];
   targets: { products: { id: string; name: string }[]; categories: { id: string; name: string }[]; brands: string[] };
   images: AdminPromotionImageDTO[];
+  /** An information banner's destination with names; null for an offer. */
+  link: AdminBannerLinkDTO | null;
 }
 
 export async function readPromotion(id: string, now: Date): Promise<{ record: PromotionRecord; extras: DetailExtras } | null> {
@@ -192,11 +201,18 @@ export async function readPromotion(id: string, now: Date): Promise<{ record: Pr
                                           FROM public.promotion_target t JOIN public.category c ON c.id = t.category_id WHERE t.promotion_id = p.id), '[]'),
                 'brands', coalesce((SELECT json_agg(t.brand ORDER BY t.brand) FROM public.promotion_target t
                                      WHERE t.promotion_id = p.id AND t.brand IS NOT NULL), '[]')
-              ) AS targets
+              ) AS targets,
+              CASE WHEN p.link_kind IS NULL THEN NULL ELSE json_build_object(
+                'kind', p.link_kind,
+                'category', (SELECT json_build_object('id', c.id, 'name', c.name) FROM public.category c WHERE c.id = p.link_category_id),
+                'product', (SELECT json_build_object('id', pr.id, 'name', pr.name) FROM public.product pr WHERE pr.id = p.link_product_id),
+                'broken', false) END AS link
          FROM public.promotion p WHERE p.id = $1`,
       [id],
     )
   ).rows[0]!;
+  // "Broken" is the one reader's judgement (an aisle retired, a product off sale), not re-derived here.
+  if (extras.link) extras.link.broken = record.link?.broken ?? false;
   extras.images = await listImages(id);
   return { record, extras };
 }

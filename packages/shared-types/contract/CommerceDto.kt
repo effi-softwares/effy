@@ -2349,9 +2349,10 @@ data class ShopperPromotionDTO (
     val supportingLine: String? = null,
 
     /**
-     * Where a tap goes.
+     * Where a tap goes; null only for an information banner whose aisle or product has gone
+     * (draw it non-tappable).
      */
-    val target: BannerTarget,
+    val target: BannerTarget? = null,
 
     /**
      * The conditions sentence, composed server-side ("On orders over $30.00 · Effy delivery
@@ -2361,13 +2362,11 @@ data class ShopperPromotionDTO (
 )
 
 /**
- * Promotions: an offer of one of four kinds, applied automatically or by code, limited by
- * who, when and how much, and shown in display groups the clients ask for by key. Its state
- * is never stored (`public.promotion_state`). One evaluator: `@effy/edge-shared/promotions`
- * (engine.ts).
+ * The four offers, and (108) `banner`: an information banner that carries no offer.
  */
 @Serializable
 enum class PromotionKind(val value: String) {
+    @SerialName("banner") Banner("banner"),
     @SerialName("bxgy") Bxgy("bxgy"),
     @SerialName("cart") Cart("cart"),
     @SerialName("delivery") Delivery("delivery"),
@@ -2755,15 +2754,9 @@ enum class GroupSize(val value: String) {
     @SerialName("strip") Strip("strip");
 }
 
-/**
- * Where a tap goes.
- *
- * Where a promotion tile leads: a closed vocabulary (mobile has no URL router), mapped
- * exhaustively by each client; an unrecognised value renders the tile non-tappable.
- */
 @Serializable
 data class BannerTarget (
-    val kind: BannerTargetKind,
+    val kind: TargetKind,
     val categoryKey: String? = null,
 
     @SerialName("productId")
@@ -2774,7 +2767,7 @@ data class BannerTarget (
 )
 
 @Serializable
-enum class BannerTargetKind(val value: String) {
+enum class TargetKind(val value: String) {
     @SerialName("category") Category("category"),
     @SerialName("product") Product("product"),
     @SerialName("promotion") Promotion("promotion"),

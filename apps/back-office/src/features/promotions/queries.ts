@@ -19,6 +19,7 @@ import {
   addPromotionImage,
   removePromotionImage,
   updatePromotionImage,
+  getLiveValues,
 } from "./repo"
 
 export const PROMO_ROOT = ["back-office", "promotions"] as const
@@ -28,6 +29,9 @@ export const promotionListQuery = (params: PromotionListParams) =>
 
 export const promotionQuery = (id: string) =>
   queryOptions({ queryKey: [...PROMO_ROOT, "detail", id] as const, queryFn: () => getPromotion(id) })
+
+export const liveValuesQuery = () =>
+  queryOptions({ queryKey: [...PROMO_ROOT, "live-values"] as const, queryFn: () => getLiveValues() })
 
 export const orderPolicyQuery = () =>
   queryOptions({ queryKey: [...PROMO_ROOT, "order-policy"] as const, queryFn: () => getOrderPolicy() })

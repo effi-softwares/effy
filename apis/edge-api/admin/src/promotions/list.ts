@@ -19,7 +19,7 @@ export const PROMOTION_LIST = {
 
 export interface PromotionListFilters {
   state: PromotionState;
-  kind: "cart" | "item" | "bxgy" | "delivery";
+  kind: "cart" | "item" | "bxgy" | "delivery" | "banner";
   trigger: "automatic" | "code";
   groupId: string;
 }
@@ -28,7 +28,7 @@ export const PROMOTION_LIST_SPEC: ListSpec<keyof typeof PROMOTION_LIST.sorts, Pr
   ...PROMOTION_LIST,
   filters: {
     state: listFilter.oneOf(PROMOTION_STATES),
-    kind: listFilter.oneOf(["cart", "item", "bxgy", "delivery"] as const),
+    kind: listFilter.oneOf(["cart", "item", "bxgy", "delivery", "banner"] as const),
     trigger: listFilter.oneOf(["automatic", "code"] as const),
     groupId: listFilter.uuid,
   },

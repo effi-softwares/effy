@@ -6,8 +6,10 @@ import { formatCents } from "../lib/money";
  */
 
 export interface PromotionWords {
-  kind: "cart" | "item" | "bxgy" | "delivery";
-  valueType: "percent" | "amount" | "free";
+  /** `banner` (108) is an information banner: it gives nothing, so it has no value, label, gives or terms. */
+  kind: "cart" | "item" | "bxgy" | "delivery" | "banner";
+  /** null for a banner. */
+  valueType: "percent" | "amount" | "free" | null;
   percentOff: number | null;
   amountOffCents: number | null;
   maxDiscountCents: number | null;
@@ -33,6 +35,7 @@ const pct = (n: number) => `${Number.isInteger(n) ? n : n.toFixed(2).replace(/0+
 
 /** The short badge on a product or a banner: "15% off", "$2 off", "Buy 2 get 1 free", "Free delivery". */
 export function offerLabelOf(p: PromotionWords): string {
+  if (p.kind === "banner") throw new Error("promotions: an information banner has no offer label");
   if (p.kind === "bxgy" && p.bxgy) {
     const get = p.valueType === "percent" && p.percentOff !== null ? `${p.bxgy.get} ${pct(p.percentOff)} off` : `${p.bxgy.get} free`;
     return `Buy ${p.bxgy.buy} get ${get}`;
@@ -47,6 +50,7 @@ export function offerLabelOf(p: PromotionWords): string {
 
 /** What it gives, in a sentence: "20% off, up to $15" / "15% off Dairy & eggs" / "$1 off each Brand X item". */
 export function givesOf(p: PromotionWords): string {
+  if (p.kind === "banner") return "No offer";
   const label = offerLabelOf(p);
   if (p.kind === "delivery") return label;
   if (p.kind === "bxgy") return p.covers ? `${label} on ${p.covers}` : label;
@@ -78,6 +82,8 @@ function daysWords(days: readonly number[]): string {
 
 /** The conditions, joined: "On orders over $30.00 · Effy delivery only · Weekdays 11am–2pm". Null when none. */
 export function termsOf(p: PromotionWords): string | null {
+  // A banner states no conditions: it has none, and its schedule only decides when it is shown (108 FR-016).
+  if (p.kind === "banner") return null;
   const parts: string[] = [];
   if (p.minSubtotalCents > 0) parts.push(`On orders over ${moneyExact(p.minSubtotalCents)}`);
   if (p.minQuantity !== null && p.minQuantity > 1) parts.push(`When you buy ${p.minQuantity} or more`);

@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
 import { Link, useSearch } from "@tanstack/react-router"
-import { LayoutList, Palette, Plus, SlidersHorizontal, TicketPercent } from "lucide-react"
+import { LayoutList, Megaphone, Palette, Plus, SlidersHorizontal, TicketPercent } from "lucide-react"
 
 import {
   PROMOTION_STATES,
@@ -45,7 +45,7 @@ export const promotionsList = defineListSearch({
   sortDir: { updated: "desc", name: "asc", start: "desc", end: "asc", used: "desc" },
   filters: {
     state: searchFilter.oneOf(PROMOTION_STATES),
-    kind: searchFilter.oneOf(["cart", "item", "bxgy", "delivery"] as const),
+    kind: searchFilter.oneOf(["cart", "item", "bxgy", "delivery", "banner"] as const),
     trigger: searchFilter.oneOf(["automatic", "code"] as const),
     groupId: searchFilter.uuid,
   },
@@ -77,7 +77,13 @@ const columns: EffyColumnDef<AdminPromotionListItemDTO>[] = [
       <>
         {row.original.name}
         <span className="mt-0.5 block text-sm font-normal text-muted-foreground">
-          {row.original.codeSummary ? <span className="font-mono">{row.original.codeSummary}</span> : "Automatic"}
+          {row.original.kind === "banner" ? (
+            "Information banner"
+          ) : row.original.codeSummary ? (
+            <span className="font-mono">{row.original.codeSummary}</span>
+          ) : (
+            "Automatic"
+          )}
         </span>
       </>
     ),
@@ -92,7 +98,7 @@ const columns: EffyColumnDef<AdminPromotionListItemDTO>[] = [
     cell: ({ row }) => <span className="text-muted-foreground">{activeDates(row.original.startsAt, row.original.endsAt)}</span>,
     meta: { label: "Active dates", priority: 2, sortKey: "start" },
   },
-  { id: "used", header: "Used", cell: ({ row }) => usesLabel(row.original), meta: { label: "Used", align: "numeric", priority: 2, sortKey: "used", phone: "trail" } },
+  { id: "used", header: "Used", cell: ({ row }) => (row.original.kind === "banner" ? <span className="text-muted-foreground">-</span> : usesLabel(row.original)), meta: { label: "Used", align: "numeric", priority: 2, sortKey: "used", phone: "trail" } },
   {
     id: "shownIn",
     header: "Shown in",
@@ -135,6 +141,14 @@ export function PromotionsListScreen() {
                   Display groups
                 </Link>
               </Button>
+              {canManage ? (
+                <Button variant="outline" asChild>
+                  <Link data-tour="promotions.banner" to="/promotions/banners/new">
+                    <Megaphone aria-hidden="true" />
+                    New information banner
+                  </Link>
+                </Button>
+              ) : null}
               {canManage ? (
                 <Button asChild>
                   <Link data-tour="promotions.create" to="/promotions/new">

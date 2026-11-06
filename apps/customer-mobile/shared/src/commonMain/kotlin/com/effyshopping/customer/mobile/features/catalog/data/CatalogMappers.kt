@@ -4,7 +4,8 @@ import com.effyshopping.customer.mobile.commerce.contract.BannerTarget as Banner
 import com.effyshopping.customer.mobile.commerce.contract.ShopperPromotionDTO
 import com.effyshopping.customer.mobile.commerce.contract.FacetDTO
 import com.effyshopping.customer.mobile.commerce.contract.FacetSetDTO
-import com.effyshopping.customer.mobile.commerce.contract.BannerTargetKind as Kind
+import com.effyshopping.customer.mobile.commerce.contract.TargetKind as Kind
+import com.effyshopping.customer.mobile.commerce.contract.PromotionKind
 import com.effyshopping.customer.mobile.commerce.contract.MediaDTO
 import com.effyshopping.customer.mobile.commerce.contract.ProductAttributeGroupDTO
 import com.effyshopping.customer.mobile.commerce.contract.PromotionDTO
@@ -109,11 +110,12 @@ internal fun ShopperPromotionDTO.toBanner(placement: BannerPlacement, position: 
     title = headline,
     subtitle = supportingLine,
     imageUrl = null,
-    href = "/promotions/$id",
+    // An information banner (108) has no offer page: a tap goes to its target, and a gone target is not tappable.
+    href = if (kind == PromotionKind.Banner) null else "/promotions/$id",
     position = position,
     code = code,
     terms = terms,
-    target = target.toDomain(),
+    target = target?.toDomain(),
     placement = placement,
     look = skin?.toLook(),
 )

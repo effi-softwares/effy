@@ -2919,12 +2919,13 @@
       "type": "object"
     },
     "PromotionKind": {
-      "description": "Promotions: an offer of one of four kinds, applied automatically or by code, limited by who, when and how much, and shown in display groups the clients ask for by key. Its state is never stored (`public.promotion_state`). One evaluator: `@effy/edge-shared/promotions` (engine.ts).",
+      "description": "The four offers, and (108) `banner`: an information banner that carries no offer.",
       "enum": [
         "cart",
         "item",
         "bxgy",
-        "delivery"
+        "delivery",
+        "banner"
       ],
       "type": "string"
     },
@@ -3538,8 +3539,15 @@
           ]
         },
         "target": {
-          "$ref": "#/definitions/BannerTarget",
-          "description": "Where a tap goes."
+          "anyOf": [
+            {
+              "$ref": "#/definitions/BannerTarget"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Where a tap goes; null only for an information banner whose aisle or product has gone (draw it non-tappable)."
         },
         "terms": {
           "description": "The conditions sentence, composed server-side (\"On orders over $30.00 · Effy delivery only\").",

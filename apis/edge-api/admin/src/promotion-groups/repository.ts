@@ -2,6 +2,7 @@
 import { query, withTransaction, type Queryable, setIsFull } from "@effy/edge-shared";
 import {
   hiddenBecause,
+  loadLiveValues,
   loadPictures,
   loadPromotions,
   loadSkins,
@@ -105,6 +106,8 @@ export async function readGroup(id: string, now: Date): Promise<AdminPromotionGr
     loadPictures(db, ids),
   ]);
   const byId = new Map(recs.map((r) => [r.id, r]));
+  // A banner's live values, filled as shoppers will read them (108).
+  const live = recs.some((r) => r.liveTokens.length > 0) ? await loadLiveValues(db) : null;
   return {
     ...toDTO(g),
     members: members.rows.flatMap((m, i) => {
@@ -118,7 +121,7 @@ export async function readGroup(id: string, now: Date): Promise<AdminPromotionGr
         position: m.position,
         skinId: m.member_skin_id,
         imageId: m.image_id,
-        resolved: placedPromotion(rec, placements[i]!, skins, pictures.get(m.promotion_id) ?? [], now),
+        resolved: placedPromotion(rec, placements[i]!, skins, pictures.get(m.promotion_id) ?? [], now, live),
       }];
     }),
   };
@@ -272,13 +275,14 @@ export async function previewGroup(id: string, now: Date): Promise<AdminPromotio
     loadPictures(db, ids),
   ]);
   const byId = new Map(recs.map((r) => [r.id, r]));
+  const live = recs.some((r) => r.liveTokens.length > 0) ? await loadLiveValues(db) : null;
   const shown: AdminPromotionGroupPreviewDTO["shown"] = [];
   const hidden: AdminPromotionGroupPreviewDTO["hidden"] = [];
   rows.forEach((row, i) => {
     const r = byId.get(row.promotion_id);
     if (!r) return;
-    const why = hiddenBecause(r, null, false);
-    if (why === null) shown.push(placedPromotion(r, placements[i]!, skins, pictures.get(r.id) ?? [], now));
+    const why = hiddenBecause(r, null, false, live);
+    if (why === null) shown.push(placedPromotion(r, placements[i]!, skins, pictures.get(r.id) ?? [], now, live));
     else hidden.push({ promotionId: r.id, name: r.name, why });
   });
   return { shown, hidden };

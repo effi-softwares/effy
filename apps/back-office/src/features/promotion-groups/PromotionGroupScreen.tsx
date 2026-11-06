@@ -33,7 +33,7 @@ import { useSessionRoles } from "@/features/auth/useSessionRoles"
 import { track } from "@/lib/telemetry"
 import { canManagePromotions } from "@/features/promotions/access"
 import { promotionMutationError } from "@/features/promotions/errorText"
-import { STATE_WORD } from "@/features/promotions/model"
+import { hiddenWord } from "@/features/promotions/model"
 import { PromotionStateWord } from "@/features/promotions/PromotionsListScreen"
 import { promotionListQuery } from "@/features/promotions/queries"
 
@@ -249,7 +249,7 @@ export function PromotionGroupScreen({ groupId }: { groupId: string }) {
                     {preview.data.hidden.map((h) => (
                       <div key={h.promotionId} className="flex items-center justify-between gap-2 text-sm">
                         <span className="truncate">{h.name}</span>
-                        <StatusWord tone="quiet">{h.why === "personal" ? "Personal" : STATE_WORD[h.why]}</StatusWord>
+                        <StatusWord tone="quiet">{hiddenWord(h.why)}</StatusWord>
                       </div>
                     ))}
                   </div>

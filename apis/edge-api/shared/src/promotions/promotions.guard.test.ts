@@ -81,6 +81,21 @@ describe("094 — promotions live once", () => {
     expect(old).toEqual([]);
   });
 
+  it("108 — the engine never selects an information banner", () => {
+    const candidates = sources.find((s) => s.file === "shared/src/promotions/candidates.ts")!.src;
+    // The automatic read excludes banners outright, and turning a banner into a candidate is a thrown defect.
+    expect(candidates).toMatch(/p\.trigger = 'automatic' AND p\.kind <> 'banner'/);
+    expect(candidates).toMatch(/w\.kind === "banner"[\s\S]{0,120}throw new Error/);
+    // Nothing else builds a candidate.
+    const builders = sources.filter((s) => /\btoCandidate\(/.test(s.src)).map((s) => s.file);
+    expect(builders).toEqual(["shared/src/promotions/candidates.ts"]);
+  });
+
+  it("108 — no service spells a live-value token: they are parsed and filled in live-values.ts only", () => {
+    const spelled = sources.filter((s) => /\{(free_delivery_amount|order_minimum)\}/.test(s.src)).map((s) => s.file);
+    expect(spelled).toEqual([]);
+  });
+
   it("095 — skins and pictures are written by the admin service and read here and there only", () => {
     const writers = sources
       .filter((s) => /(INSERT INTO|UPDATE|DELETE FROM)\s+public\.promotion_(skin|image)\b/.test(s.src))

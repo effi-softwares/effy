@@ -14,7 +14,8 @@ export function createPromotionService(db: Queryable = pooled) {
     async promotion(id: string, now = new Date()): Promise<PromotionDTO | null> {
       if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
       const [rec] = await loadPromotions(db, { ids: [id] }, now);
-      if (!rec || hiddenBecause(rec, null, false) !== null) return null;
+      // An information banner has no page of its own: a tap goes where it says (108).
+      if (!rec || rec.kind === "banner" || hiddenBecause(rec, null, false) !== null) return null;
       return {
         id: rec.id,
         title: rec.headline ?? rec.name,

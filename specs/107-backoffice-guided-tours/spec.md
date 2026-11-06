@@ -615,7 +615,8 @@ every role whenever its part is on screen. Role marks: **Admin or manager**, **A
 | 3 | Kind, Applies and Group filters | Filters | Narrow by what it gives, whether it needs a code, and the display group it is shown in. | |
 | 4 | Search promotions | Search | Find a promotion by its name or code. | |
 | 5 | Display groups, Skins and Order rules | Where and how | Display groups decide where offers show, skins how they look, order rules the limits on every cart. | |
-| 6 | Create promotion | Create a promotion | Money off the cart or delivery, or buy-and-get, by code or automatically. | Admin or manager |
+| 6 | New information banner | Information banners | Something to tell shoppers that is not an offer: no discount, no code and no conditions. | Admin or manager |
+| 7 | Create promotion | Create a promotion | Money off the cart or delivery, or buy-and-get, by code or automatically. | Admin or manager |
 
 ### PE - Creating or editing a promotion
 
@@ -629,6 +630,19 @@ every role whenever its part is on screen. Role marks: **Admin or manager**, **A
 | 6 | Limits | Limits | Total uses, uses per customer and a budget. It stops at once when it reaches one. | |
 | 7 | Combines with other promotions | Combining | Off: when another offer gives the shopper more, that one applies instead. | |
 | 8 | Summary | Summary | The promotion as you have set it. What it gives and who it is for are fixed once it is used. | |
+
+### BE - Creating or editing an information banner
+
+*Added by 108 (information banners).*
+
+| # | Points at | Title | Text | Shown when |
+|---|---|---|---|---|
+| 1 | Basics | Basics | Its name is for staff only; shoppers read the words below. | |
+| 2 | What shoppers read | What shoppers read | A headline, a supporting line and a label. Insert a live value, like the free-delivery amount, and it stays up to date by itself. | |
+| 3 | Where a tap leads | Where a tap leads | Search, the sale page, an aisle or a product. | |
+| 4 | When | When | Its start and end, and the days and hours it is shown. | |
+| 5 | Where it's shown | Where it's shown | The display groups it appears in, beside offers. | |
+| 6 | As shoppers read it | Preview | The banner as shoppers will read it. A banner never has a code or conditions. | |
 
 ### PP - A promotion (needs a record)
 

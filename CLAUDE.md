@@ -262,6 +262,10 @@ for `shop-web` only.
     (`@effy/web-kit/promo-skin`) for customer-web and back-office's previews; the app's `PromoSkinView.kt`
     is pinned to `promotion-skins.fixtures.json` and decodes a skin leniently (an unknown layout costs the
     skin, never the promotion).
+    ⚠ **AN INFORMATION BANNER IS A PROMOTION THAT IS NEVER MONEY (108)** - kind `banner`: words, pictures, a skin, a stored
+    destination (`link_kind`), a schedule and groups; NULL `trigger`/`value_type`/`applies_to` (`promotion_banner_shape_ck`). The
+    engine never sees one (`automaticOnly` excludes it, `toCandidate` throws). A fact a setting owns is written as a **live value**
+    (`{free_delivery_amount}`, `{order_minimum}`), filled at read by `live-values.ts` only; an empty value hides the banner.
   - ⚠ **Points logic lives once** (074) - `@effy/edge-shared/points` is the only writer of the
     append-only points ledger; the balance is `public.points_usable`, never stored, never recomputed
     elsewhere. Points are a **way of paying**, not a discount: `order.grand_total_amount` is unchanged
@@ -656,6 +660,7 @@ the entries carry gotchas and deploy-ordering rules that the code does not. Slic
 
 Features recorded:
 
+- **108-information-banners** - Information Banners (a fifth promotion kind with no offer: words, a picture, a skin, where a tap leads; live values like the free-delivery amount filled from settings; never money) - built 2026-11-06; not migrated, deployed or walked
 - **107-backoffice-guided-tours** - Guided Tours in Back-Office (49 tours on 106's pieces; steps and whole tours limited by role; `/admin/v1/me/tours`) - built 2026-11-03; not deployed or walked
 - **106-guided-tours** - Guided Tours in the Shop Console (16 tours that start by themselves on a page's first use, once per person; replayed from Help or ⌘K; one Radix tour primitive; words in `tours.ts`, held to the spec) - built 2026-11-03; not migrated, deployed or walked
 - **105-category-driven-variants** - Variants Only From Category Attributes (no platform "Pack size" option; net quantity per variant; clothing Size removed; import columns renamed) - built 2026-10-30; not migrated, deployed or walked
@@ -740,5 +745,5 @@ Features recorded:
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/107-backoffice-guided-tours/plan.md
+at specs/108-information-banners/plan.md
 <!-- SPECKIT END -->

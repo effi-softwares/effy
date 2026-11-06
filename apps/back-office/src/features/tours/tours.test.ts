@@ -18,7 +18,7 @@ const input = { specPath: SPEC, codeToKey: CODE_TO_KEY, tours: BACK_OFFICE_TOURS
 
 describe("back-office tours (107)", () => {
   it("found the spec's inventory (the test must not pass vacuously)", () => {
-    expect(readTourInventory(SPEC).size).toBe(51)
+    expect(readTourInventory(SPEC).size).toBe(52)
   })
 
   it("are within the limits: titles ≤ 40, texts ≤ 220, ≤ 12 steps, unique keys", () => {

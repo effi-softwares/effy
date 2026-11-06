@@ -36,6 +36,7 @@ export const CODE_TO_KEY: Readonly<Record<string, string>> = {
   TX: "taxonomy",
   PR: "promotions",
   PE: "promotion-editor",
+  BE: "banner-editor",
   PP: "promotion",
   PG: "display-groups",
   GD: "display-group",

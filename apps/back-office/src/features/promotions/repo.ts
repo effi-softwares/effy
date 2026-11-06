@@ -12,6 +12,7 @@ import type {
   AdminPromotionImageUploadResponse,
   AdminUpdatePromotionImageRequest,
   OrderPolicyDTO,
+  LiveValuesDTO,
 } from "@effy/shared-types"
 
 import { api } from "@/lib/api"
@@ -44,6 +45,9 @@ export const deletePromotion = (id: string) => api.delete<void>(`/admin/v1/promo
 export const getOrderPolicy = () => api.get<OrderPolicyDTO>("/admin/v1/order-policy")
 export const putOrderPolicy = (body: UpdateOrderPolicyRequest): Promise<OrderPolicy> =>
   api.put<OrderPolicyDTO>("/admin/v1/order-policy", body)
+
+/** What each live value an information banner may name reads now (108). */
+export const getLiveValues = () => api.get<LiveValuesDTO>("/admin/v1/promotions/live-values")
 
 export const searchPromotionProducts = (q: string) =>
   api.get<{ id: string; name: string; brand: string | null }[]>(

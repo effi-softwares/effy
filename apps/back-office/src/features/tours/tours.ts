@@ -1170,7 +1170,7 @@ export const BACK_OFFICE_TOURS = defineTours([
   // PR - Promotions · Codes
   {
     key: "promotions",
-    version: 1,
+    version: 2,
     title: "Promotions · Codes",
     path: "/promotions",
     steps: [
@@ -1190,6 +1190,13 @@ export const BACK_OFFICE_TOURS = defineTours([
         target: "promotions.links",
         title: "Where and how",
         text: "Display groups decide where offers show, skins how they look, order rules the limits on every cart.",
+      },
+      {
+        target: "promotions.banner",
+        title: "Information banners",
+        text: "Something to tell shoppers that is not an offer: no discount, no code and no conditions.",
+        roles: ["admin", "manager"],
+        shownWhen: "Admin or manager",
       },
       {
         target: "promotions.create",
@@ -1234,6 +1241,29 @@ export const BACK_OFFICE_TOURS = defineTours([
         target: "promo.summary",
         title: "Summary",
         text: "The promotion as you have set it. What it gives and who it is for are fixed once it is used.",
+      },
+    ],
+  },
+  // BE - Creating or editing an information banner (108)
+  {
+    key: "banner-editor",
+    version: 1,
+    title: "Creating or editing an information banner",
+    path: "/promotions/banners/new",
+    steps: [
+      { target: "banner.basics", title: "Basics", text: "Its name is for staff only; shoppers read the words below." },
+      {
+        target: "banner.words",
+        title: "What shoppers read",
+        text: "A headline, a supporting line and a label. Insert a live value, like the free-delivery amount, and it stays up to date by itself.",
+      },
+      { target: "banner.link", title: "Where a tap leads", text: "Search, the sale page, an aisle or a product." },
+      { target: "banner.when", title: "When", text: "Its start and end, and the days and hours it is shown." },
+      { target: "banner.groups", title: "Where it's shown", text: "The display groups it appears in, beside offers." },
+      {
+        target: "banner.preview",
+        title: "Preview",
+        text: "The banner as shoppers will read it. A banner never has a code or conditions.",
       },
     ],
   },

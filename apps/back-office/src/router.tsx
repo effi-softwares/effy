@@ -26,6 +26,7 @@ import {
 } from "./routes/product-review"
 import {
   createPromotionRoute,
+  createBannerRoute,
   createSkinRoute,
   editPromotionRoute,
   promotionDetailRoute,
@@ -114,6 +115,7 @@ const routeTree = rootRoute.addChildren([
     taxonomyRoute,
     promotionsIndexRoute,
     createPromotionRoute,
+    createBannerRoute,
     promotionDetailRoute,
     editPromotionRoute,
     promotionGroupsRoute,

@@ -1,10 +1,11 @@
 // Each field is checked here, naming its field, before the database's CHECKs see it. Once used, a
 // change to what a promotion gives or who it is for is 409 `promotion_used`; dates, limits, words and
 // groups stay editable.
-import { offsetListPage, parseListQuery } from "@effy/edge-shared";
+import { offsetListPage, parseListQuery, query } from "@effy/edge-shared";
 import { announce } from "@effy/edge-shared/live";
-import { givesOf, offerLabelOf, type PromotionRecord, termsOf } from "@effy/edge-shared/promotions";
+import { givesOf, hasToken, liveValueList, loadLiveValues, offerLabelOf, type PromotionRecord, termsOf, unknownTokens } from "@effy/edge-shared/promotions";
 import type {
+  LiveValuesDTO,
   AdminPromotionDTO,
   AdminPromotionListDTO,
   AdminPromotionListItemDTO,
@@ -15,7 +16,13 @@ import * as repo from "./promotion-repository";
 import { type PromotionWrite, type PromotionWriteExtras } from "./promotion-repository";
 import { type FieldIssue, PromoError } from "./types";
 
-const KINDS = ["cart", "item", "bxgy", "delivery"] as const;
+const KINDS = ["cart", "item", "bxgy", "delivery", "banner"] as const;
+const LINK_KINDS = ["search", "sale", "category", "product"] as const;
+/** What an information banner never has (108 FR-001): each one sent is refused by name. */
+const OFFER_FIELDS = [
+  "trigger", "valueType", "percentOff", "amountOff", "maxDiscount", "bxgy", "appliesTo", "targets", "deliveryTypes",
+  "audience", "minSubtotal", "minQuantity", "maxUses", "maxUsesPerCustomer", "budget", "combinable", "sharedCode", "codeMode",
+] as const;
 const TRIGGERS = ["automatic", "code"] as const;
 const VALUE_TYPES = ["percent", "amount", "free"] as const;
 const AUDIENCES = ["everyone", "first_order", "new_customers", "chosen"] as const;
@@ -54,16 +61,32 @@ export function parseWrite(body: Record<string, unknown>, current: PromotionReco
   }
 
   const kind = has("kind") ? body.kind : (current?.words.kind ?? undefined);
-  if (has("kind") || !current) {
-    if (!isOneOf(KINDS, body.kind)) bad("kind", "must be cart, item, bxgy or delivery");
+  if (!current) {
+    if (!isOneOf(KINDS, body.kind)) bad("kind", "must be cart, item, bxgy, delivery or banner");
     else w.kind = body.kind;
   }
+  // An information banner (108): words, where a tap leads, a schedule and groups - none of an offer's settings.
+  const banner = kind === "banner";
+  if (banner) {
+    for (const f of OFFER_FIELDS) if (has(f)) bad(f, "not for an information banner");
+    if (has("link") || !current) {
+      const l = (body.link ?? null) as { kind?: unknown; categoryId?: unknown; productId?: unknown } | null;
+      if (!l || !isOneOf(LINK_KINDS, l.kind)) bad("link", "choose search, sale, an aisle or a product");
+      else if (l.kind === "category" && !(typeof l.categoryId === "string" && UUID.test(l.categoryId))) bad("link.categoryId", "choose an aisle");
+      else if (l.kind === "product" && !(typeof l.productId === "string" && UUID.test(l.productId))) bad("link.productId", "choose a product");
+      else {
+        w.linkKind = l.kind;
+        w.linkCategoryId = l.kind === "category" ? (l.categoryId as string) : null;
+        w.linkProductId = l.kind === "product" ? (l.productId as string) : null;
+      }
+    }
+  } else if (has("link")) bad("link", "only an information banner says where a tap leads");
+
+  if (!banner) {
   if (has("trigger") || !current) {
     if (!isOneOf(TRIGGERS, body.trigger)) bad("trigger", "must be automatic or code");
     else w.trigger = body.trigger;
   }
-  const trigger = w.trigger ?? current?.trigger;
-
   if (has("valueType") || !current) {
     if (!isOneOf(VALUE_TYPES, body.valueType)) bad("valueType", "must be percent, amount or free");
     else w.valueType = body.valueType;
@@ -140,6 +163,7 @@ export function parseWrite(body: Record<string, unknown>, current: PromotionReco
     else w.minSubtotal = m;
   }
   if (has("minQuantity")) w.minQuantity = body.minQuantity == null ? null : posInt(body.minQuantity) ?? (bad("minQuantity", "a whole number above 0"), null);
+  }
 
   const date = (field: "startsAt" | "endsAt") => {
     if (!has(field)) return;
@@ -167,6 +191,7 @@ export function parseWrite(body: Record<string, unknown>, current: PromotionReco
     else if (from !== null && (!TIME.test(String(from)) || !TIME.test(String(to)) || String(to) <= String(from))) bad("timeTo", "HH:MM, after the start time");
     else { w.timeFrom = from as string | null; w.timeTo = to as string | null; }
   }
+  if (!banner) {
   const cap = (field: "maxUses" | "maxUsesPerCustomer") => {
     if (!has(field)) return;
     w[field] = body[field] == null || body[field] === "" ? null : posInt(body[field]) ?? (bad(field, "a whole number above 0, or empty for no limit"), null);
@@ -182,6 +207,7 @@ export function parseWrite(body: Record<string, unknown>, current: PromotionReco
     if (typeof body.combinable !== "boolean") bad("combinable", "true or false");
     else w.combinable = body.combinable;
   }
+  }
 
   const words = (field: "headline" | "supportingLine" | "label", max: number) => {
     if (!has(field)) return;
@@ -194,14 +220,24 @@ export function parseWrite(body: Record<string, unknown>, current: PromotionReco
   words("supportingLine", 160);
   words("label", 24);
 
-  if (has("sharedCode")) {
+  // Live values (108): a banner may name the known ones; an offer's words are as typed, so it may name none.
+  for (const field of ["headline", "supportingLine", "label"] as const) {
+    const text = w[field];
+    if (!text) continue;
+    if (!banner && hasToken(text)) bad(field, "live values are for information banners");
+    else if (banner) for (const t of unknownTokens(text)) bad(field, `"{${t}}" is not a live value`);
+  }
+  if (banner && ((!current && !w.headline) || (current && has("headline") && w.headline === null))) bad("headline", "required");
+
+  const trigger = banner ? null : (w.trigger ?? current?.trigger);
+  if (!banner && has("sharedCode")) {
     const c = typeof body.sharedCode === "string" ? body.sharedCode.replace(/\s+/g, "").toUpperCase() : null;
     if (body.sharedCode === null || c === "") x.sharedCode = null;
     else if (!c || !CODE.test(c)) bad("sharedCode", "3–32 letters, numbers or dashes");
     else x.sharedCode = c;
   }
-  if (trigger === "code" && !current && !x.sharedCode && body.codeMode !== "single_use") bad("sharedCode", "a code promotion needs a code shoppers type");
-  if (trigger === "automatic" && has("sharedCode") && x.sharedCode) bad("sharedCode", "an automatic promotion has no code");
+  if (!banner && trigger === "code" && !current && !x.sharedCode && body.codeMode !== "single_use") bad("sharedCode", "a code promotion needs a code shoppers type");
+  if (!banner && trigger === "automatic" && has("sharedCode") && x.sharedCode) bad("sharedCode", "an automatic promotion has no code");
 
   if (has("groupIds")) {
     const g = Array.isArray(body.groupIds) ? body.groupIds.filter((s): s is string => typeof s === "string" && UUID.test(s)) : null;
@@ -243,6 +279,7 @@ export function toDetailDTO(r: PromotionRecord, x: repo.DetailExtras): AdminProm
     trigger: r.trigger,
     state: r.state,
     valueType: w.valueType,
+    link: x.link,
     percentOff: w.percentOff,
     amountOff: cents(w.amountOffCents),
     maxDiscount: cents(w.maxDiscountCents),
@@ -295,7 +332,7 @@ export async function listPromotions(q: Readonly<Record<string, string | undefin
       id: row.id,
       name: row.name,
       kind: rec?.words.kind ?? "cart",
-      trigger: rec?.trigger ?? "automatic",
+      trigger: rec ? rec.trigger : null,
       state: row.state,
       gives: rec ? givesOf(rec.words) : "",
       who: rec ? WHO[rec.audience] : "",
@@ -332,6 +369,10 @@ export async function updatePromotion(id: string, body: Record<string, unknown>,
   if (typeof body.expectedUpdatedAt === "string" && body.expectedUpdatedAt !== found.extras.updated_at.toISOString()) {
     throw new PromoError(409, "stale", "Someone else changed this promotion. Reload it to see their change.");
   }
+  if (Object.prototype.hasOwnProperty.call(body, "kind") && body.kind !== found.record.kind) {
+    // Offer ↔ banner never: one is money, the other is words (108 FR-006).
+    throw new PromoError(409, "kind_fixed", "A promotion's kind can't change. Create a new one instead.", [{ field: "kind", message: "fixed" }]);
+  }
   assertNotFrozen(body, found.extras.used);
   const { w, x } = parseWrite(body, found.record);
   await repo.updatePromotion(id, w, x, actor, FROZEN.some((k) => Object.prototype.hasOwnProperty.call(body, k)));
@@ -366,6 +407,11 @@ export async function deletePromotion(id: string, actor: string): Promise<void> 
 export async function searchProducts(q: unknown): Promise<{ id: string; name: string; brand: string | null }[]> {
   const term = typeof q === "string" ? q.trim() : "";
   return term.length < 2 ? [] : repo.searchProducts(term.slice(0, 80), 20);
+}
+
+/** Each live value a banner may name (108), with what it reads now and why an empty one is empty. */
+export async function liveValues(): Promise<LiveValuesDTO> {
+  return { values: liveValueList(await loadLiveValues({ query })) };
 }
 
 export { offerLabelOf };

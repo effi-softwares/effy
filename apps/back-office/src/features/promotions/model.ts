@@ -1,4 +1,5 @@
 import type {
+  PromotionHiddenReason,
   AdminPromotionDTO,
   OrderPolicyDTO,
   PromotionKind,
@@ -48,6 +49,14 @@ export const KIND_WORD: Record<PromotionKind, string> = {
   item: "Money off items",
   bxgy: "Buy X get Y",
   delivery: "Delivery",
+  banner: "Information banner",
+}
+
+/** Why a group member is hidden right now (the group preview). */
+export function hiddenWord(why: PromotionHiddenReason): string {
+  if (why === "personal") return "Personal"
+  if (why === "live_value_missing") return "A live value has nothing to show"
+  return STATE_WORD[why]
 }
 
 export function usesLabel(p: { uses: number; maxUses: number | null }): string {

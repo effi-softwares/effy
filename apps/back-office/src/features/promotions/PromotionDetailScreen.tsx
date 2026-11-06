@@ -1,4 +1,4 @@
-import { OPERATING_TZ, OPERATING_CITY } from "@effy/shared-types"
+import { BANNER_LINK_WORDS, OPERATING_TZ, OPERATING_CITY } from "@effy/shared-types"
 import { useState } from "react"
 
 import { useQuery } from "@tanstack/react-query"
@@ -239,8 +239,15 @@ export function PromotionDetailScreen({ promoId }: { promoId: string }) {
               </div>
             </div>
             <TabsContent value="overview" className="ef-tabpanel">
-              <PerformancePanel promotionId={p.id} />
-              <Overview p={p} />
+              {p.kind === "banner" ? (
+                // An information banner has no figures, offer, audience or limits (108 FR-021).
+                <BannerOverview p={p} />
+              ) : (
+                <>
+                  <PerformancePanel promotionId={p.id} />
+                  <Overview p={p} />
+                </>
+              )}
             </TabsContent>
             {p.audience === "chosen" ? (
               <TabsContent value="customers" className="ef-tabpanel">
@@ -260,7 +267,7 @@ export function PromotionDetailScreen({ promoId }: { promoId: string }) {
               >
                 {p.groups.length === 0 ? (
                   <p className="px-5 py-4 text-sm text-muted-foreground">
-                    Not shown anywhere. It still applies in the cart.
+                    {p.kind === "banner" ? "Not shown anywhere yet." : "Not shown anywhere. It still applies in the cart."}
                   </p>
                 ) : (
                   <ul className="divide-y divide-border">
@@ -356,6 +363,40 @@ const WHO: Record<Promotion["audience"], string> = {
   first_order: "A customer's first order",
   new_customers: "New customers",
   chosen: "Chosen customers",
+}
+
+function BannerOverview({ p }: { p: Promotion }) {
+  const link = p.link
+  const leads =
+    !link
+      ? "-"
+      : link.kind === "category"
+        ? (link.category?.name ?? "An aisle that no longer exists")
+        : link.kind === "product"
+          ? (link.product?.name ?? "A product that no longer exists")
+          : BANNER_LINK_WORDS[link.kind]
+  return (
+    <>
+      {link?.broken ? (
+        <Callout tone="destructive" title="Where a tap leads has gone.">
+          The aisle or product it opens is no longer on the website, so shoppers see the banner but can't tap it. Edit
+          the banner to choose another.
+        </Callout>
+      ) : null}
+      <Panel title="Information banner" description="Says something to shoppers. It gives no discount and is never in the cart.">
+        <DetailRows
+          rows={[
+            { label: "Where a tap leads", value: leads },
+            { label: "Starts", value: p.startsAt ? formatTime(p.startsAt) : "No lower bound" },
+            {
+              label: "Ends",
+              value: p.endedAt ? `Ended ${formatTime(p.endedAt)}` : p.endsAt ? formatTime(p.endsAt) : "No upper bound",
+            },
+          ]}
+        />
+      </Panel>
+    </>
+  )
 }
 
 function Overview({ p }: { p: Promotion }) {

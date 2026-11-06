@@ -7,7 +7,72 @@ import type { DesignedLayout, GroupSize, SkinLayout, SkinSettings } from "./prom
  * (`public.promotion_state`). One evaluator: `@effy/edge-shared/promotions` (engine.ts).
  */
 
-export type PromotionKind = "cart" | "item" | "bxgy" | "delivery";
+/** The four offers, and (108) `banner`: an information banner that carries no offer. */
+export type PromotionKind = "cart" | "item" | "bxgy" | "delivery" | "banner";
+/** The kinds that give something; a banner is never one (108). */
+export type OfferKind = Exclude<PromotionKind, "banner">;
+export const OFFER_KINDS: readonly OfferKind[] = ["cart", "item", "bxgy", "delivery"];
+
+/** What staff read for each kind, everywhere a kind is named. */
+export const PROMOTION_KIND_WORDS: Record<PromotionKind, string> = {
+  cart: "Off the cart",
+  item: "Off items",
+  bxgy: "Buy X get Y",
+  delivery: "Off delivery",
+  banner: "Information banner",
+};
+
+/** Where a tap on an information banner leads (108); stored on the banner. */
+export type BannerLinkKind = "search" | "sale" | "category" | "product";
+export const BANNER_LINK_KINDS: readonly BannerLinkKind[] = ["search", "sale", "category", "product"];
+export const BANNER_LINK_WORDS: Record<BannerLinkKind, string> = {
+  search: "Search",
+  sale: "The sale page",
+  category: "An aisle",
+  product: "A product",
+};
+
+/**
+ * Live values (108): a fact owned by a setting, written into a banner's words as `{key}` and filled from the setting
+ * each time the banner is shown, never typed as a copy. A banner whose value has nothing to show is not shown.
+ */
+export const LIVE_VALUE_KEYS = ["free_delivery_amount", "order_minimum"] as const;
+export type LiveValueKey = (typeof LIVE_VALUE_KEYS)[number];
+export const LIVE_VALUE_WORDS: Record<LiveValueKey, { name: string; empty: string }> = {
+  free_delivery_amount: { name: "Free-delivery amount", empty: "The active delivery plan has no free-delivery amount." },
+  order_minimum: { name: "Order minimum", empty: "There is no order minimum." },
+};
+export const liveValueToken = (key: LiveValueKey): string => `{${key}}`;
+
+/** `GET /admin/v1/promotions/live-values`. */
+export interface LiveValueDTO {
+  key: LiveValueKey;
+  name: string;
+  token: string;
+  /** What it reads now ("$150"); null when it has nothing to show. */
+  reads: string | null;
+  /** Why it has nothing to show; null when it reads. */
+  why: string | null;
+}
+export interface LiveValuesDTO {
+  values: LiveValueDTO[];
+}
+
+/** A banner's destination as staff set it, with the names for display. */
+export interface AdminBannerLinkDTO {
+  kind: BannerLinkKind;
+  category: { id: string; name: string } | null;
+  product: { id: string; name: string } | null;
+  /** The aisle or product it named is gone or off sale: shoppers see the tile, not tappable. */
+  broken: boolean;
+}
+
+/** In a write: the aisle or product id for those kinds. */
+export interface BannerLinkWriteDTO {
+  kind: BannerLinkKind;
+  categoryId?: string | null;
+  productId?: string | null;
+}
 export type PromotionTrigger = "automatic" | "code";
 export type PromotionValueType = "percent" | "amount" | "free";
 
@@ -55,8 +120,8 @@ export interface ShopperPromotionDTO {
   terms: string | null;
   /** "Ends in 3 days" / "Ends tomorrow" / "Ends today" / null. */
   endsIn: string | null;
-  /** Where a tap goes. */
-  target: BannerTarget;
+  /** Where a tap goes; null only for an information banner whose aisle or product has gone (draw it non-tappable). */
+  target: BannerTarget | null;
   /** How this promotion looks in this place. A client that does not know `skin.layout` draws its built-in look, as for `classic`. */
   skin?: ShopperSkinDTO;
 }
@@ -126,7 +191,8 @@ export interface AdminPromotionListItemDTO {
   id: string;
   name: string;
   kind: PromotionKind;
-  trigger: PromotionTrigger;
+  /** null for an information banner. */
+  trigger: PromotionTrigger | null;
   state: PromotionState;
   /** "20% off, up to $15" / "Free delivery" / "Buy 2 get 1 free". */
   gives: string;
@@ -152,15 +218,18 @@ export interface AdminPromotionDTO {
   id: string;
   name: string;
   kind: PromotionKind;
-  trigger: PromotionTrigger;
+  /** null for an information banner, which has no offer (108). */
+  trigger: PromotionTrigger | null;
   state: PromotionState;
-  valueType: PromotionValueType;
+  valueType: PromotionValueType | null;
   percentOff: number | null;
   amountOff: string | null;
   maxDiscount: string | null;
   bxgy: { buy: number; get: number; maxPerOrder: number | null } | null;
-  appliesTo: PromotionAppliesTo;
+  appliesTo: PromotionAppliesTo | null;
   targets: PromotionTargetsDTO;
+  /** An information banner's destination; null for an offer. */
+  link: AdminBannerLinkDTO | null;
   deliveryTypes: PromotionDeliveryType[];
   audience: PromotionAudience;
   chosenCustomerCount: number;
@@ -202,8 +271,11 @@ export interface AdminPromotionDTO {
 export interface AdminPromotionWriteDTO {
   name: string;
   kind: PromotionKind;
-  trigger: PromotionTrigger;
-  valueType: PromotionValueType;
+  /** Offers only; an information banner sends none of the offer fields. */
+  trigger?: PromotionTrigger;
+  valueType?: PromotionValueType;
+  /** Information banners only: where a tap leads. */
+  link?: BannerLinkWriteDTO;
   percentOff?: number | null;
   amountOff?: string | null;
   maxDiscount?: string | null;
@@ -343,9 +415,12 @@ export interface AdminPutGroupMembersRequest {
   members: { promotionId: string; skinId?: string | null; imageId?: string | null }[];
 }
 
+/** Why a group member is not shown: its state, a personal offer, or (108) a live value with nothing to show. */
+export type PromotionHiddenReason = PromotionState | "personal" | "live_value_missing";
+
 export interface AdminPromotionGroupPreviewDTO {
   shown: ShopperPromotionDTO[];
-  hidden: { promotionId: string; name: string; why: PromotionState | "personal" }[];
+  hidden: { promotionId: string; name: string; why: PromotionHiddenReason }[];
 }
 
 // Skins and pictures (back-office)

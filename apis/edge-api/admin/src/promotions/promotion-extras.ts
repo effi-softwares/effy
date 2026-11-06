@@ -25,11 +25,15 @@ const MAX_BATCH = 10_000;
 const notFound = () => new PromoError(404, "not_found", "promotion not found");
 const changed = () => announce([{ scope: "ops", kind: "promotions" }]);
 
+/** An offer, for its codes, chosen customers and figures; an information banner has none of them (108). */
 async function assertPromotion(id: string): Promise<{ trigger: string; audience: string }> {
   if (!UUID.test(id)) throw notFound();
-  const r = (await query<{ trigger: string; audience: string }>(`SELECT trigger, audience FROM public.promotion WHERE id = $1`, [id])).rows[0];
+  const r = (await query<{ kind: string; trigger: string | null; audience: string }>(`SELECT kind, trigger, audience FROM public.promotion WHERE id = $1`, [id])).rows[0];
   if (!r) throw notFound();
-  return r;
+  if (r.kind === "banner" || r.trigger === null) {
+    throw new PromoError(409, "not_an_offer", "An information banner has no codes, chosen customers or figures.");
+  }
+  return { trigger: r.trigger, audience: r.audience };
 }
 
 /** The customers a chosen-customers promotion is for: a console list (103), searched by name or email. */

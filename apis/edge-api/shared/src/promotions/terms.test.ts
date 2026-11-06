@@ -70,3 +70,10 @@ describe("terms — one composer for every client and back-office", () => {
     expect(codeRefusalSentence("promo_not_eligible", { ...base, audience: "first_order" })).toBe("That code is for a first order only.");
   });
 });
+
+describe("108 — an information banner gives nothing and states no conditions", () => {
+  const banner: PromotionWords = { ...base, kind: "banner", valueType: null, percentOff: null, daysOfWeek: [1, 2, 3, 4, 5], minuteFrom: 420, minuteTo: 600 };
+  it("has no terms, even with a schedule", () => expect(termsOf(banner)).toBeNull());
+  it("gives no offer", () => expect(givesOf(banner)).toBe("No offer"));
+  it("has no offer label", () => expect(() => offerLabelOf(banner)).toThrow());
+});
