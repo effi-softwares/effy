@@ -145,7 +145,9 @@ export function AisleMenu({
           {...stayOpen}
           className="absolute top-full left-0 z-10 w-full overflow-hidden rounded-b-lg border border-t-0 bg-popover text-popover-foreground shadow-lg"
         >
-          <div className="grid max-h-[min(34rem,calc(100dvh-12rem))] grid-cols-[15rem_minmax(0,1fr)_17rem]">
+          {/* The row is bounded (minmax(0,1fr)), so each column scrolls inside the menu instead of growing past it and
+              running under the footer - with 25 aisles the list is taller than the menu. */}
+          <div className="grid max-h-[min(34rem,calc(100dvh-12rem))] grid-cols-[15rem_minmax(0,1fr)_17rem] grid-rows-[minmax(0,1fr)]">
             <ul className="overflow-y-auto p-2">
               {items.map((item) => (
                 <li

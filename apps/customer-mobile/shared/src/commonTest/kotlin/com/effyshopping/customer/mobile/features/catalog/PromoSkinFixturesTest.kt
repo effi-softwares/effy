@@ -78,6 +78,21 @@ class PromoSkinFixturesTest {
     }
 
     @Test
+    fun bannerWords() {
+        for (case in fixture.getValue("bannerWords").jsonArray) {
+            val o = case.jsonObject
+            val settings = effyJson.decodeFromJsonElement(WireSettings.serializer(), o.getValue("settings")).toDomain()
+            val b = o.getValue("banner").jsonObject
+            fun opt(e: kotlinx.serialization.json.JsonElement?) = if (e == null || e is JsonNull) null else e.jsonPrimitive.content
+            val banner = PromoSkinRules.BannerWords(label = opt(b["label"]), target = opt(b["target"]))
+            val want = o.getValue("expect").jsonObject
+            val name = o.getValue("name").jsonPrimitive.content
+            assertEquals(opt(want["button"]), PromoSkinRules.buttonWords(settings, false, banner), name)
+            assertEquals(opt(want["label"]), PromoSkinRules.labelWords(settings, false, banner), name)
+        }
+    }
+
+    @Test
     fun appearance() {
         for (case in fixture.getValue("appearance").jsonArray) {
             val o = case.jsonObject

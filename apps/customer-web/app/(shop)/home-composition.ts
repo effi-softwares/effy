@@ -59,6 +59,8 @@ export function composeSections(
   // duplicate a promotion already shown above" is structural - one list, each block consumes from it.
   const blockA = between.slice(0, OFFERS_PER_BLOCK)
   const blockB = between.slice(OFFERS_PER_BLOCK, OFFERS_PER_BLOCK * 2)
+  // A block of information banners only (108) offers nothing, so it is not headed "Offers".
+  const noOffers = (b: readonly Banner[]) => b.every((x) => x.kind === "banner")
 
   // 2 - the discount rail leads: it is the reason a shopper who is only browsing keeps scrolling.
   const onSale = take("on_sale")
@@ -66,7 +68,7 @@ export function composeSections(
 
   // 3 - offers block A.
   if (blockA.length > 0) {
-    sections.push({ kind: "offers", block: "a", title: "Offers", banners: blockA })
+    sections.push({ kind: "offers", block: "a", title: noOffers(blockA) ? "From Effy" : "Offers", banners: blockA })
   }
 
   // 4 - the curated picks.
@@ -85,7 +87,7 @@ export function composeSections(
 
   // 6 - offers block B, from whatever block a did not take.
   if (blockB.length > 0) {
-    sections.push({ kind: "offers", block: "b", title: "More offers", banners: blockB })
+    sections.push({ kind: "offers", block: "b", title: noOffers(blockB) ? "More from Effy" : "More offers", banners: blockB })
   }
 
   // 8 - anything the server sent that none of the named slots claimed. Without this a rail the backend

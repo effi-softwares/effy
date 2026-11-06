@@ -64,7 +64,9 @@ export function PromoCarousel({
   return (
     <div
       ref={scope}
-      className="grid"
+      // Fills the hero's grid cell, so a slide is as tall as the cards beside it - never a short slide over an empty
+      // band with the controls at its foot.
+      className="grid h-full"
       onPointerEnter={() => setHeld(true)}
       onPointerLeave={() => setHeld(false)}
       onFocus={(e) => setFocused(e.target.matches(":focus-visible"))}

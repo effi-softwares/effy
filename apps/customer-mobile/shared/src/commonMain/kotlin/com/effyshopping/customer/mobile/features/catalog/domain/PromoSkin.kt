@@ -136,16 +136,34 @@ object PromoSkinRules {
     /** The largest size the layout fits - what to draw at when the given size does not fit. */
     fun defaultSize(layout: SkinLayout): SkinSize = SkinSize.entries.firstOrNull { GEOMETRY[layout]?.containsKey(it) == true } ?: SkinSize.MEDIUM
 
-    fun buttonWords(settings: SkinSettings, hasCode: Boolean): String? = when {
+    /** What "auto" says on an information banner's button (108), by where it leads - `BANNER_BUTTON_WORDS`. */
+    val BANNER_BUTTON_WORDS: Map<String, String> = mapOf(
+        "search" to "Start searching",
+        "sale" to "Shop the sale",
+        "category" to "Shop now",
+        "product" to "View product",
+        "promotion" to "Find out more",
+    )
+
+    /**
+     * An information banner as the words see it (108): its own label and the kind of its target (null when its aisle or
+     * product has gone). A banner is not an offer, so "auto" never says "Offer" or "View offer" for one.
+     */
+    data class BannerWords(val label: String?, val target: String?)
+
+    fun buttonWords(settings: SkinSettings, hasCode: Boolean, banner: BannerWords? = null): String? = when {
         settings.button.style == SkinButtonStyle.NONE -> null
+        banner != null && banner.target == null -> null
+        banner != null -> if (settings.button.words == AUTO) BANNER_BUTTON_WORDS[banner.target] else settings.button.words
         settings.button.words == AUTO -> if (hasCode) "Copy code" else "View offer"
         else -> settings.button.words
     }
 
-    fun labelWords(settings: SkinSettings, hasCode: Boolean): String? = when {
+    fun labelWords(settings: SkinSettings, hasCode: Boolean, banner: BannerWords? = null): String? = when {
         !settings.label.show -> null
-        settings.label.words == AUTO -> if (hasCode) "Code" else "Offer"
-        else -> settings.label.words
+        settings.label.words != AUTO -> settings.label.words
+        banner != null -> banner.label
+        else -> if (hasCode) "Code" else "Offer"
     }
 
     /** The colours in force: the dark overrides merged over the light ones in the dark appearance. */

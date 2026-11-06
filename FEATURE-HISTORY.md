@@ -31,8 +31,20 @@ money.
   `LiveValueWords` (insert at the cursor, shows what each reads now, warns when the banner would be hidden, hints when a free-delivery
   amount is typed); list action **New information banner**; the detail page hides figures, codes and customers and warns when the
   target has gone. Tours: **BE** added and **PR** v2 (new step), spec 107's inventory 51 → 52.
-- **Seed**: `make seed-banners ENV=dev` (`db/seeds/108_banners_dev.sql`): four banners (range, delivery promise, free delivery with the
-  live amount, local shops) in Home hero / Home side cards on 095's designed skins; re-runnable; an aisle missing → search, with a NOTICE.
+- **Seed**: `make seed-banners ENV=dev` (`db/seeds/108_banners_dev.sql`): 11 banners in 15 places, every display group (a banner may
+  sit in several, with a skin per place), on 095's skins plus nine new ones (green, night, warm sand, sky; each checked with
+  `skinProblems` and `layoutFits`, and the seed refuses a skin that does not fit its group). Both live values used. Re-runnable; an
+  aisle missing → search, with a NOTICE. ⚠ No surface reads the `cart` group yet (website: hero, side, between, offers, aisles menu;
+  app: hero, between), so its two placements are stored but not shown.
+- **Defects found on the first dev look (2026-11-06), fixed**: (1) a designed skin said "OFFER" / "View offer" on a banner - the skin
+  words' "auto" knew only offers. `buttonWords` / `labelWords` (`@effy/shared-types/promotion-skins.ts`, Kotlin twin `PromoSkinRules`)
+  take an optional banner: its own label (none → no label) and a button by target (`BANNER_BUTTON_WORDS`: Shop now, Shop the sale,
+  View product, Start searching; a gone target → no button), pinned by `bannerWords` in `promotion-skins.fixtures.json` (copied into
+  `PromoSkinFixture.kt`). The web renderer reads `kind`/`label`/`target` off the promotion, so back-office previews follow. (2) The Home
+  hero slide sat short over an empty band with the controls at its foot when the side cards were taller: the carousel now fills its cell
+  (`PromoCarousel` `h-full`). (3) The aisles menu's list ran under its footer with the full taxonomy: its grid row is now
+  `minmax(0,1fr)` so each column scrolls. (4) A between-sections block of banners only is headed "From Effy", not "Offers" (website
+  and app). Seed: compact skins beside the hero, Panels between sections, short-headline plain tiles in the aisles menu (13 banners).
 - **Verified**: edge-shared 1007, admin 179, storefront 165, commerce 249, back-office 431, customer-web 719 tests; promotion container
   tests (banners + uses) on a local Postgres; the app's `CatalogMappersTest` (host); the seed run twice and read through `groupPromotions`.
   ⚠ Pre-existing, not 108: admin `promotions.container.test.ts` "groups" fails locally (`isFull` uses the global pool, `DB_HOST` unset).

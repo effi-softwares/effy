@@ -39,7 +39,16 @@ export function SkinnedPromotion({
     capture({ name: "promotion_banner_tapped", props: { promotionId: banner.key, groupKey, skinId: skin.id, layout: skin.layout, action } })
   return (
     <PromoSkin
-      promotion={{ id: banner.key, headline: banner.title, supportingLine: banner.subtitle ?? null, code: banner.code ?? null, terms: banner.terms ?? null }}
+      promotion={{
+        id: banner.key,
+        headline: banner.title,
+        supportingLine: banner.subtitle ?? null,
+        code: banner.code ?? null,
+        terms: banner.terms ?? null,
+        kind: banner.kind,
+        label: banner.label ?? null,
+        target: banner.target ?? null,
+      }}
       layout={skin.layout as Exclude<typeof skin.layout, "classic">}
       settings={skin.settings}
       size={size ?? skin.size}

@@ -89,6 +89,7 @@ import com.effyshopping.customer.mobile.core.presentation.HomeSectionGap
 import com.effyshopping.customer.mobile.core.presentation.RailItemGap
 import com.effyshopping.customer.mobile.core.presentation.railTileWidthFraction
 import com.effyshopping.customer.mobile.features.catalog.domain.Banner
+import com.effyshopping.customer.mobile.features.catalog.domain.PromoSkinRules
 import com.effyshopping.customer.mobile.features.catalog.domain.Rail
 import com.effyshopping.customer.mobile.features.saved.presentation.SavedTileMessages
 import com.effyshopping.customer.mobile.features.saved.presentation.SavedTiles
@@ -290,6 +291,7 @@ private fun OffersSection(banners: List<Banner>, onBannerClick: (Banner) -> Unit
                 supportingLine = banner.subtitle,
                 code = banner.code,
                 onOpen = if (banner.target != null) ({ onBannerClick(banner) }) else null,
+                banner = banner.skinWords(),
             )
             return@HorizontalPager
         }
@@ -334,7 +336,8 @@ private fun HeroDots(count: Int, current: Int) {
 private fun PromoBlock(banners: List<Banner>, onBannerClick: (Banner) -> Unit) {
     if (banners.isEmpty()) return
     Column(modifier = Modifier.semantics { isTraversalGroup = true; contentDescription = "Offers, ${banners.size} available" }) {
-        EffySectionHeader("Offers")
+        // A row of information banners only (108) offers nothing, so it is not headed "Offers" - as on the website.
+        EffySectionHeader(if (banners.all { it.information }) "From Effy" else "Offers")
         LazyRow(
             modifier = Modifier.fillMaxWidth().padding(top = EffySpacing.md),
             horizontalArrangement = Arrangement.spacedBy(EffySpacing.md),
@@ -350,6 +353,7 @@ private fun PromoBlock(banners: List<Banner>, onBannerClick: (Banner) -> Unit) {
                         code = banner.code,
                         onOpen = if (banner.target != null) ({ onBannerClick(banner) }) else null,
                         modifier = Modifier.width(300.dp),
+                        banner = banner.skinWords(),
                     )
                     return@itemsIndexed
                 }
@@ -497,3 +501,6 @@ private fun SectionBlock(
     }
 }
 
+/** An information banner's words for its skin (108); null for an offer, which keeps "Offer" / "View offer". */
+private fun Banner.skinWords(): PromoSkinRules.BannerWords? =
+    if (information) PromoSkinRules.BannerWords(label = label, target = target?.kindName) else null

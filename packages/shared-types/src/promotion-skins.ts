@@ -189,17 +189,42 @@ export function defaultSize(layout: DesignedLayout): GroupSize {
 
 // Words both renderers choose the same way
 
+/**
+ * An information banner (108) as the words see it: its own label and where a tap goes. A banner is not an offer, so
+ * "auto" never says "Offer" or "View offer" for one; its button names where it leads, and a banner whose aisle or
+ * product has gone (`target` null) shows no button at all.
+ */
+export interface SkinBannerWords {
+  label: string | null;
+  target: "search" | "sale" | "category" | "product" | "promotion" | null;
+}
+
+/** What "auto" says on a banner's button, by where it leads. */
+export const BANNER_BUTTON_WORDS: Record<NonNullable<SkinBannerWords["target"]>, string> = {
+  search: "Start searching",
+  sale: "Shop the sale",
+  category: "Shop now",
+  product: "View product",
+  promotion: "Find out more",
+};
+
 /** The button's words, or null when the skin shows no button. */
-export function buttonWords(settings: Pick<SkinSettings, "button">, hasCode: boolean): string | null {
+export function buttonWords(settings: Pick<SkinSettings, "button">, hasCode: boolean, banner: SkinBannerWords | null = null): string | null {
   if (settings.button.style === "none") return null;
+  if (banner) {
+    if (banner.target === null) return null;
+    return settings.button.words === AUTO ? BANNER_BUTTON_WORDS[banner.target] : settings.button.words;
+  }
   if (settings.button.words === AUTO) return hasCode ? "Copy code" : "View offer";
   return settings.button.words;
 }
 
-/** The small label's words, or null when hidden. */
-export function labelWords(settings: Pick<SkinSettings, "label">, hasCode: boolean): string | null {
+/** The small label's words, or null when hidden. A banner's "auto" label is its own label (none: no label). */
+export function labelWords(settings: Pick<SkinSettings, "label">, hasCode: boolean, banner: SkinBannerWords | null = null): string | null {
   if (!settings.label.show) return null;
-  return settings.label.words === AUTO ? (hasCode ? "Code" : "Offer") : settings.label.words;
+  if (settings.label.words !== AUTO) return settings.label.words;
+  if (banner) return banner.label;
+  return hasCode ? "Code" : "Offer";
 }
 
 /** The colours in force: light, or the dark overrides merged over them (the customer app only). */

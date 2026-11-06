@@ -2353,5 +2353,441 @@
       },
       "expect": "#0f172a"
     }
+  ],
+  "bannerWords": [
+    {
+      "name": "auto, an aisle, its own label",
+      "settings": {
+        "background": {
+          "colour": "#1d4ed8",
+          "picture": "none"
+        },
+        "label": {
+          "show": true,
+          "words": "auto",
+          "colour": "#ffffff",
+          "size": "xs",
+          "tracking": "wide"
+        },
+        "headline": {
+          "colour": "#ffffff",
+          "size": "xl",
+          "weight": "semibold",
+          "lines": 2
+        },
+        "supporting": {
+          "show": true,
+          "colour": "#ffffff",
+          "size": "sm",
+          "weight": "regular",
+          "lines": 2
+        },
+        "button": {
+          "style": "filled",
+          "fill": "#ffffff",
+          "text": "#111827",
+          "words": "auto",
+          "icon": true
+        },
+        "chip": {
+          "show": true,
+          "style": "dashed",
+          "fill": "#ffffff",
+          "text": "#ffffff"
+        },
+        "decorations": {
+          "show": true,
+          "set": "food",
+          "colour": "#ffffff",
+          "strength": 0.2
+        },
+        "align": "start",
+        "shape": {
+          "radius": "xl",
+          "spacing": "regular",
+          "outline": null
+        }
+      },
+      "banner": {
+        "label": "New on Effy",
+        "target": "category"
+      },
+      "expect": {
+        "button": "Shop now",
+        "label": "New on Effy"
+      }
+    },
+    {
+      "name": "auto, the sale page, no label",
+      "settings": {
+        "background": {
+          "colour": "#1d4ed8",
+          "picture": "none"
+        },
+        "label": {
+          "show": true,
+          "words": "auto",
+          "colour": "#ffffff",
+          "size": "xs",
+          "tracking": "wide"
+        },
+        "headline": {
+          "colour": "#ffffff",
+          "size": "xl",
+          "weight": "semibold",
+          "lines": 2
+        },
+        "supporting": {
+          "show": true,
+          "colour": "#ffffff",
+          "size": "sm",
+          "weight": "regular",
+          "lines": 2
+        },
+        "button": {
+          "style": "filled",
+          "fill": "#ffffff",
+          "text": "#111827",
+          "words": "auto",
+          "icon": true
+        },
+        "chip": {
+          "show": true,
+          "style": "dashed",
+          "fill": "#ffffff",
+          "text": "#ffffff"
+        },
+        "decorations": {
+          "show": true,
+          "set": "food",
+          "colour": "#ffffff",
+          "strength": 0.2
+        },
+        "align": "start",
+        "shape": {
+          "radius": "xl",
+          "spacing": "regular",
+          "outline": null
+        }
+      },
+      "banner": {
+        "label": null,
+        "target": "sale"
+      },
+      "expect": {
+        "button": "Shop the sale",
+        "label": null
+      }
+    },
+    {
+      "name": "auto, search",
+      "settings": {
+        "background": {
+          "colour": "#1d4ed8",
+          "picture": "none"
+        },
+        "label": {
+          "show": true,
+          "words": "auto",
+          "colour": "#ffffff",
+          "size": "xs",
+          "tracking": "wide"
+        },
+        "headline": {
+          "colour": "#ffffff",
+          "size": "xl",
+          "weight": "semibold",
+          "lines": 2
+        },
+        "supporting": {
+          "show": true,
+          "colour": "#ffffff",
+          "size": "sm",
+          "weight": "regular",
+          "lines": 2
+        },
+        "button": {
+          "style": "filled",
+          "fill": "#ffffff",
+          "text": "#111827",
+          "words": "auto",
+          "icon": true
+        },
+        "chip": {
+          "show": true,
+          "style": "dashed",
+          "fill": "#ffffff",
+          "text": "#ffffff"
+        },
+        "decorations": {
+          "show": true,
+          "set": "food",
+          "colour": "#ffffff",
+          "strength": 0.2
+        },
+        "align": "start",
+        "shape": {
+          "radius": "xl",
+          "spacing": "regular",
+          "outline": null
+        }
+      },
+      "banner": {
+        "label": null,
+        "target": "search"
+      },
+      "expect": {
+        "button": "Start searching",
+        "label": null
+      }
+    },
+    {
+      "name": "auto, a product",
+      "settings": {
+        "background": {
+          "colour": "#1d4ed8",
+          "picture": "none"
+        },
+        "label": {
+          "show": true,
+          "words": "auto",
+          "colour": "#ffffff",
+          "size": "xs",
+          "tracking": "wide"
+        },
+        "headline": {
+          "colour": "#ffffff",
+          "size": "xl",
+          "weight": "semibold",
+          "lines": 2
+        },
+        "supporting": {
+          "show": true,
+          "colour": "#ffffff",
+          "size": "sm",
+          "weight": "regular",
+          "lines": 2
+        },
+        "button": {
+          "style": "filled",
+          "fill": "#ffffff",
+          "text": "#111827",
+          "words": "auto",
+          "icon": true
+        },
+        "chip": {
+          "show": true,
+          "style": "dashed",
+          "fill": "#ffffff",
+          "text": "#ffffff"
+        },
+        "decorations": {
+          "show": true,
+          "set": "food",
+          "colour": "#ffffff",
+          "strength": 0.2
+        },
+        "align": "start",
+        "shape": {
+          "radius": "xl",
+          "spacing": "regular",
+          "outline": null
+        }
+      },
+      "banner": {
+        "label": null,
+        "target": "product"
+      },
+      "expect": {
+        "button": "View product",
+        "label": null
+      }
+    },
+    {
+      "name": "a target that has gone shows no button",
+      "settings": {
+        "background": {
+          "colour": "#1d4ed8",
+          "picture": "none"
+        },
+        "label": {
+          "show": true,
+          "words": "auto",
+          "colour": "#ffffff",
+          "size": "xs",
+          "tracking": "wide"
+        },
+        "headline": {
+          "colour": "#ffffff",
+          "size": "xl",
+          "weight": "semibold",
+          "lines": 2
+        },
+        "supporting": {
+          "show": true,
+          "colour": "#ffffff",
+          "size": "sm",
+          "weight": "regular",
+          "lines": 2
+        },
+        "button": {
+          "style": "filled",
+          "fill": "#ffffff",
+          "text": "#111827",
+          "words": "auto",
+          "icon": true
+        },
+        "chip": {
+          "show": true,
+          "style": "dashed",
+          "fill": "#ffffff",
+          "text": "#ffffff"
+        },
+        "decorations": {
+          "show": true,
+          "set": "food",
+          "colour": "#ffffff",
+          "strength": 0.2
+        },
+        "align": "start",
+        "shape": {
+          "radius": "xl",
+          "spacing": "regular",
+          "outline": null
+        }
+      },
+      "banner": {
+        "label": "Hi",
+        "target": null
+      },
+      "expect": {
+        "button": null,
+        "label": "Hi"
+      }
+    },
+    {
+      "name": "the skin's own words win",
+      "settings": {
+        "background": {
+          "colour": "#1d4ed8",
+          "picture": "none"
+        },
+        "label": {
+          "show": true,
+          "words": "Effy",
+          "colour": "#ffffff",
+          "size": "xs",
+          "tracking": "wide"
+        },
+        "headline": {
+          "colour": "#ffffff",
+          "size": "xl",
+          "weight": "semibold",
+          "lines": 2
+        },
+        "supporting": {
+          "show": true,
+          "colour": "#ffffff",
+          "size": "sm",
+          "weight": "regular",
+          "lines": 2
+        },
+        "button": {
+          "style": "filled",
+          "fill": "#ffffff",
+          "text": "#111827",
+          "words": "See more",
+          "icon": true
+        },
+        "chip": {
+          "show": true,
+          "style": "dashed",
+          "fill": "#ffffff",
+          "text": "#ffffff"
+        },
+        "decorations": {
+          "show": true,
+          "set": "food",
+          "colour": "#ffffff",
+          "strength": 0.2
+        },
+        "align": "start",
+        "shape": {
+          "radius": "xl",
+          "spacing": "regular",
+          "outline": null
+        }
+      },
+      "banner": {
+        "label": "New on Effy",
+        "target": "category"
+      },
+      "expect": {
+        "button": "See more",
+        "label": "Effy"
+      }
+    },
+    {
+      "name": "no button, hidden label",
+      "settings": {
+        "background": {
+          "colour": "#1d4ed8",
+          "picture": "none"
+        },
+        "label": {
+          "show": false,
+          "words": "auto",
+          "colour": "#ffffff",
+          "size": "xs",
+          "tracking": "wide"
+        },
+        "headline": {
+          "colour": "#ffffff",
+          "size": "xl",
+          "weight": "semibold",
+          "lines": 2
+        },
+        "supporting": {
+          "show": true,
+          "colour": "#ffffff",
+          "size": "sm",
+          "weight": "regular",
+          "lines": 2
+        },
+        "button": {
+          "style": "none",
+          "fill": "#ffffff",
+          "text": "#111827",
+          "words": "auto",
+          "icon": true
+        },
+        "chip": {
+          "show": true,
+          "style": "dashed",
+          "fill": "#ffffff",
+          "text": "#ffffff"
+        },
+        "decorations": {
+          "show": true,
+          "set": "food",
+          "colour": "#ffffff",
+          "strength": 0.2
+        },
+        "align": "start",
+        "shape": {
+          "radius": "xl",
+          "spacing": "regular",
+          "outline": null
+        }
+      },
+      "banner": {
+        "label": "New",
+        "target": "sale"
+      },
+      "expect": {
+        "button": null,
+        "label": null
+      }
+    }
   ]
 }

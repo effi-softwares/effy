@@ -24,6 +24,7 @@ import {
   type DesignedLayout,
   type GroupSize,
   type PictureChoice,
+  type SkinBannerWords,
   type SkinSettings,
 } from "./promotion-skins";
 
@@ -35,6 +36,7 @@ interface Fixtures {
   contrast: { name: string; layout: DesignedLayout; settings: SkinSettings; expect: unknown }[];
   pick: { name: string; layout: DesignedLayout; settings: SkinSettings; pictures: PictureChoice[]; chosenId: string | null; expect: string | null }[];
   appearance: { name: string; settings: SkinSettings; expect: string }[];
+  bannerWords: { name: string; settings: SkinSettings; banner: SkinBannerWords; expect: unknown }[];
 }
 const fixtures = JSON.parse(readFileSync(resolve(here, "promotion-skins.fixtures.json"), "utf8")) as Fixtures;
 const MOBILE = resolve(
@@ -51,6 +53,9 @@ describe("promotion skins - the fixtures both renderers are held to", () => {
   });
   it.each(fixtures.words)("words $layout code=$hasCode", (c) => {
     expect({ button: buttonWords(c.settings, c.hasCode), label: labelWords(c.settings, c.hasCode) }).toEqual(c.expect);
+  });
+  it.each(fixtures.bannerWords)("108 banner words: $name", (c) => {
+    expect({ button: buttonWords(c.settings, false, c.banner), label: labelWords(c.settings, false, c.banner) }).toEqual(c.expect);
   });
   it.each(fixtures.contrast)("contrast: $name", (c) => {
     expect(skinContrast(c.layout, c.settings)).toEqual(c.expect);

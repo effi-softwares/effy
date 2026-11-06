@@ -52,6 +52,21 @@ describe("PromoSkin (095) - the web renderer", () => {
     expect(screen.getByRole("link", { name: "View offer: 5% off every order" })).toHaveAttribute("href", "/offers/p2");
   });
 
+  it("108 - an information banner says where it leads and its own label, never \"Offer\"", () => {
+    const banner = { id: "b1", headline: "Free delivery over $150", supportingLine: null, code: null, kind: "banner", label: null, target: { kind: "sale" as const } };
+    render(<PromoSkin promotion={banner} layout="panel" settings={starterSettings("panel")} href="/search?saleOnly=true" />);
+    expect(screen.getByRole("link", { name: "Shop the sale: Free delivery over $150" })).toHaveAttribute("href", "/search?saleOnly=true");
+    expect(screen.queryByText("Offer")).toBeNull();
+    expect(screen.queryByText("View offer")).toBeNull();
+  });
+
+  it("108 - a banner whose aisle has gone has no button and no link", () => {
+    const banner = { id: "b2", headline: "Shop electronics", supportingLine: null, code: null, kind: "banner", label: "New", target: null };
+    render(<PromoSkin promotion={banner} layout="panel" settings={starterSettings("panel")} href={null} />);
+    expect(screen.getByText("New")).toBeInTheDocument();
+    expect(screen.queryByRole("link")).toBeNull();
+  });
+
   it("draws the picture with its copies and focus, behind words that come first", () => {
     render(<PromoSkin promotion={plain} layout="full_picture" settings={starterSettings("full_picture")} picture={picture} />);
     const img = screen.getByRole("img", { name: "A basket of oranges" });

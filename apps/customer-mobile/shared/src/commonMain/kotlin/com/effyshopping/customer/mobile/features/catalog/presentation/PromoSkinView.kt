@@ -107,6 +107,8 @@ fun PromoSkinView(
     onOpen: (() -> Unit)?,
     modifier: Modifier = Modifier,
     onCopied: (String) -> Unit = {},
+    /** An information banner's label and target (108): its words name where it leads, never "Offer". */
+    banner: PromoSkinRules.BannerWords? = null,
 ) {
     val base = look.settings ?: return
     val s = PromoSkinRules.coloursFor(base, LocalEffyDark.current)
@@ -128,7 +130,7 @@ fun PromoSkinView(
         SkinLayout.HEADER_CARD -> Column(frame.background(colour(s.body?.colour ?: "#ffffff"))) {
             Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).background(colour(s.background.colour))) {
                 Backdrop(s, picture, geo.decorations, geo.minHeight)
-                Column(Modifier.padding(pad).fillMaxWidth(geo.wordsWidth.toFloat())) { Words(s, headline, null, code, supporting = false) }
+                Column(Modifier.padding(pad).fillMaxWidth(geo.wordsWidth.toFloat())) { Words(s, banner, headline, null, code, supporting = false) }
             }
             Column(Modifier.padding(horizontal = pad, vertical = pad * 2 / 3), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 val body = s.body
@@ -138,7 +140,7 @@ fun PromoSkinView(
                     ) { Text("Code", color = colour(body.tagColour), fontSize = 12.sp, fontWeight = FontWeight.SemiBold) }
                 }
                 if (s.supporting.show && supportingLine != null) StyledText(supportingLine, s.supporting.style, s.align)
-                Actions(s, code, onCopied)
+                Actions(s, banner, code, onCopied)
             }
         }
 
@@ -149,8 +151,8 @@ fun PromoSkinView(
                     verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
                     horizontalAlignment = horizontal(s.align),
                 ) {
-                    Words(s, headline, supportingLine, code, supporting = true)
-                    Actions(s, code, onCopied)
+                    Words(s, banner, headline, supportingLine, code, supporting = true)
+                    Actions(s, banner, code, onCopied)
                 }
             }
             val pic: @Composable () -> Unit = {
@@ -165,8 +167,8 @@ fun PromoSkinView(
 
         SkinLayout.STRIP -> Row(frame.padding(horizontal = pad, vertical = pad / 2), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             if (picture != null) Box(Modifier.size(48.dp).clip(RoundedCornerShape(6.dp))) { Picture(picture, ContentScale.Crop, Modifier.matchParentSize()) }
-            Column(Modifier.weight(1f)) { Words(s, headline, null, code, supporting = false) }
-            Actions(s, code, onCopied)
+            Column(Modifier.weight(1f)) { Words(s, banner, headline, null, code, supporting = false) }
+            Actions(s, banner, code, onCopied)
         }
 
         else -> Box(frame) {
@@ -186,8 +188,8 @@ fun PromoSkinView(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 horizontalAlignment = horizontal(s.align),
             ) {
-                Words(s, headline, supportingLine, code, supporting = look.layout != SkinLayout.TILE)
-                Actions(s, code, onCopied)
+                Words(s, banner, headline, supportingLine, code, supporting = look.layout != SkinLayout.TILE)
+                Actions(s, banner, code, onCopied)
             }
         }
     }
@@ -224,8 +226,8 @@ private fun StyledText(text: String, style: SkinTextStyle, align: SkinAlign, mod
 }
 
 @Composable
-private fun ColumnScope.Words(s: SkinSettings, headline: String, supportingLine: String?, code: String?, supporting: Boolean) {
-    PromoSkinRules.labelWords(s, code != null)?.let { label ->
+private fun ColumnScope.Words(s: SkinSettings, banner: PromoSkinRules.BannerWords?, headline: String, supportingLine: String?, code: String?, supporting: Boolean) {
+    PromoSkinRules.labelWords(s, code != null, banner)?.let { label ->
         Text(
             label.uppercase(),
             color = colour(s.label.colour),
@@ -239,8 +241,8 @@ private fun ColumnScope.Words(s: SkinSettings, headline: String, supportingLine:
 }
 
 @Composable
-private fun Actions(s: SkinSettings, code: String?, onCopied: (String) -> Unit) {
-    val words = PromoSkinRules.buttonWords(s, code != null)
+private fun Actions(s: SkinSettings, banner: PromoSkinRules.BannerWords?, code: String?, onCopied: (String) -> Unit) {
+    val words = PromoSkinRules.buttonWords(s, code != null, banner)
     val showChip = s.chip.show && code != null
     if (!showChip && words == null) return
     // `LocalClipboardManager` is deprecated for a suspending replacement whose plain-text entry has no

@@ -63,6 +63,10 @@ data class Banner(
     val terms: String? = null,
     /** Where the banner leads. Null - including for an unrecognised wire value - means not tappable. */
     val target: BannerTarget? = null,
+    /** An information banner (108): not an offer, so its skin's words name where it leads, never "Offer". */
+    val information: Boolean = false,
+    /** The promotion's own short label ("New on Effy"); a banner's skin shows it in place of "Offer". */
+    val label: String? = null,
     /** Which of Home's two banner placements this promotion occupies. Exclusive. */
     val placement: BannerPlacement = BannerPlacement.CAROUSEL,
     /** The skin staff chose for this place. Null or classic: drawn as before 095. */
@@ -94,6 +98,16 @@ enum class BannerPlacement {
  * than no tap.
  */
 sealed interface BannerTarget {
+    /** The wire's word for this kind, as the skin words rules take it (`PromoSkinRules.BannerWords`). */
+    val kindName: String
+        get() = when (this) {
+            Search -> "search"
+            Sale -> "sale"
+            is Category -> "category"
+            is Product -> "product"
+            is Promotion -> "promotion"
+        }
+
     /** The store, unfiltered. */
     data object Search : BannerTarget
 

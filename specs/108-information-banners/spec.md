@@ -218,10 +218,10 @@ four banners in their groups; none appears in the cart or checkout; running the 
 
 **Dev seed**
 
-- **FR-025**: A dev-only seed MUST create four published information banners with no offers: the range, the delivery
-  promise, free delivery (with the live free-delivery amount), and local shops. They go in Home hero and Home side
-  cards, each with a target and a skin. Running it again MUST leave exactly four seeded banners, and it MUST refuse to
-  run outside dev.
+- **FR-025**: A dev-only seed MUST create published information banners with no offers in every display group (amended
+  2026-11-06 at the operator's request, from four in two groups: 11 banners in 15 places on a range of skins). Each has a
+  target and a skin that fits its group. Running it again MUST leave the same banners, and it MUST refuse to run outside
+  dev.
 
 ### Key Entities
 

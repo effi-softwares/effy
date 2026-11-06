@@ -77,7 +77,7 @@ export function PromoHero({ slides, side }: { slides: PlacedBanner[]; side: Plac
     return (
       <section aria-roledescription="carousel" aria-label="Promotions" className="container pt-6">
         <div className={tiles.length > 0 ? "grid gap-4 lg:grid-cols-3" : undefined}>
-          <div className={cn("relative isolate overflow-hidden rounded-xl", tiles.length > 0 && "lg:col-span-2")}>
+          <div className={cn("relative isolate flex flex-col overflow-hidden rounded-xl", tiles.length > 0 && "lg:col-span-2")}>
             <PromoCarousel backdrop={null}>
               {slides.map((banner) =>
                 isDesigned(banner) ? (

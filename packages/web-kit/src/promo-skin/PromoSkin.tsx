@@ -16,6 +16,7 @@ import {
   type DesignedLayout,
   type GroupSize,
   type ShopperSkinPictureDTO,
+  type SkinBannerWords,
   type SkinSettings,
   type TextStyle,
 } from "@effy/shared-types";
@@ -40,6 +41,15 @@ export interface PromoSkinPromotion {
   supportingLine: string | null;
   code: string | null;
   terms?: string | null;
+  /** `banner` (108): an information banner - its label is its own, and its button names where it leads. */
+  kind?: string;
+  label?: string | null;
+  target?: { kind: SkinBannerWords["target"] & string } | null;
+}
+
+/** The words input for an information banner; null for an offer. */
+function bannerOf(p: PromoSkinPromotion): SkinBannerWords | null {
+  return p.kind === "banner" ? { label: p.label ?? null, target: p.target?.kind ?? null } : null;
 }
 
 /** The link element a host app uses (Next's `Link`, TanStack Router's, or a plain anchor). */
@@ -151,7 +161,7 @@ function chipStyle(s: SkinSettings): CSSProperties {
 /** The code chip and the button: copy with a code, a link without one. */
 function Actions({ p, props }: { p: PromoSkinPromotion; props: PromoSkinProps }) {
   const s = props.settings;
-  const words = buttonWords(s, p.code !== null);
+  const words = buttonWords(s, p.code !== null, bannerOf(p));
   const Link = props.link ?? PlainLink;
   const chip = s.chip.show && p.code ? (
     <span className="eps-chip" style={chipStyle(s)}>
@@ -211,11 +221,11 @@ export function PromoSkin(props: PromoSkinProps) {
   const size = props.size ?? defaultSize(layout);
   const geo = skinGeometry(layout, size) ?? skinGeometry(layout, defaultSize(layout))!;
   const pad = SPACING_PX[s.shape.spacing];
-  const label = labelWords(s, p.code !== null);
+  const label = labelWords(s, p.code !== null, bannerOf(p));
   const picture = props.picture ?? null;
   const Link = props.link ?? PlainLink;
   // Without a code and without a button, the whole skin is the link (stretched over it).
-  const wholeLink = !p.code && props.href && buttonWords(s, false) === null;
+  const wholeLink = !p.code && props.href && buttonWords(s, false, bannerOf(p)) === null;
 
   const frame: CSSProperties = {
     minHeight: geo.minHeight,

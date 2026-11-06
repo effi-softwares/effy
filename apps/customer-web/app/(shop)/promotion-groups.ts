@@ -1,6 +1,6 @@
 import { cache } from "react"
 
-import type { BannerTarget, PromotionGroupsDTO, ShopperPromotionDTO, ShopperSkinDTO } from "@effy/shared-types"
+import type { BannerTarget, PromotionGroupsDTO, PromotionKind, ShopperPromotionDTO, ShopperSkinDTO } from "@effy/shared-types"
 
 import { edgeApi, uncached } from "@/lib/api/edge"
 import { aisleHref } from "@/lib/categories"
@@ -27,6 +27,8 @@ export interface Banner {
   code?: string | null
   terms?: string | null
   target?: BannerTarget | null
+  /** `banner` (108): an information banner, never an offer - its skin's words name where it leads. */
+  kind?: PromotionKind
 }
 
 export type GroupBanner = Banner & { label: string | null; skin?: ShopperSkinDTO }
@@ -65,6 +67,7 @@ export function toGroupBanner(p: ShopperPromotionDTO): GroupBanner {
     code: p.code,
     terms: p.terms,
     target: p.target,
+    kind: p.kind,
     label: p.label,
     // The skin this place wears; absent from a server before 095.
     ...(p.skin ? { skin: p.skin } : {}),

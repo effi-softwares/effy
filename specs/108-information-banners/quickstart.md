@@ -13,7 +13,8 @@
 AWS_PROFILE=ef make seed-banners ENV=dev
 ```
 
-Expect four rows printed, with each banner's group and position. Run it again and the same four print.
+Expect 15 rows printed (11 banners, some in several groups), with each one's group, position and skin. Run it again
+and the same 15 print.
 
 ## Walk
 

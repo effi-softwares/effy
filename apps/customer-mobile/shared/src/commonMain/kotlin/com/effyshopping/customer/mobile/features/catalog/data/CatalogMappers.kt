@@ -116,6 +116,8 @@ internal fun ShopperPromotionDTO.toBanner(placement: BannerPlacement, position: 
     code = code,
     terms = terms,
     target = target?.toDomain(),
+    information = kind == PromotionKind.Banner,
+    label = label,
     placement = placement,
     look = skin?.toLook(),
 )
