@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# reset-dev-data.sh - empty dev back to its accounts, keeping the people who work on the platform.
+# reset-dev-data.sh - empty dev back to back-office staff, shops and shop staff.
 #
 # Between purge-orders.sh (orders only) and wipe-dev.sh (everything, accounts included). What stays and what
-# goes is db/reset/reset_dev_data.sql, table by table; the media under the prefixes below goes with it.
+# goes is db/reset/reset_dev_data.sql, table by table; the media under the prefixes below goes with it, and
+# every user in the customer and driver Cognito pools.
 #
-# Not touched: Cognito (a customer login gets a new, empty profile at its next sign-in), every AWS resource,
-# anything at Stripe.
+# Not touched: the shop and back-office Cognito pools, every AWS resource, anything at Stripe.
 #
 # Usage:
 #   ./scripts/reset-dev-data.sh --dry-run   # the whole reset, rolled back; nothing changes
@@ -24,6 +24,8 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SQL="$ROOT/db/reset/reset_dev_data.sql"
 # Everything the emptied tables pointed at, private prefixes included.
 MEDIA_PREFIXES=(products renditions promotions categories imports courier-label proof)
+# Their database rows go, so their logins go too.
+POOLS=(customer driver)
 
 DRY_RUN=0
 [[ "${1:-}" == "--dry-run" ]] && DRY_RUN=1
@@ -37,6 +39,14 @@ done
 DSN="$(bash "$ROOT/infra/scripts/db-dsn.sh" "$ENV")"
 HOST="$(printf '%s\n' "$DSN" | tr ' ' '\n' | sed -n 's/^host=//p')"
 BUCKET="$(aws ssm get-parameter --name "/effy/$ENV/media/bucket" --query Parameter.Value --output text)"
+POOL_IDS=()
+for pool in "${POOLS[@]}"; do
+  POOL_IDS+=("$(aws ssm get-parameter --name "/effy/$ENV/auth/$pool/user_pool_id" --query Parameter.Value --output text)")
+done
+
+pool_users() {
+  aws cognito-idp list-users --user-pool-id "$1" --query 'Users[].Username' --output text | tr '\t' '\n' | sed '/^$/d'
+}
 
 run_sql() { psql "$DSN" -v ON_ERROR_STOP=1 -v dry_run="$1" -q -f "$SQL" 2>&1 | sed -E 's/^psql:[^ ]+ NOTICE:  //'; }
 
@@ -51,6 +61,10 @@ run_sql true
 echo "media:"
 for prefix in "${MEDIA_PREFIXES[@]}"; do
   printf '  %7s versions  %s/\n' "$(media_count "$prefix")" "$prefix"
+done
+echo "cognito:"
+for i in "${!POOLS[@]}"; do
+  printf '  %7s users     %s pool\n' "$(pool_users "${POOL_IDS[$i]}" | wc -l | tr -d ' ')" "${POOLS[$i]}"
 done
 
 if [[ "$DRY_RUN" == "1" ]]; then
@@ -82,5 +96,18 @@ for prefix in "${MEDIA_PREFIXES[@]}"; do
   echo "== media: $prefix/ - deleted $n object version(s)"
 done
 
+for i in "${!POOLS[@]}"; do
+  n=0
+  while :; do
+    users="$(pool_users "${POOL_IDS[$i]}")"
+    [[ -n "$users" ]] || break
+    while read -r username; do
+      aws cognito-idp admin-delete-user --user-pool-id "${POOL_IDS[$i]}" --username "$username"
+      n=$((n + 1))
+    done <<<"$users"
+  done
+  echo "== cognito: ${POOLS[$i]} - deleted $n user(s)"
+done
+
 echo
-echo "Done. Dev has no categories, windows, postcodes or fee plan until back-office sets them up again."
+echo "Done. Dev has no categories, windows, postcodes, fee plan, vans or drivers until back-office sets them up again."

@@ -150,7 +150,7 @@ purge-orders: ## OPERATOR: delete every order + all order-derived data (ENV=dev;
 	@ENV=$(ENV) AWS_PROFILE=$(AWS_PROFILE) AWS_REGION=$(AWS_REGION) \
 		bash scripts/purge-orders.sh $(if $(DRY_RUN),--dry-run,)
 
-reset-dev-data: ## OPERATOR: delete all dev data but staff, shops, shop users, drivers and localities (DRY_RUN=1 to preview)
+reset-dev-data: ## OPERATOR: delete all dev data but back-office staff, shops, shop users and localities; customer + driver Cognito users too (DRY_RUN=1 to preview)
 	@ENV=$(ENV) AWS_PROFILE=$(AWS_PROFILE) AWS_REGION=$(AWS_REGION) \
 		bash scripts/reset-dev-data.sh $(if $(DRY_RUN),--dry-run,)
 
