@@ -1,0 +1,12 @@
+{
+  "aps": {
+    "alert": {
+      "title": "You've got Effy points",
+      "body": "Points were added to your account. Tap to see them."
+    },
+    "sound": "default"
+  },
+  "type": "points_credited",
+  "entityId": "00000000-0000-0000-0000-000000000000",
+  "deepLink": "effy://points"
+}

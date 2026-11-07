@@ -15,11 +15,16 @@ struct iOSApp: App {
     // 050 - one observability bridge each for the app's lifetime; the Kotlin side wraps them.
     private let crashBridge = SwiftCrashBridge()
     private let analyticsBridge = SwiftAnalyticsBridge()
+    // 050 - push: Firebase Messaging behind the Kotlin IosPushBridge, and the delegate that receives Apple's
+    // token and notification taps (AppDelegate.swift).
+    private let pushBridge = SwiftPushBridge()
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     init() {
         // 050 - connect Firebase (Crashlytics + FCM). Safe to call once; must run before any Firebase
         // use. Requires the firebase-ios-sdk SPM package (see setup notes) or this will not compile.
         FirebaseApp.configure()
+        pushBridge.start()
         configureAmplify()
 
         // 051 - the in-app payment element.
@@ -38,7 +43,8 @@ struct iOSApp: App {
             ContentView(
                 authBridge: authBridge,
                 crashBridge: crashBridge,
-                analyticsBridge: analyticsBridge
+                analyticsBridge: analyticsBridge,
+                pushBridge: pushBridge
             )
             .ignoresSafeArea()
         }

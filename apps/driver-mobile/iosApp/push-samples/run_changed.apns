@@ -1,0 +1,12 @@
+{
+  "aps": {
+    "alert": {
+      "title": "Run updated",
+      "body": "A run you're working has changed. Tap to see it."
+    },
+    "sound": "default"
+  },
+  "type": "run_changed",
+  "entityId": "REPLACE-WITH-ONE-OF-YOUR-RUN-IDS",
+  "deepLink": "effy://run/REPLACE-WITH-ONE-OF-YOUR-RUN-IDS"
+}

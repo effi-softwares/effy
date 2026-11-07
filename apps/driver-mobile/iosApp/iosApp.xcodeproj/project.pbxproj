@@ -11,6 +11,7 @@
 		0490000000000000000000B2 /* AWSCognitoAuthPlugin in Frameworks */ = {isa = PBXBuildFile; productRef = 0490000000000000000000A2 /* AWSCognitoAuthPlugin */; };
 		0FB1000000000000000000B2 /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = 0FB1000000000000000000B1 /* FirebaseCore */; };
 		0FB1000000000000000000C2 /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = 0FB1000000000000000000C1 /* FirebaseCrashlytics */; };
+		0FB1000000000000000000E2 /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 0FB1000000000000000000E1 /* FirebaseMessaging */; };
 		0FB1000000000000000000D2 /* PostHog in Frameworks */ = {isa = PBXBuildFile; productRef = 0FB1000000000000000000D1 /* PostHog */; };
 		0FB1000000000000000000E2 /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 0FB1000000000000000000E1 /* FirebaseMessaging */; };
 /* End PBXBuildFile section */
@@ -657,6 +658,7 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
+				iosApp.entitlements,
 			);
 			target = 4D4191B4421270D92FF3A8A3 /* iosApp */;
 		};

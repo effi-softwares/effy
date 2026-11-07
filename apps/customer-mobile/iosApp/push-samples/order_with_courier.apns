@@ -1,0 +1,12 @@
+{
+  "aps": {
+    "alert": {
+      "title": "With the courier",
+      "body": "Your order is with the courier."
+    },
+    "sound": "default"
+  },
+  "type": "order_with_courier",
+  "entityId": "00000000-0000-0000-0000-000000000000",
+  "deepLink": "effy://order"
+}

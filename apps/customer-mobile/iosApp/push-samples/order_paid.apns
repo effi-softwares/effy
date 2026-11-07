@@ -1,0 +1,12 @@
+{
+  "aps": {
+    "alert": {
+      "title": "Order confirmed",
+      "body": "We've received your order."
+    },
+    "sound": "default"
+  },
+  "type": "order_paid",
+  "entityId": "REPLACE-WITH-ONE-OF-YOUR-ORDER-IDS",
+  "deepLink": "effy://order/REPLACE-WITH-ONE-OF-YOUR-ORDER-IDS"
+}

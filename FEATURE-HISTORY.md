@@ -4,6 +4,42 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
+**050 follow-up - Mobile push finished (iOS bridge, tap → screen, banner while open).** 🔨 **BUILT 2026-11-07; NOT DEPLOYED OR
+WALKED. iOS DELIVERY WAITS ON THE PAID APPLE DEVELOPER ACCOUNT.** No spec: this is 050's recorded follow-up, written down since 050 in
+[docs/observability-apple-blockers.md](docs/observability-apple-blockers.md) (now the build record, the Simulator test and the
+after-paying checklist). No backend change - the worker and the dev FCM secret were already in place.
+- **iOS, both apps**: `FirebaseMessaging` added to each `iosApp.xcodeproj` (hand-edited, `plutil` clean); `AppDelegate.swift` (via
+  `@UIApplicationDelegateAdaptor`) hands Apple's token to Firebase, shows a banner while the app is open, reports taps;
+  `SwiftPushBridge.swift` ↔ Kotlin `IosPushBridge` / `IosPushTokenProvider` replaces `NoOpPushTokenProvider` on iOS. Firebase's
+  swizzling is OFF (`FirebaseAppDelegateProxyEnabled = NO`), so the wiring is explicit. `currentToken()` is bounded at 5s on iOS:
+  sign-in awaits it, and with no APNs token Firebase's answer is not guaranteed to be prompt.
+- ⚠ **THE PUSH ENTITLEMENT IS WRITTEN BUT NOT ATTACHED** (`iosApp/iosApp/iosApp.entitlements`; the switch is one commented
+  `CODE_SIGN_ENTITLEMENTS` line in `Config.xcconfig`): a free (Personal Team) account refuses to sign an app that carries it, so
+  attaching it now would stop every iOS build.
+- ⚠ **The iOS bundle ids do not match Firebase's** (`…mobile.<app>-mobile$(TEAM_ID)` vs `com.effyshopping.<app>.mobile`); APNs
+  delivers by bundle id, so the after-paying checklist sets them to Firebase's.
+- **Customer tap → screen (new on both platforms)**: `OpenedNotification` + `pushDestination` read the worker's **deep link**, never the
+  entity id - `order_with_courier` / `order_delivery_changed` carry a consignment / override id and a bare `effy://order`, so an id is
+  never opened as an order. Order → Orders › that order; bare order → Orders; points → Account › Points; signed out → nothing.
+  Android: `PushOpen` in `MainActivity` (create + `onNewIntent`) and a banner while open in `EffyFirebaseMessagingService` (copied from
+  the driver app's). iOS: `IosPushOpen` holds a tap until the container exists (a tap can launch the app).
+- **Driver**: iOS taps feed the existing `openedNotification` (DriverShell unchanged); the iOS permission screen now asks for
+  notifications (`PermissionRequester.ios.kt`); "Notifications are off" works on iOS (`NotificationsSetting.ios.kt` - denied only, not
+  "not asked yet").
+- **Android, both apps**: the app's own channel ("Order updates" / "Work updates") is created at start and named as FCM's default, with
+  the monochrome bell as the default icon, so a notification that arrives while the app is closed no longer lands in "Miscellaneous" with
+  a white-square icon. The customer app gained `ic_stat_effy_notify` (the driver's).
+- **Simulator samples**: `iosApp/push-samples/*.apns` + `send.sh` (`xcrun simctl push`, bundle id read from the xcconfig).
+- **Verified**: both iOS apps build for the Simulator with `xcodebuild` (Swift + Firebase Messaging; ⚠ the driver app needs a named
+  Simulator destination - `-sdk iphonesimulator` with a generic destination fails inside aws-sdk-swift's `SmithyCodegenCLI` plugin, not in
+  our code), customer `:androidApp:compileDebugKotlin`, both apps' `:shared:compileKotlinIosSimulatorArm64`, driver
+  `:androidApp:compileReleaseKotlin`, both apps' `:shared:testAndroidHostTest` (new `PushDestinationTest`, 4 cases),
+  `scripts/mobile-guard.sh`, `scripts/driver-guard.sh`, `check-no-refresh-timers.sh`. The driver's debug-only `DesignGalleryActivity.kt` had
+  stopped compiling against the app's models (096's bags, `ClassSummary` losing a count, `HubSplit`, the scan collect), which broke
+  every driver DEBUG build and so `installDebug`; it was brought up to date. ⚠ Left alone, predates this change: the customer
+  `UnitPriceWordsTest.saysEveryFixtureAmountInTheStorefrontsWords` (expected 17 fixtures, found 22).
+- **Open**: walk it on an Android emulator (Google Play image) and the iOS Simulator; then the after-paying steps.
+
 **108-information-banners** - Information Banners ([spec](specs/108-information-banners/spec.md)). 🔨 **BUILT 2026-11-06; NOT
 MIGRATED, DEPLOYED OR WALKED.** A fifth promotion kind, `banner`, that says something to shoppers and carries no offer: words, pictures,
 a skin, where a tap leads (search, the sale page, an aisle, a product), a schedule and display groups, exactly like an offer, and never

@@ -49,6 +49,9 @@ import com.effyshopping.customer.mobile.core.nav.rememberBackAffordanceDecorator
 import com.effyshopping.customer.mobile.core.nav.CustomerNavKey
 import com.effyshopping.customer.mobile.core.nav.rememberCustomerNavState
 import com.effyshopping.customer.mobile.core.session.SessionState
+import com.effyshopping.customer.mobile.core.observability.AnalyticsEvent
+import com.effyshopping.customer.mobile.core.push.PushDestination
+import com.effyshopping.customer.mobile.core.push.pushDestination
 import com.effyshopping.customer.mobile.features.account.presentation.AccountRoutes
 import com.effyshopping.customer.mobile.features.addresses.presentation.AddressBookScreen
 import com.effyshopping.customer.mobile.features.paymentmethods.presentation.PaymentMethodsScreen
@@ -133,6 +136,39 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
      * observer, which is US4's territory; this covers the transitions that matter most.
      */
     LaunchedEffect(signedIn) { container.syncCart() }
+
+    /**
+     * A tapped notification opens what it was about: an order's page under Orders, the Orders tab, or
+     * points under Account (`pushDestination` reads the worker's deep link). The shell only exists once the
+     * session has resolved, so a tap that launched the app waits in the container until then.
+     *
+     * Every notification is about a signed-in shopper's account. A guest who taps one (signed out since it
+     * was sent) just lands where they are - the gate would only ask them to sign in to see someone's order.
+     */
+    val openedNotification by container.openedNotification.collectAsState()
+    LaunchedEffect(openedNotification, signedIn) {
+        val opened = openedNotification ?: return@LaunchedEffect
+        container.openedNotification.value = null
+        container.analyticsDriver.capture(AnalyticsEvent.NotificationOpened(opened.type))
+        if (!signedIn) return@LaunchedEffect
+        when (val destination = pushDestination(opened.deepLink)) {
+            is PushDestination.Order -> {
+                navState.selectTab(CustomerNavKey.Orders)
+                navState.resetToRoot()
+                navState.push(CustomerNavKey.OrderDetail(destination.orderId))
+            }
+            PushDestination.Orders -> {
+                navState.selectTab(CustomerNavKey.Orders)
+                navState.resetToRoot()
+            }
+            PushDestination.Points -> {
+                navState.selectTab(CustomerNavKey.Account)
+                navState.resetToRoot()
+                navState.push(CustomerNavKey.Points)
+            }
+            null -> Unit
+        }
+    }
 
     /**
      * Deferred sign-in, pushed onto the tab the shopper is in, so Back returns to the gate or product they

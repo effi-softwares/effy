@@ -19,7 +19,7 @@ interface PushTokenProvider {
     suspend fun deleteToken()
 }
 
-/** Default when push is not configured (iOS today, local dev). Fail-open: no token, no crash. */
+/** Default when no platform provider is injected (previews, tests). Fail-open: no token, no crash. */
 object NoOpPushTokenProvider : PushTokenProvider {
     override suspend fun currentToken(): String? = null
     override suspend fun requestPermission(): Boolean = false

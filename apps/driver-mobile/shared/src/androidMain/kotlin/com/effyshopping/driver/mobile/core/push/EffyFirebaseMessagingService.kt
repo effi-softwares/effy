@@ -29,11 +29,7 @@ class EffyFirebaseMessagingService : FirebaseMessagingService() {
         val shown = message.notification ?: return
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         if (!manager.areNotificationsEnabled()) return // the driver said no
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            manager.createNotificationChannel(
-                NotificationChannel(CHANNEL_ID, "Work updates", NotificationManager.IMPORTANCE_HIGH),
-            )
-        }
+        ensureWorkUpdatesChannel(this)
         // Tapping it brings the app forward and tells it what kind of thing was tapped - the same
         // `type` the system tray hands over for a message shown while the app was closed.
         val open = packageManager.getLaunchIntentForPackage(packageName)?.apply {
@@ -42,7 +38,7 @@ class EffyFirebaseMessagingService : FirebaseMessagingService() {
             message.data[PushOpen.EXTRA_ENTITY]?.let { putExtra(PushOpen.EXTRA_ENTITY, it) }
         }
         val id = message.messageId?.hashCode() ?: 0
-        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
+        val notification = NotificationCompat.Builder(this, WORK_UPDATES_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_effy_notify)
             .setContentTitle(shown.title)
             .setContentText(shown.body)
@@ -61,10 +57,21 @@ class EffyFirebaseMessagingService : FirebaseMessagingService() {
             .build()
         manager.notify(id, notification)
     }
+}
 
-    private companion object {
-        const val CHANNEL_ID = "driver_work_updates"
-    }
+/** The one channel the app posts on. Its id is also the manifest's `default_notification_channel_id`. */
+const val WORK_UPDATES_CHANNEL_ID = "driver_work_updates"
+
+/**
+ * Create the channel (idempotent). Called at app start too, so a message that arrives while the app is
+ * closed finds it and FCM does not fall back to its own "Miscellaneous" channel.
+ */
+fun ensureWorkUpdatesChannel(context: Context) {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+    val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+    manager.createNotificationChannel(
+        NotificationChannel(WORK_UPDATES_CHANNEL_ID, "Work updates", NotificationManager.IMPORTANCE_HIGH),
+    )
 }
 
 /**

@@ -1,0 +1,12 @@
+{
+  "aps": {
+    "alert": {
+      "title": "Run assigned",
+      "body": "A new run has been assigned to you."
+    },
+    "sound": "default"
+  },
+  "type": "run_assigned",
+  "entityId": "REPLACE-WITH-ONE-OF-YOUR-RUN-IDS",
+  "deepLink": "effy://run/REPLACE-WITH-ONE-OF-YOUR-RUN-IDS"
+}

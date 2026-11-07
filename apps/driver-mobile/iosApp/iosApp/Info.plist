@@ -24,5 +24,14 @@
 		<key>UIColorName</key>
 		<string>LaunchBackground</string>
 	</dict>
+	<!-- Push (050). Background delivery of remote notifications, and Firebase's automatic hooks OFF:
+	     AppDelegate.swift hands the APNs token to Firebase and answers the notification callbacks
+	     itself, so the wiring is explicit and greppable rather than swizzled. -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
+	<key>FirebaseAppDelegateProxyEnabled</key>
+	<false/>
 </dict>
 </plist>

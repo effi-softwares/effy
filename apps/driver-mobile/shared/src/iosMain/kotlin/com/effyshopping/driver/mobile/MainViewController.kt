@@ -10,6 +10,9 @@ import com.effyshopping.driver.mobile.core.observability.IosAnalyticsBridge
 import com.effyshopping.driver.mobile.core.observability.IosAnalyticsDriver
 import com.effyshopping.driver.mobile.core.observability.IosCrashBridge
 import com.effyshopping.driver.mobile.core.observability.IosCrashReporter
+import com.effyshopping.driver.mobile.core.push.IosPushBridge
+import com.effyshopping.driver.mobile.core.push.IosPushOpen
+import com.effyshopping.driver.mobile.core.push.IosPushTokenProvider
 import com.effyshopping.driver.mobile.core.platform.IosConnectivity
 import com.effyshopping.driver.mobile.core.platform.IosMapLauncher
 import com.effyshopping.driver.mobile.core.platform.IosPlatformUiController
@@ -26,10 +29,12 @@ import platform.UIKit.UIViewController
  */
 fun MainViewController(
     authBridge: IosAuthBridge,
-    // Observability bridges (Firebase Crashlytics + PostHog iOS). Push stays NoOp on iOS until
-    // APNs is set up (Apple Developer account - docs/observability-apple-blockers.md).
+    // Observability bridges (Firebase Crashlytics + PostHog iOS).
     crashBridge: IosCrashBridge,
     analyticsBridge: IosAnalyticsBridge,
+    // Firebase Messaging (SwiftPushBridge). Gives no token until the app carries the push entitlement
+    // (a paid Apple Developer account - docs/observability-apple-blockers.md); nothing else depends on it.
+    pushBridge: IosPushBridge,
 ): UIViewController {
     val platformUiController = IosPlatformUiController()
     val container = AppContainer(
@@ -41,7 +46,11 @@ fun MainViewController(
         // Backlog B3 - proof photos taken with no signal, kept in Application Support until sent.
         proofFiles = DirectoryProofFiles(proofOutboxDirectory()),
         connectivity = IosConnectivity(),
+        pushTokenProvider = IosPushTokenProvider(pushBridge),
     )
+    // A tapped notification (AppDelegate.swift) - including the one that launched the app - goes to the
+    // driver's work, as on Android (DriverShell).
+    IosPushOpen.attach { container.openedNotification.value = it }
     container.startObservability(analyticsConsented = container.analyticsConsent.value)
     val viewController = ComposeUIViewController {
         App(container, platformUiController, IosMapLauncher())
