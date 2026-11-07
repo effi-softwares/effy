@@ -148,9 +148,26 @@ variable "service_role_arn" {
 }
 
 variable "enable_auto_build" {
-  description = "Auto-build + deploy on every push to deploy_branch (FR-001). Off only for a paused surface."
+  description = "Build + deploy this surface at all (FR-001). Off only for a paused surface: no push build and no webhook."
   type        = bool
   default     = true
+}
+
+variable "build_trigger" {
+  description = <<-EOT
+    What starts a build of deploy_branch:
+      "push"    - Amplify builds on EVERY push to the branch, whatever changed (Amplify's default).
+      "webhook" - Amplify's push build is OFF; an incoming webhook (output webhook_url) starts a build, and
+                  .github/workflows/amplify-deploy.yml calls it only when the push touched this surface
+                  (scripts/amplify-affected.mjs). Each build is billed, so this is the default in dev.
+  EOT
+  type        = string
+  default     = "push"
+
+  validation {
+    condition     = contains(["push", "webhook"], var.build_trigger)
+    error_message = "build_trigger must be \"push\" or \"webhook\"."
+  }
 }
 
 variable "tags" {

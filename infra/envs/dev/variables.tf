@@ -308,6 +308,19 @@ variable "amplify_deploy_branch" {
   default     = "dev"
 }
 
+variable "amplify_build_trigger" {
+  description = <<-EOT
+    What starts a web build on amplify_deploy_branch, for all three Amplify apps:
+      "webhook" - only the apps a push touched are built: Amplify's own push build is off and
+                  .github/workflows/amplify-deploy.yml calls each affected app's webhook
+                  (scripts/amplify-affected.mjs). Needs the repo secret AMPLIFY_WEBHOOKS_<ENV>
+                  (make amplify-hooks ENV=...) - without it NOTHING deploys.
+      "push"    - Amplify builds every app on every push (the behaviour before 2026-11-07).
+  EOT
+  type        = string
+  default     = "webhook"
+}
+
 variable "stripe_publishable_key_ssm" {
   description = "SSM path holding the (public, browser-safe) Stripe publishable key for this env. Operator-supplied (constitution: Real-World Identifiers). Its presence is required - a missing key fails the plan loudly rather than shipping a guess."
   type        = string

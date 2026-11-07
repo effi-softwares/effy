@@ -1,0 +1,97 @@
+# Selective web deploys (2026-11-07). Amplify bills every build, and with branch auto-build on, every push to the
+# deploy branch built ALL THREE web apps - a backend-only, infra-only or docs-only push included. Auto-build is
+# now off (amplify_build_trigger = "webhook", infra/modules/amplify-web-app) and this job starts only the apps
+# the push touched: their own directory, a workspace package they depend on, or a root build input
+# (scripts/amplify-affected.mjs says which).
+#
+# Needs the repo secret AMPLIFY_WEBHOOKS_DEV - a JSON map appRoot → webhook URL, written by
+# `make amplify-hooks ENV=dev`. Without it this job FAILS (loudly) rather than skipping: a deploy that silently
+# never happens is the worse failure.
+#
+# Rebuild by hand: Actions → amplify-deploy → Run workflow (apps: "all" or e.g. "apps/shop-web").
+# A failed Amplify build is NOT retried by a later push that does not touch that app - re-run it here
+# (the build-failure alarms still page as before).
+name: amplify-deploy
+
+on:
+  push:
+    branches: [dev] # = var.amplify_deploy_branch in infra/envs/dev. A prod branch adds its own entry + secret.
+  workflow_dispatch:
+    inputs:
+      apps:
+        description: 'Apps to build: "all", or space-separated appRoots (apps/customer-web apps/shop-web apps/back-office)'
+        required: true
+        default: all
+
+permissions:
+  contents: read
+
+# Never cancel: each run covers only its own push's commits, so a cancelled run would drop a deploy.
+concurrency:
+  group: amplify-deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Work out which apps changed
+        id: affected
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+          INPUT_APPS: ${{ inputs.apps }}
+        run: |
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            if [ "$INPUT_APPS" = "all" ]; then apps=$(node scripts/amplify-affected.mjs --all)
+            else apps=$(echo "$INPUT_APPS" | tr ' ' '\n' | sed '/^$/d'); fi
+          elif [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            # A new branch: no previous commit to compare with.
+            apps=$(node scripts/amplify-affected.mjs --all)
+          else
+            apps=$(node scripts/amplify-affected.mjs "$BEFORE" "$AFTER")
+          fi
+          echo "Apps to build: ${apps:-none}"
+          {
+            echo "apps<<EOF"
+            echo "$apps"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Start Amplify builds
+        if: steps.affected.outputs.apps != ''
+        env:
+          HOOKS: ${{ secrets.AMPLIFY_WEBHOOKS_DEV }}
+          APPS: ${{ steps.affected.outputs.apps }}
+        run: |
+          if [ -z "$HOOKS" ]; then
+            echo "::error::Repo secret AMPLIFY_WEBHOOKS_DEV is missing - run 'make amplify-hooks ENV=dev'. Nothing was deployed."
+            exit 1
+          fi
+          status=0
+          while IFS= read -r app; do
+            [ -z "$app" ] && continue
+            url=$(jq -r --arg a "$app" '.[$a] // empty' <<<"$HOOKS")
+            if [ -z "$url" ]; then
+              echo "::error::No webhook for $app in AMPLIFY_WEBHOOKS_DEV (re-run make amplify-hooks ENV=dev)"
+              status=1; continue
+            fi
+            if curl -fsS -X POST -H 'Content-Type: application/json' -d '{}' "$url" > /dev/null; then
+              echo "Started build: $app"
+              echo "- $app" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "::error::Amplify refused the build webhook for $app"
+              status=1
+            fi
+          done <<<"$APPS"
+          exit $status
+
+      - name: Nothing to build
+        if: steps.affected.outputs.apps == ''
+        run: echo "No web app is affected by this push - no Amplify build started." | tee -a "$GITHUB_STEP_SUMMARY"

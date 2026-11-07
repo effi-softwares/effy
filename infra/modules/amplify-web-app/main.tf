@@ -1,7 +1,8 @@
 # The Amplify Hosting app for one monorepo web surface (042-customer-web-cicd).
 #
 # Shape (data-model.md E1/E2/E6): one aws_amplify_app (WEB_COMPUTE, Git-connected, monorepo-scoped) +
-# one aws_amplify_branch (auto-build) + an optional custom-domain association.
+# one aws_amplify_branch (auto-build, or a webhook when build_trigger = "webhook") + an optional
+# custom-domain association.
 
 locals {
   # AMPLIFY_MONOREPO_APP_ROOT is not an operator choice — it is derived from app_root so it can never
@@ -142,11 +143,23 @@ resource "aws_amplify_branch" "this" {
   app_id      = aws_amplify_app.this.id
   branch_name = var.deploy_branch
 
-  framework         = var.framework
-  stage             = var.stage
-  enable_auto_build = var.enable_auto_build
+  framework = var.framework
+  stage     = var.stage
+  # "webhook": no build on push - the deploy workflow decides (see var.build_trigger).
+  enable_auto_build = var.enable_auto_build && var.build_trigger == "push"
 
   tags = var.tags
+}
+
+# Incoming webhook for build_trigger = "webhook": a POST to its URL builds the branch's latest commit.
+# The URL carries its own secret - it lives only in state and in the repo's AMPLIFY_WEBHOOKS_<ENV> secret
+# (make amplify-hooks ENV=...).
+resource "aws_amplify_webhook" "this" {
+  count = var.enable_auto_build && var.build_trigger == "webhook" ? 1 : 0
+
+  app_id      = aws_amplify_app.this.id
+  branch_name = aws_amplify_branch.this.branch_name
+  description = "selective build - started by .github/workflows/amplify-deploy.yml when ${var.app_root} changed"
 }
 
 # Custom domain (enabled once domain_name is set). Amplify manages the Route 53 records (the apex cannot be

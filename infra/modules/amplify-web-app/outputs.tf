@@ -26,3 +26,14 @@ output "storefront_url" {
     : "https://${var.subdomain_prefix != "" ? "${var.subdomain_prefix}." : ""}${var.domain_name}"
   )
 }
+
+output "webhook_url" {
+  description = "The incoming build webhook (build_trigger = \"webhook\"), else null. Secret-bearing."
+  value       = one(aws_amplify_webhook.this[*].url)
+  sensitive   = true
+}
+
+output "app_root" {
+  description = "The monorepo app root this app builds (= its amplify.yml appRoot)."
+  value       = var.app_root
+}
