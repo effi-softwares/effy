@@ -110,7 +110,7 @@ d("102 — Effy's other controls against real PostgreSQL", () => {
 
   beforeEach(async () => {
     holder.announced = [];
-    await pool.query("DELETE FROM public.notification_request");
+    await pool.query("DELETE FROM public.notification");
     await pool.query("DELETE FROM admin.audit_log");
     await pool.query("DELETE FROM public.product");
     await pool.query("DELETE FROM public.shop_staff");
@@ -158,7 +158,7 @@ d("102 — Effy's other controls against real PostgreSQL", () => {
     expect(prices).toEqual([{ p: "2.40" }]);
     expect((await pool.query(`SELECT count(*)::int AS n FROM admin.audit_log WHERE action = 'product.margin_set'`)).rows[0]).toEqual({ n: 3 });
     // The margin is Effy's figure: no shop is told.
-    expect((await pool.query(`SELECT count(*)::int AS n FROM public.notification_request`)).rows[0]).toEqual({ n: 0 });
+    expect((await pool.query(`SELECT count(*)::int AS n FROM (SELECT n.recipient_sub, n.audience, n.type, n.dedupe_key, n.created_at, d.channel, d.recipient_email, d.status, jsonb_strip_nulls(jsonb_build_object('entityId', n.entity_id)) AS payload FROM public.notification n JOIN public.notification_delivery d ON d.notification_id = n.id) AS notification_request`)).rows[0]).toEqual({ n: 0 });
   });
 
   it("bulk hold tells each shop once per product, refuses what it cannot, and bulk release undoes it", async () => {
@@ -175,7 +175,7 @@ d("102 — Effy's other controls against real PostgreSQL", () => {
     const r = await bulk({ action: "hold", items, reason: "Supplier recall" }, ADMIN);
     expect(r.done.sort()).toEqual([a, b].sort());
     expect(r.refused).toEqual([{ productId: archived, reason: "an archived product cannot be held" }]);
-    const notes = (await pool.query(`SELECT recipient_sub, type FROM public.notification_request ORDER BY recipient_sub`)).rows;
+    const notes = (await pool.query(`SELECT recipient_sub, type FROM (SELECT n.recipient_sub, n.audience, n.type, n.dedupe_key, n.created_at, d.channel, d.recipient_email, d.status, jsonb_strip_nulls(jsonb_build_object('entityId', n.entity_id)) AS payload FROM public.notification n JOIN public.notification_delivery d ON d.notification_id = n.id) AS notification_request ORDER BY recipient_sub`)).rows;
     expect(notes).toEqual([{ recipient_sub: "op-1", type: "shop_product_held" }, { recipient_sub: "op-9", type: "shop_product_held" }]);
     expect(holder.announced).toEqual(
       expect.arrayContaining([{ scope: "ops", kind: "products" }, { scope: "shop", shopId, kind: "products" }, { scope: "shop", shopId: otherShop, kind: "products" }]),

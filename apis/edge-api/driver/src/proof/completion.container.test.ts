@@ -140,7 +140,7 @@ d("064 — proof IS the delivery completion", () => {
       "delivery_proof",
       "delivery_attempt_failure",
       "package_arrival",
-      "notification_request",
+      "notification_delivery", "notification",
       "round_package",
       "parcel_return",
       "round_stop",
@@ -201,7 +201,7 @@ d("064 — proof IS the delivery completion", () => {
       const r = await recordProof(proofArgs());
       expect(r.orderComplete).toBe(true);
       const n = await pool.query(
-        "SELECT type FROM public.notification_request WHERE type = 'order_delivered'",
+        "SELECT type FROM (SELECT n.recipient_sub, n.audience, n.type, n.dedupe_key, n.created_at, d.channel, d.recipient_email, d.status, jsonb_strip_nulls(jsonb_build_object('entityId', n.entity_id)) AS payload FROM public.notification n JOIN public.notification_delivery d ON d.notification_id = n.id) AS notification_request WHERE type = 'order_delivered'",
       );
       expect(n.rowCount).toBeGreaterThan(0);
     });
@@ -225,7 +225,7 @@ d("064 — proof IS the delivery completion", () => {
     it("sends the shopper NOTHING", async () => {
       await recordProof(proofArgs());
       const n = await pool.query(
-        "SELECT 1 FROM public.notification_request WHERE type = 'order_delivered'",
+        "SELECT 1 FROM (SELECT n.recipient_sub, n.audience, n.type, n.dedupe_key, n.created_at, d.channel, d.recipient_email, d.status, jsonb_strip_nulls(jsonb_build_object('entityId', n.entity_id)) AS payload FROM public.notification n JOIN public.notification_delivery d ON d.notification_id = n.id) AS notification_request WHERE type = 'order_delivered'",
       );
       expect(n.rowCount).toBe(0);
     });
@@ -268,7 +268,7 @@ d("064 — proof IS the delivery completion", () => {
       const proofs = await pool.query("SELECT count(*)::int AS n FROM public.delivery_proof");
       const arrivals = await pool.query("SELECT count(*)::int AS n FROM public.package_arrival");
       const notes = await pool.query(
-        "SELECT count(*)::int AS n FROM public.notification_request WHERE type = 'order_delivered'",
+        "SELECT count(*)::int AS n FROM (SELECT n.recipient_sub, n.audience, n.type, n.dedupe_key, n.created_at, d.channel, d.recipient_email, d.status, jsonb_strip_nulls(jsonb_build_object('entityId', n.entity_id)) AS payload FROM public.notification n JOIN public.notification_delivery d ON d.notification_id = n.id) AS notification_request WHERE type = 'order_delivered'",
       );
       expect(proofs.rows[0].n).toBe(1);
       expect(arrivals.rows[0].n).toBe(1);
@@ -442,7 +442,7 @@ d("064 — proof IS the delivery completion", () => {
         expect(pa.rows[0].n).toBe(0);
 
         const n = await pool.query(
-          "SELECT count(*)::int AS n FROM public.notification_request WHERE type = 'order_delivered'",
+          "SELECT count(*)::int AS n FROM (SELECT n.recipient_sub, n.audience, n.type, n.dedupe_key, n.created_at, d.channel, d.recipient_email, d.status, jsonb_strip_nulls(jsonb_build_object('entityId', n.entity_id)) AS payload FROM public.notification n JOIN public.notification_delivery d ON d.notification_id = n.id) AS notification_request WHERE type = 'order_delivered'",
         );
         expect(n.rows[0].n).toBe(0);
       });

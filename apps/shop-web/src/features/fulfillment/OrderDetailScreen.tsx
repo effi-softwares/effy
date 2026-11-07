@@ -32,6 +32,8 @@ import { ActionBarButton, useActionBar, useActionBarDensity } from "@effy/web-ki
 import { tourStatus, useTourPage } from "@effy/web-kit/tour"
 import { ActivityButton, ActivityLogDrawer } from "@effy/web-kit/activity-log"
 import { ErrorState, PackageStatusPill, useHeaderDetail, type HeaderBack } from "@effy/web-kit/console"
+
+import { useGoneFallback } from "@/lib/useGoneFallback"
 import {
   BannerStack,
   InspectorRows,
@@ -93,7 +95,9 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
   // Back to the list as it was left: its view rides in this order's address.
   const back: HeaderBack = { label: "Orders", link: { to: "/orders", search: { ...search } } }
   useTourPage("order", { status: tourStatus(q) })
+  const gone = useGoneFallback(q.error, "/orders", "That order is no longer available.")
 
+  if (gone) return null
   if (q.isError) {
     return (
       <ErrorState

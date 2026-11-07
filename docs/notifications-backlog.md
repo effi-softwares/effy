@@ -155,6 +155,10 @@ Sources are listed at the end. Summary:
 
 ## Epic A - The notification record (foundation) · P0
 
+> **In spec 109** (`specs/109-notification-record/`, built 2026-11-07): A1–A6 and A8. A7 (live `inbox` kind) moved to
+> spec 2 with the inbox it serves; A9 stays later. A1 leaves out `image_key`, `pinned_until` and `campaign_id` until a
+> spec needs them.
+
 | ID | Pri | Where | Size | Item | Done when |
 |---|---|---|---|---|---|
 | A1 | P0 | DB | M | **`public.notification`, the inbox item.** Columns: `recipient_sub`, `audience`, `category`, `type`, `importance` (`normal` / `important`), `title`, `body`, `image_key`, `destination jsonb`, `seen_at`, `read_at`, `archived_at`, `pinned_until`, `expires_at`, `source` (`system` / `campaign` / `direct`), `campaign_id`, `dedupe_key`, `created_at`. Index on (recipient, audience, created_at desc) where not archived. | Every system notification produces one row; a duplicate event produces none. |
@@ -168,6 +172,8 @@ Sources are listed at the end. Summary:
 | A9 | P2 | BE | S | **Prune old tokens.** Drop `device_token` rows not seen for 270 days, matching FCM's own expiry. Refresh `last_seen_at` on every app start (customer and driver already re-register). | No pushes are sent to long-dead tokens. |
 
 ## Epic B - One destination vocabulary and router (tap → the right screen) · P0
+
+> **In spec 109**: B1–B6. B7 (universal links) stays later.
 
 | ID | Pri | Where | Size | Item | Done when |
 |---|---|---|---|---|---|
@@ -233,10 +239,10 @@ centred dialogs on the customer app (`EffySheet`), and nothing refreshes on a ti
 
 | ID | Pri | Where | Size | Item | Done when |
 |---|---|---|---|---|---|
-| F1 | P1 | BE (notifications) | S | **Rewrite `order_ready` for customers**: "Your order is packed" / "Your order is packed and on its way to our hub", with no "handoff". | The words are reviewed; `copy.test.ts` is updated. |
+| F1 | P1 | BE (notifications) | S | **(109, done)** **Rewrite `order_ready` for customers**: "Your order is packed" / "Your order is packed and on its way to our hub", with no "handoff". | The words are reviewed; `copy.test.ts` is updated. |
 | F2 | P1 | BE (fleet / driver) | M | **Wire up `order_out_for_delivery`** (decide: wire it or remove it). Proposal: send it when the delivery round the order is on **starts**, once per order, Effy delivery only. "Out for delivery" is already one of the 9 package status words. | A customer gets "Out for delivery" when the driver leaves the hub. |
-| F3 | P1 | BE | S | **Remove `deepLink` / `webPath` / `entityInLink`** after B2, plus the string parsing in `pushDestination` and `PushOpen`. | Grep finds none. |
-| F4 | P1 | DB | S | **Type list in one place.** Today the DB `CHECK`, `copy.ts` and `notification-types.ts` each list types. Keep the CHECK, add a test that the three agree, and make campaigns one type (`message`) so staff sends never need a migration. | One test fails when the three lists disagree. |
+| F3 | P1 | BE | S | **(109, done)** **Remove `deepLink` / `webPath` / `entityInLink`** after B2, plus the string parsing in `pushDestination` and `PushOpen`. | Grep finds none. |
+| F4 | P1 | DB | S | **(109, done)** **Type list in one place.** Today the DB `CHECK`, `copy.ts` and `notification-types.ts` each list types. Keep the CHECK, add a test that the three agree, and make campaigns one type (`message`) so staff sends never need a migration. | One test fails when the three lists disagree. |
 | F5 | P2 | docs | S | **Update stale docs**: `next-implementation-candidates.md` (#4, #6, #8), `customer-capabilities.md` (Notifications row), `observability-apple-blockers.md` (adds the time-sensitive capability step from D7). | - |
 | F6 | P2 | CUST-APP | S | **Remove the `NotificationsScreen` empty-state-only code** once C2 lands (Account shortcut and Home bell point at the inbox). | - |
 | F7 | P2 | BE | S | **`points_expiring` as push too** (it's email-only today). Category `points`. | - |

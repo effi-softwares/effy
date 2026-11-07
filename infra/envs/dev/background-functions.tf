@@ -34,6 +34,13 @@ locals {
       threshold = 1
       stops     = "074 - the points ledger is no longer being checked, and the points-ledger alarm cannot see a fault because this function is what reports it."
     }
+    notification-purge = {
+      function  = "effy-edge-notifications-${var.env}-purge"
+      period    = 86400
+      periods   = 1
+      threshold = 1
+      stops     = "109 - old notifications and delivery records are no longer being removed (customers 180 days, staff 90 days, deliveries 30 days), and an erased customer's notifications stay behind."
+    }
     notification-drain = {
       function  = "effy-edge-notifications-${var.env}-drain"
       period    = 300

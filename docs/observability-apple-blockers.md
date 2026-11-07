@@ -56,6 +56,8 @@ apps/customer-mobile/iosApp/push-samples/send.sh order_paid           # edit the
 apps/driver-mobile/iosApp/push-samples/send.sh run_assigned           # edit the .apns first: a real run id
 ```
 Send once with the app open (a banner should appear) and once with it in the background (tap the banner).
+Since 109 the samples carry what FCM sends: `notificationId` and `destination` (no `deepLink`). Their id is made up,
+so the app opens the screen and the read call answers 404, which is expected.
 You can also drag an `.apns` file onto the Simulator window.
 
 Expected on iOS until the account exists: the Xcode console prints `Push: no APNs token (...)`, no

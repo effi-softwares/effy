@@ -7,6 +7,6 @@
     "sound": "default"
   },
   "type": "points_credited",
-  "entityId": "00000000-0000-0000-0000-000000000000",
-  "deepLink": "effy://points"
+  "notificationId": "00000000-0000-4000-8000-000000000109",
+  "destination": "{\"kind\":\"points\"}"
 }

@@ -64,7 +64,7 @@ type ShopAnalyticsEvent =
   | { name: "notif_disabled" }
   | { name: "notif_type_muted"; type: string }
   | { name: "notif_type_unmuted"; type: string }
-  | { name: "notif_opened"; type: string }
+  | { name: "notif_opened"; type: string; fallback: boolean }
   | { name: "offline_entered" }
   | { name: "offline_recovered" }
 

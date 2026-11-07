@@ -31,6 +31,7 @@ const EXEMPT: Record<string, string> = {
   "POST /driver/v1/vehicle-check": "a check of the vehicle, made before any round (093)",
   "POST /driver/v1/devices": "registers a push token",
   "DELETE /driver/v1/devices/{token}": "removes a push token",
+  "POST /driver/v1/notifications/{id}/read": "records that the driver opened their own notification (109); changes no round",
 };
 
 /** Every `METHOD path` the service declares, read from serverless.yml. */

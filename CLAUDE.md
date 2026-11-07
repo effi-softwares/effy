@@ -660,6 +660,7 @@ the entries carry gotchas and deploy-ordering rules that the code does not. Slic
 
 Features recorded:
 
+- **109-notification-record** - Notification Record & Destinations (one lasting notification per person, push/email as its deliveries, one writer `notify()`; a closed destination list per audience so a tap opens its screen, held through sign-in; read route; batched sending; daily purge) - built 2026-11-07; not migrated, deployed or walked; Stage B (drop `notification_request`) pending
 - **108-information-banners** - Information Banners (a fifth promotion kind with no offer: words, a picture, a skin, where a tap leads; live values like the free-delivery amount filled from settings; never money) - built 2026-11-06; not migrated, deployed or walked
 - **107-backoffice-guided-tours** - Guided Tours in Back-Office (49 tours on 106's pieces; steps and whole tours limited by role; `/admin/v1/me/tours`) - built 2026-11-03; not deployed or walked
 - **106-guided-tours** - Guided Tours in the Shop Console (16 tours that start by themselves on a page's first use, once per person; replayed from Help or ⌘K; one Radix tour primitive; words in `tours.ts`, held to the spec) - built 2026-11-03; not migrated, deployed or walked
@@ -745,5 +746,5 @@ Features recorded:
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/108-information-banners/plan.md
+at specs/109-notification-record/plan.md
 <!-- SPECKIT END -->

@@ -33,7 +33,7 @@ const give = (customerId: string, points: number, now: Date) =>
 const warnings = async (customerId: string) =>
   (await pool.query(
     `SELECT n.points, r.channel, r.recipient_email FROM public.points_expiry_notice n
-       JOIN public.notification_request r ON r.payload->>'entityId' = n.id::text AND r.type = 'points_expiring'
+       JOIN (SELECT n.recipient_sub, n.audience, n.type, n.dedupe_key, n.created_at, d.channel, d.recipient_email, d.status, jsonb_strip_nulls(jsonb_build_object('entityId', n.entity_id)) AS payload FROM public.notification n JOIN public.notification_delivery d ON d.notification_id = n.id) r ON r.payload->>'entityId' = n.id::text AND r.type = 'points_expiring'
       WHERE n.customer_id = $1`,
     [customerId],
   )).rows;

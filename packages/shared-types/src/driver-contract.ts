@@ -59,9 +59,11 @@ import type {
 } from "./driver";
 import type { LabelReadDTO, ParcelDTO, ParcelHandover, ParcelMissing } from "./parcels";
 import type { ProblemJSON } from "./problem";
+import type { NotificationReadResponseDTO } from "./notification-destinations";
 
 /** Codegen entry only. Every field forces a type into the schema. */
 export interface DriverContract {
+  notificationRead: NotificationReadResponseDTO;
   me: DriverMeDTO;
   dutyRequest: DutyRequest;
   dutyResponse: DutyResponse;

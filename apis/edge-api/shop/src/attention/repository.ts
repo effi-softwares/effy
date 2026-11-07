@@ -1,7 +1,8 @@
 // One transaction per shop, so a notified row and its intent are written together or not at all.
 import type { PoolClient } from "pg";
 
-import { query, withTransaction, type AttentionKind } from "@effy/edge-shared";
+import { query, withTransaction, type AttentionKind, type ShopNotificationType } from "@effy/edge-shared";
+import { notify } from "@effy/edge-shared/notifications";
 
 export interface StoredOccurrence {
   id: string;
@@ -113,22 +114,24 @@ export async function recipientsForShop(tx: PoolClient, shopId: string): Promise
   return res.rows.map((r) => ({ sub: r.cognito_sub, isManager: r.is_manager }));
 }
 
-/** `ON CONFLICT DO NOTHING` on `dedupe_key` makes a re-run a no-op. */
+/**
+ * One notification per staff member and occurrence: the dedupe scope is the occurrence id, never the product or
+ * order id, so a re-run is a no-op and out-restocked-out-again notifies twice.
+ */
 export async function enqueueIntent(
   tx: PoolClient,
   v: {
     recipientSub: string;
-    type: string;
+    type: ShopNotificationType;
     entityId: string;
-    dedupeKey: string;
+    /** The occurrence id. */
+    dedupeScope: string;
   },
 ): Promise<void> {
-  await tx.query(
-    `INSERT INTO public.notification_request (recipient_sub, audience, type, payload, dedupe_key, channel)
-     VALUES ($1, 'shop', $2, $3::jsonb, $4, 'push')
-     ON CONFLICT (dedupe_key) DO NOTHING`,
-    [v.recipientSub, v.type, JSON.stringify({ entityId: v.entityId }), v.dedupeKey],
-  );
+  await notify(tx, {
+    type: v.type, recipients: [{ sub: v.recipientSub }], subject: { entityId: v.entityId },
+    dedupeScope: v.dedupeScope, channels: ["push"],
+  });
 }
 
 export { withTransaction };

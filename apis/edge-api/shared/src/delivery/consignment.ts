@@ -3,6 +3,7 @@ import type { ConsignmentEventKind, ConsignmentState } from "@effy/shared-types"
 
 import type { Queryable } from "../lib/db";
 import { enqueueOrderDeliveredIfComplete } from "../lib/order-completion";
+import { notify } from "../notifications/notify";
 
 /**
  * The one writer of `courier_consignment`, its events, a parcel's carrier handover and a courier
@@ -270,22 +271,18 @@ export async function handOver(tx: Queryable, input: HandOverInput): Promise<Han
   if (consignmentId) {
     await setState(tx, consignmentId, "handed_over");
     await appendEvent(tx, consignmentId, "handed_over", input.actor, trimmed(input.note));
-    // One per consignment, push and email (the email is the per-parcel tracking). Routing ids only; the address is snapshotted now.
-    await tx.query(
-      `INSERT INTO public.notification_request
-           (recipient_sub, audience, type, channel, recipient_email, payload, dedupe_key)
-       SELECT c.cognito_sub, 'customer', 'order_with_courier', ch.channel,
-              CASE WHEN ch.channel = 'email' THEN c.email ELSE NULL END,
-              jsonb_build_object('entityId', $2::text, 'deepLink', 'effy://order'),
-              'order_with_courier:' || ch.channel || ':' || c.cognito_sub || ':' || $2::text
-         FROM public."order" o
-         JOIN public.customer c ON c.id = o.customer_id
-        CROSS JOIN (VALUES ('push'), ('email')) AS ch(channel)
-        WHERE o.id = $1
-          AND (ch.channel <> 'email' OR c.email IS NOT NULL)
-       ON CONFLICT (dedupe_key) DO NOTHING`,
-      [pkg.order_id, consignmentId],
-    );
+    // One per consignment, push and email (the email is the per-parcel tracking; the address snapshotted now).
+    // The tap opens the order.
+    const who = (
+      await tx.query<{ sub: string; email: string | null }>(
+        `SELECT c.cognito_sub AS sub, c.email FROM public."order" o JOIN public.customer c ON c.id = o.customer_id WHERE o.id = $1`,
+        [pkg.order_id],
+      )
+    ).rows;
+    await notify(tx, {
+      type: "order_with_courier", recipients: who, subject: { entityId: consignmentId, orderId: pkg.order_id },
+      dedupeScope: consignmentId, channels: ["push", "email"],
+    });
   }
 
   return {

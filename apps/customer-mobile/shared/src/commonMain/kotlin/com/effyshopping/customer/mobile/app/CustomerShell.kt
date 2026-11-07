@@ -25,6 +25,10 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
+import com.effyshopping.customer.mobile.core.presentation.EffySnackbarHost
+import androidx.compose.ui.Alignment
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -42,6 +46,7 @@ import androidx.compose.ui.backhandler.BackHandler
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.entryProvider
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import com.effyshopping.customer.mobile.core.nav.CUSTOMER_TAB_ROOTS
@@ -50,8 +55,10 @@ import com.effyshopping.customer.mobile.core.nav.CustomerNavKey
 import com.effyshopping.customer.mobile.core.nav.rememberCustomerNavState
 import com.effyshopping.customer.mobile.core.session.SessionState
 import com.effyshopping.customer.mobile.core.observability.AnalyticsEvent
-import com.effyshopping.customer.mobile.core.push.PushDestination
-import com.effyshopping.customer.mobile.core.push.pushDestination
+import com.effyshopping.customer.mobile.core.push.CustomerDestination
+import com.effyshopping.customer.mobile.core.push.HeldOutcome
+import com.effyshopping.customer.mobile.core.push.verifiedDestinationOf
+import com.effyshopping.customer.mobile.core.push.parseCustomerDestination
 import com.effyshopping.customer.mobile.features.account.presentation.AccountRoutes
 import com.effyshopping.customer.mobile.features.addresses.presentation.AddressBookScreen
 import com.effyshopping.customer.mobile.features.paymentmethods.presentation.PaymentMethodsScreen
@@ -80,6 +87,7 @@ import com.effyshopping.mobile.kit.ui.AdaptiveContent
 import com.effyshopping.mobile.kit.ui.MotionRole
 import com.effyshopping.mobile.kit.ui.rememberMotionSpec
 import org.jetbrains.compose.resources.DrawableResource
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
 
 /** The label for each tab root, in bar order. */
@@ -138,35 +146,50 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
     LaunchedEffect(signedIn) { container.syncCart() }
 
     /**
-     * A tapped notification opens what it was about: an order's page under Orders, the Orders tab, or
-     * points under Account (`pushDestination` reads the worker's deep link). The shell only exists once the
-     * session has resolved, so a tap that launched the app waits in the container until then.
+     * A tapped notification opens what it was about (109): [pushNavSteps] over the destination the push carried, on
+     * its tab's root so Back returns to the tab's start; a destination this build does not know opens Home.
      *
-     * Every notification is about a signed-in shopper's account. A guest who taps one (signed out since it
-     * was sent) just lands where they are - the gate would only ask them to sign in to see someone's order.
+     * Signed in, it opens at once and the read is recorded in the background - the destination screen loads through
+     * the shopper's own session, so someone else's order is simply not found there. Signed out, the tap is held in
+     * memory and sign-in is offered; after sign-in the server is asked FIRST whether the notification is theirs, and
+     * only then is anything opened (another shopper on the same phone sees nothing of it).
+     *
+     * The work runs in [pushScope], not the effects, because each effect restarts the moment it clears its value.
      */
+    val pushScope = rememberCoroutineScope()
+    val shellSnackbar = remember { SnackbarHostState() }
+    fun openFromPush(type: String, destination: CustomerDestination?) {
+        for (step in pushNavSteps(destination)) {
+            when (step) {
+                is PushNavStep.SelectTab -> navState.selectTab(step.tab)
+                PushNavStep.ResetToRoot -> navState.resetToRoot()
+                is PushNavStep.Push -> navState.push(step.key)
+            }
+        }
+        container.analyticsDriver.capture(AnalyticsEvent.NotificationOpened(type))
+    }
     val openedNotification by container.openedNotification.collectAsState()
-    LaunchedEffect(openedNotification, signedIn) {
+    LaunchedEffect(openedNotification) {
         val opened = openedNotification ?: return@LaunchedEffect
         container.openedNotification.value = null
-        container.analyticsDriver.capture(AnalyticsEvent.NotificationOpened(opened.type))
+        if (signedIn) {
+            openFromPush(opened.type, parseCustomerDestination(opened.destination))
+            opened.notificationId?.let { id -> pushScope.launch { container.notifications.markRead(id) } }
+        } else {
+            container.pendingOpen.value = opened
+            navState.push(CustomerNavKey.SignIn())
+        }
+    }
+    val pendingOpen by container.pendingOpen.collectAsState()
+    LaunchedEffect(pendingOpen, signedIn) {
+        val held = pendingOpen ?: return@LaunchedEffect
         if (!signedIn) return@LaunchedEffect
-        when (val destination = pushDestination(opened.deepLink)) {
-            is PushDestination.Order -> {
-                navState.selectTab(CustomerNavKey.Orders)
-                navState.resetToRoot()
-                navState.push(CustomerNavKey.OrderDetail(destination.orderId))
+        container.pendingOpen.value = null
+        pushScope.launch {
+            when (val outcome = verifiedDestinationOf(held, container.notifications)) {
+                is HeldOutcome.Open -> openFromPush(held.type, outcome.destination)
+                HeldOutcome.Drop -> Unit
             }
-            PushDestination.Orders -> {
-                navState.selectTab(CustomerNavKey.Orders)
-                navState.resetToRoot()
-            }
-            PushDestination.Points -> {
-                navState.selectTab(CustomerNavKey.Account)
-                navState.resetToRoot()
-                navState.push(CustomerNavKey.Points)
-            }
-            null -> Unit
         }
     }
 
@@ -214,6 +237,7 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
         LocalOpenNotifications provides { navState.push(CustomerNavKey.Notifications) },
         LocalIsIos provides (platformTag() == "ios"),
     ) {
+    Box(Modifier.fillMaxSize()) {
     ResponsiveNavigation(
         destinations = CUSTOMER_TAB_ROOTS.map { root ->
             ResponsiveDestination(
@@ -565,6 +589,13 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                         key.orderId,
                         title = "Order details",
                         onViewCart = { navState.selectTab(CustomerNavKey.Cart) },
+                        // An order this shopper can no longer open (a stale notification, a list from before): back to
+                        // their orders with one short sentence, never an error screen (109 FR-015).
+                        onGone = {
+                            navState.selectTab(CustomerNavKey.Orders)
+                            navState.resetToRoot()
+                            pushScope.launch { shellSnackbar.showSnackbar(ORDER_GONE) }
+                        },
                     )
                 }
 
@@ -653,6 +684,9 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
         }
         }
     }
+    // A shell-wide message, over the tab bar: what a fallback says (109 FR-015).
+    EffySnackbarHost(shellSnackbar, modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 96.dp))
+    }
     }
 }
 
@@ -687,3 +721,5 @@ private fun GatedTab(title: String, message: String, onSignIn: () -> Unit) {
     }
 }
 
+/** What a tap on a notification about an order says when that order can no longer be opened (109). */
+private const val ORDER_GONE = "That order isn’t available."

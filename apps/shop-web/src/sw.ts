@@ -2,6 +2,7 @@
 import { cleanupOutdatedCaches, createHandlerBoundToURL, precacheAndRoute } from "workbox-precaching"
 import { NavigationRoute, registerRoute } from "workbox-routing"
 
+import { withNotification } from "./features/notifications/notificationLink"
 import { clientToFocus, parsePush, planNotification, shouldSuppress } from "./lib/sw-logic"
 
 declare const self: ServiceWorkerGlobalScope & {
@@ -98,7 +99,7 @@ self.addEventListener("push", (event: PushEvent) => {
           renotify: true,
           icon: "/web-app-icon-192.png",
           badge: "/notification-badge-96.png",
-          data: { webPath: plan.webPath, type: data.type, group: plan.group },
+          data: { webPath: plan.webPath, notificationId: plan.notificationId, type: data.type, group: plan.group },
         } as NotificationOptions)
 
         // The app-icon badge, where the OS supports one.
@@ -111,7 +112,7 @@ self.addEventListener("push", (event: PushEvent) => {
         await self.registration.showNotification(data.title, {
           body: data.body,
           tag: data.tag,
-          data: { webPath: data.webPath, type: data.type, group: data.group },
+          data: { webPath: data.webPath, notificationId: data.notificationId, type: data.type, group: data.group },
         } as NotificationOptions)
       }
     })(),
@@ -120,8 +121,10 @@ self.addEventListener("push", (event: PushEvent) => {
 
 self.addEventListener("notificationclick", (event: NotificationEvent) => {
   event.notification.close()
-  const data = (event.notification.data ?? {}) as { webPath?: string; type?: string; group?: string }
+  const data = (event.notification.data ?? {}) as { webPath?: string; notificationId?: string; type?: string; group?: string }
   const path = typeof data.webPath === "string" ? data.webPath : "/"
+  // 109: the page records the notification read once it has opened it.
+  const notificationId = typeof data.notificationId === "string" ? data.notificationId : ""
 
   event.waitUntil(
     (async () => {
@@ -141,10 +144,11 @@ self.addEventListener("notificationclick", (event: NotificationEvent) => {
 
       if (target) {
         await target.c.focus()
-        target.c.postMessage({ type: "NAVIGATE", path, notificationType: data.type })
+        target.c.postMessage({ type: "NAVIGATE", path, notificationId, notificationType: data.type })
         return
       }
-      await self.clients.openWindow(path)
+      // A new window has no message channel yet: the id rides on the address and the page reads it once.
+      await self.clients.openWindow(withNotification(path, notificationId, data.type))
     })(),
   )
 })

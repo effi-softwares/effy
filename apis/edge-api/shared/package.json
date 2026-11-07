@@ -16,7 +16,8 @@
     "./labels": "./src/labels/index.ts",
     "./documents": "./src/documents/index.ts",
     "./catalog": "./src/catalog/index.ts",
-    "./tours": "./src/tours/index.ts"
+    "./tours": "./src/tours/index.ts",
+    "./notifications": "./src/notifications/index.ts"
   },
   "types": "./src/index.ts",
   "scripts": {

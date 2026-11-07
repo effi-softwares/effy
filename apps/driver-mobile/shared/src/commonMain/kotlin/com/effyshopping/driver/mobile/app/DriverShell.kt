@@ -31,6 +31,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.effyshopping.driver.mobile.core.nav.AccountRoot
+import com.effyshopping.driver.mobile.core.push.DriverDestination
+import com.effyshopping.driver.mobile.core.push.HeldOutcome
+import com.effyshopping.driver.mobile.core.push.verifiedDestinationOf
+import com.effyshopping.driver.mobile.core.push.parseDriverDestination
 import com.effyshopping.driver.mobile.core.nav.CollectionRunRoute
 import com.effyshopping.driver.mobile.core.nav.DeliveryRunRoute
 import com.effyshopping.driver.mobile.core.nav.DriverTab
@@ -124,23 +128,46 @@ fun DriverShell(
         if (screenName.isNotEmpty()) container.analyticsDriver.screen(screenName.lowercase())
     }
 
-    // A tapped notification is about the driver's work, and Today is where their work is. One about
-    // a round opens that round (backlog D4) - when Today still holds it, which also says its kind.
+    // A tapped notification opens what it is about (109): Today, the account, or a round (backlog D4) when Today still
+    // holds it, which also says its kind; otherwise Today, which says what is theirs now (the fallback). Signed in,
+    // it opens at once and the read is recorded in the background (it must work on a weak signal). A tap made while
+    // signed out was held by App and is checked with the server first: only the recipient sees anything of it.
+    // The work runs in `scope`, not the effects, because each effect restarts the moment it clears its value.
     val analyticsOn by container.analyticsConsent.collectAsState()
+    suspend fun openFromPush(type: String, destination: DriverDestination?) {
+        tabs.selectTab(if (destination == DriverDestination.Account) DriverTab.ACCOUNT else DriverTab.TODAY)
+        while (tabs.canGoBack) tabs.pop()
+        var fellBack = false
+        if (destination is DriverDestination.Run) {
+            val runId = destination.runId
+            val today = runCatching { container.getToday() }.getOrNull()
+            val phase = today?.let { t -> if (t.activeRunId == runId) t.phase else t.upcoming.firstOrNull { it.runId == runId }?.phase }
+            when (phase) {
+                Phase.COLLECTION -> tabs.push(CollectionRunRoute(runId))
+                Phase.DELIVERY -> tabs.push(DeliveryRunRoute(runId))
+                else -> fellBack = true // no longer theirs, or finished: Today says what is
+            }
+        }
+        container.analyticsDriver.capture(AnalyticsEvent.NotificationOpened(type, fallback = fellBack))
+    }
     val openedNotification by container.openedNotification.collectAsState()
     LaunchedEffect(openedNotification) {
         val opened = openedNotification ?: return@LaunchedEffect
-        container.analyticsDriver.capture(AnalyticsEvent.NotificationOpened(opened.type))
-        tabs.selectTab(DriverTab.TODAY)
-        while (tabs.canGoBack) tabs.pop()
         container.openedNotification.value = null
-        val runId = opened.entityId?.takeIf { opened.type.startsWith("run_") } ?: return@LaunchedEffect
-        val today = runCatching { container.getToday() }.getOrNull() ?: return@LaunchedEffect
-        val phase = if (today.activeRunId == runId) today.phase else today.upcoming.firstOrNull { it.runId == runId }?.phase
-        when (phase) {
-            Phase.COLLECTION -> tabs.push(CollectionRunRoute(runId))
-            Phase.DELIVERY -> tabs.push(DeliveryRunRoute(runId))
-            else -> Unit // no longer theirs, or finished: Today says what is
+        scope.launch {
+            openFromPush(opened.type, parseDriverDestination(opened.destination))
+            opened.notificationId?.let { container.notifications.markRead(it) }
+        }
+    }
+    val pendingOpen by container.pendingOpen.collectAsState()
+    LaunchedEffect(pendingOpen) {
+        val held = pendingOpen ?: return@LaunchedEffect
+        container.pendingOpen.value = null
+        scope.launch {
+            when (val outcome = verifiedDestinationOf(held, container.notifications)) {
+                is HeldOutcome.Open -> openFromPush(held.type, outcome.destination)
+                HeldOutcome.Drop -> Unit
+            }
         }
     }
 

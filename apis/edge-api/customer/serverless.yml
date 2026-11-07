@@ -397,6 +397,17 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
 
+  customerNotificationsV1IdReadPost:
+    handler: src/functions/customer-notifications-v1-id-read-post.handler
+    description: Record that the signed-in customer opened one of their own notifications; returns where it leads (109)
+    events:
+      - httpApi:
+          method: POST
+          path: /customer/v1/notifications/{id}/read
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
   # Points housekeeping: scheduled, not routes.
 
   # Writes "Expired" history lines and the warning; expiry itself does not depend on it.

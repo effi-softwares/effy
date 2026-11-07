@@ -5,7 +5,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 
 /**
  * Against real Postgres and migrations: `UNIQUE (shop_id, kind, subject_key)`, `subject_key NOT NULL`
- * and the unique `notification_request.dedupe_key` are the guarantees, and a fake can only assume them.
+ * and the unique `notification.dedupe_key` are the guarantees, and a fake can only assume them.
  */
 
 const holder: { pool: Pool | null } = { pool: null };
@@ -73,7 +73,7 @@ describe.skipIf(!RUN)("attention state — real PostgreSQL, real migrations", ()
 
   beforeEach(async () => {
     await pool.query(
-      `TRUNCATE public.shop, public.shop_attention_state, public.notification_request RESTART IDENTITY CASCADE`,
+      `TRUNCATE public.shop, public.shop_attention_state, public.notification_delivery, public.notification RESTART IDENTITY CASCADE`,
     );
     await pool.query(
       `INSERT INTO public.shop (id, code, name, status)
@@ -112,21 +112,12 @@ describe.skipIf(!RUN)("attention state — real PostgreSQL, real migrations", ()
     expect(r.rows[0]!.muted_types).toEqual([]);
   });
 
-  it("accepts the four new notification types", async () => {
-    for (const t of [
-      "shop_awaiting_pick",
-      "shop_out_of_stock",
-      "shop_low_stock",
-      "shop_refund_proposed",
-    ]) {
-      await expect(
-        pool.query(
-          `INSERT INTO public.notification_request (recipient_sub, audience, type, payload, dedupe_key)
-           VALUES ('sub-1','shop',$1,'{}'::jsonb,$2)`,
-          [t, `${t}:sub-1:x`],
-        ),
-      ).resolves.toBeDefined();
+  it("accepts the four attention notification types", async () => {
+    for (const t of ["shop_awaiting_pick", "shop_out_of_stock", "shop_low_stock", "shop_refund_proposed"] as const) {
+      await tx((c) => enqueueIntent(c, { recipientSub: "sub-types", type: t, entityId: t === "shop_awaiting_pick" ? "" : "x-1", dedupeScope: `types-${t}` }));
     }
+    const r = await pool.query<{ n: string }>(`SELECT count(*) AS n FROM public.notification WHERE recipient_sub = 'sub-types'`);
+    expect(r.rows[0]!.n).toBe("4");
   });
 
   it("⚠ A8 — the per-shop backlog key inserts ONCE, not on every run", async () => {
@@ -180,7 +171,7 @@ describe.skipIf(!RUN)("attention state — real PostgreSQL, real migrations", ()
         recipientSub: "sub-1",
         type: "shop_out_of_stock",
         entityId: "p1",
-        dedupeKey: "shop_out_of_stock:sub-1:occ-1",
+        dedupeScope: "occ-1",
       }),
     );
     await tx((c) =>
@@ -188,11 +179,11 @@ describe.skipIf(!RUN)("attention state — real PostgreSQL, real migrations", ()
         recipientSub: "sub-1",
         type: "shop_out_of_stock",
         entityId: "p1",
-        dedupeKey: "shop_out_of_stock:sub-1:occ-1",
+        dedupeScope: "occ-1",
       }),
     );
     const r = await pool.query<{ n: string }>(
-      `SELECT count(*) AS n FROM public.notification_request WHERE dedupe_key = 'shop_out_of_stock:sub-1:occ-1'`,
+      `SELECT count(*) AS n FROM (SELECT n.recipient_sub, n.audience, n.type, n.dedupe_key, n.created_at, d.channel, d.recipient_email, d.status, jsonb_strip_nulls(jsonb_build_object('entityId', n.entity_id)) AS payload FROM public.notification n JOIN public.notification_delivery d ON d.notification_id = n.id) AS notification_request WHERE dedupe_key = 'shop_out_of_stock:sub-1:occ-1'`,
     );
     expect(r.rows[0]!.n).toBe("1");
   });

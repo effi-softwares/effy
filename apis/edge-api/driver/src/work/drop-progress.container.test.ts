@@ -82,7 +82,7 @@ d("064 fix — a drop advances through every state the app sends", () => {
 
   beforeEach(async () => {
     for (const t of [
-      "package_handover", "delivery_proof", "delivery_attempt_failure", "package_arrival", "notification_request", "round_package", "round_stop",
+      "package_handover", "delivery_proof", "delivery_attempt_failure", "package_arrival", "notification_delivery", "notification", "round_package", "round_stop",
       "driver_round", "dispatch_wave", "shop_fulfillment",
     ]) {
       await pool.query(`DELETE FROM public.${t}`);

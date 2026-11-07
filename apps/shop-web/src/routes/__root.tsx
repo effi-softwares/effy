@@ -4,6 +4,7 @@ import { createRootRouteWithContext, Outlet } from "@tanstack/react-router"
 import { Toaster } from "@effy/design-system/ui"
 
 import { DevTools } from "@/components/DevTools"
+import { useNotificationNavigation } from "@/features/notifications/useNotificationNavigation"
 
 interface RouterContext {
   queryClient: QueryClient
@@ -14,6 +15,8 @@ export const rootRoute = createRootRouteWithContext<RouterContext>()({
 })
 
 function RootComponent() {
+  // Mounted here, not in the app shell, so a notification click that arrives on the sign-in page is not lost (109).
+  useNotificationNavigation()
   return (
     <>
       <Outlet />

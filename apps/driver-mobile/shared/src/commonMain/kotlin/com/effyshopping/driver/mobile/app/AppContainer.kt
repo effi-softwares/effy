@@ -205,6 +205,17 @@ class AppContainer(
      */
     val openedNotification = MutableStateFlow<OpenedNotification?>(null)
 
+    /**
+     * A notification tapped while signed out (109 FR-014), held IN MEMORY ONLY until someone signs in. The shell then
+     * asks the server whether it is theirs before opening anything, and drops it otherwise. A closed app forgets it.
+     */
+    val pendingOpen = MutableStateFlow<OpenedNotification?>(null)
+
+    /** Records a tapped notification as read, and answers whether it belongs to the signed-in driver. */
+    val notifications: com.effyshopping.driver.mobile.core.push.NotificationRepository by lazy {
+        com.effyshopping.driver.mobile.core.push.HttpNotificationRepository(driverClient)
+    }
+
     // app services / presentation wiring
     val session: SessionManager by lazy {
         SessionManager(authDriver, getDriverIdentity, appScope, onSignedOut = { lastCopies.clear() }, workChanges = work.changes)

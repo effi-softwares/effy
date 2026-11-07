@@ -14,7 +14,9 @@ params:
     # rate(1 minute) is EventBridge's floor.
     drainSchedule: rate(1 minute)
     notifMaxAttempts: "5"
-    notifBatchSize: "100"
+    # One batch is claimed, sent and recorded per transaction, and batches repeat until ~15 s of the 60 s run is
+    # left: 500 is FCM's sendEach limit (109).
+    notifBatchSize: "500"
     receiptMaxAttempts: "5"
     receiptBatchSize: "50"
   dev:
@@ -113,7 +115,15 @@ functions:
 
   drain:
     handler: src/worker/handler.handler
-    description: Drain public.notification_request → resolve device tokens → send via FCM → mark sent/skipped/failed; prune dead tokens (050).
+    description: Send notification deliveries in batches (FCM sendEach, SES) until the run's time budget is spent; prune dead tokens; drain legacy notification_request until Stage B (050, 109).
     timeout: 60
     events:
       - schedule: ${param:drainSchedule}
+
+  # 109: notifications past their retention, deliveries past 30 days, and an erased customer's notifications.
+  purge:
+    handler: src/purge/handler.handler
+    description: Delete notifications past retention (customers 180 d, staff 90 d), deliveries past 30 d, and erased customers' notifications (109).
+    timeout: 120
+    events:
+      - schedule: rate(1 day)

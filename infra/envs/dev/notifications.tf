@@ -49,6 +49,25 @@ resource "aws_cloudwatch_metric_alarm" "notification_send_failed" {
   ok_actions          = [aws_sns_topic.alerts.arn]
 }
 
+# 109 - deliveries are waiting too long: the drain is not keeping up, or not running. Raised when the oldest pending
+# delivery has waited more than five minutes for three minutes in a row (the drain runs every minute and should clear
+# 20,000 in under ten). Emitted by the drain itself, so a drain that stops running stops the metric: missing data is
+# treated as breaching for that reason.
+resource "aws_cloudwatch_metric_alarm" "notification_backlog_stale" {
+  alarm_name          = "${module.shared.name_prefix}-notification-backlog-stale"
+  alarm_description   = "109 - notifications are waiting more than five minutes to send. Check the notifications drain's log (is it running, is FCM answering?) and NotificationDeliveriesPending."
+  namespace           = "Effy/Notifications"
+  metric_name         = "NotificationOldestPendingSeconds"
+  statistic           = "Maximum"
+  period              = 60
+  evaluation_periods  = 3
+  threshold           = 300
+  comparison_operator = "GreaterThanThreshold"
+  treat_missing_data  = "breaching"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+  ok_actions          = [aws_sns_topic.alerts.arn]
+}
+
 # Sustained receipt-email send failures. A missing receipt is invisible to everyone (the order looks
 # healthy). The threshold (3) is below push's (10): push has a baseline of stale tokens; a refused email
 # does not.

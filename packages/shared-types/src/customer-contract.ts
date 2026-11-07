@@ -27,8 +27,10 @@ import type {
 } from "./customer";
 import type { ProblemJSON } from "./problem";
 import type { CustomerPointsDTO, PointsBalanceDTO, PointsEntryKind, PointsHistoryEntryDTO, PointsHistoryPageDTO } from "./points";
+import type { NotificationReadResponseDTO } from "./notification-destinations";
 
 export type {
+  NotificationReadResponseDTO,
   CustomerStatus,
   ClosureState,
   CustomerDTO,
@@ -58,6 +60,7 @@ export type {
 
 /** Codegen entry only. Every field forces a type into the schema. */
 export interface CustomerContract {
+  notificationRead: NotificationReadResponseDTO;
   status: CustomerStatus;
   closureState: ClosureState;
   customer: CustomerDTO;

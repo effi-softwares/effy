@@ -607,6 +607,17 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
 
+  shopNotificationsV1IdReadPost:
+    handler: src/functions/shop-notifications-v1-id-read-post.handler
+    description: Record that the signed-in shop opened one of their own notifications; returns where it leads (109)
+    events:
+      - httpApi:
+          method: POST
+          path: /shop/v1/notifications/{id}/read
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
   # The attention evaluator, every five minutes: a person then walks across the shop; a minute sooner helps no one.
   attentionEvaluate:
     handler: src/functions/attention-evaluate.handler

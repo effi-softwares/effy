@@ -8,7 +8,7 @@ import { identityFromEnv, MailConfigError } from "@effy/email-kit";
 import { sendEmail } from "@effy/email-kit/send";
 
 import type { SendResult } from "../fcm/sender";
-import type { NotificationType } from "./copy";
+import type { NotificationType } from "@effy/edge-shared/notifications";
 
 /** A delivery date is the shopper's day, not the server's. */
 const TZ = OPERATING_TZ;

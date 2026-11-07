@@ -7,6 +7,7 @@
  * are derived. No metrics or announcements here: the caller does both after its commit.
  */
 import type { Queryable } from "../lib/db";
+import { notify } from "../notifications/notify";
 import {
   InsufficientPointsError, PointsInvalidError, PointsNoteRequiredError, PointsOrderNotFoundError, PointsReasonInvalidError,
 } from "./errors";
@@ -95,22 +96,14 @@ SELECT e.id::text AS id,
   return entryId;
 }
 
-/** Enqueues "you received points" by push and email. Routing ids only; the address is snapshotted now. */
+/** "You received points", by push and email (the address snapshotted now). */
 async function enqueueCredited(tx: Queryable, customerId: string, entryId: string): Promise<void> {
-  await tx.query(
-    `
-INSERT INTO public.notification_request (recipient_sub, audience, type, channel, recipient_email, payload, dedupe_key)
-SELECT c.cognito_sub, 'customer', 'points_credited', ch.channel,
-       CASE WHEN ch.channel = 'email' THEN c.email ELSE NULL END,
-       jsonb_build_object('entityId', $2::text, 'deepLink', 'effy://points'),
-       'points_credited:' || ch.channel || ':' || c.cognito_sub || ':' || $2::text
-  FROM public.customer c
- CROSS JOIN (VALUES ('push'), ('email')) AS ch(channel)
- WHERE c.id = $1
-   AND (ch.channel <> 'email' OR c.email IS NOT NULL)
-ON CONFLICT (dedupe_key) DO NOTHING`,
-    [customerId, entryId],
-  );
+  const who = (
+    await tx.query<{ sub: string; email: string | null }>(`SELECT cognito_sub AS sub, email FROM public.customer WHERE id = $1`, [customerId])
+  ).rows;
+  await notify(tx, {
+    type: "points_credited", recipients: who, subject: { entityId: entryId }, dedupeScope: entryId, channels: ["push", "email"],
+  });
 }
 
 export interface CreditInput {

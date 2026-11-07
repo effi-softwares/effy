@@ -11,7 +11,7 @@ interface Row {
 
 const db = {
   occurrences: [] as Row[],
-  intents: [] as Array<{ recipientSub: string; type: string; entityId: string; dedupeKey: string }>,
+  intents: [] as Array<{ recipientSub: string; type: string; entityId: string; dedupeScope: string }>,
   recipients: [] as Array<{ sub: string; isManager: boolean }>,
   shops: [] as Array<{ id: string }>,
   nextId: 1,
@@ -47,7 +47,7 @@ vi.mock("../repository", () => ({
   recipientsForShop: vi.fn(async () => db.recipients),
   enqueueIntent: vi.fn(async (_tx: unknown, v: (typeof db.intents)[number]) => {
     // Unique (dedupe_key): a repeat is a silent no-op, so retries are safe.
-    if (db.intents.some((i) => i.dedupeKey === v.dedupeKey)) return;
+    if (db.intents.some((i) => i.recipientSub === v.recipientSub && i.type === v.type && i.dedupeScope === v.dedupeScope)) return;
     db.intents.push(v);
   }),
   withTransaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn({})),
@@ -168,15 +168,15 @@ describe("⚠ A3 — a recurrence notifies again (FR-019)", () => {
     readToday.mockResolvedValue(snapshot({ out: [{ productId: "p1", name: "Milk" }] }));
     await evaluateShop(SHOP);
     expect(db.intents).toHaveLength(2);
-    expect(db.intents[0]!.dedupeKey).not.toBe(db.intents[1]!.dedupeKey);
+    expect(db.intents[0]!.dedupeScope).not.toBe(db.intents[1]!.dedupeScope);
   });
 
   it("⚠ the dedupe key is built from the OCCURRENCE id, not the product id", async () => {
     // Keying on the product would make the recurrence a silent no-op.
     readToday.mockResolvedValue(snapshot({ out: [{ productId: "p1", name: "Milk" }] }));
     await evaluateShop(SHOP);
-    expect(db.intents[0]!.dedupeKey).toContain("occ-");
-    expect(db.intents[0]!.dedupeKey).not.toContain("p1");
+    expect(db.intents[0]!.dedupeScope).toContain("occ-");
+    expect(db.intents[0]!.dedupeScope).not.toContain("p1");
   });
 });
 

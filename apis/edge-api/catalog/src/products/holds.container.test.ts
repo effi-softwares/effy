@@ -94,7 +94,7 @@ d("102 — holding and releasing a product against real PostgreSQL", () => {
 
   beforeEach(async () => {
     holder.announced = [];
-    await pool.query("DELETE FROM public.notification_request");
+    await pool.query("DELETE FROM public.notification");
     await pool.query("DELETE FROM admin.audit_log");
     await pool.query("DELETE FROM public.product");
     await pool.query("DELETE FROM public.shop_staff");
@@ -116,7 +116,7 @@ d("102 — holding and releasing a product against real PostgreSQL", () => {
     const audit = (await pool.query(`SELECT actor_sub, action, detail FROM admin.audit_log WHERE target_id = $1`, [id])).rows;
     expect(audit).toEqual([{ actor_sub: ADMIN, action: "product.held", detail: { shopId, reason: "Recalled by the maker", priorStatus: "active" } }]);
     // Active operators only; the payload names the product and nothing else.
-    const notes = (await pool.query(`SELECT recipient_sub, type, payload FROM public.notification_request`)).rows;
+    const notes = (await pool.query(`SELECT recipient_sub, type, payload FROM (SELECT n.recipient_sub, n.audience, n.type, n.dedupe_key, n.created_at, d.channel, d.recipient_email, d.status, jsonb_strip_nulls(jsonb_build_object('entityId', n.entity_id)) AS payload FROM public.notification n JOIN public.notification_delivery d ON d.notification_id = n.id) AS notification_request`)).rows;
     expect(notes).toEqual([{ recipient_sub: "op-1", type: "shop_product_held", payload: { entityId: id } }]);
     expect(holder.announced).toEqual([{ scope: "ops", kind: "products" }, { scope: "shop", shopId, kind: "products" }]);
   });

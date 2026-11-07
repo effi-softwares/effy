@@ -106,7 +106,7 @@ d("080 - courier consignments", () => {
     expect((await tx((c) => handOver(c, { packageId: pkg, actor: STAFF }))).created).toBe(false);
     // The customer is told once: push and email, once each per consignment.
     expect((await pool.query(`SELECT channel, payload->>'entityId' AS entity, recipient_email IS NOT NULL AS has_email
-                                FROM public.notification_request WHERE type = 'order_with_courier' ORDER BY channel`)).rows)
+                                FROM (SELECT n.recipient_sub, n.audience, n.type, n.dedupe_key, n.created_at, d.channel, d.recipient_email, d.status, jsonb_strip_nulls(jsonb_build_object('entityId', n.entity_id)) AS payload FROM public.notification n JOIN public.notification_delivery d ON d.notification_id = n.id) AS notification_request WHERE type = 'order_with_courier' ORDER BY channel`)).rows)
       .toEqual([
         { channel: "email", entity: first.consignmentId, has_email: true },
         { channel: "push", entity: first.consignmentId, has_email: false },

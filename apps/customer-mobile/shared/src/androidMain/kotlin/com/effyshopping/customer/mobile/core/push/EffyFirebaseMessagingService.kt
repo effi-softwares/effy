@@ -34,8 +34,7 @@ class EffyFirebaseMessagingService : FirebaseMessagingService() {
         // Tapping it brings the app forward with the same extras the system tray hands over.
         val open = packageManager.getLaunchIntentForPackage(packageName)?.apply {
             addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-            message.data[PushOpen.EXTRA_TYPE]?.let { putExtra(PushOpen.EXTRA_TYPE, it) }
-            message.data[PushOpen.EXTRA_DEEP_LINK]?.let { putExtra(PushOpen.EXTRA_DEEP_LINK, it) }
+            for (key in PushOpen.EXTRAS) message.data[key]?.let { putExtra(key, it) }
         }
         val id = message.messageId?.hashCode() ?: 0
         val notification = NotificationCompat.Builder(this, ORDER_UPDATES_CHANNEL_ID)
@@ -75,20 +74,24 @@ fun ensureOrderUpdatesChannel(context: Context) {
 }
 
 /**
- * What a tapped notification carries into the app: its type and the deep link the worker sent - routing
- * only, never an address or an amount.
+ * What a tapped notification carries into the app (109): its type, its id and where it leads - never an address
+ * or an amount. The keys are the push's data keys (specs/109-notification-record/contracts/push-payload.md).
  */
 object PushOpen {
-    /** The data keys the notifications worker sends (`dataFor` in `notifications/src/worker/copy.ts`). */
     const val EXTRA_TYPE = "type"
-    const val EXTRA_DEEP_LINK = "deepLink"
+    const val EXTRA_NOTIFICATION_ID = "notificationId"
+    const val EXTRA_DESTINATION = "destination"
+    val EXTRAS = listOf(EXTRA_TYPE, EXTRA_NOTIFICATION_ID, EXTRA_DESTINATION)
 
     /** The tapped notification, taken out of [intent] so a rotation does not act on it twice. */
     fun consume(intent: Intent?): OpenedNotification? {
         val type = intent?.getStringExtra(EXTRA_TYPE) ?: return null
-        val deepLink = intent.getStringExtra(EXTRA_DEEP_LINK)
-        intent.removeExtra(EXTRA_TYPE)
-        intent.removeExtra(EXTRA_DEEP_LINK)
-        return OpenedNotification(type, deepLink)
+        val opened = OpenedNotification(
+            type = type,
+            notificationId = intent.getStringExtra(EXTRA_NOTIFICATION_ID)?.takeIf { it.isNotBlank() },
+            destination = intent.getStringExtra(EXTRA_DESTINATION),
+        )
+        for (key in EXTRAS) intent.removeExtra(key)
+        return opened
     }
 }

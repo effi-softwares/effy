@@ -21,7 +21,7 @@ in its `AnalyticsEvent` sealed class; the per-app drift check keeps them aligned
 | `push_permission_prompted` | - | The OS notification-permission prompt is shown |
 | `push_permission_granted` | - | Permission granted |
 | `push_permission_denied` | - | Permission denied |
-| `notification_opened` | `{ type }` | A push is tapped (`type` = the notification-request type, e.g. `order_ready`; **no** order/customer data) |
+| `notification_opened` | `{ type, fallback }` | A push is tapped, captured **after** the screen it leads to has shown (109). `type` = the notification type, e.g. `order_ready`; `fallback` = `"true"` when the thing it was about was gone and a nearer screen opened instead. **No** order/customer data. Shop console: `notif_opened` with the same fields |
 
 Audience-specific funnels live in [commerce-events.md](commerce-events.md) (customer),
 [fulfillment-events.md](fulfillment-events.md) (shop) and [driver-events.md](driver-events.md) (driver).

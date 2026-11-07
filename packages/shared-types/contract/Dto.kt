@@ -352,6 +352,24 @@ data class CustomerPointsNextExpiry (
 )
 
 /**
+ * `POST /{audience}/v1/notifications/{id}/read` (109): the caller's own notification, now
+ * read. `destination` is the stored one, as a plain object, so an app parses it with the
+ * same lenient parser it uses for a push.
+ */
+@Serializable
+data class NotificationReadResponseDTO (
+    val destination: Map<String, String>,
+
+    @SerialName("notificationId")
+    val notificationID: String,
+
+    /**
+     * ISO 8601. The first read time; a repeat keeps it.
+     */
+    val readAt: String
+)
+
+/**
  * The step-up result: a masked destination only, never the address or the code.
  */
 @Serializable

@@ -501,6 +501,18 @@ class AppContainer(
      */
     val openedNotification =
         kotlinx.coroutines.flow.MutableStateFlow<com.effyshopping.customer.mobile.core.push.OpenedNotification?>(null)
+
+    /**
+     * A notification tapped while signed out (109 FR-014), held IN MEMORY ONLY until someone signs in. The shell then
+     * asks the server whether it is theirs before opening anything, and drops it otherwise. A closed app forgets it.
+     */
+    val pendingOpen =
+        kotlinx.coroutines.flow.MutableStateFlow<com.effyshopping.customer.mobile.core.push.OpenedNotification?>(null)
+
+    /** Records a tapped notification as read, and answers whether it belongs to the signed-in shopper. */
+    val notifications: com.effyshopping.customer.mobile.core.push.NotificationRepository by lazy {
+        com.effyshopping.customer.mobile.core.push.HttpNotificationRepository(edgeClient)
+    }
 }
 
 /** The single brand a shopper pays (hidden fulfilment - never a shop's name). */

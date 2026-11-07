@@ -1658,6 +1658,31 @@
       ],
       "type": "object"
     },
+    "NotificationReadResponseDTO": {
+      "additionalProperties": false,
+      "description": "`POST /{audience}/v1/notifications/{id}/read` (109): the caller's own notification, now read. `destination` is the stored one, as a plain object, so an app parses it with the same lenient parser it uses for a push.",
+      "properties": {
+        "destination": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "notificationId": {
+          "type": "string"
+        },
+        "readAt": {
+          "description": "ISO 8601. The first read time; a repeat keeps it.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "notificationId",
+        "readAt",
+        "destination"
+      ],
+      "type": "object"
+    },
     "ParcelDTO": {
       "additionalProperties": false,
       "description": "A live parcel as every surface sees it. `of` = this package's live bags.",
@@ -2715,6 +2740,9 @@
     "me": {
       "$ref": "#/definitions/DriverMeDTO"
     },
+    "notificationRead": {
+      "$ref": "#/definitions/NotificationReadResponseDTO"
+    },
     "parcel": {
       "$ref": "#/definitions/ParcelDTO"
     },
@@ -2792,6 +2820,7 @@
     }
   },
   "required": [
+    "notificationRead",
     "me",
     "dutyRequest",
     "dutyResponse",

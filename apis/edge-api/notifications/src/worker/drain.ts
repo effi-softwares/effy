@@ -1,183 +1,234 @@
-// The drain's decision logic, injected for unit tests. One intent produces one row per channel, so
-// "does this person have the app?" is answered at delivery.
-import type { SendResult } from "../fcm/sender";
-import type { NotificationType, RecipientToken } from "./copy";
+// The delivery drain's decisions (109), with the database and FCM injected for tests.
+//
+// Each batch is claimed, sent and recorded inside one transaction, so its rows stay locked until their outcomes are
+// written and an overlapping invocation can never send them twice. Batches repeat until the queue is empty or the time
+// budget is spent, which is what lets 20,000 deliveries clear in minutes. Immediate deliveries are claimed before
+// bulk ones (priority, then age), so one notification never waits behind a large send.
+import type { DevicePlatform, RecipientToken } from "@effy/edge-shared";
 
-export type NotificationChannel = "push" | "email";
+import type { PushMessage, SendResult } from "../fcm/sender";
 
-export interface PendingRequest {
+export type DeliveryChannel = "push" | "email";
+export type Audience = "customer" | "shop" | "driver";
+
+export interface ClaimedDelivery {
   id: string;
-  recipientSub: string;
-  audience: "customer" | "shop" | "driver";
-  type: NotificationType;
-  entityId: string;
-  attempts: number;
-  channel: NotificationChannel;
-  /** Snapshotted at enqueue for `email`; null for `push`. */
+  notificationId: string;
+  channel: DeliveryChannel;
   recipientEmail: string | null;
+  attempts: number;
+  recipientSub: string;
+  audience: Audience;
+  type: string;
+  title: string;
+  body: string;
+  entityId: string;
+  /** As stored (an object). */
+  destination: Record<string, unknown>;
+  expiresAt: Date | null;
+  tag: string;
+  group: string;
+}
+
+export type OutcomeStatus = "sent" | "no_device" | "muted" | "expired" | "failed" | "retry";
+
+export interface Outcome {
+  id: string;
+  status: OutcomeStatus;
+  error: string | null;
+  /** 1 when a send was attempted. */
+  attempted: boolean;
+}
+
+/** One batch's database work, inside its transaction. */
+export interface BatchStore {
+  claim(limit: number, channels: readonly DeliveryChannel[]): Promise<ClaimedDelivery[]>;
+  /** Keyed `${audience}:${sub}`. */
+  tokensFor(recipients: ReadonlyArray<{ sub: string; audience: Audience }>): Promise<Map<string, RecipientToken[]>>;
+  record(outcomes: readonly Outcome[]): Promise<void>;
+  prune(tokens: readonly string[]): Promise<void>;
 }
 
 export interface DrainDeps {
   senderConfigured: boolean;
   maxAttempts: number;
   batchSize: number;
-  claimPending(limit: number): Promise<PendingRequest[]>;
-  resolveTokens(sub: string, audience: PendingRequest["audience"]): Promise<RecipientToken[]>;
-  send(
-    fcmToken: string,
-    type: NotificationType,
-    entityId: string,
-    platform: RecipientToken["platform"],
-  ): Promise<SendResult>;
+  /** Epoch ms; no new batch is claimed at or after it. */
+  deadline: number;
+  now(): number;
+  inBatch<T>(fn: (store: BatchStore) => Promise<T>): Promise<T>;
+  sendEach(messages: readonly PushMessage[]): Promise<SendResult[]>;
   /** Resolves what it renders from `entityId` at send time. */
-  sendEmail(to: string, type: NotificationType, entityId: string): Promise<SendResult>;
-  markSent(id: string): Promise<void>;
-  markSkipped(id: string, reason: string): Promise<void>;
-  markRetry(id: string, error: string): Promise<void>;
-  markFailed(id: string, error: string): Promise<void>;
-  pruneToken(fcmToken: string): Promise<void>;
-  /** Absent in unit tests. */
+  sendEmail(to: string, type: string, entityId: string): Promise<SendResult>;
   log?: { warn(obj: unknown, msg: string): void };
 }
 
 export interface DrainSummary {
+  batches: number;
   claimed: number;
   sent: number;
-  skipped: number;
+  noDevice: number;
+  muted: number;
+  expired: number;
   retried: number;
   failed: number;
   pruned: number;
-  /** Email still drains. */
+  /** Push not configured: only email was claimed. */
   disabled: boolean;
-  /** Split so the alarm says which channel broke. */
   emailSent: number;
   emailFailed: number;
   /** Push outcomes by platform, as a separate metric: a dimension would blind the undimensioned alarm. */
   byPlatform: Record<string, { sent: number; failed: number }>;
 }
 
-/** Rows are claimed for UPDATE skip locked and only when pending, so a re-run never re-sends. */
-export async function drainOnce(deps: DrainDeps): Promise<DrainSummary> {
-  const s: DrainSummary = {
-    claimed: 0,
-    sent: 0,
-    skipped: 0,
-    byPlatform: {},
-    retried: 0,
-    failed: 0,
-    pruned: 0,
-    disabled: false,
-    emailSent: 0,
-    emailFailed: 0,
+export function emptySummary(): DrainSummary {
+  return {
+    batches: 0, claimed: 0, sent: 0, noDevice: 0, muted: 0, expired: 0, retried: 0, failed: 0, pruned: 0,
+    disabled: false, emailSent: 0, emailFailed: 0, byPlatform: {},
   };
+}
 
-  // Without FCM, push rows fail open but email rows still drain.
+export async function drainOnce(deps: DrainDeps): Promise<DrainSummary> {
+  const s = emptySummary();
+  // Without FCM, push deliveries stay pending untouched (not an attempt); email still drains.
+  const channels: DeliveryChannel[] = deps.senderConfigured ? ["push", "email"] : ["email"];
   if (!deps.senderConfigured) s.disabled = true;
 
-  const batch = await deps.claimPending(deps.batchSize);
-  s.claimed = batch.length;
-
-  for (const req of batch) {
-    if (req.channel === "email") {
-      await drainEmail(deps, req, s);
-    } else {
-      await drainPush(deps, req, s);
-    }
+  while (deps.now() < deps.deadline) {
+    const claimed = await deps.inBatch((store) => runBatch(deps, store, channels, s));
+    if (claimed < deps.batchSize) break;
   }
-
   return s;
 }
 
-async function drainPush(deps: DrainDeps, req: PendingRequest, s: DrainSummary): Promise<void> {
-  if (!deps.senderConfigured) {
-    // Fail open: leave it pending until FCM is configured. Not an attempt.
-    await deps.markRetry(req.id, "fcm_not_configured");
-    s.retried += 1;
-    return;
-  }
+async function runBatch(deps: DrainDeps, store: BatchStore, channels: DeliveryChannel[], s: DrainSummary): Promise<number> {
+  const batch = await store.claim(deps.batchSize, channels);
+  if (batch.length === 0) return 0;
+  s.batches += 1;
+  s.claimed += batch.length;
 
-  const allTokens = await deps.resolveTokens(req.recipientSub, req.audience);
-  if (allTokens.length === 0) {
-    // No device or no permission: a valid outcome.
-    await deps.markSkipped(req.id, "no_token");
-    s.skipped += 1;
-    return;
-  }
-
-  // This registration's preferences, not the person's. A mobile row has no `mutedTypes`.
-  const tokens = allTokens.filter((t) => !(t.mutedTypes ?? []).includes(req.type));
-  if (tokens.length === 0) {
-    // Distinct from "no_token": nobody reachable versus everybody chose not to be.
-    await deps.markSkipped(req.id, "muted");
-    s.skipped += 1;
-    return;
-  }
-
-  let delivered = false;
-  let lastError = "unknown";
-  for (const t of tokens) {
-    const r = await deps.send(t.fcmToken, req.type, req.entityId, t.platform);
-    const p = (s.byPlatform[t.platform] ??= { sent: 0, failed: 0 });
-    if (r.ok) {
-      delivered = true;
-      p.sent += 1;
+  const outcomes: Outcome[] = [];
+  const now = deps.now();
+  const live: ClaimedDelivery[] = [];
+  for (const d of batch) {
+    if (d.expiresAt && d.expiresAt.getTime() <= now) {
+      outcomes.push({ id: d.id, status: "expired", error: null, attempted: false });
+      s.expired += 1;
     } else {
-      p.failed += 1;
-      lastError = r.errorClass ?? "unknown";
-      // Logged per token, because `last_error` is overwritten once the token is pruned. Never the token
-      // itself: the platform is enough.
-      deps.log?.warn(
-        {
-          notificationId: req.id,
-          type: req.type,
-          platform: t.platform,
-          errorClass: r.errorClass ?? "unknown",
-          pruning: r.prune,
-        },
-        "notification send failed",
-      );
-      if (r.prune) {
-        await deps.pruneToken(t.fcmToken);
-        s.pruned += 1;
-      }
+      live.push(d);
     }
   }
 
-  if (delivered) {
-    await deps.markSent(req.id);
-    s.sent += 1;
-  } else if (req.attempts + 1 >= deps.maxAttempts) {
-    await deps.markFailed(req.id, lastError);
-    s.failed += 1;
-  } else {
-    await deps.markRetry(req.id, lastError);
-    s.retried += 1;
+  await pushes(deps, store, live.filter((d) => d.channel === "push"), outcomes, s);
+  for (const d of live.filter((x) => x.channel === "email")) outcomes.push(await email(deps, d, s));
+
+  await store.record(outcomes);
+  return batch.length;
+}
+
+async function pushes(deps: DrainDeps, store: BatchStore, rows: ClaimedDelivery[], outcomes: Outcome[], s: DrainSummary): Promise<void> {
+  if (rows.length === 0) return;
+  const tokens = await store.tokensFor(rows.map((d) => ({ sub: d.recipientSub, audience: d.audience })));
+
+  const messages: PushMessage[] = [];
+  /** messages[i] belongs to rows[owner[i]]. */
+  const owner: number[] = [];
+  rows.forEach((d, index) => {
+    const all = tokens.get(`${d.audience}:${d.recipientSub}`) ?? [];
+    if (all.length === 0) {
+      // No device or no permission: a valid outcome.
+      outcomes.push({ id: d.id, status: "no_device", error: null, attempted: false });
+      s.noDevice += 1;
+      return;
+    }
+    // This registration's preferences, not the person's (the shop console's per-device choices).
+    const reachable = all.filter((t) => !(t.mutedTypes ?? []).includes(d.type));
+    if (reachable.length === 0) {
+      outcomes.push({ id: d.id, status: "muted", error: null, attempted: false });
+      s.muted += 1;
+      return;
+    }
+    for (const t of reachable) {
+      messages.push(messageFor(d, t.fcmToken, t.platform));
+      owner.push(index);
+    }
+  });
+  if (messages.length === 0) return;
+
+  const results = await deps.sendEach(messages);
+  const delivered = new Set<number>();
+  const lastError = new Map<number, string>();
+  const dead: string[] = [];
+  results.forEach((r, i) => {
+    const row = owner[i]!;
+    const platform = messages[i]!.platform;
+    const p = (s.byPlatform[platform] ??= { sent: 0, failed: 0 });
+    if (r.ok) {
+      delivered.add(row);
+      p.sent += 1;
+      return;
+    }
+    p.failed += 1;
+    lastError.set(row, r.errorClass ?? "unknown");
+    // Per token, because the error is overwritten once the token is pruned. Never the token itself.
+    deps.log?.warn(
+      { notificationId: rows[row]!.notificationId, type: rows[row]!.type, platform, errorClass: r.errorClass ?? "unknown", pruning: r.prune },
+      "notification send failed",
+    );
+    if (r.prune) dead.push(messages[i]!.token);
+  });
+  if (dead.length > 0) {
+    await store.prune(dead);
+    s.pruned += dead.length;
+  }
+
+  const sentTo = new Set(owner);
+  for (const index of sentTo) {
+    const d = rows[index]!;
+    if (delivered.has(index)) {
+      outcomes.push({ id: d.id, status: "sent", error: null, attempted: true });
+      s.sent += 1;
+    } else if (d.attempts + 1 >= deps.maxAttempts) {
+      outcomes.push({ id: d.id, status: "failed", error: lastError.get(index) ?? "unknown", attempted: true });
+      s.failed += 1;
+    } else {
+      outcomes.push({ id: d.id, status: "retry", error: lastError.get(index) ?? "unknown", attempted: true });
+      s.retried += 1;
+    }
   }
 }
 
-async function drainEmail(deps: DrainDeps, req: PendingRequest, s: DrainSummary): Promise<void> {
-  if (!req.recipientEmail) {
-    // A check forbids this; skipped, not failed.
-    await deps.markSkipped(req.id, "no_email");
-    s.skipped += 1;
-    return;
-  }
+function messageFor(d: ClaimedDelivery, token: string, platform: DevicePlatform): PushMessage {
+  return {
+    token,
+    platform,
+    type: d.type,
+    notificationId: d.notificationId,
+    title: d.title,
+    body: d.body,
+    destination: JSON.stringify(d.destination),
+    tag: d.tag,
+    group: d.group,
+  };
+}
 
-  const r = await deps.sendEmail(req.recipientEmail, req.type, req.entityId);
+async function email(deps: DrainDeps, d: ClaimedDelivery, s: DrainSummary): Promise<Outcome> {
+  if (!d.recipientEmail) {
+    // A check forbids this.
+    return { id: d.id, status: "failed", error: "no_email", attempted: false };
+  }
+  const r = await deps.sendEmail(d.recipientEmail, d.type, d.entityId);
   if (r.ok) {
-    await deps.markSent(req.id);
     s.sent += 1;
     s.emailSent += 1;
-    return;
+    return { id: d.id, status: "sent", error: null, attempted: true };
   }
-
   const err = r.errorClass ?? "unknown";
-  if (req.attempts + 1 >= deps.maxAttempts) {
-    await deps.markFailed(req.id, err);
+  if (d.attempts + 1 >= deps.maxAttempts) {
     s.failed += 1;
     s.emailFailed += 1;
-  } else {
-    await deps.markRetry(req.id, err);
-    s.retried += 1;
+    return { id: d.id, status: "failed", error: err, attempted: true };
   }
+  s.retried += 1;
+  return { id: d.id, status: "retry", error: err, attempted: true };
 }

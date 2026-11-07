@@ -10,7 +10,7 @@ const SW_CODE = SW.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm,
 
 const ORDER = {
   type: "shop_new_order",
-  entityId: "f-1",
+  notificationId: "n-1",
   webPath: "/orders/f-1",
   title: "New order to pick",
   body: "A new order needs picking.",
@@ -28,6 +28,16 @@ describe("⚠ P5 - a malformed payload still produces something showable (FR-029
       expect(d.tag.length).toBeGreaterThan(0)
     },
   )
+
+  it("109 - the path comes from the push's destination, and the id is kept", () => {
+    const d = parsePush({ type: "shop_new_order", notificationId: "n-9", destination: '{"kind":"queue","fulfillmentId":"f-1"}' })
+    expect(d.webPath).toBe("/orders/f-1")
+    expect(d.notificationId).toBe("n-9")
+    expect(parsePush({ destination: '{"kind":"product","productId":"p/1"}' }).webPath).toBe("/catalog/p%2F1")
+    // Another audience's destination, or none: the console's start.
+    expect(parsePush({ destination: '{"kind":"order","orderId":"o1"}' }).webPath).toBe("/")
+    expect(parsePush({ type: "shop_new_order" }).notificationId).toBe("")
+  })
 
   it("keeps the fields it CAN read from a partial payload", () => {
     const d = parsePush({ type: "shop_low_stock", title: "Below reorder point" })
@@ -55,7 +65,7 @@ describe("⚠ same-origin only - a notification click is not an open redirect", 
     expect(safePath(input)).toBe(expected)
   })
 
-  it("sanitises webPath as it is parsed, not at the click", () => {
+  it("ignores a webPath in the payload: only the destination decides where a click goes", () => {
     expect(parsePush({ ...ORDER, webPath: "//evil.test" }).webPath).toBe("/")
   })
 })
@@ -108,6 +118,12 @@ describe("⚠ P8 - twenty orders in a minute are one banner that says twenty (FR
   it("sends the collapsed banner to the LIST, not to one arbitrary order", () => {
     expect(planNotification(ORDER, 5).webPath).toBe("/orders")
     expect(planNotification(ORDER, 0).webPath).toBe("/orders/f-1")
+  })
+
+  it("109 - a collapsed banner stands for several notifications, so it carries no single id to mark read", () => {
+    expect(planNotification(ORDER, 0).notificationId).toBe("n-1")
+    expect(planNotification(ORDER, 3).notificationId).toBe("")
+    expect(planNotification({ ...ORDER, group: "attention" }, 3).notificationId).toBe("")
   })
 
   it("collapses attention separately from orders", () => {

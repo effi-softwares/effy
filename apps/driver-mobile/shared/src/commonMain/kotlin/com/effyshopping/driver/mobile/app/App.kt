@@ -59,6 +59,24 @@ fun App(
         // Hold the live channel exactly while in the foreground and signed in.
         LiveLifecycle(container.live, signedIn = session is SessionState.SignedIn)
 
+        // 109 FR-014: a notification tapped while nobody is signed in is held (in memory only) for the shell to check
+        // with the server after sign-in; a barred driver's is dropped. Signed in, DriverShell opens it directly.
+        val opened by container.openedNotification.collectAsState()
+        LaunchedEffect(session, opened) {
+            val tapped = opened ?: return@LaunchedEffect
+            when (session) {
+                SessionState.SignedOut -> {
+                    container.openedNotification.value = null
+                    container.pendingOpen.value = tapped
+                }
+                SessionState.Refused -> {
+                    container.openedNotification.value = null
+                    container.pendingOpen.value = null
+                }
+                else -> Unit
+            }
+        }
+
         LaunchedEffect(Unit) {
             container.session.bootstrap()
             // Flush any writes queued while offline on a previous run.

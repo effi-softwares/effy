@@ -1,190 +1,208 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { drainOnce, type DrainDeps, type PendingRequest } from "./drain";
-import type { SendResult } from "../fcm/sender";
-import type { RecipientToken } from "./copy";
+import type { RecipientToken } from "@effy/edge-shared";
 
-/** A deps builder with sensible fakes; each test overrides what it exercises. */
-function deps(over: Partial<DrainDeps> & { pending?: PendingRequest[] }): DrainDeps {
-  const pending = over.pending ?? [];
+import type { PushMessage, SendResult } from "../fcm/sender";
+import { drainOnce, type BatchStore, type ClaimedDelivery, type DeliveryChannel, type DrainDeps, type Outcome } from "./drain";
+
+/** An in-memory queue standing in for the tables: claim honours priority-then-age order and the channels asked for. */
+class FakeStore {
+  rows: Array<ClaimedDelivery & { priority: number; seq: number; status: string }> = [];
+  tokens = new Map<string, RecipientToken[]>();
+  recorded: Outcome[] = [];
+  pruned: string[] = [];
+  private seq = 0;
+
+  add(over: Partial<ClaimedDelivery> & { priority?: number } = {}) {
+    const id = over.id ?? `d${this.seq + 1}`;
+    this.rows.push({
+      id, notificationId: `n-${id}`, channel: "push", recipientEmail: null, attempts: 0, recipientSub: "sub-1",
+      audience: "customer", type: "order_paid", title: "Order confirmed", body: "We've received your order.",
+      entityId: "o-1", destination: { kind: "order", orderId: "o-1" }, expiresAt: null, tag: "customer-order",
+      group: "customer", priority: 0, seq: this.seq++, status: "pending", ...over,
+    });
+  }
+
+  store(): BatchStore {
+    return {
+      claim: async (limit: number, channels: readonly DeliveryChannel[]) =>
+        this.rows
+          .filter((r) => r.status === "pending" && channels.includes(r.channel))
+          .sort((a, b) => a.priority - b.priority || a.seq - b.seq)
+          .slice(0, limit),
+      tokensFor: async () => this.tokens,
+      record: async (outcomes) => {
+        this.recorded.push(...outcomes);
+        for (const o of outcomes) {
+          const r = this.rows.find((x) => x.id === o.id)!;
+          r.status = o.status === "retry" ? "pending" : o.status;
+          if (o.attempted) r.attempts += 1;
+        }
+      },
+      prune: async (t) => void this.pruned.push(...t),
+    };
+  }
+}
+
+function deps(store: FakeStore, over: Partial<DrainDeps> = {}): DrainDeps & { sent: PushMessage[] } {
+  const sent: PushMessage[] = [];
+  let clock = 1_000;
   return {
+    sent,
     senderConfigured: true,
     maxAttempts: 5,
     batchSize: 100,
-    claimPending: vi.fn(async () => pending),
-    resolveTokens: vi.fn(async (): Promise<RecipientToken[]> => []),
-    send: vi.fn(async (): Promise<SendResult> => ({ ok: true, prune: false })),
+    deadline: Number.POSITIVE_INFINITY,
+    now: () => clock++,
+    inBatch: (fn) => fn(store.store()),
+    sendEach: vi.fn(async (messages: readonly PushMessage[]): Promise<SendResult[]> => {
+      sent.push(...messages);
+      return messages.map(() => ({ ok: true, prune: false }));
+    }),
     sendEmail: vi.fn(async (): Promise<SendResult> => ({ ok: true, prune: false })),
-    markSent: vi.fn(async () => { }),
-    markSkipped: vi.fn(async () => { }),
-    markRetry: vi.fn(async () => { }),
-    markFailed: vi.fn(async () => { }),
-    pruneToken: vi.fn(async () => { }),
     ...over,
   };
 }
 
-const req = (over: Partial<PendingRequest> = {}): PendingRequest => ({
-  id: "r1",
-  recipientSub: "sub-1",
-  audience: "customer",
-  type: "order_paid",
-  entityId: "order-1",
-  attempts: 0,
-  channel: "push",
-  recipientEmail: null,
-  ...over,
-});
+const android = (t: string, mutedTypes: string[] = []): RecipientToken => ({ fcmToken: t, platform: "android", mutedTypes });
 
-describe("drainOnce", () => {
-  /** Without FCM the batch is still claimed: push fails open per row and email still drains. */
-  it("leaves PUSH rows pending when FCM is unconfigured, without blocking the batch (FR-027)", async () => {
-    const d = deps({ senderConfigured: false, pending: [req()] });
-    const s = await drainOnce(d);
-    expect(s.disabled).toBe(true);
-    expect(d.send).not.toHaveBeenCalled();
-    expect(d.markSent).not.toHaveBeenCalled();
-    expect(d.markFailed, "an unconfigured sender is not a delivery failure").not.toHaveBeenCalled();
-    expect(d.markRetry).toHaveBeenCalledWith("r1", "fcm_not_configured");
-  });
-
-  it("still delivers EMAIL rows when FCM is unconfigured", async () => {
-    const d = deps({
-      senderConfigured: false,
-      pending: [req({ channel: "email", recipientEmail: "shopper@example.com", type: "order_delivered" })],
+describe("delivery drain (109)", () => {
+  it("sends the row's own words and destination, and its notification id (FR-003)", async () => {
+    const s = new FakeStore();
+    s.tokens.set("customer:sub-1", [android("tok-1")]);
+    s.add({ title: "Words as sent", body: "Kept as they were." });
+    const d = deps(s);
+    const summary = await drainOnce(d);
+    expect(summary.sent).toBe(1);
+    expect(d.sent[0]).toMatchObject({
+      token: "tok-1", type: "order_paid", notificationId: "n-d1", title: "Words as sent", body: "Kept as they were.",
+      destination: '{"kind":"order","orderId":"o-1"}',
     });
-    const s = await drainOnce(d);
-
-    expect(d.sendEmail).toHaveBeenCalledWith("shopper@example.com", "order_delivered", "order-1");
-    expect(s.emailSent).toBe(1);
-    expect(d.markSent).toHaveBeenCalledWith("r1");
+    expect(s.rows[0]!.status).toBe("sent");
   });
 
-  it("marks skipped (not failed) when the recipient has no tokens (FR-019)", async () => {
-    const d = deps({ pending: [req()], resolveTokens: vi.fn(async () => []) });
-    const s = await drainOnce(d);
-    expect(s.skipped).toBe(1);
-    expect(s.failed).toBe(0);
-    expect(d.markSkipped).toHaveBeenCalledWith("r1", "no_token");
-    expect(d.send).not.toHaveBeenCalled();
+  it("an expired notification is abandoned, never sent late (FR-007)", async () => {
+    const s = new FakeStore();
+    s.tokens.set("customer:sub-1", [android("tok-1")]);
+    s.add({ expiresAt: new Date(0) });
+    const d = deps(s);
+    const summary = await drainOnce(d);
+    expect(summary.expired).toBe(1);
+    expect(d.sent).toEqual([]);
+    expect(s.recorded).toEqual([{ id: "d1", status: "expired", error: null, attempted: false }]);
   });
 
-  it("sends and marks sent when a token accepts", async () => {
-    const d = deps({
-      pending: [req()],
-      resolveTokens: vi.fn(async () => [{ fcmToken: "tok-a", platform: "android" as const }]),
-      send: vi.fn(async () => ({ ok: true, prune: false })),
+  it("no device → no_device; every device muted → muted; neither is an attempt", async () => {
+    const s = new FakeStore();
+    s.tokens.set("customer:sub-muted", [{ fcmToken: "w", platform: "web", mutedTypes: ["order_paid"] }]);
+    s.add({ id: "nobody", recipientSub: "sub-none" });
+    s.add({ id: "quiet", recipientSub: "sub-muted" });
+    const summary = await drainOnce(deps(s));
+    expect(summary).toMatchObject({ noDevice: 1, muted: 1, sent: 0 });
+    expect(s.recorded.map((o) => [o.id, o.status, o.attempted])).toEqual([["nobody", "no_device", false], ["quiet", "muted", false]]);
+  });
+
+  it("one device getting it is enough; a dead token is pruned", async () => {
+    const s = new FakeStore();
+    s.tokens.set("customer:sub-1", [android("dead"), android("alive")]);
+    s.add();
+    const d = deps(s, {
+      sendEach: async (m) => m.map((x) => (x.token === "dead"
+        ? { ok: false, prune: true, errorClass: "messaging/registration-token-not-registered" }
+        : { ok: true, prune: false })),
     });
-    const s = await drainOnce(d);
-    expect(s.sent).toBe(1);
-    expect(d.markSent).toHaveBeenCalledWith("r1");
+    const summary = await drainOnce(d);
+    expect(summary).toMatchObject({ sent: 1, pruned: 1 });
+    expect(s.pruned).toEqual(["dead"]);
   });
 
-  it("prunes a dead token and retries when nothing was delivered (FR-018)", async () => {
-    const d = deps({
-      pending: [req({ attempts: 0 })],
-      resolveTokens: vi.fn(async () => [{ fcmToken: "dead", platform: "ios" as const }]),
-      send: vi.fn(async () => ({ ok: false, prune: true, errorClass: "messaging/registration-token-not-registered" })),
-    });
-    const s = await drainOnce(d);
-    expect(s.pruned).toBe(1);
-    expect(s.retried).toBe(1);
-    expect(s.failed).toBe(0);
-    expect(d.pruneToken).toHaveBeenCalledWith("dead");
-    expect(d.markSent).not.toHaveBeenCalled();
+  it("a failure that may pass is retried, then recorded failed at the limit (FR-021)", async () => {
+    const s = new FakeStore();
+    s.tokens.set("customer:sub-1", [android("tok")]);
+    s.add({ attempts: 3 });
+    const failing = { sendEach: async (m: readonly PushMessage[]) => m.map(() => ({ ok: false, prune: false, errorClass: "messaging/internal-error" })) };
+    await drainOnce(deps(s, failing));
+    expect(s.rows[0]).toMatchObject({ status: "pending", attempts: 4 });
+    await drainOnce(deps(s, failing));
+    expect(s.rows[0]).toMatchObject({ status: "failed", attempts: 5 });
   });
 
-  it("still marks sent if one of several tokens accepts, pruning the dead one", async () => {
-    const send = vi
-      .fn<(t: string) => Promise<SendResult>>()
-      .mockResolvedValueOnce({ ok: false, prune: true, errorClass: "messaging/invalid-argument" })
-      .mockResolvedValueOnce({ ok: true, prune: false });
-    const d = deps({
-      pending: [req()],
-      resolveTokens: vi.fn(async () => [
-        { fcmToken: "dead", platform: "android" as const },
-        { fcmToken: "live", platform: "ios" as const },
-      ]),
-      send: send as unknown as DrainDeps["send"],
-    });
-    const s = await drainOnce(d);
-    expect(s.sent).toBe(1);
-    expect(s.pruned).toBe(1);
-    expect(d.markSent).toHaveBeenCalledWith("r1");
+  it("email goes through the email sender with the snapshotted address", async () => {
+    const s = new FakeStore();
+    s.add({ channel: "email", recipientEmail: "c@example.test", type: "order_delivered", entityId: "o-9" });
+    const d = deps(s);
+    const summary = await drainOnce(d);
+    expect(d.sendEmail).toHaveBeenCalledWith("c@example.test", "order_delivered", "o-9");
+    expect(summary).toMatchObject({ emailSent: 1, sent: 1 });
   });
 
-  it("fails (not retries) once the attempt cap is reached", async () => {
-    const d = deps({
-      maxAttempts: 3,
-      pending: [req({ attempts: 2 })],
-      resolveTokens: vi.fn(async () => [{ fcmToken: "x", platform: "android" as const }]),
-      send: vi.fn(async () => ({ ok: false, prune: false, errorClass: "messaging/internal-error" })),
-    });
-    const s = await drainOnce(d);
-    expect(s.failed).toBe(1);
-    expect(s.retried).toBe(0);
-    expect(d.markFailed).toHaveBeenCalledWith("r1", "messaging/internal-error");
+  it("without FCM only email is claimed; push stays pending untouched", async () => {
+    const s = new FakeStore();
+    s.add({ id: "p" });
+    s.add({ id: "e", channel: "email", recipientEmail: "c@example.test" });
+    const summary = await drainOnce(deps(s, { senderConfigured: false }));
+    expect(summary.disabled).toBe(true);
+    expect(s.rows.find((r) => r.id === "p")).toMatchObject({ status: "pending", attempts: 0 });
+    expect(s.rows.find((r) => r.id === "e")!.status).toBe("sent");
+  });
+
+  it("keeps claiming batches until the queue is empty, and stops at the deadline", async () => {
+    const s = new FakeStore();
+    s.tokens.set("customer:sub-1", [android("tok")]);
+    for (let i = 0; i < 250; i += 1) s.add();
+    const all = await drainOnce(deps(s));
+    expect(all).toMatchObject({ batches: 3, sent: 250 });
+
+    const t = new FakeStore();
+    t.tokens.set("customer:sub-1", [android("tok")]);
+    for (let i = 0; i < 250; i += 1) t.add();
+    let clock = 0;
+    const one = await drainOnce(deps(t, { now: () => (clock += 10), deadline: 15 }));
+    expect(one.batches).toBe(1);
   });
 });
 
-describe("drainOnce - the email channel", () => {
-  const emailReq = (over: Partial<PendingRequest> = {}) =>
-    req({
-      channel: "email",
-      recipientEmail: "shopper@example.com",
-      type: "order_delivered",
-      ...over,
+describe("sending keeps up (109 US6)", () => {
+  /**
+   * A one-minute invocation with a 45 s budget, against a stub FCM that takes 1.5 s per call of up to 500 messages
+   * (slower than FCM usually is). 20,000 must reach a final status within 10 invocations (FR-019).
+   */
+  function simulatedRun(store: FakeStore, startMs: number) {
+    let clock = startMs;
+    return deps(store, {
+      batchSize: 500,
+      now: () => clock,
+      deadline: startMs + 45_000,
+      sendEach: async (m) => {
+        clock += Math.ceil(m.length / 500) * 1_500;
+        return m.map(() => ({ ok: true, prune: false }));
+      },
     });
+  }
 
-  it("sends to the address SNAPSHOTTED on the row, never a looked-up one", async () => {
-    // The address captured at enqueue is used, so a later email change cannot redirect it.
-    const d = deps({ pending: [emailReq({ recipientEmail: "at-the-time@example.com" })] });
+  it("20,000 deliveries reach a final status within 10 one-minute runs", async () => {
+    const s = new FakeStore();
+    for (let i = 0; i < 20_000; i += 1) s.tokens.set(`customer:c-${i}`, [android(`t-${i}`)]);
+    for (let i = 0; i < 20_000; i += 1) s.add({ id: `d${i}`, recipientSub: `c-${i}`, priority: 1 });
+    let runs = 0;
+    while (s.rows.some((r) => r.status === "pending") && runs < 10) {
+      await drainOnce(simulatedRun(s, runs * 60_000));
+      runs += 1;
+    }
+    expect(s.rows.filter((r) => r.status === "pending")).toHaveLength(0);
+    expect(runs).toBeLessThanOrEqual(10);
+  });
+
+  it("one new notification is sent in the next run, ahead of a 20,000 bulk backlog (FR-020)", async () => {
+    const s = new FakeStore();
+    s.tokens.set("customer:sub-1", [android("tok")]);
+    for (let i = 0; i < 20_000; i += 1) s.add({ id: `bulk-${i}`, priority: 1 });
+    s.add({ id: "urgent", priority: 0 });
+    const d = simulatedRun(s, 0);
+    d.batchSize = 500;
+    // Only the first batch matters: stop after it.
+    d.deadline = 1;
     await drainOnce(d);
-    expect(d.sendEmail).toHaveBeenCalledWith("at-the-time@example.com", "order_delivered", "order-1");
-  });
-
-  it("never resolves device tokens for an email row", async () => {
-    const d = deps({ pending: [emailReq()] });
-    await drainOnce(d);
-    expect(d.resolveTokens).not.toHaveBeenCalled();
-    expect(d.send).not.toHaveBeenCalled();
-  });
-
-  it("retries a send failure until the attempt budget, then fails", async () => {
-    const failing = vi.fn(async (): Promise<SendResult> => ({ ok: false, prune: false, errorClass: "send_failed" }));
-
-    const retrying = deps({ pending: [emailReq({ attempts: 0 })], sendEmail: failing });
-    const a = await drainOnce(retrying);
-    expect(a.retried).toBe(1);
-    expect(retrying.markFailed).not.toHaveBeenCalled();
-
-    const exhausted = deps({ pending: [emailReq({ attempts: 4 })], sendEmail: failing });
-    const b = await drainOnce(exhausted);
-    expect(b.emailFailed).toBe(1);
-    expect(exhausted.markFailed).toHaveBeenCalledWith("r1", "send_failed");
-  });
-
-  it("skips (does not fail) a row with no address - there is nothing to retry toward", async () => {
-    const d = deps({ pending: [emailReq({ recipientEmail: null })] });
-    const s = await drainOnce(d);
-    expect(s.skipped).toBe(1);
-    expect(d.markSkipped).toHaveBeenCalledWith("r1", "no_email");
-    expect(d.markFailed).not.toHaveBeenCalled();
-  });
-
-  it("fans one order out to both channels independently", async () => {
-    // Two rows, one intent: a push failure must not suppress the email, or vice versa.
-    const d = deps({
-      pending: [
-        req({ id: "push-row", type: "order_delivered" }),
-        emailReq({ id: "email-row" }),
-      ],
-      resolveTokens: vi.fn(async () => []),
-    });
-    const s = await drainOnce(d);
-
-    expect(d.markSkipped).toHaveBeenCalledWith("push-row", "no_token");
-    expect(d.markSent).toHaveBeenCalledWith("email-row");
-    expect(s.emailSent).toBe(1);
+    expect(s.rows.find((r) => r.id === "urgent")!.status).toBe("sent");
   });
 });

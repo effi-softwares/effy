@@ -49,5 +49,7 @@ sealed class AnalyticsEvent(val name: String, val props: Map<String, String> = e
     data object PushPermissionPrompted : AnalyticsEvent("push_permission_prompted")
     data object PushPermissionGranted : AnalyticsEvent("push_permission_granted")
     data object PushPermissionDenied : AnalyticsEvent("push_permission_denied")
-    class NotificationOpened(type: String) : AnalyticsEvent("notification_opened", mapOf("type" to type))
+    /** After the screen it leads to (or its fallback, [fallback] = true) has shown (109 FR-018). */
+    class NotificationOpened(type: String, fallback: Boolean = false) :
+        AnalyticsEvent("notification_opened", mapOf("type" to type, "fallback" to fallback.toString()))
 }

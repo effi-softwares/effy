@@ -331,3 +331,14 @@ functions:
           authorizer:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
+
+  driverNotificationsV1IdReadPost:
+    handler: src/functions/driver-notifications-v1-id-read-post.handler
+    description: Record that the signed-in driver opened one of their own notifications; returns where it leads (109)
+    events:
+      - httpApi:
+          method: POST
+          path: /driver/v1/notifications/{id}/read
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
