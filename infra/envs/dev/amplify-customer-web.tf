@@ -56,6 +56,7 @@ module "amplify_customer_web" {
   access_token   = data.aws_ssm_parameter.amplify_github_token.value
 
   deploy_branch = var.amplify_deploy_branch
+  build_trigger = var.amplify_build_trigger # "webhook": built only when a push touches it
   app_root      = "apps/customer-web"
   framework     = "Next.js - SSR"
   stage         = "DEVELOPMENT"

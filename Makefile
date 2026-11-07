@@ -13,6 +13,8 @@
 AWS_PROFILE ?= ef
 ENV         ?= dev
 AWS_REGION  ?= ap-southeast-2
+# = var.amplify_repository_url; named because the git remote is an SSH alias gh cannot resolve.
+GH_REPO     ?= effi-softwares/effy
 
 INFRA_DIR     := infra
 BOOTSTRAP_DIR := $(INFRA_DIR)/bootstrap
@@ -23,7 +25,7 @@ TF            := AWS_PROFILE=$(AWS_PROFILE) terraform
 # All Terraform roots (for fmt-check / validate / lint sweeps).
 TF_ROOTS := $(BOOTSTRAP_DIR) $(GLOBAL_DIR) $(INFRA_DIR)/envs/dev $(INFRA_DIR)/envs/qa $(INFRA_DIR)/envs/staging $(INFRA_DIR)/envs/prod
 
-.PHONY: gateway-usage help bootstrap-init bootstrap-apply init plan apply destroy output fmt validate lint preflight \
+.PHONY: gateway-usage help bootstrap-init bootstrap-apply init plan apply destroy output amplify-hooks fmt validate lint preflight \
         global-init global-plan global-apply global-output dns-verify mail-verify mail-events-verify edge-health \
         db-new db-status db-up db-up-one db-down db-shopper-role check-goose \
         live-guards shop-words-guard driver-words-guard purge-orders reset-dev-data seed-delivery seed-catalogue seed-banners wipe-dev create-first-admin load-localities delete-admin edge-install edge-offline edge-test edge-deploy edge-remove \
@@ -79,6 +81,12 @@ destroy: preflight ## OPERATOR: destroy an env (interactive approval)
 
 output: ## Show an env's outputs
 	cd $(ENV_DIR) && $(TF) output
+
+amplify-hooks: ## OPERATOR: copy the env's Amplify build webhooks into the repo secret AMPLIFY_WEBHOOKS_<ENV> (needs gh; after apply)
+	@hooks=$$(cd $(ENV_DIR) && $(TF) output -raw amplify_build_webhooks) || exit 1; \
+	if echo "$$hooks" | grep -q null; then echo "amplify_build_webhooks has nulls - is amplify_build_trigger = webhook applied?"; exit 1; fi; \
+	name=AMPLIFY_WEBHOOKS_$$(echo $(ENV) | tr a-z A-Z); \
+	printf '%s' "$$hooks" | gh secret set $$name --repo $(GH_REPO) && echo "set $$name on $(GH_REPO)"
 
 # # --- Hygiene (no AWS calls, never applies) ---
 

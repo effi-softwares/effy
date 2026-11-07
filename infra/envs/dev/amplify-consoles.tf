@@ -92,6 +92,7 @@ module "amplify_shop_web" {
   access_token   = data.aws_ssm_parameter.amplify_github_token.value
 
   deploy_branch = var.amplify_deploy_branch
+  build_trigger = var.amplify_build_trigger # "webhook": built only when a push touches it
   app_root      = "apps/shop-web"
   platform      = "WEB" # static SPA - NO service role (research D2)
   framework     = "Web"
@@ -118,6 +119,7 @@ module "amplify_back_office" {
   access_token   = data.aws_ssm_parameter.amplify_github_token.value
 
   deploy_branch = var.amplify_deploy_branch
+  build_trigger = var.amplify_build_trigger # "webhook": built only when a push touches it
   app_root      = "apps/back-office"
   platform      = "WEB"
   framework     = "Web"
@@ -173,4 +175,17 @@ output "back_office_app_id" {
 output "back_office_url" {
   description = "The back-office console URL (Amplify default hostname pre-cutover; back-office.dev.effyshopping.com after)."
   value       = module.amplify_back_office.storefront_url
+}
+
+# The three apps' incoming build webhooks, keyed by appRoot (the key scripts/amplify-affected.mjs prints).
+# Copied into the repo secret AMPLIFY_WEBHOOKS_<ENV> by `make amplify-hooks ENV=...`; read only by
+# .github/workflows/amplify-deploy.yml. Null values when amplify_build_trigger = "push".
+output "amplify_build_webhooks" {
+  description = "JSON map appRoot → Amplify incoming build webhook URL (secret-bearing)."
+  sensitive   = true
+  value = jsonencode({
+    (module.amplify_customer_web.app_root) = module.amplify_customer_web.webhook_url
+    (module.amplify_shop_web.app_root)     = module.amplify_shop_web.webhook_url
+    (module.amplify_back_office.app_root)  = module.amplify_back_office.webhook_url
+  })
 }
