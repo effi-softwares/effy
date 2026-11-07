@@ -34,9 +34,10 @@ after-paying checklist). No backend change - the worker and the dev FCM secret w
   Simulator destination - `-sdk iphonesimulator` with a generic destination fails inside aws-sdk-swift's `SmithyCodegenCLI` plugin, not in
   our code), customer `:androidApp:compileDebugKotlin`, both apps' `:shared:compileKotlinIosSimulatorArm64`, driver
   `:androidApp:compileReleaseKotlin`, both apps' `:shared:testAndroidHostTest` (new `PushDestinationTest`, 4 cases),
-  `scripts/mobile-guard.sh`, `scripts/driver-guard.sh`, `check-no-refresh-timers.sh`. ⚠ Two failures that predate this change and were left
-  alone: the customer `UnitPriceWordsTest.saysEveryFixtureAmountInTheStorefrontsWords` (expected 17 fixtures, found 22) and the driver's
-  debug-only `DesignGalleryActivity.kt`, which no longer compiles against the app's models (so `compileDebugKotlin` fails there).
+  `scripts/mobile-guard.sh`, `scripts/driver-guard.sh`, `check-no-refresh-timers.sh`. The driver's debug-only `DesignGalleryActivity.kt` had
+  stopped compiling against the app's models (096's bags, `ClassSummary` losing a count, `HubSplit`, the scan collect), which broke
+  every driver DEBUG build and so `installDebug`; it was brought up to date. ⚠ Left alone, predates this change: the customer
+  `UnitPriceWordsTest.saysEveryFixtureAmountInTheStorefrontsWords` (expected 17 fixtures, found 22).
 - **Open**: walk it on an Android emulator (Google Play image) and the iOS Simulator; then the after-paying steps.
 
 **108-information-banners** - Information Banners ([spec](specs/108-information-banners/spec.md)). 🔨 **BUILT 2026-11-06; NOT

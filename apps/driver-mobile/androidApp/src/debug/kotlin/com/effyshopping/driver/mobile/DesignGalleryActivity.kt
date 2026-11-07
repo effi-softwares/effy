@@ -28,7 +28,8 @@ import com.effyshopping.driver.mobile.features.collection.domain.CollectionRun
 import com.effyshopping.driver.mobile.features.collection.domain.CollectionStop
 import com.effyshopping.driver.mobile.features.collection.domain.HubSplit
 import com.effyshopping.driver.mobile.features.collection.domain.EffyGroup
-import com.effyshopping.driver.mobile.features.collection.domain.PackageMethod
+import com.effyshopping.driver.mobile.core.scan.Bag
+import com.effyshopping.driver.mobile.core.scan.BagZone
 import com.effyshopping.driver.mobile.features.collection.domain.ShopStop
 import com.effyshopping.driver.mobile.features.collection.domain.StopStatus
 import com.effyshopping.driver.mobile.features.collection.presentation.CollectionRunScreen
@@ -159,16 +160,21 @@ private fun today(phase: Phase): Today = if (phase == Phase.COLLECTION) {
 }
 
 private fun pkg(ref: String, suburb: String, courier: Boolean, window: String?, items: Int, cold: Boolean, code: String) = CollectionPackage(
-    ref, suburb, PackageMethod.SAME_DAY,
+    ref, suburb,
     items = List(items) { ManifestLine(listOf("Greek yoghurt 1kg", "Seeded rye loaf 680g", "Free range eggs 12 pack", "Oat milk 1L")[it % 4], if (it == 0) 2 else 1, if (it == 0) 2 else 1, true, if (cold && it == 0) TemperatureClass.Chilled else TemperatureClass.Normal) },
-    summary = ClassSummary(0, if (cold) 1 else 0, items - if (cold) 1 else 0, 0),
-    toCourier = courier, windowLabel = window, packageId = ref, packageCode = code,
+    summary = ClassSummary(0, if (cold) 1 else 0, items - if (cold) 1 else 0),
+    goesToCourier = courier, packageId = ref, packageCode = code,
+    bags = listOf(Bag(code, 1, 1, if (cold) BagZone.CHILLED else BagZone.AMBIENT)),
+    windowLabel = window,
 )
 
+/** One ambient bag per code - enough for the gallery. */
+private fun bags(vararg codes: String) = codes.mapIndexed { i, c -> Bag(c, i + 1, codes.size, BagZone.AMBIENT) }
+
 private val stops = listOf(
-    CollectionStop("s1", 1, "Carlton North store", "CN", 3, StopStatus.COLLECTED, "Rathdowne St, Carlton North VIC 3054", listOf("AAAAA1")),
-    CollectionStop("s2", 2, "Fitzroy store", "FZ", 4, StopStatus.SHORT, "Brunswick St, Fitzroy VIC 3065", listOf("AAAAA2")),
-    CollectionStop("s3", 3, "Brunswick store", "BR", 4, StopStatus.ASSIGNED, "410 Sydney Rd, Brunswick VIC 3056", listOf("K7M3QX", "P2N8RT", "H4W9ZB", "T6C2VD")),
+    CollectionStop("s1", 1, "Carlton North store", "CN", 3, StopStatus.COLLECTED, "Rathdowne St, Carlton North VIC 3054", bags("AAAAA1")),
+    CollectionStop("s2", 2, "Fitzroy store", "FZ", 4, StopStatus.SHORT, "Brunswick St, Fitzroy VIC 3065", bags("AAAAA2")),
+    CollectionStop("s3", 3, "Brunswick store", "BR", 4, StopStatus.ASSIGNED, "410 Sydney Rd, Brunswick VIC 3056", bags("K7M3QX", "P2N8RT", "H4W9ZB", "T6C2VD")),
     CollectionStop("s4", 4, "Northcote store", "NC", 3, StopStatus.ASSIGNED, "High St, Northcote VIC 3070"),
     CollectionStop("s5", 5, "Thornbury store", "TB", 4, StopStatus.ASSIGNED, "Station St, Thornbury VIC 3071"),
 )
@@ -188,7 +194,7 @@ private val drops = listOf(
     DropSummary("d1", 1, "EF-1", "Carlton", 1, DropStatus.DELIVERED, street = "5 Faraday St", completedAtIso = "2026-10-17T05:12:00Z", proofMethod = ProofMethod.PHOTO),
     DropSummary("d2", 2, "EF-2", "Carlton", 1, DropStatus.DELIVERED, street = "41 Drummond St", completedAtIso = "2026-10-17T05:20:00Z", proofMethod = ProofMethod.SIGNATURE),
     DropSummary("d3", 3, "EF-3", "Fitzroy North", 2, DropStatus.FAILED, street = "8 Scotchmer St", failureReason = FailureReason.NOBODY_HOME),
-    DropSummary("d4", 4, "EF-4", "Carlton", 3, DropStatus.OUT_FOR_DELIVERY, ClassSummary(0, 1, 6, 0), window("Today, 4 pm – 6 pm", -30, 120), street = "12 Lygon St"),
+    DropSummary("d4", 4, "EF-4", "Carlton", 3, DropStatus.OUT_FOR_DELIVERY, ClassSummary(0, 1, 6), window("Today, 4 pm – 6 pm", -30, 120), street = "12 Lygon St"),
     DropSummary("d5", 5, "EF-5", "Carlton", 2, DropStatus.OUT_FOR_DELIVERY, window = window("4 pm – 6 pm", -30, 120), street = "27 Rathdowne St"),
     DropSummary("d6", 6, "EF-6", "Fitzroy", 1, DropStatus.OUT_FOR_DELIVERY, window = window("3 pm – 5 pm", -180, 120), street = "3/88 Nicholson St"),
     DropSummary("d7", 7, "EF-7", "Northcote", 2, DropStatus.OUT_FOR_DELIVERY, window = window("Any time · 4 pm – 9 pm", 60, 300), street = "140 Bell St"),
@@ -197,11 +203,11 @@ private val deliveryRun = DeliveryRun("run-d", "active", drops, dueLabel = "6 pm
 private val drop = Drop(
     "d4", "EF-20481", "Alex Smith", "12 Lygon St, Carlton VIC 3053", "Side gate, code 2468. Leave by the blue door.",
     listOf(
-        DropPackage("EF-20481", 1, List(3) { ManifestLine(listOf("Oat milk barista 1L", "Royal gala apples 1kg", "Crunchy granola 500g")[it], if (it == 0) 2 else 1, 1, true, TemperatureClass.Normal) }, ClassSummary(0, 0, 4, 0), "K7M3QX"),
-        DropPackage("EF-20481", 1, emptyList(), ClassSummary(0, 2, 0, 0), "P2N8RT"),
-        DropPackage("EF-20481", 1, emptyList(), ClassSummary(0, 0, 1, 0), "H4W9ZB"),
+        DropPackage("EF-20481", 1, List(3) { ManifestLine(listOf("Oat milk barista 1L", "Royal gala apples 1kg", "Crunchy granola 500g")[it], if (it == 0) 2 else 1, 1, true, TemperatureClass.Normal) }, ClassSummary(0, 0, 4), "K7M3QX"),
+        DropPackage("EF-20481", 1, emptyList(), ClassSummary(0, 2, 0), "P2N8RT"),
+        DropPackage("EF-20481", 1, emptyList(), ClassSummary(0, 0, 1), "H4W9ZB"),
     ),
-    DropStatus.OUT_FOR_DELIVERY, ClassSummary(0, 1, 6, 0), Handover.LeaveAtDoor, window("Today, 4 pm – 6 pm", -30, 120), customerPhone = "0400 000 000",
+    DropStatus.OUT_FOR_DELIVERY, ClassSummary(0, 1, 6), Handover.LeaveAtDoor, window("Today, 4 pm – 6 pm", -30, 120), customerPhone = "0400 000 000",
 )
 
 @Composable
@@ -218,7 +224,7 @@ private fun Gallery(screen: String) {
                             dutyStatus = DutyStatus.ON_DUTY,
                             today = Today(
                                 Phase.DELIVERY, "run-d", null, emptyList(), 0, dueLabel = "6 pm",
-                                toReturn = ParcelsToReturn("run-d", 2, listOf("EF-20466"), listOf("AAAAA1", "AAAAA2"), listOf(ReturnParcel("EF-20466-1", "AAAAA1", "8 Scotchmer St, Fitzroy North", FailureReason.NOBODY_HOME))),
+                                toReturn = ParcelsToReturn("run-d", 2, listOf("EF-20466"), listOf(ReturnParcel("EF-20466-1", "AAAAA1", "8 Scotchmer St, Fitzroy North", FailureReason.NOBODY_HOME, bags("AAAAA1")))),
                                 progress = TodayProgress(done = 7, total = 7, delivered = 6, notDelivered = 1),
                             ),
                         )
@@ -232,12 +238,12 @@ private fun Gallery(screen: String) {
         "collection-run" -> CollectionRunScreen(CollectionUiState(run = collectionRun), "Carlton hub", noop, {}, noop, noop)
         "shop-stop" -> ShopStopScreen(
             CollectionUiState(run = collectionRun, stop = shopStop, confirmedPackageIds = setOf("EF-20481-2", "EF-20514-1"), reportedPackages = mapOf("EF-20530-1" to PackageProblem("Missing", null))),
-            3, 5, noop, noop, {}, {}, { _, _, _ -> }, {}, noop, {}, noop,
+            3, 5, noop, noop, { _, _ -> }, {}, { _, _, _ -> }, {}, noop, {}, noop,
         )
-        "scan-shop" -> ShopStopScreen(CollectionUiState(run = collectionRun, stop = shopStop), 3, 5, noop, noop, {}, {}, { _, _, _ -> }, {}, noop, {}, noop, startScanning = true)
+        "scan-shop" -> ShopStopScreen(CollectionUiState(run = collectionRun, stop = shopStop), 3, 5, noop, noop, { _, _ -> }, {}, { _, _, _ -> }, {}, noop, {}, noop, startScanning = true)
         "hub" -> HubCheckinScreen(CollectionUiState(run = collectionRun.copy(stops = stops.map { it.copy(status = StopStatus.COLLECTED) })), "Carlton hub", noop, { _, _ -> }, noop, {})
         "hub-done" -> HubCheckinScreen(
-            CollectionUiState(run = collectionRun, hubSplit = HubSplit(17, 13, 4, 4, listOf(EffyGroup("Today, 4 pm – 6 pm", 8, true), EffyGroup("Today, 6:30 pm – 8:30 pm", 2, true), EffyGroup("Thu 15 Oct, 10 am – 12 pm", 3, false)), "4:00 pm")),
+            CollectionUiState(run = collectionRun, hubSplit = HubSplit(17, 4, listOf(EffyGroup("Today, 4 pm – 6 pm", 8, true), EffyGroup("Today, 6:30 pm – 8:30 pm", 2, true), EffyGroup("Thu 15 Oct, 10 am – 12 pm", 3, false)), "4:00 pm")),
             "Carlton hub", noop, { _, _ -> }, noop, {}, nextRun = "Your delivery run opens at 3:15 pm" to "Today, 4 pm – 6 pm · 7 drops · it's on Today.",
         )
         "delivery-run" -> DeliveryRunScreen(DeliveryUiState(run = deliveryRun), "Carlton hub", noop, {}, noop, { _, _ -> }, {})
@@ -246,7 +252,7 @@ private fun Gallery(screen: String) {
         "delivered" -> DropScreen(DeliveryUiState(run = deliveryRun, drop = drop, delivered = true, deliveredWith = ProofMethod.CONTACTLESS, deliveredAtEpochMillis = now, deliveredNote = "Left at: Front door"), "Carlton hub", noop, {}, {}, { _, _, _, _ -> }, { _, _ -> }, noop, noop, noop, noop, noop)
         "not-delivered" -> DropScreen(DeliveryUiState(run = deliveryRun, drop = drop, failed = true, failedReason = FailureReason.OTHER, failedNote = "Building locked, no answer on intercom.", deliveredAtEpochMillis = now), "Carlton hub", noop, {}, {}, { _, _, _, _ -> }, { _, _ -> }, noop, noop, noop, noop, noop)
         "return" -> ReturnHubScreen(
-            DeliveryUiState(run = deliveryRun.copy(toReturn = ParcelsToReturn("run-d", 2, listOf("EF-20466"), listOf("AAAAA1", "AAAAA2"), listOf(ReturnParcel("EF-20466-1", "AAAAA1", "8 Scotchmer St, Fitzroy North", FailureReason.NOBODY_HOME), ReturnParcel("EF-20466-2", "AAAAA2", "8 Scotchmer St, Fitzroy North", FailureReason.NOBODY_HOME))))),
+            DeliveryUiState(run = deliveryRun.copy(toReturn = ParcelsToReturn("run-d", 2, listOf("EF-20466"), listOf(ReturnParcel("EF-20466-1", "AAAAA1", "8 Scotchmer St, Fitzroy North", FailureReason.NOBODY_HOME, bags("AAAAA1")), ReturnParcel("EF-20466-2", "AAAAA2", "8 Scotchmer St, Fitzroy North", FailureReason.NOBODY_HOME, bags("AAAAA2")))))),
             "Carlton hub", "Today", false, noop, {}, {},
         )
         "history" -> Column(Modifier.fillMaxSize()) {
