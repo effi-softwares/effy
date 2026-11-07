@@ -199,7 +199,7 @@ centred dialogs on the customer app (`EffySheet`), and nothing refreshes on a ti
 | C5 | P1 | SW | L | **Shop inbox.** A bell in the console header opens a right Drawer (shadcn, floating, per the overlay rule), plus a `/notifications` page. Filters: category, unread. Mark all read; archive. Tap → B5. Needs a guided tour (106 rule) and a named exception in `list-screens.guard` (an inbox is a feed, not a DataTable). | The tour passes `tours.guard`; Drawer and page both work. |
 | C6 | P2 | CUST-APP, DRV-APP | S | **The app icon badge equals the unseen count** (iOS `badge` in the APNs payload; Android launcher dot via the channel). Cleared on `seen`. | The icon shows 3 after 3 new items and 0 after the inbox is opened. |
 | C7 | P2 | all inboxes | S | **Expiry and pinning shown properly.** An offer shows "Ends Sun"; an expired item disappears; an important item stays pinned until it's read or `pinned_until` passes. | Tested with a clock. |
-| C8 | P3 | BO | M | **Back-office staff inbox** (system alerts: a campaign finished, a send failed, approval needed). Only needed once E9 (approvals) exists. | - |
+| C8 | P3 | BO | M | **Back-office staff inbox** (system alerts: a campaign finished, a send failed). Deferred: E9 is dropped, so nothing needs it yet. | - |
 | C9 | P3 | all | M | **Snooze** (Novu-style). Only if shops ask for it. | - |
 
 ## Epic D - Categories, preferences and consent · P0 for promotions
@@ -229,7 +229,7 @@ centred dialogs on the customer app (`EffySheet`), and nothing refreshes on a ti
 | E6 | P1 | BO, BE | M | **Report per message**: recipients, inbox delivered, push sent / failed / no token / muted / capped / held for quiet hours, seen, opened (B6), button tapped, archived. Data comes from `notification` and `notification_delivery` states; no extra tracking. | The numbers add up to the recipient count. |
 | E7 | P1 | BO | M | **Message one person from where staff already are**: a "Send message" action on the back-office customer, driver and shop pages. It creates a `direct` campaign with that one recipient (support category; no consent needed, because it isn't marketing). | A CSA can message a customer about their order and see it in the customer's page activity. |
 | E8 | P1 | BE, BO | S | **Templates / duplicate**: start a new message from a previous one. | - |
-| E9 | P2 | BE, BO | M | **Approval for big sends**: a campaign to more than N people, or any `important` one, needs a second admin to approve (four-eyes). | A manager's send waits for approval. |
+| E9 | Dropped (decision 5) | BE, BO | M | ~~**Approval for big sends**~~: a campaign to more than N people, or any `important` one, needs a second admin to approve (four-eyes). | A manager's send waits for approval. |
 | E10 | P2 | BE | S | **Safeguards**:<br>• the server refuses a promotion whose body has no sender ("Effy") or that targets drivers or shops;<br>• "all customers" needs an extra typed confirmation;<br>• a hard cap per campaign (configurable);<br>• a kill switch that stops a sending campaign. | Each refusal is tested. |
 | E11 | P3 | BE, BO | L | **Email as a campaign channel** (marketing email with the unsubscribe link and postal address; the Spam Act). Builds on email-kit. | - |
 | E12 | P3 | BE, BO | M | **Recurring and triggered messages** ("didn't order for 30 days", "points expire in 7 days" as push). Only after E6 shows what works. | - |
@@ -264,17 +264,16 @@ centred dialogs on the customer app (`EffySheet`), and nothing refreshes on a ti
 If speed matters more than order: spec 4 for **drivers and shops only** can follow spec 2, because staff
 messages need no marketing consent. Customer promotions wait for spec 3.
 
-## Decisions to confirm before spec 1
+## Decisions (answered by the operator, 2026-11-08)
 
-1. **Customer marketing default:** off until they opt in (recommended, and what Apple and the Spam Act
-   expect) versus on.
-2. **Can customers turn off push for order updates?** Recommended: yes for push, but the item always
-   stays in the inbox.
-3. **Retention:** customers 180 days, staff 90 days?
-4. **`order_out_for_delivery`:** wire it (recommended) or delete it?
-5. **Who may send to many people:** admin and manager (recommended), and is a second approval needed
-   from day one (E9)?
-6. **Shop push choices stay per device** (059) while the inbox is per person (recommended)?
+1. **Customer marketing default: OFF until the customer opts in, and the apps ASK them to opt in.** Spec 3 builds the ask: a
+   clear in-app prompt (not the OS permission dialog alone), a yes recorded with when and where, and a way to say no again.
+   No promotion goes to a customer who has not said yes.
+2. **Customers can turn off push for order updates; the item always stays in the inbox.** Only the push channel is muted.
+3. **Retention: customers 180 days, drivers and shops 90 days** (delivery records 30 days), as spec 109 built.
+4. **`order_out_for_delivery` is wired**, sent when the driver starts the delivery round (spec 2).
+5. **Admin and manager may send to many people; CSA may not. No second approval** (E9 dropped for now).
+6. **Shop push choices stay per device** (059); the inbox is per person.
 
 ---
 
