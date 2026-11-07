@@ -10,7 +10,6 @@ export interface PurgeSummary {
   notifications: number;
   deliveries: number;
   erased: number;
-  legacy: number;
 }
 
 /** Repeats `statement` (which deletes at most PURGE_BATCH rows) until it deletes fewer, or the deadline passes. */
@@ -69,17 +68,5 @@ export async function purge(db: Queryable, at: Date, deadline: number, now: () =
     now,
   );
 
-  // LEGACY until Stage B: the old outbox, which nothing writes any more.
-  const legacy = await inBatches(
-    db,
-    `DELETE FROM public.notification_request
-      WHERE id IN (SELECT id FROM public.notification_request
-                    WHERE created_at < $1::timestamptz - make_interval(days => $2)
-                    LIMIT ${PURGE_BATCH})`,
-    [iso, DELIVERY_RETENTION_DAYS],
-    deadline,
-    now,
-  );
-
-  return { notifications, deliveries, erased, legacy };
+  return { notifications, deliveries, erased };
 }

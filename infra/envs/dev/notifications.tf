@@ -90,7 +90,7 @@ resource "aws_cloudwatch_metric_alarm" "receipt_send_failed" {
 # (ready, out for delivery, delivered). Threshold as the receipt alarm (3).
 resource "aws_cloudwatch_metric_alarm" "notification_email_send_failed" {
   alarm_name          = "${module.shared.name_prefix}-notification-email-send-failed"
-  alarm_description   = "053 - order-arrival emails are failing to send. Check the SES identity + configuration set grant, MAIL_* config, and public.notification_request.last_error WHERE channel='email'."
+  alarm_description   = "053 - order-arrival emails are failing to send. Check the SES identity + configuration set grant, MAIL_* config, and public.notification_delivery.last_error WHERE channel='email'."
   namespace           = "Effy/Notifications"
   metric_name         = "NotificationEmailSendFailed"
   statistic           = "Sum"

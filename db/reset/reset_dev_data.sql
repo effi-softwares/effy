@@ -91,7 +91,7 @@ SELECT t, 'wipe' FROM unnest(ARRAY[
     'public.promotion', 'public.promotion_code', 'public.promotion_customer', 'public.promotion_group_member',
     'public.promotion_image', 'public.promotion_target', 'public.promotion_use',
     -- Notification and mail history.
-    'public.email_delivery_event', 'public.email_delivery_status', 'public.notification_request',
+    'public.email_delivery_event', 'public.email_delivery_status',
     'public.notification', 'public.notification_delivery'
 ]) AS t;
 

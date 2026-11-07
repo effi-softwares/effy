@@ -5,7 +5,7 @@ verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
 **109-notification-record** - Notification Record & Destinations ([spec](specs/109-notification-record/spec.md)). 🔨 **BUILT
-2026-11-07; NOT MIGRATED, DEPLOYED OR WALKED.** Spec 1 of the notifications programme ([docs/notifications-backlog.md](docs/notifications-backlog.md),
+2026-11-07; STAGE A MIGRATED AND DEPLOYED TO DEV 2026-11-08, NOT WALKED; STAGE B BUILT, NOT RUN.** Spec 1 of the notifications programme ([docs/notifications-backlog.md](docs/notifications-backlog.md),
 Epic A + B1–B6, F1, F3, F4). Every notification is now one lasting record per person, and a tap opens the screen it is about.
 - **Migration** `20261107090000_notification_record.sql` (Stage A, additive): `public.notification` (one per person per event: words
   as sent, category, importance, `destination` jsonb, entity, seen/read/archived/expiry, `dedupe_key`) and `public.notification_delivery`
@@ -56,8 +56,12 @@ Epic A + B1–B6, F1, F3, F4). Every notification is now one lasting record per 
 - **Not built** (recorded in tasks.md): the customer product fallback (no notification leads to a product yet); `fallback=true` is
   reported by the driver app only.
 - **Deploy order (operator)**: `make db-up ENV=dev` → `make edge-deploy ENV=dev SERVICE=notifications` → `make edge-deploy-all ENV=dev`
-  → `make apply ENV=dev` (alarms) → shop-web (push) → both apps. **Later**: Stage B (T059) once `select count(*) from
-  notification_request where status='pending'` is 0.
+  → `make apply ENV=dev` (alarms) → shop-web (push) → both apps. Done in dev 2026-11-08.
+- **Stage B (T059, built 2026-11-08)**: `20261108090000_drop_notification_request.sql` drops the old outbox and **refuses while a row is
+  pending**; `worker/legacy/`, the handler's legacy pass and the purge's legacy branch are deleted; the guard now fails any source that names
+  `public.notification_request`. ⚠ **ORDER: `make edge-deploy ENV=dev SERVICE=notifications` FIRST, then `make db-up ENV=dev`** - the
+  deployed Stage A worker reads the table every minute and would fail if it vanished first. Verified: shared 1030, notifications 60 unit +
+  10 container tests, the migration's refusal, up and down on local Postgres.
 
 **050 follow-up - Mobile push finished (iOS bridge, tap → screen, banner while open).** 🔨 **BUILT 2026-11-07; NOT DEPLOYED OR
 WALKED. iOS DELIVERY WAITS ON THE PAID APPLE DEVELOPER ACCOUNT.** No spec: this is 050's recorded follow-up, written down since 050 in

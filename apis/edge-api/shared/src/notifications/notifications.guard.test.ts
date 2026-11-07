@@ -10,11 +10,11 @@ import { describe, expect, it } from "vitest";
  * - a notification's state changes through `read.ts` (spec 2's inbox adds its own module here);
  * - a delivery's outcome is written by the notifications worker's repository only;
  * - removal is the daily purge's;
- * - nothing writes the old `notification_request` any more (it is drained until Stage B drops it).
+ * - nothing names the old `notification_request` outbox, which Stage B dropped.
  */
 const here = dirname(fileURLToPath(import.meta.url));
 const services = resolve(here, "../../..");
-const SKIP = new Set(["node_modules", "build", "dist", ".serverless", "generated", "legacy"]);
+const SKIP = new Set(["node_modules", "build", "dist", ".serverless", "generated"]);
 
 function files(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
@@ -49,10 +49,10 @@ describe("109 - the notification record's writers", () => {
   });
 
   it("notifications and deliveries are removed by the purge only", () => {
-    expect(where(/DELETE FROM\s+public\.notification(_delivery)?\b(?!_request)/)).toEqual(["notifications/src/purge/repository.ts"]);
+    expect(where(/DELETE FROM\s+public\.notification(_delivery)?\b/)).toEqual(["notifications/src/purge/repository.ts"]);
   });
 
-  it("nothing writes the old notification_request any more", () => {
-    expect(where(/INSERT INTO\s+public\.notification_request\b/)).toEqual([]);
+  it("nothing names the old notification_request (dropped in Stage B)", () => {
+    expect(where(/public\.notification_request\b/)).toEqual([]);
   });
 });

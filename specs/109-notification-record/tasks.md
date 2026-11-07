@@ -413,7 +413,7 @@ Done before US3 because US3 uses the same call.
     and devices; orders, addresses and the profile are still not erased.
 
   Add the CLAUDE.md "Features recorded" line.
-- [ ] T059 **Deferred, not in the first deploy:** the Stage B migration `db/migrations/<date>_drop_notification_request.sql`.
+- [X] T059 **Built 2026-11-08 after Stage A was deployed** (`20261108090000_drop_notification_request.sql`; deploy notifications first): the Stage B migration `db/migrations/<date>_drop_notification_request.sql`.
   It drops `public.notification_request`, deletes `apis/edge-api/notifications/src/worker/legacy/` and its handler
   call, and removes the legacy branch from purge and from the T013 guard. Run it only after a full deploy shows
   `select count(*) from notification_request where status='pending'` = 0.

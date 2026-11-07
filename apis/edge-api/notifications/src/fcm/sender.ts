@@ -12,7 +12,6 @@ export interface PushMessage {
   token: string;
   platform: DevicePlatform;
   type: string;
-  /** Empty for a legacy row (no notification behind it). */
   notificationId: string;
   title: string;
   body: string;

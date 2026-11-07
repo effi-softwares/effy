@@ -1,4 +1,4 @@
-# Scheduled workers that drain public.notification_request (push via FCM, plus email) and
+# Scheduled workers that send public.notification_delivery (push via FCM, plus email) and
 # public.receipt_dispatch. Attaches to the shared HTTP API for healthz only.
 service: effy-edge-notifications
 frameworkVersion: "3"
@@ -115,7 +115,7 @@ functions:
 
   drain:
     handler: src/worker/handler.handler
-    description: Send notification deliveries in batches (FCM sendEach, SES) until the run's time budget is spent; prune dead tokens; drain legacy notification_request until Stage B (050, 109).
+    description: Send notification deliveries in batches (FCM sendEach, SES) until the run's time budget is spent; prune dead tokens (050, 109).
     timeout: 60
     events:
       - schedule: ${param:drainSchedule}
