@@ -493,6 +493,14 @@ class AppContainer(
     }
 
     val navigator: CustomerNavigator = CustomerNavigator()
+
+    /**
+     * The notification the shopper just tapped, until the shell has acted on it (it sets this back to
+     * null). Written by Android's MainActivity and iOS's `IosPushOpen` - at launch the shell may not
+     * exist yet, so it waits here.
+     */
+    val openedNotification =
+        kotlinx.coroutines.flow.MutableStateFlow<com.effyshopping.customer.mobile.core.push.OpenedNotification?>(null)
 }
 
 /** The single brand a shopper pays (hidden fulfilment - never a shop's name). */

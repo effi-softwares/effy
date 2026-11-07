@@ -11,6 +11,9 @@ import com.effyshopping.customer.mobile.core.observability.IosAnalyticsBridge
 import com.effyshopping.customer.mobile.core.observability.IosAnalyticsDriver
 import com.effyshopping.customer.mobile.core.observability.IosCrashBridge
 import com.effyshopping.customer.mobile.core.observability.IosCrashReporter
+import com.effyshopping.customer.mobile.core.push.IosPushBridge
+import com.effyshopping.customer.mobile.core.push.IosPushOpen
+import com.effyshopping.customer.mobile.core.push.IosPushTokenProvider
 
 /**
  * The iOS entry point. Swift builds the bridges Kotlin/Native cannot call directly and hands them in; this
@@ -19,10 +22,12 @@ import com.effyshopping.customer.mobile.core.observability.IosCrashReporter
  */
 fun MainViewController(
     authBridge: IosAuthBridge,
-    // Observability bridges (Firebase Crashlytics + PostHog iOS). Push stays NoOp on iOS until
-    // APNs is set up (Apple Developer account - see docs/observability-apple-blockers.md).
+    // Observability bridges (Firebase Crashlytics + PostHog iOS).
     crashBridge: IosCrashBridge,
     analyticsBridge: IosAnalyticsBridge,
+    // Firebase Messaging (SwiftPushBridge). Gives no token until the app carries the push entitlement
+    // (a paid Apple Developer account - docs/observability-apple-blockers.md); nothing else depends on it.
+    pushBridge: IosPushBridge,
 ) =
     ComposeUIViewController {
         // `remember` the container so a root recomposition does not rebuild it - a fresh AppContainer
@@ -33,8 +38,11 @@ fun MainViewController(
                 authDriver = IosAuthDriver(authBridge),
                 crashReporter = IosCrashReporter(crashBridge),
                 analyticsDriver = IosAnalyticsDriver(analyticsBridge, AppConfig.posthogKey, AppConfig.posthogHost),
-                // pushTokenProvider defaults to NoOp on iOS (APNs is Apple-account-gated).
-            )
+                pushTokenProvider = IosPushTokenProvider(pushBridge),
+            ).also { built ->
+                // A tapped notification (AppDelegate.swift) - including the one that launched the app.
+                IosPushOpen.attach { built.openedNotification.value = it }
+            }
         }
         container.startObservability()
         App(container)

@@ -1,6 +1,7 @@
 package com.effyshopping.customer.mobile
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.graphics.Color
@@ -13,6 +14,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.effyshopping.customer.mobile.app.App
+import com.effyshopping.customer.mobile.core.push.PushOpen
 
 class MainActivity : ComponentActivity() {
 
@@ -55,6 +57,8 @@ class MainActivity : ComponentActivity() {
         }
         super.onCreate(savedInstanceState)
         val container = (application as EffyApp).container
+        // Opened by tapping a notification: the shell opens what it was about.
+        PushOpen.consume(intent)?.let { container.openedNotification.value = it }
 
         // Ask for notification permission on Android 13+ (older versions grant it at
         // install). Pre-33 devices need no prompt; the check keeps it silent there.
@@ -70,4 +74,9 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /** A notification tapped while the app was already open arrives here, not in [onCreate]. */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        PushOpen.consume(intent)?.let { (application as EffyApp).container.openedNotification.value = it }
+    }
 }

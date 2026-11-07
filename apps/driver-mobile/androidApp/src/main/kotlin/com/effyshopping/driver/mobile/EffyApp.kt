@@ -11,6 +11,7 @@ import com.effyshopping.driver.mobile.core.platform.AndroidConnectivity
 import com.effyshopping.driver.mobile.core.observability.AndroidCrashReporter
 import com.effyshopping.driver.mobile.core.observability.PostHogAnalyticsDriver
 import com.effyshopping.driver.mobile.core.push.FirebasePushTokenProvider
+import com.effyshopping.driver.mobile.core.push.ensureWorkUpdatesChannel
 
 /**
  * The Android application. Configures Amplify once from the in-code config string (no
@@ -41,6 +42,8 @@ class EffyApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        // The channel a notification that arrives while the app is closed is posted on (manifest meta-data).
+        ensureWorkUpdatesChannel(applicationContext)
         try {
             AmplifyBootstrap.configure(applicationContext)
         } catch (e: Exception) {

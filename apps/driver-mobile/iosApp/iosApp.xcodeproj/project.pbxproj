@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		0FB1000000000000000000B2 /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = 0FB1000000000000000000B1 /* FirebaseCore */; };
 		0FB1000000000000000000C2 /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = 0FB1000000000000000000C1 /* FirebaseCrashlytics */; };
+		0FB1000000000000000000E2 /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 0FB1000000000000000000E1 /* FirebaseMessaging */; };
 		0FB1000000000000000000D2 /* PostHog in Frameworks */ = {isa = PBXBuildFile; productRef = 0FB1000000000000000000D1 /* PostHog */; };
 		0490000000000000000000B1 /* Amplify in Frameworks */ = {isa = PBXBuildFile; productRef = 0490000000000000000000A1 /* Amplify */; };
 		0490000000000000000000B2 /* AWSCognitoAuthPlugin in Frameworks */ = {isa = PBXBuildFile; productRef = 0490000000000000000000A2 /* AWSCognitoAuthPlugin */; };
@@ -34,6 +35,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 0FB1000000000000000000A1 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseCrashlytics;
+		};
+		0FB1000000000000000000E1 /* FirebaseMessaging */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0FB1000000000000000000A1 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseMessaging;
 		};
 		0FB1000000000000000000D1 /* PostHog */ = {
 			isa = XCSwiftPackageProductDependency;
@@ -684,6 +690,7 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
+				iosApp.entitlements,
 			);
 			target = 4D4191B4421270D92FF3A8A3 /* iosApp */;
 		};
@@ -712,6 +719,7 @@
 			files = (
 				0FB1000000000000000000B2 /* FirebaseCore in Frameworks */,
 				0FB1000000000000000000C2 /* FirebaseCrashlytics in Frameworks */,
+				0FB1000000000000000000E2 /* FirebaseMessaging in Frameworks */,
 				0FB1000000000000000000D2 /* PostHog in Frameworks */,
 				0490000000000000000000B1 /* Amplify in Frameworks */,
 				0490000000000000000000B2 /* AWSCognitoAuthPlugin in Frameworks */,
@@ -1402,6 +1410,7 @@
 			packageProductDependencies = (
 				0FB1000000000000000000B1 /* FirebaseCore */,
 				0FB1000000000000000000C1 /* FirebaseCrashlytics */,
+				0FB1000000000000000000E1 /* FirebaseMessaging */,
 				0FB1000000000000000000D1 /* PostHog */,
 				0490000000000000000000A1 /* Amplify */,
 				0490000000000000000000A2 /* AWSCognitoAuthPlugin */,

@@ -8,7 +8,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 
 /**
  * Android FCM token access. Injected into [com.effyshopping.customer.mobile.app.AppContainer]
- * by the Android entry point; iOS keeps [NoOpPushTokenProvider] until its APNs↔FCM Swift bridge lands.
+ * by the Android entry point; iOS has its own (`IosPushTokenProvider`, over a Swift bridge).
  *
  * The token is opaque (no PII). Firebase auto-initialises from google-services resources, so there is
  * nothing to configure here. Token refresh is delivered by [EffyFirebaseMessagingService] → the
