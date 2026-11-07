@@ -7,40 +7,13 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0490000000000000000000B1 /* Amplify in Frameworks */ = {isa = PBXBuildFile; productRef = 0490000000000000000000A1 /* Amplify */; };
+		0490000000000000000000B2 /* AWSCognitoAuthPlugin in Frameworks */ = {isa = PBXBuildFile; productRef = 0490000000000000000000A2 /* AWSCognitoAuthPlugin */; };
 		0FB1000000000000000000B2 /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = 0FB1000000000000000000B1 /* FirebaseCore */; };
 		0FB1000000000000000000C2 /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = 0FB1000000000000000000C1 /* FirebaseCrashlytics */; };
 		0FB1000000000000000000D2 /* PostHog in Frameworks */ = {isa = PBXBuildFile; productRef = 0FB1000000000000000000D1 /* PostHog */; };
-		0490000000000000000000B1 /* Amplify in Frameworks */ = {isa = PBXBuildFile; productRef = 0490000000000000000000A1 /* Amplify */; };
-		0490000000000000000000B2 /* AWSCognitoAuthPlugin in Frameworks */ = {isa = PBXBuildFile; productRef = 0490000000000000000000A2 /* AWSCognitoAuthPlugin */; };
+		0FB1000000000000000000E2 /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 0FB1000000000000000000E1 /* FirebaseMessaging */; };
 /* End PBXBuildFile section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		0490000000000000000000A1 /* Amplify */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 066166563039E41300B7D732 /* XCRemoteSwiftPackageReference "amplify-swift" */;
-			productName = Amplify;
-		};
-		0490000000000000000000A2 /* AWSCognitoAuthPlugin */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 066166563039E41300B7D732 /* XCRemoteSwiftPackageReference "amplify-swift" */;
-			productName = AWSCognitoAuthPlugin;
-		};
-		0FB1000000000000000000B1 /* FirebaseCore */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 0FB1000000000000000000A1 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
-			productName = FirebaseCore;
-		};
-		0FB1000000000000000000C1 /* FirebaseCrashlytics */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 0FB1000000000000000000A1 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
-			productName = FirebaseCrashlytics;
-		};
-		0FB1000000000000000000D1 /* PostHog */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 0FB1000000000000000000A2 /* XCRemoteSwiftPackageReference "posthog-ios" */;
-			productName = PostHog;
-		};
-/* End XCSwiftPackageProductDependency section */
 
 /* Begin PBXFileReference section */
 		066163DD3039E33B00B7D732 /* libc++.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = "libc++.tbd"; path = "usr/lib/libc++.tbd"; sourceTree = SDKROOT; };
@@ -680,7 +653,7 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		E63FA526F4B96080F4910493 /* Exceptions for "iosApp" folder in "iosApp" target */ = {
+		E63FA526F4B96080F4910493 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
@@ -693,13 +666,21 @@
 		9D1BA19D0DB706D9CA9B030B /* iosApp */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				E63FA526F4B96080F4910493 /* Exceptions for "iosApp" folder in "iosApp" target */,
+				E63FA526F4B96080F4910493 /* PBXFileSystemSynchronizedBuildFileExceptionSet */,
+			);
+			explicitFileTypes = {
+			};
+			explicitFolders = (
 			);
 			path = iosApp;
 			sourceTree = "<group>";
 		};
 		DFC6C365A3FD3DEB9CF96C03 /* Configuration */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
 			path = Configuration;
 			sourceTree = "<group>";
 		};
@@ -712,6 +693,7 @@
 			files = (
 				0FB1000000000000000000B2 /* FirebaseCore in Frameworks */,
 				0FB1000000000000000000C2 /* FirebaseCrashlytics in Frameworks */,
+				0FB1000000000000000000E2 /* FirebaseMessaging in Frameworks */,
 				0FB1000000000000000000D2 /* PostHog in Frameworks */,
 				0490000000000000000000B1 /* Amplify in Frameworks */,
 				0490000000000000000000B2 /* AWSCognitoAuthPlugin in Frameworks */,
@@ -1402,6 +1384,7 @@
 			packageProductDependencies = (
 				0FB1000000000000000000B1 /* FirebaseCore */,
 				0FB1000000000000000000C1 /* FirebaseCrashlytics */,
+				0FB1000000000000000000E1 /* FirebaseMessaging */,
 				0FB1000000000000000000D1 /* PostHog */,
 				0490000000000000000000A1 /* Amplify */,
 				0490000000000000000000A2 /* AWSCognitoAuthPlugin */,
@@ -1720,6 +1703,39 @@
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		0490000000000000000000A1 /* Amplify */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 066166563039E41300B7D732 /* XCRemoteSwiftPackageReference "amplify-swift" */;
+			productName = Amplify;
+		};
+		0490000000000000000000A2 /* AWSCognitoAuthPlugin */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 066166563039E41300B7D732 /* XCRemoteSwiftPackageReference "amplify-swift" */;
+			productName = AWSCognitoAuthPlugin;
+		};
+		0FB1000000000000000000B1 /* FirebaseCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0FB1000000000000000000A1 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCore;
+		};
+		0FB1000000000000000000C1 /* FirebaseCrashlytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0FB1000000000000000000A1 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCrashlytics;
+		};
+		0FB1000000000000000000D1 /* PostHog */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0FB1000000000000000000A2 /* XCRemoteSwiftPackageReference "posthog-ios" */;
+			productName = PostHog;
+		};
+		0FB1000000000000000000E1 /* FirebaseMessaging */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0FB1000000000000000000A1 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseMessaging;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 8116CF2EFC8491F84021F62A /* Project object */;
 }

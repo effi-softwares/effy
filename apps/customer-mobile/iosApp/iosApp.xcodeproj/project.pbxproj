@@ -27,6 +27,7 @@
 		06CDBDB5303DF56100B0DC9A /* PostHog in Frameworks */ = {isa = PBXBuildFile; productRef = 06CDBDB4303DF56100B0DC9A /* PostHog */; };
 		06CDBDC9303DF59300B0DC9A /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = 06CDBDC8303DF59300B0DC9A /* FirebaseCore */; };
 		06CDBDCB303DF59300B0DC9A /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = 06CDBDCA303DF59300B0DC9A /* FirebaseCrashlytics */; };
+		06CDBDCD303DF59300B0DC9A /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 06CDBDCC303DF59300B0DC9A /* FirebaseMessaging */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -34,7 +35,7 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		3F589A459DD7440394A5C8FC /* Exceptions for "iosApp" folder in "iosApp" target */ = {
+		3F589A459DD7440394A5C8FC /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
@@ -46,13 +47,21 @@
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		AAA543DAE682C4F879682E54 /* Configuration */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
 			path = Configuration;
 			sourceTree = "<group>";
 		};
 		E0E386380CB2E752183DC59D /* iosApp */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				3F589A459DD7440394A5C8FC /* Exceptions for "iosApp" folder in "iosApp" target */,
+				3F589A459DD7440394A5C8FC /* PBXFileSystemSynchronizedBuildFileExceptionSet */,
+			);
+			explicitFileTypes = {
+			};
+			explicitFolders = (
 			);
 			path = iosApp;
 			sourceTree = "<group>";
@@ -82,6 +91,7 @@
 				067A700D30077C7100CEE238 /* AWSCloudWatchLoggingPlugin in Frameworks */,
 				06CDBDB5303DF56100B0DC9A /* PostHog in Frameworks */,
 				06CDBDCB303DF59300B0DC9A /* FirebaseCrashlytics in Frameworks */,
+				06CDBDCD303DF59300B0DC9A /* FirebaseMessaging in Frameworks */,
 				067A700530077C7100CEE238 /* AmplifyFoundation in Frameworks */,
 				067A700930077C7100CEE238 /* AmplifyKinesisClient in Frameworks */,
 			);
@@ -156,6 +166,7 @@
 				06CDBDB4303DF56100B0DC9A /* PostHog */,
 				06CDBDC8303DF59300B0DC9A /* FirebaseCore */,
 				06CDBDCA303DF59300B0DC9A /* FirebaseCrashlytics */,
+				06CDBDCC303DF59300B0DC9A /* FirebaseMessaging */,
 			);
 			productName = iosApp;
 			productReference = 682F1C166E0AD1A147C2786A /* customer-mobile.app */;
@@ -576,6 +587,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 064B75E0303ACBCB0069336C /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseCrashlytics;
+		};
+		06CDBDCC303DF59300B0DC9A /* FirebaseMessaging */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 064B75E0303ACBCB0069336C /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseMessaging;
 		};
 		57A19E02000000000000BEEF /* StripePaymentSheet */ = {
 			isa = XCSwiftPackageProductDependency;
