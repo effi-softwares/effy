@@ -65,6 +65,12 @@ type ShopAnalyticsEvent =
   | { name: "notif_type_muted"; type: string }
   | { name: "notif_type_unmuted"; type: string }
   | { name: "notif_opened"; type: string; fallback: boolean }
+  // 110 - the inbox. Kind and category only.
+  | { name: "notif_inbox_opened"; surface: "panel" | "page" }
+  | { name: "notif_inbox_item_opened"; type: string; category: string; fallback: boolean }
+  | { name: "notif_inbox_archived"; type: string; category: string }
+  | { name: "notif_inbox_undo"; type: string; category: string }
+  | { name: "notif_inbox_all_read" }
   | { name: "offline_entered" }
   | { name: "offline_recovered" }
 

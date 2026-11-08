@@ -51,6 +51,19 @@ d("delivery repository (109)", () => {
     });
   });
 
+  it("claims each delivery with its recipient's unseen count, for the app icon (110 R8)", async () => {
+    await one("badge-sub");
+    await one("badge-sub");
+    await one("badge-sub");
+    await pool.query(
+      `UPDATE public.notification SET seen_at = now() WHERE id = (SELECT id FROM public.notification WHERE recipient_sub = 'badge-sub' ORDER BY created_at LIMIT 1)`,
+    );
+    const claimed = await transact((tx) => batchStore(tx).claim(10, ["push"]));
+    const mine = claimed.filter((c) => c.recipientSub === "badge-sub");
+    expect(mine).toHaveLength(3);
+    expect(new Set(mine.map((c) => c.badge))).toEqual(new Set([2]));
+  });
+
   it("claims only the channels asked for", async () => {
     await one("both", 0, ["push", "email"]);
     const email = await transact((tx) => batchStore(tx).claim(10, ["email"]));

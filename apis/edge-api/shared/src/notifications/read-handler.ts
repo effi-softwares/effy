@@ -5,9 +5,14 @@ import type { NotificationAudience, NotificationReadResponseDTO } from "@effy/sh
 
 import { type AuthedEvent, subject } from "../lib/claims";
 import { json, preamble, refused, unauthenticated } from "../lib/http";
+import { announceInbox } from "./announce-inbox";
 import { isNotificationId, markRead } from "./read";
 
-export function makeNotificationReadHandler(audience: NotificationAudience, read: typeof markRead = markRead) {
+export function makeNotificationReadHandler(
+  audience: NotificationAudience,
+  read: typeof markRead = markRead,
+  announce: (audience: NotificationAudience, sub: string) => Promise<void> = (a, sub) => announceInbox([{ audience: a, sub }]),
+) {
   return async (event: AuthedEvent, context: Context): Promise<APIGatewayProxyStructuredResultV2> => {
     const scope = preamble(event, context);
     const sub = subject(event);
@@ -20,6 +25,8 @@ export function makeNotificationReadHandler(audience: NotificationAudience, read
     const row = await read(sub, audience, id);
     // Someone else's, another audience's, or none: one answer, so nothing confirms an id exists.
     if (!row) return refused(scope, 404, "notification_not_found", "there is no such notification");
+    // The person's other screens drop the unread dot (110).
+    await announce(audience, sub);
 
     const body: NotificationReadResponseDTO = {
       notificationId: row.notificationId,

@@ -111,11 +111,14 @@ fun TodayScreen(
     banners: @Composable () -> Unit = {},
     /** Answer today's vehicle check. */
     onSubmitVehicleCheck: (List<com.effyshopping.driver.mobile.features.driver.domain.VehicleCheckAnswer>) -> Unit = {},
+    /** The notifications bell beside the duty toggle (110), with its unseen count. */
+    bell: @Composable () -> Unit = {},
 ) {
     var confirmOffDuty by remember { mutableStateOf(false) }
     val onDuty = state.dutyStatus == DutyStatus.ON_DUTY
     Column(Modifier.fillMaxSize()) {
         DriverLargeTitleBar("Today") {
+            bell()
             DutyToggle(onDuty = onDuty, busy = state.isTogglingDuty, onClick = { if (onDuty) confirmOffDuty = true else onToggleDuty() })
         }
         Text(

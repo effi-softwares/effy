@@ -108,7 +108,6 @@ import com.effyshopping.customer.mobile.core.observability.ConsentState
 import com.effyshopping.customer.mobile.core.observability.analyticsConsentSubtitle
 import com.effyshopping.customer.mobile.core.presentation.EffyNavRow
 import com.effyshopping.customer.mobile.features.help.presentation.HelpScreen
-import com.effyshopping.customer.mobile.features.notifications.presentation.NotificationsScreen
 import com.effyshopping.mobile.design.EffySpacing
 import com.effyshopping.mobile.kit.ui.EffyPrimaryAction
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -288,7 +287,6 @@ fun AccountRoutes(container: AppContainer, route: CustomerNavKey, session: Sessi
         CustomerNavKey.PasswordReset -> ResetPasswordScreen(container, customer.email)
         // The new screens. Each is presentational and carries no session requirement of its
         // own; reaching them via Account is what already gates them.
-        CustomerNavKey.Notifications -> NotificationsScreen()
         CustomerNavKey.Faqs, CustomerNavKey.HelpCenter, CustomerNavKey.CustomerService ->
             HelpScreen(onOpenOrders = { container.navigator.selectTab(CustomerNavKey.Orders) })
         else -> {}

@@ -129,6 +129,32 @@ export function shopPathFor(d: ShopDestination | null): string {
 }
 
 /**
+ * The customer website path a destination opens (110): the storefront's own routes. `null` (an unknown kind) opens the
+ * home page. Query values are percent-encoded.
+ */
+export function customerWebPathFor(d: CustomerDestination | null): string {
+  if (!d) return "/";
+  switch (d.kind) {
+    case "home":
+      return "/";
+    case "orders":
+      return "/orders";
+    case "order":
+      return `/orders/${encodeURIComponent(d.orderId)}`;
+    case "points":
+      return "/account/points";
+    case "product":
+      return `/product/${encodeURIComponent(d.productId)}`;
+    case "aisle":
+      return `/search?category=${encodeURIComponent(d.aisleKey)}`;
+    case "search":
+      return d.query ? `/search?q=${encodeURIComponent(d.query)}` : "/search";
+    case "sale":
+      return "/offers";
+  }
+}
+
+/**
  * `POST /{audience}/v1/notifications/{id}/read` (109): the caller's own notification, now read. `destination` is the
  * stored one, as a plain object, so an app parses it with the same lenient parser it uses for a push.
  */

@@ -73,6 +73,31 @@ export async function query<R extends pg.QueryResultRow>(
   }
 }
 
+/**
+ * Work to do once a transaction has COMMITTED (110): telling open apps about a change must never happen for a change
+ * that rolled back. Kept per transaction client by `withTransaction` / `transactorFor`; dropped on ROLLBACK.
+ */
+const committed = new WeakMap<object, Array<() => Promise<void>>>();
+
+/**
+ * Run `fn` after `tx` commits. When `tx` is not an open transaction (the pool, which commits each statement), `fn`
+ * runs straight away - its statement has already committed. `fn` must not throw; a failure is swallowed.
+ */
+export async function afterCommit(tx: Queryable, fn: () => Promise<void>): Promise<void> {
+  const queue = committed.get(tx as object);
+  if (queue) {
+    queue.push(fn);
+    return;
+  }
+  await fn().catch(() => undefined);
+}
+
+async function runCommitted(client: object): Promise<void> {
+  const queue = committed.get(client);
+  committed.delete(client);
+  for (const fn of queue ?? []) await fn().catch(() => undefined);
+}
+
 // Runs fn on a dedicated client inside begin/commit (rollback on throw).
 export async function withTransaction<T>(
   fn: (client: pg.PoolClient) => Promise<T>,
@@ -86,10 +111,13 @@ export async function withTransaction<T>(
   }
   try {
     await client.query("BEGIN");
+    committed.set(client, []);
     const result = await fn(client);
     await client.query("COMMIT");
+    await runCommitted(client);
     return result;
   } catch (err) {
+    committed.delete(client);
     await client.query("ROLLBACK").catch(() => undefined);
     throw err;
   } finally {
@@ -121,10 +149,13 @@ export function transactorFor(pool: pg.Pool): Transactor {
     const client = await pool.connect();
     try {
       await client.query("BEGIN");
+      committed.set(client, []);
       const result = await fn(client);
       await client.query("COMMIT");
+      await runCommitted(client);
       return result;
     } catch (err) {
+      committed.delete(client);
       await client.query("ROLLBACK").catch(() => undefined);
       throw err;
     } finally {

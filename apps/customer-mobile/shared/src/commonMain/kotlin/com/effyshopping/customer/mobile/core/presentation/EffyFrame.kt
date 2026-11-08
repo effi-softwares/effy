@@ -70,6 +70,24 @@ import org.jetbrains.compose.resources.painterResource
 /** Opens Notifications from any header. Provided once by the shell, so screens never wire it. */
 val LocalOpenNotifications = androidx.compose.runtime.compositionLocalOf<(() -> Unit)?> { null }
 
+/** How many notifications the shopper has not seen (110): the number on the bell. Provided once by the shell. */
+val LocalInboxCount = androidx.compose.runtime.compositionLocalOf { 0 }
+
+/** The bell, with the unseen count on it when there is one ("Notifications, 3 new" to a screen reader). */
+@Composable
+private fun EffyBell(onBell: () -> Unit, modifier: Modifier = Modifier, iconSize: androidx.compose.ui.unit.Dp = 22.dp) {
+    val count = LocalInboxCount.current
+    Box(modifier) {
+        EffyIconButton(
+            Res.drawable.lucide_bell,
+            contentDescription = if (count > 0) "Notifications, $count new" else "Notifications",
+            onClick = onBell,
+            iconSize = iconSize,
+        )
+        EffyBadge(count, modifier = Modifier.align(Alignment.TopEnd).padding(top = 4.dp, end = 2.dp))
+    }
+}
+
 /** Is this an iOS build? Provided by the shell (iOS says "‹ Back"; Android shows the arrow only). */
 val LocalIsIos = androidx.compose.runtime.staticCompositionLocalOf { false }
 
@@ -156,13 +174,7 @@ fun EffyLargeTitleBar(
                 )
             }
             if (showBell && onBell != null) {
-                EffyIconButton(
-                    Res.drawable.lucide_bell,
-                    contentDescription = "Notifications",
-                    onClick = onBell,
-                    iconSize = 26.dp,
-                    modifier = Modifier.align(Alignment.CenterEnd),
-                )
+                EffyBell(onBell, iconSize = 26.dp, modifier = Modifier.align(Alignment.CenterEnd))
             }
         }
         if (search != null) {
@@ -202,7 +214,7 @@ fun EffyAppBar(
             overflow = TextOverflow.Ellipsis,
         )
         if (showBell && onBell != null) {
-            EffyIconButton(Res.drawable.lucide_bell, contentDescription = "Notifications", onClick = onBell, modifier = Modifier.align(Alignment.CenterEnd))
+            EffyBell(onBell, modifier = Modifier.align(Alignment.CenterEnd))
         }
     }
 }

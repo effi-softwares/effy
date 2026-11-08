@@ -1,6 +1,6 @@
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import { Pool } from "pg";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { transactorFor, type Transactor } from "../lib/db";
 import { migrationSql } from "../testing/migrations";
@@ -142,5 +142,64 @@ d("notify (109)", () => {
       expect(await markRead("r-mine", "customer", "00000000-0000-4000-8000-000000000000", pool)).toBeNull();
       expect((await notifications("r-mine"))[0].read_at).toBeNull();
     });
+  });
+
+  // 110 - pinned, inbox-only, and the live "inbox" word sent once the change has committed.
+  it("stores a pin for an important notification and refuses one for a normal type", async () => {
+    const until = new Date(Date.now() + 3_600_000);
+    await transact((tx) =>
+      notify(tx, { type: "driver_runs_today", recipients: [{ sub: "d-pin" }], subject: { entityId: "2026-11-09", count: 2 }, dedupeScope: "2026-11-09", channels: [], pinnedUntil: until }),
+    );
+    const [n] = await notifications("d-pin");
+    expect(n).toMatchObject({ importance: "important", title: "You have 2 runs today", destination: { kind: "today" } });
+    expect(new Date(n.pinned_until).getTime()).toBe(until.getTime());
+    expect(await deliveries("d-pin")).toEqual([]);
+
+    await expect(
+      transact((tx) => notify(tx, { type: "order_paid", recipients: [{ sub: "c-pin" }], subject: { entityId: "o" }, dedupeScope: scope(), channels: ["push"], pinnedUntil: until })),
+    ).rejects.toThrow(/only an important notification/);
+  });
+
+  it("says 1 run, not 1 runs", async () => {
+    await transact((tx) =>
+      notify(tx, { type: "driver_runs_today", recipients: [{ sub: "d-one" }], subject: { entityId: "2026-11-09", count: 1 }, dedupeScope: "2026-11-09", channels: [] }),
+    );
+    expect((await notifications("d-one"))[0].title).toBe("You have 1 run today");
+  });
+
+  it("announces inbox after commit, once per person, and not for a rollback or a repeat (FR-018)", async () => {
+    const published: string[] = [];
+    vi.stubEnv("LIVE_HTTP_HOST", "live.example.test");
+    vi.stubEnv("AWS_REGION", "ap-southeast-2");
+    vi.stubGlobal("fetch", async (_url: string, init: { body: string }) => {
+      const body = JSON.parse(init.body) as { channel: string; events: string[] };
+      published.push(`${body.channel.split("/").slice(0, 3).join("/")} ${body.events.join(",")}`);
+      return new Response(null, { status: 200 });
+    });
+    try {
+      const s = scope();
+      let duringTx = 0;
+      await transact(async (tx) => {
+        await notify(tx, { type: "order_paid", recipients: [{ sub: "c-live" }], subject: { entityId: "o-l" }, dedupeScope: s, channels: ["push"] });
+        duringTx = published.length;
+      });
+      expect(duringTx).toBe(0);
+      expect(new Set(published)).toEqual(new Set(['/customer/c-live {"k":"inbox"}']));
+
+      published.length = 0;
+      await transact((tx) => notify(tx, { type: "order_paid", recipients: [{ sub: "c-live" }], subject: { entityId: "o-l" }, dedupeScope: s, channels: ["push"] }));
+      expect(published).toEqual([]);
+
+      await expect(
+        transact(async (tx) => {
+          await notify(tx, { type: "order_paid", recipients: [{ sub: "c-rolled" }], subject: { entityId: "o-r" }, dedupeScope: scope(), channels: ["push"] });
+          throw new Error("payment failed");
+        }),
+      ).rejects.toThrow("payment failed");
+      expect(published).toEqual([]);
+    } finally {
+      vi.unstubAllEnvs();
+      vi.unstubAllGlobals();
+    }
   });
 });

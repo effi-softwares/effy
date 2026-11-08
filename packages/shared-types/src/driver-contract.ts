@@ -60,10 +60,17 @@ import type {
 import type { LabelReadDTO, ParcelDTO, ParcelHandover, ParcelMissing } from "./parcels";
 import type { ProblemJSON } from "./problem";
 import type { NotificationReadResponseDTO } from "./notification-destinations";
+import type { InboxArchiveDTO, InboxArchiveRequest, InboxCountDTO, InboxCutoffRequest, InboxPageDTO, InboxReadAllDTO } from "./notification-inbox";
 
 /** Codegen entry only. Every field forces a type into the schema. */
 export interface DriverContract {
   notificationRead: NotificationReadResponseDTO;
+  inboxPage: InboxPageDTO;
+  inboxCount: InboxCountDTO;
+  inboxCutoff: InboxCutoffRequest;
+  inboxReadAll: InboxReadAllDTO;
+  inboxArchiveRequest: InboxArchiveRequest;
+  inboxArchive: InboxArchiveDTO;
   me: DriverMeDTO;
   dutyRequest: DutyRequest;
   dutyResponse: DutyResponse;

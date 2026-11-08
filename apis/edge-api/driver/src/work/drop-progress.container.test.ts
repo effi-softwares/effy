@@ -340,6 +340,28 @@ d("064 fix — a drop advances through every state the app sends", () => {
     expect(await dropScreen()).toBe("arrived");
   });
 
+  it("110 — loading tells the customer Out for delivery, once per order however often the van is loaded (FR-029)", async () => {
+    const orderId = (await pool.query(`SELECT order_id::text AS id FROM public.round_stop WHERE id = $1`, [dropId])).rows[0].id;
+    const told = async () =>
+      (await pool.query(
+        `SELECT n.title, n.destination, d.channel FROM public.notification n
+           LEFT JOIN public.notification_delivery d ON d.notification_id = n.id
+          WHERE n.type = 'order_out_for_delivery' AND n.entity_id = $1`,
+        [orderId],
+      )).rows;
+    await loadRun(roundId, driverId, crypto.randomUUID());
+    expect(await told()).toEqual([{ title: "Out for delivery", destination: { kind: "order", orderId }, channel: "push" }]);
+    await pool.query(`UPDATE public.round_stop SET status = 'pending' WHERE id = $1`, [dropId]);
+    await loadRun(roundId, driverId, crypto.randomUUID());
+    expect(await told()).toHaveLength(1);
+  });
+
+  it("110 — a load that is refused tells no one", async () => {
+    const orderId = (await pool.query(`SELECT order_id::text AS id FROM public.round_stop WHERE id = $1`, [dropId])).rows[0].id;
+    await expect(loadRun(roundId, crypto.randomUUID(), crypto.randomUUID())).rejects.toBeInstanceOf(NotFoundError);
+    expect((await pool.query(`SELECT 1 FROM public.notification WHERE type = 'order_out_for_delivery' AND entity_id = $1`, [orderId])).rowCount).toBe(0);
+  });
+
   it("090 — loading is refused before the round opens, and for someone else's run", async () => {
     await pool.query(`UPDATE public.driver_round SET window_start_at = now() + interval '2 days', deadline_at = now() + interval '2 days 2 hours' WHERE id = $1`, [roundId]);
     await expect(loadRun(roundId, driverId, crypto.randomUUID())).rejects.toBeInstanceOf(RoundNotOpenError);

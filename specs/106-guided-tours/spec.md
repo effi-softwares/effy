@@ -538,6 +538,15 @@ the step is always shown. Text in quotes elsewhere in this spec is the console's
 | 4 | Sound | Sound | A chime in this tab for new orders while the console is open. The Sound button at the top of every page does the same. | |
 | 5 | The home-screen note | On iPad and iPhone | Notifications only work once Effy Shop is added to the home screen. | iPad / iPhone |
 
+### NF - Notifications (110: specs/110-notification-inboxes/spec.md › Guided tour)
+
+| # | Points at | Title | Text | Shown when |
+|---|---|---|---|---|
+| 1 | The page heading | Everything you were told | Every notification for you is kept here for 90 days, even ones you closed or missed. The newest is at the top. |  |
+| 2 | The filters | Find what you need | Show everything or only what you haven't read, and narrow it to orders, stock, products, announcements or important notices. |  |
+| 3 | A notification | Go straight there | Click a notification to open what it's about. It's then marked read. | There are notifications |
+| 4 | Mark all read | Catch up in one click | Mark everything read once you've dealt with it, or archive a notification to take it off the list. | Something is unread |
+
 ### PS - Settings · Printing
 
 | # | Points at | Title | Text | Shown when |

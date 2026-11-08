@@ -408,6 +408,61 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
 
+  customerNotificationsV1Get:
+    handler: src/functions/customer-notifications-v1-get.handler
+    description: One page of the signed-in customer's own notification inbox, newest first, important ones pinned (110)
+    events:
+      - httpApi:
+          method: GET
+          path: /customer/v1/notifications
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  customerNotificationsV1UnseenCountGet:
+    handler: src/functions/customer-notifications-v1-unseen-count-get.handler
+    description: How many of the signed-in customer's notifications they have not seen yet - the bell (110)
+    events:
+      - httpApi:
+          method: GET
+          path: /customer/v1/notifications/unseen-count
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  customerNotificationsV1SeenPost:
+    handler: src/functions/customer-notifications-v1-seen-post.handler
+    description: The signed-in customer opened their inbox - notifications up to the newest shown are seen (110)
+    events:
+      - httpApi:
+          method: POST
+          path: /customer/v1/notifications/seen
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  customerNotificationsV1ReadAllPost:
+    handler: src/functions/customer-notifications-v1-read-all-post.handler
+    description: Mark all of the signed-in customer's notifications up to the newest shown as read (110)
+    events:
+      - httpApi:
+          method: POST
+          path: /customer/v1/notifications/read-all
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  customerNotificationsV1IdPatch:
+    handler: src/functions/customer-notifications-v1-id-patch.handler
+    description: Archive one of the signed-in customer's own notifications, or undo it (110)
+    events:
+      - httpApi:
+          method: PATCH
+          path: /customer/v1/notifications/{id}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
   # Points housekeeping: scheduled, not routes.
 
   # Writes "Expired" history lines and the warning; expiry itself does not depend on it.

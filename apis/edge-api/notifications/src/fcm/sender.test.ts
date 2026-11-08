@@ -26,7 +26,7 @@ vi.mock("@effy/edge-shared", () => ({
   ),
 }));
 
-import { createSender, FCM_BATCH_LIMIT, type PushMessage } from "./sender";
+import { createSender, FCM_BATCH_LIMIT, toFcmMessage, type PushMessage } from "./sender";
 
 const message = (over: Partial<PushMessage> = {}): PushMessage => ({
   token: "tok",
@@ -94,6 +94,19 @@ describe("⚠ P1 - the sender branches on platform", () => {
       expect(msg).toHaveProperty("apns");
       expect(msg).not.toHaveProperty("webpush");
     }
+  });
+
+  it("puts the unseen count on the app icon for mobile, and nothing on the web (110 R8)", async () => {
+    const msg = toFcmMessage(message({ platform: "ios", badge: 3 })) as unknown as {
+      apns: { payload: { aps: { badge?: number } } };
+      android: { notification?: { notificationCount?: number } };
+    };
+    expect(msg.apns.payload.aps.badge).toBe(3);
+    expect(msg.android.notification?.notificationCount).toBe(3);
+    const none = toFcmMessage(message({ platform: "android" })) as unknown as { apns: { payload: { aps: Record<string, unknown> } }; android: Record<string, unknown> };
+    expect(none.apns.payload.aps).not.toHaveProperty("badge");
+    expect(none.android).not.toHaveProperty("notification");
+    expect(toFcmMessage(message({ platform: "web", badge: 3 }))).not.toHaveProperty("apns");
   });
 
   it("gives a web push a TTL, so a stale one expires rather than arriving late", async () => {

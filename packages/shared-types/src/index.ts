@@ -58,3 +58,4 @@ export * from "./shop-availability"
 export * from "./activity-log";
 export * from "./tours";
 export * from "./notification-destinations";
+export * from "./notification-inbox";

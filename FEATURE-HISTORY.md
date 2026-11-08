@@ -4,6 +4,48 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
+**110-notification-inboxes** - Notification Inboxes ([spec](specs/110-notification-inboxes/spec.md)). 🔨 **BUILT 2026-11-08; NOT
+MIGRATED, DEPLOYED OR WALKED.** Spec 2 of the notifications programme (backlog C1–C7, A7, F2, F6, F7, F9). Every audience can now
+see what it was told: the customer app and website, the driver app and the shop console each have an inbox with a live bell.
+- **Migration** `20261109090000_notification_inbox.sql` (additive): `notification.pinned_until` (+ CHECK only an important one is
+  pinned), type `driver_runs_today` (24 types), `notification_unseen_idx` (the bell and the app-icon badge read only unseen rows).
+- **Server**: `@effy/edge-shared/notifications` `inbox.ts` (list, unseen count, seen, read-all, archive/undo) behind ONE factory
+  `makeInboxHandlers(audience)`; five routes per audience in `customer`/`driver`/`shop` (shared gateway 170 → **185/300**). Keyset
+  paging on `(created_at, id)`; pinned items come back apart (`pinned[]`, first page only) so a cursor stays exact (1,000 paged,
+  none lost or repeated). ⚠ **Cut-offs (`before`) are the ISO STRING with microseconds** - a JS `Date` drops them and the newest
+  item shown was left unseen (caught by a container test). `endsLabel` ("Ends Sun") only for offers/news/announcements/important.
+- **Live kind `inbox`** (+ Kotlin `LiveKind.INBOX`). ⚠ **Announced AFTER COMMIT by `notify()` itself** through a new
+  `afterCommit(tx, fn)` in `lib/db` (`withTransaction` / `transactorFor` run the queue after COMMIT, drop it on ROLLBACK; outside a
+  transaction it runs at once) - no notify call site changed. Customer → own channel; driver → own; shop → the SHOP's channel (each
+  operator re-reads their own). `announce-inbox.ts` is a named builder in `customer-announce.guard`. Not alarmed (`live_kinds` holds
+  10; `live.contract.test.ts` lists it as unwatched with the reason).
+- **Writers**: `notifications.guard` allows `UPDATE public.notification` in `read.ts` and `inbox.ts` only (proven by breaking it).
+- **Out for delivery** (operator decision 4): `driver/src/work/load.ts`, Effy orders on the loaded drops, scope = order id → once per
+  order. **Points expiring** now push + email. **Catch-up notice** (`driver/src/devices/catch-up.ts`, from `POST /driver/v1/devices`):
+  a `run_assigned` today whose push ended `no_device` + runs still theirs today → one pinned "You have N runs today", inbox only,
+  once per Effy day.
+- **Push badge**: the drain's claim counts each recipient's unseen rows → APNs `aps.badge` / Android `notificationCount` (not web).
+  Apps clear it on opening the inbox (`rememberClearAppBadge`); the installed console uses the Badging API. iOS waits on the paid
+  Apple account.
+- **Customer app**: `features/notifications` (repository, `InboxViewModel`, `InboxScreen`, detail `EffySheet`); the header bell in
+  every bar shows the count (`LocalInboxCount` from `InboxBadge`); new kit `EffySwipeRow`; a guest's bell goes through sign-in to the
+  inbox; the old empty `NotificationsScreen` is deleted. **Driver app**: `features/inbox`, bell on Today, `InboxRoute` (serializer
+  registered). **Shop console**: `NotificationBell` in the header (right Drawer, latest 20) and `/notifications` (filters in the
+  address, tour NF - words also in 106's Tour Inventory; 19 tours). **Customer website**: bell in the streamed user island (guests
+  load none of it), `/account/notifications` (server first page + `LiveRefresh`), `app/api/notifications/*` proxies, account links.
+- **Shared**: `notification-inbox.ts` (DTOs, `INBOX_CATEGORIES` + fixtures with Kotlin twins, `groupInboxByDay`,
+  `inboxTimeLabel`), `customerWebPathFor` (+ `webPath` in the destinations fixtures). Six Lucide drawables added to the apps.
+- **Verified**: shared-types 420, edge-shared 1056, every service's unit tests and tsc; container tests (inbox 13, notify, afterCommit
+  4, live routing 3, catch-up 6, load 23, delivery repository 11, points expiry 5, and every service's full suite); shop-web 527 +
+  build; customer-web 727 + build + depcruise; customer app 70/71 test classes (the 71st, `UnitPriceWordsTest`, failed before) +
+  Android + iOS compile; driver app all tests + Android + iOS compile; mobile, driver, timer, token and delivery-word guards.
+  Failures that predate this or come from the local test cluster, none touching 110's files: shared-types
+  `package-status.guard` (099), customer `UnitPriceWordsTest`, shared consignment P6 and orders status S4 (em dash vs
+  hyphen), catalog imports/products list and shop Availability paging (103), customer address note CHECK (the local
+  cluster's SQL_ASCII encoding counts bytes), shopper-handler (cluster-wide role on a re-run).
+- **Deploy order (operator)**: `make db-up ENV=dev` → `make edge-deploy ENV=dev SERVICE=notifications` → `make edge-deploy-all ENV=dev`
+  → shop-web and customer-web pipelines → both apps. No Terraform change. Then walk `specs/110-notification-inboxes/quickstart.md`.
+
 **109-notification-record** - Notification Record & Destinations ([spec](specs/109-notification-record/spec.md)). 🔨 **BUILT
 2026-11-07; STAGE A MIGRATED AND DEPLOYED TO DEV 2026-11-08, NOT WALKED; STAGE B BUILT, NOT RUN.** Spec 1 of the notifications programme ([docs/notifications-backlog.md](docs/notifications-backlog.md),
 Epic A + B1–B6, F1, F3, F4). Every notification is now one lasting record per person, and a tap opens the screen it is about.

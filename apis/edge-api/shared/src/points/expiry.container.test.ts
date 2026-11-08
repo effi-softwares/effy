@@ -51,7 +51,7 @@ d("074 - expiry warnings and the ledger check", () => {
     await container?.stop();
   });
 
-  it("P16 - warns once per customer per expiry date, for the points still there, by email only", async () => {
+  it("P16 - warns once per customer per expiry date, for the points still there, by push and email (110)", async () => {
     const c = await customer();
     const now = new Date();
     await transact((tx) => updateSettings(tx, { expiryMonths: 1, warningDays: 60 }, "admin"));
@@ -63,9 +63,11 @@ d("074 - expiry warnings and the ledger check", () => {
     await queueExpiryWarnings(pool, now);
     await queueExpiryWarnings(pool, new Date(now.getTime() + 86_400_000));
     const sent = await warnings(c);
-    expect(sent).toHaveLength(1);
-    expect(sent[0]).toMatchObject({ points: 400, channel: "email" });
-    expect(sent[0]!.recipient_email).toMatch(/@example\.test$/);
+    // One notification (one notice), delivered twice: push and email.
+    expect(sent).toHaveLength(2);
+    expect(sent.map((r) => r.channel).sort()).toEqual(["email", "push"]);
+    expect(sent.every((r) => r.points === 400)).toBe(true);
+    expect(sent.find((r) => r.channel === "email")!.recipient_email).toMatch(/@example\.test$/);
     await transact((tx) => updateSettings(tx, { expiryMonths: 12, warningDays: 30 }, "admin"));
   });
 

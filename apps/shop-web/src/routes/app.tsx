@@ -12,6 +12,7 @@ import { CommandPalette } from "@/components/console/CommandPalette"
 import { NewOrderAlert } from "@/components/console/NewOrderAlert"
 import { ScanButton } from "@/components/console/ScanButton"
 import { SoundChip } from "@/components/console/SoundChip"
+import { NotificationBell } from "@/features/notifications/NotificationBell"
 import { PwaBanners } from "@/components/console/PwaBanners"
 import { useNotificationRead } from "@/features/notifications/useNotificationNavigation"
 import { getLiveDescriptor } from "@/features/live/repo"
@@ -104,6 +105,7 @@ function AppShell() {
           headerActions={
             <>
               <SoundChip />
+              <NotificationBell />
               <ScanButton />
               <TourHelpButton />
             </>

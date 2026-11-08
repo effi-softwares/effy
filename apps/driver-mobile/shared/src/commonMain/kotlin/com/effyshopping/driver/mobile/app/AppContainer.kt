@@ -67,6 +67,7 @@ import com.effyshopping.driver.mobile.core.presentation.nowEpochMillis
 import com.effyshopping.driver.mobile.features.collection.data.SettingsStopDrafts
 import com.effyshopping.driver.mobile.features.collection.domain.StopDrafts
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.map
 import com.russhwolf.settings.Settings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -214,6 +215,23 @@ class AppContainer(
     /** Records a tapped notification as read, and answers whether it belongs to the signed-in driver. */
     val notifications: com.effyshopping.driver.mobile.core.push.NotificationRepository by lazy {
         com.effyshopping.driver.mobile.core.push.HttpNotificationRepository(driverClient)
+    }
+
+    /** The driver's notification inbox (110). */
+    val inbox: com.effyshopping.driver.mobile.features.inbox.domain.InboxActions by lazy {
+        com.effyshopping.driver.mobile.features.inbox.domain.InboxActions(
+            com.effyshopping.driver.mobile.features.inbox.data.HttpInboxRepository(driverClient),
+        )
+    }
+
+    /** The bell's number on Today: re-read on sign-in, on the live kind `inbox` and after any inbox action - never on a timer. */
+    val inboxBadge: com.effyshopping.driver.mobile.core.push.InboxBadge by lazy {
+        com.effyshopping.driver.mobile.core.push.InboxBadge(
+            read = { inbox.unseenCount() },
+            changes = live.changes(com.effyshopping.mobile.kit.live.LiveKind.INBOX),
+            signedIn = session.state.map { it is com.effyshopping.driver.mobile.core.session.SessionState.SignedIn },
+            scope = appScope,
+        )
     }
 
     // app services / presentation wiring

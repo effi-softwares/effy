@@ -19,6 +19,8 @@ export interface PushMessage {
   destination: string;
   tag: string;
   group: string;
+  /** The recipient's unseen count (110): the app icon's number on iOS, the launcher count on Android. Not for web. */
+  badge?: number;
 }
 
 export interface SendResult {
@@ -102,14 +104,15 @@ export function toFcmMessage(m: PushMessage): Message {
       },
     };
   }
+  const badge = typeof m.badge === "number" && m.badge >= 0 ? Math.floor(m.badge) : undefined;
   return {
     token: m.token,
     notification: { title: m.title, body: m.body },
     data,
-    android: { priority: "high" },
+    android: { priority: "high", ...(badge !== undefined ? { notification: { notificationCount: badge } } : {}) },
     apns: {
       headers: { "apns-priority": "10" },
-      payload: { aps: { sound: "default" } },
+      payload: { aps: { sound: "default", ...(badge !== undefined ? { badge } : {}) } },
     },
   };
 }

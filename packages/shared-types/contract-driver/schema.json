@@ -1509,6 +1509,202 @@
       ],
       "type": "object"
     },
+    "InboxArchiveDTO": {
+      "additionalProperties": false,
+      "properties": {
+        "archived": {
+          "type": "boolean"
+        },
+        "id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "archived"
+      ],
+      "type": "object"
+    },
+    "InboxArchiveRequest": {
+      "additionalProperties": false,
+      "description": "`PATCH …/{id}`.",
+      "properties": {
+        "archived": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "archived"
+      ],
+      "type": "object"
+    },
+    "InboxCountDTO": {
+      "additionalProperties": false,
+      "description": "`GET …/unseen-count` and `POST …/seen`.",
+      "properties": {
+        "unseenCount": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "unseenCount"
+      ],
+      "type": "object"
+    },
+    "InboxCutoffRequest": {
+      "additionalProperties": false,
+      "description": "`POST …/seen` and `POST …/read-all`: the createdAt of the newest item the person was shown.",
+      "properties": {
+        "before": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "before"
+      ],
+      "type": "object"
+    },
+    "InboxItemDTO": {
+      "additionalProperties": false,
+      "description": "One notification in a list.",
+      "properties": {
+        "body": {
+          "type": "string"
+        },
+        "category": {
+          "type": "string"
+        },
+        "createdAt": {
+          "description": "ISO 8601.",
+          "type": "string"
+        },
+        "destination": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "As stored (109's vocabulary); parse it with the same lenient parser as a push.",
+          "type": "object"
+        },
+        "endsLabel": {
+          "description": "\"Ends Sun\", only for offers, news, announcements and important items with an end; otherwise null.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "type": "string"
+        },
+        "importance": {
+          "enum": [
+            "normal",
+            "important"
+          ],
+          "type": "string"
+        },
+        "pinnedUntil": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "readAt": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "title": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "category",
+        "importance",
+        "title",
+        "body",
+        "destination",
+        "createdAt",
+        "readAt",
+        "pinnedUntil",
+        "endsLabel"
+      ],
+      "type": "object"
+    },
+    "InboxPageDTO": {
+      "additionalProperties": false,
+      "description": "`GET /{audience}/v1/notifications`.",
+      "properties": {
+        "categories": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "First page only: the categories that have listed items. null on later pages."
+        },
+        "items": {
+          "description": "Newest first.",
+          "items": {
+            "$ref": "#/definitions/InboxItemDTO"
+          },
+          "type": "array"
+        },
+        "nextCursor": {
+          "description": "null at the end.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "pinned": {
+          "description": "Important unread items still pinned; first page only, otherwise empty. Never repeated in `items`.",
+          "items": {
+            "$ref": "#/definitions/InboxItemDTO"
+          },
+          "type": "array"
+        },
+        "unseenCount": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "pinned",
+        "items",
+        "nextCursor",
+        "categories",
+        "unseenCount"
+      ],
+      "type": "object"
+    },
+    "InboxReadAllDTO": {
+      "additionalProperties": false,
+      "description": "`POST …/read-all`.",
+      "properties": {
+        "unseenCount": {
+          "type": "number"
+        },
+        "updated": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "updated",
+        "unseenCount"
+      ],
+      "type": "object"
+    },
     "LabelReadDTO": {
       "additionalProperties": false,
       "description": "One read as the client made and judged it. `clientReadId` makes an offline replay record once; `deviceAt` is when it happened on the device, kept however late it arrives.",
@@ -2722,6 +2918,24 @@
     "hubCheckinResponse": {
       "$ref": "#/definitions/HubCheckinResponse"
     },
+    "inboxArchive": {
+      "$ref": "#/definitions/InboxArchiveDTO"
+    },
+    "inboxArchiveRequest": {
+      "$ref": "#/definitions/InboxArchiveRequest"
+    },
+    "inboxCount": {
+      "$ref": "#/definitions/InboxCountDTO"
+    },
+    "inboxCutoff": {
+      "$ref": "#/definitions/InboxCutoffRequest"
+    },
+    "inboxPage": {
+      "$ref": "#/definitions/InboxPageDTO"
+    },
+    "inboxReadAll": {
+      "$ref": "#/definitions/InboxReadAllDTO"
+    },
     "labelRead": {
       "$ref": "#/definitions/LabelReadDTO"
     },
@@ -2821,6 +3035,12 @@
   },
   "required": [
     "notificationRead",
+    "inboxPage",
+    "inboxCount",
+    "inboxCutoff",
+    "inboxReadAll",
+    "inboxArchiveRequest",
+    "inboxArchive",
     "me",
     "dutyRequest",
     "dutyResponse",

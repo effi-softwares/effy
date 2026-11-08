@@ -1,7 +1,7 @@
 import "server-only"
 
 import { cache } from "react"
-import type { AddressDTO, OrderSummaryDTO, PointsBalanceDTO, SavedItemDTO } from "@effy/shared-types"
+import type { AddressDTO, InboxCountDTO, OrderSummaryDTO, PointsBalanceDTO, SavedItemDTO } from "@effy/shared-types"
 
 import { edgeApi, perCustomer } from "@/lib/api/edge"
 import { getSession } from "@/lib/session"
@@ -33,6 +33,8 @@ export const getPoints = perRequest<PointsBalanceDTO>("/customer/v1/points")
 export const getAddresses = perRequest<AddressDTO[]>("/customer/v1/addresses")
 export const getSavedItems = perRequest<SavedItemDTO[]>("/commerce/v1/saved")
 export const getOrders = perRequest<OrderSummaryDTO[]>("/commerce/v1/orders")
+/** The bell in the header (110): how many notifications the customer has not seen. */
+export const getUnseenCount = perRequest<InboxCountDTO>("/customer/v1/notifications/unseen-count")
 
 /** The address a customer delivers to by default: the one marked so, else their first. */
 export function defaultAddress(addresses: readonly AddressDTO[] | null | undefined): AddressDTO | null {

@@ -8,6 +8,7 @@ import { catalogNewRoute } from "./routes/catalog.new"
 import { catalogAvailabilityRoute } from "./routes/catalog.availability"
 import { catalogProductRoute } from "./routes/catalog.$productId"
 import { insightsChartRoute, insightsProductsRoute, insightsRoute, insightsSalesRoute, insightsServiceRoute, insightsStockRoute } from "./routes/insights"
+import { notificationsRoute } from "./routes/notifications"
 import { notificationSettingsRoute } from "./routes/settings.notifications"
 import { printingSettingsRoute } from "./routes/settings.printing"
 import { ordersRoute } from "./routes/orders"
@@ -24,6 +25,7 @@ const routeTree = rootRoute.addChildren([
     catalogProductRoute,
     ordersRoute,
     ordersDetailRoute,
+    notificationsRoute,
     notificationSettingsRoute,
     printingSettingsRoute,
     insightsRoute,

@@ -125,6 +125,7 @@ import com.effyshopping.customer.mobile.features.auth.domain.StartPasswordReset
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.map
 import com.effyshopping.customer.mobile.core.storage.DevicePreferences
 import com.effyshopping.customer.mobile.core.storage.clearGuestData
 
@@ -508,6 +509,23 @@ class AppContainer(
      */
     val pendingOpen =
         kotlinx.coroutines.flow.MutableStateFlow<com.effyshopping.customer.mobile.core.push.OpenedNotification?>(null)
+
+    /** The shopper's notification inbox (110). */
+    val inbox: com.effyshopping.customer.mobile.features.notifications.domain.InboxActions by lazy {
+        com.effyshopping.customer.mobile.features.notifications.domain.InboxActions(
+            com.effyshopping.customer.mobile.features.notifications.data.HttpInboxRepository(edgeClient),
+        )
+    }
+
+    /** The bell's number: re-read on sign-in, on the live kind `inbox` and after any inbox action - never on a timer. */
+    val inboxBadge: com.effyshopping.customer.mobile.core.push.InboxBadge by lazy {
+        com.effyshopping.customer.mobile.core.push.InboxBadge(
+            read = { inbox.unseenCount() },
+            changes = live.changes(com.effyshopping.mobile.kit.live.LiveKind.INBOX),
+            signedIn = session.state.map { it is SessionState.Authenticated },
+            scope = appScope,
+        )
+    }
 
     /** Records a tapped notification as read, and answers whether it belongs to the signed-in shopper. */
     val notifications: com.effyshopping.customer.mobile.core.push.NotificationRepository by lazy {

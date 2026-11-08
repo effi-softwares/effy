@@ -114,4 +114,14 @@ sealed class AnalyticsEvent(val name: String, val props: Map<String, String> = e
     /** After the screen it leads to (or its fallback, [fallback] = true) has shown (109 FR-018). */
     class NotificationOpened(type: String, fallback: Boolean = false) :
         AnalyticsEvent("notification_opened", mapOf("type" to type, "fallback" to fallback.toString()))
+
+    // 110 - the inbox. Kind and category only, never the words or what an item is about.
+    data object InboxOpened : AnalyticsEvent("inbox_opened", mapOf("surface" to "app"))
+    class InboxItemOpened(type: String, category: String, fallback: Boolean = false) :
+        AnalyticsEvent("inbox_item_opened", mapOf("type" to type, "category" to category, "fallback" to fallback.toString()))
+    class InboxItemArchived(type: String, category: String) :
+        AnalyticsEvent("inbox_item_archived", mapOf("type" to type, "category" to category))
+    class InboxArchiveUndone(type: String, category: String) :
+        AnalyticsEvent("inbox_archive_undone", mapOf("type" to type, "category" to category))
+    data object InboxMarkedAllRead : AnalyticsEvent("inbox_marked_all_read")
 }

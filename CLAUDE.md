@@ -660,6 +660,7 @@ the entries carry gotchas and deploy-ordering rules that the code does not. Slic
 
 Features recorded:
 
+- **110-notification-inboxes** - Notification Inboxes (an inbox with a live bell in the customer app and website, the driver app and the shop console; seen/read/archive/mark-all; live kind `inbox` announced after commit by `notify()`; out for delivery; points expiry push; driver catch-up notice; push badge) - built 2026-11-08; not migrated, deployed or walked
 - **109-notification-record** - Notification Record & Destinations (one lasting notification per person, push/email as its deliveries, one writer `notify()`; a closed destination list per audience so a tap opens its screen, held through sign-in; read route; batched sending; daily purge) - Stage A deployed to dev 2026-11-08, not walked; Stage B (drop `notification_request`) built, not run
 - **108-information-banners** - Information Banners (a fifth promotion kind with no offer: words, a picture, a skin, where a tap leads; live values like the free-delivery amount filled from settings; never money) - built 2026-11-06; not migrated, deployed or walked
 - **107-backoffice-guided-tours** - Guided Tours in Back-Office (49 tours on 106's pieces; steps and whole tours limited by role; `/admin/v1/me/tours`) - built 2026-11-03; not deployed or walked
@@ -746,5 +747,5 @@ Features recorded:
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/109-notification-record/plan.md
+at specs/110-notification-inboxes/plan.md
 <!-- SPECKIT END -->

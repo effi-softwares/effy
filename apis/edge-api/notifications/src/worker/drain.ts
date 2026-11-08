@@ -28,6 +28,8 @@ export interface ClaimedDelivery {
   expiresAt: Date | null;
   tag: string;
   group: string;
+  /** The recipient's unseen count when claimed (110 R8) - the number on the app icon. */
+  badge?: number;
 }
 
 export type OutcomeStatus = "sent" | "no_device" | "muted" | "expired" | "failed" | "retry";
@@ -209,6 +211,7 @@ function messageFor(d: ClaimedDelivery, token: string, platform: DevicePlatform)
     destination: JSON.stringify(d.destination),
     tag: d.tag,
     group: d.group,
+    badge: d.badge,
   };
 }
 

@@ -167,7 +167,7 @@ Sources are listed at the end. Summary:
 | A4 | P0 | BE | S | **Store the words at write time.** System items are written from `copy.ts` when created, so the inbox shows what the push said even if `copy.ts` changes later. | Editing `copy.ts` doesn't rewrite old inbox items. |
 | A5 | P1 | BE, DB | S | **Retention.** Purge inbox items older than N days (proposal: customers 180, drivers and shops 90), plus deliveries older than 30 days. Run it as part of an existing schedule. | The tables stay bounded; a container test covers the cut-off. |
 | A6 | P1 | BE | S | **Customer account deletion removes their inbox items and device tokens** (the delete-account flow). | Nothing is left for a deleted `sub`. |
-| A7 | P1 | PKG, BE | S | **Live kind `inbox`** added to `LIVE_KINDS` (and its Kotlin twin), announced to the recipient's own channel after `notify` commits. | A new item updates the badge in an open app with no timer (`check-no-refresh-timers.sh` stays green). |
+| A7 | (110, done) P1 | PKG, BE | S | **Live kind `inbox`** added to `LIVE_KINDS` (and its Kotlin twin), announced to the recipient's own channel after `notify` commits. | A new item updates the badge in an open app with no timer (`check-no-refresh-timers.sh` stays green). |
 | A8 | P1 | BE (notifications) | M | **Throughput.** The FCM sender uses `sendEach` (≤500 per call). The drain keeps claiming until about 50s of its 60s budget is used. Raise the batch size. Emit a metric for the backlog. | 20,000 pending pushes clear in under 10 minutes in a load test. |
 | A9 | P2 | BE | S | **Prune old tokens.** Drop `device_token` rows not seen for 270 days, matching FCM's own expiry. Refresh `last_seen_at` on every app start (customer and driver already re-register). | No pushes are sent to long-dead tokens. |
 
@@ -186,6 +186,10 @@ Sources are listed at the end. Summary:
 | B7 | P3 | CUST-APP, CW | L | **Universal / App Links** (`https://effyshopping.com/...` opens the app). Not needed for push, but useful for email and SMS. Needs the paid Apple account. | A link in an email opens the app screen. |
 
 ## Epic C - Inboxes · P0/P1
+
+> **In spec 110** (`specs/110-notification-inboxes/`, built 2026-11-08): C1–C7, plus A7, F2, F6, F7 and F9. C1 became five
+> routes per audience (archive and undo are one `PATCH`); C5 needed no list-screens exception (the feed draws no table);
+> C6's iOS badge waits on the paid Apple account.
 
 Shared rules: the loading state draws the inbox's own shape (CLAUDE.md skeleton rule), there are no
 centred dialogs on the customer app (`EffySheet`), and nothing refreshes on a timer.
@@ -240,14 +244,14 @@ centred dialogs on the customer app (`EffySheet`), and nothing refreshes on a ti
 | ID | Pri | Where | Size | Item | Done when |
 |---|---|---|---|---|---|
 | F1 | P1 | BE (notifications) | S | **(109, done)** **Rewrite `order_ready` for customers**: "Your order is packed" / "Your order is packed and on its way to our hub", with no "handoff". | The words are reviewed; `copy.test.ts` is updated. |
-| F2 | P1 | BE (fleet / driver) | M | **Wire up `order_out_for_delivery`** (decide: wire it or remove it). Proposal: send it when the delivery round the order is on **starts**, once per order, Effy delivery only. "Out for delivery" is already one of the 9 package status words. | A customer gets "Out for delivery" when the driver leaves the hub. |
+| F2 | (110, done) P1 | BE (fleet / driver) | M | **Wire up `order_out_for_delivery`** (decide: wire it or remove it). Proposal: send it when the delivery round the order is on **starts**, once per order, Effy delivery only. "Out for delivery" is already one of the 9 package status words. | A customer gets "Out for delivery" when the driver leaves the hub. |
 | F3 | P1 | BE | S | **(109, done)** **Remove `deepLink` / `webPath` / `entityInLink`** after B2, plus the string parsing in `pushDestination` and `PushOpen`. | Grep finds none. |
 | F4 | P1 | DB | S | **(109, done)** **Type list in one place.** Today the DB `CHECK`, `copy.ts` and `notification-types.ts` each list types. Keep the CHECK, add a test that the three agree, and make campaigns one type (`message`) so staff sends never need a migration. | One test fails when the three lists disagree. |
 | F5 | P2 | docs | S | **Update stale docs**: `next-implementation-candidates.md` (#4, #6, #8), `customer-capabilities.md` (Notifications row), `observability-apple-blockers.md` (adds the time-sensitive capability step from D7). | - |
-| F6 | P2 | CUST-APP | S | **Remove the `NotificationsScreen` empty-state-only code** once C2 lands (Account shortcut and Home bell point at the inbox). | - |
-| F7 | P2 | BE | S | **`points_expiring` as push too** (it's email-only today). Category `points`. | - |
+| F6 | (110, done) P2 | CUST-APP | S | **Remove the `NotificationsScreen` empty-state-only code** once C2 lands (Account shortcut and Home bell point at the inbox). | - |
+| F7 | (110, done) P2 | BE | S | **`points_expiring` as push too** (it's email-only today). Category `points`. | - |
 | F8 | P3 | CW | L | **Web push for customers** (service worker on the storefront). Low value until there are real web shoppers; iOS needs a home-screen PWA. Probably *not doing*: the inbox covers the web. | Decide; record it. |
-| F9 | P2 | BE | S | **A driver who signs in late gets the work notifications they missed.** Today a `run_assigned` made before the driver's first sign-in is skipped (`no_token`, seen 2026-11-07). With A1 it is in their inbox anyway; also show a pinned "You have N runs today" when they first sign in on a new phone. | A new phone shows the morning's assignments. |
+| F9 | (110, done) P2 | BE | S | **A driver who signs in late gets the work notifications they missed.** Today a `run_assigned` made before the driver's first sign-in is skipped (`no_token`, seen 2026-11-07). With A1 it is in their inbox anyway; also show a pinned "You have N runs today" when they first sign in on a new phone. | A new phone shows the morning's assignments. |
 
 ---
 

@@ -18,6 +18,7 @@ interface ClaimedRow {
   entity_id: string | null;
   destination: Record<string, unknown>;
   expires_at: Date | null;
+  badge: number;
 }
 
 export function batchStore(tx: Queryable): BatchStore {
@@ -26,7 +27,12 @@ export function batchStore(tx: Queryable): BatchStore {
     async claim(limit, channels): Promise<ClaimedDelivery[]> {
       const res = await tx.query<ClaimedRow>(
         `SELECT d.id::text AS id, n.id::text AS notification_id, d.channel, d.recipient_email, d.attempts,
-                n.recipient_sub, n.audience, n.type, n.title, n.body, n.entity_id, n.destination, n.expires_at
+                n.recipient_sub, n.audience, n.type, n.title, n.body, n.entity_id, n.destination, n.expires_at,
+                -- The app icon's number (110 R8): the recipient's unseen count, on the partial index of unseen rows.
+                (SELECT count(*)::int FROM public.notification u
+                  WHERE u.recipient_sub = n.recipient_sub AND u.audience = n.audience
+                    AND u.seen_at IS NULL AND u.archived_at IS NULL
+                    AND (u.expires_at IS NULL OR u.expires_at > now())) AS badge
            FROM public.notification_delivery d
            JOIN public.notification n ON n.id = d.notification_id
           WHERE d.status = 'pending'
@@ -55,6 +61,7 @@ export function batchStore(tx: Queryable): BatchStore {
           expiresAt: r.expires_at ? new Date(r.expires_at) : null,
           tag: entry?.tag ?? "effy",
           group: entry?.group ?? "attention",
+          badge: r.badge,
         };
       });
     },

@@ -8,6 +8,7 @@ import {
   isKnownNotificationType,
   type NotificationCategory,
   type NotificationType,
+  wordsFor,
 } from "./catalogue";
 
 // Written out, not imported, so adding a type without adding it here fails the exhaustiveness check.
@@ -16,8 +17,11 @@ const ALL: NotificationType[] = [
   "shop_awaiting_pick", "shop_out_of_stock", "shop_low_stock", "shop_refund_proposed", "shop_product_approved",
   "shop_product_sent_back", "shop_product_held", "shop_product_released", "shop_product_added_by_effy",
   "shop_products_imported", "points_credited", "points_expiring", "order_with_courier", "order_delivery_changed",
-  "run_changed", "run_withdrawn", "run_opens_soon",
+  "run_changed", "run_withdrawn", "run_opens_soon", "driver_runs_today",
 ];
+
+/** Pinned above a person's inbox (110); every other type is normal. */
+const IMPORTANT: NotificationType[] = ["driver_runs_today"];
 
 const CATEGORIES_BY_AUDIENCE: Record<"customer" | "driver" | "shop", NotificationCategory[]> = {
   customer: ["orders", "points", "offers", "news", "important", "support"],
@@ -33,7 +37,7 @@ describe("notification catalogue (109)", () => {
     expect([...NOTIFICATION_TYPES].sort()).toEqual([...ALL].sort());
   });
 
-  it("every type has words, a tag, a category valid for its audience, and normal importance", () => {
+  it("every type has words, a tag, a category valid for its audience, and the importance it is meant to have", () => {
     for (const t of ALL) {
       const e = catalogueEntry(t);
       expect(e.title.length, t).toBeGreaterThan(0);
@@ -42,7 +46,7 @@ describe("notification catalogue (109)", () => {
       expect(e.body.length, t).toBeLessThanOrEqual(500);
       expect(e.tag.length, t).toBeGreaterThan(0);
       expect(CATEGORIES_BY_AUDIENCE[e.audience], `${t} category ${e.category}`).toContain(e.category);
-      expect(e.importance, t).toBe("normal");
+      expect(e.importance, t).toBe(IMPORTANT.includes(t) ? "important" : "normal");
     }
   });
 
@@ -71,6 +75,13 @@ describe("notification catalogue (109)", () => {
       expect(destinationFor(t, { entityId: "r1" })).toEqual({ kind: "run", runId: "r1" });
     }
     expect(destinationFor("run_withdrawn", { entityId: "r1" })).toEqual({ kind: "today" });
+    expect(destinationFor("driver_runs_today", { entityId: "2026-11-09", count: 2 })).toEqual({ kind: "today" });
+  });
+
+  it("the catch-up notice says how many runs, in the singular for one (110)", () => {
+    expect(wordsFor("driver_runs_today", { entityId: "d", count: 1 })).toEqual({ title: "You have 1 run today", body: "Open Today to see what's first." });
+    expect(wordsFor("driver_runs_today", { entityId: "d", count: 3 }).title).toBe("You have 3 runs today");
+    expect(wordsFor("order_paid", { entityId: "o" })).toEqual({ title: catalogueEntry("order_paid").title, body: catalogueEntry("order_paid").body });
   });
 
   it("shop notifications open the queue, the order, the product or the catalogue", () => {

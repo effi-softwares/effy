@@ -1092,6 +1092,113 @@ data class HubCheckinEffyGroup (
     val windowStart: String? = null
 )
 
+@Serializable
+data class InboxArchiveDTO (
+    val archived: Boolean,
+    val id: String
+)
+
+/**
+ * `PATCH …/{id}`.
+ */
+@Serializable
+data class InboxArchiveRequest (
+    val archived: Boolean
+)
+
+/**
+ * `GET …/unseen-count` and `POST …/seen`.
+ */
+@Serializable
+data class InboxCountDTO (
+    val unseenCount: Double
+)
+
+/**
+ * `POST …/seen` and `POST …/read-all`: the createdAt of the newest item the person was
+ * shown.
+ */
+@Serializable
+data class InboxCutoffRequest (
+    val before: String
+)
+
+/**
+ * `GET /{audience}/v1/notifications`.
+ */
+@Serializable
+data class InboxPageDTO (
+    /**
+     * First page only: the categories that have listed items. null on later pages.
+     */
+    val categories: List<String>? = null,
+
+    /**
+     * Newest first.
+     */
+    val items: List<InboxItemDTO>,
+
+    /**
+     * null at the end.
+     */
+    val nextCursor: String? = null,
+
+    /**
+     * Important unread items still pinned; first page only, otherwise empty. Never repeated in
+     * `items`.
+     */
+    val pinned: List<InboxItemDTO>,
+
+    val unseenCount: Double
+)
+
+/**
+ * One notification in a list.
+ */
+@Serializable
+data class InboxItemDTO (
+    val body: String,
+    val category: String,
+
+    /**
+     * ISO 8601.
+     */
+    val createdAt: String,
+
+    /**
+     * As stored (109's vocabulary); parse it with the same lenient parser as a push.
+     */
+    val destination: Map<String, String>,
+
+    /**
+     * "Ends Sun", only for offers, news, announcements and important items with an end;
+     * otherwise null.
+     */
+    val endsLabel: String? = null,
+
+    val id: String,
+    val importance: Importance,
+    val pinnedUntil: String? = null,
+    val readAt: String? = null,
+    val title: String,
+    val type: String
+)
+
+@Serializable
+enum class Importance(val value: String) {
+    @SerialName("important") Important("important"),
+    @SerialName("normal") Normal("normal");
+}
+
+/**
+ * `POST …/read-all`.
+ */
+@Serializable
+data class InboxReadAllDTO (
+    val unseenCount: Double,
+    val updated: Double
+)
+
 /**
  * POST /driver/v1/delivery/runs/{runId}/load: the van is loaded; every staged drop goes out.
  */

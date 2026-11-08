@@ -13,6 +13,7 @@ const EXEMPT: Record<string, string> = {
   "insights/products": "reached from the tabs at the top of Insights",
   "insights/service": "reached from the tabs at the top of Insights",
   "insights/stock": "reached from the tabs at the top of Insights",
+  notifications: "reached from the bell in the header on every page, whose side panel links to it (110)",
 }
 
 function declaredPaths(): Array<{ file: string; path: string }> {

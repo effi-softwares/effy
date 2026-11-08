@@ -618,6 +618,61 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
 
+  shopNotificationsV1Get:
+    handler: src/functions/shop-notifications-v1-get.handler
+    description: One page of the signed-in shop operator's own notification inbox, newest first, important ones pinned (110)
+    events:
+      - httpApi:
+          method: GET
+          path: /shop/v1/notifications
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  shopNotificationsV1UnseenCountGet:
+    handler: src/functions/shop-notifications-v1-unseen-count-get.handler
+    description: How many of the signed-in shop operator's notifications they have not seen yet - the bell (110)
+    events:
+      - httpApi:
+          method: GET
+          path: /shop/v1/notifications/unseen-count
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  shopNotificationsV1SeenPost:
+    handler: src/functions/shop-notifications-v1-seen-post.handler
+    description: The signed-in shop operator opened their inbox - notifications up to the newest shown are seen (110)
+    events:
+      - httpApi:
+          method: POST
+          path: /shop/v1/notifications/seen
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  shopNotificationsV1ReadAllPost:
+    handler: src/functions/shop-notifications-v1-read-all-post.handler
+    description: Mark all of the signed-in shop operator's notifications up to the newest shown as read (110)
+    events:
+      - httpApi:
+          method: POST
+          path: /shop/v1/notifications/read-all
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  shopNotificationsV1IdPatch:
+    handler: src/functions/shop-notifications-v1-id-patch.handler
+    description: Archive one of the signed-in shop operator's own notifications, or undo it (110)
+    events:
+      - httpApi:
+          method: PATCH
+          path: /shop/v1/notifications/{id}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
   # The attention evaluator, every five minutes: a person then walks across the shop; a minute sooner helps no one.
   attentionEvaluate:
     handler: src/functions/attention-evaluate.handler

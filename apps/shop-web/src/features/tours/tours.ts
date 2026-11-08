@@ -728,6 +728,37 @@ export const SHOP_TOURS = defineTours([
       },
     ],
   },
+  // NF - Notifications (110)
+  {
+    key: "notifications",
+    version: 1,
+    title: "Notifications",
+    path: "/notifications",
+    steps: [
+      {
+        target: "page-title",
+        title: "Everything you were told",
+        text: "Every notification for you is kept here for 90 days, even ones you closed or missed. The newest is at the top.",
+      },
+      {
+        target: "notifications.filters",
+        title: "Find what you need",
+        text: "Show everything or only what you haven't read, and narrow it to orders, stock, products, announcements or important notices.",
+      },
+      {
+        target: "notifications.list",
+        title: "Go straight there",
+        text: "Click a notification to open what it's about. It's then marked read.",
+        shownWhen: "There are notifications",
+      },
+      {
+        target: "notifications.mark-all",
+        title: "Catch up in one click",
+        text: "Mark everything read once you've dealt with it, or archive a notification to take it off the list.",
+        shownWhen: "Something is unread",
+      },
+    ],
+  },
   // PS - Settings · Printing
   {
     key: "settings-printing",

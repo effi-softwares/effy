@@ -37,8 +37,8 @@ describe("106 - every shop console page has a tour, and every tour points at som
     expect(coverage.orphanTours).toEqual([])
   })
 
-  it("defines all eighteen tours", () => {
-    expect(SHOP_TOURS.length).toBe(18)
+  it("defines all nineteen tours", () => {
+    expect(SHOP_TOURS.length).toBe(19)
   })
 
   it("every step's target exists in the source", () => {

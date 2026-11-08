@@ -68,7 +68,10 @@ const SILENT: Record<string, string> = {
   "shop/sections-update-v1-patch": "catalogue authoring",
   "shop/shop-devices-v1-id-delete": "push device registration — the other channel",
   "shop/shop-devices-v1-post": "push device registration — the other channel",
-  "shop/shop-notifications-v1-id-read-post": "marks the caller's own notification read; no screen shows it until the inbox (spec 2) announces kind inbox",
+  "shop/shop-notifications-v1-id-read-post": "the caller's own notification read; announces kind inbox through makeNotificationReadHandler (110)",
+  "shop/shop-notifications-v1-seen-post": "the caller's own inbox (110); announces kind inbox through makeInboxHandlers, not in this file",
+  "shop/shop-notifications-v1-read-all-post": "the caller's own inbox (110); announces kind inbox through makeInboxHandlers, not in this file",
+  "shop/shop-notifications-v1-id-patch": "the caller's own inbox (110); announces kind inbox through makeInboxHandlers, not in this file",
   "shop/shop-notification-prefs-v1-patch": "the operator's own notification preferences",
   "admin/back-office-tours-v1-patch": "a staff member's own guided-tour record (107); only they change it, and the response is their copy",
   "shop/shop-tours-v1-patch": "the operator's own guided-tour record (106); only they change it, and the response is their copy",
@@ -83,7 +86,10 @@ const SILENT: Record<string, string> = {
   // driver
   "driver/driver-devices-v1-id-delete": "push device registration — the other channel",
   "driver/driver-devices-v1-post": "push device registration — the other channel",
-  "driver/driver-notifications-v1-id-read-post": "marks the caller's own notification read; no screen shows it until the inbox (spec 2) announces kind inbox",
+  "driver/driver-notifications-v1-id-read-post": "the caller's own notification read; announces kind inbox through makeNotificationReadHandler (110)",
+  "driver/driver-notifications-v1-seen-post": "the caller's own inbox (110); announces kind inbox through makeInboxHandlers, not in this file",
+  "driver/driver-notifications-v1-read-all-post": "the caller's own inbox (110); announces kind inbox through makeInboxHandlers, not in this file",
+  "driver/driver-notifications-v1-id-patch": "the caller's own inbox (110); announces kind inbox through makeInboxHandlers, not in this file",
   "driver/driver-drop-proof-presign-v1-post": "issues an upload URL; changes nothing until the proof is submitted",
 
   // fleet

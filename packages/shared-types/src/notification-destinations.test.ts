@@ -5,10 +5,12 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import {
+  customerWebPathFor,
   DESTINATION_KINDS,
   parseDestination,
   serializeDestination,
   shopPathFor,
+  type CustomerDestination,
   type NotificationAudience,
   type ShopDestination,
 } from "./notification-destinations";
@@ -21,7 +23,7 @@ const KOTLIN_COPIES = [
   resolve(apps, "driver-mobile/shared/src/commonTest/kotlin/com/effyshopping/driver/mobile/core/push/DestinationFixture.kt"),
 ];
 
-interface Case { name: string; audience: NotificationAudience; wire: string; expect: Record<string, string> | null; path?: string }
+interface Case { name: string; audience: NotificationAudience; wire: string; expect: Record<string, string> | null; path?: string; webPath?: string }
 const raw = readFileSync(SOURCE, "utf8");
 const fixtures = JSON.parse(raw) as { cases: Case[] };
 
@@ -32,6 +34,11 @@ describe("notification destinations - one closed list per audience (109 FR-010, 
 
   it.each(fixtures.cases.filter((c) => c.path !== undefined))("shop path: $name", (c) => {
     expect(shopPathFor(parseDestination("shop", c.wire) as ShopDestination | null)).toBe(c.path);
+  });
+
+  it.each(fixtures.cases.filter((c) => c.audience === "customer"))("customer web path (110): $name", (c) => {
+    expect(c.webPath, "every customer case names its website path").toBeDefined();
+    expect(customerWebPathFor(parseDestination("customer", c.wire) as CustomerDestination | null)).toBe(c.webPath);
   });
 
   it("every kind of every audience appears in the fixtures, valid at least once", () => {

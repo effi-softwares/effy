@@ -31,7 +31,7 @@ export type NotificationType =
   | "shop_product_released"
   | "shop_product_added_by_effy"
   | "shop_products_imported"
-  // `points_credited` is push + email; `points_expiring` is email only.
+  // Both push + email (`points_expiring` gained push in 110).
   | "points_credited"
   | "points_expiring"
   // Push + email, once per consignment.
@@ -40,7 +40,10 @@ export type NotificationType =
   | "order_delivery_changed"
   | "run_changed"
   | "run_withdrawn"
-  | "run_opens_soon";
+  | "run_opens_soon"
+  // A driver's catch-up notice (110): their work was assigned while no phone of theirs could be told. Inbox only,
+  // pinned until the end of that Effy day.
+  | "driver_runs_today";
 
 /** What a person controls (spec 3). Every type belongs to exactly one, valid for its audience. */
 export type NotificationCategory =
@@ -64,6 +67,8 @@ export type NotificationGroup = "orders" | "attention" | "customer" | "driver";
 export interface NotificationSubject {
   entityId: string;
   orderId?: string;
+  /** A number the words say (110): "You have 2 runs today". Never a money amount or anything personal. */
+  count?: number;
 }
 
 export interface NotificationEntry {
@@ -76,6 +81,8 @@ export interface NotificationEntry {
   tag: string;
   group: NotificationGroup;
   destination: (s: NotificationSubject) => NotificationDestination;
+  /** Words that depend on the subject (110). `title` / `body` above are the general form, for tests and docs. */
+  words?: (s: NotificationSubject) => { title: string; body: string };
 }
 
 function need(value: string | undefined, what: string): string {
@@ -130,6 +137,18 @@ const CATALOGUE: Record<NotificationType, NotificationEntry> = {
   // No longer theirs: Today says what is.
   run_withdrawn: { ...driverWork, title: "Run removed", body: "A run has been taken off your work.", destination: today },
   run_opens_soon: { ...driverWork, title: "Run opens soon", body: "Your next run opens in a few minutes.", destination: theRun },
+  // The entity is the Effy date; `count` is the runs still theirs that day.
+  driver_runs_today: {
+    ...driverWork,
+    importance: "important",
+    title: "You have runs today",
+    body: "Open Today to see what's first.",
+    destination: today,
+    words: (s) => {
+      const n = s.count ?? 0;
+      return { title: n === 1 ? "You have 1 run today" : `You have ${n} runs today`, body: "Open Today to see what's first." };
+    },
+  },
 
   // The entity is the shop_fulfillment id.
   shop_new_order: {
@@ -184,6 +203,12 @@ export function isKnownNotificationType(value: string): value is NotificationTyp
 
 export function catalogueEntry(type: NotificationType): NotificationEntry {
   return CATALOGUE[type];
+}
+
+/** What this notification says, as stored and sent. */
+export function wordsFor(type: NotificationType, subject: NotificationSubject): { title: string; body: string } {
+  const e = CATALOGUE[type];
+  return e.words ? e.words(subject) : { title: e.title, body: e.body };
 }
 
 /** Where a tap on this notification leads, as stored and sent. */

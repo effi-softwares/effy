@@ -32,6 +32,9 @@ const EXEMPT: Record<string, string> = {
   "POST /driver/v1/devices": "registers a push token",
   "DELETE /driver/v1/devices/{token}": "removes a push token",
   "POST /driver/v1/notifications/{id}/read": "records that the driver opened their own notification (109); changes no round",
+  "POST /driver/v1/notifications/seen": "the driver's own inbox, opened (110); changes no round",
+  "POST /driver/v1/notifications/read-all": "the driver's own inbox, all read (110); changes no round",
+  "PATCH /driver/v1/notifications/{id}": "archives or restores one of the driver's own notifications (110); changes no round",
 };
 
 /** Every `METHOD path` the service declares, read from serverless.yml. */

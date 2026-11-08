@@ -42,6 +42,12 @@ import com.effyshopping.driver.mobile.core.nav.DropRoute
 import com.effyshopping.driver.mobile.core.nav.HistoryDetailRoute
 import com.effyshopping.driver.mobile.core.nav.HistoryRoot
 import com.effyshopping.driver.mobile.core.nav.HubCheckinRoute
+import com.effyshopping.driver.mobile.core.nav.InboxRoute
+import com.effyshopping.mobile.kit.live.LiveKind
+import com.effyshopping.driver.mobile.core.platform.rememberClearAppBadge
+import com.effyshopping.driver.mobile.features.inbox.presentation.InboxBell
+import com.effyshopping.driver.mobile.features.inbox.presentation.InboxScreen
+import com.effyshopping.driver.mobile.features.inbox.presentation.InboxViewModel
 import com.effyshopping.driver.mobile.core.nav.ShopStopRoute
 import com.effyshopping.driver.mobile.core.nav.TodayRoot
 import com.effyshopping.driver.mobile.core.nav.ReturnHubRoute
@@ -134,7 +140,8 @@ fun DriverShell(
     // signed out was held by App and is checked with the server first: only the recipient sees anything of it.
     // The work runs in `scope`, not the effects, because each effect restarts the moment it clears its value.
     val analyticsOn by container.analyticsConsent.collectAsState()
-    suspend fun openFromPush(type: String, destination: DriverDestination?) {
+    /** Opens a destination from Today's root; `true` when it fell back to Today (the run is no longer theirs). */
+    suspend fun navigateTo(destination: DriverDestination?): Boolean {
         tabs.selectTab(if (destination == DriverDestination.Account) DriverTab.ACCOUNT else DriverTab.TODAY)
         while (tabs.canGoBack) tabs.pop()
         var fellBack = false
@@ -148,8 +155,14 @@ fun DriverShell(
                 else -> fellBack = true // no longer theirs, or finished: Today says what is
             }
         }
+        return fellBack
+    }
+    suspend fun openFromPush(type: String, destination: DriverDestination?) {
+        val fellBack = navigateTo(destination)
         container.analyticsDriver.capture(AnalyticsEvent.NotificationOpened(type, fallback = fellBack))
     }
+    val inboxCount by container.inboxBadge.count.collectAsState()
+    val clearAppBadge = rememberClearAppBadge()
     val openedNotification by container.openedNotification.collectAsState()
     LaunchedEffect(openedNotification) {
         val opened = openedNotification ?: return@LaunchedEffect
@@ -220,6 +233,37 @@ fun DriverShell(
                         banners = {
                             ConnectionBanners(container, offline = state.offline, syncedAt = state.syncedAtEpochMillis, onRefresh = vm::refresh, onDial = mapLauncher::dial)
                         },
+                        bell = { InboxBell(inboxCount, onClick = { tabs.push(InboxRoute) }) },
+                    )
+                }
+
+                InboxRoute -> {
+                    val vm = viewModel(key = "inbox") {
+                        InboxViewModel(
+                            inbox = container.inbox,
+                            liveChanges = container.live.changes(LiveKind.INBOX),
+                            onCount = container.inboxBadge::set,
+                            track = container.analyticsDriver::capture,
+                            clearAppBadge = clearAppBadge,
+                        )
+                    }
+                    val st by vm.state.collectAsState()
+                    InboxScreen(
+                        state = st,
+                        onBack = { tabs.pop() },
+                        onRetry = vm::load,
+                        onUnreadOnly = vm::showUnreadOnly,
+                        onLoadMore = vm::loadMore,
+                        onTap = { item ->
+                            vm.opened(item)
+                            item.destination?.let { d -> scope.launch { navigateTo(d) } }
+                        },
+                        onArchive = { item ->
+                            vm.archive(item)?.let { archived ->
+                                snack = DriverSnack("Notification archived", actionLabel = "Undo", onAction = { vm.undo(archived) })
+                            }
+                        },
+                        onMarkAllRead = vm::markAllRead,
                     )
                 }
 

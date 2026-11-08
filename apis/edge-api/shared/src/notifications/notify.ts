@@ -6,8 +6,9 @@
 // second push or email, because deliveries are written only for the notifications this call inserted.
 import { serializeDestination } from "@effy/shared-types";
 
-import type { Queryable } from "../lib/db";
-import { catalogueEntry, type NotificationSubject, type NotificationType } from "./catalogue";
+import { afterCommit, type Queryable } from "../lib/db";
+import { announceInbox } from "./announce-inbox";
+import { catalogueEntry, wordsFor, type NotificationSubject, type NotificationType } from "./catalogue";
 
 export type NotificationChannel = "push" | "email";
 
@@ -28,6 +29,8 @@ export interface NotifyInput {
   expiresAt?: Date | null;
   /** 0 = immediate (every system notification), 1 = bulk. */
   priority?: 0 | 1;
+  /** An important notification stays above the rest of the inbox until read or until then (110). */
+  pinnedUntil?: Date | null;
 }
 
 /** How many notifications were created (0 for a repeat). */
@@ -43,18 +46,22 @@ export async function notify(tx: Queryable, input: NotifyInput): Promise<number>
   if (!input.dedupeScope) throw new Error("notify: dedupeScope is required");
 
   const entry = catalogueEntry(input.type);
+  if (input.pinnedUntil && entry.importance !== "important") {
+    throw new Error(`notify: only an important notification can be pinned (${input.type})`);
+  }
+  const words = wordsFor(input.type, input.subject);
   const destination = serializeDestination(entry.destination(input.subject));
   const channels = [...new Set(input.channels)];
 
-  const res = await tx.query<{ created: string }>(
+  const res = await tx.query<{ created: string; subs: string[] | null }>(
     `WITH input AS (
          SELECT * FROM unnest($1::text[], $2::text[]) AS r(sub, email)
      ), inserted AS (
          INSERT INTO public.notification
              (recipient_sub, audience, type, category, importance, title, body, entity_id, destination,
-              expires_at, dedupe_key)
+              expires_at, dedupe_key, pinned_until)
          SELECT i.sub, $3, $4, $5, $6, $7, $8, NULLIF($9, ''), $10::jsonb, $11::timestamptz,
-                $4 || ':' || i.sub || ':' || $12
+                $4 || ':' || i.sub || ':' || $12, $15::timestamptz
            FROM input i
          ON CONFLICT (dedupe_key) DO NOTHING
          RETURNING id, recipient_sub
@@ -67,7 +74,8 @@ export async function notify(tx: Queryable, input: NotifyInput): Promise<number>
           WHERE ch.channel <> 'email' OR i.email IS NOT NULL
          RETURNING 1
      )
-     SELECT (SELECT count(*) FROM inserted)::text AS created, (SELECT count(*) FROM delivered) AS deliveries`,
+     SELECT (SELECT count(*) FROM inserted)::text AS created, (SELECT count(*) FROM delivered) AS deliveries,
+            (SELECT array_agg(recipient_sub) FROM inserted) AS subs`,
     [
       [...byPerson.keys()],
       [...byPerson.values()],
@@ -75,15 +83,22 @@ export async function notify(tx: Queryable, input: NotifyInput): Promise<number>
       input.type,
       entry.category,
       entry.importance,
-      entry.title,
-      entry.body,
+      words.title,
+      words.body,
       input.subject.entityId ?? "",
       destination,
       input.expiresAt ? input.expiresAt.toISOString() : null,
       input.dedupeScope,
       channels,
       input.priority ?? 0,
+      input.pinnedUntil ? input.pinnedUntil.toISOString() : null,
     ],
   );
+  // Their open screens re-read once the change has committed (110 R6); a repeat created nothing and says nothing.
+  const subs = res.rows[0]?.subs ?? [];
+  if (subs.length > 0) {
+    // The callbacks run on the same client, after COMMIT and before it is released, so the scope lookups see the commit.
+    await afterCommit(tx, () => announceInbox(subs.map((sub) => ({ audience: entry.audience, sub })), tx));
+  }
   return Number(res.rows[0]?.created ?? 0);
 }

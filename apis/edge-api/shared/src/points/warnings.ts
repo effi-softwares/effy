@@ -35,12 +35,12 @@ SELECT n.id::text AS id, n.expiry_date::text AS expiry_date, c.cognito_sub AS su
   JOIN public.customer c ON c.id = n.customer_id`,
     [now, warningDays],
   );
-  // One notification per notice, by email only. Kept even for a customer with no address (the inbox, spec 2).
+  // One notification per notice, by push and email (110 R10). Kept even for a customer with no address or device (the inbox).
   let queued = 0;
   for (const r of res.rows as Array<{ id: string; expiry_date: string; sub: string; email: string | null }>) {
     queued += await notify(q, {
       type: "points_expiring", recipients: [{ sub: r.sub, email: r.email }], subject: { entityId: r.id },
-      dedupeScope: r.expiry_date, channels: ["email"],
+      dedupeScope: r.expiry_date, channels: ["push", "email"],
     });
   }
   return queued;
