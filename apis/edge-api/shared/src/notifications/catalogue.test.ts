@@ -1,4 +1,4 @@
-import { parseDestination } from "@effy/shared-types";
+import { findPolicy, parseDestination } from "@effy/shared-types";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -115,6 +115,15 @@ describe("notification catalogue (109)", () => {
         expect(e.title, `${t} title`).not.toMatch(re);
         expect(e.body, `${t} body`).not.toMatch(re);
       }
+    }
+  });
+
+  it("every type's category is one its audience declares, and a promotion names Effy (111 FR-022)", () => {
+    for (const t of ALL) {
+      const e = catalogueEntry(t);
+      const policy = findPolicy(e.audience, e.category);
+      expect(policy, `${t}: ${e.audience} has no category ${e.category}`).not.toBeNull();
+      if (policy?.marketing) expect(`${e.title} ${e.body}`, `${t} must name Effy`).toMatch(/effy/i);
     }
   });
 

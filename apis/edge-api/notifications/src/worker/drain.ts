@@ -30,9 +30,16 @@ export interface ClaimedDelivery {
   group: string;
   /** The recipient's unseen count when claimed (110 R8) - the number on the app icon. */
   badge?: number;
+  /** The Android notification channel of its category (111 R12); null for the shop console. */
+  androidChannel?: string | null;
+  /**
+   * False when a held promotional push may no longer go: consent withdrawn or push turned off since it was written
+   * (111 FR-011). Absent or true otherwise.
+   */
+  allowed?: boolean;
 }
 
-export type OutcomeStatus = "sent" | "no_device" | "muted" | "expired" | "failed" | "retry";
+export type OutcomeStatus = "sent" | "no_device" | "muted" | "expired" | "failed" | "retry" | "skipped";
 
 export interface Outcome {
   id: string;
@@ -72,6 +79,8 @@ export interface DrainSummary {
   noDevice: number;
   muted: number;
   expired: number;
+  /** Promotional pushes no longer allowed when released (111). */
+  skipped: number;
   retried: number;
   failed: number;
   pruned: number;
@@ -85,7 +94,7 @@ export interface DrainSummary {
 
 export function emptySummary(): DrainSummary {
   return {
-    batches: 0, claimed: 0, sent: 0, noDevice: 0, muted: 0, expired: 0, retried: 0, failed: 0, pruned: 0,
+    batches: 0, claimed: 0, sent: 0, noDevice: 0, muted: 0, expired: 0, skipped: 0, retried: 0, failed: 0, pruned: 0,
     disabled: false, emailSent: 0, emailFailed: 0, byPlatform: {},
   };
 }
@@ -116,6 +125,9 @@ async function runBatch(deps: DrainDeps, store: BatchStore, channels: DeliveryCh
     if (d.expiresAt && d.expiresAt.getTime() <= now) {
       outcomes.push({ id: d.id, status: "expired", error: null, attempted: false });
       s.expired += 1;
+    } else if (d.allowed === false) {
+      outcomes.push({ id: d.id, status: "skipped", error: null, attempted: false });
+      s.skipped += 1;
     } else {
       live.push(d);
     }
@@ -212,6 +224,7 @@ function messageFor(d: ClaimedDelivery, token: string, platform: DevicePlatform)
     tag: d.tag,
     group: d.group,
     badge: d.badge,
+    androidChannel: d.androidChannel ?? null,
   };
 }
 

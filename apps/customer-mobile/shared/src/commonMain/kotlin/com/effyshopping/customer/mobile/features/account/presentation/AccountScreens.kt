@@ -26,6 +26,7 @@ import com.effyshopping.customer.mobile.resources.lucide_mail
 import com.effyshopping.customer.mobile.resources.lucide_info
 import com.effyshopping.customer.mobile.resources.lucide_circle_help
 import com.effyshopping.customer.mobile.resources.lucide_lock
+import com.effyshopping.customer.mobile.resources.lucide_settings
 import com.effyshopping.customer.mobile.resources.lucide_shield
 import com.effyshopping.customer.mobile.resources.lucide_credit_card
 import com.effyshopping.customer.mobile.resources.lucide_map_pin
@@ -393,6 +394,8 @@ private fun AccountScreen(container: AppContainer, vm: AccountViewModel, custome
             }
             EffyGroup(caption = "Account") {
                 AccountRow("Security", Res.drawable.lucide_shield) { nav.push(CustomerNavKey.Security) }
+                // 111: what Effy sends and how, and the offers yes/no.
+                AccountRow("Notification settings", Res.drawable.lucide_settings) { nav.push(CustomerNavKey.NotificationSettings) }
                 AccountRow("Privacy & data", Res.drawable.lucide_lock) { nav.push(CustomerNavKey.Privacy) }
                 // Light, Dark, or Match my phone; a sheet, remembered on this device.
                 EffyNavRow(

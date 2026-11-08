@@ -124,4 +124,11 @@ sealed class AnalyticsEvent(val name: String, val props: Map<String, String> = e
     class InboxArchiveUndone(type: String, category: String) :
         AnalyticsEvent("inbox_archive_undone", mapOf("type" to type, "category" to category))
     data object InboxMarkedAllRead : AnalyticsEvent("inbox_marked_all_read")
+
+    // 111 - notification choices and the offers ask. Categories and answers only.
+    class NotificationSettingChanged(category: String, channel: String, enabled: Boolean) :
+        AnalyticsEvent("notification_setting_changed", mapOf("category" to category, "channel" to channel, "enabled" to enabled.toString(), "surface" to "app"))
+    data object OffersAskShown : AnalyticsEvent("offers_ask_shown", mapOf("surface" to "app"))
+    class OffersAskAnswered(answer: String) : AnalyticsEvent("offers_ask_answered", mapOf("answer" to answer, "surface" to "app"))
+    class OffersStoppedFromInbox(category: String) : AnalyticsEvent("offers_stopped_from_inbox", mapOf("category" to category, "surface" to "app"))
 }

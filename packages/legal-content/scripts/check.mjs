@@ -5,7 +5,7 @@
  * [UPPER_SNAKE] placeholder warns, and fails only with `--release`.
  */
 import { readFileSync, existsSync } from "node:fs"
-import { buildDocuments, emitTs, emitKotlin, TS_PATH, KT_PATH, requiredSlugs } from "./build.mjs"
+import { buildDocuments, emitTs, emitKotlin, TS_PATH, KT_PATH, requiredSlugs, buildConsent, emitConsentTs, emitConsentKotlin, CONSENT_TS_PATH, CONSENT_KT_PATH } from "./build.mjs"
 
 const RELEASE = process.argv.includes("--release")
 
@@ -29,6 +29,17 @@ const onDiskTs = existsSync(TS_PATH) ? readFileSync(TS_PATH, "utf8") : ""
 const onDiskKt = existsSync(KT_PATH) ? readFileSync(KT_PATH, "utf8") : ""
 if (freshTs !== onDiskTs) fail("drift: src/generated/documents.ts is stale - run `legal:gen` and commit.")
 if (freshKt !== onDiskKt) fail("drift: mobile LegalContent.kt is stale - run `legal:gen` and commit.")
+
+// The marketing consent wording (111): complete, and the generated copies current.
+let consent
+try {
+  consent = buildConsent()
+} catch (e) {
+  fail(e.message)
+}
+const read = (p) => (existsSync(p) ? readFileSync(p, "utf8") : "")
+if (emitConsentTs(consent) !== read(CONSENT_TS_PATH)) fail("drift: src/generated/consent.ts is stale - run `legal:gen` and commit.")
+if (emitConsentKotlin(consent) !== read(CONSENT_KT_PATH)) fail("drift: mobile MarketingConsent.kt is stale - run `legal:gen` and commit.")
 
 // Unresolved placeholder (fails with --release)
 const placeholder = /\[[A-Z][A-Z0-9_]{2,}\]/g

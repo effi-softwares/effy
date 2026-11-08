@@ -408,6 +408,28 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
 
+  customerNotificationPreferencesV1Get:
+    handler: src/functions/customer-notification-preferences-v1-get.handler
+    description: The signed-in customer's notification choices, marketing consent and whether to ask about offers (111)
+    events:
+      - httpApi:
+          method: GET
+          path: /customer/v1/notification-preferences
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  customerNotificationPreferencesV1Patch:
+    handler: src/functions/customer-notification-preferences-v1-patch.handler
+    description: Change the signed-in customer's notification choices and give or withdraw marketing consent (111)
+    events:
+      - httpApi:
+          method: PATCH
+          path: /customer/v1/notification-preferences
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
   customerNotificationsV1Get:
     handler: src/functions/customer-notifications-v1-get.handler
     description: One page of the signed-in customer's own notification inbox, newest first, important ones pinned (110)

@@ -82,6 +82,13 @@ d("notification purge (109)", () => {
     const back = await make("c-restored");
     const goneNote = await notification("c-erased", "order_paid", 5, 5);
     const backNote = await notification("c-restored", "order_paid", 5, 5);
+    for (const id of [gone, back]) {
+      await pool.query(`INSERT INTO public.customer_notification_choice (customer_id, category, channel, enabled, surface) VALUES ($1, 'orders', 'push', false, 'app')`, [id]);
+      await pool.query(
+        `INSERT INTO public.customer_marketing_consent (customer_id, category, granted, surface, via, wording_version) VALUES ($1, 'offers', true, 'web', 'prompt', 'v')`,
+        [id],
+      );
+    }
     await pool.query(
       `INSERT INTO public.customer_closure_request (customer_id, erase_after, verification_method) VALUES ($1, $2, 'email_code')`,
       [gone, daysAgo(1)],
@@ -95,5 +102,12 @@ d("notification purge (109)", () => {
     expect(await exists(goneNote)).toBe(false);
     expect(await exists(backNote)).toBe(true);
     expect(summary.erased).toBe(1);
+    // 111: their choices and consent answers go with them; a cancelled closure keeps both.
+    expect(summary.preferencesErased).toBe(2);
+    const left = async (table: string, id: string) => (await pool.query(`SELECT 1 FROM public.${table} WHERE customer_id = $1`, [id])).rowCount;
+    expect(await left("customer_notification_choice", gone)).toBe(0);
+    expect(await left("customer_marketing_consent", gone)).toBe(0);
+    expect(await left("customer_notification_choice", back)).toBe(1);
+    expect(await left("customer_marketing_consent", back)).toBe(1);
   });
 });

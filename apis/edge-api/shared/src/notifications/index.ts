@@ -7,3 +7,5 @@ export * from "./read-handler";
 export * from "./announce-inbox";
 export * from "./inbox";
 export * from "./inbox-handlers";
+export * from "./preferences";
+export * from "./preferences-handlers";

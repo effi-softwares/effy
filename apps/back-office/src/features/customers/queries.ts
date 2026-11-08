@@ -6,6 +6,7 @@ import {
   creditPoints,
   debitPoints,
   getCustomer,
+  getCustomerNotificationPreferences,
   getPointsSettings,
   searchCustomers,
   updatePointsSettings,
@@ -16,6 +17,7 @@ export const customersKeys = {
   search: (q: string) => ["customers", "search", q] as const,
   detail: (id: string) => ["customers", "detail", id] as const,
   settings: ["customers", "points-settings"] as const,
+  notifications: (id: string) => ["customers", "detail", id, "notifications"] as const,
 }
 
 export const customerSearchQuery = (q: string) =>
@@ -28,6 +30,9 @@ export const customerSearchQuery = (q: string) =>
 
 export const customerDetailQuery = (id: string) =>
   queryOptions({ queryKey: customersKeys.detail(id), queryFn: () => getCustomer(id) })
+
+export const customerNotificationsQuery = (id: string) =>
+  queryOptions({ queryKey: customersKeys.notifications(id), queryFn: () => getCustomerNotificationPreferences(id) })
 
 export const pointsSettingsQuery = queryOptions({ queryKey: customersKeys.settings, queryFn: getPointsSettings })
 

@@ -209,6 +209,53 @@
       ],
       "type": "string"
     },
+    "ConsentChange": {
+      "additionalProperties": false,
+      "properties": {
+        "news": {
+          "type": "boolean"
+        },
+        "offers": {
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "ConsentStateDTO": {
+      "additionalProperties": false,
+      "properties": {
+        "answeredAt": {
+          "description": "ISO 8601; null when they have never answered.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "granted": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "granted",
+        "answeredAt"
+      ],
+      "type": "object"
+    },
+    "ConsentSurface": {
+      "enum": [
+        "app",
+        "web"
+      ],
+      "type": "string"
+    },
+    "ConsentVia": {
+      "enum": [
+        "settings",
+        "prompt",
+        "inbox"
+      ],
+      "type": "string"
+    },
     "CredentialRoute": {
       "description": "How a customer proved who they are. Telemetry and UI only, never an authorization input.",
       "enum": [
@@ -554,6 +601,82 @@
       ],
       "type": "object"
     },
+    "MarketingConsentDTO": {
+      "additionalProperties": false,
+      "properties": {
+        "news": {
+          "$ref": "#/definitions/ConsentStateDTO"
+        },
+        "offers": {
+          "$ref": "#/definitions/ConsentStateDTO"
+        }
+      },
+      "required": [
+        "offers",
+        "news"
+      ],
+      "type": "object"
+    },
+    "NotificationPreferencesChange": {
+      "additionalProperties": false,
+      "description": "`PATCH /customer/v1/notification-preferences`: all or nothing.",
+      "properties": {
+        "changes": {
+          "items": {
+            "$ref": "#/definitions/PreferenceChoiceChange"
+          },
+          "type": "array"
+        },
+        "consent": {
+          "$ref": "#/definitions/ConsentChange"
+        },
+        "surface": {
+          "$ref": "#/definitions/ConsentSurface"
+        },
+        "via": {
+          "$ref": "#/definitions/ConsentVia",
+          "description": "Where a consent answer was given; required with `consent`."
+        },
+        "wordingVersion": {
+          "description": "The wording version shown; required with `consent`, and must be the current one (else 409).",
+          "type": "string"
+        }
+      },
+      "required": [
+        "surface"
+      ],
+      "type": "object"
+    },
+    "NotificationPreferencesDTO": {
+      "additionalProperties": false,
+      "description": "`GET` / `PATCH /customer/v1/notification-preferences`.",
+      "properties": {
+        "askForOffers": {
+          "description": "Show the one-time offers ask: they have never answered and have at least one paid order.",
+          "type": "boolean"
+        },
+        "categories": {
+          "items": {
+            "$ref": "#/definitions/PreferenceCategoryDTO"
+          },
+          "type": "array"
+        },
+        "consent": {
+          "$ref": "#/definitions/MarketingConsentDTO"
+        },
+        "wordingVersion": {
+          "description": "The consent wording version the server holds as current.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "categories",
+        "consent",
+        "askForOffers",
+        "wordingVersion"
+      ],
+      "type": "object"
+    },
     "NotificationReadResponseDTO": {
       "additionalProperties": false,
       "description": "`POST /{audience}/v1/notifications/{id}/read` (109): the caller's own notification, now read. `destination` is the stored one, as a plain object, so an app parses it with the same lenient parser it uses for a push.",
@@ -746,6 +869,71 @@
       },
       "required": [
         "entries"
+      ],
+      "type": "object"
+    },
+    "PreferenceCategoryDTO": {
+      "additionalProperties": false,
+      "description": "One category as the customer sees it: the effective choice per channel (theirs, else the default).",
+      "properties": {
+        "category": {
+          "type": "string"
+        },
+        "changeable": {
+          "description": "The channels the customer may change; empty when required.",
+          "items": {
+            "$ref": "#/definitions/PreferenceChannel"
+          },
+          "type": "array"
+        },
+        "email": {
+          "type": "boolean"
+        },
+        "marketing": {
+          "type": "boolean"
+        },
+        "push": {
+          "description": "For a marketing category, the push choice; it takes effect only while consent is granted.",
+          "type": "boolean"
+        },
+        "required": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "category",
+        "required",
+        "marketing",
+        "push",
+        "email",
+        "changeable"
+      ],
+      "type": "object"
+    },
+    "PreferenceChannel": {
+      "enum": [
+        "push",
+        "email"
+      ],
+      "type": "string"
+    },
+    "PreferenceChoiceChange": {
+      "additionalProperties": false,
+      "properties": {
+        "category": {
+          "type": "string"
+        },
+        "channel": {
+          "$ref": "#/definitions/PreferenceChannel"
+        },
+        "enabled": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "category",
+        "channel",
+        "enabled"
       ],
       "type": "object"
     },
@@ -957,6 +1145,12 @@
     "inboxReadAll": {
       "$ref": "#/definitions/InboxReadAllDTO"
     },
+    "notificationPreferences": {
+      "$ref": "#/definitions/NotificationPreferencesDTO"
+    },
+    "notificationPreferencesChange": {
+      "$ref": "#/definitions/NotificationPreferencesChange"
+    },
     "notificationRead": {
       "$ref": "#/definitions/NotificationReadResponseDTO"
     },
@@ -1008,6 +1202,8 @@
     "inboxReadAll",
     "inboxArchiveRequest",
     "inboxArchive",
+    "notificationPreferences",
+    "notificationPreferencesChange",
     "status",
     "closureState",
     "customer",

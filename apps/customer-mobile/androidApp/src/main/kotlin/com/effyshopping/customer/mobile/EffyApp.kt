@@ -9,7 +9,7 @@ import com.effyshopping.customer.mobile.core.config.AppConfig
 import com.effyshopping.customer.mobile.core.observability.AndroidCrashReporter
 import com.effyshopping.customer.mobile.core.observability.PostHogAnalyticsDriver
 import com.effyshopping.customer.mobile.core.push.FirebasePushTokenProvider
-import com.effyshopping.customer.mobile.core.push.ensureOrderUpdatesChannel
+import com.effyshopping.customer.mobile.core.push.ensureNotificationChannels
 import com.effyshopping.customer.mobile.core.storage.initDevicePreferences
 
 /**
@@ -40,7 +40,7 @@ class EffyApp : Application() {
         // before any composition runs, because the very first screen (onboarding) reads it.
         initDevicePreferences(applicationContext)
         // The channel a notification that arrives while the app is closed is posted on (manifest meta-data).
-        ensureOrderUpdatesChannel(applicationContext)
+        ensureNotificationChannels(applicationContext)
         try {
             AmplifyBootstrap.configure(applicationContext)
         } catch (e: Exception) {

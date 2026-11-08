@@ -64,4 +64,20 @@ describe("the customer's notifications on the website (110 US6)", () => {
     expect(screen.getByText("Nothing here")).toBeTruthy()
     expect(screen.getByRole("link", { name: "Show all" })).toBeTruthy()
   })
+
+  it("an offer opens its detail first, where it can be stopped, with Undo (111 US6)", async () => {
+    const offer = item("deal", 2, { type: "order_paid", category: "offers", title: "A deal from Effy", destination: { kind: "sale" } })
+    render(<InboxView initial={page({ items: [offer] })} filter="all" />)
+    await userEvent.click(screen.getByText("A deal from Effy"))
+    expect(push).not.toHaveBeenCalled()
+    expect(screen.getByRole("button", { name: "See offer" })).toBeTruthy()
+    await userEvent.click(screen.getByRole("button", { name: "Stop offers like this" }))
+    await waitFor(() => expect(toast).toHaveBeenCalled())
+    const prefs = calls.filter((c) => c.url === "/api/notification-preferences")
+    expect(JSON.parse(String(prefs[0]!.init!.body))).toMatchObject({ consent: { offers: false }, via: "inbox" })
+    const [, opts] = toast.mock.calls[0] as [string, { action: { label: string; run: () => void } }]
+    expect(opts.action.label).toBe("Undo")
+    opts.action.run()
+    await waitFor(() => expect(calls.filter((c) => c.url === "/api/notification-preferences")).toHaveLength(2))
+  })
 })

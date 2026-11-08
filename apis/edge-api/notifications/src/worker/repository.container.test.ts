@@ -3,7 +3,7 @@ import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { transactorFor, type Transactor } from "@effy/edge-shared";
-import { notify } from "@effy/edge-shared/notifications";
+import { notify, type NotificationEntry } from "@effy/edge-shared/notifications";
 import { migrationSql } from "@effy/edge-shared/testing";
 
 import { batchStore, pendingStats } from "./repository";
@@ -133,5 +133,71 @@ d("delivery repository (109)", () => {
     const stats = await pendingStats(pool);
     expect(stats.pending).toBe(2);
     expect(stats.oldestSeconds).toBeGreaterThanOrEqual(299);
+  });
+
+  describe("held promotional pushes (111 R4, FR-011)", () => {
+    const OFFER: NotificationEntry = {
+      audience: "customer", category: "offers", importance: "normal", tag: "customer-offer", group: "customer",
+      title: "A weekend deal from Effy", body: "Fruit is 20% off.", destination: () => ({ kind: "sale" }),
+    };
+
+    async function optedIn(sub: string): Promise<string> {
+      const id = (await pool.query<{ id: string }>(
+        `INSERT INTO public.customer (cognito_sub, email) VALUES ($1, ($1 || '@example.test')::citext) RETURNING id::text AS id`,
+        [sub],
+      )).rows[0]!.id;
+      await pool.query(
+        `INSERT INTO public.customer_marketing_consent (customer_id, category, granted, surface, via, wording_version) VALUES ($1, 'offers', true, 'app', 'prompt', 'v')`,
+        [id],
+      );
+      return id;
+    }
+
+    async function heldOffer(sub: string) {
+      await transact((tx) =>
+        notify(tx, { type: "order_paid", recipients: [{ sub }], subject: { entityId: `o-${++seq}` }, dedupeScope: `s-${seq}`, channels: ["push"] }, { entry: OFFER }),
+      );
+      // As if written at 22:00 for 08:00: the release time set into the future, then brought forward.
+      await pool.query(`UPDATE public.notification_delivery SET not_before = now() + interval '1 hour', status = 'pending'`);
+    }
+
+    beforeEach(async () => {
+      await pool.query("TRUNCATE public.customer_marketing_consent, public.customer_notification_choice");
+      await pool.query("DELETE FROM public.customer WHERE cognito_sub LIKE 'held-%'");
+      await pool.query("UPDATE public.notification_settings SET promo_push_per_day = 20, promo_push_per_week = 100");
+    });
+
+    it("is not claimed, and not counted as waiting, before its time", async () => {
+      await optedIn("held-1");
+      await heldOffer("held-1");
+      expect(await transact((tx) => batchStore(tx).claim(10, ["push"]))).toEqual([]);
+      expect((await pendingStats(pool)).pending).toBe(0);
+    });
+
+    it("is claimed once its time has come, allowed, and filed in the Offers & news channel", async () => {
+      await optedIn("held-2");
+      await heldOffer("held-2");
+      await pool.query(`UPDATE public.notification_delivery SET not_before = now() - interval '1 second'`);
+      const [c] = await transact((tx) => batchStore(tx).claim(10, ["push"]));
+      expect(c).toMatchObject({ recipientSub: "held-2", allowed: true, androidChannel: "offers_news" });
+    });
+
+    it("is judged again when released: consent withdrawn overnight means it may not go", async () => {
+      const id = await optedIn("held-3");
+      await heldOffer("held-3");
+      await pool.query(
+        `INSERT INTO public.customer_marketing_consent (customer_id, category, granted, surface, via, wording_version) VALUES ($1, 'offers', false, 'app', 'inbox', 'v')`,
+        [id],
+      );
+      await pool.query(`UPDATE public.notification_delivery SET not_before = now() - interval '1 second'`);
+      const [c] = await transact((tx) => batchStore(tx).claim(10, ["push"]));
+      expect(c!.allowed).toBe(false);
+    });
+
+    it("an order update is always allowed and filed in Order updates", async () => {
+      await one("held-order");
+      const [c] = await transact((tx) => batchStore(tx).claim(10, ["push"]));
+      expect(c).toMatchObject({ allowed: true, androidChannel: "orders" });
+    });
   });
 });

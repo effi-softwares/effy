@@ -459,6 +459,121 @@ data class InboxReadAllDTO (
 )
 
 /**
+ * `GET` / `PATCH /customer/v1/notification-preferences`.
+ */
+@Serializable
+data class NotificationPreferencesDTO (
+    /**
+     * Show the one-time offers ask: they have never answered and have at least one paid order.
+     */
+    val askForOffers: Boolean,
+
+    val categories: List<PreferenceCategoryDTO>,
+    val consent: MarketingConsentDTO,
+
+    /**
+     * The consent wording version the server holds as current.
+     */
+    val wordingVersion: String
+)
+
+/**
+ * One category as the customer sees it: the effective choice per channel (theirs, else the
+ * default).
+ */
+@Serializable
+data class PreferenceCategoryDTO (
+    val category: String,
+
+    /**
+     * The channels the customer may change; empty when required.
+     */
+    val changeable: List<PreferenceChannel>,
+
+    val email: Boolean,
+    val marketing: Boolean,
+
+    /**
+     * For a marketing category, the push choice; it takes effect only while consent is granted.
+     */
+    val push: Boolean,
+
+    val required: Boolean
+)
+
+@Serializable
+enum class PreferenceChannel(val value: String) {
+    @SerialName("email") Email("email"),
+    @SerialName("push") Push("push");
+}
+
+@Serializable
+data class MarketingConsentDTO (
+    val news: ConsentStateDTO,
+    val offers: ConsentStateDTO
+)
+
+@Serializable
+data class ConsentStateDTO (
+    /**
+     * ISO 8601; null when they have never answered.
+     */
+    val answeredAt: String? = null,
+
+    val granted: Boolean
+)
+
+/**
+ * `PATCH /customer/v1/notification-preferences`: all or nothing.
+ */
+@Serializable
+data class NotificationPreferencesChange (
+    val changes: List<PreferenceChoiceChange>? = null,
+    val consent: ConsentChange? = null,
+    val surface: ConsentSurface,
+
+    /**
+     * Where a consent answer was given; required with `consent`.
+     */
+    val via: ConsentVia? = null,
+
+    /**
+     * The wording version shown; required with `consent`, and must be the current one (else
+     * 409).
+     */
+    val wordingVersion: String? = null
+)
+
+@Serializable
+data class PreferenceChoiceChange (
+    val category: String,
+    val channel: PreferenceChannel,
+    val enabled: Boolean
+)
+
+@Serializable
+data class ConsentChange (
+    val news: Boolean? = null,
+    val offers: Boolean? = null
+)
+
+@Serializable
+enum class ConsentSurface(val value: String) {
+    @SerialName("app") App("app"),
+    @SerialName("web") Web("web");
+}
+
+/**
+ * Where a consent answer was given; required with `consent`.
+ */
+@Serializable
+enum class ConsentVia(val value: String) {
+    @SerialName("inbox") Inbox("inbox"),
+    @SerialName("prompt") Prompt("prompt"),
+    @SerialName("settings") Settings("settings");
+}
+
+/**
  * `POST /{audience}/v1/notifications/{id}/read` (109): the caller's own notification, now
  * read. `destination` is the stored one, as a plain object, so an app parses it with the
  * same lenient parser it uses for a push.

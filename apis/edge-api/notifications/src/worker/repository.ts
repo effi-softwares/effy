@@ -1,6 +1,7 @@
 // The delivery drain's SQL (109). The only writer of a delivery's outcome (notifications.guard.test.ts).
 import { withTransaction, type Queryable, type RecipientToken } from "@effy/edge-shared";
-import { catalogueEntry, isKnownNotificationType } from "@effy/edge-shared/notifications";
+import { catalogueEntry, channelAllowedSql, isKnownNotificationType, policyValuesSql } from "@effy/edge-shared/notifications";
+import { findPolicy } from "@effy/shared-types";
 
 import type { Audience, BatchStore, ClaimedDelivery, DeliveryChannel, Outcome } from "./drain";
 
@@ -19,11 +20,16 @@ interface ClaimedRow {
   destination: Record<string, unknown>;
   expires_at: Date | null;
   badge: number;
+  category: string;
+  allowed: boolean;
 }
 
 export function batchStore(tx: Queryable): BatchStore {
   return {
-    /** Immediate before bulk, then oldest first; locked until this batch's transaction ends. */
+    /**
+     * Immediate before bulk, then oldest first; locked until this batch's transaction ends. A push held for quiet hours
+     * is not claimed before its `not_before` (111 R4); when it is, a promotional one is judged again (`allowed`).
+     */
     async claim(limit, channels): Promise<ClaimedDelivery[]> {
       const res = await tx.query<ClaimedRow>(
         `SELECT d.id::text AS id, n.id::text AS notification_id, d.channel, d.recipient_email, d.attempts,
@@ -32,10 +38,15 @@ export function batchStore(tx: Queryable): BatchStore {
                 (SELECT count(*)::int FROM public.notification u
                   WHERE u.recipient_sub = n.recipient_sub AND u.audience = n.audience
                     AND u.seen_at IS NULL AND u.archived_at IS NULL
-                    AND (u.expires_at IS NULL OR u.expires_at > now())) AS badge
+                    AND (u.expires_at IS NULL OR u.expires_at > now())) AS badge,
+                n.category,
+                CASE WHEN pol.marketing THEN ${channelAllowedSql("c.id", "d.channel")} ELSE true END AS allowed
            FROM public.notification_delivery d
            JOIN public.notification n ON n.id = d.notification_id
+           LEFT JOIN ${policyValuesSql()} ON pol.audience = n.audience AND pol.category = n.category
+           LEFT JOIN public.customer c ON n.audience = 'customer' AND c.cognito_sub = n.recipient_sub
           WHERE d.status = 'pending'
+            AND (d.not_before IS NULL OR d.not_before <= now())
             AND d.channel = ANY($2::text[])
           ORDER BY d.priority, d.created_at
           LIMIT $1
@@ -62,6 +73,8 @@ export function batchStore(tx: Queryable): BatchStore {
           tag: entry?.tag ?? "effy",
           group: entry?.group ?? "attention",
           badge: r.badge,
+          androidChannel: findPolicy(r.audience, r.category)?.androidChannel ?? null,
+          allowed: r.allowed !== false,
         };
       });
     },
@@ -119,9 +132,11 @@ export interface PendingStats {
 
 export async function pendingStats(db: Queryable): Promise<PendingStats> {
   const res = await db.query<{ pending: string; oldest: string | null }>(
-    `SELECT count(*)::text AS pending, extract(epoch FROM now() - min(created_at))::text AS oldest
+    `SELECT count(*)::text AS pending, extract(epoch FROM now() - min(COALESCE(not_before, created_at)))::text AS oldest
        FROM public.notification_delivery
-      WHERE status = 'pending'`,
+      WHERE status = 'pending'
+        -- A push held for quiet hours is waiting on purpose, not stuck (111 R4).
+        AND (not_before IS NULL OR not_before <= now())`,
   );
   const r = res.rows[0];
   return { pending: Number(r?.pending ?? 0), oldestSeconds: Math.max(0, Math.round(Number(r?.oldest ?? 0))) };

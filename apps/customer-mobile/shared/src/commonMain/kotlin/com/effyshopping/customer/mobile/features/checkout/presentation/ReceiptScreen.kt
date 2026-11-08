@@ -1,6 +1,7 @@
 package com.effyshopping.customer.mobile.features.checkout.presentation
 
 import androidx.compose.runtime.LaunchedEffect
+import com.effyshopping.customer.mobile.features.notifications.offers.OffersAskSheet
 import com.effyshopping.customer.mobile.core.error.AppError
 import com.effyshopping.customer.mobile.core.error.AppException
 import com.effyshopping.customer.mobile.core.presentation.AgeBadge
@@ -194,8 +195,13 @@ fun ReceiptScreen(
      * the payment is still being confirmed, which `Pending` says.
      */
     onGone: (() -> Unit)? = null,
+    /** 111 - the end of checkout asks, once ever, whether the shopper wants offers. Order details never does. */
+    askAboutOffers: Boolean = false,
 ) {
     val vm = viewModel(key = orderId) { ReceiptViewModel(orderId, container.getReceipt, container.live.changes(LiveKind.ORDERS)) }
+    val offersAsk = remember(orderId) { container.offersAsk() }
+    var askingOffers by remember(orderId) { mutableStateOf(false) }
+    LaunchedEffect(orderId, askAboutOffers) { if (askAboutOffers && offersAsk.shouldAsk()) askingOffers = true }
     val state by vm.state.collectAsState()
     val scope = rememberCoroutineScope()
     val snackbarHost = remember { SnackbarHostState() }
@@ -271,6 +277,13 @@ fun ReceiptScreen(
         }
     }
     EffySnackbarHost(snackbarHost, modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 96.dp))
+    }
+
+    if (askingOffers) {
+        OffersAskSheet(onAnswer = { yes ->
+            askingOffers = false
+            scope.launch { offersAsk.answer(yes) }
+        })
     }
 }
 

@@ -695,7 +695,8 @@ export const SHOP_TOURS = defineTours([
   // NS - Settings · Notifications
   {
     key: "settings-notifications",
-    version: 1,
+    // 2 (111): "Always in your inbox" added as step 3.
+    version: 2,
     title: "Settings · Notifications",
     path: "/settings/notifications",
     steps: [
@@ -709,6 +710,11 @@ export const SHOP_TOURS = defineTours([
         title: "Check it works",
         text: "Shows one notification on this device now.",
         shownWhen: "Notifications are on",
+      },
+      {
+        target: "notifications.categories",
+        title: "Always in your inbox",
+        text: "Orders, stock, products, Effy's announcements and important notices always reach your inbox. They can't be turned off, so nobody at your shop misses one.",
       },
       {
         target: "notifications.types",

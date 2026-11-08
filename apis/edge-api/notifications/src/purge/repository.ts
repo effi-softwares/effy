@@ -1,5 +1,6 @@
 // What the daily purge removes (109 FR-023 to FR-025). The only deleter of notifications and deliveries
-// (notifications.guard.test.ts). Batched, so one run never holds a long lock on a large table.
+// (notifications.guard.test.ts), and of an erased customer's notification choices and consent history (111;
+// preferences.guard.test.ts). Batched, so one run never holds a long lock on a large table.
 import type { Queryable } from "@effy/edge-shared";
 
 export const RETENTION_DAYS = { customer: 180, driver: 90, shop: 90 } as const;
@@ -10,6 +11,8 @@ export interface PurgeSummary {
   notifications: number;
   deliveries: number;
   erased: number;
+  /** Choice and consent rows of customers past their erasure date (111). */
+  preferencesErased: number;
 }
 
 /** Repeats `statement` (which deletes at most PURGE_BATCH rows) until it deletes fewer, or the deadline passes. */
@@ -68,5 +71,18 @@ export async function purge(db: Queryable, at: Date, deadline: number, now: () =
     now,
   );
 
-  return { notifications, deliveries, erased };
+  // Their choices and every consent answer go too (111): a few rows per customer, so one statement each.
+  const closedPastErasure = `SELECT r.customer_id FROM public.customer_closure_request r
+                              WHERE r.cancelled_at IS NULL AND r.erase_after <= $1::timestamptz`;
+  const choices = await db.query(
+    `DELETE FROM public.customer_notification_choice WHERE customer_id IN (${closedPastErasure})`,
+    [iso],
+  );
+  const consent = await db.query(
+    `DELETE FROM public.customer_marketing_consent WHERE customer_id IN (${closedPastErasure})`,
+    [iso],
+  );
+  const preferencesErased = (choices.rowCount ?? 0) + (consent.rowCount ?? 0);
+
+  return { notifications, deliveries, erased, preferencesErased };
 }

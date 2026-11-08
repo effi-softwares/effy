@@ -109,6 +109,15 @@ describe("⚠ P1 - the sender branches on platform", () => {
     expect(toFcmMessage(message({ platform: "web", badge: 3 }))).not.toHaveProperty("apns");
   });
 
+  it("files an Android push in its category's channel, and keeps the badge beside it (111 R12)", () => {
+    const msg = toFcmMessage(message({ platform: "android", badge: 2, androidChannel: "offers_news" })) as unknown as {
+      android: { notification?: { notificationCount?: number; channelId?: string } };
+    };
+    expect(msg.android.notification).toEqual({ notificationCount: 2, channelId: "offers_news" });
+    const web = toFcmMessage(message({ platform: "web", androidChannel: "orders" })) as unknown as Record<string, unknown>;
+    expect(web).not.toHaveProperty("android");
+  });
+
   it("gives a web push a TTL, so a stale one expires rather than arriving late", async () => {
     const msg = (await sentFor("web")) as unknown as { webpush: { headers: Record<string, string> } };
     expect(Number(msg.webpush.headers.TTL)).toBeLessThanOrEqual(900);

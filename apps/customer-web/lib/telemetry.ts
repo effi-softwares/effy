@@ -126,6 +126,11 @@ export type StorefrontEvent =
   | { name: "inbox_item_archived"; props: { type: string; category: string } }
   | { name: "inbox_archive_undone"; props: { type: string; category: string } }
   | { name: "inbox_marked_all_read"; props?: Record<string, never> }
+  // 111 - notification choices and the offers ask. Categories and answers only.
+  | { name: "notification_setting_changed"; props: { category: string; channel: "push" | "email" | "consent"; enabled: "true" | "false"; surface: "web" } }
+  | { name: "offers_ask_shown"; props: { surface: "web" } }
+  | { name: "offers_ask_answered"; props: { answer: "yes" | "no"; surface: "web" } }
+  | { name: "offers_stopped_from_inbox"; props: { category: string; surface: "web" } }
   | { name: "sign_up_started"; props: { route: CredentialRoute } }
   | { name: "sign_up_completed"; props: { route: CredentialRoute } }
   | { name: "sign_in_completed"; props: { route: CredentialRoute } }

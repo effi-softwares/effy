@@ -29,6 +29,7 @@ import type { ProblemJSON } from "./problem";
 import type { CustomerPointsDTO, PointsBalanceDTO, PointsEntryKind, PointsHistoryEntryDTO, PointsHistoryPageDTO } from "./points";
 import type { NotificationReadResponseDTO } from "./notification-destinations";
 import type { InboxArchiveDTO, InboxArchiveRequest, InboxCountDTO, InboxCutoffRequest, InboxPageDTO, InboxReadAllDTO } from "./notification-inbox";
+import type { NotificationPreferencesChange, NotificationPreferencesDTO } from "./notification-preferences";
 
 export type {
   NotificationReadResponseDTO,
@@ -68,6 +69,8 @@ export interface CustomerContract {
   inboxReadAll: InboxReadAllDTO;
   inboxArchiveRequest: InboxArchiveRequest;
   inboxArchive: InboxArchiveDTO;
+  notificationPreferences: NotificationPreferencesDTO;
+  notificationPreferencesChange: NotificationPreferencesChange;
   status: CustomerStatus;
   closureState: ClosureState;
   customer: CustomerDTO;

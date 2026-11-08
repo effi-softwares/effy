@@ -70,6 +70,7 @@ describe("back-office sidebar - who sees what", () => {
       "driver-work",
       "order-rules",
       "points",
+      "notifications",
       "tax",
       "team",
       // The index comes last.

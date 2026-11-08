@@ -9,6 +9,7 @@ import {
   Lock,
   MapPin,
   Package,
+  Settings,
   ShieldCheck,
   UserRound,
 } from "lucide-react"
@@ -64,7 +65,8 @@ export const ACCOUNT_SECTIONS: ReadonlyArray<{
     { label: "Orders", href: "/orders", Icon: Package },
     { label: "Saved items & lists", href: "/saved", Icon: Heart },
     { label: "Effy points", href: "/account/points", Icon: Coins },
-    { label: "Notifications", href: "/account/notifications", Icon: Bell },
+    { label: "Notifications", href: "/account/notifications", Icon: Bell, exact: true },
+    { label: "Notification settings", href: "/account/notifications/settings", Icon: Settings },
     { label: "Personal info", href: "/account/personal", Icon: UserRound },
     { label: "Address book", href: "/addresses", Icon: MapPin },
     { label: "Payment methods", href: "/account/payment", Icon: CreditCard },

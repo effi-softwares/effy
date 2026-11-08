@@ -21,6 +21,8 @@ export interface PushMessage {
   group: string;
   /** The recipient's unseen count (110): the app icon's number on iOS, the launcher count on Android. Not for web. */
   badge?: number;
+  /** The Android notification channel of its category (111 R12), so a person can mute one kind in the phone's settings. */
+  androidChannel?: string | null;
 }
 
 export interface SendResult {
@@ -105,11 +107,15 @@ export function toFcmMessage(m: PushMessage): Message {
     };
   }
   const badge = typeof m.badge === "number" && m.badge >= 0 ? Math.floor(m.badge) : undefined;
+  const androidNotification = {
+    ...(badge !== undefined ? { notificationCount: badge } : {}),
+    ...(m.androidChannel ? { channelId: m.androidChannel } : {}),
+  };
   return {
     token: m.token,
     notification: { title: m.title, body: m.body },
     data,
-    android: { priority: "high", ...(badge !== undefined ? { notification: { notificationCount: badge } } : {}) },
+    android: { priority: "high", ...(Object.keys(androidNotification).length > 0 ? { notification: androidNotification } : {}) },
     apns: {
       headers: { "apns-priority": "10" },
       payload: { aps: { sound: "default", ...(badge !== undefined ? { badge } : {}) } },

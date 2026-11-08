@@ -517,6 +517,19 @@ class AppContainer(
         )
     }
 
+    /** The shopper's notification choices and offers consent (111). */
+    val notificationPreferences: com.effyshopping.customer.mobile.features.notifications.settings.domain.NotificationPreferencesRepository by lazy {
+        com.effyshopping.customer.mobile.features.notifications.settings.data.HttpNotificationPreferencesRepository(edgeClient)
+    }
+
+    /** The one-time offers ask on an order confirmation (111 US2). A new one per screen; it asks the server each time. */
+    fun offersAsk(): com.effyshopping.customer.mobile.features.notifications.offers.OffersAskController =
+        com.effyshopping.customer.mobile.features.notifications.offers.OffersAskController(
+            repo = notificationPreferences,
+            track = analyticsDriver::capture,
+            requestPhonePermission = { pushTokenProvider.requestPermission() },
+        )
+
     /** The bell's number: re-read on sign-in, on the live kind `inbox` and after any inbox action - never on a timer. */
     val inboxBadge: com.effyshopping.customer.mobile.core.push.InboxBadge by lazy {
         com.effyshopping.customer.mobile.core.push.InboxBadge(

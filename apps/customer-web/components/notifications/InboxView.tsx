@@ -18,6 +18,9 @@ import {
   type InboxPageDTO,
 } from "@effy/shared-types"
 
+import { MARKETING_CONSENT } from "@effy/legal-content/consent"
+
+import { btnClass } from "@/components/storefront/actions"
 import { Dialog } from "@/components/ui/dialog"
 import { RowsSkeleton } from "@/components/ui/skeletons"
 import { capture } from "@/lib/telemetry"
@@ -35,6 +38,10 @@ const icon = (category: string): LucideIcon =>
   isInboxCategory(category) ? (ICONS[INBOX_CATEGORIES[category].icon] ?? Bell) : Bell
 
 type Filter = "all" | "unread"
+type InboxItem = InboxItemDTO
+
+const isMarketing = (category: string) => category === "offers" || category === "news"
+const destinationOf = (item: InboxItemDTO) => parseDestination("customer", item.destination) as CustomerDestination | null
 
 /**
  * The customer's notifications on the website (110 US6), at parity with the app except swipe: newest first, important
@@ -110,8 +117,29 @@ export function InboxView({ initial, filter, category }: { initial: InboxPageDTO
     const destination = parseDestination("customer", item.destination) as CustomerDestination | null
     capture({ name: "inbox_item_opened", props: { type: item.type, category: item.category, fallback: destination ? "false" : "true" } })
     void post(`/api/notifications/${encodeURIComponent(item.id)}/read`)
-    if (destination) router.push(customerWebPathFor(destination))
+    // 111 FR-024: an offer or news item always opens its detail first, where it can be stopped.
+    if (destination && !isMarketing(item.category)) router.push(customerWebPathFor(destination))
     else setDetail(item)
+  }
+
+  /** "Stop offers like this": a no from the inbox, with Undo (111 US6). */
+  async function stopMarketing(item: InboxItem) {
+    const category = item.category as "offers" | "news"
+    setDetail(null)
+    const answer = (granted: boolean) =>
+      fetch("/api/notification-preferences", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ consent: { [category]: granted }, via: "inbox", wordingVersion: MARKETING_CONSENT.version }),
+      }).then((r) => r.ok, () => false)
+    if (!(await answer(false))) {
+      toast("We couldn't change that. Try again in Notification settings.")
+      return
+    }
+    capture({ name: "offers_stopped_from_inbox", props: { category, surface: "web" } })
+    toast(category === "news" ? "You won't get news from Effy any more" : "You won't get offers from Effy any more", {
+      action: { label: "Undo", run: () => void answer(true) },
+    })
   }
 
   function archive(item: InboxItemDTO) {
@@ -160,11 +188,16 @@ export function InboxView({ initial, filter, category }: { initial: InboxPageDTO
           <h2 className="text-xl font-semibold">Notifications</h2>
           <p className="text-sm text-muted-foreground">Everything we've told you about your orders and points in the last 6 months.</p>
         </div>
-        {anyUnread ? (
-          <button type="button" onClick={markAllRead} className="text-sm font-medium text-primary underline-offset-2 hover:underline">
-            Mark all read
-          </button>
-        ) : null}
+        <div className="flex items-center gap-4">
+          {anyUnread ? (
+            <button type="button" onClick={markAllRead} className="text-sm font-medium text-primary underline-offset-2 hover:underline">
+              Mark all read
+            </button>
+          ) : null}
+          <Link href="/account/notifications/settings" className="text-sm font-medium text-primary underline-offset-2 hover:underline">
+            Settings
+          </Link>
+        </div>
       </div>
 
       <nav aria-label="Show" className="flex flex-wrap gap-2">
@@ -207,6 +240,26 @@ export function InboxView({ initial, filter, category }: { initial: InboxPageDTO
       <Dialog open={detail !== null} onOpenChange={(o) => !o && setDetail(null)} title={detail?.title ?? ""}>
         <p>{detail?.body}</p>
         {detail?.endsLabel ? <p className="mt-2 text-sm text-muted-foreground">{detail.endsLabel}</p> : null}
+        {detail && isMarketing(detail.category) ? (
+          <div className="mt-4 flex flex-wrap items-center gap-4">
+            {destinationOf(detail) ? (
+              <button
+                type="button"
+                className={btnClass("primary", "md")}
+                onClick={() => {
+                  const d = destinationOf(detail)!
+                  setDetail(null)
+                  router.push(customerWebPathFor(d))
+                }}
+              >
+                See offer
+              </button>
+            ) : null}
+            <button type="button" onClick={() => void stopMarketing(detail)} className="text-sm font-medium text-primary underline-offset-2 hover:underline">
+              {detail.category === "news" ? MARKETING_CONSENT.stopNews : MARKETING_CONSENT.stopOffers}
+            </button>
+          </div>
+        ) : null}
       </Dialog>
     </section>
   )

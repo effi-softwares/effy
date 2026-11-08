@@ -92,6 +92,26 @@ describe("delivery drain (109)", () => {
     expect(s.recorded).toEqual([{ id: "d1", status: "expired", error: null, attempted: false }]);
   });
 
+  it("a held promotion no longer allowed when released is skipped, never sent (111 FR-011)", async () => {
+    const s = new FakeStore();
+    s.tokens.set("customer:sub-1", [android("tok-1")]);
+    s.add({ allowed: false });
+    const d = deps(s);
+    const summary = await drainOnce(d);
+    expect(summary.skipped).toBe(1);
+    expect(d.sent).toEqual([]);
+    expect(s.recorded).toEqual([{ id: "d1", status: "skipped", error: null, attempted: false }]);
+  });
+
+  it("passes the category's Android channel to the message (111 R12)", async () => {
+    const s = new FakeStore();
+    s.tokens.set("customer:sub-1", [android("tok-1")]);
+    s.add({ androidChannel: "orders" });
+    const d = deps(s);
+    await drainOnce(d);
+    expect(d.sent[0]!.androidChannel).toBe("orders");
+  });
+
   it("no device → no_device; every device muted → muted; neither is an attempt", async () => {
     const s = new FakeStore();
     s.tokens.set("customer:sub-muted", [{ fcmToken: "w", platform: "web", mutedTypes: ["order_paid"] }]);

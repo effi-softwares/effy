@@ -2,10 +2,10 @@ import { useState } from "react"
 
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
-import { CircleMinus, CirclePlus, Coins, Mail, ShoppingBag } from "lucide-react"
+import { Bell, CircleMinus, CirclePlus, Coins, History, Mail, ShoppingBag } from "lucide-react"
 
 import { Avatar, AvatarFallback, Button } from "@effy/design-system/ui"
-import { ActivityLogDrawer, useActivityAction } from "@effy/web-kit/activity-log"
+import { ActivityLogDrawer, useActivityAction, useActivityLog } from "@effy/web-kit/activity-log"
 import { ErrorState, useHeaderDetail } from "@effy/web-kit/console"
 
 import {
@@ -25,6 +25,7 @@ import { money } from "@/lib/format"
 
 import { canDebitPoints, creditIsLimited } from "./access"
 import { CreditPointsSheet } from "./components/CreditPointsSheet"
+import { NotificationsPanel } from "./components/NotificationsPanel"
 import { DebitPointsSheet } from "./components/DebitPointsSheet"
 import { formatDay, formatPoints } from "./components/points-format"
 import { customerDetailQuery, customersKeys, pointsSettingsQuery } from "./queries"
@@ -39,6 +40,9 @@ export function CustomerDetailScreen({ customerId }: { customerId: string }) {
   const [crediting, setCrediting] = useState(false)
   const [debiting, setDebiting] = useState(false)
   const activity = useActivityAction()
+  const { show: openLog } = useActivityLog()
+  // A page has one activity drawer (104); it shows the points log or, since 111, the consent history.
+  const [log, setLog] = useState<"points" | "consent">("points")
   useHeaderDetail(detail.data ? detail.data.name || detail.data.email : null)
 
   if (detail.isError) return <ErrorState error={detail.error} onRetry={() => void detail.refetch()} />
@@ -74,7 +78,8 @@ export function CustomerDetailScreen({ customerId }: { customerId: string }) {
             </Button>
             <MoreActions tour="customer.more"
               actions={[
-                { ...activity, label: "Points activity" },
+                { ...activity, label: "Points activity", onSelect: () => { setLog("points"); openLog() } },
+                { label: "Consent history", icon: History, onSelect: () => { setLog("consent"); openLog() } },
                 mayDebit
                   ? {
                     label: "Remove points…",
@@ -119,6 +124,8 @@ export function CustomerDetailScreen({ customerId }: { customerId: string }) {
               </div>
             </dl>
           </Panel>
+
+          <NotificationsPanel customerId={c.id} />
 
           <Panel tour="customer.orders"
             title="Recent orders"
@@ -197,16 +204,31 @@ export function CustomerDetailScreen({ customerId }: { customerId: string }) {
           centsPerPoint={centsPerPoint}
         />
       ) : null}
-      <ActivityLogDrawer
-        app="back-office"
-        log="bo-points"
-        title="Points activity"
-        description={`${c.name || c.email} - every change to the balance. Nothing is edited or deleted; a correction is a new line.`}
-        api={api}
-        path={`/orders/v1/customers/${c.id}/points/history`}
-        queryKey={customersKeys.detail(c.id)}
-        fileName={`points-${c.email}-activity`}
-      />
+      {log === "points" ? (
+        <ActivityLogDrawer
+          key="points"
+          app="back-office"
+          log="bo-points"
+          title="Points activity"
+          description={`${c.name || c.email} - every change to the balance. Nothing is edited or deleted; a correction is a new line.`}
+          api={api}
+          path={`/orders/v1/customers/${c.id}/points/history`}
+          queryKey={customersKeys.detail(c.id)}
+          fileName={`points-${c.email}-activity`}
+        />
+      ) : (
+        <ActivityLogDrawer
+          key="consent"
+          app="back-office"
+          log="bo-customer-consent"
+          title="Consent history"
+          description={`${c.name || c.email} - every yes and no to offers and news, where it was given and the words they were shown. Only the customer can change it.`}
+          api={api}
+          path={`/orders/v1/customers/${c.id}/consent/activity`}
+          queryKey={customersKeys.notifications(c.id)}
+          fileName={`consent-${c.email}-history`}
+        />
+      )}
     </>
   )
 }
@@ -221,6 +243,9 @@ function CustomerSkeleton() {
         <>
           <PanelSkeleton title="Points" icon={<Coins aria-hidden="true" />} description>
             <DetailRowsSkeleton labels={["Usable", "Held at checkout", "Next to expire"]} />
+          </PanelSkeleton>
+          <PanelSkeleton title="Notifications" icon={<Bell aria-hidden="true" />} description>
+            <DetailRowsSkeleton labels={["Order updates", "Points", "Offers", "News", "Important", "Support"]} />
           </PanelSkeleton>
           <PanelSkeleton title="Recent orders" icon={<ShoppingBag aria-hidden="true" />} description flush>
             <ListSkeleton rows={3} lines={1} trailing="text" inset />

@@ -491,6 +491,30 @@ export const BACK_OFFICE_TOURS = defineTours([
       },
     ],
   },
+  // CN - Notification settings (111: specs/111-notification-preferences/spec.md › Guided tours)
+  {
+    key: "notification-settings",
+    version: 1,
+    title: "Notification settings",
+    path: "/settings/notifications",
+    steps: [
+      {
+        target: "page-title",
+        title: "Promotional notifications",
+        text: "How often customers who said yes to offers and news may get one on their phone. Order updates, points and important messages are never limited.",
+      },
+      {
+        target: "notifications.limits",
+        title: "Limits",
+        text: "The most promotional notifications a customer gets in a day and in a week. Any over the limit still reach their inbox, without a notification.",
+      },
+      {
+        target: "page-activity",
+        title: "Rule changes",
+        text: "Every change to these limits, and who made it. Administrators and managers can change them.",
+      },
+    ],
+  },
   // CD - A customer
   {
     key: "customer",

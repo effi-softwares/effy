@@ -43,7 +43,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.effyshopping.customer.mobile.app.AppContainer
 import com.effyshopping.customer.mobile.core.platform.rememberClearAppBadge
-import com.effyshopping.customer.mobile.core.platform.rememberOpenAppSettings
 import com.effyshopping.customer.mobile.core.presentation.EffyAppBar
 import com.effyshopping.customer.mobile.core.presentation.EffyChip
 import com.effyshopping.customer.mobile.core.presentation.EffyEmptyState
@@ -58,6 +57,7 @@ import com.effyshopping.customer.mobile.core.presentation.EffySkeletonText
 import com.effyshopping.customer.mobile.core.presentation.EffySwipeRow
 import com.effyshopping.customer.mobile.core.presentation.EffyTextLink
 import com.effyshopping.customer.mobile.features.notifications.domain.InboxCategories
+import com.effyshopping.customer.mobile.features.notifications.offers.MarketingStop
 import com.effyshopping.customer.mobile.features.notifications.domain.InboxFilter
 import com.effyshopping.customer.mobile.features.notifications.domain.InboxGrouping
 import com.effyshopping.customer.mobile.features.notifications.domain.InboxItem
@@ -81,7 +81,7 @@ import org.jetbrains.compose.resources.painterResource
  * detail sheet instead (FR-013). No centred dialog, no drop-down (customer app rule).
  */
 @Composable
-fun InboxScreen(container: AppContainer, snackbar: SnackbarHostState, onOpen: (InboxItem) -> Unit) {
+fun InboxScreen(container: AppContainer, snackbar: SnackbarHostState, onOpen: (InboxItem) -> Unit, onSettings: () -> Unit = {}) {
     val clearAppBadge = rememberClearAppBadge()
     val vm = viewModel {
         InboxViewModel(
@@ -93,14 +93,29 @@ fun InboxScreen(container: AppContainer, snackbar: SnackbarHostState, onOpen: (I
         )
     }
     val state by vm.state.collectAsStateWithLifecycle()
-    val openSettings = rememberOpenAppSettings()
     val scope = rememberCoroutineScope()
     var detail by remember { mutableStateOf<InboxItem?>(null) }
     val now = remember(state.items, state.pinned) { kotlin.time.Clock.System.now().toEpochMilliseconds() }
 
+    val marketingStop = remember { MarketingStop(container.notificationPreferences, container.analyticsDriver::capture) }
+
     fun tap(item: InboxItem) {
         vm.opened(item)
-        if (item.destination != null) onOpen(item) else detail = item
+        // 111 FR-024: an offer or news item always opens its detail first, where it can be stopped.
+        if (item.destination != null && !MarketingStop.isMarketing(item.category)) onOpen(item) else detail = item
+    }
+
+    fun stopMarketing(item: InboxItem) {
+        detail = null
+        scope.launch {
+            if (!marketingStop.stop(item.category)) {
+                snackbar.showSnackbar("We couldn't change that. Try again in Notification settings.")
+                return@launch
+            }
+            val what = if (item.category == "news") "news" else "offers"
+            val result = snackbar.showSnackbar("You won't get  from Effy any more", actionLabel = "Undo", duration = SnackbarDuration.Short)
+            if (result == SnackbarResult.ActionPerformed) marketingStop.undo(item.category)
+        }
     }
 
     fun archive(item: InboxItem) {
@@ -132,7 +147,7 @@ fun InboxScreen(container: AppContainer, snackbar: SnackbarHostState, onOpen: (I
                     icon = Res.drawable.lucide_bell,
                     modifier = Modifier.weight(1f),
                 )
-                SettingsRow(openSettings)
+                SettingsRow(onSettings)
             }
             else -> {
                 val list = rememberLazyListState()
@@ -166,17 +181,27 @@ fun InboxScreen(container: AppContainer, snackbar: SnackbarHostState, onOpen: (I
                             )
                         }
                     }
-                    item(key = "settings") { SettingsRow(openSettings) }
+                    item(key = "settings") { SettingsRow(onSettings) }
                 }
             }
         }
     }
 
     detail?.let { item ->
-        EffySheet(title = item.title, onDismiss = { detail = null }, cancelLabel = "Close") {
+        val marketing = MarketingStop.isMarketing(item.category)
+        EffySheet(
+            title = item.title,
+            onDismiss = { detail = null },
+            cancelLabel = "Close",
+            primaryLabel = if (marketing && item.destination != null) "See offer" else null,
+            onPrimary = if (marketing && item.destination != null) ({ detail = null; onOpen(item) }) else null,
+        ) {
             Text(item.body, style = MaterialTheme.typography.bodyLarge)
             item.endsLabel?.let {
                 Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = EffySpacing.s))
+            }
+            if (marketing) {
+                EffyTextLink(MarketingStop.label(item.category), onClick = { stopMarketing(item) }, modifier = Modifier.padding(top = EffySpacing.md))
             }
         }
     }
@@ -253,13 +278,14 @@ private fun InboxRow(item: InboxItem, now: Long, onClick: () -> Unit) {
 }
 
 @Composable
-private fun SettingsRow(openSettings: () -> Unit) {
+private fun SettingsRow(onSettings: () -> Unit) {
     EffyGroup(modifier = Modifier.padding(EffySpacing.lg)) {
         EffyNavRow(
             "Notification settings",
             leading = { EffyRowIcon(Res.drawable.lucide_settings) },
-            supporting = "Choose what your phone shows from Effy",
-            onClick = openSettings,
+            // 111: Effy's own settings screen (choices per kind, offers yes/no), which links to the phone's when needed.
+            supporting = "Choose what Effy sends you, and how",
+            onClick = onSettings,
             divider = false,
         )
     }

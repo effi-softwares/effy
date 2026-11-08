@@ -129,6 +129,8 @@ sealed interface CustomerNavKey : NavKey {
     /** The customer's Effy points: balance and history. */
     @Serializable data object Points : CustomerNavKey
     @Serializable data object Notifications : CustomerNavKey
+    /** 111 - choices per category and channel, and the offers yes/no. */
+    @Serializable data object NotificationSettings : CustomerNavKey
     @Serializable data object Faqs : CustomerNavKey
     @Serializable data object HelpCenter : CustomerNavKey
     @Serializable data object CustomerService : CustomerNavKey
@@ -222,6 +224,7 @@ val customerNavSavedState: SavedStateConfiguration = SavedStateConfiguration {
             subclass(CustomerNavKey.PaymentMethods::class, CustomerNavKey.PaymentMethods.serializer())
             subclass(CustomerNavKey.Points::class, CustomerNavKey.Points.serializer())
             subclass(CustomerNavKey.Notifications::class, CustomerNavKey.Notifications.serializer())
+            subclass(CustomerNavKey.NotificationSettings::class, CustomerNavKey.NotificationSettings.serializer())
             subclass(CustomerNavKey.Faqs::class, CustomerNavKey.Faqs.serializer())
             subclass(CustomerNavKey.HelpCenter::class, CustomerNavKey.HelpCenter.serializer())
             subclass(CustomerNavKey.CustomerService::class, CustomerNavKey.CustomerService.serializer())
@@ -265,6 +268,7 @@ val ALL_CUSTOMER_ROUTES: List<CustomerNavKey> = listOf(
     CustomerNavKey.PaymentMethods,
     CustomerNavKey.Points,
     CustomerNavKey.Notifications,
+    CustomerNavKey.NotificationSettings,
     CustomerNavKey.Faqs,
     CustomerNavKey.HelpCenter,
     CustomerNavKey.CustomerService,

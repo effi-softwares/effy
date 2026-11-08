@@ -18,6 +18,8 @@ const ACTIVITY_ROUTES = [
   "/admin/v1/promotions/{id}/audit",
   "/orders/v1/customers/{customerId}/points/history",
   "/orders/v1/points/settings/activity",
+  "/orders/v1/notifications/settings/activity",
+  "/orders/v1/customers/{customerId}/consent/activity",
   "/admin/v1/deliverability/{address}/activity",
   "/shop/v1/team-activity",
   "/shop/v1/orders/{id}/activity",

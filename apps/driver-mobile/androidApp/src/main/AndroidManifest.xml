@@ -43,14 +43,14 @@
 
         <!-- 050 - FCM service (class in :shared/androidMain). Forwards token rotation; system tray shows notifications. -->
         <!-- Push: what the system tray uses for a notification that arrives while the app is closed - the
-             monochrome bell (the launcher icon draws as a white square in the status bar) and the app's own
-             work-updates channel, which the app creates at start (FCM falls back to "Miscellaneous" otherwise). -->
+             monochrome bell (the launcher icon draws as a white square in the status bar) and the Work
+             channel - one of the app's channels per kind of message (111), all created at start (FCM falls back to "Miscellaneous" otherwise). -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_icon"
             android:resource="@drawable/ic_stat_effy_notify" />
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
-            android:value="driver_work_updates" />
+            android:value="work" />
         <service
             android:name="com.effyshopping.driver.mobile.core.push.EffyFirebaseMessagingService"
             android:exported="false">

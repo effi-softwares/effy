@@ -76,6 +76,7 @@ const SILENT: Record<string, string> = {
   "admin/back-office-tours-v1-patch": "a staff member's own guided-tour record (107); only they change it, and the response is their copy",
   "shop/shop-tours-v1-patch": "the operator's own guided-tour record (106); only they change it, and the response is their copy",
   "commerce/order-business-identity-v1-put": "096 — the buyer's business details for a tax invoice not yet issued; no screen shows them live",
+  "orders/notification-settings-v1-put": "111 - the promotional notification limits; read by notify() when a promotion is sent, shown live nowhere",
   "orders/admin-tax-settings-v1-put": "096 — Effy's tax identity and the invoice switch; read when a document is asked for, shown live nowhere",
   "fleet/shop-pack-scanning-v1-put": "096 — a shop rule read only when the shop next marks an order ready; no screen shows it live, so nothing is announced",
   "shop/team-invite-v1-post": "team administration",

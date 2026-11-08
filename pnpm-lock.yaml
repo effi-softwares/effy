@@ -673,6 +673,9 @@ importers:
       '@aws-sdk/s3-request-presigner':
         specifier: 3.1088.0
         version: 3.1088.0
+      '@effy/legal-content':
+        specifier: workspace:*
+        version: link:../../../packages/legal-content
       '@effy/shared-types':
         specifier: workspace:*
         version: link:../../../packages/shared-types

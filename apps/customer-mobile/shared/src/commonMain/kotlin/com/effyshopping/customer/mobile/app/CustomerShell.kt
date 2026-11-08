@@ -16,6 +16,7 @@ import com.effyshopping.customer.mobile.core.platform.platformTag
 import com.effyshopping.customer.mobile.core.presentation.LocalIsIos
 import com.effyshopping.customer.mobile.core.presentation.LocalInboxCount
 import com.effyshopping.customer.mobile.core.presentation.LocalOpenNotifications
+import com.effyshopping.customer.mobile.features.notifications.settings.presentation.NotificationSettingsScreen
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.CompositionLocalProvider
@@ -591,6 +592,7 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                         key.orderId,
                         title = "Order confirmed",
                         doneLabel = "Keep shopping",
+                        askAboutOffers = true,
                         // Order matters. Checkout may have run in any tab (Search → Product →
                         // Cart → Checkout), so that tab is cleared to its own root first; only then
                         // do we move to Home. Resetting to Home directly would have planted Home as
@@ -663,7 +665,15 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                     PaymentMethodsScreen(container, onBack = { navState.pop() })
                 }
                 entry<CustomerNavKey.Notifications> {
-                    InboxScreen(container, shellSnackbar, onOpen = { item -> openFromInbox(item.destination) })
+                    InboxScreen(
+                        container,
+                        shellSnackbar,
+                        onOpen = { item -> openFromInbox(item.destination) },
+                        onSettings = { navState.push(CustomerNavKey.NotificationSettings) },
+                    )
+                }
+                entry<CustomerNavKey.NotificationSettings> {
+                    NotificationSettingsScreen(container, shellSnackbar)
                 }
                 // Three routes, one help page (Help board). The old keys stay so a restored back
                 // stack still resolves.
