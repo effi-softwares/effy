@@ -15,7 +15,7 @@ import { emitMetric } from "../lib/metrics";
 import { announce, type LiveChange } from "../live";
 import { release as releasePoints, spendHeld } from "../points/ledger";
 import { confirmUses, releaseUses } from "../promotions/uses";
-import { appendNotification } from "./outbox";
+import { notify } from "../notifications/notify";
 
 export interface FinalizeOutcome {
   /** False when the order was not pending (a redelivery): nothing ran. */
@@ -202,20 +202,27 @@ RETURNING shop_id::text AS shop_id`,
     [orderId],
   );
 
-  // "New order to pick": one per active staff member of each shop.
-  await tx.query(
-    `
-INSERT INTO public.notification_request (recipient_sub, audience, type, payload, dedupe_key)
-SELECT ss.cognito_sub, 'shop', 'shop_new_order',
-       jsonb_build_object('entityId', sf.id::text, 'deepLink', 'effy://queue/' || sf.id::text),
-       'shop_new_order:' || ss.cognito_sub || ':' || sf.id::text
+  // "New order to pick": one per active staff member of each shop, per package.
+  const staffByPackage = (
+    await tx.query<{ fulfillment_id: string; sub: string }>(
+      `
+SELECT sf.id::text AS fulfillment_id, ss.cognito_sub AS sub
 FROM public.shop_fulfillment sf
 -- availability-exempt: public.shop_staff - who may be notified, not what may be sold.
 JOIN public.shop_staff ss ON ss.shop_id = sf.shop_id AND ss.status = 'active'
 WHERE sf.order_id = $1
-ON CONFLICT (dedupe_key) DO NOTHING`,
-    [orderId],
-  );
+ORDER BY sf.id, ss.cognito_sub`,
+      [orderId],
+    )
+  ).rows;
+  const packages = new Map<string, string[]>();
+  for (const r of staffByPackage) packages.set(r.fulfillment_id, [...(packages.get(r.fulfillment_id) ?? []), r.sub]);
+  for (const [fulfillmentId, subs] of packages) {
+    await notify(tx, {
+      type: "shop_new_order", recipients: subs.map((sub) => ({ sub })), subject: { entityId: fulfillmentId },
+      dedupeScope: fulfillmentId, channels: ["push"],
+    });
+  }
 
   const shopIds = (
     await tx.query<{ shop_id: string }>(`SELECT shop_id::text AS shop_id FROM public.shop_fulfillment WHERE order_id = $1 ORDER BY shop_id`, [orderId])
@@ -230,9 +237,9 @@ FROM public."order" o JOIN public.customer c ON c.id = o.customer_id WHERE o.id 
   ).rows[0];
   if (!meta) throw new Error("finalize: order has no customer");
 
-  await appendNotification(tx, {
-    recipientSub: meta.cognito_sub, audience: "customer", type: "order_paid",
-    entityId: orderId, deepLink: `effy://order/${orderId}`,
+  await notify(tx, {
+    type: "order_paid", recipients: [{ sub: meta.cognito_sub }], subject: { entityId: orderId },
+    dedupeScope: orderId, channels: ["push"],
   });
 
   // Receipt intent. The recipient is snapshotted now; the notifications worker sends it, so payment

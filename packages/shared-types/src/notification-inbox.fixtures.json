@@ -1,0 +1,15 @@
+{
+  "_comment": "110 - inbox categories: the label on a filter chip, the Lucide icon each surface draws, and which audiences may filter by it. Shared by packages/shared-types (INBOX_CATEGORIES) and the customer and driver apps (InboxCategory.kt). Copies are embedded in each app's commonTest; notification-inbox.test.ts fails a copy that differs.",
+  "categories": [
+    { "key": "orders", "label": "Orders", "icon": "package", "filterableBy": ["customer", "shop"] },
+    { "key": "points", "label": "Points", "icon": "coins", "filterableBy": ["customer"] },
+    { "key": "work", "label": "Work", "icon": "truck", "filterableBy": [] },
+    { "key": "stock", "label": "Stock", "icon": "boxes", "filterableBy": ["shop"] },
+    { "key": "products", "label": "Products", "icon": "shopping-basket", "filterableBy": ["shop"] },
+    { "key": "offers", "label": "Offers", "icon": "tag", "filterableBy": ["customer"] },
+    { "key": "news", "label": "News", "icon": "newspaper", "filterableBy": ["customer"] },
+    { "key": "important", "label": "Important", "icon": "circle-alert", "filterableBy": ["customer", "shop"] },
+    { "key": "support", "label": "Support", "icon": "message-circle", "filterableBy": ["customer"] },
+    { "key": "announcements", "label": "Announcements", "icon": "megaphone", "filterableBy": ["shop"] }
+  ]
+}

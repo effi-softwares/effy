@@ -3,6 +3,7 @@
 
 import { withTransaction } from "@effy/edge-shared";
 import { PLANNER_PASS_LOCK, removeAssignment } from "@effy/edge-shared/delivery";
+import { notify } from "@effy/edge-shared/notifications";
 import { accountFor, countByPackage, expectedParcels, recordHandovers, recordReads, writeParcelHolds } from "@effy/edge-shared/labels";
 import type { LabelReadDTO, ParcelHandover, ParcelMissing } from "@effy/shared-types";
 
@@ -100,6 +101,7 @@ export async function loadRun(
         `UPDATE public.driver_round SET status = 'in_progress', updated_at = now() WHERE id = $1 AND status = 'planned'`,
         [runId],
       );
+      await tellCustomersOutForDelivery(tx, moved.rows.map((r: any) => r.id as string));
     }
 
     await recordHandovers(tx, {
@@ -114,4 +116,29 @@ export async function loadRun(
 
     return { loadedDropIds: moved.rows.map((r: any) => r.id as string), held, dropsRemoved };
   });
+}
+
+/**
+ * "Out for delivery" (110 FR-029, operator decision 4): the customer of each Effy-delivered order whose parcels have
+ * just left the hub on this van. Once per order - the order id is the dedupe scope - however many loads, bags or shops
+ * the order has. In the load's own transaction, so a load that rolls back tells no one.
+ */
+async function tellCustomersOutForDelivery(tx: any, stopIds: string[]): Promise<void> {
+  const { rows } = await tx.query(
+    `SELECT DISTINCT o.id::text AS order_id, c.cognito_sub AS sub
+       FROM public.round_stop rs
+       JOIN public."order" o ON o.id = rs.order_id
+       JOIN public.customer c ON c.id = o.customer_id
+      WHERE rs.id = ANY($1::uuid[]) AND rs.kind = 'customer_drop' AND o.delivery_type = 'effy' AND c.cognito_sub IS NOT NULL`,
+    [stopIds],
+  );
+  for (const r of rows as { order_id: string; sub: string }[]) {
+    await notify(tx, {
+      type: "order_out_for_delivery",
+      recipients: [{ sub: r.sub }],
+      subject: { entityId: r.order_id },
+      dedupeScope: r.order_id,
+      channels: ["push"],
+    });
+  }
 }

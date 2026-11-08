@@ -60,7 +60,7 @@ d("074 - the points ledger against the real schema", () => {
     const { entryId, created } = await give(c, 500, now);
     expect(created).toBe(true);
     expect(await usable(pool, c, now)).toBe(500);
-    const n = await one<{ n: string }>(`SELECT count(*) AS n FROM public.notification_request WHERE type = 'points_credited' AND payload->>'entityId' = $1`, [entryId]);
+    const n = await one<{ n: string }>(`SELECT count(*) AS n FROM (SELECT n.recipient_sub, n.audience, n.type, n.dedupe_key, n.created_at, d.channel, d.recipient_email, d.status, jsonb_strip_nulls(jsonb_build_object('entityId', n.entity_id)) AS payload FROM public.notification n JOIN public.notification_delivery d ON d.notification_id = n.id) AS notification_request WHERE type = 'points_credited' AND payload->>'entityId' = $1`, [entryId]);
     expect(Number(n.n)).toBe(2);
   });
 
@@ -81,6 +81,13 @@ d("074 - the points ledger against the real schema", () => {
     const second = await ask();
     expect(second).toMatchObject({ entryId: first.entryId, created: false });
     expect(await usable(pool, c, now)).toBe(300);
+    // 109 - and one notification (push + email deliveries), not two.
+    const told = await one<{ n: string; d: string }>(
+      `SELECT count(DISTINCT n.id) AS n, count(d.id) AS d FROM public.notification n
+         JOIN public.customer c ON c.cognito_sub = n.recipient_sub
+         LEFT JOIN public.notification_delivery d ON d.notification_id = n.id
+        WHERE c.id = $1 AND n.type = 'points_credited'`, [c]);
+    expect(told).toEqual({ n: "1", d: "2" });
   });
 
   it("081 - a quiet credit is the same lot, and sends no message (its caller says it)", async () => {
@@ -91,7 +98,7 @@ d("074 - the points ledger against the real schema", () => {
       dedupeKey: `quiet:${c}`, quiet: true, now,
     }));
     expect(await usable(pool, c, now)).toBe(250);
-    const n = await one<{ n: string }>(`SELECT count(*) AS n FROM public.notification_request WHERE type = 'points_credited' AND payload->>'entityId' = $1`, [entryId]);
+    const n = await one<{ n: string }>(`SELECT count(*) AS n FROM (SELECT n.recipient_sub, n.audience, n.type, n.dedupe_key, n.created_at, d.channel, d.recipient_email, d.status, jsonb_strip_nulls(jsonb_build_object('entityId', n.entity_id)) AS payload FROM public.notification n JOIN public.notification_delivery d ON d.notification_id = n.id) AS notification_request WHERE type = 'points_credited' AND payload->>'entityId' = $1`, [entryId]);
     expect(Number(n.n)).toBe(0);
   });
 

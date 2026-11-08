@@ -21,7 +21,16 @@ in its `AnalyticsEvent` sealed class; the per-app drift check keeps them aligned
 | `push_permission_prompted` | - | The OS notification-permission prompt is shown |
 | `push_permission_granted` | - | Permission granted |
 | `push_permission_denied` | - | Permission denied |
-| `notification_opened` | `{ type }` | A push is tapped (`type` = the notification-request type, e.g. `order_ready`; **no** order/customer data) |
+| `notification_opened` | `{ type, fallback }` | A push is tapped, captured **after** the screen it leads to has shown (109). `type` = the notification type, e.g. `order_ready`; `fallback` = `"true"` when the thing it was about was gone and a nearer screen opened instead. **No** order/customer data. Shop console: `notif_opened` with the same fields |
+| `inbox_opened` | `{ surface }` | The notification inbox opened (110). `surface` = `app` / `web`. Shop console: `notif_inbox_opened` with `surface` = `panel` / `page` |
+| `inbox_item_opened` | `{ type, category, fallback }` | An item in the inbox was tapped, after its screen shows. `fallback` = `"true"` when it opened its detail view instead (no destination this build knows). Shop console: `notif_inbox_item_opened` |
+| `inbox_item_archived` | `{ type, category }` | An item was archived (swipe or the archive action). Shop console: `notif_inbox_archived` |
+| `inbox_archive_undone` | `{ type, category }` | Undo after archiving. Shop console: `notif_inbox_undo` |
+| `inbox_marked_all_read` | - | Mark all read. Shop console: `notif_inbox_all_read` |
+| `notification_setting_changed` | `{ category, channel, enabled, surface }` | A customer changed a notification choice (111). `channel` = `push` / `email` / `consent` (the Offers or News main switch); `enabled` = `true` / `false`; `surface` = `app` / `web` |
+| `offers_ask_shown` | `{ surface }` | The one-time offers ask appeared on an order confirmation (111) |
+| `offers_ask_answered` | `{ answer, surface }` | The customer answered it: `answer` = `yes` / `no` (closing it counts as `no`) |
+| `offers_stopped_from_inbox` | `{ category, surface }` | "Stop offers like this" / "Stop news like this" on an inbox item (111); `category` = `offers` / `news` |
 
 Audience-specific funnels live in [commerce-events.md](commerce-events.md) (customer),
 [fulfillment-events.md](fulfillment-events.md) (shop) and [driver-events.md](driver-events.md) (driver).

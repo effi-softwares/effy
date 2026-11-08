@@ -12,8 +12,9 @@ import { CommandPalette } from "@/components/console/CommandPalette"
 import { NewOrderAlert } from "@/components/console/NewOrderAlert"
 import { ScanButton } from "@/components/console/ScanButton"
 import { SoundChip } from "@/components/console/SoundChip"
+import { NotificationBell } from "@/features/notifications/NotificationBell"
 import { PwaBanners } from "@/components/console/PwaBanners"
-import { useNotificationNavigation } from "@/features/notifications/useNotificationNavigation"
+import { useNotificationRead } from "@/features/notifications/useNotificationNavigation"
 import { getLiveDescriptor } from "@/features/live/repo"
 import { LIVE_ROUTES } from "@/features/live/routes"
 import { navGroups } from "@/components/layout/nav"
@@ -70,7 +71,7 @@ function AppShell() {
   const signOut = useSignOut()
   const navigate = useNavigate()
   const navBadges = useNavBadges()
-  useNotificationNavigation()
+  useNotificationRead()
   const { data: me } = useQuery(meQuery)
   const record = useHeaderRecord()
   const tourState = useQuery({ ...tourStateQuery, enabled: data?.status === "signed-in" })
@@ -104,6 +105,7 @@ function AppShell() {
           headerActions={
             <>
               <SoundChip />
+              <NotificationBell />
               <ScanButton />
               <TourHelpButton />
             </>

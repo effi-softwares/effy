@@ -1,6 +1,10 @@
+import { parseDestination, shopPathFor } from "@effy/shared-types"
+
 interface PushData {
   type: string
-  entityId: string
+  /** "" when the push names none (a legacy row), or for a grouped banner. */
+  notificationId: string
+  /** The console route the push's `destination` opens (109), computed here; never read from the payload. */
   webPath: string
   title: string
   body: string
@@ -14,12 +18,14 @@ interface NotificationPlan {
   tag: string
   group: string
   webPath: string
+  /** "" for a grouped banner: it stands for several notifications, so opening it marks none read. */
+  notificationId: string
   count: number
 }
 
 const FALLBACK: PushData = {
   type: "unknown",
-  entityId: "",
+  notificationId: "",
   webPath: "/",
   title: "Effy Shop",
   body: "Something needs your attention.",
@@ -35,8 +41,9 @@ export function parsePush(raw: unknown): PushData {
 
   return {
     type: str("type", FALLBACK.type),
-    entityId: str("entityId", ""),
-    webPath: safePath(str("webPath", FALLBACK.webPath)),
+    notificationId: str("notificationId", ""),
+    // Where it leads is the push's `destination` (one of the shop's closed list); anything else opens the console.
+    webPath: safePath(shopPathFor(parseDestination("shop", d.destination))),
     title: str("title", FALLBACK.title),
     body: str("body", FALLBACK.body),
     tag: str("tag", FALLBACK.tag),
@@ -74,6 +81,7 @@ export function planNotification(data: PushData, previousCount: number): Notific
   if (data.group === "orders") {
     return {
       ...data,
+      notificationId: "",
       title: `${count} new orders to pick`,
       body: "Open the queue to start picking.",
       webPath: "/orders",
@@ -83,6 +91,7 @@ export function planNotification(data: PushData, previousCount: number): Notific
 
   return {
     ...data,
+    notificationId: "",
     title: `${count} things need attention`,
     body: "Open the console to see what.",
     webPath: "/orders",

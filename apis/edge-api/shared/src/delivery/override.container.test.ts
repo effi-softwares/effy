@@ -191,7 +191,7 @@ d("081 - moving an order between Effy and courier delivery", () => {
     expect(await one(`SELECT kind, points, reason, author_kind, author_sub, order_id::text AS order_id FROM public.points_entry WHERE customer_id = $1`, [o.customerId]))
       .toEqual({ kind: "auto_credit", points: 250, reason: "courier_override_compensation", author_kind: "staff", author_sub: STAFF, order_id: o.order });
     // One message, push and email; the points credit sends none of its own.
-    expect((await pool.query(`SELECT type, channel FROM public.notification_request WHERE recipient_sub = $1 ORDER BY type, channel`, [`ov-${n}`])).rows)
+    expect((await pool.query(`SELECT type, channel FROM (SELECT n.recipient_sub, n.audience, n.type, n.dedupe_key, n.created_at, d.channel, d.recipient_email, d.status, jsonb_strip_nulls(jsonb_build_object('entityId', n.entity_id)) AS payload FROM public.notification n JOIN public.notification_delivery d ON d.notification_id = n.id) AS notification_request WHERE recipient_sub = $1 ORDER BY type, channel`, [`ov-${n}`])).rows)
       .toEqual([{ type: "order_delivery_changed", channel: "email" }, { type: "order_delivery_changed", channel: "push" }]);
     // The record.
     const [move] = await deliveryMovesFor(pool, o.order);
@@ -241,7 +241,7 @@ d("081 - moving an order between Effy and courier delivery", () => {
     expect((await one<{ s: string }>(`SELECT state AS s FROM public.delivery_slot_booking WHERE order_id = $1`, [o.order])).s).toBe("confirmed");
     expect(Number((await one<{ n: string }>(`SELECT count(*) AS n FROM public.points_entry WHERE customer_id = $1`, [o.customerId])).n)).toBe(0);
     expect((await one<{ status: string }>(`SELECT status FROM public.driver_round WHERE id = $1`, [o.deliver])).status).toBe("planned");
-    expect(Number((await one<{ n: string }>(`SELECT count(*) AS n FROM public.notification_request WHERE recipient_sub = $1`, [`ov-${n}`])).n)).toBe(0);
+    expect(Number((await one<{ n: string }>(`SELECT count(*) AS n FROM (SELECT n.recipient_sub, n.audience, n.type, n.dedupe_key, n.created_at, d.channel, d.recipient_email, d.status, jsonb_strip_nulls(jsonb_build_object('entityId', n.entity_id)) AS payload FROM public.notification n JOIN public.notification_delivery d ON d.notification_id = n.id) AS notification_request WHERE recipient_sub = $1`, [`ov-${n}`])).n)).toBe(0);
   });
 
   it("P4 - free delivery as points, free delivery to the card, the difference to the card, or nothing with a note", async () => {

@@ -157,7 +157,7 @@ export async function evaluateShop(
           type,
           entityId: lead.entityId,
           // The occurrence id, never the product or order id.
-          dedupeKey: `${type}:${r.sub}:${lead.id}`,
+          dedupeScope: lead.id,
         });
         intents += 1;
       }

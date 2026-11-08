@@ -3,7 +3,8 @@ import Link from "next/link"
 import { AccountMenu } from "@/components/header/AccountMenu"
 import { AuthSync } from "@/components/header/AuthSync"
 import { btnClass } from "@/components/storefront/actions"
-import { getPoints } from "@/lib/customer-reads"
+import { NotificationBell } from "@/components/notifications/NotificationBell"
+import { getPoints, getUnseenCount } from "@/lib/customer-reads"
 import { getSession } from "@/lib/session"
 import { Bone } from "@/components/ui/skeletons"
 
@@ -37,8 +38,17 @@ export async function UserIsland() {
     points = null
   }
 
+  // The bell's first number (110); a failed read shows the bell with no number rather than a wrong one.
+  let unseen = 0
+  try {
+    unseen = (await getUnseenCount())?.unseenCount ?? 0
+  } catch {
+    unseen = 0
+  }
+
   return (
-    <div className="flex items-center" data-testid="account-link">
+    <div className="flex items-center gap-1" data-testid="account-link">
+      <NotificationBell initialCount={unseen} />
       <AccountMenu
         givenName={session.givenName}
         familyName={session.familyName}

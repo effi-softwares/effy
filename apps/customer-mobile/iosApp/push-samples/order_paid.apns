@@ -7,6 +7,6 @@
     "sound": "default"
   },
   "type": "order_paid",
-  "entityId": "REPLACE-WITH-ONE-OF-YOUR-ORDER-IDS",
-  "deepLink": "effy://order/REPLACE-WITH-ONE-OF-YOUR-ORDER-IDS"
+  "notificationId": "00000000-0000-4000-8000-000000000109",
+  "destination": "{\"kind\":\"order\",\"orderId\":\"REPLACE-WITH-ONE-OF-YOUR-ORDER-IDS\"}"
 }

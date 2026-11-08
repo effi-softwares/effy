@@ -26,6 +26,7 @@ import com.effyshopping.customer.mobile.resources.lucide_mail
 import com.effyshopping.customer.mobile.resources.lucide_info
 import com.effyshopping.customer.mobile.resources.lucide_circle_help
 import com.effyshopping.customer.mobile.resources.lucide_lock
+import com.effyshopping.customer.mobile.resources.lucide_settings
 import com.effyshopping.customer.mobile.resources.lucide_shield
 import com.effyshopping.customer.mobile.resources.lucide_credit_card
 import com.effyshopping.customer.mobile.resources.lucide_map_pin
@@ -108,7 +109,6 @@ import com.effyshopping.customer.mobile.core.observability.ConsentState
 import com.effyshopping.customer.mobile.core.observability.analyticsConsentSubtitle
 import com.effyshopping.customer.mobile.core.presentation.EffyNavRow
 import com.effyshopping.customer.mobile.features.help.presentation.HelpScreen
-import com.effyshopping.customer.mobile.features.notifications.presentation.NotificationsScreen
 import com.effyshopping.mobile.design.EffySpacing
 import com.effyshopping.mobile.kit.ui.EffyPrimaryAction
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -288,7 +288,6 @@ fun AccountRoutes(container: AppContainer, route: CustomerNavKey, session: Sessi
         CustomerNavKey.PasswordReset -> ResetPasswordScreen(container, customer.email)
         // The new screens. Each is presentational and carries no session requirement of its
         // own; reaching them via Account is what already gates them.
-        CustomerNavKey.Notifications -> NotificationsScreen()
         CustomerNavKey.Faqs, CustomerNavKey.HelpCenter, CustomerNavKey.CustomerService ->
             HelpScreen(onOpenOrders = { container.navigator.selectTab(CustomerNavKey.Orders) })
         else -> {}
@@ -395,6 +394,8 @@ private fun AccountScreen(container: AppContainer, vm: AccountViewModel, custome
             }
             EffyGroup(caption = "Account") {
                 AccountRow("Security", Res.drawable.lucide_shield) { nav.push(CustomerNavKey.Security) }
+                // 111: what Effy sends and how, and the offers yes/no.
+                AccountRow("Notification settings", Res.drawable.lucide_settings) { nav.push(CustomerNavKey.NotificationSettings) }
                 AccountRow("Privacy & data", Res.drawable.lucide_lock) { nav.push(CustomerNavKey.Privacy) }
                 // Light, Dark, or Match my phone; a sheet, remembered on this device.
                 EffyNavRow(

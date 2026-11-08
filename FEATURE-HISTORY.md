@@ -4,6 +4,164 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
+**111-notification-preferences** - Notification Preferences & Marketing Consent ([spec](specs/111-notification-preferences/spec.md)). 🔨 **BUILT
+2026-11-08; NOT MIGRATED, DEPLOYED OR WALKED; CONSENT WORDING AWAITS OPERATOR APPROVAL.** Spec 3 of the notifications programme
+(backlog D1–D6, D8–D10; D7 iOS interruption levels deferred until the Apple account is paid). Customers choose what Effy sends and
+how; offers and news reach only those who said yes, in Effy's words, with the yes recorded.
+- **Migration** `20261110090000_notification_preferences.sql` (additive; checked with real goose up / down-to / up):
+  `customer_notification_choice` (changeable categories only - the CHECK refuses a row for important/support),
+  `customer_marketing_consent` (append-only: UPDATE/DELETE revoked from `effy_shopper`) + view `marketing_consent_current` (the one
+  reader of "is it yes now"), `notification_settings` (singleton limits 1/day, 3/week) + `notification_settings_change`,
+  `notification_delivery.not_before` (push only) and statuses `skipped` / `capped`, partial index `notification_marketing_idx`.
+- **The policy is code, declared once**: `@effy/shared-types` `notification-categories.ts` (required, marketing, defaults, changeable
+  channels, Android channel, words) + fixture, Kotlin twins in both apps; `notification-categories.test.ts` holds TS ↔ fixture ↔
+  Kotlin ↔ migration CHECKs; the catalogue test fails a type whose category its audience does not declare.
+- ⚠ **THE RULES LIVE IN `notify()` (the one writer), in the same statement**: marketing without a current yes → NO ROW AT ALL (no
+  inbox, push or email); a channel turned off → delivery `skipped`; a marketing push over either limit → `capped` (a marketing send
+  takes `pg_advisory_xact_lock` first, so two campaigns can't both pass a limit - proven with 3 concurrent sends); a marketing push in
+  [21:00, 08:00) Effy time → `pending` with `not_before` = next 08:00 (the inbox item at once); a promotion whose words lack "Effy"
+  throws. No call site changed; optional third arg `{ now, entry }` is a test seam only. One SQL definition
+  (`channelAllowedSql` over a VALUES list built from the policy) is used by notify and by the drain.
+- **Drain**: claims only `not_before <= now()`; a held marketing push is judged again on release (`allowed`; consent withdrawn
+  overnight → `skipped`); `pendingStats` ignores held rows and ages from `not_before` (no 22:15 page). FCM message names
+  `android.notification.channelId` from the category. **Purge** erases choices and consent with an erased customer.
+- **Routes**: `GET/PATCH /customer/v1/notification-preferences` (factory in edge-shared `preferences-handlers.ts`; shared gateway
+  185 → **187/300**). `askForOffers` = never answered AND has an order (not `failed`) - the confirmation screen is the gate, so a
+  webhook still settling doesn't miss the moment. PATCH all-or-nothing; `400 category_required`, `400 invalid_preferences_change`,
+  `409 consent_wording_changed`. Orders service (staff 213 → **218/300**): notification settings GET/PUT (admin+manager, every
+  field change logged) + activity, a customer's preferences (read only - NO staff write exists) and consent activity. Activity logs
+  `bo-notification-settings` / `bo-customer-consent` (104's guard list updated). Settings PUT is SILENT in change-map.
+- **Wording**: `@effy/legal-content` `src/consent/marketing.json` (version `marketing-2026-11`), generated to
+  `src/generated/consent.ts` (export `@effy/legal-content/consent`) and the app's `MarketingConsent.kt`, drift-checked by legal:check;
+  privacy policy **v2** (Marketing section; v1 superseded). ⚠ **DRAFTS** (research.md R9) - approve or edit before deploy (text only).
+- **Customer app**: Account → Notification settings (+ the inbox's settings row now opens it): switches per category/channel,
+  Offers/News as a consent switch with a push sub-switch, fixed rows with the reason, a phone-off notice (`rememberTurnOnNotifications`
+  ported from the driver app); the offers ask as an `EffySheet` on the checkout receipt only (closing = Not now; the phone permission
+  is asked only after a recorded yes); offer/news inbox items open their detail with "See offer" and "Stop offers like this" (+ Undo).
+  New route `NotificationSettings` (route count 37 → 38). Android: four channels (orders, points, offers_news, important), old
+  `customer_order_updates` deleted, manifest default `orders`, foreground pushes use the message's channel.
+- **Customer website**: `/account/notifications/settings` (+ account sidebar, inbox header link), `app/api/notification-preferences`
+  proxy (always `surface: web`), the ask as an inline panel on `checkout/complete` (first-load rule holds), stop/undo in the inbox
+  dialog. **Driver app**: Account › "What you're told about" (three fixed rows); channels work / announcements / important.
+  **Shop console**: Settings › Notifications › "Always in your inbox" (five fixed rows); tour NS **v2** (106 inventory updated).
+  **Back-office**: Settings › Checkout › Notification limits (`/settings/notifications`, tour CN, 107 inventory → 53 tours); the
+  customer page has a Notifications panel and "Consent history" in More (the page's ONE drawer switches between points and consent).
+- **Verified**: shared-types (policy 11), edge-shared 1065 + containers (preferences 27: the rules table, limits, concurrency,
+  quiet hours, refusals, history, the ask; notify/inbox suites unchanged), notifications 64 + containers 15 (held/released/
+  re-judged, purge erasure), orders + containers (limits, consent log), every service's unit tests and tsc; container suites
+  driver 148, fleet 168, commerce 96; shop-web 527 + build; back-office 435 + build; customer-web 736 + build + depcruise; customer
+  app 75 classes / 492 tests + Android + iOS compile; driver app 37 classes / 170 tests + Android + iOS compile; mobile, driver,
+  timer and token guards; legal:check; gateway capacity 187 / 218. Failures that predate this, none in 111's files: shared-types
+  `package-status.guard`, customer `UnitPriceWordsTest`, consignment P6, orders S4, address-note CHECK (local SQL_ASCII), shop
+  Availability + catalog imports/products paging (103), shopper-handler (cluster role). The notifications 20,000-delivery timing
+  test failed once under load and passed on re-run.
+- **Walk**: quickstart §1–§5, §8–§9 now; the marketing sends (consent, cap, quiet hours, stop) are proved by container tests and
+  walked in spec 4 with the first real offer (no offer/news type exists yet).
+- **Deploy order (operator)**: approve the wording → `make db-up ENV=dev` → `make edge-deploy ENV=dev SERVICE=notifications` (the
+  drain must know `not_before` before anything writes one) → `make edge-deploy-all ENV=dev` → shop-web, back-office and customer-web
+  pipelines → both apps. No Terraform change.
+
+**110-notification-inboxes** - Notification Inboxes ([spec](specs/110-notification-inboxes/spec.md)). 🚀 **BUILT 2026-11-08; MIGRATED AND
+DEPLOYED TO DEV 2026-11-08 (operator-reported), NOT WALKED.** Spec 2 of the notifications programme (backlog C1–C7, A7, F2, F6, F7, F9). Every audience can now
+see what it was told: the customer app and website, the driver app and the shop console each have an inbox with a live bell.
+- **Migration** `20261109090000_notification_inbox.sql` (additive): `notification.pinned_until` (+ CHECK only an important one is
+  pinned), type `driver_runs_today` (24 types), `notification_unseen_idx` (the bell and the app-icon badge read only unseen rows).
+- **Server**: `@effy/edge-shared/notifications` `inbox.ts` (list, unseen count, seen, read-all, archive/undo) behind ONE factory
+  `makeInboxHandlers(audience)`; five routes per audience in `customer`/`driver`/`shop` (shared gateway 170 → **185/300**). Keyset
+  paging on `(created_at, id)`; pinned items come back apart (`pinned[]`, first page only) so a cursor stays exact (1,000 paged,
+  none lost or repeated). ⚠ **Cut-offs (`before`) are the ISO STRING with microseconds** - a JS `Date` drops them and the newest
+  item shown was left unseen (caught by a container test). `endsLabel` ("Ends Sun") only for offers/news/announcements/important.
+- **Live kind `inbox`** (+ Kotlin `LiveKind.INBOX`). ⚠ **Announced AFTER COMMIT by `notify()` itself** through a new
+  `afterCommit(tx, fn)` in `lib/db` (`withTransaction` / `transactorFor` run the queue after COMMIT, drop it on ROLLBACK; outside a
+  transaction it runs at once) - no notify call site changed. Customer → own channel; driver → own; shop → the SHOP's channel (each
+  operator re-reads their own). `announce-inbox.ts` is a named builder in `customer-announce.guard`. Not alarmed (`live_kinds` holds
+  10; `live.contract.test.ts` lists it as unwatched with the reason).
+- **Writers**: `notifications.guard` allows `UPDATE public.notification` in `read.ts` and `inbox.ts` only (proven by breaking it).
+- **Out for delivery** (operator decision 4): `driver/src/work/load.ts`, Effy orders on the loaded drops, scope = order id → once per
+  order. **Points expiring** now push + email. **Catch-up notice** (`driver/src/devices/catch-up.ts`, from `POST /driver/v1/devices`):
+  a `run_assigned` today whose push ended `no_device` + runs still theirs today → one pinned "You have N runs today", inbox only,
+  once per Effy day.
+- **Push badge**: the drain's claim counts each recipient's unseen rows → APNs `aps.badge` / Android `notificationCount` (not web).
+  Apps clear it on opening the inbox (`rememberClearAppBadge`); the installed console uses the Badging API. iOS waits on the paid
+  Apple account.
+- **Customer app**: `features/notifications` (repository, `InboxViewModel`, `InboxScreen`, detail `EffySheet`); the header bell in
+  every bar shows the count (`LocalInboxCount` from `InboxBadge`); new kit `EffySwipeRow`; a guest's bell goes through sign-in to the
+  inbox; the old empty `NotificationsScreen` is deleted. **Driver app**: `features/inbox`, bell on Today, `InboxRoute` (serializer
+  registered). **Shop console**: `NotificationBell` in the header (right Drawer, latest 20) and `/notifications` (filters in the
+  address, tour NF - words also in 106's Tour Inventory; 19 tours). **Customer website**: bell in the streamed user island (guests
+  load none of it), `/account/notifications` (server first page + `LiveRefresh`), `app/api/notifications/*` proxies, account links.
+- **Shared**: `notification-inbox.ts` (DTOs, `INBOX_CATEGORIES` + fixtures with Kotlin twins, `groupInboxByDay`,
+  `inboxTimeLabel`), `customerWebPathFor` (+ `webPath` in the destinations fixtures). Six Lucide drawables added to the apps.
+- **Verified**: shared-types 420, edge-shared 1056, every service's unit tests and tsc; container tests (inbox 13, notify, afterCommit
+  4, live routing 3, catch-up 6, load 23, delivery repository 11, points expiry 5, and every service's full suite); shop-web 527 +
+  build; customer-web 727 + build + depcruise; customer app 70/71 test classes (the 71st, `UnitPriceWordsTest`, failed before) +
+  Android + iOS compile; driver app all tests + Android + iOS compile; mobile, driver, timer, token and delivery-word guards.
+  Failures that predate this or come from the local test cluster, none touching 110's files: shared-types
+  `package-status.guard` (099), customer `UnitPriceWordsTest`, shared consignment P6 and orders status S4 (em dash vs
+  hyphen), catalog imports/products list and shop Availability paging (103), customer address note CHECK (the local
+  cluster's SQL_ASCII encoding counts bytes), shopper-handler (cluster-wide role on a re-run).
+- **Deploy order (operator)**: `make db-up ENV=dev` → `make edge-deploy ENV=dev SERVICE=notifications` → `make edge-deploy-all ENV=dev`
+  → shop-web and customer-web pipelines → both apps. No Terraform change. Then walk `specs/110-notification-inboxes/quickstart.md`.
+
+**109-notification-record** - Notification Record & Destinations ([spec](specs/109-notification-record/spec.md)). 🔨 **BUILT
+2026-11-07; STAGES A AND B MIGRATED AND DEPLOYED TO DEV 2026-11-08 (operator-reported), NOT WALKED.** ⚠ Stage B's first `db-up` failed: goose split the migration's `DO $$` block at its first `;` (no `StatementBegin`/`StatementEnd`); nothing applied, fixed, and the whole chain checked with real goose up/down/up before the re-run. Spec 1 of the notifications programme ([docs/notifications-backlog.md](docs/notifications-backlog.md),
+Epic A + B1–B6, F1, F3, F4). Every notification is now one lasting record per person, and a tap opens the screen it is about.
+- **Migration** `20261107090000_notification_record.sql` (Stage A, additive): `public.notification` (one per person per event: words
+  as sent, category, importance, `destination` jsonb, entity, seen/read/archived/expiry, `dedupe_key`) and `public.notification_delivery`
+  (one per channel: `pending|sent|no_device|muted|failed|expired`, `priority` 0 immediate / 1 bulk). ⚠ **`notification_request` STAYS
+  until Stage B** (task T059): its writers ran in payment and delivery transactions in eight services, so dropping it with the deploy
+  still running would fail payments. The worker drains it (`worker/legacy/`, unchanged) and the purge clears it after 30 days.
+- ⚠ **ONE WRITER**: `@effy/edge-shared/notifications` `notify()` (new export `./notifications`), in the change's own transaction; a repeat
+  writes no notification and no delivery. All ten call sites moved (finalize, order-completion, points ledger + warnings, override,
+  consignment, shop fulfilments + attention, catalog review, fleet driver-push; `payments/outbox.ts` deleted).
+  `notifications.guard.test.ts` holds who may insert, update and delete each table, and that nothing writes `notification_request`.
+- **The catalogue moved** from the worker to `shared/src/notifications/catalogue.ts`: words, category, tag/group and each type's
+  destination. The words are stored on the row and the drain sends the row's. `order_ready` now says "Your order is packed / It will be on
+  its way to you soon." (no "handoff"; a test fails internal words in customer copy). `order_with_courier` / `order_delivery_changed` now
+  open **the order** (the order id travels beside the consignment / move id).
+- **Destinations** (`@effy/shared-types` `notification-destinations.ts`, pinned by `notification-destinations.fixtures.json`; Kotlin
+  twins `core/push/Destination.kt` in both apps embed a copy the TS test compares): a closed list per audience, parsed leniently
+  (unknown → home). Pushes carry `notificationId` + `destination`; `deepLink`, `webPath`, `entityId` are gone (no installed builds).
+- **Read route** `POST /{customer|driver|shop}/v1/notifications/{id}/read` (one factory, shared gateway 167 → 170): owner + audience
+  or 404, first read time kept. Exempted in `change-map.guard` (no screen shows it until spec 2's inbox) and the driver `open.guard`.
+- **Apps**: customer `PushRouter` (every kind, on its tab's root) + `NotificationRepository`; driver `DriverShell` routes on
+  `DriverDestination` (run → collection/delivery from Today, else Today = fallback). Signed in: open at once, read in the background.
+  ⚠ **Signed out: held in memory only, then the server is asked first** (`verifiedDestinationOf`) - another person on the same phone sees
+  nothing. The driver's `App` moves a signed-out tap to `pendingOpen`. The work runs in a coroutine scope, not the effect: the old driver
+  effect cleared its key and then awaited `getToday()`, which recomposition cancelled - "open the run" (D4) may never have worked.
+  Customer Order details on 404 → Orders + "That order isn't available." (a shell-wide snackbar); a checkout receipt still says
+  "confirming" on 404.
+- **Shop console**: the service worker builds the path from `destination` (`shopPathFor`); the id travels on the address
+  (`?notification=…`), so it survives the sign-in redirect and a new window; `useNotificationNavigation` is now mounted at the root (a
+  click on the sign-in page is no longer lost); `useNotificationRead` (app shell) records the read and goes home on 404. A grouped banner
+  ("3 new orders") marks nothing read. Order / product pages that 404 go to their list with a toast (`useGoneFallback`).
+- **Sending**: `sendEach` (≤500 per call), one transaction per batch (claim `FOR UPDATE OF d SKIP LOCKED` → send → record), immediate
+  before bulk, batches until 15 s of the run remain; `NOTIF_BATCH_SIZE` 500. Expired deliveries are abandoned. Metrics
+  `NotificationDeliveriesPending`, `NotificationOldestPendingSeconds`, `NotificationExpired`; alarm `notification_backlog_stale` (> 300 s
+  for 3 min, missing data = breaching).
+- **Purge** (`notifications` stack, `purge`, daily, + a background-function alarm): customers 180 d, staff 90 d, deliveries 30 d,
+  legacy rows 30 d, and every notification of a customer whose closure passed `erase_after`. `closeAccount` deletes the customer's
+  device tokens in the closure transaction.
+- ⚠ **GAP FOUND, NOT FIXED HERE: nothing erases a closed customer account.** `customer_closure_request.erase_after` is stored and read by
+  nobody; 109 clears only notifications and devices. Orders, addresses and the profile are not erased after the grace period.
+- **Verified**: shared-types (55 destination cases) · edge-shared 1030 · notifications 72 (incl. the 20,000-in-10-runs simulation and
+  the priority test) · container tests on local Postgres: notify/markRead 9, delivery repository 6, purge 4, closure 13, points ledger 12,
+  planner 75, shop attention 13, driver completion + drops 50, orders arrival 10, catalog review/holds/effy/imports · all nine services
+  typecheck and pass their unit suites · shop-web 521 + production build (sw.js) · both apps' host tests (customer: 461 of 462, the
+  failure is `UnitPriceWordsTest`, which predates this change), Android debug + iOS simulator framework compile · mobile, driver,
+  refresh-timer and delivery-word guards · gateway capacity 170/300. ⚠ Left alone, predate this change: shared-types
+  `package-status.guard` (099), shared `consignment.container` P6 (em dash vs hyphen in "With the courier - lost"), catalog
+  `imports/list` + `products/list` container tests (fixture sha check, list paging).
+- **Not built** (recorded in tasks.md): the customer product fallback (no notification leads to a product yet); `fallback=true` is
+  reported by the driver app only.
+- **Deploy order (operator)**: `make db-up ENV=dev` → `make edge-deploy ENV=dev SERVICE=notifications` → `make edge-deploy-all ENV=dev`
+  → `make apply ENV=dev` (alarms) → shop-web (push) → both apps. Done in dev 2026-11-08.
+- **Stage B (T059, built 2026-11-08)**: `20261108090000_drop_notification_request.sql` drops the old outbox and **refuses while a row is
+  pending**; `worker/legacy/`, the handler's legacy pass and the purge's legacy branch are deleted; the guard now fails any source that names
+  `public.notification_request`. ⚠ **ORDER: `make edge-deploy ENV=dev SERVICE=notifications` FIRST, then `make db-up ENV=dev`** - the
+  deployed Stage A worker reads the table every minute and would fail if it vanished first. Verified: shared 1030, notifications 60 unit +
+  10 container tests, the migration's refusal, up and down on local Postgres.
+
 **050 follow-up - Mobile push finished (iOS bridge, tap → screen, banner while open).** 🔨 **BUILT 2026-11-07; NOT DEPLOYED OR
 WALKED. iOS DELIVERY WAITS ON THE PAID APPLE DEVELOPER ACCOUNT.** No spec: this is 050's recorded follow-up, written down since 050 in
 [docs/observability-apple-blockers.md](docs/observability-apple-blockers.md) (now the build record, the Simulator test and the

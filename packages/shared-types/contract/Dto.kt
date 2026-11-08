@@ -351,6 +351,246 @@ data class CustomerPointsNextExpiry (
     val points: Long
 )
 
+@Serializable
+data class InboxArchiveDTO (
+    val archived: Boolean,
+    val id: String
+)
+
+/**
+ * `PATCH …/{id}`.
+ */
+@Serializable
+data class InboxArchiveRequest (
+    val archived: Boolean
+)
+
+/**
+ * `GET …/unseen-count` and `POST …/seen`.
+ */
+@Serializable
+data class InboxCountDTO (
+    val unseenCount: Double
+)
+
+/**
+ * `POST …/seen` and `POST …/read-all`: the createdAt of the newest item the person was
+ * shown.
+ */
+@Serializable
+data class InboxCutoffRequest (
+    val before: String
+)
+
+/**
+ * `GET /{audience}/v1/notifications`.
+ */
+@Serializable
+data class InboxPageDTO (
+    /**
+     * First page only: the categories that have listed items. null on later pages.
+     */
+    val categories: List<String>? = null,
+
+    /**
+     * Newest first.
+     */
+    val items: List<InboxItemDTO>,
+
+    /**
+     * null at the end.
+     */
+    val nextCursor: String? = null,
+
+    /**
+     * Important unread items still pinned; first page only, otherwise empty. Never repeated in
+     * `items`.
+     */
+    val pinned: List<InboxItemDTO>,
+
+    val unseenCount: Double
+)
+
+/**
+ * One notification in a list.
+ */
+@Serializable
+data class InboxItemDTO (
+    val body: String,
+    val category: String,
+
+    /**
+     * ISO 8601.
+     */
+    val createdAt: String,
+
+    /**
+     * As stored (109's vocabulary); parse it with the same lenient parser as a push.
+     */
+    val destination: Map<String, String>,
+
+    /**
+     * "Ends Sun", only for offers, news, announcements and important items with an end;
+     * otherwise null.
+     */
+    val endsLabel: String? = null,
+
+    val id: String,
+    val importance: Importance,
+    val pinnedUntil: String? = null,
+    val readAt: String? = null,
+    val title: String,
+    val type: String
+)
+
+@Serializable
+enum class Importance(val value: String) {
+    @SerialName("important") Important("important"),
+    @SerialName("normal") Normal("normal");
+}
+
+/**
+ * `POST …/read-all`.
+ */
+@Serializable
+data class InboxReadAllDTO (
+    val unseenCount: Double,
+    val updated: Double
+)
+
+/**
+ * `GET` / `PATCH /customer/v1/notification-preferences`.
+ */
+@Serializable
+data class NotificationPreferencesDTO (
+    /**
+     * Show the one-time offers ask: they have never answered and have at least one paid order.
+     */
+    val askForOffers: Boolean,
+
+    val categories: List<PreferenceCategoryDTO>,
+    val consent: MarketingConsentDTO,
+
+    /**
+     * The consent wording version the server holds as current.
+     */
+    val wordingVersion: String
+)
+
+/**
+ * One category as the customer sees it: the effective choice per channel (theirs, else the
+ * default).
+ */
+@Serializable
+data class PreferenceCategoryDTO (
+    val category: String,
+
+    /**
+     * The channels the customer may change; empty when required.
+     */
+    val changeable: List<PreferenceChannel>,
+
+    val email: Boolean,
+    val marketing: Boolean,
+
+    /**
+     * For a marketing category, the push choice; it takes effect only while consent is granted.
+     */
+    val push: Boolean,
+
+    val required: Boolean
+)
+
+@Serializable
+enum class PreferenceChannel(val value: String) {
+    @SerialName("email") Email("email"),
+    @SerialName("push") Push("push");
+}
+
+@Serializable
+data class MarketingConsentDTO (
+    val news: ConsentStateDTO,
+    val offers: ConsentStateDTO
+)
+
+@Serializable
+data class ConsentStateDTO (
+    /**
+     * ISO 8601; null when they have never answered.
+     */
+    val answeredAt: String? = null,
+
+    val granted: Boolean
+)
+
+/**
+ * `PATCH /customer/v1/notification-preferences`: all or nothing.
+ */
+@Serializable
+data class NotificationPreferencesChange (
+    val changes: List<PreferenceChoiceChange>? = null,
+    val consent: ConsentChange? = null,
+    val surface: ConsentSurface,
+
+    /**
+     * Where a consent answer was given; required with `consent`.
+     */
+    val via: ConsentVia? = null,
+
+    /**
+     * The wording version shown; required with `consent`, and must be the current one (else
+     * 409).
+     */
+    val wordingVersion: String? = null
+)
+
+@Serializable
+data class PreferenceChoiceChange (
+    val category: String,
+    val channel: PreferenceChannel,
+    val enabled: Boolean
+)
+
+@Serializable
+data class ConsentChange (
+    val news: Boolean? = null,
+    val offers: Boolean? = null
+)
+
+@Serializable
+enum class ConsentSurface(val value: String) {
+    @SerialName("app") App("app"),
+    @SerialName("web") Web("web");
+}
+
+/**
+ * Where a consent answer was given; required with `consent`.
+ */
+@Serializable
+enum class ConsentVia(val value: String) {
+    @SerialName("inbox") Inbox("inbox"),
+    @SerialName("prompt") Prompt("prompt"),
+    @SerialName("settings") Settings("settings");
+}
+
+/**
+ * `POST /{audience}/v1/notifications/{id}/read` (109): the caller's own notification, now
+ * read. `destination` is the stored one, as a plain object, so an app parses it with the
+ * same lenient parser it uses for a push.
+ */
+@Serializable
+data class NotificationReadResponseDTO (
+    val destination: Map<String, String>,
+
+    @SerialName("notificationId")
+    val notificationID: String,
+
+    /**
+     * ISO 8601. The first read time; a repeat keeps it.
+     */
+    val readAt: String
+)
+
 /**
  * The step-up result: a masked destination only, never the address or the code.
  */

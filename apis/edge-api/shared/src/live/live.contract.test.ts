@@ -78,9 +78,11 @@ describe("071 — the channel's infrastructure", () => {
   });
 
   it("watches send failures for every kind the code can publish", () => {
-    // `promotions`, `taxonomy` (101) and `products` (102) are not watched: an alarm holds at most 10 metrics, and a
-    // stale back-office screen, category picker or shop product page is the only cost.
-    expect(list("live_kinds")).toEqual(LIVE_KINDS.filter((k) => k !== "promotions" && k !== "taxonomy" && k !== "products"));
+    // `promotions`, `taxonomy` (101), `products` (102) and `inbox` (110) are not watched: an alarm holds at most 10
+    // metrics, and a stale back-office screen, category picker, shop product page or bell count (re-read whenever the
+    // app comes back to the front) is the only cost.
+    const unwatched = new Set(["promotions", "taxonomy", "products", "inbox"]);
+    expect(list("live_kinds")).toEqual(LIVE_KINDS.filter((k) => !unwatched.has(k)));
   });
 
   it("publishes the three parameters the services read", () => {

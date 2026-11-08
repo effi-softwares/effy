@@ -120,6 +120,17 @@ export function initAnalytics() {
 /** The typed event taxonomy. Adding an event means adding it here, not inlining a string. */
 export type StorefrontEvent =
   | { name: "storefront_viewed"; props?: Record<string, never> }
+  // 110 - the inbox. Kind and category only.
+  | { name: "inbox_opened"; props: { surface: "web" } }
+  | { name: "inbox_item_opened"; props: { type: string; category: string; fallback: "true" | "false" } }
+  | { name: "inbox_item_archived"; props: { type: string; category: string } }
+  | { name: "inbox_archive_undone"; props: { type: string; category: string } }
+  | { name: "inbox_marked_all_read"; props?: Record<string, never> }
+  // 111 - notification choices and the offers ask. Categories and answers only.
+  | { name: "notification_setting_changed"; props: { category: string; channel: "push" | "email" | "consent"; enabled: "true" | "false"; surface: "web" } }
+  | { name: "offers_ask_shown"; props: { surface: "web" } }
+  | { name: "offers_ask_answered"; props: { answer: "yes" | "no"; surface: "web" } }
+  | { name: "offers_stopped_from_inbox"; props: { category: string; surface: "web" } }
   | { name: "sign_up_started"; props: { route: CredentialRoute } }
   | { name: "sign_up_completed"; props: { route: CredentialRoute } }
   | { name: "sign_in_completed"; props: { route: CredentialRoute } }

@@ -59,7 +59,7 @@ describe.skipIf(!RUN)("recordArrival - against real PostgreSQL", () => {
   beforeEach(async () => {
     await pool.query(`
       TRUNCATE public.package_arrival, public.carrier_handoff, public.fulfillment_event,
-               public.notification_request, admin.audit_log, public.order_package_delivery,
+               public.notification_delivery, public.notification, admin.audit_log, public.order_package_delivery,
                public.shop_fulfillment, public."order", public.customer, public.shop
       RESTART IDENTITY CASCADE`);
   });
@@ -148,7 +148,7 @@ describe.skipIf(!RUN)("recordArrival - against real PostgreSQL", () => {
     expect(arrivals.rowCount).toBe(1);
 
     const notifications = await pool.query<{ channel: string }>(
-      `SELECT channel FROM public.notification_request WHERE type = 'order_delivered' ORDER BY channel`,
+      `SELECT channel FROM (SELECT n.recipient_sub, n.audience, n.type, n.dedupe_key, n.created_at, d.channel, d.recipient_email, d.status, jsonb_strip_nulls(jsonb_build_object('entityId', n.entity_id)) AS payload FROM public.notification n JOIN public.notification_delivery d ON d.notification_id = n.id) AS notification_request WHERE type = 'order_delivered' ORDER BY channel`,
     );
     expect(notifications.rows.map((r) => r.channel)).toEqual(["email", "push"]);
   });
@@ -169,7 +169,7 @@ describe.skipIf(!RUN)("recordArrival - against real PostgreSQL", () => {
 
     const arrivals = await pool.query(`SELECT 1 FROM public.package_arrival`);
     expect(arrivals.rowCount).toBe(1);
-    const notifications = await pool.query(`SELECT 1 FROM public.notification_request`);
+    const notifications = await pool.query(`SELECT 1 FROM (SELECT n.recipient_sub, n.audience, n.type, n.dedupe_key, n.created_at, d.channel, d.recipient_email, d.status, jsonb_strip_nulls(jsonb_build_object('entityId', n.entity_id)) AS payload FROM public.notification n JOIN public.notification_delivery d ON d.notification_id = n.id) AS notification_request`);
     expect(notifications.rowCount).toBe(2);
   });
 
@@ -210,13 +210,13 @@ describe.skipIf(!RUN)("recordArrival - against real PostgreSQL", () => {
     expect(first.created).toBe(true);
     expect(first.orderFinished, "one of two packages is not the whole order").toBe(false);
 
-    let notifications = await pool.query(`SELECT 1 FROM public.notification_request`);
+    let notifications = await pool.query(`SELECT 1 FROM (SELECT n.recipient_sub, n.audience, n.type, n.dedupe_key, n.created_at, d.channel, d.recipient_email, d.status, jsonb_strip_nulls(jsonb_build_object('entityId', n.entity_id)) AS payload FROM public.notification n JOIN public.notification_delivery d ON d.notification_id = n.id) AS notification_request`);
     expect(notifications.rowCount, "no message until the order is actually complete").toBe(0);
 
     const second = await arrive(packages[1]!);
     expect(second.orderFinished).toBe(true);
 
-    notifications = await pool.query(`SELECT 1 FROM public.notification_request`);
+    notifications = await pool.query(`SELECT 1 FROM (SELECT n.recipient_sub, n.audience, n.type, n.dedupe_key, n.created_at, d.channel, d.recipient_email, d.status, jsonb_strip_nulls(jsonb_build_object('entityId', n.entity_id)) AS payload FROM public.notification n JOIN public.notification_delivery d ON d.notification_id = n.id) AS notification_request`);
     expect(notifications.rowCount).toBe(2);
   });
 

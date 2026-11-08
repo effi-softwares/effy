@@ -30,20 +30,20 @@ class EffyFirebaseMessagingService : FirebaseMessagingService() {
         val shown = message.notification ?: return
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         if (!manager.areNotificationsEnabled()) return // the shopper said no
-        ensureOrderUpdatesChannel(this)
+        ensureNotificationChannels(this)
+        val channel = channelFor(shown.channelId)
         // Tapping it brings the app forward with the same extras the system tray hands over.
         val open = packageManager.getLaunchIntentForPackage(packageName)?.apply {
             addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-            message.data[PushOpen.EXTRA_TYPE]?.let { putExtra(PushOpen.EXTRA_TYPE, it) }
-            message.data[PushOpen.EXTRA_DEEP_LINK]?.let { putExtra(PushOpen.EXTRA_DEEP_LINK, it) }
+            for (key in PushOpen.EXTRAS) message.data[key]?.let { putExtra(key, it) }
         }
         val id = message.messageId?.hashCode() ?: 0
-        val notification = NotificationCompat.Builder(this, ORDER_UPDATES_CHANNEL_ID)
+        val notification = NotificationCompat.Builder(this, channel.id)
             .setSmallIcon(R.drawable.ic_stat_effy_notify)
             .setContentTitle(shown.title)
             .setContentText(shown.body)
             .setAutoCancel(true)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setPriority(if (channel.high) NotificationCompat.PRIORITY_HIGH else NotificationCompat.PRIORITY_DEFAULT)
             .apply {
                 if (open != null) {
                     setContentIntent(
@@ -59,36 +59,52 @@ class EffyFirebaseMessagingService : FirebaseMessagingService() {
     }
 }
 
-/** The one channel the app posts on. Its id is also the manifest's `default_notification_channel_id`. */
-const val ORDER_UPDATES_CHANNEL_ID = "customer_order_updates"
+/**
+ * The channels the app posts on, one per kind of message (111 R12; `NotificationCategoryPolicy.ANDROID_CHANNELS`), so a
+ * person can mute one kind in the phone's settings without muting the rest. The server names the channel on each push;
+ * the manifest's `default_notification_channel_id` is [NotificationCategoryPolicy.DEFAULT_CHANNEL].
+ */
+fun channelFor(id: String?): AndroidChannelSpec =
+    NotificationCategoryPolicy.ANDROID_CHANNELS.firstOrNull { it.id == id }
+        ?: NotificationCategoryPolicy.ANDROID_CHANNELS.first { it.id == NotificationCategoryPolicy.DEFAULT_CHANNEL }
+
+/** The single channel used before 111. No installed builds keep it (cleanup rule), so it is simply removed. */
+private const val OLD_CHANNEL_ID = "customer_order_updates"
 
 /**
- * Create the channel (idempotent). Called at app start too, so a message that arrives while the app is
- * closed finds it and FCM does not fall back to its own "Miscellaneous" channel.
+ * Create every channel (idempotent) and remove the old one. Called at app start too, so a message that arrives while
+ * the app is closed finds its channel and FCM does not fall back to its own "Miscellaneous" channel.
  */
-fun ensureOrderUpdatesChannel(context: Context) {
+fun ensureNotificationChannels(context: Context) {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
     val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-    manager.createNotificationChannel(
-        NotificationChannel(ORDER_UPDATES_CHANNEL_ID, "Order updates", NotificationManager.IMPORTANCE_HIGH),
+    manager.createNotificationChannels(
+        NotificationCategoryPolicy.ANDROID_CHANNELS.map { c ->
+            NotificationChannel(c.id, c.name, if (c.high) NotificationManager.IMPORTANCE_HIGH else NotificationManager.IMPORTANCE_DEFAULT)
+        },
     )
+    manager.deleteNotificationChannel(OLD_CHANNEL_ID)
 }
 
 /**
- * What a tapped notification carries into the app: its type and the deep link the worker sent - routing
- * only, never an address or an amount.
+ * What a tapped notification carries into the app (109): its type, its id and where it leads - never an address
+ * or an amount. The keys are the push's data keys (specs/109-notification-record/contracts/push-payload.md).
  */
 object PushOpen {
-    /** The data keys the notifications worker sends (`dataFor` in `notifications/src/worker/copy.ts`). */
     const val EXTRA_TYPE = "type"
-    const val EXTRA_DEEP_LINK = "deepLink"
+    const val EXTRA_NOTIFICATION_ID = "notificationId"
+    const val EXTRA_DESTINATION = "destination"
+    val EXTRAS = listOf(EXTRA_TYPE, EXTRA_NOTIFICATION_ID, EXTRA_DESTINATION)
 
     /** The tapped notification, taken out of [intent] so a rotation does not act on it twice. */
     fun consume(intent: Intent?): OpenedNotification? {
         val type = intent?.getStringExtra(EXTRA_TYPE) ?: return null
-        val deepLink = intent.getStringExtra(EXTRA_DEEP_LINK)
-        intent.removeExtra(EXTRA_TYPE)
-        intent.removeExtra(EXTRA_DEEP_LINK)
-        return OpenedNotification(type, deepLink)
+        val opened = OpenedNotification(
+            type = type,
+            notificationId = intent.getStringExtra(EXTRA_NOTIFICATION_ID)?.takeIf { it.isNotBlank() },
+            destination = intent.getStringExtra(EXTRA_DESTINATION),
+        )
+        for (key in EXTRAS) intent.removeExtra(key)
+        return opened
     }
 }

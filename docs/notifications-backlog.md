@@ -155,6 +155,10 @@ Sources are listed at the end. Summary:
 
 ## Epic A - The notification record (foundation) · P0
 
+> **In spec 109** (`specs/109-notification-record/`, built 2026-11-07): A1–A6 and A8. A7 (live `inbox` kind) moved to
+> spec 2 with the inbox it serves; A9 stays later. A1 leaves out `image_key`, `pinned_until` and `campaign_id` until a
+> spec needs them.
+
 | ID | Pri | Where | Size | Item | Done when |
 |---|---|---|---|---|---|
 | A1 | P0 | DB | M | **`public.notification`, the inbox item.** Columns: `recipient_sub`, `audience`, `category`, `type`, `importance` (`normal` / `important`), `title`, `body`, `image_key`, `destination jsonb`, `seen_at`, `read_at`, `archived_at`, `pinned_until`, `expires_at`, `source` (`system` / `campaign` / `direct`), `campaign_id`, `dedupe_key`, `created_at`. Index on (recipient, audience, created_at desc) where not archived. | Every system notification produces one row; a duplicate event produces none. |
@@ -163,11 +167,13 @@ Sources are listed at the end. Summary:
 | A4 | P0 | BE | S | **Store the words at write time.** System items are written from `copy.ts` when created, so the inbox shows what the push said even if `copy.ts` changes later. | Editing `copy.ts` doesn't rewrite old inbox items. |
 | A5 | P1 | BE, DB | S | **Retention.** Purge inbox items older than N days (proposal: customers 180, drivers and shops 90), plus deliveries older than 30 days. Run it as part of an existing schedule. | The tables stay bounded; a container test covers the cut-off. |
 | A6 | P1 | BE | S | **Customer account deletion removes their inbox items and device tokens** (the delete-account flow). | Nothing is left for a deleted `sub`. |
-| A7 | P1 | PKG, BE | S | **Live kind `inbox`** added to `LIVE_KINDS` (and its Kotlin twin), announced to the recipient's own channel after `notify` commits. | A new item updates the badge in an open app with no timer (`check-no-refresh-timers.sh` stays green). |
+| A7 | (110, done) P1 | PKG, BE | S | **Live kind `inbox`** added to `LIVE_KINDS` (and its Kotlin twin), announced to the recipient's own channel after `notify` commits. | A new item updates the badge in an open app with no timer (`check-no-refresh-timers.sh` stays green). |
 | A8 | P1 | BE (notifications) | M | **Throughput.** The FCM sender uses `sendEach` (≤500 per call). The drain keeps claiming until about 50s of its 60s budget is used. Raise the batch size. Emit a metric for the backlog. | 20,000 pending pushes clear in under 10 minutes in a load test. |
 | A9 | P2 | BE | S | **Prune old tokens.** Drop `device_token` rows not seen for 270 days, matching FCM's own expiry. Refresh `last_seen_at` on every app start (customer and driver already re-register). | No pushes are sent to long-dead tokens. |
 
 ## Epic B - One destination vocabulary and router (tap → the right screen) · P0
+
+> **In spec 109**: B1–B6. B7 (universal links) stays later.
 
 | ID | Pri | Where | Size | Item | Done when |
 |---|---|---|---|---|---|
@@ -181,6 +187,10 @@ Sources are listed at the end. Summary:
 
 ## Epic C - Inboxes · P0/P1
 
+> **In spec 110** (`specs/110-notification-inboxes/`, built 2026-11-08): C1–C7, plus A7, F2, F6, F7 and F9. C1 became five
+> routes per audience (archive and undo are one `PATCH`); C5 needed no list-screens exception (the feed draws no table);
+> C6's iOS badge waits on the paid Apple account.
+
 Shared rules: the loading state draws the inbox's own shape (CLAUDE.md skeleton rule), there are no
 centred dialogs on the customer app (`EffySheet`), and nothing refreshes on a timer.
 
@@ -193,23 +203,25 @@ centred dialogs on the customer app (`EffySheet`), and nothing refreshes on a ti
 | C5 | P1 | SW | L | **Shop inbox.** A bell in the console header opens a right Drawer (shadcn, floating, per the overlay rule), plus a `/notifications` page. Filters: category, unread. Mark all read; archive. Tap → B5. Needs a guided tour (106 rule) and a named exception in `list-screens.guard` (an inbox is a feed, not a DataTable). | The tour passes `tours.guard`; Drawer and page both work. |
 | C6 | P2 | CUST-APP, DRV-APP | S | **The app icon badge equals the unseen count** (iOS `badge` in the APNs payload; Android launcher dot via the channel). Cleared on `seen`. | The icon shows 3 after 3 new items and 0 after the inbox is opened. |
 | C7 | P2 | all inboxes | S | **Expiry and pinning shown properly.** An offer shows "Ends Sun"; an expired item disappears; an important item stays pinned until it's read or `pinned_until` passes. | Tested with a clock. |
-| C8 | P3 | BO | M | **Back-office staff inbox** (system alerts: a campaign finished, a send failed, approval needed). Only needed once E9 (approvals) exists. | - |
+| C8 | P3 | BO | M | **Back-office staff inbox** (system alerts: a campaign finished, a send failed). Deferred: E9 is dropped, so nothing needs it yet. | - |
 | C9 | P3 | all | M | **Snooze** (Novu-style). Only if shops ask for it. | - |
 
 ## Epic D - Categories, preferences and consent · P0 for promotions
 
+In spec 111 ([specs/111-notification-preferences](../specs/111-notification-preferences/spec.md)); D7 (iOS levels) waits for the paid Apple account.
+
 | ID | Pri | Where | Size | Item | Done when |
 |---|---|---|---|---|---|
-| D1 | P0 | PKG, BE | S | **Categories per audience**, one list in `@effy/shared-types` with a Kotlin twin. Each category has a default, a `required` flag and an importance.<br>• **Customer:** `orders` (required in the inbox; push on), `points` (on), `offers` (**off until opted in**), `news` (on; product news that is not a sale, so it still counts as marketing → see D3), `important` (required: outages, changes to their delivery), `support` (required: a direct message about their account or order).<br>• **Driver:** `work`, `announcements`, `important` (all required).<br>• **Shop:** `orders`, `stock`, `products`, `announcements`, `important` (the first three hold today's 11 types). | Every type maps to exactly one category (test). |
-| D2 | P0 | DB, BE (customer) | M | **Customer preferences**: `customer_notification_preference (customer_id, category, channel, enabled, changed_at, source)`. `GET/PATCH /customer/v1/notification-preferences`. Required categories refuse being turned off. Checked by `notify` and fan-out at **send time**. | Turning Offers push off stops the next promotion push; it still lands in the inbox only if the inbox for Offers is on. |
-| D3 | P0 | DB, BE, CUST-APP, CW | M | **Marketing consent record**: when, where (app / web / checkout), and which wording version, for `offers` and `news`. Opt-in only through Effy's own wording (Apple 4.5.4); never assumed from the OS permission. Each opt-out is logged too. | No promotional push, email or inbox item reaches a customer without a consent row (test plus guard). |
-| D4 | P0 | CUST-APP, CW | M | **Customer "Notifications" settings**: a switch per category × channel (push, email, and inbox where it isn't required), with plain wording and a link to the phone's settings if the OS permission is off. A one-time opt-in sheet for offers after the first order (not at first launch). | A shopper can see and change every choice; required categories show as fixed with a reason. |
-| D5 | P0 | 045 (legal) | S | **Consent wording and privacy policy lines** for promotional push and email (authored prose, spec 045). The sender is identified in every promotion ("Effy"); unsubscribe is one tap from the inbox item (D4 link). | Legal text published; the opt-in sheet uses it word for word. |
-| D6 | P1 | CUST-APP, DRV-APP | S | **Android channels per category**:<br>• customer: Order updates (HIGH), Offers & news (DEFAULT), Important (HIGH);<br>• driver: Work (HIGH), Announcements (DEFAULT), Important (HIGH).<br>The server sets `android.notification.channel_id` from the category. | Settings → Apps → Effy lists the channels; muting Offers there doesn't mute orders. |
-| D7 | P1 | BE | S | **iOS interruption level by importance.** Important → `time-sensitive` (add the capability with the entitlement step in `observability-apple-blockers.md`); offers → `passive`. Never `critical`. | The payload carries the right level (a sender test). |
-| D8 | P2 | DRV-APP, SW | S | **Driver and shop settings show categories as fixed** ("Work messages can't be turned off - they're part of your job") and keep the device on/off. Shop web keeps 059's per-device type mutes for push. | No silent dead ends. |
-| D9 | P1 | BE | S | **Quiet hours** for `offers` and `news`: none sent between 21:00 and 08:00 in `OPERATING_TZ`; held until 08:00. Important, work and orders ignore it. | A test with the clock at 22:00. |
-| D10 | P1 | BE | S | **Frequency cap** for promotions per customer: at most 1 a day and 3 a week, configurable in back-office settings. Over the cap → inbox only, no push. | A test; the campaign report counts how many were capped. |
+| D1 | (111, done) P0 | PKG, BE | S | **Categories per audience**, one list in `@effy/shared-types` with a Kotlin twin. Each category has a default, a `required` flag and an importance.<br>• **Customer:** `orders` (required in the inbox; push on), `points` (on), `offers` (**off until opted in**), `news` (on; product news that is not a sale, so it still counts as marketing → see D3), `important` (required: outages, changes to their delivery), `support` (required: a direct message about their account or order).<br>• **Driver:** `work`, `announcements`, `important` (all required).<br>• **Shop:** `orders`, `stock`, `products`, `announcements`, `important` (the first three hold today's 11 types). | Every type maps to exactly one category (test). |
+| D2 | (111, done) P0 | DB, BE (customer) | M | **Customer preferences**: `customer_notification_preference (customer_id, category, channel, enabled, changed_at, source)`. `GET/PATCH /customer/v1/notification-preferences`. Required categories refuse being turned off. Checked by `notify` and fan-out at **send time**. | Turning Offers push off stops the next promotion push; it still lands in the inbox only if the inbox for Offers is on. |
+| D3 | (111, done) P0 | DB, BE, CUST-APP, CW | M | **Marketing consent record**: when, where (app / web / checkout), and which wording version, for `offers` and `news`. Opt-in only through Effy's own wording (Apple 4.5.4); never assumed from the OS permission. Each opt-out is logged too. | No promotional push, email or inbox item reaches a customer without a consent row (test plus guard). |
+| D4 | (111, done) P0 | CUST-APP, CW | M | **Customer "Notifications" settings**: a switch per category × channel (push, email, and inbox where it isn't required), with plain wording and a link to the phone's settings if the OS permission is off. A one-time opt-in sheet for offers after the first order (not at first launch). | A shopper can see and change every choice; required categories show as fixed with a reason. |
+| D5 | (111, done) P0 | 045 (legal) | S | **Consent wording and privacy policy lines** for promotional push and email (authored prose, spec 045). The sender is identified in every promotion ("Effy"); unsubscribe is one tap from the inbox item (D4 link). | Legal text published; the opt-in sheet uses it word for word. |
+| D6 | (111, done) P1 | CUST-APP, DRV-APP | S | **Android channels per category**:<br>• customer: Order updates (HIGH), Offers & news (DEFAULT), Important (HIGH);<br>• driver: Work (HIGH), Announcements (DEFAULT), Important (HIGH).<br>The server sets `android.notification.channel_id` from the category. | Settings → Apps → Effy lists the channels; muting Offers there doesn't mute orders. |
+| D7 | (deferred: paid Apple account) P1 | BE | S | **iOS interruption level by importance.** Important → `time-sensitive` (add the capability with the entitlement step in `observability-apple-blockers.md`); offers → `passive`. Never `critical`. | The payload carries the right level (a sender test). |
+| D8 | (111, done) P2 | DRV-APP, SW | S | **Driver and shop settings show categories as fixed** ("Work messages can't be turned off - they're part of your job") and keep the device on/off. Shop web keeps 059's per-device type mutes for push. | No silent dead ends. |
+| D9 | (111, done) P1 | BE | S | **Quiet hours** for `offers` and `news`: none sent between 21:00 and 08:00 in `OPERATING_TZ`; held until 08:00. Important, work and orders ignore it. | A test with the clock at 22:00. |
+| D10 | (111, done) P1 | BE | S | **Frequency cap** for promotions per customer: at most 1 a day and 3 a week, configurable in back-office settings. Over the cap → inbox only, no push. | A test; the campaign report counts how many were capped. |
 
 ## Epic E - Back-office messages (campaigns) · P0/P1
 
@@ -223,7 +235,7 @@ centred dialogs on the customer app (`EffySheet`), and nothing refreshes on a ti
 | E6 | P1 | BO, BE | M | **Report per message**: recipients, inbox delivered, push sent / failed / no token / muted / capped / held for quiet hours, seen, opened (B6), button tapped, archived. Data comes from `notification` and `notification_delivery` states; no extra tracking. | The numbers add up to the recipient count. |
 | E7 | P1 | BO | M | **Message one person from where staff already are**: a "Send message" action on the back-office customer, driver and shop pages. It creates a `direct` campaign with that one recipient (support category; no consent needed, because it isn't marketing). | A CSA can message a customer about their order and see it in the customer's page activity. |
 | E8 | P1 | BE, BO | S | **Templates / duplicate**: start a new message from a previous one. | - |
-| E9 | P2 | BE, BO | M | **Approval for big sends**: a campaign to more than N people, or any `important` one, needs a second admin to approve (four-eyes). | A manager's send waits for approval. |
+| E9 | Dropped (decision 5) | BE, BO | M | ~~**Approval for big sends**~~: a campaign to more than N people, or any `important` one, needs a second admin to approve (four-eyes). | A manager's send waits for approval. |
 | E10 | P2 | BE | S | **Safeguards**:<br>• the server refuses a promotion whose body has no sender ("Effy") or that targets drivers or shops;<br>• "all customers" needs an extra typed confirmation;<br>• a hard cap per campaign (configurable);<br>• a kill switch that stops a sending campaign. | Each refusal is tested. |
 | E11 | P3 | BE, BO | L | **Email as a campaign channel** (marketing email with the unsubscribe link and postal address; the Spam Act). Builds on email-kit. | - |
 | E12 | P3 | BE, BO | M | **Recurring and triggered messages** ("didn't order for 30 days", "points expire in 7 days" as push). Only after E6 shows what works. | - |
@@ -233,15 +245,15 @@ centred dialogs on the customer app (`EffySheet`), and nothing refreshes on a ti
 
 | ID | Pri | Where | Size | Item | Done when |
 |---|---|---|---|---|---|
-| F1 | P1 | BE (notifications) | S | **Rewrite `order_ready` for customers**: "Your order is packed" / "Your order is packed and on its way to our hub", with no "handoff". | The words are reviewed; `copy.test.ts` is updated. |
-| F2 | P1 | BE (fleet / driver) | M | **Wire up `order_out_for_delivery`** (decide: wire it or remove it). Proposal: send it when the delivery round the order is on **starts**, once per order, Effy delivery only. "Out for delivery" is already one of the 9 package status words. | A customer gets "Out for delivery" when the driver leaves the hub. |
-| F3 | P1 | BE | S | **Remove `deepLink` / `webPath` / `entityInLink`** after B2, plus the string parsing in `pushDestination` and `PushOpen`. | Grep finds none. |
-| F4 | P1 | DB | S | **Type list in one place.** Today the DB `CHECK`, `copy.ts` and `notification-types.ts` each list types. Keep the CHECK, add a test that the three agree, and make campaigns one type (`message`) so staff sends never need a migration. | One test fails when the three lists disagree. |
+| F1 | P1 | BE (notifications) | S | **(109, done)** **Rewrite `order_ready` for customers**: "Your order is packed" / "Your order is packed and on its way to our hub", with no "handoff". | The words are reviewed; `copy.test.ts` is updated. |
+| F2 | (110, done) P1 | BE (fleet / driver) | M | **Wire up `order_out_for_delivery`** (decide: wire it or remove it). Proposal: send it when the delivery round the order is on **starts**, once per order, Effy delivery only. "Out for delivery" is already one of the 9 package status words. | A customer gets "Out for delivery" when the driver leaves the hub. |
+| F3 | P1 | BE | S | **(109, done)** **Remove `deepLink` / `webPath` / `entityInLink`** after B2, plus the string parsing in `pushDestination` and `PushOpen`. | Grep finds none. |
+| F4 | P1 | DB | S | **(109, done)** **Type list in one place.** Today the DB `CHECK`, `copy.ts` and `notification-types.ts` each list types. Keep the CHECK, add a test that the three agree, and make campaigns one type (`message`) so staff sends never need a migration. | One test fails when the three lists disagree. |
 | F5 | P2 | docs | S | **Update stale docs**: `next-implementation-candidates.md` (#4, #6, #8), `customer-capabilities.md` (Notifications row), `observability-apple-blockers.md` (adds the time-sensitive capability step from D7). | - |
-| F6 | P2 | CUST-APP | S | **Remove the `NotificationsScreen` empty-state-only code** once C2 lands (Account shortcut and Home bell point at the inbox). | - |
-| F7 | P2 | BE | S | **`points_expiring` as push too** (it's email-only today). Category `points`. | - |
+| F6 | (110, done) P2 | CUST-APP | S | **Remove the `NotificationsScreen` empty-state-only code** once C2 lands (Account shortcut and Home bell point at the inbox). | - |
+| F7 | (110, done) P2 | BE | S | **`points_expiring` as push too** (it's email-only today). Category `points`. | - |
 | F8 | P3 | CW | L | **Web push for customers** (service worker on the storefront). Low value until there are real web shoppers; iOS needs a home-screen PWA. Probably *not doing*: the inbox covers the web. | Decide; record it. |
-| F9 | P2 | BE | S | **A driver who signs in late gets the work notifications they missed.** Today a `run_assigned` made before the driver's first sign-in is skipped (`no_token`, seen 2026-11-07). With A1 it is in their inbox anyway; also show a pinned "You have N runs today" when they first sign in on a new phone. | A new phone shows the morning's assignments. |
+| F9 | (110, done) P2 | BE | S | **A driver who signs in late gets the work notifications they missed.** Today a `run_assigned` made before the driver's first sign-in is skipped (`no_token`, seen 2026-11-07). With A1 it is in their inbox anyway; also show a pinned "You have N runs today" when they first sign in on a new phone. | A new phone shows the morning's assignments. |
 
 ---
 
@@ -258,17 +270,16 @@ centred dialogs on the customer app (`EffySheet`), and nothing refreshes on a ti
 If speed matters more than order: spec 4 for **drivers and shops only** can follow spec 2, because staff
 messages need no marketing consent. Customer promotions wait for spec 3.
 
-## Decisions to confirm before spec 1
+## Decisions (answered by the operator, 2026-11-08)
 
-1. **Customer marketing default:** off until they opt in (recommended, and what Apple and the Spam Act
-   expect) versus on.
-2. **Can customers turn off push for order updates?** Recommended: yes for push, but the item always
-   stays in the inbox.
-3. **Retention:** customers 180 days, staff 90 days?
-4. **`order_out_for_delivery`:** wire it (recommended) or delete it?
-5. **Who may send to many people:** admin and manager (recommended), and is a second approval needed
-   from day one (E9)?
-6. **Shop push choices stay per device** (059) while the inbox is per person (recommended)?
+1. **Customer marketing default: OFF until the customer opts in, and the apps ASK them to opt in.** Spec 3 builds the ask: a
+   clear in-app prompt (not the OS permission dialog alone), a yes recorded with when and where, and a way to say no again.
+   No promotion goes to a customer who has not said yes.
+2. **Customers can turn off push for order updates; the item always stays in the inbox.** Only the push channel is muted.
+3. **Retention: customers 180 days, drivers and shops 90 days** (delivery records 30 days), as spec 109 built.
+4. **`order_out_for_delivery` is wired**, sent when the driver starts the delivery round (spec 2).
+5. **Admin and manager may send to many people; CSA may not. No second approval** (E9 dropped for now).
+6. **Shop push choices stay per device** (059); the inbox is per person.
 
 ---
 

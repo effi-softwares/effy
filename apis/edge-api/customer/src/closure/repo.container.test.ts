@@ -11,7 +11,7 @@ vi.mock("@effy/edge-shared", () => ({
   withTransaction: async (fn: (c: unknown) => unknown) => fn(holder.pool),
 }))
 
-import { findBlockingOrders, IN_TRANSIT_BLOCK_DAYS } from "./repo"
+import { closeAccount, findBlockingOrders, IN_TRANSIT_BLOCK_DAYS } from "./repo"
 
 /**
  * The closure-blocking predicate against real Postgres. It must let weekly shoppers delete, must not
@@ -196,5 +196,36 @@ describe.skipIf(!RUN)("findBlockingOrders - against real PostgreSQL", () => {
     await addPortion(order, "collected")
 
     expect(await blockersFor(c)).toHaveLength(1)
+  })
+})
+
+describe.skipIf(!RUN)("closeAccount - 109: no push reaches a closing account", () => {
+  let container: StartedPostgreSqlContainer
+  let pool: Pool
+
+  beforeAll(async () => {
+    container = await new PostgreSqlContainer("postgres:16-alpine").start()
+    pool = new Pool({ connectionString: container.getConnectionUri() })
+    holder.pool = pool
+    await pool.query(migrationSql())
+  }, 120_000)
+
+  afterAll(async () => {
+    await pool?.end()
+    await container?.stop()
+  })
+
+  it("removes the customer's device registrations, and nobody else's", async () => {
+    const c = await pool.query<{ id: string }>(
+      `INSERT INTO public.customer (cognito_sub, email) VALUES ('closing-1', 'closing-1@example.test') RETURNING id`,
+    )
+    await pool.query(
+      `INSERT INTO public.device_token (subject_sub, audience, platform, fcm_token) VALUES
+         ('closing-1', 'customer', 'android', 'tok-1'), ('closing-1', 'customer', 'ios', 'tok-2'),
+         ('someone-else', 'customer', 'android', 'tok-3')`,
+    )
+    await closeAccount({ customerId: c.rows[0]!.id, cognitoSub: "closing-1", verificationMethod: "email_code" })
+    const left = await pool.query<{ fcm_token: string }>(`SELECT fcm_token FROM public.device_token ORDER BY fcm_token`)
+    expect(left.rows.map((r) => r.fcm_token)).toEqual(["tok-3"])
   })
 })

@@ -18,6 +18,8 @@ import {
   SettingsSection,
 } from "@effy/web-kit/patterns"
 
+import { categoriesFor } from "@effy/shared-types"
+
 import { Page } from "@/components/console/primitives"
 import { sessionQuery } from "@/features/auth/queries"
 import { previewChime } from "@/lib/chime"
@@ -59,6 +61,14 @@ export function NotificationSettingsScreen() {
         </SettingsSection>
 
         <SettingsSection
+          tour="notifications.categories"
+          title="Always in your inbox"
+          description="Everything Effy tells your shop reaches the inbox of everyone who works here. These can't be turned off, so nobody misses one."
+        >
+          <CategoryList />
+        </SettingsSection>
+
+        <SettingsSection
           tour="notifications.types"
           title="What you're told about"
           description="Choose which alerts reach this device. Everything is on until you turn it off."
@@ -67,6 +77,19 @@ export function NotificationSettingsScreen() {
         </SettingsSection>
       </SettingsPage>
     </Page>
+  )
+}
+
+/** 111 US4 - the shop's kinds of message, each fixed with why (the shared policy's words). */
+function CategoryList() {
+  return (
+    <SettingsList>
+      {categoriesFor("shop").map((p) => (
+        <SettingsRow key={p.category} label={p.label} hint={p.description}>
+          <span className="text-sm text-muted-foreground">Always on</span>
+        </SettingsRow>
+      ))}
+    </SettingsList>
   )
 }
 

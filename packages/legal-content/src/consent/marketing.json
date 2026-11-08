@@ -1,0 +1,11 @@
+{
+  "_comment": "111 - Effy's own words for asking a customer about marketing (offers and news). A change to any text is a NEW version: stored answers keep the version they were shown, and a client still holding the old one is refused (409) and re-reads. DRAFT for operator approval (specs/111-notification-preferences/research.md R9).",
+  "version": "marketing-2026-11",
+  "heading": "Hear about offers from Effy?",
+  "body": "We'll send you the occasional offer and news about new products, as notifications in the app and in your inbox. Order updates come either way. You can stop at any time in Notifications settings.",
+  "yes": "Yes, tell me",
+  "no": "Not now",
+  "footnote": "Effy sends these only if you've said yes. Turning one on means you agree to hear from us about it.",
+  "stopOffers": "Stop offers like this",
+  "stopNews": "Stop news like this"
+}

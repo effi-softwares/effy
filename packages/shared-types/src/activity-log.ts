@@ -107,6 +107,9 @@ export const ACTIVITY_LOGS = {
     subject: "Order",
   },
   "bo-points-settings": { kinds: { rules: "Rules" }, subject: null },
+  // 111 - the promotion limits, and a customer's marketing consent (each yes and no).
+  "bo-notification-settings": { kinds: { limits: "Limits" }, subject: null },
+  "bo-customer-consent": { kinds: { yes: "Yes", no: "No" }, subject: null },
   "bo-email": {
     kinds: {
       delivery: "Delivered",

@@ -2,6 +2,7 @@ import type { ComponentType } from "react"
 
 import type { LinkProps } from "@tanstack/react-router"
 import {
+  Bell,
   CalendarDays,
   Coins,
   MapPinned,
@@ -105,7 +106,7 @@ export const SETTINGS_GROUPS: readonly SettingsGroup[] = [
   },
   {
     title: "Checkout",
-    description: "The rules every cart is checked against, and customers' points.",
+    description: "The rules every cart is checked against, customers' points, and how often they hear about offers.",
     tour: "settings.checkout",
     entries: [
       {
@@ -121,6 +122,13 @@ export const SETTINGS_GROUPS: readonly SettingsGroup[] = [
         label: "Points",
         hint: "What a point is worth, when points expire, and the customer-service credit limit.",
         icon: Coins,
+      },
+      {
+        key: "notifications",
+        to: "/settings/notifications",
+        label: "Notification limits",
+        hint: "The most promotional notifications a customer who said yes gets in a day and in a week.",
+        icon: Bell,
       },
     ],
   },

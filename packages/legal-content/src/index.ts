@@ -17,6 +17,8 @@ export { manifest, requiredSlugs } from "./manifest"
 export type { ManifestEntry } from "./manifest"
 
 export { documents }
+export { MARKETING_CONSENT } from "./generated/consent"
+export type { MarketingConsentWording } from "./generated/consent"
 
 /** All documents in presentation order. */
 export function allDocuments(): LegalDocument[] {

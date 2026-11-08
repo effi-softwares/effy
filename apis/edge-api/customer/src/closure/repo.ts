@@ -109,6 +109,10 @@ export async function closeAccount(input: {
       [input.cognitoSub],
     )
 
+    // 109: the closure signs out every session, so no push may reach this person any more. Their notifications
+    // themselves go when the account is erased (the notifications purge, after `erase_after`).
+    await tx.query(`DELETE FROM public.device_token WHERE subject_sub = $1 AND audience = 'customer'`, [input.cognitoSub])
+
     return { customer: cust.rows[0]!, eraseAfter: req.rows[0]!.erase_after }
   })
 }

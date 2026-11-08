@@ -210,7 +210,7 @@ describe.skipIf(!RUN)("wave planner against real PostgreSQL", () => {
   });
 
   beforeEach(async () => {
-    await q(`TRUNCATE public.notification_request, public.assignment_exclusion, public.hub_checkin, public.round_package,
+    await q(`TRUNCATE public.notification_delivery, public.notification, public.assignment_exclusion, public.hub_checkin, public.round_package,
                       public.round_stop, public.driver_round, public.dispatch_wave,
                       public.driver_zone_capability, public.vehicle_holding, public.vehicle,
                       public.driver_duty_session, public.driver, public.shop_fulfillment,
@@ -247,7 +247,7 @@ describe.skipIf(!RUN)("wave planner against real PostgreSQL", () => {
 
     const pushes = await q(
       `SELECT nr.audience, nr.type, nr.channel, nr.payload ->> 'entityId' AS round_id, d.id AS driver_id
-         FROM public.notification_request nr
+         FROM (SELECT n.recipient_sub, n.audience, n.type, n.dedupe_key, n.created_at, d.channel, d.recipient_email, d.status, jsonb_strip_nulls(jsonb_build_object('entityId', n.entity_id)) AS payload FROM public.notification n JOIN public.notification_delivery d ON d.notification_id = n.id) nr
          JOIN public.driver d ON d.cognito_sub = nr.recipient_sub`,
     );
     const round = await q(`SELECT id FROM public.driver_round`);
@@ -266,7 +266,7 @@ describe.skipIf(!RUN)("wave planner against real PostgreSQL", () => {
     await runWave();
     const round = (await q(`SELECT id FROM public.driver_round`)).rows[0].id as string;
     const types = async () =>
-      (await q(`SELECT type FROM public.notification_request ORDER BY created_at, type`)).rows.map((r: any) => r.type);
+      (await q(`SELECT type FROM (SELECT n.recipient_sub, n.audience, n.type, n.dedupe_key, n.created_at, d.channel, d.recipient_email, d.status, jsonb_strip_nulls(jsonb_build_object('entityId', n.entity_id)) AS payload FROM public.notification n JOIN public.notification_delivery d ON d.notification_id = n.id) AS notification_request ORDER BY created_at, type`)).rows.map((r: any) => r.type);
 
     // Not begun: a re-order is planning, not news.
     const stamp = async () => (await svc.readRound(round)).updatedAt as string;
@@ -293,13 +293,16 @@ describe.skipIf(!RUN)("wave planner against real PostgreSQL", () => {
       (await q(`SELECT public.round_opens_at(kind, deadline_at, window_start_at) AS o FROM public.driver_round`)).rows[0].o,
     );
     const soon = async () =>
-      (await q(`SELECT count(*)::int AS n FROM public.notification_request WHERE type = 'run_opens_soon'`)).rows[0].n;
+      (await q(`SELECT count(*)::int AS n FROM (SELECT n.recipient_sub, n.audience, n.type, n.dedupe_key, n.created_at, d.channel, d.recipient_email, d.status, jsonb_strip_nulls(jsonb_build_object('entityId', n.entity_id)) AS payload FROM public.notification n JOIN public.notification_delivery d ON d.notification_id = n.id) AS notification_request WHERE type = 'run_opens_soon'`)).rows[0].n;
 
     await enqueueRoundsOpeningSoon(holder.pool!, new Date(opens.getTime() - 30 * 60_000));
     expect(await soon()).toBe(0);
     await enqueueRoundsOpeningSoon(holder.pool!, new Date(opens.getTime() - 10 * 60_000));
     await enqueueRoundsOpeningSoon(holder.pool!, new Date(opens.getTime() - 5 * 60_000));
     expect(await soon()).toBe(1);
+    // 109 R11 - it expires when the round opens: a push not made by then is never sent late.
+    const expires = (await q(`SELECT expires_at FROM public.notification WHERE type = 'run_opens_soon'`)).rows[0].expires_at;
+    expect(new Date(expires).getTime()).toBe(opens.getTime());
   });
 
   // The property the design rests on.

@@ -3,6 +3,7 @@ import { createRoute, redirect } from "@tanstack/react-router"
 import { withActivityLog } from "@effy/web-kit/activity-log"
 
 import { PointsSettingsScreen } from "@/features/customers/PointsSettingsScreen"
+import { NotificationSettingsScreen } from "@/features/settings/notifications/NotificationSettingsScreen"
 import { coverageList } from "@/features/delivery/coverage/list"
 import { DeliveryDaysScreen } from "@/features/delivery/DeliveryDaysScreen"
 import {
@@ -88,6 +89,14 @@ export const pointsSettingsRoute = createRoute({
   // The rule changes' activity drawer (104).
   validateSearch: (search: Record<string, unknown>) => withActivityLog(search),
   component: PointsSettingsScreen,
+})
+
+// 111 - the promotion limits, and their changes in the activity drawer (104).
+export const notificationSettingsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "settings/notifications",
+  validateSearch: (search: Record<string, unknown>) => withActivityLog(search),
+  component: NotificationSettingsScreen,
 })
 
 export const taxSettingsRoute = createRoute({

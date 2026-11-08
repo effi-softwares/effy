@@ -23,7 +23,7 @@ export interface ShopNotificationTypeInfo {
   type: ShopNotificationType;
   /** What the settings screen calls it. */
   label: string;
-  /** See `worker/copy.ts`. */
+  /** Coalescing in the console's service worker; matches the catalogue's `group` (`@effy/edge-shared/notifications`). */
   group: "orders" | "attention";
   /** Where the settings screen lists it. Display only; `group` decides coalescing. */
   section: "orders" | "stock" | "refunds" | "effy";

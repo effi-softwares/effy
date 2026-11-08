@@ -15,6 +15,7 @@ export const CODE_TO_KEY: Readonly<Record<string, string>> = {
   HS: "hub-station",
   CU: "customers",
   CS: "points-settings",
+  CN: "notification-settings",
   CD: "customer",
   FB: "feedback",
   FD: "feedback-item",

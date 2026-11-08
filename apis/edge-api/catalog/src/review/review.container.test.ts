@@ -174,7 +174,7 @@ const audits = async (id: string) =>
   (await pool.query(`SELECT actor_sub, action, detail FROM admin.audit_log WHERE target_id = $1 ORDER BY created_at`, [id])).rows;
 
 const notifications = async () =>
-  (await pool.query(`SELECT recipient_sub, type, payload FROM public.notification_request ORDER BY recipient_sub`)).rows;
+  (await pool.query(`SELECT recipient_sub, type, payload FROM (SELECT n.recipient_sub, n.audience, n.type, n.dedupe_key, n.created_at, d.channel, d.recipient_email, d.status, jsonb_strip_nulls(jsonb_build_object('entityId', n.entity_id)) AS payload FROM public.notification n JOIN public.notification_delivery d ON d.notification_id = n.id) AS notification_request ORDER BY recipient_sub`)).rows;
 
 d("067 — product review against real PostgreSQL", () => {
   beforeAll(async () => {
@@ -197,7 +197,7 @@ d("067 — product review against real PostgreSQL", () => {
 
   beforeEach(async () => {
     holder.failNext = null;
-    await pool.query("DELETE FROM public.notification_request");
+    await pool.query("DELETE FROM public.notification");
     await pool.query("DELETE FROM admin.audit_log");
     await pool.query("DELETE FROM public.product_change");
     await pool.query("DELETE FROM public.product_attribute_value");

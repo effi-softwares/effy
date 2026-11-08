@@ -209,6 +209,53 @@
       ],
       "type": "string"
     },
+    "ConsentChange": {
+      "additionalProperties": false,
+      "properties": {
+        "news": {
+          "type": "boolean"
+        },
+        "offers": {
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "ConsentStateDTO": {
+      "additionalProperties": false,
+      "properties": {
+        "answeredAt": {
+          "description": "ISO 8601; null when they have never answered.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "granted": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "granted",
+        "answeredAt"
+      ],
+      "type": "object"
+    },
+    "ConsentSurface": {
+      "enum": [
+        "app",
+        "web"
+      ],
+      "type": "string"
+    },
+    "ConsentVia": {
+      "enum": [
+        "settings",
+        "prompt",
+        "inbox"
+      ],
+      "type": "string"
+    },
     "CredentialRoute": {
       "description": "How a customer proved who they are. Telemetry and UI only, never an authorization input.",
       "enum": [
@@ -357,6 +404,303 @@
         "complained"
       ],
       "type": "string"
+    },
+    "InboxArchiveDTO": {
+      "additionalProperties": false,
+      "properties": {
+        "archived": {
+          "type": "boolean"
+        },
+        "id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "archived"
+      ],
+      "type": "object"
+    },
+    "InboxArchiveRequest": {
+      "additionalProperties": false,
+      "description": "`PATCH …/{id}`.",
+      "properties": {
+        "archived": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "archived"
+      ],
+      "type": "object"
+    },
+    "InboxCountDTO": {
+      "additionalProperties": false,
+      "description": "`GET …/unseen-count` and `POST …/seen`.",
+      "properties": {
+        "unseenCount": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "unseenCount"
+      ],
+      "type": "object"
+    },
+    "InboxCutoffRequest": {
+      "additionalProperties": false,
+      "description": "`POST …/seen` and `POST …/read-all`: the createdAt of the newest item the person was shown.",
+      "properties": {
+        "before": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "before"
+      ],
+      "type": "object"
+    },
+    "InboxItemDTO": {
+      "additionalProperties": false,
+      "description": "One notification in a list.",
+      "properties": {
+        "body": {
+          "type": "string"
+        },
+        "category": {
+          "type": "string"
+        },
+        "createdAt": {
+          "description": "ISO 8601.",
+          "type": "string"
+        },
+        "destination": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "As stored (109's vocabulary); parse it with the same lenient parser as a push.",
+          "type": "object"
+        },
+        "endsLabel": {
+          "description": "\"Ends Sun\", only for offers, news, announcements and important items with an end; otherwise null.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "type": "string"
+        },
+        "importance": {
+          "enum": [
+            "normal",
+            "important"
+          ],
+          "type": "string"
+        },
+        "pinnedUntil": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "readAt": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "title": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "category",
+        "importance",
+        "title",
+        "body",
+        "destination",
+        "createdAt",
+        "readAt",
+        "pinnedUntil",
+        "endsLabel"
+      ],
+      "type": "object"
+    },
+    "InboxPageDTO": {
+      "additionalProperties": false,
+      "description": "`GET /{audience}/v1/notifications`.",
+      "properties": {
+        "categories": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "First page only: the categories that have listed items. null on later pages."
+        },
+        "items": {
+          "description": "Newest first.",
+          "items": {
+            "$ref": "#/definitions/InboxItemDTO"
+          },
+          "type": "array"
+        },
+        "nextCursor": {
+          "description": "null at the end.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "pinned": {
+          "description": "Important unread items still pinned; first page only, otherwise empty. Never repeated in `items`.",
+          "items": {
+            "$ref": "#/definitions/InboxItemDTO"
+          },
+          "type": "array"
+        },
+        "unseenCount": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "pinned",
+        "items",
+        "nextCursor",
+        "categories",
+        "unseenCount"
+      ],
+      "type": "object"
+    },
+    "InboxReadAllDTO": {
+      "additionalProperties": false,
+      "description": "`POST …/read-all`.",
+      "properties": {
+        "unseenCount": {
+          "type": "number"
+        },
+        "updated": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "updated",
+        "unseenCount"
+      ],
+      "type": "object"
+    },
+    "MarketingConsentDTO": {
+      "additionalProperties": false,
+      "properties": {
+        "news": {
+          "$ref": "#/definitions/ConsentStateDTO"
+        },
+        "offers": {
+          "$ref": "#/definitions/ConsentStateDTO"
+        }
+      },
+      "required": [
+        "offers",
+        "news"
+      ],
+      "type": "object"
+    },
+    "NotificationPreferencesChange": {
+      "additionalProperties": false,
+      "description": "`PATCH /customer/v1/notification-preferences`: all or nothing.",
+      "properties": {
+        "changes": {
+          "items": {
+            "$ref": "#/definitions/PreferenceChoiceChange"
+          },
+          "type": "array"
+        },
+        "consent": {
+          "$ref": "#/definitions/ConsentChange"
+        },
+        "surface": {
+          "$ref": "#/definitions/ConsentSurface"
+        },
+        "via": {
+          "$ref": "#/definitions/ConsentVia",
+          "description": "Where a consent answer was given; required with `consent`."
+        },
+        "wordingVersion": {
+          "description": "The wording version shown; required with `consent`, and must be the current one (else 409).",
+          "type": "string"
+        }
+      },
+      "required": [
+        "surface"
+      ],
+      "type": "object"
+    },
+    "NotificationPreferencesDTO": {
+      "additionalProperties": false,
+      "description": "`GET` / `PATCH /customer/v1/notification-preferences`.",
+      "properties": {
+        "askForOffers": {
+          "description": "Show the one-time offers ask: they have never answered and have at least one paid order.",
+          "type": "boolean"
+        },
+        "categories": {
+          "items": {
+            "$ref": "#/definitions/PreferenceCategoryDTO"
+          },
+          "type": "array"
+        },
+        "consent": {
+          "$ref": "#/definitions/MarketingConsentDTO"
+        },
+        "wordingVersion": {
+          "description": "The consent wording version the server holds as current.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "categories",
+        "consent",
+        "askForOffers",
+        "wordingVersion"
+      ],
+      "type": "object"
+    },
+    "NotificationReadResponseDTO": {
+      "additionalProperties": false,
+      "description": "`POST /{audience}/v1/notifications/{id}/read` (109): the caller's own notification, now read. `destination` is the stored one, as a plain object, so an app parses it with the same lenient parser it uses for a push.",
+      "properties": {
+        "destination": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "notificationId": {
+          "type": "string"
+        },
+        "readAt": {
+          "description": "ISO 8601. The first read time; a repeat keeps it.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "notificationId",
+        "readAt",
+        "destination"
+      ],
+      "type": "object"
     },
     "PasswordChallengeResultDTO": {
       "additionalProperties": false,
@@ -525,6 +869,71 @@
       },
       "required": [
         "entries"
+      ],
+      "type": "object"
+    },
+    "PreferenceCategoryDTO": {
+      "additionalProperties": false,
+      "description": "One category as the customer sees it: the effective choice per channel (theirs, else the default).",
+      "properties": {
+        "category": {
+          "type": "string"
+        },
+        "changeable": {
+          "description": "The channels the customer may change; empty when required.",
+          "items": {
+            "$ref": "#/definitions/PreferenceChannel"
+          },
+          "type": "array"
+        },
+        "email": {
+          "type": "boolean"
+        },
+        "marketing": {
+          "type": "boolean"
+        },
+        "push": {
+          "description": "For a marketing category, the push choice; it takes effect only while consent is granted.",
+          "type": "boolean"
+        },
+        "required": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "category",
+        "required",
+        "marketing",
+        "push",
+        "email",
+        "changeable"
+      ],
+      "type": "object"
+    },
+    "PreferenceChannel": {
+      "enum": [
+        "push",
+        "email"
+      ],
+      "type": "string"
+    },
+    "PreferenceChoiceChange": {
+      "additionalProperties": false,
+      "properties": {
+        "category": {
+          "type": "string"
+        },
+        "channel": {
+          "$ref": "#/definitions/PreferenceChannel"
+        },
+        "enabled": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "category",
+        "channel",
+        "enabled"
       ],
       "type": "object"
     },
@@ -718,6 +1127,33 @@
     "customerPoints": {
       "$ref": "#/definitions/CustomerPointsDTO"
     },
+    "inboxArchive": {
+      "$ref": "#/definitions/InboxArchiveDTO"
+    },
+    "inboxArchiveRequest": {
+      "$ref": "#/definitions/InboxArchiveRequest"
+    },
+    "inboxCount": {
+      "$ref": "#/definitions/InboxCountDTO"
+    },
+    "inboxCutoff": {
+      "$ref": "#/definitions/InboxCutoffRequest"
+    },
+    "inboxPage": {
+      "$ref": "#/definitions/InboxPageDTO"
+    },
+    "inboxReadAll": {
+      "$ref": "#/definitions/InboxReadAllDTO"
+    },
+    "notificationPreferences": {
+      "$ref": "#/definitions/NotificationPreferencesDTO"
+    },
+    "notificationPreferencesChange": {
+      "$ref": "#/definitions/NotificationPreferencesChange"
+    },
+    "notificationRead": {
+      "$ref": "#/definitions/NotificationReadResponseDTO"
+    },
     "passwordChallengeResult": {
       "$ref": "#/definitions/PasswordChallengeResultDTO"
     },
@@ -759,6 +1195,15 @@
     }
   },
   "required": [
+    "notificationRead",
+    "inboxPage",
+    "inboxCount",
+    "inboxCutoff",
+    "inboxReadAll",
+    "inboxArchiveRequest",
+    "inboxArchive",
+    "notificationPreferences",
+    "notificationPreferencesChange",
     "status",
     "closureState",
     "customer",

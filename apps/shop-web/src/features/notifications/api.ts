@@ -1,5 +1,8 @@
 import { keepPreviousData, queryOptions, useMutation, useQueryClient } from "@tanstack/react-query"
 
+import { isDomainError } from "@effy/api-client"
+import type { NotificationReadResponseDTO } from "@effy/shared-types"
+
 import { api } from "@/lib/api"
 
 export type NotificationSection = "orders" | "stock" | "refunds" | "effy"
@@ -59,4 +62,18 @@ export function useSetMutedTypes() {
       api.patch<void>("/shop/v1/notification-preferences", v),
     onSuccess: () => void qc.invalidateQueries({ queryKey: PREFS_KEY }),
   })
+}
+
+/**
+ * Record that this operator opened one of their notifications (109). "not-yours" covers someone else's, another
+ * audience's and a malformed id alike; "unreachable" is anything else (offline, a server error).
+ */
+export async function markNotificationRead(notificationId: string): Promise<"read" | "not-yours" | "unreachable"> {
+  try {
+    await api.post<NotificationReadResponseDTO>(`/shop/v1/notifications/${encodeURIComponent(notificationId)}/read`)
+    return "read"
+  } catch (err) {
+    if (isDomainError(err) && (err.status === 404 || err.status === 400)) return "not-yours"
+    return "unreachable"
+  }
 }

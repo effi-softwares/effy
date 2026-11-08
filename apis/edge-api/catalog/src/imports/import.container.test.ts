@@ -124,7 +124,7 @@ d("102 — importing a shop's list against real PostgreSQL", () => {
     holder.enqueued = [];
     holder.staged = [];
     holder.promoted = [];
-    await pool.query("DELETE FROM public.notification_request");
+    await pool.query("DELETE FROM public.notification");
     await pool.query("DELETE FROM admin.audit_log");
     await pool.query("DELETE FROM public.product");
     await pool.query("DELETE FROM public.product_import");
@@ -185,7 +185,7 @@ d("102 — importing a shop's list against real PostgreSQL", () => {
     expect(done).toMatchObject({ state: "done", counts: { created: 8 } });
     expect(done.products.find((p) => p.key === "P2")!.productId).toBeTruthy();
     // The shop is told once, about the list.
-    expect((await pool.query(`SELECT type FROM public.notification_request`)).rows).toEqual([{ type: "shop_products_imported" }]);
+    expect((await pool.query(`SELECT type FROM (SELECT n.recipient_sub, n.audience, n.type, n.dedupe_key, n.created_at, d.channel, d.recipient_email, d.status, jsonb_strip_nulls(jsonb_build_object('entityId', n.entity_id)) AS payload FROM public.notification n JOIN public.notification_delivery d ON d.notification_id = n.id) AS notification_request`)).rows).toEqual([{ type: "shop_products_imported" }]);
 
     // A repeated message creates nothing twice.
     await create(started.importId);

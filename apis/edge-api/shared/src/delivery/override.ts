@@ -20,6 +20,7 @@ import { anyTimeDayLabel, formatArrival } from "@effy/shared-types";
 
 import type { Queryable } from "../lib/db";
 import { formatCents } from "../lib/money";
+import { notify } from "../notifications/notify";
 import { createRefundRepository, recordRefundIn } from "../payments/refunds/repository";
 import { KIND_DELIVERY, REASON_COURIER_OVERRIDE } from "../payments/refunds/state";
 import { credit } from "../points/ledger";
@@ -431,23 +432,18 @@ async function recordedChange(tx: Queryable, orderId: string, actorSub: string, 
   return written.changeId;
 }
 
-/** Push and email, once per move. Routing ids only; the worker words it. */
+/** Push and email, once per move. The tap opens the order; the move is what it is about. */
 async function enqueueChanged(tx: Queryable, orderId: string, overrideId: string): Promise<void> {
-  await tx.query(
-    `INSERT INTO public.notification_request
-         (recipient_sub, audience, type, channel, recipient_email, payload, dedupe_key)
-     SELECT c.cognito_sub, 'customer', 'order_delivery_changed', ch.channel,
-            CASE WHEN ch.channel = 'email' THEN c.email ELSE NULL END,
-            jsonb_build_object('entityId', $2::text, 'deepLink', 'effy://order'),
-            'order_delivery_changed:' || ch.channel || ':' || c.cognito_sub || ':' || $2::text
-       FROM public."order" o
-       JOIN public.customer c ON c.id = o.customer_id
-      CROSS JOIN (VALUES ('push'), ('email')) AS ch(channel)
-      WHERE o.id = $1
-        AND (ch.channel <> 'email' OR c.email IS NOT NULL)
-     ON CONFLICT (dedupe_key) DO NOTHING`,
-    [orderId, overrideId],
-  );
+  const who = (
+    await tx.query<{ sub: string; email: string | null }>(
+      `SELECT c.cognito_sub AS sub, c.email FROM public."order" o JOIN public.customer c ON c.id = o.customer_id WHERE o.id = $1`,
+      [orderId],
+    )
+  ).rows;
+  await notify(tx, {
+    type: "order_delivery_changed", recipients: who, subject: { entityId: overrideId, orderId },
+    dedupeScope: overrideId, channels: ["push", "email"],
+  });
 }
 
 export interface MoveToCourierInput {

@@ -24,6 +24,9 @@ export const LIVE_KINDS = [
   // A product's sale state or Effy's handling of it changed (102): a hold, a release, an Effy-created product,
   // an import's progress. Back-office and the product's shop.
   "products",
+  // A person's notification inbox changed (110): a new notification, or one read, seen or archived. Their own channel
+  // (customer, driver), or their shop's, where each operator re-reads their own inbox.
+  "inbox",
 ] as const;
 
 export type LiveKind = (typeof LIVE_KINDS)[number];

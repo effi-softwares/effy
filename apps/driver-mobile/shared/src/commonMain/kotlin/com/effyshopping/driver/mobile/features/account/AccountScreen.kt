@@ -34,6 +34,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.effyshopping.driver.mobile.core.platform.rememberTurnOnNotifications
+import com.effyshopping.driver.mobile.core.push.NotificationCategoryPolicy
 import com.effyshopping.driver.mobile.core.presentation.DriverAlert
 import com.effyshopping.driver.mobile.core.presentation.DriverAlertKind
 import com.effyshopping.driver.mobile.core.presentation.DriverButton
@@ -169,6 +170,21 @@ fun AccountScreen(
                             onClick = onToggleAnalytics,
                             trailing = { Text(if (analyticsOn) "On" else "Off", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                             last = true,
+                        )
+                    }
+                }
+            }
+
+            // 111 - what Effy tells drivers, each fixed with why. The phone's on/off above is the only switch.
+            Column {
+                DriverSectionLabel("What you're told about")
+                DriverGroup {
+                    NotificationCategoryPolicy.DRIVER.forEachIndexed { i, policy ->
+                        DriverRow(
+                            title = policy.label,
+                            meta = "${policy.description} ${policy.reason}",
+                            trailing = { Text("Always on", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                            last = i == NotificationCategoryPolicy.DRIVER.lastIndex,
                         )
                     }
                 }

@@ -67,9 +67,9 @@ object IosPushOpen {
     private var sink: ((OpenedNotification) -> Unit)? = null
     private var pending: OpenedNotification? = null
 
-    /** [type] and [deepLink] are the worker's data keys (`dataFor` in notifications/src/worker/copy.ts). */
-    fun opened(type: String, deepLink: String?) {
-        val opened = OpenedNotification(type, deepLink)
+    /** The push's data keys (specs/109-notification-record/contracts/push-payload.md). */
+    fun opened(type: String, notificationId: String?, destination: String?) {
+        val opened = OpenedNotification(type, notificationId?.takeIf { it.isNotBlank() }, destination)
         sink?.invoke(opened) ?: run { pending = opened }
     }
 

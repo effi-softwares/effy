@@ -6,6 +6,7 @@ import { Suspense } from "react"
 
 import type { OrderDTO } from "@effy/shared-types"
 
+import { OffersAsk } from "@/components/notifications/OffersAsk"
 import { OrderAddresses } from "@/components/OrderAddresses"
 import { ArrivalPanel, ArrivalPanelSkeleton } from "@/components/receipt/ArrivalPanel"
 import { DocumentStatusNote } from "@/components/receipt/DocumentStatusNote"
@@ -14,6 +15,7 @@ import { ResendReceipt } from "@/components/receipt/ResendReceipt"
 import { ActionLink } from "@/components/storefront/actions"
 import { Bone, Loading } from "@/components/ui/skeletons"
 import { edgeApi, uncached } from "@/lib/api/edge"
+import { getNotificationPreferences } from "@/lib/customer-reads"
 import { getSession, requireCustomer } from "@/lib/dal"
 
 import { ClearCart } from "./ClearCart"
@@ -91,6 +93,16 @@ async function Receipt({ searchParams }: { searchParams: Promise<ReturnParams> }
   // an unconditional `<ClearCart>` inside the JSX, where nothing could assert it.
   const state = completionState(dto, redirectStatus)
 
+  // 111 - whether to ask about offers: Effy decides (they have never answered). A failed read means not now.
+  let askForOffers = false
+  if (state === "receipt") {
+    try {
+      askForOffers = (await getNotificationPreferences())?.askForOffers ?? false
+    } catch {
+      askForOffers = false
+    }
+  }
+
   // An unpaid order is not a receipt and must not empty the basket. The order exists from the intent
   // call, before any money moves, and `GET /v1/orders/{id}` has no status filter, so the page branches on
   // whether it was paid: an abandoned payment (Klarna, Zip, Afterpay, 3DS) comes back to its basket.
@@ -161,6 +173,9 @@ async function Receipt({ searchParams }: { searchParams: Promise<ReturnParams> }
 
         <div className="flex flex-col gap-5">
           <ArrivalPanel stage={dto.stage} arrivals={dto.arrivalEstimates ?? []} delivery={dto.delivery} />
+
+          {/* 111 - asked once ever, after an order, never at sign-up or first visit. */}
+          {askForOffers ? <OffersAsk /> : null}
 
           {/* One primary action, then the alternatives. */}
           <div className="flex flex-col gap-3">

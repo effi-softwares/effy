@@ -4,6 +4,5 @@
 export const MONEY_METRIC_NAMESPACE = "Effy/Commerce";
 
 export * from "./gateway";
-export * from "./outbox";
 export * from "./finalize";
 export * from "./refunds";

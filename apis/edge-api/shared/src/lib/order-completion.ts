@@ -3,11 +3,11 @@
 // arrived, the same rule `stageFor` applies to the customer's progress word.
 
 import type { Queryable } from "./db";
+import { notify } from "../notifications/notify";
 
 /**
- * Enqueues "your order arrived" only for the last package, in the arrival's own transaction. One row
- * per channel: push (skipped with no token) and email (the address snapshotted now). Both keys are
- * order-scoped, and `ON CONFLICT (dedupe_key) DO NOTHING` makes a repeat a no-op.
+ * Notifies "your order arrived" only for the last package, in the arrival's own transaction: one notification,
+ * delivered by push and email (the address snapshotted now). Order-scoped, so a repeat is a no-op.
  * @returns true when the order is now complete, whoever enqueued.
  */
 export async function enqueueOrderDeliveredIfComplete(
@@ -27,21 +27,16 @@ export async function enqueueOrderDeliveredIfComplete(
   );
   if (!complete.rows[0]?.complete) return false;
 
-  // Routing ids only, on either channel: the email resolves what it renders at send time.
-  await tx.query(
-    `INSERT INTO public.notification_request
-         (recipient_sub, audience, type, channel, recipient_email, payload, dedupe_key)
-     SELECT c.cognito_sub, 'customer', 'order_delivered', ch.channel,
-            CASE WHEN ch.channel = 'email' THEN c.email ELSE NULL END,
-            jsonb_build_object('entityId', o.id::text, 'deepLink', 'effy://order/' || o.id::text),
-            'order_delivered:' || ch.channel || ':' || c.cognito_sub || ':' || o.id::text
-       FROM public."order" o
-       JOIN public.customer c ON c.id = o.customer_id
-      CROSS JOIN (VALUES ('push'), ('email')) AS ch(channel)
-      WHERE o.id = $1
-     ON CONFLICT (dedupe_key) DO NOTHING`,
-    [orderId],
-  );
+  // Push and email (the address snapshotted now), once per order.
+  const who = (
+    await tx.query<{ sub: string; email: string | null }>(
+      `SELECT c.cognito_sub AS sub, c.email FROM public."order" o JOIN public.customer c ON c.id = o.customer_id WHERE o.id = $1`,
+      [orderId],
+    )
+  ).rows;
+  await notify(tx, {
+    type: "order_delivered", recipients: who, subject: { entityId: orderId }, dedupeScope: orderId, channels: ["push", "email"],
+  });
   return true;
 }
 

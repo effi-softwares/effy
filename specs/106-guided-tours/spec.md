@@ -528,15 +528,25 @@ the step is always shown. Text in quotes elsewhere in this spec is the console's
 | 3 | Role column | Manager or Staff | Managers can also run the team and issue refunds, and get the alerts meant for managers. Staff do the everyday work. | There are rows |
 | 4 | Actions on a row | Change or stand down | Change someone's name or role, or stand them down so they can no longer sign in. You can reinstate them later. | There are rows |
 
-### NS - Settings · Notifications
+### NS - Settings · Notifications (version 2, 111: specs/111-notification-preferences/spec.md › Guided tours)
 
 | # | Points at | Title | Text | Shown when |
 |---|---|---|---|---|
 | 1 | This device | This device | Alerts for new orders and anything that needs attention, even when the console is closed. Each computer, tablet or phone is turned on separately. | |
 | 2 | Send a test | Check it works | Shows one notification on this device now. | Notifications are on |
-| 3 | What you're told about | What you're told about | Choose which alerts reach this device. Everything is on until you turn it off. | |
-| 4 | Sound | Sound | A chime in this tab for new orders while the console is open. The Sound button at the top of every page does the same. | |
-| 5 | The home-screen note | On iPad and iPhone | Notifications only work once Effy Shop is added to the home screen. | iPad / iPhone |
+| 3 | Always in your inbox | Always in your inbox | Orders, stock, products, Effy's announcements and important notices always reach your inbox. They can't be turned off, so nobody at your shop misses one. | |
+| 4 | What you're told about | What you're told about | Choose which alerts reach this device. Everything is on until you turn it off. | |
+| 5 | Sound | Sound | A chime in this tab for new orders while the console is open. The Sound button at the top of every page does the same. | |
+| 6 | The home-screen note | On iPad and iPhone | Notifications only work once Effy Shop is added to the home screen. | iPad / iPhone |
+
+### NF - Notifications (110: specs/110-notification-inboxes/spec.md › Guided tour)
+
+| # | Points at | Title | Text | Shown when |
+|---|---|---|---|---|
+| 1 | The page heading | Everything you were told | Every notification for you is kept here for 90 days, even ones you closed or missed. The newest is at the top. |  |
+| 2 | The filters | Find what you need | Show everything or only what you haven't read, and narrow it to orders, stock, products, announcements or important notices. |  |
+| 3 | A notification | Go straight there | Click a notification to open what it's about. It's then marked read. | There are notifications |
+| 4 | Mark all read | Catch up in one click | Mark everything read once you've dealt with it, or archive a notification to take it off the list. | Something is unread |
 
 ### PS - Settings · Printing
 

@@ -264,7 +264,7 @@ step, and the role name, and nothing about an order, customer, product or shop.
 
 ## Tour Inventory (back-office)
 
-**51 tours**: the Welcome tour and 50 pages and tabs, 286 steps. **Points at** is the part of the page a step outlines. **Shown when** is blank when the step is shown to
+**53 tours**: the Welcome tour and 52 pages and tabs, 296 steps. **Points at** is the part of the page a step outlines. **Shown when** is blank when the step is shown to
 every role whenever its part is on screen. Role marks: **Admin or manager**, **Admin**, **Customer support**.
 
 ### BW - Welcome to Effy Back-Office (the whole console; starts by itself at first sign-in)
@@ -401,6 +401,14 @@ every role whenever its part is on screen. Role marks: **Admin or manager**, **A
 | 4 | Customer-service credit limit | Credit limit | The most a customer-support agent can credit at once. More needs a manager. | |
 | 5 | Checkout hold | Checkout hold | How long points chosen at checkout are set aside while the customer pays. | |
 | 6 | Rule changes | Rule changes | Every change to these rules, and who made it. Only an administrator can change them. | |
+
+### CN - Notification settings (111: specs/111-notification-preferences/spec.md › Guided tours)
+
+| # | Points at | Title | Text | Shown when |
+|---|---|---|---|---|
+| 1 | Page heading | Promotional notifications | How often customers who said yes to offers and news may get one on their phone. Order updates, points and important messages are never limited. | |
+| 2 | The limits | Limits | The most promotional notifications a customer gets in a day and in a week. Any over the limit still reach their inbox, without a notification. | |
+| 3 | Activity | Rule changes | Every change to these limits, and who made it. Administrators and managers can change them. | |
 
 ### CD - A customer (needs a record)
 

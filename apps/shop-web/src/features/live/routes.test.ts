@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest"
 import { LIVE_ROUTES } from "./routes"
 
 const features = resolve(__dirname, "..")
-const SOURCES = ["today/queries.ts", "fulfillment/queries.ts", "catalog/stockQueries.ts", "catalog/queries.ts"].map(
+const SOURCES = ["today/queries.ts", "fulfillment/queries.ts", "catalog/stockQueries.ts", "catalog/queries.ts", "notifications/inbox-api.ts"].map(
   (f) => readFileSync(resolve(features, f), "utf8"),
 )
 
@@ -24,7 +24,7 @@ describe("LIVE_ROUTES", () => {
   })
 
   it("covers what the shop is told about (FR-026)", () => {
-    expect(Object.keys(LIVE_ROUTES).sort()).toEqual(["attention", "orders", "products", "stock", "taxonomy"])
+    expect(Object.keys(LIVE_ROUTES).sort()).toEqual(["attention", "inbox", "orders", "products", "stock", "taxonomy"])
   })
 })
 

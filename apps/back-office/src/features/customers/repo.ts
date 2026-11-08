@@ -1,4 +1,5 @@
 import type {
+  StaffNotificationPreferencesDTO,
   CustomerDetailDTO,
   CustomerListDTO,
   CustomerListItemDTO,
@@ -38,4 +39,9 @@ export function getPointsSettings(): Promise<PointsSettingsDTO> {
 
 export function updatePointsSettings(patch: Partial<PointsSettingsDTO>): Promise<PointsSettingsDTO> {
   return api.put<PointsSettingsDTO>(`/orders/v1/points/settings`, patch)
+}
+
+/** 111 - a customer's notification choices and marketing consent, read only (staff cannot change them). */
+export function getCustomerNotificationPreferences(id: string): Promise<StaffNotificationPreferencesDTO> {
+  return api.get<StaffNotificationPreferencesDTO>(`/orders/v1/customers/${id}/notification-preferences`)
 }

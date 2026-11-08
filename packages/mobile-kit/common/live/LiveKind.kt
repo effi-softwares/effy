@@ -30,7 +30,10 @@ enum class LiveKind(val wire: String) {
     TAXONOMY("taxonomy"),
 
     /** A product's sale state or Effy's handling of it changed (102). Back-office and the product's shop. */
-    PRODUCTS("products");
+    PRODUCTS("products"),
+
+    /** A person's notification inbox changed (110): re-read the bell count, and the inbox if it is open. */
+    INBOX("inbox");
 
     companion object {
         /** `null` for a kind this build has never heard of (a newer backend). */

@@ -660,6 +660,9 @@ the entries carry gotchas and deploy-ordering rules that the code does not. Slic
 
 Features recorded:
 
+- **111-notification-preferences** - Notification Preferences & Marketing Consent (one category policy in shared-types; customers choose push/email per category; offers and news only after a recorded yes in Effy's versioned words; `notify()` writes nothing / `skipped` / `capped` / held to 08:00; the one-time ask after an order; limits in back-office; Android channels per category) - built 2026-11-08; not migrated, deployed or walked; consent wording awaits approval
+- **110-notification-inboxes** - Notification Inboxes (an inbox with a live bell in the customer app and website, the driver app and the shop console; seen/read/archive/mark-all; live kind `inbox` announced after commit by `notify()`; out for delivery; points expiry push; driver catch-up notice; push badge) - built 2026-11-08; migrated and deployed to dev, not walked
+- **109-notification-record** - Notification Record & Destinations (one lasting notification per person, push/email as its deliveries, one writer `notify()`; a closed destination list per audience so a tap opens its screen, held through sign-in; read route; batched sending; daily purge) - Stages A and B (drop `notification_request`) deployed to dev 2026-11-08; not walked
 - **108-information-banners** - Information Banners (a fifth promotion kind with no offer: words, a picture, a skin, where a tap leads; live values like the free-delivery amount filled from settings; never money) - built 2026-11-06; not migrated, deployed or walked
 - **107-backoffice-guided-tours** - Guided Tours in Back-Office (49 tours on 106's pieces; steps and whole tours limited by role; `/admin/v1/me/tours`) - built 2026-11-03; not deployed or walked
 - **106-guided-tours** - Guided Tours in the Shop Console (16 tours that start by themselves on a page's first use, once per person; replayed from Help or ⌘K; one Radix tour primitive; words in `tours.ts`, held to the spec) - built 2026-11-03; not migrated, deployed or walked
@@ -745,5 +748,5 @@ Features recorded:
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/108-information-banners/plan.md
+at specs/111-notification-preferences/plan.md
 <!-- SPECKIT END -->

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Effy notifications worker \u2014 drains the notification_request outbox and sends push via FCM (050), and drains the receipt_dispatch outbox and sends the order receipt via SES (052).",
+  "description": "Effy notifications worker \u2014 sends notification deliveries (push via FCM, plus email; 050, 109), and drains the receipt_dispatch outbox and sends the order receipt via SES (052).",
   "scripts": {
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
@@ -19,6 +19,7 @@
     "pino": "10.3.1"
   },
   "devDependencies": {
+    "@testcontainers/postgresql": "^12.0.4",
     "@types/aws-lambda": "8.10.162",
     "@types/node": "^22.10.0",
     "@types/pg": "^8.11.0",

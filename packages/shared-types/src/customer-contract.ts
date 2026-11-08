@@ -27,8 +27,12 @@ import type {
 } from "./customer";
 import type { ProblemJSON } from "./problem";
 import type { CustomerPointsDTO, PointsBalanceDTO, PointsEntryKind, PointsHistoryEntryDTO, PointsHistoryPageDTO } from "./points";
+import type { NotificationReadResponseDTO } from "./notification-destinations";
+import type { InboxArchiveDTO, InboxArchiveRequest, InboxCountDTO, InboxCutoffRequest, InboxPageDTO, InboxReadAllDTO } from "./notification-inbox";
+import type { NotificationPreferencesChange, NotificationPreferencesDTO } from "./notification-preferences";
 
 export type {
+  NotificationReadResponseDTO,
   CustomerStatus,
   ClosureState,
   CustomerDTO,
@@ -58,6 +62,15 @@ export type {
 
 /** Codegen entry only. Every field forces a type into the schema. */
 export interface CustomerContract {
+  notificationRead: NotificationReadResponseDTO;
+  inboxPage: InboxPageDTO;
+  inboxCount: InboxCountDTO;
+  inboxCutoff: InboxCutoffRequest;
+  inboxReadAll: InboxReadAllDTO;
+  inboxArchiveRequest: InboxArchiveRequest;
+  inboxArchive: InboxArchiveDTO;
+  notificationPreferences: NotificationPreferencesDTO;
+  notificationPreferencesChange: NotificationPreferencesChange;
   status: CustomerStatus;
   closureState: ClosureState;
   customer: CustomerDTO;

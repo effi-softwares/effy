@@ -1,5 +1,9 @@
 package com.effyshopping.customer.mobile.features.checkout.presentation
 
+import androidx.compose.runtime.LaunchedEffect
+import com.effyshopping.customer.mobile.features.notifications.offers.OffersAskSheet
+import com.effyshopping.customer.mobile.core.error.AppError
+import com.effyshopping.customer.mobile.core.error.AppException
 import com.effyshopping.customer.mobile.core.presentation.AgeBadge
 import com.effyshopping.customer.mobile.resources.lucide_mail
 import com.effyshopping.customer.mobile.resources.lucide_message_square
@@ -132,13 +136,18 @@ private class ReceiptViewModel(
     private val _state = MutableStateFlow<ReceiptUiState>(ReceiptUiState.Loading)
     val state: StateFlow<ReceiptUiState> = _state.asStateFlow()
 
+    /** The first read answered "not there" (404): Order details falls back (109); a receipt still says `Pending`. */
+    private val _gone = MutableStateFlow(false)
+    val gone: StateFlow<Boolean> = _gone.asStateFlow()
+
     init {
         viewModelScope.launch {
             try {
                 _state.value = ReceiptUiState.Ready(getReceipt(orderId))
             } catch (e: CancellationException) {
                 throw e
-            } catch (_: Throwable) {
+            } catch (e: Throwable) {
+                if ((e as? AppException)?.error == AppError.NotFound) _gone.value = true
                 _state.value = ReceiptUiState.Pending
             }
         }
@@ -181,11 +190,23 @@ fun ReceiptScreen(
     onTrack: (() -> Unit)? = null,
     /** 087 (Order board) - after "Buy again", the snackbar's "View cart". */
     onViewCart: (() -> Unit)? = null,
+    /**
+     * 109 - the order is not this shopper's to open (404). Only Order details passes it: after checkout a 404 means
+     * the payment is still being confirmed, which `Pending` says.
+     */
+    onGone: (() -> Unit)? = null,
+    /** 111 - the end of checkout asks, once ever, whether the shopper wants offers. Order details never does. */
+    askAboutOffers: Boolean = false,
 ) {
     val vm = viewModel(key = orderId) { ReceiptViewModel(orderId, container.getReceipt, container.live.changes(LiveKind.ORDERS)) }
+    val offersAsk = remember(orderId) { container.offersAsk() }
+    var askingOffers by remember(orderId) { mutableStateOf(false) }
+    LaunchedEffect(orderId, askAboutOffers) { if (askAboutOffers && offersAsk.shouldAsk()) askingOffers = true }
     val state by vm.state.collectAsState()
     val scope = rememberCoroutineScope()
     val snackbarHost = remember { SnackbarHostState() }
+    val gone by vm.gone.collectAsState()
+    LaunchedEffect(gone) { if (gone) onGone?.invoke() }
 
     /**
      * Put this order back in the cart, and tell the shopper what could not come - the same
@@ -256,6 +277,13 @@ fun ReceiptScreen(
         }
     }
     EffySnackbarHost(snackbarHost, modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 96.dp))
+    }
+
+    if (askingOffers) {
+        OffersAskSheet(onAnswer = { yes ->
+            askingOffers = false
+            scope.launch { offersAsk.answer(yes) }
+        })
     }
 }
 

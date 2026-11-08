@@ -5,6 +5,7 @@
 import type pg from "pg";
 
 import { likePattern, limitOffsetClause, orderBy, query, runOffsetPage, withTransaction } from "@effy/edge-shared";
+import { notify } from "@effy/edge-shared/notifications";
 
 import { MARGIN_NOT_SET, REVIEW_QUEUE, type MarginNotSetRequest, type ReviewQueueRequest } from "./list";
 
@@ -318,7 +319,7 @@ export async function audit(
 
 /**
  * One intent per active staff member of the shop, in the decision's transaction and deduped on
- * (decision, staff). The payload is a routing id only.
+ * (decision, staff). What it is about is the product (or, for an import, the import).
  */
 export async function notifyShop(
   tx: pg.PoolClient,
@@ -333,17 +334,13 @@ export async function notifyShop(
   productId: string,
   decisionKey: string,
 ): Promise<void> {
-  await tx.query(
-    `INSERT INTO public.notification_request (recipient_sub, audience, type, payload, dedupe_key, channel)
-     SELECT ss.cognito_sub, 'shop', $1,
-            jsonb_build_object('entityId', $3::text),
-            $1 || ':' || ss.cognito_sub || ':' || $4,
-            'push'
-       FROM public.shop_staff ss
-      WHERE ss.shop_id = $2 AND ss.status = 'active'
-     ON CONFLICT (dedupe_key) DO NOTHING`,
-    [type, shopId, productId, decisionKey],
-  );
+  const staff = (
+    await tx.query<{ sub: string }>(
+      `SELECT ss.cognito_sub AS sub FROM public.shop_staff ss WHERE ss.shop_id = $1 AND ss.status = 'active' ORDER BY ss.cognito_sub`,
+      [shopId],
+    )
+  ).rows;
+  await notify(tx, { type, recipients: staff, subject: { entityId: productId }, dedupeScope: decisionKey, channels: ["push"] });
 }
 
 /** One margin per product; variant prices follow via `priceVariants`. */

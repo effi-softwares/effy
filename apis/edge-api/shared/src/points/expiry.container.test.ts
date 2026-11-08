@@ -33,7 +33,7 @@ const give = (customerId: string, points: number, now: Date) =>
 const warnings = async (customerId: string) =>
   (await pool.query(
     `SELECT n.points, r.channel, r.recipient_email FROM public.points_expiry_notice n
-       JOIN public.notification_request r ON r.payload->>'entityId' = n.id::text AND r.type = 'points_expiring'
+       JOIN (SELECT n.recipient_sub, n.audience, n.type, n.dedupe_key, n.created_at, d.channel, d.recipient_email, d.status, jsonb_strip_nulls(jsonb_build_object('entityId', n.entity_id)) AS payload FROM public.notification n JOIN public.notification_delivery d ON d.notification_id = n.id) r ON r.payload->>'entityId' = n.id::text AND r.type = 'points_expiring'
       WHERE n.customer_id = $1`,
     [customerId],
   )).rows;
@@ -51,7 +51,7 @@ d("074 - expiry warnings and the ledger check", () => {
     await container?.stop();
   });
 
-  it("P16 - warns once per customer per expiry date, for the points still there, by email only", async () => {
+  it("P16 - warns once per customer per expiry date, for the points still there, by push and email (110)", async () => {
     const c = await customer();
     const now = new Date();
     await transact((tx) => updateSettings(tx, { expiryMonths: 1, warningDays: 60 }, "admin"));
@@ -63,9 +63,11 @@ d("074 - expiry warnings and the ledger check", () => {
     await queueExpiryWarnings(pool, now);
     await queueExpiryWarnings(pool, new Date(now.getTime() + 86_400_000));
     const sent = await warnings(c);
-    expect(sent).toHaveLength(1);
-    expect(sent[0]).toMatchObject({ points: 400, channel: "email" });
-    expect(sent[0]!.recipient_email).toMatch(/@example\.test$/);
+    // One notification (one notice), delivered twice: push and email.
+    expect(sent).toHaveLength(2);
+    expect(sent.map((r) => r.channel).sort()).toEqual(["email", "push"]);
+    expect(sent.every((r) => r.points === 400)).toBe(true);
+    expect(sent.find((r) => r.channel === "email")!.recipient_email).toMatch(/@example\.test$/);
     await transact((tx) => updateSettings(tx, { expiryMonths: 12, warningDays: 30 }, "admin"));
   });
 

@@ -3,6 +3,7 @@
 // (`where id and shop_id and status = expected`): zero rows means someone else already applied it.
 
 import { query, withTransaction } from "@effy/edge-shared";
+import { notify } from "@effy/edge-shared/notifications";
 
 import { courierPickups, pickupOf } from "../lib/courier-pickup";
 
@@ -338,20 +339,24 @@ export async function transition(
       toStatus: to,
     });
 
-    // Push intent in the same transaction, deduped on the fulfilment id; order id and deep link only.
+    // "Your order is packed", in the same transaction, once per package; the tap opens the order.
     if (to === "ready_for_pickup") {
-      await client.query(
-        `INSERT INTO public.notification_request (recipient_sub, audience, type, payload, dedupe_key)
-         SELECT c.cognito_sub, 'customer', 'order_ready',
-                jsonb_build_object('entityId', o.id::text, 'deepLink', 'effy://order/' || o.id::text),
-                'order_ready:' || c.cognito_sub || ':' || sf.id::text
-           FROM public.shop_fulfillment sf
-           JOIN public."order" o ON o.id = sf.order_id
-           JOIN public.customer c ON c.id = o.customer_id
-          WHERE sf.id = $1
-         ON CONFLICT (dedupe_key) DO NOTHING`,
-        [fulfillmentId],
-      );
+      const who = (
+        await client.query<{ sub: string; order_id: string }>(
+          `SELECT c.cognito_sub AS sub, o.id::text AS order_id
+             FROM public.shop_fulfillment sf
+             JOIN public."order" o ON o.id = sf.order_id
+             JOIN public.customer c ON c.id = o.customer_id
+            WHERE sf.id = $1`,
+          [fulfillmentId],
+        )
+      ).rows[0];
+      if (who) {
+        await notify(client, {
+          type: "order_ready", recipients: [{ sub: who.sub }], subject: { entityId: who.order_id },
+          dedupeScope: fulfillmentId, channels: ["push"],
+        });
+      }
     }
     return true;
   });

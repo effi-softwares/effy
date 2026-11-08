@@ -1,4 +1,5 @@
 import {
+  Bell,
   CircleHelp,
   Coins,
   CreditCard,
@@ -8,6 +9,7 @@ import {
   Lock,
   MapPin,
   Package,
+  Settings,
   ShieldCheck,
   UserRound,
 } from "lucide-react"
@@ -39,6 +41,7 @@ export const ACCOUNT_LINKS: ReadonlyArray<{
     { label: "Orders", href: "/orders", testId: "menu-orders", Icon: Package, group: "account" },
     { label: "Saved items & lists", href: "/saved", testId: "menu-saved", Icon: Heart, group: "account" },
     { label: "Effy points", href: "/account/points", testId: "menu-points", Icon: Coins, group: "account" },
+    { label: "Notifications", href: "/account/notifications", testId: "menu-notifications", Icon: Bell, group: "account" },
     { label: "Address book", href: "/addresses", testId: "menu-addresses", Icon: MapPin, group: "account" },
     { label: "Payment methods", href: "/account/payment", testId: "menu-payment", Icon: CreditCard, group: "account" },
     { label: "Help & feedback", href: "/help", testId: "menu-help", Icon: CircleHelp, group: "help" },
@@ -62,6 +65,8 @@ export const ACCOUNT_SECTIONS: ReadonlyArray<{
     { label: "Orders", href: "/orders", Icon: Package },
     { label: "Saved items & lists", href: "/saved", Icon: Heart },
     { label: "Effy points", href: "/account/points", Icon: Coins },
+    { label: "Notifications", href: "/account/notifications", Icon: Bell, exact: true },
+    { label: "Notification settings", href: "/account/notifications/settings", Icon: Settings },
     { label: "Personal info", href: "/account/personal", Icon: UserRound },
     { label: "Address book", href: "/addresses", Icon: MapPin },
     { label: "Payment methods", href: "/account/payment", Icon: CreditCard },

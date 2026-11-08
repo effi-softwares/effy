@@ -14,7 +14,9 @@ import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.SharedTransitionLayout
 import com.effyshopping.customer.mobile.core.platform.platformTag
 import com.effyshopping.customer.mobile.core.presentation.LocalIsIos
+import com.effyshopping.customer.mobile.core.presentation.LocalInboxCount
 import com.effyshopping.customer.mobile.core.presentation.LocalOpenNotifications
+import com.effyshopping.customer.mobile.features.notifications.settings.presentation.NotificationSettingsScreen
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.CompositionLocalProvider
@@ -25,6 +27,10 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
+import com.effyshopping.customer.mobile.core.presentation.EffySnackbarHost
+import androidx.compose.ui.Alignment
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -42,6 +48,7 @@ import androidx.compose.ui.backhandler.BackHandler
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.entryProvider
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import com.effyshopping.customer.mobile.core.nav.CUSTOMER_TAB_ROOTS
@@ -50,8 +57,10 @@ import com.effyshopping.customer.mobile.core.nav.CustomerNavKey
 import com.effyshopping.customer.mobile.core.nav.rememberCustomerNavState
 import com.effyshopping.customer.mobile.core.session.SessionState
 import com.effyshopping.customer.mobile.core.observability.AnalyticsEvent
-import com.effyshopping.customer.mobile.core.push.PushDestination
-import com.effyshopping.customer.mobile.core.push.pushDestination
+import com.effyshopping.customer.mobile.core.push.CustomerDestination
+import com.effyshopping.customer.mobile.core.push.HeldOutcome
+import com.effyshopping.customer.mobile.core.push.verifiedDestinationOf
+import com.effyshopping.customer.mobile.core.push.parseCustomerDestination
 import com.effyshopping.customer.mobile.features.account.presentation.AccountRoutes
 import com.effyshopping.customer.mobile.features.addresses.presentation.AddressBookScreen
 import com.effyshopping.customer.mobile.features.paymentmethods.presentation.PaymentMethodsScreen
@@ -72,7 +81,7 @@ import com.effyshopping.customer.mobile.features.checkout.presentation.ReceiptSc
 import com.effyshopping.customer.mobile.features.help.presentation.HelpScreen
 import com.effyshopping.customer.mobile.features.legal.presentation.LegalDocumentScreen
 import com.effyshopping.customer.mobile.features.legal.presentation.LegalIndexScreen
-import com.effyshopping.customer.mobile.features.notifications.presentation.NotificationsScreen
+import com.effyshopping.customer.mobile.features.notifications.presentation.InboxScreen
 import com.effyshopping.customer.mobile.resources.Res
 import com.effyshopping.mobile.kit.shell.ResponsiveDestination
 import com.effyshopping.mobile.kit.shell.ResponsiveNavigation
@@ -80,6 +89,7 @@ import com.effyshopping.mobile.kit.ui.AdaptiveContent
 import com.effyshopping.mobile.kit.ui.MotionRole
 import com.effyshopping.mobile.kit.ui.rememberMotionSpec
 import org.jetbrains.compose.resources.DrawableResource
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
 
 /** The label for each tab root, in bar order. */
@@ -138,35 +148,70 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
     LaunchedEffect(signedIn) { container.syncCart() }
 
     /**
-     * A tapped notification opens what it was about: an order's page under Orders, the Orders tab, or
-     * points under Account (`pushDestination` reads the worker's deep link). The shell only exists once the
-     * session has resolved, so a tap that launched the app waits in the container until then.
+     * A tapped notification opens what it was about (109): [pushNavSteps] over the destination the push carried, on
+     * its tab's root so Back returns to the tab's start; a destination this build does not know opens Home.
      *
-     * Every notification is about a signed-in shopper's account. A guest who taps one (signed out since it
-     * was sent) just lands where they are - the gate would only ask them to sign in to see someone's order.
+     * Signed in, it opens at once and the read is recorded in the background - the destination screen loads through
+     * the shopper's own session, so someone else's order is simply not found there. Signed out, the tap is held in
+     * memory and sign-in is offered; after sign-in the server is asked FIRST whether the notification is theirs, and
+     * only then is anything opened (another shopper on the same phone sees nothing of it).
+     *
+     * The work runs in [pushScope], not the effects, because each effect restarts the moment it clears its value.
      */
+    val pushScope = rememberCoroutineScope()
+    val shellSnackbar = remember { SnackbarHostState() }
+    fun openFromPush(type: String, destination: CustomerDestination?) {
+        for (step in pushNavSteps(destination)) {
+            when (step) {
+                is PushNavStep.SelectTab -> navState.selectTab(step.tab)
+                PushNavStep.ResetToRoot -> navState.resetToRoot()
+                is PushNavStep.Push -> navState.push(step.key)
+            }
+        }
+        container.analyticsDriver.capture(AnalyticsEvent.NotificationOpened(type))
+    }
     val openedNotification by container.openedNotification.collectAsState()
-    LaunchedEffect(openedNotification, signedIn) {
+    LaunchedEffect(openedNotification) {
         val opened = openedNotification ?: return@LaunchedEffect
         container.openedNotification.value = null
-        container.analyticsDriver.capture(AnalyticsEvent.NotificationOpened(opened.type))
+        if (signedIn) {
+            openFromPush(opened.type, parseCustomerDestination(opened.destination))
+            opened.notificationId?.let { id -> pushScope.launch { container.notifications.markRead(id) } }
+        } else {
+            container.pendingOpen.value = opened
+            navState.push(CustomerNavKey.SignIn())
+        }
+    }
+    /**
+     * An item tapped in the inbox (110): pushed onto the current tab so Back returns to the inbox. A destination that is
+     * a tab's own root (orders, home, sale…) selects that tab instead, as a push does. The inbox records its own event.
+     */
+    fun openFromInbox(destination: CustomerDestination?) {
+        val steps = pushNavSteps(destination)
+        val pushes = steps.filterIsInstance<PushNavStep.Push>()
+        if (pushes.isNotEmpty()) {
+            pushes.forEach { navState.push(it.key) }
+        } else {
+            for (step in steps) {
+                when (step) {
+                    is PushNavStep.SelectTab -> navState.selectTab(step.tab)
+                    PushNavStep.ResetToRoot -> navState.resetToRoot()
+                    is PushNavStep.Push -> navState.push(step.key)
+                }
+            }
+        }
+    }
+    val inboxCount by container.inboxBadge.count.collectAsState()
+    val pendingOpen by container.pendingOpen.collectAsState()
+    LaunchedEffect(pendingOpen, signedIn) {
+        val held = pendingOpen ?: return@LaunchedEffect
         if (!signedIn) return@LaunchedEffect
-        when (val destination = pushDestination(opened.deepLink)) {
-            is PushDestination.Order -> {
-                navState.selectTab(CustomerNavKey.Orders)
-                navState.resetToRoot()
-                navState.push(CustomerNavKey.OrderDetail(destination.orderId))
+        container.pendingOpen.value = null
+        pushScope.launch {
+            when (val outcome = verifiedDestinationOf(held, container.notifications)) {
+                is HeldOutcome.Open -> openFromPush(held.type, outcome.destination)
+                HeldOutcome.Drop -> Unit
             }
-            PushDestination.Orders -> {
-                navState.selectTab(CustomerNavKey.Orders)
-                navState.resetToRoot()
-            }
-            PushDestination.Points -> {
-                navState.selectTab(CustomerNavKey.Account)
-                navState.resetToRoot()
-                navState.push(CustomerNavKey.Points)
-            }
-            null -> Unit
         }
     }
 
@@ -211,9 +256,14 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
     // The bell in every header opens Notifications on the current tab, so Back returns where the
     // shopper was. Provided once here; screens never wire it.
     CompositionLocalProvider(
-        LocalOpenNotifications provides { navState.push(CustomerNavKey.Notifications) },
+        // A guest is asked to sign in and lands in the inbox afterwards (110 US1-7).
+        LocalOpenNotifications provides {
+            if (signedIn) navState.push(CustomerNavKey.Notifications) else requireSignIn(returnTo = CustomerNavKey.Notifications)
+        },
+        LocalInboxCount provides inboxCount,
         LocalIsIos provides (platformTag() == "ios"),
     ) {
+    Box(Modifier.fillMaxSize()) {
     ResponsiveNavigation(
         destinations = CUSTOMER_TAB_ROOTS.map { root ->
             ResponsiveDestination(
@@ -310,7 +360,9 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                         // screen, so Back belongs here. It used to `selectTab(Account)` first - because
                         // Notifications is also an Account list row - which meant opening it from
                         // Discover and pressing Back landed on the account page.
-                        onNotifications = { navState.push(CustomerNavKey.Notifications) },
+                        onNotifications = {
+                            if (signedIn) navState.push(CustomerNavKey.Notifications) else requireSignIn(returnTo = CustomerNavKey.Notifications)
+                        },
                         // The cart is a tab; every way into it selects the tab.
                         onCart = { navState.selectTab(CustomerNavKey.Cart) },
                         // Reachable by a guest too. The predecessor gated this behind sign-in, and
@@ -540,6 +592,7 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                         key.orderId,
                         title = "Order confirmed",
                         doneLabel = "Keep shopping",
+                        askAboutOffers = true,
                         // Order matters. Checkout may have run in any tab (Search → Product →
                         // Cart → Checkout), so that tab is cleared to its own root first; only then
                         // do we move to Home. Resetting to Home directly would have planted Home as
@@ -565,6 +618,13 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                         key.orderId,
                         title = "Order details",
                         onViewCart = { navState.selectTab(CustomerNavKey.Cart) },
+                        // An order this shopper can no longer open (a stale notification, a list from before): back to
+                        // their orders with one short sentence, never an error screen (109 FR-015).
+                        onGone = {
+                            navState.selectTab(CustomerNavKey.Orders)
+                            navState.resetToRoot()
+                            pushScope.launch { shellSnackbar.showSnackbar(ORDER_GONE) }
+                        },
                     )
                 }
 
@@ -604,7 +664,17 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                 entry<CustomerNavKey.PaymentMethods> {
                     PaymentMethodsScreen(container, onBack = { navState.pop() })
                 }
-                entry<CustomerNavKey.Notifications> { NotificationsScreen() }
+                entry<CustomerNavKey.Notifications> {
+                    InboxScreen(
+                        container,
+                        shellSnackbar,
+                        onOpen = { item -> openFromInbox(item.destination) },
+                        onSettings = { navState.push(CustomerNavKey.NotificationSettings) },
+                    )
+                }
+                entry<CustomerNavKey.NotificationSettings> {
+                    NotificationSettingsScreen(container, shellSnackbar)
+                }
                 // Three routes, one help page (Help board). The old keys stay so a restored back
                 // stack still resolves.
                 entry<CustomerNavKey.Faqs> { HelpScreen(onOpenOrders = { navState.selectTab(CustomerNavKey.Orders) }) }
@@ -653,6 +723,9 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
         }
         }
     }
+    // A shell-wide message, over the tab bar: what a fallback says (109 FR-015).
+    EffySnackbarHost(shellSnackbar, modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 96.dp))
+    }
     }
 }
 
@@ -687,3 +760,5 @@ private fun GatedTab(title: String, message: String, onSignIn: () -> Unit) {
     }
 }
 
+/** What a tap on a notification about an order says when that order can no longer be opened (109). */
+private const val ORDER_GONE = "That order isn’t available."

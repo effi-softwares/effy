@@ -46,7 +46,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         completionHandler([.banner, .list, .sound])
     }
 
-    // A tap. `type` and `entityId` are the worker's data keys (`dataFor` in notifications/src/worker/copy.ts).
+    // A tap. `type`, `notificationId` and `destination` are the push's data keys (109 contracts/push-payload.md).
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse,
@@ -54,7 +54,11 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
     ) {
         let info = response.notification.request.content.userInfo
         if let type = info["type"] as? String {
-            IosPushOpen.shared.opened(type: type, entityId: info["entityId"] as? String)
+            IosPushOpen.shared.opened(
+                type: type,
+                notificationId: info["notificationId"] as? String,
+                destination: info["destination"] as? String
+            )
         }
         completionHandler()
     }

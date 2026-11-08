@@ -29,6 +29,8 @@ import {
 } from "@effy/shared-types"
 import { ActivityLogDrawer, useActivityLog } from "@effy/web-kit/activity-log"
 import { ErrorState } from "@effy/web-kit/console"
+
+import { useGoneFallback } from "@/lib/useGoneFallback"
 import {
   Banner,
   BoneLines,
@@ -98,7 +100,9 @@ function ProductDetailBody({ productId, initialSize }: { productId: string; init
   // Prices being typed in the spreadsheet: the preview follows them before anything is saved.
   const [typedPrices, setTypedPrices] = useState<Record<string, string> | null>(null)
   useTourPage("product", { status: tourStatus({ isSuccess: !isPending && !isError, isError }) })
+  const gone = useGoneFallback(error, "/catalog", "That product is no longer in your catalogue.")
 
+  if (gone) return null
   if (isError) return <ErrorState error={error} onRetry={() => void refetch()} />
   if (isPending) {
     return (

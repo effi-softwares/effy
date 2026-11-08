@@ -7,6 +7,6 @@
     "sound": "default"
   },
   "type": "run_assigned",
-  "entityId": "REPLACE-WITH-ONE-OF-YOUR-RUN-IDS",
-  "deepLink": "effy://run/REPLACE-WITH-ONE-OF-YOUR-RUN-IDS"
+  "notificationId": "00000000-0000-4000-8000-000000000109",
+  "destination": "{\"kind\":\"run\",\"runId\":\"REPLACE-WITH-ONE-OF-YOUR-RUN-IDS\"}"
 }

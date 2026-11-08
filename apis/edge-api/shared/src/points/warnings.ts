@@ -1,10 +1,11 @@
 /**
  * The one warning before points expire. One statement decides and records it: the notice insert (ON
- * conflict do nothing on customer and date) produces the email intents, so a customer is told once. The
+ * conflict do nothing on customer and date) decides who is told, so a customer is told once per date. The
  * date is the last usable day in Melbourne; a customer with no email is not mailed.
  */
 import { OPERATING_TZ } from "@effy/shared-types";
 import type { Queryable } from "../lib/db";
+import { notify } from "../notifications/notify";
 import { loadSettings } from "./settings";
 
 const TZ = OPERATING_TZ;
@@ -29,15 +30,18 @@ WITH due AS (
     ON CONFLICT (customer_id, expiry_date) DO NOTHING
     RETURNING id, customer_id, expiry_date
 )
-INSERT INTO public.notification_request (recipient_sub, audience, type, channel, recipient_email, payload, dedupe_key)
-SELECT c.cognito_sub, 'customer', 'points_expiring', 'email', c.email,
-       jsonb_build_object('entityId', n.id::text, 'deepLink', 'effy://points'),
-       'points_expiring:' || c.cognito_sub || ':' || n.expiry_date::text
+SELECT n.id::text AS id, n.expiry_date::text AS expiry_date, c.cognito_sub AS sub, c.email
   FROM noticed n
-  JOIN public.customer c ON c.id = n.customer_id
- WHERE c.email IS NOT NULL
-ON CONFLICT (dedupe_key) DO NOTHING`,
+  JOIN public.customer c ON c.id = n.customer_id`,
     [now, warningDays],
   );
-  return res.rowCount ?? 0;
+  // One notification per notice, by push and email (110 R10). Kept even for a customer with no address or device (the inbox).
+  let queued = 0;
+  for (const r of res.rows as Array<{ id: string; expiry_date: string; sub: string; email: string | null }>) {
+    queued += await notify(q, {
+      type: "points_expiring", recipients: [{ sub: r.sub, email: r.email }], subject: { entityId: r.id },
+      dedupeScope: r.expiry_date, channels: ["push", "email"],
+    });
+  }
+  return queued;
 }

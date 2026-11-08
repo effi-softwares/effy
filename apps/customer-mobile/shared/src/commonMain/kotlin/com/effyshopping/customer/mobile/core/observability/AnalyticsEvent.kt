@@ -111,5 +111,24 @@ sealed class AnalyticsEvent(val name: String, val props: Map<String, String> = e
     data object PushPermissionPrompted : AnalyticsEvent("push_permission_prompted")
     data object PushPermissionGranted : AnalyticsEvent("push_permission_granted")
     data object PushPermissionDenied : AnalyticsEvent("push_permission_denied")
-    class NotificationOpened(type: String) : AnalyticsEvent("notification_opened", mapOf("type" to type))
+    /** After the screen it leads to (or its fallback, [fallback] = true) has shown (109 FR-018). */
+    class NotificationOpened(type: String, fallback: Boolean = false) :
+        AnalyticsEvent("notification_opened", mapOf("type" to type, "fallback" to fallback.toString()))
+
+    // 110 - the inbox. Kind and category only, never the words or what an item is about.
+    data object InboxOpened : AnalyticsEvent("inbox_opened", mapOf("surface" to "app"))
+    class InboxItemOpened(type: String, category: String, fallback: Boolean = false) :
+        AnalyticsEvent("inbox_item_opened", mapOf("type" to type, "category" to category, "fallback" to fallback.toString()))
+    class InboxItemArchived(type: String, category: String) :
+        AnalyticsEvent("inbox_item_archived", mapOf("type" to type, "category" to category))
+    class InboxArchiveUndone(type: String, category: String) :
+        AnalyticsEvent("inbox_archive_undone", mapOf("type" to type, "category" to category))
+    data object InboxMarkedAllRead : AnalyticsEvent("inbox_marked_all_read")
+
+    // 111 - notification choices and the offers ask. Categories and answers only.
+    class NotificationSettingChanged(category: String, channel: String, enabled: Boolean) :
+        AnalyticsEvent("notification_setting_changed", mapOf("category" to category, "channel" to channel, "enabled" to enabled.toString(), "surface" to "app"))
+    data object OffersAskShown : AnalyticsEvent("offers_ask_shown", mapOf("surface" to "app"))
+    class OffersAskAnswered(answer: String) : AnalyticsEvent("offers_ask_answered", mapOf("answer" to answer, "surface" to "app"))
+    class OffersStoppedFromInbox(category: String) : AnalyticsEvent("offers_stopped_from_inbox", mapOf("category" to category, "surface" to "app"))
 }

@@ -55,6 +55,10 @@ data object HelpRoute : AppNavKey
 @Serializable
 data class ReturnHubRoute(val runId: String, val scan: Boolean = false) : AppNavKey
 
+/** The driver's notifications (110), pushed on the Today tab from the bell. */
+@Serializable
+data object InboxRoute : AppNavKey
+
 /** Recovery when a permission the app needs was refused (design screen `perm-denied`). */
 @Serializable
 data object PermissionDeniedRoute : AppNavKey
@@ -90,5 +94,6 @@ val driverNavJson: Json = Json {
         subclass(HelpRoute::class, HelpRoute.serializer())
         subclass(ReturnHubRoute::class, ReturnHubRoute.serializer())
         subclass(PermissionDeniedRoute::class, PermissionDeniedRoute.serializer())
+        subclass(InboxRoute::class, InboxRoute.serializer())
     }
 }

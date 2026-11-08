@@ -158,6 +158,8 @@ export const NAV_GROUPS: readonly NavGroup[] = [
         subs: [
           { key: "order-rules", label: "Order rules", to: "/settings/order-rules" },
           { key: "points", label: "Points", to: "/settings/points" },
+          // 111 - how often customers who said yes hear about offers and news.
+          { key: "notifications", label: "Notification limits", to: "/settings/notifications" },
         ],
       },
       // Effy's tax identity and the tax-invoice switch.

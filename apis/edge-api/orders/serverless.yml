@@ -436,6 +436,61 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
+  notificationSettingsV1:
+    handler: src/functions/notification-settings-v1-get.handler
+    description: Back-office - the promotional notification limits (111 US3). Read = any active staff.
+    events:
+      - httpApi:
+          method: GET
+          path: /orders/v1/notifications/settings
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  notificationSettingsUpdateV1:
+    handler: src/functions/notification-settings-v1-put.handler
+    description: Back-office - change the promotional notification limits (111 US3). Admin and manager; every change recorded.
+    events:
+      - httpApi:
+          method: PUT
+          path: /orders/v1/notifications/settings
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  notificationSettingsActivityV1:
+    handler: src/functions/notification-settings-activity-v1-get.handler
+    description: Back-office - every change to the promotional notification limits, in the activity drawer (111, 104). Read = any active staff.
+    events:
+      - httpApi:
+          method: GET
+          path: /orders/v1/notifications/settings/activity
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  customerNotificationPreferencesV1:
+    handler: src/functions/customer-notification-preferences-v1-get.handler
+    description: Back-office - a customer's notification choices and marketing consent, read only (111 US7). Any active staff.
+    events:
+      - httpApi:
+          method: GET
+          path: /orders/v1/customers/{customerId}/notification-preferences
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  customerConsentActivityV1:
+    handler: src/functions/customer-consent-activity-v1-get.handler
+    description: Back-office - a customer's marketing consent history, every yes and no, in the activity drawer (111 US7, 104). Any active staff.
+    events:
+      - httpApi:
+          method: GET
+          path: /orders/v1/customers/{customerId}/consent/activity
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
   # Late courier parcels by place
   courierLateSweep:
     handler: src/functions/courier-late-sweep.handler
