@@ -7,12 +7,14 @@
 -- Refuses while any row is still pending, so nothing that was promised to someone is dropped unsent.
 
 -- +goose Up
+-- +goose StatementBegin
 DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM public.notification_request WHERE status = 'pending') THEN
         RAISE EXCEPTION 'notification_request still has pending rows: let the Stage A worker drain them first';
     END IF;
 END $$;
+-- +goose StatementEnd
 
 DROP TABLE public.notification_request;
 
