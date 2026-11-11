@@ -32,7 +32,7 @@ const PINNED = `importance = 'important' AND read_at IS NULL AND pinned_until IS
 /** Microseconds kept, so a cut-off or cursor built from it names exactly this row. */
 const STAMP = (col: string) => `to_char(${col} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`;
 
-const COLUMNS = `id::text AS id, type, category, importance, title, body, destination, expires_at,
+const COLUMNS = `id::text AS id, type, category, importance, title, body, destination, expires_at, image_url,
   ${STAMP("created_at")} AS created_at, ${STAMP("read_at")} AS read_at, ${STAMP("pinned_until")} AS pinned_until`;
 
 interface Row {
@@ -44,6 +44,7 @@ interface Row {
   body: string;
   destination: Record<string, string>;
   expires_at: Date | null;
+  image_url: string | null;
   created_at: string;
   read_at: string | null;
   pinned_until: string | null;
@@ -108,6 +109,7 @@ function toItem(r: Row, now: Date): InboxItemDTO {
     readAt: r.read_at,
     pinnedUntil: r.pinned_until,
     endsLabel: endsLabel(r.category, r.expires_at ? new Date(r.expires_at) : null, now),
+    imageUrl: r.image_url,
   };
 }
 

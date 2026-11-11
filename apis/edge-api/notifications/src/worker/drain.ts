@@ -32,6 +32,8 @@ export interface ClaimedDelivery {
   badge?: number;
   /** The Android notification channel of its category (111 R12); null for the shop console. */
   androidChannel?: string | null;
+  /** A back-office message's picture (112). */
+  imageUrl?: string | null;
   /**
    * False when a held promotional push may no longer go: consent withdrawn or push turned off since it was written
    * (111 FR-011). Absent or true otherwise.
@@ -225,6 +227,7 @@ function messageFor(d: ClaimedDelivery, token: string, platform: DevicePlatform)
     group: d.group,
     badge: d.badge,
     androidChannel: d.androidChannel ?? null,
+    imageUrl: d.imageUrl ?? null,
   };
 }
 

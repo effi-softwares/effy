@@ -22,6 +22,7 @@ interface ClaimedRow {
   badge: number;
   category: string;
   allowed: boolean;
+  image_url: string | null;
 }
 
 export function batchStore(tx: Queryable): BatchStore {
@@ -33,7 +34,7 @@ export function batchStore(tx: Queryable): BatchStore {
     async claim(limit, channels): Promise<ClaimedDelivery[]> {
       const res = await tx.query<ClaimedRow>(
         `SELECT d.id::text AS id, n.id::text AS notification_id, d.channel, d.recipient_email, d.attempts,
-                n.recipient_sub, n.audience, n.type, n.title, n.body, n.entity_id, n.destination, n.expires_at,
+                n.recipient_sub, n.audience, n.type, n.title, n.body, n.entity_id, n.destination, n.expires_at, n.image_url,
                 -- The app icon's number (110 R8): the recipient's unseen count, on the partial index of unseen rows.
                 (SELECT count(*)::int FROM public.notification u
                   WHERE u.recipient_sub = n.recipient_sub AND u.audience = n.audience
@@ -75,6 +76,7 @@ export function batchStore(tx: Queryable): BatchStore {
           badge: r.badge,
           androidChannel: findPolicy(r.audience, r.category)?.androidChannel ?? null,
           allowed: r.allowed !== false,
+          imageUrl: r.image_url,
         };
       });
     },

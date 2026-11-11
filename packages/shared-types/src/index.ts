@@ -61,3 +61,4 @@ export * from "./notification-destinations";
 export * from "./notification-inbox";
 export * from "./notification-categories";
 export * from "./notification-preferences";
+export * from "./messages";

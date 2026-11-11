@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 
 import { useQueryClient } from "@tanstack/react-query"
 import { useRouter } from "@tanstack/react-router"
@@ -28,7 +28,16 @@ import {
   type InboxItemDTO,
   type ShopDestination,
 } from "@effy/shared-types"
-import { Button, toast } from "@effy/design-system/ui"
+import {
+  Button,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  toast,
+} from "@effy/design-system/ui"
 import { ListSkeleton, Loading } from "@effy/web-kit/patterns"
 
 import { cn } from "@/lib/utils"
@@ -141,13 +150,21 @@ function InboxRow({ item, onOpened }: { item: InboxItemDTO; onOpened?: () => voi
   const unread = !item.readAt
   const time = inboxTimeLabel(item.createdAt)
 
-  const open = () => {
-    markLocallyRead(qc, item.id)
-    const destination = parseDestination("shop", item.destination) as ShopDestination | null
-    track({ name: "notif_inbox_item_opened", type: item.type, category: item.category, fallback: destination === null })
-    void markNotificationRead(item.id)
+  const [reading, setReading] = useState(false)
+  const destination = parseDestination("shop", item.destination) as ShopDestination | null
+
+  const go = () => {
     router.history.push(shopPathFor(destination))
     onOpened?.()
+  }
+
+  const open = () => {
+    markLocallyRead(qc, item.id)
+    track({ name: "notif_inbox_item_opened", type: item.type, category: item.category, fallback: destination === null })
+    void markNotificationRead(item.id)
+    // A message from Effy (112) is read where it is: its words and picture, then a button to where it leads.
+    if (item.type === "shop_message") setReading(true)
+    else go()
   }
 
   const remove = () => {
@@ -197,6 +214,51 @@ function InboxRow({ item, onOpened }: { item: InboxItemDTO; onOpened?: () => voi
         <Archive aria-hidden="true" />
         <span className="sr-only">Archive “{item.title}”</span>
       </Button>
+      {item.type === "shop_message" ? (
+        <MessageDetail
+          item={item}
+          open={reading}
+          onOpenChange={setReading}
+          onGo={() => {
+            setReading(false)
+            go()
+          }}
+        />
+      ) : null}
     </li>
+  )
+}
+
+/** A message from Effy, opened (112 FR-033): the picture, the words, and where it leads. */
+function MessageDetail({
+  item,
+  open,
+  onOpenChange,
+  onGo,
+}: {
+  item: InboxItemDTO
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onGo: () => void
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{item.title}</DialogTitle>
+          <DialogDescription>From Effy · {inboxTimeLabel(item.createdAt)}</DialogDescription>
+        </DialogHeader>
+        {item.imageUrl ? <img src={item.imageUrl} alt="" className="aspect-video w-full rounded-md border object-cover" /> : null}
+        <p className="whitespace-pre-line text-sm">{item.body}</p>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            Close
+          </Button>
+          <Button type="button" onClick={onGo}>
+            Open
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

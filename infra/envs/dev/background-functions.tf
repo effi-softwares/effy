@@ -48,6 +48,13 @@ locals {
       threshold = 3
       stops     = "Push and email notifications are queuing and not being sent: new-order alerts to shops, order updates to customers."
     }
+    message-sender = {
+      function  = "effy-edge-notifications-${var.env}-messages"
+      period    = 300
+      periods   = 2
+      threshold = 3
+      stops     = "112 - back-office messages are not going out: scheduled ones stay scheduled, a message being sent stops part-way (it carries on where it stopped once fixed), and a withdrawn one stays on open screens until they re-read."
+    }
     receipt-drain = {
       function  = "effy-edge-notifications-${var.env}-receiptDrain"
       period    = 300

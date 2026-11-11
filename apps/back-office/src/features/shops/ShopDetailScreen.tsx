@@ -2,11 +2,11 @@ import { useState } from "react"
 
 import { useQuery } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
-import { Boxes, Pencil, ScanLine, UserPlus, Users } from "lucide-react"
+import { Boxes, Inbox, Pencil, ScanLine, Send, UserPlus, Users } from "lucide-react"
 
 import type { ShopLifecycleStatus } from "@effy/shared-types"
 import { Button, Progress, Switch, Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui"
-import { ActivityLogDrawer, useActivityAction } from "@effy/web-kit/activity-log"
+import { ActivityLogDrawer, useActivityAction, useActivityLog } from "@effy/web-kit/activity-log"
 import { ErrorState, useHeaderDetail } from "@effy/web-kit/console"
 
 import {
@@ -19,6 +19,9 @@ import {
   PanelSkeleton,
 } from "@effy/web-kit/patterns"
 import { sessionQuery } from "@/features/auth/queries"
+import { DirectMessageDialog } from "@/features/messages/components/DirectMessageDialog"
+import { MESSAGES_ROOT } from "@/features/messages/queries"
+import { receivedPath } from "@/features/messages/repo"
 import { api } from "@/lib/api"
 import { track } from "@/lib/telemetry"
 
@@ -52,6 +55,10 @@ export function ShopDetailScreen({ shopId }: { shopId: string }) {
   const [statusTarget, setStatusTarget] = useState<ShopLifecycleStatus | null>(null)
   const packScanning = useSetPackScanning(shopId)
   const activity = useActivityAction()
+  // One activity drawer (104): the shop's own log, or (112) the messages Effy sent its staff.
+  const [log, setLog] = useState<"shop" | "messages">("shop")
+  const [messaging, setMessaging] = useState(false)
+  const { show: openLog } = useActivityLog()
 
   if (isError) return <ErrorState error={error} onRetry={() => void refetch()} />
   if (isPending) return <ShopSkeleton />
@@ -118,8 +125,10 @@ export function ShopDetailScreen({ shopId }: { shopId: string }) {
             {/* Every product of this shop, in Catalogue › Products (102). Read by anyone who sees the shop. */}
             <MoreActions tour="page-more"
               actions={[
-                activity,
+                { ...activity, onSelect: () => { setLog("shop"); openLog() } },
                 { label: "Products", icon: Boxes, link: { to: "/products", search: { shopId: shop.id } } as never },
+                { label: "Send message", icon: Send, onSelect: () => setMessaging(true), disabled: shop.status !== "active", hint: "Shop not active" },
+                { label: "Messages received", icon: Inbox, onSelect: () => { setLog("messages"); openLog() } },
               ]}
             />
           </>
@@ -317,7 +326,22 @@ export function ShopDetailScreen({ shopId }: { shopId: string }) {
           />
         </>
       ) : null}
-      <ActivityLogDrawer
+      <DirectMessageDialog audience="shop" id={shop.id} name={shop.name} open={messaging} onOpenChange={setMessaging} />
+      {log === "messages" ? (
+        <ActivityLogDrawer
+          key="messages"
+          app="back-office"
+          log="bo-messages-received"
+          title="Messages received"
+          description={`${shop.name} - every message Effy sent its staff from Messages, whose it was, and whether they opened it.`}
+          api={api}
+          path={receivedPath("shop", shop.id)}
+          queryKey={[...MESSAGES_ROOT, "received", "shop", shop.id]}
+          fileName={`messages-${shop.code}`}
+        />
+      ) : null}
+      {log === "shop" ? <ActivityLogDrawer
+        key="shop"
         app="back-office"
         log="bo-shop"
         title="Shop activity"
@@ -326,7 +350,7 @@ export function ShopDetailScreen({ shopId }: { shopId: string }) {
         path={`/admin/v1/shops/${shop.id}/audit`}
         queryKey={[...SHOPS_ROOT, "detail", shop.id]}
         fileName={`shop-${shop.code}-activity`}
-      />
+      /> : null}
     </>
   )
 }

@@ -110,6 +110,9 @@ export const ACTIVITY_LOGS = {
   // 111 - the promotion limits, and a customer's marketing consent (each yes and no).
   "bo-notification-settings": { kinds: { limits: "Limits" }, subject: null },
   "bo-customer-consent": { kinds: { yes: "Yes", no: "No" }, subject: null },
+  // 112 - a message's own log, and the back-office messages one person (or one shop) received.
+  "bo-message": { kinds: { written: "Written", test: "Tests", sending: "Sending", stopped: "Stopped or withdrawn" }, subject: null },
+  "bo-messages-received": { kinds: { opened: "Opened", unopened: "Not opened" }, subject: null },
   "bo-email": {
     kinds: {
       delivery: "Delivered",

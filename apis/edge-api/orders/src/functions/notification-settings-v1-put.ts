@@ -1,11 +1,12 @@
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";
-import { ConnectionLimitError, internal, json, pooled, refused, withTransaction } from "@effy/edge-shared";
+import { ConnectionLimitError, forbidden, hasStaffRole, internal, json, pooled, refused, withTransaction } from "@effy/edge-shared";
 
 import { objectBody } from "../customers/respond";
 import { requireWriter } from "../lib/guard";
 import {
+  NotificationSettingsForbidden,
   NotificationSettingsInvalid,
   parseNotificationSettings,
   readNotificationSettings,
@@ -27,9 +28,11 @@ export const handler = async (event: AuthedEvent, context: Context): Promise<API
     throw err;
   }
   try {
-    await withTransaction((tx) => updateNotificationSettings(tx, guard.sub, update));
+    const admin = await hasStaffRole(guard.sub, ["admin"]);
+    await withTransaction((tx) => updateNotificationSettings(tx, guard.sub, update, admin));
     return json(200, await readNotificationSettings(pooled), guard.scope);
   } catch (err) {
+    if (err instanceof NotificationSettingsForbidden) return forbidden(guard.scope);
     if (err instanceof ConnectionLimitError) throw err;
     guard.scope.log.error({ err }, "notification settings: update failed");
     return internal(guard.scope);

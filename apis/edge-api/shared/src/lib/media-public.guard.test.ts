@@ -102,7 +102,11 @@ describe("who may build a public address (086 FR-014)", () => {
           // Back-office previews a promotion's pictures at the shopper address (public `promotions/` prefix).
           .filter((file) => !file.endsWith("admin/src/promotions/images.ts"))
           // Back-office shows a category's picture at the shopper address (public `categories/` prefix, 101).
-          .filter((file) => !file.endsWith("catalog/src/taxonomy/images.ts"));
+          .filter((file) => !file.endsWith("catalog/src/taxonomy/images.ts"))
+          // A back-office message's picture (public `promotions/messages-…` prefix, 112 R9): shown in back-office, and
+          // written on each recipient's notification by the sending worker.
+          .filter((file) => !file.endsWith("admin/src/messages/service.ts"))
+          .filter((file) => !file.endsWith("notifications/src/messages/worker.ts"));
       } catch {
         return [];
       }

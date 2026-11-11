@@ -23,6 +23,8 @@ export interface PushMessage {
   badge?: number;
   /** The Android notification channel of its category (111 R12), so a person can mute one kind in the phone's settings. */
   androidChannel?: string | null;
+  /** A back-office message's picture (112): shown expanded on Android, and by the shop console. iOS shows it in the inbox. */
+  imageUrl?: string | null;
 }
 
 export interface SendResult {
@@ -89,6 +91,7 @@ export function toFcmMessage(m: PushMessage): Message {
     body: m.body,
     tag: m.tag,
     group: m.group,
+    ...(m.imageUrl ? { image: m.imageUrl } : {}),
   };
   if (m.platform === "web") {
     return {
@@ -113,7 +116,8 @@ export function toFcmMessage(m: PushMessage): Message {
   };
   return {
     token: m.token,
-    notification: { title: m.title, body: m.body },
+    // iOS would need a notification service extension to show the picture (waits for the paid Apple account).
+    notification: { title: m.title, body: m.body, ...(m.imageUrl ? { imageUrl: m.imageUrl } : {}) },
     data,
     android: { priority: "high", ...(Object.keys(androidNotification).length > 0 ? { notification: androidNotification } : {}) },
     apns: {

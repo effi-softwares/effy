@@ -264,7 +264,7 @@ step, and the role name, and nothing about an order, customer, product or shop.
 
 ## Tour Inventory (back-office)
 
-**53 tours**: the Welcome tour and 52 pages and tabs, 296 steps. **Points at** is the part of the page a step outlines. **Shown when** is blank when the step is shown to
+**56 tours**: the Welcome tour and 55 pages and tabs, 312 steps. **Points at** is the part of the page a step outlines. **Shown when** is blank when the step is shown to
 every role whenever its part is on screen. Role marks: **Admin or manager**, **Admin**, **Customer support**.
 
 ### BW - Welcome to Effy Back-Office (the whole console; starts by itself at first sign-in)
@@ -402,13 +402,44 @@ every role whenever its part is on screen. Role marks: **Admin or manager**, **A
 | 5 | Checkout hold | Checkout hold | How long points chosen at checkout are set aside while the customer pays. | |
 | 6 | Rule changes | Rule changes | Every change to these rules, and who made it. Only an administrator can change them. | |
 
-### CN - Notification settings (111: specs/111-notification-preferences/spec.md › Guided tours)
+### CN - Notification settings (111, rewritten by 112: specs/112-backoffice-messages/spec.md › Guided tours)
 
 | # | Points at | Title | Text | Shown when |
 |---|---|---|---|---|
-| 1 | Page heading | Promotional notifications | How often customers who said yes to offers and news may get one on their phone. Order updates, points and important messages are never limited. | |
-| 2 | The limits | Limits | The most promotional notifications a customer gets in a day and in a week. Any over the limit still reach their inbox, without a notification. | |
-| 3 | Activity | Rule changes | Every change to these limits, and who made it. Administrators and managers can change them. | |
+| 1 | Page heading | Notification limits | How often customers who said yes to offers and news may get one on their phone, and how many people one message may reach. Order updates, points and important messages are never limited. | |
+| 2 | The limits | Promotional limits | The most promotional notifications a customer gets in a day and in a week. Any over the limit still reach their inbox, without a notification. | |
+| 3 | Message limit | Largest message | The most people one message may reach. A bigger message is refused. Only administrators can change it. | |
+| 4 | Activity | Rule changes | Every change to these limits, and who made it. | |
+
+### ML - Messages (112: specs/112-backoffice-messages/spec.md › Guided tours)
+
+| # | Points at | Title | Text | Shown when |
+|---|---|---|---|---|
+| 1 | Page heading | Messages | Everything Effy sends to customers, drivers and shops from here, and what happened to each. | |
+| 2 | New message | Write a message | Start an announcement, an important notice, an offer or news. | Admin or manager |
+| 3 | The list | Every message | Search, filter by kind, audience or status, and open one to see its report. | |
+| 4 | Status | Where it's up to | Draft, scheduled, sending, sent, stopped, cancelled, withdrawn or not sent. | |
+
+### ME - New message (Admin or manager)
+
+| # | Points at | Title | Text | Shown when |
+|---|---|---|---|---|
+| 1 | Kind | What kind of message | Announcements go to drivers and shops. Important is for service notices only. Offers and news go only to customers who said yes. | |
+| 2 | Audience | Who gets it | Choose customers, drivers or shops and narrow it down. The count shows how many people match now. | |
+| 3 | Words | Say it short | The title and the start of the text are what a locked phone shows. The counters show where it's cut off. | |
+| 4 | Previews | See it as they will | How it looks on a locked iPhone and Android phone, in the inbox, and opened. | |
+| 5 | Destination | Where a tap leads | The screen that opens when someone taps it. | |
+| 6 | Send to me | Try it first | Sends it to one of your own accounts exactly as others will get it. | |
+| 7 | Send | Send or schedule | Send it now, or pick a time. You can edit or cancel a scheduled message until it starts. | |
+
+### MS - A message (needs a record)
+
+| # | Points at | Title | Text | Shown when |
+|---|---|---|---|---|
+| 1 | Report | What happened | How many people it reached, what happened to the phone notifications, and how many opened it. | |
+| 2 | Actions | Stop or take it back | Stop sending halts it at once. Withdraw removes it from every inbox, but notifications already shown on phones stay. | Admin or manager |
+| 3 | Duplicate | Use it again | Start a new message with the same words and audience. | Admin or manager |
+| 4 | Activity | Activity | Who wrote, tested, sent, stopped or withdrew it, and when. | |
 
 ### CD - A customer (needs a record)
 

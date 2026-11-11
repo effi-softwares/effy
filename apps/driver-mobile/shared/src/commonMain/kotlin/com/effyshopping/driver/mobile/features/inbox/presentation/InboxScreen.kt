@@ -8,7 +8,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -33,6 +36,8 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import coil3.compose.AsyncImage
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.CustomAccessibilityAction
@@ -45,6 +50,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.effyshopping.driver.mobile.core.platform.localDateIso
+import com.effyshopping.driver.mobile.core.presentation.DriverButton
 import com.effyshopping.driver.mobile.core.presentation.DriverIcon
 import com.effyshopping.driver.mobile.core.presentation.DriverInlineBar
 import com.effyshopping.driver.mobile.core.presentation.DriverLoading
@@ -80,6 +86,8 @@ fun InboxScreen(
     onUnreadOnly: (Boolean) -> Unit,
     onLoadMore: () -> Unit,
     onTap: (InboxItem) -> Unit,
+    /** Recorded as read without going anywhere: a message opens its sheet first (112). */
+    onRead: (InboxItem) -> Unit = {},
     onArchive: (InboxItem) -> Unit,
     onMarkAllRead: () -> Unit,
 ) {
@@ -90,8 +98,12 @@ fun InboxScreen(
     val dayOf: (String) -> String? = { iso -> isoToMillis(iso)?.let(::localDateIso) }
 
     fun tap(item: InboxItem) {
-        if (item.destination == null) detail = item
-        onTap(item)
+        if (item.opensDetail) {
+            detail = item
+            onRead(item)
+        } else {
+            onTap(item)
+        }
     }
 
     Column(Modifier.fillMaxSize()) {
@@ -162,7 +174,19 @@ fun InboxScreen(
 
     detail?.let { item ->
         DriverSheet(title = item.title, onDismiss = { detail = null }) {
+            item.imageUrl?.let { url ->
+                AsyncImage(
+                    model = url,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(RoundedCornerShape(8.dp)),
+                )
+                Spacer(Modifier.height(16.dp))
+            }
             Text(item.body, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(bottom = 24.dp))
+            if (item.isMessage && item.destination != null) {
+                DriverButton(label = "Open", onClick = { detail = null; onTap(item) }, modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp))
+            }
         }
     }
 }

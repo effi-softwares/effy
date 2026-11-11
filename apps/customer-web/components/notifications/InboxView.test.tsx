@@ -15,7 +15,7 @@ const { InboxView } = await import("./InboxView")
 const item = (id: string, minutesAgo: number, extra: Partial<InboxItemDTO> = {}): InboxItemDTO => ({
   id, type: "order_paid", category: "orders", importance: "normal", title: `Order ${id}`, body: "We've received your order.",
   destination: { kind: "order", orderId: `o-${id}` }, createdAt: new Date(Date.now() - minutesAgo * 60_000).toISOString(),
-  readAt: null, pinnedUntil: null, endsLabel: null, ...extra,
+  readAt: null, pinnedUntil: null, endsLabel: null, imageUrl: null, ...extra,
 })
 const page = (over: Partial<InboxPageDTO> = {}): InboxPageDTO => ({
   pinned: [], items: [item("a", 5), item("b", 10)], nextCursor: null, categories: ["orders", "points"], unseenCount: 2, ...over,
@@ -63,6 +63,22 @@ describe("the customer's notifications on the website (110 US6)", () => {
     render(<InboxView initial={page({ items: [] })} filter="unread" />)
     expect(screen.getByText("Nothing here")).toBeTruthy()
     expect(screen.getByRole("link", { name: "Show all" })).toBeTruthy()
+  })
+
+  it("a message from Effy opens its detail with its picture; Open goes where it leads (112)", async () => {
+    const msg = item("m", 1, {
+      type: "customer_message", category: "important", importance: "important", title: "Deliveries paused", body: "Effy's drivers are off the road until 2pm.",
+      destination: { kind: "orders" }, imageUrl: "https://media.example.test/promotions/messages-1/a.webp",
+    })
+    render(<InboxView initial={page({ items: [msg] })} filter="all" />)
+    await userEvent.click(screen.getByText("Deliveries paused"))
+    expect(push).not.toHaveBeenCalled()
+    const dialog = await screen.findByRole("dialog")
+    expect(dialog).toHaveTextContent("Effy's drivers are off the road until 2pm.")
+    expect(dialog.querySelector("img")?.getAttribute("src")).toBe(msg.imageUrl)
+    expect(screen.queryByText(/Stop offers/)).toBeNull()
+    await userEvent.click(screen.getByRole("button", { name: "Open" }))
+    expect(push).toHaveBeenCalledWith("/orders")
   })
 
   it("an offer opens its detail first, where it can be stopped, with Undo (111 US6)", async () => {

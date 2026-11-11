@@ -23,7 +23,7 @@ in its `AnalyticsEvent` sealed class; the per-app drift check keeps them aligned
 | `push_permission_denied` | - | Permission denied |
 | `notification_opened` | `{ type, fallback }` | A push is tapped, captured **after** the screen it leads to has shown (109). `type` = the notification type, e.g. `order_ready`; `fallback` = `"true"` when the thing it was about was gone and a nearer screen opened instead. **No** order/customer data. Shop console: `notif_opened` with the same fields |
 | `inbox_opened` | `{ surface }` | The notification inbox opened (110). `surface` = `app` / `web`. Shop console: `notif_inbox_opened` with `surface` = `panel` / `page` |
-| `inbox_item_opened` | `{ type, category, fallback }` | An item in the inbox was tapped, after its screen shows. `fallback` = `"true"` when it opened its detail view instead (no destination this build knows). Shop console: `notif_inbox_item_opened` |
+| `inbox_item_opened` | `{ type, category, fallback }` | An item in the inbox was tapped, after its screen shows. `fallback` = `"true"` when it opened its detail view instead (no destination this build knows). Shop console: `notif_inbox_item_opened`. A back-office message (112) carries `type` = `customer_message` / `driver_message` / `shop_message` here and in `notification_opened`, so messages opened are counted with no event of their own (112 FR-034) |
 | `inbox_item_archived` | `{ type, category }` | An item was archived (swipe or the archive action). Shop console: `notif_inbox_archived` |
 | `inbox_archive_undone` | `{ type, category }` | Undo after archiving. Shop console: `notif_inbox_undo` |
 | `inbox_marked_all_read` | - | Mark all read. Shop console: `notif_inbox_all_read` |

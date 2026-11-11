@@ -61,9 +61,9 @@ export function channelAllowedSql(customerId: string, channel: string): string {
 }
 
 /** Has a current yes for the row's (marketing) category. */
-export function consentGrantedSql(customerId: string): string {
+export function consentGrantedSql(customerId: string, category = "pol.category"): string {
   return `EXISTS (SELECT 1 FROM public.marketing_consent_current mc
-                   WHERE mc.customer_id = ${customerId} AND mc.category = pol.category AND mc.granted)`;
+                   WHERE mc.customer_id = ${customerId} AND mc.category = ${category} AND mc.granted)`;
 }
 
 /** Effy-clock midnight of the day containing `now` (a timestamptz expression), as a timestamptz. */

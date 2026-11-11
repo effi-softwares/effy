@@ -12,6 +12,8 @@ import { tourStatus, useTourPage } from "@effy/web-kit/tour"
 import { useSessionRoles } from "@/features/auth/useSessionRoles"
 import { promotionGroupsQuery } from "@/features/promotion-groups/queries"
 
+import { LinkPicker } from "@/components/link-picker/LinkPicker"
+
 import { canManagePromotions } from "./access"
 import {
   bannerBodyOf,
@@ -21,7 +23,6 @@ import {
   typedFreeDeliveryAmount,
   type BannerDraft,
 } from "./bannerDraft"
-import { LinkPicker } from "./components/LinkPicker"
 import { LiveValueWords } from "./components/LiveValueWords"
 import { promotionMutationError, refusedFields } from "./errorText"
 import type { Promotion } from "./model"

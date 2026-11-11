@@ -8,11 +8,20 @@
 // The person's say is applied here, in the same statement (111; contracts/sending-rules.md): a marketing notification
 // reaches only customers with a current yes (others get no row at all); a channel they turned off is written
 // `skipped`; a promotional push over the limits is `capped`; one at night is held until 08:00 (`not_before`).
-import { OPERATING_TZ, policyFor, serializeDestination } from "@effy/shared-types";
+import { OPERATING_TZ, parseDestination, policyFor, serializeDestination, type NotificationDestination } from "@effy/shared-types";
 
 import { afterCommit, type Queryable } from "../lib/db";
 import { announceInbox } from "./announce-inbox";
-import { catalogueEntry, wordsFor, type NotificationEntry, type NotificationSubject, type NotificationType } from "./catalogue";
+import {
+  catalogueEntry,
+  isMessageType,
+  wordsFor,
+  type NotificationCategory,
+  type NotificationEntry,
+  type NotificationImportance,
+  type NotificationSubject,
+  type NotificationType,
+} from "./catalogue";
 import {
   channelAllowedSql,
   consentGrantedSql,
@@ -44,6 +53,23 @@ export interface NotifyInput {
   priority?: 0 | 1;
   /** An important notification stays above the rest of the inbox until read or until then (110). */
   pinnedUntil?: Date | null;
+  /**
+   * A back-office message (112): required for the three message types, refused for every other. The row takes its words,
+   * category, importance, destination and picture from here, and records which message it came from (null for a test).
+   */
+  message?: NotifyMessage;
+}
+
+export interface NotifyMessage {
+  /** null for a test send: it reaches the person but is not part of the message's report. */
+  messageId: string | null;
+  source: "campaign" | "direct";
+  category: NotificationCategory;
+  importance: NotificationImportance;
+  title: string;
+  body: string;
+  destination: NotificationDestination;
+  imageUrl: string | null;
 }
 
 /** Test seams only: production callers pass nothing. */
@@ -69,12 +95,25 @@ export async function notify(tx: Queryable, input: NotifyInput, options: NotifyO
   if (byPerson.size === 0) return 0;
   if (!input.dedupeScope) throw new Error("notify: dedupeScope is required");
 
-  const entry = options.entry ?? catalogueEntry(input.type);
+  const base = options.entry ?? catalogueEntry(input.type);
+  const message = input.message ?? null;
+  if (isMessageType(input.type) !== (message !== null)) {
+    throw new Error(`notify: a message type needs its message, and only a message type takes one (${input.type})`);
+  }
+  // A message is filed under the category its kind gives (shared-types messages.ts), never the entry's placeholder.
+  const entry: NotificationEntry = message ? { ...base, category: message.category, importance: message.importance } : base;
   if (input.pinnedUntil && entry.importance !== "important") {
     throw new Error(`notify: only an important notification can be pinned (${input.type})`);
   }
-  const words = options.entry ? (entry.words?.(input.subject) ?? { title: entry.title, body: entry.body }) : wordsFor(input.type, input.subject);
-  const destination = serializeDestination(entry.destination(input.subject));
+  if (message && parseDestination(entry.audience, serializeDestination(message.destination)) === null) {
+    throw new Error(`notify: a ${entry.audience} cannot open this destination (${message.destination.kind})`);
+  }
+  const words = message
+    ? { title: message.title, body: message.body }
+    : options.entry
+      ? (entry.words?.(input.subject) ?? { title: entry.title, body: entry.body })
+      : wordsFor(input.type, input.subject);
+  const destination = serializeDestination(message ? message.destination : entry.destination(input.subject));
   const channels = [...new Set(input.channels)];
   const policy = policyFor(entry.audience, entry.category);
   if (policy.marketing) {
@@ -86,8 +125,8 @@ export async function notify(tx: Queryable, input: NotifyInput, options: NotifyO
   }
   const now = (options.now ?? new Date()).toISOString();
 
-  // $16 = the clock, $17 = Effy's zone. `pol` is the category's policy row; `input` carries each recipient's customer
-  // id (customers only) so their choices and consent can be read.
+  // $16 = the clock, $17 = Effy's zone, $18–$20 = a message's source, id and picture (112). `pol` is the category's
+  // policy row; `input` carries each recipient's customer id (customers only) so their choices and consent can be read.
   const res = await tx.query<{ created: string; subs: string[] | null }>(
     `WITH pol AS (
          SELECT * FROM ${policyValuesSql()} WHERE pol.audience = $3 AND pol.category = $5
@@ -101,9 +140,9 @@ export async function notify(tx: Queryable, input: NotifyInput, options: NotifyO
      ), inserted AS (
          INSERT INTO public.notification
              (recipient_sub, audience, type, category, importance, title, body, entity_id, destination,
-              expires_at, dedupe_key, pinned_until)
+              expires_at, dedupe_key, pinned_until, source, message_id, image_url)
          SELECT i.sub, $3, $4, $5, $6, $7, $8, NULLIF($9, ''), $10::jsonb, $11::timestamptz,
-                $4 || ':' || i.sub || ':' || $12, $15::timestamptz
+                $4 || ':' || i.sub || ':' || $12, $15::timestamptz, $18, $19::uuid, $20
            FROM eligible i
          ON CONFLICT (dedupe_key) DO NOTHING
          RETURNING id, recipient_sub
@@ -154,6 +193,9 @@ export async function notify(tx: Queryable, input: NotifyInput, options: NotifyO
       input.pinnedUntil ? input.pinnedUntil.toISOString() : null,
       now,
       OPERATING_TZ,
+      message?.source ?? "system",
+      message?.messageId ?? null,
+      message?.imageUrl ?? null,
     ],
   );
   // Their open screens re-read once the change has committed (110 R6); a repeat created nothing and says nothing.

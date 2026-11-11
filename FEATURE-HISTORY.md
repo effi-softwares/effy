@@ -4,6 +4,55 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
+**112-backoffice-messages** - Back-Office Messages ([spec](specs/112-backoffice-messages/spec.md)). 🔨 **BUILT 2026-11-11; NOT
+APPLIED, MIGRATED, DEPLOYED OR WALKED.** Spec 4 of the notifications programme (backlog E1–E8, E10; E9 dropped by decision 5;
+E11–E13 later). Staff write a message once, choose who gets it from fixed filters, preview it, send it now or later, and read
+what happened. Kinds: announcement (drivers, shops), important (anyone; pinned), offer and news (customers who said yes), direct
+(one person or one shop's staff; customer support may send it).
+- **Migration** `20261111090000_backoffice_messages.sql` (additive; real goose up / down-to 20261110090000 / up on a fresh
+  database, clean): `message` (kind, words, picture key, push, status, send/end/sent times, the sending cursor, version),
+  `message_audience` (filter jsonb, destination, matched count, frozen report), append-only `message_event`;
+  `notification.message_id` + `image_url`; three types `customer_message` / `driver_message` / `shop_message` (CHECK: a
+  message type is never `source = 'system'`); `notification_message_idx`; `notification_settings.max_recipients_per_message`
+  (default 20,000).
+- **One writer, unchanged rules.** `notify()` gained a `message` input (words, category, importance, destination, picture,
+  message id) for the three message types only, so 111's consent, choices, limits and night hold apply to messages without a
+  second copy. The kinds and their filing are `MESSAGE_KINDS` in `@effy/shared-types` `messages.ts`, held to the migration
+  CHECKs and 111's policy by `messages.test.ts`.
+- **Audiences** are fixed SQL fragments in `@effy/edge-shared/notifications` `messages/audience.ts` (customers: people,
+  postcodes, coverage groups, ordered in N days, never ordered, has points, uses the app; drivers: on duty, work today,
+  collection/delivery today, clearance, people; shops: chosen shops, managers only). The live count and the sender use the same
+  fragments. ⚠ `ON_DUTY_EXISTS` moved from fleet to `shared/src/lib/driver-duty.ts` (one copy).
+- **Sending** is a new route-less `messages` function in `notifications` (every minute): due messages start (or are `not_sent`
+  over the largest-message limit), sending ones are written 1,000 people a page, ONE transaction per page with the cursor, so a
+  crash or a stop never repeats or skips anyone; withdrawn messages are announced to open inboxes. 20,000 recipients wrote in
+  about 1 s locally. The notifications stack gained `LIVE_*`, `MEDIA_PUBLIC_BASE_URL` and `appsync:EventPublish`.
+- **Withdraw** ends every recipient's item (`expires_at = now()`, `messages/withdraw.ts`, added to 109's writer guard); the
+  drain's existing expiry stops queued and night-held pushes.
+- **Report** counted from the rows (`messages/report.ts`, shared); the purge freezes it 29 days after sending, before deliveries
+  go, and removes an erased customer's id from every message they were chosen for.
+- **Routes**: new stack `admin-messages` (`admin/serverless.messages.yml`, Makefile, placement table), 13 staff routes. ⚠ **Staff
+  gateway 218 → 231/300 (77%) - past the 75% warning**; the decision it asks for is in research R2 and
+  `docs/api/path-assignment.md` (third gateway for `catalog` + `inventory-staff`, after an amendment, before ~255). The orders
+  settings PUT gained `maxRecipientsPerMessage` (admin only, 403 for a manager's change).
+- **Back-office**: People › Messages (list), the composer with lock-screen/inbox previews, audience builder with live count,
+  destination picker (108's `LinkPicker` moved to `components/link-picker/`), picture upload, Send to me, the send sheet
+  (schedule, typed count for all customers); the message page (report table, stop/cancel/withdraw, duplicate, activity);
+  Send message + Messages received on customer, driver and shop pages; Largest message on Notification limits. Tours ML, ME,
+  MS new, CN → v2 (107 inventory: 56 tours, 312 steps). Live kind `messages` (ops; Kotlin `LiveKind` too).
+- **Inboxes**: `InboxItemDTO.imageUrl`; a message opens its detail with the picture on all four surfaces (customer app and
+  website, driver app, shop console); the push carries the picture on Android and to the shop console's service worker.
+- **Terraform**: a failure alarm for the `messages` worker (`background-functions.tf`), required by the background-alarms guard.
+- **Verified**: tsc in all 15 services; edge-shared 1,080 unit; containers - shared 265/266, admin 74/90, notifications 28/28,
+  orders 93/94; admin 186, notifications 65, orders, fleet, customer, driver, shop unit; back-office 438 + build, shop-web 529 +
+  build, customer-web 737 + build + depcruise; shared-types 440/441; customer app 495/496 host tests + Android + iOS; driver app
+  host tests + Android + iOS; mobile and driver guards; design-system token guards; no-timer check. Failures that predate this,
+  none in 112's files: consignment P6, orders S4, shared-types package-status (073), customer `UnitPriceWordsTest`; admin 077
+  pricing container suite (16, "DB_HOST is not set" - the suite reaches the real pool; no file it reads changed here, not
+  re-run at HEAD to prove it).
+- **Open**: `make apply ENV=dev` (alarm), `make db-up ENV=dev`, `SERVICE=notifications`, `make edge-deploy-all ENV=dev` (includes
+  `admin-messages`), back-office / shop-web / customer-web, both apps; the quickstart walk.
+
 **111-notification-preferences** - Notification Preferences & Marketing Consent ([spec](specs/111-notification-preferences/spec.md)). 🔨 **BUILT
 2026-11-08; NOT MIGRATED, DEPLOYED OR WALKED; CONSENT WORDING AWAITS OPERATOR APPROVAL.** Spec 3 of the notifications programme
 (backlog D1–D6, D8–D10; D7 iOS interruption levels deferred until the Apple account is paid). Customers choose what Effy sends and

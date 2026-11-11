@@ -258,6 +258,7 @@ fun DriverShell(
                             vm.opened(item)
                             item.destination?.let { d -> scope.launch { navigateTo(d) } }
                         },
+                        onRead = vm::opened,
                         onArchive = { item ->
                             vm.archive(item)?.let { archived ->
                                 snack = DriverSnack("Notification archived", actionLabel = "Undo", onAction = { vm.undo(archived) })

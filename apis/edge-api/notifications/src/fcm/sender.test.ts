@@ -118,6 +118,17 @@ describe("⚠ P1 - the sender branches on platform", () => {
     expect(web).not.toHaveProperty("android");
   });
 
+  it("carries a message's picture: in the notification block for mobile, in data for the web (112 R9)", () => {
+    const url = "https://media.example.test/promotions/messages-1/a.webp";
+    const mobile = toFcmMessage(message({ platform: "android", imageUrl: url })) as unknown as { notification: { imageUrl?: string }; data: Record<string, string> };
+    expect(mobile.notification.imageUrl).toBe(url);
+    const web = toFcmMessage(message({ platform: "web", imageUrl: url })) as unknown as { data: Record<string, string> };
+    expect(web.data.image).toBe(url);
+    const none = toFcmMessage(message({ platform: "android" })) as unknown as { notification: Record<string, unknown>; data: Record<string, string> };
+    expect(none.notification).not.toHaveProperty("imageUrl");
+    expect(none.data).not.toHaveProperty("image");
+  });
+
   it("gives a web push a TTL, so a stale one expires rather than arriving late", async () => {
     const msg = (await sentFor("web")) as unknown as { webpush: { headers: Record<string, string> } };
     expect(Number(msg.webpush.headers.TTL)).toBeLessThanOrEqual(900);

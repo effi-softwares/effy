@@ -91,6 +91,7 @@ class HttpInboxRepository(private val edge: HttpClient) : InboxRepository {
         destination = parseDriverDestination(dto.destination),
         createdAt = dto.createdAt,
         read = dto.readAt != null,
+        imageUrl = dto.imageURL,
     )
 
     private suspend inline fun <T> request(block: () -> T): T =

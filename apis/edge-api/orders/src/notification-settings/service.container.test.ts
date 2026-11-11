@@ -8,7 +8,7 @@ import { activityEntries, migrationSql } from "@effy/edge-shared/testing";
 
 import { consentActivitySource } from "../activity/consent";
 import { notificationSettingsActivitySource } from "../activity/notification-settings";
-import { readNotificationSettings, updateNotificationSettings } from "./service";
+import { NotificationSettingsForbidden, readNotificationSettings, updateNotificationSettings } from "./service";
 
 const RUN = process.env.CONTAINER_TESTS === "1";
 
@@ -35,11 +35,20 @@ describe.skipIf(!RUN)("111 - promotion limits and a customer's consent, for back
   });
 
   it("a change writes the values, who made it, and one log entry per field that changed", async () => {
-    await transact((tx) => updateNotificationSettings(tx, "mgr-1", { promoPushPerDay: 2, promoPushPerWeek: 3 }));
+    await transact((tx) => updateNotificationSettings(tx, "mgr-1", { promoPushPerDay: 2, promoPushPerWeek: 3, maxRecipientsPerMessage: 20000 }));
     expect(await readNotificationSettings(pool)).toMatchObject({ promoPushPerDay: 2, promoPushPerWeek: 3, updatedBy: "Mia Manager" });
-    await transact((tx) => updateNotificationSettings(tx, "mgr-1", { promoPushPerDay: 2, promoPushPerWeek: 3 }));
+    await transact((tx) => updateNotificationSettings(tx, "mgr-1", { promoPushPerDay: 2, promoPushPerWeek: 3, maxRecipientsPerMessage: 20000 }));
     const log = await activityEntries(pool, notificationSettingsActivitySource());
     expect(log.map((e) => [e.title, e.detail, e.actor])).toEqual([["Promotional notifications per day changed", "1 → 2", "Mia Manager"]]);
+  });
+
+  it("only an administrator changes the largest message; a manager's change to it is refused (112 FR-021)", async () => {
+    await expect(
+      transact((tx) => updateNotificationSettings(tx, "mgr-1", { promoPushPerDay: 2, promoPushPerWeek: 3, maxRecipientsPerMessage: 500 })),
+    ).rejects.toBeInstanceOf(NotificationSettingsForbidden);
+    await transact((tx) => updateNotificationSettings(tx, "mgr-1", { promoPushPerDay: 2, promoPushPerWeek: 3, maxRecipientsPerMessage: 500 }, true));
+    expect(await readNotificationSettings(pool)).toMatchObject({ maxRecipientsPerMessage: 500 });
+    await transact((tx) => updateNotificationSettings(tx, "mgr-1", { promoPushPerDay: 2, promoPushPerWeek: 3, maxRecipientsPerMessage: 20000 }, true));
   });
 
   it("shows a customer's choices and every yes and no, newest first, with where and the wording", async () => {

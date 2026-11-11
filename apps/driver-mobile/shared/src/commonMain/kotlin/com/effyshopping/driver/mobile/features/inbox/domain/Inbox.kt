@@ -18,7 +18,15 @@ data class InboxItem(
     /** ISO 8601 with microseconds, exactly as sent: the "seen up to" cut-off is built from it. */
     val createdAt: String,
     val read: Boolean,
-)
+    /** A message's picture (112): shown when it is opened. */
+    val imageUrl: String? = null,
+) {
+    /** A message from Effy (112): read in its sheet, with its picture, before going anywhere. */
+    val isMessage: Boolean get() = type == "driver_message"
+
+    /** Messages, and anything with no destination this build knows, open their sheet; the rest go where they lead. */
+    val opensDetail: Boolean get() = destination == null || isMessage
+}
 
 data class InboxPage(val pinned: List<InboxItem>, val items: List<InboxItem>, val nextCursor: String?, val unseenCount: Int)
 

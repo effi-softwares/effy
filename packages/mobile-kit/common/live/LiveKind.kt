@@ -33,7 +33,10 @@ enum class LiveKind(val wire: String) {
     PRODUCTS("products"),
 
     /** A person's notification inbox changed (110): re-read the bell count, and the inbox if it is open. */
-    INBOX("inbox");
+    INBOX("inbox"),
+
+    /** A back-office message changed (112). Back-office only; the apps never receive it. */
+    MESSAGES("messages");
 
     companion object {
         /** `null` for a kind this build has never heard of (a newer backend). */

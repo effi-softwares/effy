@@ -248,6 +248,8 @@ EDGE_STACK_CONFIG_inventory-staff := serverless.staff.yml
 # Admin's promotion routes, split out at CloudFormation's 500-resource limit. Deploy admin first.
 EDGE_STACK_DIR_admin-promotions    := admin
 EDGE_STACK_CONFIG_admin-promotions := serverless.promotions.yml
+EDGE_STACK_DIR_admin-messages      := admin
+EDGE_STACK_CONFIG_admin-messages   := serverless.messages.yml
 EDGE_DIR    := apis/edge-api/$(or $(EDGE_STACK_DIR_$(SERVICE)),$(SERVICE))
 EDGE_CONFIG := $(or $(EDGE_STACK_CONFIG_$(SERVICE)),serverless.yml)
 # Which gateway the stack attaches to, read from the stack file itself - shown in the deploy prompt.
@@ -289,8 +291,8 @@ edge-offline: ## Run ONE service locally via serverless-offline (SERVICE=admin|s
 	@test -n "$(SERVICE)" || { echo "usage: make edge-offline SERVICE=admin|shop|customer|driver|notifications|orders|inventory|storefront|commerce ENV=dev"; exit 1; }
 	@cd $(EDGE_DIR) && AWS_PROFILE=$(AWS_PROFILE) pnpm exec serverless offline --config $(EDGE_CONFIG) --stage $(ENV)
 
-edge-deploy: ## OPERATOR: deploy ONE cold-path service to AWS (SERVICE=admin|admin-promotions|shop|customer|driver|notifications|orders|inventory|inventory-staff|fleet|catalog|storefront|commerce|live ENV=dev)
-	@test -n "$(SERVICE)" || { echo "usage: make edge-deploy SERVICE=admin|admin-promotions|shop|customer|driver|notifications|orders|inventory|inventory-staff|fleet|catalog|storefront|commerce|live ENV=dev"; exit 1; }
+edge-deploy: ## OPERATOR: deploy ONE cold-path service to AWS (SERVICE=admin|admin-promotions|admin-messages|shop|customer|driver|notifications|orders|inventory|inventory-staff|fleet|catalog|storefront|commerce|live ENV=dev)
+	@test -n "$(SERVICE)" || { echo "usage: make edge-deploy SERVICE=admin|admin-promotions|admin-messages|shop|customer|driver|notifications|orders|inventory|inventory-staff|fleet|catalog|storefront|commerce|live ENV=dev"; exit 1; }
 	@test -d "$(EDGE_DIR)" || { echo "edge-deploy: no such service directory: $(EDGE_DIR)"; exit 1; }
 	@test -f "$(EDGE_DIR)/$(EDGE_CONFIG)" || { echo "edge-deploy: no stack file: $(EDGE_DIR)/$(EDGE_CONFIG)"; exit 1; }
 	@printf 'serverless DEPLOY  →  service=%s stage=%s (%s, attaches to %s, live AWS)\nContinue? [y/N] ' "$(SERVICE)" "$(ENV)" "$(EDGE_DIR)/$(EDGE_CONFIG)" "$(EDGE_GATEWAY)"; \
@@ -299,7 +301,7 @@ edge-deploy: ## OPERATOR: deploy ONE cold-path service to AWS (SERVICE=admin|adm
 
 # Every stack, in the order a deploy must go: admin first (it frees the route keys other stacks may claim,
 # and admin-promotions is split from it), then the rest. Override with SERVICES="a b c" to deploy a subset.
-EDGE_ALL_SERVICES := admin admin-promotions catalog shop storefront commerce fleet orders driver notifications \
+EDGE_ALL_SERVICES := admin admin-promotions admin-messages catalog shop storefront commerce fleet orders driver notifications \
 	customer inventory inventory-staff media live auth
 
 edge-deploy-all: ## OPERATOR: deploy EVERY edge stack in order, one confirmation (YES=1 skips it; SERVICES="..." for a subset; FROM=<svc> to resume)
@@ -318,6 +320,7 @@ edge-deploy-all: ## OPERATOR: deploy EVERY edge stack in order, one confirmation
 		case "$$svc" in \
 			inventory-staff) dir="apis/edge-api/inventory"; config="serverless.staff.yml";; \
 			admin-promotions) dir="apis/edge-api/admin"; config="serverless.promotions.yml";; \
+			admin-messages) dir="apis/edge-api/admin"; config="serverless.messages.yml";; \
 		esac; \
 		test -f "$$dir/$$config" || { echo "edge-deploy-all: no stack file $$dir/$$config"; exit 1; }; \
 		( cd "$$dir" && AWS_PROFILE=$(AWS_PROFILE) pnpm exec serverless deploy --config "$$config" --stage $(ENV) ) || { \

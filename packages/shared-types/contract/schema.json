@@ -491,6 +491,13 @@
         "id": {
           "type": "string"
         },
+        "imageUrl": {
+          "description": "A message's picture (112), at Effy's public picture address; null for everything else.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "importance": {
           "enum": [
             "normal",
@@ -528,7 +535,8 @@
         "createdAt",
         "readAt",
         "pinnedUntil",
-        "endsLabel"
+        "endsLabel",
+        "imageUrl"
       ],
       "type": "object"
     },

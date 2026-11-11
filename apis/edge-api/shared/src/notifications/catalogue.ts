@@ -43,7 +43,12 @@ export type NotificationType =
   | "run_opens_soon"
   // A driver's catch-up notice (110): their work was assigned while no phone of theirs could be told. Inbox only,
   // pinned until the end of that Effy day.
-  | "driver_runs_today";
+  | "driver_runs_today"
+  // A back-office message (112), one type per audience. Its words, category, picture and destination are the
+  // message's own (notify's `message` input); the entries below give only the audience, tag and group.
+  | "customer_message"
+  | "driver_message"
+  | "shop_message";
 
 /** What a person controls (spec 3). Every type belongs to exactly one, valid for its audience. */
 export type NotificationCategory =
@@ -105,7 +110,20 @@ const customerOrder = { audience: "customer", category: "orders", importance: "n
 const driverWork = { audience: "driver", category: "work", importance: "normal", tag: "driver-run", group: "driver" } as const;
 const shopAttention = { audience: "shop", importance: "normal", tag: "shop-attention", group: "attention" } as const;
 
+const home = (): CustomerDestination => ({ kind: "home" });
+
+/**
+ * A back-office message (112). `category` is a placeholder declared for the audience (111's policy test reads every
+ * entry) and never written: notify() files a message under the category its kind gives (shared-types messages.ts).
+ */
+const message = { importance: "normal", title: "Message from Effy", body: "Open it to read more." } as const;
+
 const CATALOGUE: Record<NotificationType, NotificationEntry> = {
+  customer_message: { ...message, audience: "customer", category: "support", tag: "customer-message", group: "customer", destination: home },
+  driver_message: { ...message, audience: "driver", category: "announcements", tag: "driver-message", group: "driver", destination: today },
+  shop_message: { ...message, audience: "shop", category: "announcements", tag: "shop-message", group: "attention", destination: () => ({ kind: "queue" }) },
+
+
   order_paid: { ...customerOrder, title: "Order confirmed", body: "We've received your order.", destination: theOrder },
   // Customer words (109 FR-026): not "ready for handoff".
   order_ready: { ...customerOrder, title: "Your order is packed", body: "It will be on its way to you soon.", destination: theOrder },
@@ -199,6 +217,18 @@ export const NOTIFICATION_TYPES = Object.keys(CATALOGUE) as NotificationType[];
  */
 export function isKnownNotificationType(value: string): value is NotificationType {
   return Object.prototype.hasOwnProperty.call(CATALOGUE, value);
+}
+
+const MESSAGE_TYPES = new Set<NotificationType>(["customer_message", "driver_message", "shop_message"]);
+
+/** A back-office message's type (112): its words come from the message, never from this file. */
+export function isMessageType(type: string): type is "customer_message" | "driver_message" | "shop_message" {
+  return MESSAGE_TYPES.has(type as NotificationType);
+}
+
+/** The message type for an audience (112). */
+export function messageTypeFor(audience: NotificationAudience): "customer_message" | "driver_message" | "shop_message" {
+  return `${audience}_message`;
 }
 
 export function catalogueEntry(type: NotificationType): NotificationEntry {

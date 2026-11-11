@@ -2,7 +2,7 @@ import { useState } from "react"
 
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
-import { Bell, CircleMinus, CirclePlus, Coins, History, Mail, ShoppingBag } from "lucide-react"
+import { Bell, CircleMinus, CirclePlus, Coins, History, Inbox, Mail, Send, ShoppingBag } from "lucide-react"
 
 import { Avatar, AvatarFallback, Button } from "@effy/design-system/ui"
 import { ActivityLogDrawer, useActivityAction, useActivityLog } from "@effy/web-kit/activity-log"
@@ -19,6 +19,9 @@ import {
   PanelSkeleton,
 } from "@effy/web-kit/patterns"
 import { initialsOf } from "@/components/shell/identity"
+import { DirectMessageDialog } from "@/features/messages/components/DirectMessageDialog"
+import { MESSAGES_ROOT } from "@/features/messages/queries"
+import { receivedPath } from "@/features/messages/repo"
 import { sessionQuery } from "@/features/auth/queries"
 import { api } from "@/lib/api"
 import { money } from "@/lib/format"
@@ -41,8 +44,10 @@ export function CustomerDetailScreen({ customerId }: { customerId: string }) {
   const [debiting, setDebiting] = useState(false)
   const activity = useActivityAction()
   const { show: openLog } = useActivityLog()
-  // A page has one activity drawer (104); it shows the points log or, since 111, the consent history.
-  const [log, setLog] = useState<"points" | "consent">("points")
+  // A page has one activity drawer (104); it shows the points log or, since 111, the consent history, and since 112 the
+  // messages Effy sent them.
+  const [log, setLog] = useState<"points" | "consent" | "messages">("points")
+  const [messaging, setMessaging] = useState(false)
   useHeaderDetail(detail.data ? detail.data.name || detail.data.email : null)
 
   if (detail.isError) return <ErrorState error={detail.error} onRetry={() => void detail.refetch()} />
@@ -80,6 +85,8 @@ export function CustomerDetailScreen({ customerId }: { customerId: string }) {
               actions={[
                 { ...activity, label: "Points activity", onSelect: () => { setLog("points"); openLog() } },
                 { label: "Consent history", icon: History, onSelect: () => { setLog("consent"); openLog() } },
+                { label: "Send message", icon: Send, onSelect: () => setMessaging(true) },
+                { label: "Messages received", icon: Inbox, onSelect: () => { setLog("messages"); openLog() } },
                 mayDebit
                   ? {
                     label: "Remove points…",
@@ -216,6 +223,18 @@ export function CustomerDetailScreen({ customerId }: { customerId: string }) {
           queryKey={customersKeys.detail(c.id)}
           fileName={`points-${c.email}-activity`}
         />
+      ) : log === "messages" ? (
+        <ActivityLogDrawer
+          key="messages"
+          app="back-office"
+          log="bo-messages-received"
+          title="Messages received"
+          description={`${c.name || c.email} - every message Effy sent them from Messages, and whether they opened it.`}
+          api={api}
+          path={receivedPath("customer", c.id)}
+          queryKey={[...MESSAGES_ROOT, "received", "customer", c.id]}
+          fileName={`messages-${c.email}`}
+        />
       ) : (
         <ActivityLogDrawer
           key="consent"
@@ -229,6 +248,14 @@ export function CustomerDetailScreen({ customerId }: { customerId: string }) {
           fileName={`consent-${c.email}-history`}
         />
       )}
+      <DirectMessageDialog
+        audience="customer"
+        id={c.id}
+        name={c.name || c.email}
+        open={messaging}
+        onOpenChange={setMessaging}
+        orders={c.recentOrders}
+      />
     </>
   )
 }

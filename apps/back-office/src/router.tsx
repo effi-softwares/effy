@@ -44,6 +44,7 @@ import {
   productNewRoute,
   productsIndexRoute,
 } from "./routes/products"
+import { editMessageRoute, messageDetailRoute, messagesIndexRoute, newMessageRoute } from "./routes/messages"
 import { handoverReportRoute } from "./routes/reports"
 import {
   deliveryCourierRoute,
@@ -125,6 +126,10 @@ const routeTree = rootRoute.addChildren([
     promotionSkinsRoute,
     createSkinRoute,
     promotionSkinRoute,
+    messagesIndexRoute,
+    newMessageRoute,
+    messageDetailRoute,
+    editMessageRoute,
   ]),
   authLayoutRoute.addChildren([signInRoute]),
 ])

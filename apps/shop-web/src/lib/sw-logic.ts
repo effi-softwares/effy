@@ -10,6 +10,8 @@ interface PushData {
   body: string
   tag: string
   group: string
+  /** A message's picture (112), only from Effy's https picture address; null otherwise. */
+  image: string | null
 }
 
 interface NotificationPlan {
@@ -31,6 +33,7 @@ const FALLBACK: PushData = {
   body: "Something needs your attention.",
   tag: "effy",
   group: "orders",
+  image: null,
 }
 
 export function parsePush(raw: unknown): PushData {
@@ -48,6 +51,7 @@ export function parsePush(raw: unknown): PushData {
     body: str("body", FALLBACK.body),
     tag: str("tag", FALLBACK.tag),
     group: str("group", FALLBACK.group),
+    image: typeof d.image === "string" && d.image.startsWith("https://") ? d.image : null,
   }
 }
 

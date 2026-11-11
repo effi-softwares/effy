@@ -9,3 +9,4 @@ export * from "./inbox";
 export * from "./inbox-handlers";
 export * from "./preferences";
 export * from "./preferences-handlers";
+export * from "./messages";
