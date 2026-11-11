@@ -4,8 +4,8 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
-**112-backoffice-messages** - Back-Office Messages ([spec](specs/112-backoffice-messages/spec.md)). 🔨 **BUILT 2026-11-11; NOT
-APPLIED, MIGRATED, DEPLOYED OR WALKED.** Spec 4 of the notifications programme (backlog E1–E8, E10; E9 dropped by decision 5;
+**112-backoffice-messages** - Back-Office Messages ([spec](specs/112-backoffice-messages/spec.md)). ✅ **SIGNED OFF 2026-11-11:
+APPLIED, MIGRATED AND DEPLOYED TO DEV (operator); THE QUICKSTART WALK WAS NOT RECORDED.** Spec 4 of the notifications programme (backlog E1–E8, E10; E9 dropped by decision 5;
 E11–E13 later). Staff write a message once, choose who gets it from fixed filters, preview it, send it now or later, and read
 what happened. Kinds: announcement (drivers, shops), important (anyone; pinned), offer and news (customers who said yes), direct
 (one person or one shop's staff; customer support may send it).
@@ -50,11 +50,14 @@ what happened. Kinds: announcement (drivers, shops), important (anyone; pinned),
   none in 112's files: consignment P6, orders S4, shared-types package-status (073), customer `UnitPriceWordsTest`; admin 077
   pricing container suite (16, "DB_HOST is not set" - the suite reaches the real pool; no file it reads changed here, not
   re-run at HEAD to prove it).
-- **Open**: `make apply ENV=dev` (alarm), `make db-up ENV=dev`, `SERVICE=notifications`, `make edge-deploy-all ENV=dev` (includes
-  `admin-messages`), back-office / shop-web / customer-web, both apps; the quickstart walk.
+- **Deployed 2026-11-11** (checked read-only: dev at goose `20261111090000`, `effy-edge-admin-messages-dev-*` and
+  `effy-edge-notifications-dev-messages` live, alarm `effy-dev-background-message-sender-errors` present; no message sent yet).
+- **Open**: the quickstart walk (it also covers 111's marketing steps); the 111 consent wording is live as a DRAFT and must be
+  approved before the first real offer or news message.
 
-**111-notification-preferences** - Notification Preferences & Marketing Consent ([spec](specs/111-notification-preferences/spec.md)). 🔨 **BUILT
-2026-11-08; NOT MIGRATED, DEPLOYED OR WALKED; CONSENT WORDING AWAITS OPERATOR APPROVAL.** Spec 3 of the notifications programme
+**111-notification-preferences** - Notification Preferences & Marketing Consent ([spec](specs/111-notification-preferences/spec.md)). ✅ **SIGNED OFF
+2026-11-11 WITH 112: MIGRATED AND DEPLOYED TO DEV (operator); NOT WALKED; CONSENT WORDING (`marketing-2026-11`) IS LIVE AS A DRAFT
+AND AWAITS OPERATOR APPROVAL.** Spec 3 of the notifications programme
 (backlog D1–D6, D8–D10; D7 iOS interruption levels deferred until the Apple account is paid). Customers choose what Effy sends and
 how; offers and news reach only those who said yes, in Effy's words, with the yes recorded.
 - **Migration** `20261110090000_notification_preferences.sql` (additive; checked with real goose up / down-to / up):
