@@ -121,13 +121,21 @@ See the numbers: `make gateway-usage ENV=<env>` (deployed) · `pnpm --filter @ef
 > **Back-office settings redesign (2026-11-03).** `admin` (staff) gained `GET /admin/v1/staff`: everyone with a
 > back-office record, for Settings › Team and access, admin only from the staff record (staff 210 → 211/300). `fleet`'s
 > `PUT /fleet/v1/delivery-days` gained two optional fields (`planningLeadMin`, `perStopAllowanceMin`) - no new route.
+>
+> **112 - back-office messages.** A new stack, `admin-messages` (staff), from the `admin` source: 13 routes under
+> `/admin/v1/messages…` (list, create, read, edit, audience count, picture, test, send, cancel, stop, withdraw, activity,
+> received). Sending is the route-less `messages` worker in `notifications`. Staff 218 → **231/300 (77%), past the 75%
+> warning.** The plan the warning asks for (112 research R2): before the staff gateway reaches about 255, amend the
+> constitution for a third gateway and move `catalog` and `inventory-staff` (45 routes) to it. Nothing moved in 112, and
+> no route was merged to fit.
 | `driver` | shared | driver | driver app |
 | `admin` | **staff** | back-office | staff, shops, delivery configuration |
 | `admin-promotions` (same source as `admin`, 095) | **staff** | back-office | promotions, display groups, skins and pictures (`/admin/v1/promotions…`, `/admin/v1/promotion-groups…`, `/admin/v1/promotion-skins…`) - split out at CloudFormation's 500-resource limit |
+| `admin-messages` (same source as `admin`, 112) | **staff** | back-office | back-office messages to customers, drivers and shops (`/admin/v1/messages…`) |
 | `catalog` | **staff** | back-office | the catalogue taxonomy (categories, attribute library, attachments, `/catalog/v1/taxonomy/…`), extra placements, product review and margin (101 moved the taxonomy here from `admin`); every shop's products, holds, Effy-created products and imports (`/catalog/v1/products…`, `/catalog/v1/imports…`, 102) |
 | `fleet` | **staff** | back-office | drivers, wave planning, delivery slots and days |
 | `orders` | **staff** | back-office | order console, handovers, arrivals, refunds, cancellation |
-| `notifications` | shared | none (workers) | push and receipt drains |
+| `notifications` | shared | none (workers) | push and receipt drains; the back-office message sender (112) |
 | `auth` | none | none (Cognito triggers) | one-time-code issuance |
 | `live` | none | none (invoked by the live channel) - all four audiences, by necessity | the live-update channel's authorizer (071). No route. Each audience's own service carries its `GET /…/v1/live` |
 

@@ -99,6 +99,7 @@ describe("P12 - coverage is decided in one place", () => {
     "apis/edge-api/fleet/src/planner/sql.ts": "which GROUP a delivery belongs to, for driver clearances (082: a clearance is a function and a group, or everywhere)",
     "apis/edge-api/fleet/src/dispatch/sql.ts": "which GROUP a delivery belongs to, for the dispatch board",
     "apis/edge-api/fleet/src/dispatch/windows.ts": "which GROUP a parcel's address is in, on dispatch's day view (082) - a name to read, never a coverage decision",
+    "apis/edge-api/shared/src/notifications/messages/audience.ts": "which customers have an address in a chosen GROUP, for a back-office message's audience (112 R4) - never a coverage decision",
   };
 
   const readers = services

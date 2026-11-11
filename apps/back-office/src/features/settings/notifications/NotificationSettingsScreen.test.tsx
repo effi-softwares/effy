@@ -13,7 +13,7 @@ vi.mock("@/features/auth/useSessionRoles", () => ({ useSessionRoles: () => roles
 
 const { NotificationSettingsScreen } = await import("./NotificationSettingsScreen")
 
-const SETTINGS = { promoPushPerDay: 1, promoPushPerWeek: 3, updatedAt: "2026-11-10T00:00:00Z", updatedBy: "Effy" }
+const SETTINGS = { promoPushPerDay: 1, promoPushPerWeek: 3, maxRecipientsPerMessage: 20000, updatedAt: "2026-11-10T00:00:00Z", updatedBy: "Effy" }
 
 function show(as: BackOfficeRole[]) {
   roles.current = as
@@ -47,7 +47,7 @@ describe("Settings › Notification limits (111 US3)", () => {
     await userEvent.clear(week)
     await userEvent.type(week, "5")
     await userEvent.click(screen.getByRole("button", { name: "Save" }))
-    await waitFor(() => expect(repo.updateNotificationSettings).toHaveBeenCalledWith({ promoPushPerDay: 2, promoPushPerWeek: 5 }))
+    await waitFor(() => expect(repo.updateNotificationSettings).toHaveBeenCalledWith({ promoPushPerDay: 2, promoPushPerWeek: 5, maxRecipientsPerMessage: 20000 }))
   })
 
   it("a weekly limit below the daily one cannot be saved, and says why", async () => {

@@ -27,6 +27,8 @@ export const LIVE_KINDS = [
   // A person's notification inbox changed (110): a new notification, or one read, seen or archived. Their own channel
   // (customer, driver), or their shop's, where each operator re-reads their own inbox.
   "inbox",
+  // A back-office message was created, changed, or moved on while sending (112). Back-office only.
+  "messages",
 ] as const;
 
 export type LiveKind = (typeof LIVE_KINDS)[number];

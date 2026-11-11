@@ -32,4 +32,6 @@ export const LIVE_ROUTES: Partial<Record<LiveKind, readonly QueryKey[]>> = {
     ["back-office", "promotions"],
     ["back-office", "promotion-groups"],
   ],
+  // A message was written, sent, stopped or withdrawn, or moved on while sending (112).
+  messages: [["back-office", "messages"]],
 }

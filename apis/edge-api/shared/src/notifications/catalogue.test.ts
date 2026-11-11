@@ -18,6 +18,7 @@ const ALL: NotificationType[] = [
   "shop_product_sent_back", "shop_product_held", "shop_product_released", "shop_product_added_by_effy",
   "shop_products_imported", "points_credited", "points_expiring", "order_with_courier", "order_delivery_changed",
   "run_changed", "run_withdrawn", "run_opens_soon", "driver_runs_today",
+  "customer_message", "driver_message", "shop_message",
 ];
 
 /** Pinned above a person's inbox (110); every other type is normal. */

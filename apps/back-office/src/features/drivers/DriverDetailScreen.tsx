@@ -2,7 +2,7 @@ import { useState } from "react"
 
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
-import { BadgeCheck, Car, IdCard, Mail, Pencil, ShieldCheck, Truck, UserRound, Warehouse } from "lucide-react"
+import { BadgeCheck, Car, IdCard, Inbox, Mail, Pencil, Send, ShieldCheck, Truck, UserRound, Warehouse } from "lucide-react"
 
 import {
   Avatar,
@@ -14,7 +14,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@effy/design-system/ui"
-import { ActivityButton, ActivityLogDrawer } from "@effy/web-kit/activity-log"
+import { ActivityButton, ActivityLogDrawer, useActivityLog } from "@effy/web-kit/activity-log"
 import { ErrorState, useHeaderDetail } from "@effy/web-kit/console"
 import type { AdminDriverProfile } from "@effy/shared-types"
 
@@ -25,6 +25,7 @@ import {
   DetailRows,
   DetailRowsSkeleton,
   DotWord,
+  MoreActions,
   PageHeader,
   Panel,
   PanelSkeleton,
@@ -32,6 +33,9 @@ import {
   StatusWord,
 } from "@effy/web-kit/patterns"
 import { initialsOf } from "@/components/shell/identity"
+import { DirectMessageDialog } from "@/features/messages/components/DirectMessageDialog"
+import { MESSAGES_ROOT } from "@/features/messages/queries"
+import { receivedPath } from "@/features/messages/repo"
 import { useSessionRoles } from "@/features/auth/useSessionRoles"
 import { api } from "@/lib/api"
 
@@ -62,6 +66,10 @@ export function DriverDetailScreen({ driverId }: { driverId: string }) {
   const roles = useSessionRoles()
   const canManage = canManageDrivers(roles)
   const [editing, setEditing] = useState(false)
+  // One activity drawer (104): the driver's own log, or (112) the messages Effy sent them.
+  const [log, setLog] = useState<"driver" | "messages">("driver")
+  const [messaging, setMessaging] = useState(false)
+  const { show: openLog } = useActivityLog()
 
   const { data, error, isPending, isError, refetch } = useQuery(driverDetailQuery(driverId))
   useTourPage("driver", { status: tourStatus({ isSuccess: !isPending && !isError, isError }) })
@@ -121,7 +129,16 @@ export function DriverDetailScreen({ driverId }: { driverId: string }) {
                 Edit profile
               </Button>
             ) : null}
-            <ActivityButton />
+            {/* The page's own log: the drawer switches back to it before the button opens it. */}
+            <span className="contents" onClickCapture={() => setLog("driver")}>
+              <ActivityButton />
+            </span>
+            <MoreActions
+              actions={[
+                { label: "Send message", icon: Send, onSelect: () => setMessaging(true), disabled: d.status !== "active", hint: "Not active" },
+                { label: "Messages received", icon: Inbox, onSelect: () => { setLog("messages"); openLog() } },
+              ]}
+            />
           </>
         }
       />
@@ -288,7 +305,22 @@ export function DriverDetailScreen({ driverId }: { driverId: string }) {
           <ProfileEditForm driver={d} onDone={() => setEditing(false)} />
         </ResponsiveSheet>
       ) : null}
-      <ActivityLogDrawer
+      {log === "messages" ? (
+        <ActivityLogDrawer
+          key="messages"
+          app="back-office"
+          log="bo-messages-received"
+          title="Messages received"
+          description={`${d.name} - every message Effy sent them from Messages, and whether they opened it.`}
+          api={api}
+          path={receivedPath("driver", d.id)}
+          queryKey={[...MESSAGES_ROOT, "received", "driver", d.id]}
+          fileName={`messages-${d.name}`}
+        />
+      ) : null}
+      <DirectMessageDialog audience="driver" id={d.id} name={d.name} open={messaging} onOpenChange={setMessaging} />
+      {log === "driver" ? <ActivityLogDrawer
+        key="driver"
         app="back-office"
         log="bo-driver"
         title="Driver activity"
@@ -297,7 +329,7 @@ export function DriverDetailScreen({ driverId }: { driverId: string }) {
         path={`/fleet/v1/drivers/${d.id}/audit`}
         queryKey={driverKeys.detail(d.id)}
         fileName={`driver-${d.name}-activity`}
-      />
+      /> : null}
     </>
   )
 }

@@ -72,6 +72,8 @@ export interface StaffNotificationPreferencesDTO {
 export interface NotificationSettingsDTO {
   promoPushPerDay: number;
   promoPushPerWeek: number;
+  /** The most people one back-office message may reach (112). Only administrators change it. */
+  maxRecipientsPerMessage: number;
   updatedAt: string;
   updatedBy: string;
 }
@@ -79,4 +81,5 @@ export interface NotificationSettingsDTO {
 export interface NotificationSettingsUpdate {
   promoPushPerDay: number;
   promoPushPerWeek: number;
+  maxRecipientsPerMessage: number;
 }

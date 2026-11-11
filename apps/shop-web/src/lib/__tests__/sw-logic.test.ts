@@ -16,7 +16,18 @@ const ORDER = {
   body: "A new order needs picking.",
   tag: "shop-new-order",
   group: "orders",
+  image: null,
 }
+
+describe("112 - a message's picture rides the push, from https only", () => {
+  it("keeps an https picture and drops anything else", () => {
+    expect(parsePush({ ...ORDER, image: "https://media.example.test/promotions/messages-1/a.webp" }).image).toBe(
+      "https://media.example.test/promotions/messages-1/a.webp",
+    )
+    expect(parsePush({ ...ORDER, image: "javascript:alert(1)" }).image).toBeNull()
+    expect(parsePush(ORDER).image).toBeNull()
+  })
+})
 
 describe("⚠ P5 - a malformed payload still produces something showable (FR-029)", () => {
   it.each([null, undefined, 42, "a string", [], { type: 1, webPath: {} }])(

@@ -10,17 +10,26 @@ import { Bone, boneWidth, Loading } from "@effy/web-kit/patterns"
 import { index, pathOf, pathText } from "@/features/taxonomy/model"
 import { treeQuery } from "@/features/taxonomy/queries"
 
-import type { BannerDraft } from "../bannerDraft"
-import { searchPromotionProducts } from "../repo"
+import { searchPromotionProducts } from "@/features/promotions/repo"
 
-/** Where a tap on an information banner leads (108): search, the sale page, an aisle or a product. */
+/** A place in the storefront a tap can lead: search, the sale page, an aisle (with its key) or a product. */
+export interface LinkChoice {
+  kind: BannerLinkKind
+  category: { id: string; name: string; key?: string } | null
+  product: { id: string; name: string } | null
+}
+
+/**
+ * Where a tap leads in the storefront: an information banner's link (108) and a customer message's destination
+ * (112). Search, the sale page, an aisle or a product.
+ */
 export function LinkPicker({
   value,
   onChange,
   invalid,
 }: {
-  value: BannerDraft["link"]
-  onChange: (link: BannerDraft["link"]) => void
+  value: LinkChoice
+  onChange: (link: LinkChoice) => void
   invalid?: boolean
 }) {
   const [q, setQ] = useState("")
@@ -37,7 +46,7 @@ export function LinkPicker({
     const byId = index(all)
     return all
       .filter((c) => c.status === "active")
-      .map((c) => ({ id: c.id, path: pathText(pathOf(c.id, byId)) }))
+      .map((c) => ({ id: c.id, key: c.key, path: pathText(pathOf(c.id, byId)) }))
       .sort((a, b) => a.path.localeCompare(b.path))
   }, [tree.data])
   const words = categoryQ.trim().toLowerCase().split(/\s+/).filter(Boolean)
@@ -90,7 +99,7 @@ export function LinkPicker({
                   <button
                     type="button"
                     className="w-full px-3 py-2 text-left text-sm hover:bg-row-hover"
-                    onClick={() => onChange({ ...value, category: { id: c.id, name: c.path } })}
+                    onClick={() => onChange({ ...value, category: { id: c.id, name: c.path, key: c.key } })}
                   >
                     {c.path}
                   </button>

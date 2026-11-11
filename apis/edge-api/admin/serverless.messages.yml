@@ -1,0 +1,232 @@
+# The message routes of the admin service (112): the same src/ deployed as a third stack, beside admin and
+# admin-promotions, because the admin stack is at CloudFormation's resource limit. Staff gateway, back-office
+# authorizer. Sending itself is the notifications service's `messages` worker; these routes only write the message.
+service: effy-edge-admin-messages
+frameworkVersion: "3"
+
+plugins:
+  - serverless-esbuild
+  - serverless-offline
+
+params:
+  default:
+    logLevel: info
+    secretsExtensionArn: arn:aws:lambda:ap-southeast-2:665172237481:layer:AWS-Parameters-and-Secrets-Lambda-Extension-Arm64:90
+  dev:
+    logLevel: debug
+
+provider:
+  name: aws
+  region: ap-southeast-2
+  stage: ${opt:stage, 'dev'}
+  runtime: nodejs22.x
+  architecture: arm64
+  memorySize: 256
+  timeout: 10
+  logRetentionInDays: 30
+  # Every integration invokes $latest, so per-deploy Versions would only spend resources.
+  versionFunctions: false
+  tags:
+    project: effy
+    slice: 112-backoffice-messages
+    service: admin-messages
+  httpApi:
+    id: ${ssm:/effy/${sls:stage}/staff/http_api_id}
+  environment:
+    EFFY_ENV: ${sls:stage}
+    LOG_LEVEL: ${param:logLevel}
+    LIVE_HTTP_HOST: ${ssm:/effy/${sls:stage}/live/http_host}
+    LIVE_REALTIME_HOST: ${ssm:/effy/${sls:stage}/live/realtime_host}
+    DB_HOST: ${ssm:/effy/${sls:stage}/db/endpoint}
+    DB_PORT: ${ssm:/effy/${sls:stage}/db/port}
+    DB_NAME: ${ssm:/effy/${sls:stage}/db/name}
+    DB_USER: ${ssm:/effy/${sls:stage}/db/master_username}
+    DB_SECRET_ARN: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
+    S3_MEDIA_BUCKET: ${ssm:/effy/${sls:stage}/media/bucket}
+    MEDIA_PUBLIC_BASE_URL: ${ssm:/effy/${sls:stage}/media/public_base_url}
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action: secretsmanager:GetSecretValue
+          Resource: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
+        # Presigned PUTs of message pictures (under promotions/messages-<id>/) and reads on the media bucket.
+        - Effect: Allow
+          Action:
+            - s3:PutObject
+            - s3:GetObject
+          Resource: arn:aws:s3:::effy-${sls:stage}-product-media/*
+        - Effect: Allow
+          Action: appsync:EventPublish
+          Resource: ${ssm:/effy/${sls:stage}/live/api_arn}/channelNamespace/*
+  layers:
+    - ${param:secretsExtensionArn}
+  # No provider.vpc (dev only).
+
+custom:
+  esbuild:
+    bundle: true
+    # Build-time: baked into the bundle, so a change takes a deploy. No default on purpose.
+    define:
+      process.env.OPERATING_TZ: '"${ssm:/effy/${sls:stage}/operating_tz}"'
+    minify: false
+    sourcemap: true
+    platform: node
+    target: node22
+    format: esm
+    outputFileExtension: .mjs
+    banner:
+      js: import { createRequire } from 'module'; const require = createRequire(import.meta.url);
+
+package:
+  individually: true
+
+
+functions:
+  # Messages (112). Read and direct messages: any active staff; every other kind, stop, cancel and withdraw:
+  # admin/manager. Sending to many is the notifications service's `messages` worker, not these routes.
+  # The literal paths (audience-count, received) sit beside {id}: HTTP API matches the literal first.
+  messagesListV1:
+    handler: src/functions/messages-list-v1-get.handler
+    description: List messages (paged; kind, audience, status) - 112
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/messages
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  messagesCreateV1:
+    handler: src/functions/messages-create-v1-post.handler
+    description: Create a message draft, or duplicate one - 112
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/messages
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  messagesAudienceCountV1:
+    handler: src/functions/messages-audience-count-v1-post.handler
+    description: Count a draft's audience; resolve emails - 112
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/messages/audience-count
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  messagesGetV1:
+    handler: src/functions/messages-get-v1-get.handler
+    description: One message with its report - 112
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/messages/{id}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  messagesUpdateV1:
+    handler: src/functions/messages-update-v1-put.handler
+    description: Edit a draft or scheduled message - 112
+    events:
+      - httpApi:
+          method: PUT
+          path: /admin/v1/messages/{id}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  messagesPictureV1:
+    handler: src/functions/messages-picture-v1-post.handler
+    description: Presigned upload for a message picture - 112
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/messages/{id}/picture
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  messagesTestV1:
+    handler: src/functions/messages-test-v1-post.handler
+    description: Send a message to one chosen account (not counted) - 112
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/messages/{id}/test
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  messagesSendV1:
+    handler: src/functions/messages-send-v1-post.handler
+    description: Send a message now or schedule it - 112
+    timeout: 20
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/messages/{id}/send
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  messagesCancelV1:
+    handler: src/functions/messages-cancel-v1-post.handler
+    description: Cancel a scheduled message - 112
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/messages/{id}/cancel
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  messagesStopV1:
+    handler: src/functions/messages-stop-v1-post.handler
+    description: Stop a message that is sending - 112
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/messages/{id}/stop
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  messagesWithdrawV1:
+    handler: src/functions/messages-withdraw-v1-post.handler
+    description: Withdraw a message from every inbox - 112
+    timeout: 20
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/messages/{id}/withdraw
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  messagesActivityV1:
+    handler: src/functions/messages-activity-v1-get.handler
+    description: A message's activity (104 drawer) - 112
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/messages/{id}/activity
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  messagesReceivedV1:
+    handler: src/functions/messages-received-v1-get.handler
+    description: The messages one customer, driver or shop received (104 drawer) - 112
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/messages/received
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}

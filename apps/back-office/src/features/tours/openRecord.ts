@@ -32,6 +32,7 @@ const KINDS: Record<string, Kind> = {
   group: { to: "/promotions/groups", href: /^\/promotions\/groups\/[^/]+$/, noun: "display group" },
   skin: { to: "/promotions/skins", href: /^\/promotions\/skins\/(?!new$)[^/]+$/, noun: "skin" },
   address: { to: "/deliverability", href: /^\/deliverability\/[^/]+$/, noun: "email address" },
+  message: { to: "/messages", href: /^\/messages\/(?!new$)[^/]+$/, noun: "message" },
 }
 
 const WAIT_MS = 6000

@@ -27,6 +27,8 @@ const PLACEMENT: Record<string, Gateway | null> = {
   // back-office
   admin: "staff",
   "admin-promotions": "staff",
+  // 112: back-office messages, a third stack of the admin service (resource limit).
+  "admin-messages": "staff",
   fleet: "staff",
   orders: "staff",
   catalog: "staff",

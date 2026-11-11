@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import { KNOWN_SHOP_NOTIFICATION_TYPES } from "../lib/notification-types";
-import { NOTIFICATION_TYPES, catalogueEntry } from "./catalogue";
+import { NOTIFICATION_TYPES, catalogueEntry, isMessageType } from "./catalogue";
 
 /**
  * 109 R15 - the type list lives in three places: the database CHECK, the catalogue, and the shop's settings list.
@@ -33,7 +33,8 @@ describe("109 - one list of notification types", () => {
   });
 
   it("every shop type in the settings list is a shop type in the catalogue, and none is missing", () => {
-    const shopInCatalogue = NOTIFICATION_TYPES.filter((t) => catalogueEntry(t).audience === "shop");
+    // A back-office message (112) is not a per-device choice: Effy's announcements reach every device.
+    const shopInCatalogue = NOTIFICATION_TYPES.filter((t) => catalogueEntry(t).audience === "shop" && !isMessageType(t));
     expect([...KNOWN_SHOP_NOTIFICATION_TYPES].sort()).toEqual([...shopInCatalogue].sort());
   });
 });

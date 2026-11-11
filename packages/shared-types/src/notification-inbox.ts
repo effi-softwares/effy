@@ -71,6 +71,8 @@ export interface InboxItemDTO {
   pinnedUntil: string | null;
   /** "Ends Sun", only for offers, news, announcements and important items with an end; otherwise null. */
   endsLabel: string | null;
+  /** A message's picture (112), at Effy's public picture address; null for everything else. */
+  imageUrl: string | null;
 }
 
 /** `GET /{audience}/v1/notifications`. */

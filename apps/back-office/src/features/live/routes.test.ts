@@ -19,6 +19,7 @@ const SOURCES = [
   "taxonomy",
   "products",
   "overview",
+  "messages",
 ].map((slice) => readFileSync(resolve(features, slice, "queries.ts"), "utf8"))
 
 describe("LIVE_ROUTES", () => {
@@ -42,6 +43,7 @@ describe("LIVE_ROUTES", () => {
     expect(Object.keys(LIVE_ROUTES).sort()).toEqual([
       "coverage",
       "dispatch",
+      "messages",
       "orders",
       "points",
       "pricing",

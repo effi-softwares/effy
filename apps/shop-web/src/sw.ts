@@ -99,6 +99,7 @@ self.addEventListener("push", (event: PushEvent) => {
           renotify: true,
           icon: "/web-app-icon-192.png",
           badge: "/notification-badge-96.png",
+          ...(data.image ? { image: data.image } : {}),
           data: { webPath: plan.webPath, notificationId: plan.notificationId, type: data.type, group: plan.group },
         } as NotificationOptions)
 

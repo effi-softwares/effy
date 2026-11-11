@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -52,6 +53,7 @@ import com.effyshopping.customer.mobile.core.presentation.EffyNavRow
 import com.effyshopping.customer.mobile.core.presentation.EffyRowIcon
 import com.effyshopping.customer.mobile.core.presentation.EffySectionHeader
 import com.effyshopping.customer.mobile.core.presentation.EffySheet
+import com.effyshopping.customer.mobile.core.presentation.ProductImage
 import com.effyshopping.customer.mobile.core.presentation.EffySkeletonBlock
 import com.effyshopping.customer.mobile.core.presentation.EffySkeletonText
 import com.effyshopping.customer.mobile.core.presentation.EffySwipeRow
@@ -101,8 +103,9 @@ fun InboxScreen(container: AppContainer, snackbar: SnackbarHostState, onOpen: (I
 
     fun tap(item: InboxItem) {
         vm.opened(item)
-        // 111 FR-024: an offer or news item always opens its detail first, where it can be stopped.
-        if (item.destination != null && !MarketingStop.isMarketing(item.category)) onOpen(item) else detail = item
+        // 111 FR-024: an offer or news item opens its detail first, where it can be stopped; so does a message from
+        // Effy (112), whose words and picture are the point.
+        if (item.opensDetail) detail = item else onOpen(item)
     }
 
     fun stopMarketing(item: InboxItem) {
@@ -189,13 +192,21 @@ fun InboxScreen(container: AppContainer, snackbar: SnackbarHostState, onOpen: (I
 
     detail?.let { item ->
         val marketing = MarketingStop.isMarketing(item.category)
+        val goes = item.destination != null && (marketing || item.isMessage)
         EffySheet(
             title = item.title,
             onDismiss = { detail = null },
             cancelLabel = "Close",
-            primaryLabel = if (marketing && item.destination != null) "See offer" else null,
-            onPrimary = if (marketing && item.destination != null) ({ detail = null; onOpen(item) }) else null,
+            primaryLabel = if (goes) (if (item.category == "offers") "See offer" else "Open") else null,
+            onPrimary = if (goes) ({ detail = null; onOpen(item) }) else null,
         ) {
+            item.imageUrl?.let { url ->
+                ProductImage(
+                    url,
+                    item.title,
+                    modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(MaterialTheme.shapes.medium).padding(bottom = EffySpacing.md),
+                )
+            }
             Text(item.body, style = MaterialTheme.typography.bodyLarge)
             item.endsLabel?.let {
                 Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = EffySpacing.s))

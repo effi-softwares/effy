@@ -494,24 +494,138 @@ export const BACK_OFFICE_TOURS = defineTours([
   // CN - Notification settings (111: specs/111-notification-preferences/spec.md › Guided tours)
   {
     key: "notification-settings",
-    version: 1,
+    version: 2,
     title: "Notification settings",
     path: "/settings/notifications",
     steps: [
       {
         target: "page-title",
-        title: "Promotional notifications",
-        text: "How often customers who said yes to offers and news may get one on their phone. Order updates, points and important messages are never limited.",
+        title: "Notification limits",
+        text: "How often customers who said yes to offers and news may get one on their phone, and how many people one message may reach. Order updates, points and important messages are never limited.",
       },
       {
         target: "notifications.limits",
-        title: "Limits",
+        title: "Promotional limits",
         text: "The most promotional notifications a customer gets in a day and in a week. Any over the limit still reach their inbox, without a notification.",
+      },
+      {
+        target: "notifications.message-limit",
+        title: "Largest message",
+        text: "The most people one message may reach. A bigger message is refused. Only administrators can change it.",
       },
       {
         target: "page-activity",
         title: "Rule changes",
-        text: "Every change to these limits, and who made it. Administrators and managers can change them.",
+        text: "Every change to these limits, and who made it.",
+      },
+    ],
+  },
+  // ML - Messages (112)
+  {
+    key: "messages",
+    version: 1,
+    title: "Messages",
+    path: "/messages",
+    steps: [
+      {
+        target: "page-title",
+        title: "Messages",
+        text: "Everything Effy sends to customers, drivers and shops from here, and what happened to each.",
+      },
+      {
+        target: "messages.new",
+        title: "Write a message",
+        text: "Start an announcement, an important notice, an offer or news.",
+        roles: ["admin", "manager"],
+        shownWhen: "Admin or manager",
+      },
+      {
+        target: "messages.list",
+        title: "Every message",
+        text: "Search, filter by kind, audience or status, and open one to see its report.",
+      },
+      {
+        target: "messages.status",
+        title: "Where it's up to",
+        text: "Draft, scheduled, sending, sent, stopped, cancelled, withdrawn or not sent.",
+      },
+    ],
+  },
+  // ME - New message (112)
+  {
+    key: "message-editor",
+    version: 1,
+    title: "New message",
+    path: "/messages/new",
+    roles: ["admin", "manager"],
+    steps: [
+      {
+        target: "messages.kind",
+        title: "What kind of message",
+        text: "Announcements go to drivers and shops. Important is for service notices only. Offers and news go only to customers who said yes.",
+      },
+      {
+        target: "messages.audience",
+        title: "Who gets it",
+        text: "Choose customers, drivers or shops and narrow it down. The count shows how many people match now.",
+      },
+      {
+        target: "messages.words",
+        title: "Say it short",
+        text: "The title and the start of the text are what a locked phone shows. The counters show where it's cut off.",
+      },
+      {
+        target: "messages.previews",
+        title: "See it as they will",
+        text: "How it looks on a locked iPhone and Android phone, in the inbox, and opened.",
+      },
+      {
+        target: "messages.destination",
+        title: "Where a tap leads",
+        text: "The screen that opens when someone taps it.",
+      },
+      {
+        target: "messages.send-to-me",
+        title: "Try it first",
+        text: "Sends it to one of your own accounts exactly as others will get it.",
+      },
+      {
+        target: "messages.send",
+        title: "Send or schedule",
+        text: "Send it now, or pick a time. You can edit or cancel a scheduled message until it starts.",
+      },
+    ],
+  },
+  // MS - Message (112)
+  {
+    key: "message",
+    version: 1,
+    title: "A message",
+    needsRecord: "message",
+    steps: [
+      {
+        target: "messages.report",
+        title: "What happened",
+        text: "How many people it reached, what happened to the phone notifications, and how many opened it.",
+      },
+      {
+        target: "messages.actions",
+        title: "Stop or take it back",
+        text: "Stop sending halts it at once. Withdraw removes it from every inbox, but notifications already shown on phones stay.",
+        roles: ["admin", "manager"],
+        shownWhen: "Admin or manager",
+      },
+      {
+        target: "page-more",
+        title: "Use it again",
+        text: "Start a new message with the same words and audience.",
+        roles: ["admin", "manager"],
+        shownWhen: "Admin or manager",
+      },
+      {
+        target: "page-more",
+        title: "Activity",
+        text: "Who wrote, tested, sent, stopped or withdrew it, and when.",
       },
     ],
   },

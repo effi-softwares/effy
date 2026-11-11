@@ -1,12 +1,9 @@
 // One definition of "can this driver receive work", shared by every repository that asks.
 
-/** An open duty session (`ended_at IS NULL`); a partial unique index allows one per driver. */
 import { OPERATING_TZ } from "@effy/shared-types"
 
-export const ON_DUTY_EXISTS = `EXISTS (
-  SELECT 1 FROM public.driver_duty_session s
-   WHERE s.driver_id = d.id AND s.ended_at IS NULL
-)`;
+/** An open duty session; one copy, in the shared library (112). */
+export { ON_DUTY_EXISTS } from "@effy/edge-shared";
 
 /**
  * Why this driver cannot be given work, as a text[]; empty means ready. Enumerated, because each

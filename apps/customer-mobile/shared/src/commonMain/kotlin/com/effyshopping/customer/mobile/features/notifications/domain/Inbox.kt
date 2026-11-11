@@ -20,7 +20,15 @@ data class InboxItem(
     val read: Boolean,
     /** "Ends Sun" for offers, news and important notices with an end; otherwise null. */
     val endsLabel: String?,
-)
+    /** A message's picture (112): shown when it is opened. */
+    val imageUrl: String? = null,
+) {
+    /** A message from Effy's team (112): read in its sheet, with its picture, before going anywhere. */
+    val isMessage: Boolean get() = type == "customer_message"
+
+    /** Offers and news (111) and messages (112) open their sheet first; everything else goes where it leads. */
+    val opensDetail: Boolean get() = destination == null || isMessage || category == "offers" || category == "news"
+}
 
 data class InboxPage(
     val pinned: List<InboxItem>,

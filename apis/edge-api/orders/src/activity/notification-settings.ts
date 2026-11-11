@@ -4,6 +4,8 @@ import { activityFact, staffNameSql, type ActivityRow, type ActivitySource } fro
 const FIELD_WORDS: Record<string, string> = {
   promoPushPerDay: "Promotional notifications per day",
   promoPushPerWeek: "Promotional notifications per week",
+  // 112: the most people one back-office message may reach.
+  maxRecipientsPerMessage: "Largest message (people)",
 };
 
 function entry(r: ActivityRow) {

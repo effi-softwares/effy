@@ -24,6 +24,9 @@ const ACTIVITY_ROUTES = [
   "/shop/v1/team-activity",
   "/shop/v1/orders/{id}/activity",
   "/inventory/v1/products/{productId}/stock/activity",
+  // 112: a message's own log, and what one person or shop received.
+  "/admin/v1/messages/{id}/activity",
+  "/admin/v1/messages/received",
 ] as const;
 
 function handlerFileOf(path: string): string {

@@ -26,6 +26,7 @@ export * from "./lib/collection-deadline";
 export * from "./lib/proof-prefix";
 export * from "./lib/custody";
 export * from "./lib/driver-eligibility";
+export * from "./lib/driver-duty";
 export * from "./lib/money";
 export * from "./lib/availability";
 export * from "./lib/stock-state";

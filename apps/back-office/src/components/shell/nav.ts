@@ -15,6 +15,7 @@ import {
   PackageX,
   Settings,
   Warehouse,
+  Send,
   Store,
   Truck,
 } from "lucide-react"
@@ -95,6 +96,8 @@ export const NAV_GROUPS: readonly NavGroup[] = [
         ],
       },
       { key: "shops", label: "Shops", to: "/shops", icon: Store },
+      // 112: what Effy sends from back-office to customers, drivers and shops.
+      { key: "messages", label: "Messages", to: "/messages", icon: Send },
     ],
   },
   {

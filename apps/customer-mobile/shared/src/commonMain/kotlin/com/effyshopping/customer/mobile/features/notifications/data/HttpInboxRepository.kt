@@ -105,6 +105,7 @@ class HttpInboxRepository(private val edge: HttpClient) : InboxRepository {
         createdAt = dto.createdAt,
         read = dto.readAt != null,
         endsLabel = dto.endsLabel,
+        imageUrl = dto.imageURL,
     )
 
     private suspend inline fun <T> request(block: () -> T): T =

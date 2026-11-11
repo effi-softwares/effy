@@ -41,6 +41,8 @@ type Filter = "all" | "unread"
 type InboxItem = InboxItemDTO
 
 const isMarketing = (category: string) => category === "offers" || category === "news"
+/** A message from Effy's team (112): read where it is, with its picture, before going anywhere. */
+const isMessage = (type: string) => type === "customer_message"
 const destinationOf = (item: InboxItemDTO) => parseDestination("customer", item.destination) as CustomerDestination | null
 
 /**
@@ -117,8 +119,9 @@ export function InboxView({ initial, filter, category }: { initial: InboxPageDTO
     const destination = parseDestination("customer", item.destination) as CustomerDestination | null
     capture({ name: "inbox_item_opened", props: { type: item.type, category: item.category, fallback: destination ? "false" : "true" } })
     void post(`/api/notifications/${encodeURIComponent(item.id)}/read`)
-    // 111 FR-024: an offer or news item always opens its detail first, where it can be stopped.
-    if (destination && !isMarketing(item.category)) router.push(customerWebPathFor(destination))
+    // 111 FR-024: an offer or news item always opens its detail first, where it can be stopped; so does a message
+    // from Effy (112), whose words and picture are the point.
+    if (destination && !isMarketing(item.category) && !isMessage(item.type)) router.push(customerWebPathFor(destination))
     else setDetail(item)
   }
 
@@ -238,8 +241,27 @@ export function InboxView({ initial, filter, category }: { initial: InboxPageDTO
       )}
 
       <Dialog open={detail !== null} onOpenChange={(o) => !o && setDetail(null)} title={detail?.title ?? ""}>
-        <p>{detail?.body}</p>
+        {detail?.imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element -- Effy's public picture address, already sized at upload.
+          <img src={detail.imageUrl} alt="" className="mb-3 aspect-video w-full rounded-md object-cover" />
+        ) : null}
+        <p className="whitespace-pre-line">{detail?.body}</p>
         {detail?.endsLabel ? <p className="mt-2 text-sm text-muted-foreground">{detail.endsLabel}</p> : null}
+        {detail && isMessage(detail.type) && !isMarketing(detail.category) && destinationOf(detail) ? (
+          <div className="mt-4">
+            <button
+              type="button"
+              className={btnClass("primary", "md")}
+              onClick={() => {
+                const d = destinationOf(detail)!
+                setDetail(null)
+                router.push(customerWebPathFor(d))
+              }}
+            >
+              Open
+            </button>
+          </div>
+        ) : null}
         {detail && isMarketing(detail.category) ? (
           <div className="mt-4 flex flex-wrap items-center gap-4">
             {destinationOf(detail) ? (

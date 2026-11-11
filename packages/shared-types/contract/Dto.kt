@@ -436,6 +436,13 @@ data class InboxItemDTO (
     val endsLabel: String? = null,
 
     val id: String,
+
+    /**
+     * A message's picture (112), at Effy's public picture address; null for everything else.
+     */
+    @SerialName("imageUrl")
+    val imageURL: String? = null,
+
     val importance: Importance,
     val pinnedUntil: String? = null,
     val readAt: String? = null,

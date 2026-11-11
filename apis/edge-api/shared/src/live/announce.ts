@@ -14,7 +14,7 @@ export type LiveChange =
   | { scope: "shop"; shopId: string; kind: "orders" | "stock" | "attention" | "taxonomy" | "products" | "inbox" }
   | { scope: "customer"; sub: string; kind: "orders" | "points" | "inbox" }
   | { scope: "driver"; driverId: string; kind: "work" | "inbox" }
-  | { scope: "ops"; kind: "orders" | "dispatch" | "slots" | "review" | "points" | "coverage" | "pricing" | "promotions" | "taxonomy" | "products" };
+  | { scope: "ops"; kind: "orders" | "dispatch" | "slots" | "review" | "points" | "coverage" | "pricing" | "promotions" | "taxonomy" | "products" | "messages" };
 
 /** One namespace for the platform. */
 export const LIVE_METRIC_NAMESPACE = "Effy/Live";

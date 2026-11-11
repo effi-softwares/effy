@@ -30,7 +30,7 @@ const iso = (msAgo: number) => new Date(NOW - msAgo).toISOString().replace("Z", 
 function item(id: string, msAgo: number, extra: Partial<InboxItemDTO> = {}): InboxItemDTO {
   return {
     id, type: "shop_new_order", category: "orders", importance: "normal", title: `New order ${id}`, body: "A new order needs picking.",
-    destination: { kind: "queue", fulfillmentId: `f-${id}` }, createdAt: iso(msAgo), readAt: null, pinnedUntil: null, endsLabel: null, ...extra,
+    destination: { kind: "queue", fulfillmentId: `f-${id}` }, createdAt: iso(msAgo), readAt: null, pinnedUntil: null, endsLabel: null, imageUrl: null, ...extra,
   }
 }
 
@@ -70,6 +70,25 @@ describe("the shop inbox (110 US2)", () => {
     expect(markNotificationRead).toHaveBeenCalledWith("a")
     expect(push).toHaveBeenCalledWith("/orders/f-a")
     expect(onOpened).toHaveBeenCalled()
+  })
+
+  it("a message from Effy opens where it is, with its picture, and Open goes where it leads (112)", async () => {
+    const msg = item("m", 60_000, {
+      type: "shop_message",
+      category: "announcements",
+      title: "New labels from Monday",
+      body: "Effy's new labels arrive Monday.",
+      destination: { kind: "catalog" },
+      imageUrl: "https://media.example.test/promotions/messages-1/a.webp",
+    })
+    wrap(<InboxList pinned={[]} items={[msg]} loading={false} hasMore={false} loadingMore={false} />)
+    await userEvent.click(screen.getByText("New labels from Monday"))
+    expect(markNotificationRead).toHaveBeenCalledWith("m")
+    expect(push).not.toHaveBeenCalled()
+    expect(await screen.findByRole("dialog")).toHaveTextContent("Effy's new labels arrive Monday.")
+    expect(screen.getByRole("dialog").querySelector("img")?.getAttribute("src")).toBe(msg.imageUrl)
+    await userEvent.click(screen.getByRole("button", { name: "Open" }))
+    expect(push).toHaveBeenCalledWith("/catalog")
   })
 
   it("archive asks the server and offers Undo, which restores it", async () => {

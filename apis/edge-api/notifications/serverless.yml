@@ -60,6 +60,11 @@ provider:
     NOTIF_BATCH_SIZE: ${param:notifBatchSize}
     RECEIPT_MAX_ATTEMPTS: ${param:receiptMaxAttempts}
     RECEIPT_BATCH_SIZE: ${param:receiptBatchSize}
+    # 112: the messages worker tells open inboxes and back-office that something moved, and writes each message's
+    # picture as its public address.
+    LIVE_HTTP_HOST: ${ssm:/effy/${sls:stage}/live/http_host}
+    LIVE_REALTIME_HOST: ${ssm:/effy/${sls:stage}/live/realtime_host}
+    MEDIA_PUBLIC_BASE_URL: ${ssm:/effy/${sls:stage}/media/public_base_url}
   iam:
     role:
       statements:
@@ -74,6 +79,10 @@ provider:
           Resource:
             - ${ssm:/effy/${sls:stage}/ses/identity_arn}
             - ${ssm:/effy/${sls:stage}/ses/configuration_set_arn}
+        # 112: live updates from the messages worker (inboxes, back-office).
+        - Effect: Allow
+          Action: appsync:EventPublish
+          Resource: ${ssm:/effy/${sls:stage}/live/api_arn}/channelNamespace/*
   layers:
     - ${param:secretsExtensionArn}
   # No provider.vpc: without NAT an in-VPC Lambda cannot reach AWS APIs or FCM (dev only).
@@ -117,6 +126,15 @@ functions:
     handler: src/worker/handler.handler
     description: Send notification deliveries in batches (FCM sendEach, SES) until the run's time budget is spent; prune dead tokens (050, 109).
     timeout: 60
+    events:
+      - schedule: ${param:drainSchedule}
+
+  # 112: back-office messages - due ones start, sending ones are written 1,000 people a page (resumable), withdrawn
+  # ones are announced to open inboxes. Passes may overlap; each page locks its message (SKIP LOCKED).
+  messages:
+    handler: src/messages/handler.handler
+    description: Send back-office messages in resumable pages through notify(); start due ones; announce withdrawals (112).
+    timeout: 300
     events:
       - schedule: ${param:drainSchedule}
 
