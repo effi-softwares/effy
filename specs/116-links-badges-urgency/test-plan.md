@@ -102,11 +102,61 @@ On Android the "badge" is the dot on the app icon and the Effy notifications in 
 - [ ] **2.4 Open in the app.** Open the app's inbox. ✅ The remaining notifications leave the tray at once, and the dot
   goes.
 - [ ] **2.5 Sign out.** Send one more, see it in the tray, then sign out of the app. ✅ The tray clears.
-- [ ] **2.6 Driver app (optional).** Repeat 2.1–2.2 with a driver account: back-office › Messages › an
-  **Announcement** to that one driver, then open the driver's inbox on another phone, or archive from the app on a
-  second device. ✅ The first phone's notification goes within about 2 minutes.
+- [ ] **2.6 Driver app.** See Part 2D.
 
 > If a correction is slow: phones in deep sleep receive silent messages late. Wake the screen and it should catch up.
+
+---
+
+## Part 2D - The driver app
+
+The driver app gets the badge and urgency changes (no links - drivers aren't sent emails that open their app). Drivers
+have no web inbox, so the "changed somewhere else" check is a **withdrawal** from back-office.
+
+**You need:** a test driver account (signed in by email code) and back-office access. About 10 minutes.
+
+**Set up**
+
+- [ ] **2D.0 Install the new build.** In `apps/driver-mobile`:
+  ```
+  ./gradlew :androidApp:installRelease
+  ```
+  If it fails with `INSTALL_FAILED_UPDATE_INCOMPATIBLE` (the old copy was signed with another key), uninstall it first -
+  this only signs the driver out on this phone:
+  ```
+  adb uninstall com.effyshopping.driver.mobile
+  ./gradlew :androidApp:installRelease
+  ```
+- [ ] **2D.1 Sign in.** Open the **driver** app, sign in with the test driver, and **allow notifications** when asked.
+  ✅ You reach Today.
+
+**Badge**
+
+- [ ] **2D.2 Two notifications.** In back-office › Messages › New message: kind **Announcement**, To **Drivers**, narrowed
+  to that one driver (chosen drivers). Send "Driver badge 1", then "Driver badge 2".
+  ✅ Two Effy driver notifications in the tray; the app icon shows a dot.
+- [ ] **2D.3 Withdraw one.** Don't open the driver app. In back-office open "Driver badge 2" and **Withdraw** it.
+  ✅ Within about **2 minutes** only "Driver badge 2" leaves the tray; "Driver badge 1" stays. No buzz, no sound.
+- [ ] **2D.4 Open in the app.** Open the driver app's inbox (the bell).
+  ✅ "Driver badge 1" leaves the tray at once; the dot goes.
+- [ ] **2D.5 Sign out.** Send one more announcement, see it in the tray, then sign out of the driver app.
+  ✅ The tray clears.
+- [ ] **2D.6 Reopen after a cold start (no wipe).** Sign in again, send one more, then force-close the app
+  (`adb shell am force-stop com.effyshopping.driver.mobile`) and open it again.
+  ✅ The notification is still in the tray while the app starts - opening the app alone never clears the badge before
+  it knows the count. (Opening the inbox does.)
+
+**Urgency (nothing changes on Android)**
+
+- [ ] **2D.7** Send the driver an **Important** message, then an **Announcement**.
+  ✅ The important one arrives with sound in the driver app's **Important** category; the announcement arrives quietly
+  in **Announcements** - exactly as before 116.
+
+**After the paid Apple account (iPhone driver app)** - with steps 1–6 of "After paying" done:
+
+- [ ] **2D.8** Repeat 2D.2–2D.3 on an iPhone. ✅ The red number on the icon goes from 2 to 1 within about 2 minutes.
+- [ ] **2D.9** With a Focus mode silencing the driver app, send an **Important** message. ✅ It breaks through, labelled
+  **Time Sensitive**.
 
 ---
 

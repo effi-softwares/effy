@@ -4,8 +4,9 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
-**116-links-badges-urgency** - Reaching the Right Place ([spec](specs/116-links-badges-urgency/spec.md)). 🔨 **BUILT 2026-11-12;
-NOT MIGRATED, APPLIED, DEPLOYED OR WALKED.** The last notifications backlog items (B7, C6, D7): the backlog is complete.
+**116-links-badges-urgency** - Reaching the Right Place ([spec](specs/116-links-badges-urgency/spec.md)). ✅ **APPLIED, MIGRATED AND
+DEPLOYED TO DEV 2026-11-12; CUSTOMER APP WALKED ON ANDROID (links Part 1, badge Part 2, urgency Part 3 of `test-plan.md`).
+Driver app walk pending; iPhone half waits for the paid Apple account.** The last notifications backlog items (B7, C6, D7): the backlog is complete.
 Android works now; the iPhone halves are built and switched off until the paid Apple account.
 - **Migration** `20261113120000_badge_corrections.sql` (additive; goose up / down-to 20261113090000 / up on local Postgres):
   `notification_badge_correction` (one row per person and audience, customer/driver), `notification_badge_sweep` (the
