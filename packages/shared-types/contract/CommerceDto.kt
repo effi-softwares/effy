@@ -662,6 +662,14 @@ data class CreateCheckoutIntentRequest (
     val shownDeliveryAmount: String? = null,
 
     /**
+     * 114: the payable lines the checkout displayed (the cart's quantities, already capped
+     * where stock is short). The server compares them, as a set, with what it can sell and hold
+     * now; any difference is 409 `stock_changed` with nothing charged. Required: a client that
+     * skipped it could be charged for a basket it never showed.
+     */
+    val shownLines: List<ShownLine>,
+
+    /**
      * Set by a client rendering a provider-owned payment-method list (mobile), which needs a
      * customer session; always minted for the authenticated subject. There is no
      * `billingDetails` here: they derive from the order's snapshot.
@@ -695,6 +703,17 @@ data class DeliveryWindow (
 
     @SerialName("slotId")
     val slotID: String
+)
+
+/**
+ * One payable line as the checkout showed it (114).
+ */
+@Serializable
+data class ShownLine (
+    val quantity: Long,
+
+    @SerialName("variantId")
+    val variantID: String
 )
 
 @Serializable

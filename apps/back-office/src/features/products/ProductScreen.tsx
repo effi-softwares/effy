@@ -158,6 +158,9 @@ function sizesOf(p: BackOfficeProductDTO): SizeView[] {
       stock: {
         tracked: v.stockTracked,
         onHand,
+        // 114: what shoppers' checkouts hold; never changes the shelf count.
+        held: v.stockHeld ?? 0,
+        leftToSell: v.stockTracked ? Math.max(0, (onHand ?? 0) - (v.stockHeld ?? 0)) : null,
         alertAt: v.lowStockThreshold,
         out: v.stockTracked && onHand === 0,
         low:

@@ -5,6 +5,7 @@ import com.effyshopping.customer.mobile.commerce.contract.DeliveryChoiceRefusalD
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryChoiceRefused
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryFeeChanged
 import com.effyshopping.customer.mobile.features.checkout.domain.PromotionsChanged
+import com.effyshopping.customer.mobile.features.checkout.domain.StockChanged
 import com.effyshopping.customer.mobile.features.checkout.domain.PointsRefusal
 import com.effyshopping.customer.mobile.features.checkout.domain.PointsRefused
 import io.ktor.client.statement.bodyAsText
@@ -48,6 +49,8 @@ class HttpCheckoutRepository(private val edge: HttpClient) : CheckoutRepository,
             // The delivery total is not the one shown; the body carries the fresh quote.
             if (response.status == HttpStatusCode.Conflict) feeChangedOrNull(body)?.let { throw it }
             if (response.status == HttpStatusCode.Conflict) promotionsChangedOrNull(body)?.let { throw it }
+            // 114: the cart changed while paying; nothing was held or charged.
+            if (response.status == HttpStatusCode.Conflict) stockChangedOrNull(body)?.let { throw it }
             // A points refusal, with the most the server would take when it said.
             pointsRefusalOrNull(body)?.let { throw it }
         }
@@ -87,6 +90,8 @@ class HttpCheckoutRepository(private val edge: HttpClient) : CheckoutRepository,
         } catch (e: DeliveryFeeChanged) {
             throw e
         } catch (e: PromotionsChanged) {
+            throw e
+        } catch (e: StockChanged) {
             throw e
         } catch (e: IOException) {
             throw AppException(AppError.Network)
@@ -134,6 +139,13 @@ internal fun promotionsChangedOrNull(body: String): PromotionsChanged? = runCatc
     val dto = refusalJson.decodeFromString(FeeChangedBody.serializer(), body)
     if (dto.code != "promotions_changed") return@runCatching null
     PromotionsChanged()
+}.getOrNull()
+
+/** 114: decode a "stock changed" refusal, or null when the body is some other conflict. */
+internal fun stockChangedOrNull(body: String): StockChanged? = runCatching {
+    val dto = refusalJson.decodeFromString(FeeChangedBody.serializer(), body)
+    if (dto.code != "stock_changed") return@runCatching null
+    StockChanged()
 }.getOrNull()
 
 @kotlinx.serialization.Serializable

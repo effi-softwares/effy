@@ -10,9 +10,12 @@ import {
   COVERAGE_REFUSAL_SENTENCE,
   DELIVERY_FEE_CHANGED_CODE,
   PROMOTIONS_CHANGED_CODE,
+  STOCK_CHANGED_CODE,
+  STOCK_CHANGED_MESSAGE,
   DELIVERY_FEE_WORDS,
   DELIVERY_WINDOW_WORDS,
   type AddressDTO,
+  type CartDTO,
   type CreateCheckoutIntentResponse,
   type DeliveryQuoteDTO,
 } from "@effy/shared-types"
@@ -30,7 +33,8 @@ import {
   sameInstructions,
   type InstructionsDraft,
 } from "@/lib/delivery-instructions"
-import { useCart, useCartMirror } from "@/lib/cart-store"
+import { adopt, shownLines, useCart, useCartMirror } from "@/lib/cart-store"
+import { refreshCart } from "@/lib/cart-sync"
 import { computeCartTotals, formatCents, parseCents } from "@/lib/cart-totals"
 import {
   carryWindow,
@@ -337,6 +341,9 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
       if (deliveryFee) body.shownDeliveryAmount = deliveryFee.totalAmount
       // The promotions total this page shows; a different one is refused before anything is charged.
       body.expectedDiscount = formatCents(goodsDiscountCents + deliveryOfferCents)
+      // 114: the lines this page shows. If another shopper took stock since, the server refuses (409
+      // `stock_changed`) and nothing is held or charged; the shopper sees the cart as it is now and pays again.
+      body.shownLines = shownLines(guestLines)
       const res = await fetch("/api/checkout/intent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -346,6 +353,8 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
       const data = (await res.json().catch(() => ({}))) as Partial<CreateCheckoutIntentResponse> & {
         error?: string
         code?: string
+        /** On 409 `stock_changed` (114): the cart as it is now. */
+        cart?: CartDTO
       }
       // The window could not be honoured. Nothing has been charged and no payment
       // exists. The choice is not replaced: the shopper is brought back to the options, told
@@ -380,6 +389,17 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
         setIntent(null)
         setStep("review")
         setError(DELIVERY_FEE_WORDS.feeChanged)
+        setQuoteEpoch((n) => n + 1)
+        return false
+      }
+      // 114: the cart changed while paying (another shopper took stock, or a line went off sale). Nothing was
+      // charged; the cart this page shows is brought up to date, its lines say what changed, and the shopper pays again.
+      if (res.status === 409 && data.code === STOCK_CHANGED_CODE) {
+        capture({ name: "checkout_stock_changed", props: {} })
+        if (!(data.cart && adopt(data.cart))) await refreshCart()
+        setIntent(null)
+        setStep("review")
+        setError(STOCK_CHANGED_MESSAGE)
         setQuoteEpoch((n) => n + 1)
         return false
       }

@@ -59,7 +59,28 @@ export interface CreateCheckoutIntentRequest {
    * `promotions_changed` with the current cart, nothing written.
    */
   expectedDiscount?: string | null;
+  /**
+   * 114: the payable lines the checkout displayed (the cart's quantities, already capped where stock is short). The
+   * server compares them, as a set, with what it can sell and hold now; any difference is 409 `stock_changed` with
+   * nothing charged. Required: a client that skipped it could be charged for a basket it never showed.
+   */
+  shownLines: ShownLine[];
 }
+
+/** One payable line as the checkout showed it (114). */
+export interface ShownLine {
+  variantId: string;
+  quantity: WireInt;
+}
+
+/** The problem `code` when the lines shown differ from what can be sold and held now (114). */
+export const STOCK_CHANGED_CODE = "stock_changed";
+
+/**
+ * The one sentence a shopper reads with that refusal, on the website and the app (the app's twin is pinned to
+ * checkout-words.fixtures.json). The cart, re-read after it, says which line changed in 054's existing words.
+ */
+export const STOCK_CHANGED_MESSAGE = "Some items in your cart changed while you were paying. Check your order, then pay again.";
 
 /** The problem `code` when the promotions total differs from the one shown. */
 export const PROMOTIONS_CHANGED_CODE = "promotions_changed";

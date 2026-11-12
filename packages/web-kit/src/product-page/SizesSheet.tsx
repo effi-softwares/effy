@@ -2,7 +2,7 @@ import { useRef, type KeyboardEvent, type ReactNode } from "react";
 
 import { cn } from "@effy/design-system";
 import { Input, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@effy/design-system/ui";
-import { unitPriceText } from "@effy/shared-types";
+import { heldStockWords, unitPriceText } from "@effy/shared-types";
 
 import { STOCK_STATE_WORDS, stockState, weightText, type SizeView } from "./model";
 import { SizeMark } from "./SizesFocus";
@@ -151,6 +151,10 @@ export function SizesSheet({
                     <span className="text-muted-foreground">{STOCK_STATE_WORDS.untracked}</span>
                   )}
                   {stockAction ? <span className="ml-1.5 inline-flex align-middle">{stockAction(s)}</span> : null}
+                  {/* 114: what shoppers' checkouts hold, under the shelf count. */}
+                  {heldStockWords(s.stock.held, s.stock.leftToSell) ? (
+                    <span className="mt-0.5 block text-xs font-normal text-muted-foreground">{heldStockWords(s.stock.held, s.stock.leftToSell)}</span>
+                  ) : null}
                 </TableCell>
                 {onSaleControl ? <TableCell>{onSaleControl(s)}</TableCell> : null}
               </TableRow>

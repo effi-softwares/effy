@@ -85,6 +85,12 @@ export function runWords(job: HousekeepingJob, counts: Readonly<Record<string, n
 /** The abandon time's bounds (the CHECK on `housekeeping_settings.abandon_after_min`). */
 export const ABANDON_LIMITS = { min: 60, max: 10080, default: 1440 } as const
 
+/**
+ * 114: how long checkout holds stock after the shopper presses Pay, in minutes. Never longer than the shortest abandon
+ * time, so a hold never outlives its order.
+ */
+export const STOCK_HOLD_LIMITS = { min: 5, max: 60, default: 15 } as const
+
 /** "24 hours", "90 minutes", "7 days". Days only from two days, so the default reads as the spec says it. */
 export function abandonWords(minutes: number): string {
   const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`
@@ -113,14 +119,17 @@ export interface HousekeepingJobDTO {
 /** GET /orders/v1/housekeeping */
 export interface HousekeepingDTO {
   abandonAfterMinutes: WireInt
+  /** 114: how long checkout holds stock (STOCK_HOLD_LIMITS). */
+  stockHoldMinutes: WireInt
   /** The stored `updated_at`, sent back on a change. */
   version: string
   mayEdit: boolean
   jobs: HousekeepingJobDTO[]
 }
 
-/** PUT /orders/v1/housekeeping/settings (admins only). */
+/** PUT /orders/v1/housekeeping/settings (admins only). At least one of the two settings. */
 export interface HousekeepingSettingsUpdate {
-  abandonAfterMinutes: WireInt
+  abandonAfterMinutes?: WireInt
+  stockHoldMinutes?: WireInt
   version: string
 }

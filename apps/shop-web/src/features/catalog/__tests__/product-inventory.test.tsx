@@ -38,6 +38,8 @@ function stockDetail(over: Partial<ProductStockDetailDTO["stock"]> = {}): Produc
       variantId: "v1",
       tracked: true,
       onHand: 12,
+      held: 0,
+      leftToSell: 12,
       threshold: null,
       effectiveThreshold: null,
       outOfStock: false,

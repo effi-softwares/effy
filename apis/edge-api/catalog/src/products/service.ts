@@ -101,6 +101,8 @@ export async function detail(rawProductId: string | undefined): Promise<BackOffi
         ...v,
         stockTracked: s?.stock_tracked ?? false,
         stockOnHand: s?.stock_on_hand ?? null,
+        // 114: null when untracked, like the count.
+        stockHeld: s?.stock_tracked ? Number(s.stock_held) : null,
         lowStockThreshold: s?.low_stock_threshold ?? null,
       };
     }),

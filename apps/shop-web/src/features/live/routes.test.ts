@@ -42,5 +42,7 @@ describe("console lists sit under their live roots (103 T049)", () => {
     expect(under(PRODUCTS_ROOT, "products")).toBe(true)
     expect(under(AVAILABILITY_ROOT, "stock")).toBe(true)
     expect(under([...STOCK_ROOT, "variant", "v1", "movements"], "stock")).toBe(true)
+    // 114: a product page's "in checkouts" numbers move with stock.
+    expect(under(["shop", "catalog", "product", "p1"], "stock")).toBe(true)
   })
 })

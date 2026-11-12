@@ -117,6 +117,15 @@ export function linePayload(lines: readonly GuestCartLine[]): { variantId: strin
 }
 
 /**
+ * 114: the payable lines the checkout shows, as payment start must carry them (`shownLines`): available lines only,
+ * at the quantity the platform said can be sold. The server refuses (409 `stock_changed`) when they are not what it
+ * can sell and hold now, so the shopper is never charged for a basket they did not see.
+ */
+export function shownLines(lines: readonly GuestCartLine[]): { variantId: string; quantity: number }[] {
+  return lines.filter((l) => l.available !== false && l.quantity > 0).map((l) => ({ variantId: l.variantId, quantity: l.quantity }))
+}
+
+/**
  * Group cart lines into anonymous packages by `packageKey`, in first-appearance order.
  * The label the UI shows is a positional "Package N" - never the key, and never a shop. A cart whose
  * lines all share one key returns a single package (single-shop degrades gracefully - FR-007/SC-011).

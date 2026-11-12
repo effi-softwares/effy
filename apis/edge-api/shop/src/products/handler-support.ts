@@ -96,7 +96,7 @@ export function toDetailDTO(d: ProductDetail): ProductDetailDTO {
       mediaId: v.mediaId,
       state: v.state,
       stock: stockState({
-        productId: d.id, variantId: v.id, tracked: v.stockTracked, onHand: v.stockOnHand,
+        productId: d.id, variantId: v.id, tracked: v.stockTracked, onHand: v.stockOnHand, held: v.stockHeld,
         threshold: v.lowStockThreshold, shopDefaultThreshold: d.shopDefaultThreshold,
       }),
     })),

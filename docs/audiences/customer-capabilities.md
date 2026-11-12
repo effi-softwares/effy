@@ -365,7 +365,7 @@ Notifications (+ empty) · Order tracking · FAQs · Help Center · Customer Ser
 | Capability | customer-web | customer-mobile |
 |---|---|---|
 | Onboarding introduction | ➖ n/a | ✅ first-launch, device-local |
-| Notifications screen | ➖ n/a | ✅ **fixture-backed** - no notifications capability exists |
+| Notifications (inbox) | ✅ `/account/notifications` + header bell (110) | ✅ inbox with a live bell (110); preferences per category (111) |
 | Order tracking timeline | ➖ | ✅ real 020 state; no map, address or courier (FR-037) |
 | FAQs · Help Center · Customer Service | ➖ | ✅ static content |
 | Device preference store | ➖ n/a | ✅ new - `DevicePreferences` (Android/iOS) |

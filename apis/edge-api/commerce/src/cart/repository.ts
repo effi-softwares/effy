@@ -4,7 +4,7 @@
 // Every mutation runs in one transaction with the `cart.revision` bump and the `cart_change_log`
 // guard, and is either idempotent (absolute quantities; merge and reorder take the maximum) or
 // carries a change id (add). There is no whole-cart replace: a stale device must not wipe lines.
-import { pooled, renditionWidthsSql, withTransaction, type Queryable, type Transactor } from "@effy/edge-shared";
+import { pooled, renditionWidthsSql, stockHeldSql, withTransaction, type Queryable, type Transactor } from "@effy/edge-shared";
 import { variantLabelSql } from "@effy/edge-shared/catalog";
 import type { PackUnit, UnitBasis } from "@effy/shared-types";
 
@@ -30,6 +30,8 @@ export interface CartLineRow {
   stock_tracked: boolean;
   /** Null exactly when the variant is untracked. */
   stock_on_hand: number | null;
+  /** 114: other shoppers' live checkout holds on this variant (the rule's own sum); 0 when none. */
+  stock_held: number;
   pack_quantity: string | null;
   pack_unit: PackUnit | null;
   unit_basis: UnitBasis | null;
@@ -52,6 +54,8 @@ export interface VariantStatusRow {
   price_amount: string | null;
   stock_tracked: boolean;
   stock_on_hand: number | null;
+  /** 114: other shoppers' live checkout holds on this variant (the rule's own sum); 0 when none. */
+  stock_held: number;
 }
 
 /** One line of a past order as a candidate for re-adding. */
@@ -68,6 +72,8 @@ export interface ReorderCandidate {
   variant_state: string | null;
   stock_tracked: boolean | null;
   stock_on_hand: number | null;
+  /** 114: other shoppers' live checkout holds on this variant (the rule's own sum); 0 when none. */
+  stock_held: number;
 }
 
 const LINE_PROJECTION = `
@@ -85,6 +91,7 @@ const LINE_PROJECTION = `
        p.status               AS status,
        v.stock_tracked        AS stock_tracked,
        v.stock_on_hand        AS stock_on_hand,
+       ${stockHeldSql("v", "(SELECT cc.customer_id FROM public.cart cc WHERE cc.id = ci.cart_id)")} AS stock_held,
        v.pack_quantity::text  AS pack_quantity,
        v.pack_unit            AS pack_unit,
        p.unit_basis           AS unit_basis,
@@ -109,7 +116,8 @@ export interface CartRepository {
   lines(cartId: string): Promise<CartLineRow[]>;
   /** Payable lines, set-aside lines and the revision in one round trip. */
   allLines(cartId: string): Promise<{ lines: CartLineRow[]; saved: CartLineRow[]; revision: number }>;
-  variantStatus(variantId: string): Promise<VariantStatusRow | null>;
+  /** `customerId`: whose own checkout holds are not counted against them (114); null for nobody. */
+  variantStatus(variantId: string, customerId: string | null): Promise<VariantStatusRow | null>;
   variantSnapshots(variantIds: readonly string[]): Promise<CartLineRow[]>;
   orderItemsForReorder(customerId: string, orderId: string): Promise<ReorderCandidate[] | null>;
 
@@ -231,16 +239,17 @@ ORDER BY saved, added_at ASC, id ASC`,
       return { lines: all.filter((r) => !r.saved), saved: all.filter((r) => r.saved), revision };
     },
 
-    async variantStatus(variantId) {
+    async variantStatus(variantId, customerId) {
       return (
         (
           await db.query<VariantStatusRow>(
             `
 SELECT v.product_id::text AS product_id, p.status AS status, v.state AS variant_state,
-       v.price_amount::text AS price_amount, v.stock_tracked AS stock_tracked, v.stock_on_hand AS stock_on_hand
+       v.price_amount::text AS price_amount, v.stock_tracked AS stock_tracked, v.stock_on_hand AS stock_on_hand,
+       ${stockHeldSql("v", "$2::uuid")} AS stock_held
 FROM public.product_variant v JOIN public.product p ON p.id = v.product_id
 WHERE v.id = $1`,
-            [variantId],
+            [variantId, customerId],
           )
         ).rows[0] ?? null
       );
@@ -266,6 +275,7 @@ SELECT ''::text              AS id,
        p.status              AS status,
        v.stock_tracked       AS stock_tracked,
        v.stock_on_hand       AS stock_on_hand,
+       ${stockHeldSql("v")}  AS stock_held,
        v.pack_quantity::text AS pack_quantity,
        v.pack_unit           AS pack_unit,
        p.unit_basis          AS unit_basis,
@@ -296,7 +306,8 @@ SELECT oi.product_id::text AS product_id,
        p.status            AS status,
        v.state             AS variant_state,
        v.stock_tracked     AS stock_tracked,
-       v.stock_on_hand     AS stock_on_hand
+       v.stock_on_hand     AS stock_on_hand,
+       ${stockHeldSql("v", "o.customer_id")} AS stock_held
 FROM public."order" o
 JOIN public.order_item oi ON oi.order_id = o.id
 LEFT JOIN public.product p ON p.id = oi.product_id

@@ -8,6 +8,7 @@
  */
 
 import { pooled, withTransaction, type Queryable, type Transactor } from "../lib/db";
+import { announceStockChange, meterStockHoldsEnded } from "../stock/announce";
 import { finalizeAbandoned, type AbandonOutcome } from "./finalize";
 import type { IntentStatus, PaymentGateway } from "./gateway";
 
@@ -69,5 +70,11 @@ export async function abandonOrder(deps: AbandonDeps, orderId: string): Promise<
   }
 
   const outcome = await transact((tx) => finalizeAbandoned(tx, orderId, now()));
+  if (outcome.applied) {
+    // 114: after the commit - its checkout stock is back on sale, and the shops and back-office are told.
+    const r = outcome.stockReleased;
+    meterStockHoldsEnded("abandoned", { live: r.released - r.lapsed, lapsed: r.lapsed });
+    await announceStockChange(r.shopIds);
+  }
   return outcome.applied ? { result: "abandoned", outcome } : { result: "gone" };
 }

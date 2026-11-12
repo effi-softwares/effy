@@ -1,6 +1,6 @@
 // Availability (099): every size of this shop's live or unavailable products, with its stock and
 // whether it is on sale. Read only — a size goes on or off sale through the variant state route.
-import { likePattern, prefixPattern, query, stockState, type Queryable } from "@effy/edge-shared";
+import { likePattern, prefixPattern, query, stockHeldSql, stockState, type Queryable } from "@effy/edge-shared";
 import { variantLabelSql } from "@effy/edge-shared/catalog";
 import type { AvailabilityFilter, ProductStockDTO } from "@effy/shared-types";
 
@@ -44,6 +44,7 @@ WITH sizes AS (
          v.state,
          v.stock_tracked,
          v.stock_on_hand,
+         ${stockHeldSql("v")} AS stock_held,
          v.low_stock_threshold,
          v."position",
          ss.default_low_stock_threshold AS shop_default_threshold,
@@ -84,6 +85,7 @@ interface SizeDbRow {
   state: "active" | "inactive";
   stock_tracked: boolean;
   stock_on_hand: number | null;
+  stock_held: number;
   low_stock_threshold: number | null;
   shop_default_threshold: number | null;
   active_sizes: string;
@@ -109,6 +111,7 @@ function toRow(r: SizeDbRow): AvailabilityRow {
       variantId: r.variant_id,
       tracked: r.stock_tracked,
       onHand: r.stock_on_hand,
+      held: Number(r.stock_held),
       threshold: r.low_stock_threshold,
       shopDefaultThreshold: r.shop_default_threshold,
     }),

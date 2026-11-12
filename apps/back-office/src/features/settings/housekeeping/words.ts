@@ -22,3 +22,6 @@ export const whenWords = (iso: string | null): string => (iso ? when.format(new 
 
 /** The abandon time is edited in whole hours: 1 to 168 (7 days). */
 export const ABANDON_HOURS = { min: 1, max: 168 } as const
+
+/** 114: how long checkout holds stock, in whole minutes (STOCK_HOLD_LIMITS). */
+export { STOCK_HOLD_LIMITS as STOCK_HOLD_MINUTES } from "@effy/shared-types"

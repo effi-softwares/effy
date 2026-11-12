@@ -140,7 +140,9 @@ refund for every recorded shortfall automatically, and the panel says the custom
 - **Substitutions.** A shop cannot offer an alternative item; it can only say it cannot supply.
 - **Shop cost attribution.** A refund is Effy's money; nothing apportions it back to the shop whose
   shortfall caused it. There is no shop-billing model to attribute it to.
-- **A residual oversell window** (054 A6) is unchanged.
+- ~~**A residual oversell window** (054 A6) is unchanged.~~ **Closed by 114** (checkout stock holds): counted stock is held
+  at payment start, other shoppers buy only the shelf less live holds, and a payment that outruns its hold takes nothing
+  another shopper holds in time.
 
 The original entry follows, for the record.
 

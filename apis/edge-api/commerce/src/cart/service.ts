@@ -2,7 +2,7 @@
 // the device and is re-priced through `preview`. Prices are re-read on every read, a line that cannot
 // be bought is shown but excluded from every total, and promotions are re-evaluated, never stored.
 import {
-  CURRENCY, emitMetric, formatCents, imageWidthsField, metricNamespace, outOfStock, parseCents, pooled, publicImageAddress, purchasable,
+  CURRENCY, emitMetric, formatCents, imageWidthsField, leftToSell, metricNamespace, outOfStock, parseCents, pooled, publicImageAddress, purchasable,
 } from "@effy/edge-shared";
 import { hasMinimum, meetsMinimum, remainingToMinimum, type CartPolicy } from "@effy/edge-shared/cart-policy";
 import {
@@ -41,15 +41,15 @@ export type PolicyReader = () => Promise<CartPolicy>;
 const clampTo = (qty: number, max: number): number => (qty < 1 ? 1 : qty > max ? max : qty);
 const quantityOf = (rows: readonly CartLineRow[], variantId: string) => rows.find((r) => r.variant_id === variantId)?.quantity ?? 0;
 const containsVariant = (rows: readonly CartLineRow[], variantId: string) => rows.some((r) => r.variant_id === variantId);
-const isPurchasable = (r: Pick<CartLineRow, "status" | "variant_state" | "stock_tracked" | "stock_on_hand">) =>
-  purchasable(r.status, r.variant_state, r.stock_tracked, r.stock_on_hand);
+const isPurchasable = (r: Pick<CartLineRow, "status" | "variant_state" | "stock_tracked" | "stock_on_hand" | "stock_held">) =>
+  purchasable(r.status, r.variant_state, r.stock_tracked, r.stock_on_hand, r.stock_held);
 const lineWords = (row: Pick<CartLineRow, "name" | "variant_label">) => (row.variant_label ? `${row.name} (${row.variant_label})` : row.name);
 
 /** Why a line cannot be bought, said about the product, never the shop. */
 function unavailableDetail(row: CartLineRow): string {
   const name = lineWords(row);
   if (row.status === STATUS_ARCHIVED || row.variant_state === "removed") return `${name} is no longer sold`;
-  if (outOfStock(row.status, row.variant_state, row.stock_tracked, row.stock_on_hand)) return `${name} is out of stock`;
+  if (outOfStock(row.status, row.variant_state, row.stock_tracked, row.stock_on_hand, row.stock_held)) return `${name} is out of stock`;
   return `${name} is unavailable right now`;
 }
 
@@ -76,11 +76,10 @@ export function payableCents(rows: readonly CartLineRow[]): number {
   return total;
 }
 
+/** The line up to what is left to sell (114: the shelf less other shoppers' live checkout holds). */
 function suppliableQuantity(row: CartLineRow): number {
-  const capped = row.stock_tracked && row.stock_on_hand !== null && row.stock_on_hand < row.quantity
-    ? row.stock_on_hand
-    : row.quantity;
-  return Math.max(0, capped);
+  const left = leftToSell(row.stock_tracked, row.stock_on_hand, row.stock_held);
+  return Math.max(0, left === null ? row.quantity : Math.min(row.quantity, left));
 }
 
 /** Judged on the payable total after discount; enforced again at the intent. */
@@ -256,9 +255,9 @@ export function createCartService(deps: {
     return assemble({ cartId, lineRows: all.lines, savedRows: all.saved, revision: all.revision, policy: p, extra, sweep: true });
   }
 
-  async function assertPurchasable(variantId: string): Promise<void> {
+  async function assertPurchasable(customerId: string, variantId: string): Promise<void> {
     if (!isUuid(variantId)) throw new ProductNotFoundError();
-    const v = await repo.variantStatus(variantId);
+    const v = await repo.variantStatus(variantId, customerId);
     if (!v) throw new ProductNotFoundError();
     if (!isPurchasable(v)) throw new ProductUnavailableError();
   }
@@ -267,14 +266,16 @@ export function createCartService(deps: {
    * Advisory: checks the line's resulting quantity so the shopper hears before payment. The binding
    * check is the locked stock deduction at payment.
    */
-  async function assertCanTake(variantId: string, want: number): Promise<void> {
+  async function assertCanTake(customerId: string, variantId: string, want: number): Promise<void> {
     if (!isUuid(variantId)) throw new ProductNotFoundError();
-    const v = await repo.variantStatus(variantId);
+    const v = await repo.variantStatus(variantId, customerId);
     if (!v) throw new ProductNotFoundError();
     if (!isPurchasable(v)) throw new ProductUnavailableError();
-    if (v.stock_tracked && v.stock_on_hand !== null && want > v.stock_on_hand) {
+    // 114: "only N available" counts what other shoppers' checkouts hold; the shopper's own holds are theirs.
+    const left = leftToSell(v.stock_tracked, v.stock_on_hand, v.stock_held);
+    if (left !== null && want > left) {
       emitMetric(metricNamespace(), "StockBlocked", 1, { stage: "add" });
-      throw new InsufficientStockError(variantId, v.stock_on_hand);
+      throw new InsufficientStockError(variantId, left);
     }
   }
 
@@ -316,7 +317,7 @@ export function createCartService(deps: {
 
       // Checked on the resulting quantity, so repeated adds cannot walk a line past stock.
       const held = quantityOf(existing, variantId);
-      await assertCanTake(variantId, held + qty);
+      await assertCanTake(customerId, variantId, held + qty);
 
       const clamped = clampTo(qty, p.maxLineQuantity);
       const applied = await repo.addItem(cartId, variantId, changeId, clamped, p.maxLineQuantity);
@@ -335,7 +336,7 @@ export function createCartService(deps: {
         return build(cartId, p);
       }
 
-      await assertCanTake(variantId, qty);
+      await assertCanTake(customerId, variantId, qty);
 
       const clamped = clampTo(qty, p.maxLineQuantity);
       const applied = await repo.setQty(cartId, variantId, changeId, clamped);
@@ -363,7 +364,7 @@ export function createCartService(deps: {
       // Archived products and removed variants are dropped; unavailable ones merge and arrive flagged.
       const kept: string[] = [];
       for (const id of ids) {
-        const v = await repo.variantStatus(id);
+        const v = await repo.variantStatus(id, customerId);
         if (v && v.status !== STATUS_ARCHIVED && v.variant_state !== "removed") kept.push(id);
       }
 
@@ -385,7 +386,7 @@ export function createCartService(deps: {
 
     /** Gated like add, so the saved list is not a way round purchasability. */
     async restoreSaved(customerId: string, variantId: string, changeId: string): Promise<CartDTO> {
-      await assertPurchasable(variantId);
+      await assertPurchasable(customerId, variantId);
       const p = await policy();
       const cartId = await repo.getOrCreateCartId(customerId);
       const existing = await repo.lines(cartId);
@@ -424,7 +425,7 @@ export function createCartService(deps: {
           continue;
         }
         // Out of stock is skipped like withdrawn, never added to a cart that cannot be paid.
-        if (!purchasable(c.status, c.variant_state, c.stock_tracked === true, c.stock_on_hand)) {
+        if (!purchasable(c.status, c.variant_state, c.stock_tracked === true, c.stock_on_hand, c.stock_held)) {
           skip(c, "unavailable");
           continue;
         }

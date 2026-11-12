@@ -15,6 +15,8 @@ import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryChoiceR
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryChoiceRefused
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryFeeChanged
 import com.effyshopping.customer.mobile.features.checkout.domain.PromotionsChanged
+import com.effyshopping.customer.mobile.features.checkout.domain.ShownLine
+import com.effyshopping.customer.mobile.features.checkout.domain.StockChanged
 import com.effyshopping.customer.mobile.features.checkout.domain.ChosenWindow
 import com.effyshopping.customer.mobile.features.checkout.domain.EffyWindows
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryQuote
@@ -150,6 +152,10 @@ class CheckoutViewModel(
     private val handoff: PaymentHandoff,
     private val quoteDelivery: QuoteDelivery,
     private val saveAddressInstructions: SaveAddressInstructions,
+    /** 114: the payable lines the screen shows now (`shownLinesOf` over the cart the screen draws). */
+    private val shownLines: () -> List<ShownLine> = { emptyList() },
+    /** 114: re-reads the cart after the server said it changed. */
+    private val refreshCart: suspend () -> Unit = {},
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<CheckoutUiState>(CheckoutUiState.Loading)
@@ -381,6 +387,8 @@ class CheckoutViewModel(
             pointsToUse = if (s.usePoints) s.points?.usable ?: 0 else 0,
             // The delivery total on screen. A different one at the server is refused unpaid.
             shownDeliveryAmount = s.deliveryFee?.totalAmount,
+            // 114: the lines on screen. A basket the server cannot sell and hold now is refused unpaid.
+            shownLines = shownLines(),
         )
         _state.value = s.copy(paying = true, error = null)
         viewModelScope.launch {
@@ -412,6 +420,14 @@ class CheckoutViewModel(
                     },
                 )
                 if (refused.reason == PointsRefusal.BalanceChanged) refreshQuote(addressId)
+                return@launch
+            } catch (changed: StockChanged) {
+                // 114: the cart changed while paying (another shopper took stock). Nothing was held or
+                // charged; the cart is re-read - its lines say what changed - and the shopper pays again.
+                val cur = ready() ?: return@launch
+                _state.value = cur.copy(paying = false, error = CheckoutWords.STOCK_CHANGED)
+                runCatching { refreshCart() }
+                refreshQuote(addressId)
                 return@launch
             } catch (changed: PromotionsChanged) {
                 // An offer changed or its last use went. Nothing was charged; the shopper checks

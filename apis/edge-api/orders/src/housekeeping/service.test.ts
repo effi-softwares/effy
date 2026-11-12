@@ -48,3 +48,28 @@ describe("113 - the abandon time", () => {
     }
   })
 })
+
+describe("114 - the stock hold time", () => {
+  it("accepts 5 to 60 minutes alone, beside the abandon time, or both", () => {
+    expect(parseHousekeepingSettings({ stockHoldMinutes: 5, version: "v" })).toEqual({ stockHoldMinutes: 5, version: "v" })
+    expect(parseHousekeepingSettings({ stockHoldMinutes: 60, abandonAfterMinutes: 1440, version: "v" })).toEqual({
+      stockHoldMinutes: 60,
+      abandonAfterMinutes: 1440,
+      version: "v",
+    })
+  })
+
+  it("refuses a time out of range, a fraction, nothing to change, and says which field", () => {
+    for (const body of [{ stockHoldMinutes: 4, version: "v" }, { stockHoldMinutes: 61, version: "v" }, { stockHoldMinutes: 7.5, version: "v" }]) {
+      let caught: unknown
+      try {
+        parseHousekeepingSettings(body as never)
+      } catch (e) {
+        caught = e
+      }
+      expect(caught, JSON.stringify(body)).toBeInstanceOf(HousekeepingSettingsInvalid)
+      expect((caught as HousekeepingSettingsInvalid).field).toBe("stockHoldMinutes")
+    }
+    expect(() => parseHousekeepingSettings({ version: "v" } as never)).toThrow(HousekeepingSettingsInvalid)
+  })
+})

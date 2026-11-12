@@ -33,7 +33,7 @@ import { api } from "@/lib/api"
 
 import { HOUSEKEEPING_ROOT, housekeepingQuery } from "./queries"
 import { updateHousekeepingSettings } from "./repo"
-import { ABANDON_HOURS, resultWord, whenWords } from "./words"
+import { ABANDON_HOURS, resultWord, STOCK_HOLD_MINUTES, whenWords } from "./words"
 
 const JOBS_SECTION = {
   title: "The clean-ups",
@@ -46,6 +46,15 @@ const ABANDON_SECTION = {
     "An order nobody paid for is closed after this long. Its points, promotion codes and delivery place are freed, and the customer's cart is kept.",
   label: "Abandon time",
   hint: "From 1 hour to 7 days. Only an administrator can change it.",
+}
+
+// 114: the words come from specs/107-backoffice-guided-tours (HK) and specs/114-checkout-stock-holds (FR-019).
+const STOCK_HOLD_SECTION = {
+  title: "Stock at checkout",
+  description:
+    "When a shopper presses Pay, the stock in their order is held for them this long, so nobody else can buy it. If they don't pay in time, it goes back on sale by itself.",
+  label: "Hold time",
+  hint: "From 5 to 60 minutes. Only an administrator can change it.",
 }
 
 const columns: EffyColumnDef<HousekeepingJobDTO>[] = [
@@ -105,7 +114,7 @@ const columns: EffyColumnDef<HousekeepingJobDTO>[] = [
   },
 ]
 
-/** Settings › Clean-ups (113 US5): the jobs that run by themselves, the abandon time, and their activity. */
+/** Settings › Clean-ups (113 US5): the jobs that run by themselves, the abandon time, how long checkout holds stock (114), and their activity. */
 export function HousekeepingScreen() {
   const q = useQuery(housekeepingQuery)
   useTourPage("housekeeping", { status: tourStatus(q) })
@@ -128,7 +137,7 @@ export function HousekeepingScreen() {
         app="back-office"
         log="bo-housekeeping"
         title="Clean-up activity"
-        description="Every run, every payment refunded because it arrived after its order was closed, and every change to the abandon time."
+        description="Every run, every payment refunded because it arrived after its order was closed, and every change to the abandon time or the stock hold time."
         api={api}
         path="/orders/v1/housekeeping/activity"
         queryKey={[...HOUSEKEEPING_ROOT, "activity"]}
@@ -140,9 +149,11 @@ export function HousekeepingScreen() {
 
 function saveError(err: unknown): string {
   if (isDomainError(err)) {
-    if (err.type?.endsWith("/settings-changed")) return "Someone else changed the abandon time. The page now shows theirs."
-    if (err.type?.endsWith("/invalid-settings")) return "The abandon time must be from 1 hour to 7 days."
-    if (err.kind === "forbidden") return "Only an administrator can change the abandon time."
+    if (err.type?.endsWith("/settings-changed")) return "Someone else changed these settings. The page now shows theirs."
+    if (err.type?.endsWith("/invalid-settings")) {
+      return "The abandon time must be from 1 hour to 7 days, and the hold time from 5 to 60 minutes."
+    }
+    if (err.kind === "forbidden") return "Only an administrator can change these settings."
     if (err.kind === "unavailable") return "The service is waking up or unreachable. Try again in a moment."
   }
   return "That didn't work. Try again."
@@ -155,17 +166,27 @@ function Loaded({ value }: { value: HousekeepingDTO }) {
     onSuccess: (next) => qc.setQueryData(HOUSEKEEPING_ROOT, next),
     onError: () => void qc.invalidateQueries({ queryKey: HOUSEKEEPING_ROOT }),
   })
-  const form = useSettingsDraft<{ hours: string }>({ hours: String(Math.round(value.abandonAfterMinutes / 60)) })
+  const form = useSettingsDraft<{ hours: string; holdMinutes: string }>({
+    hours: String(Math.round(value.abandonAfterMinutes / 60)),
+    holdMinutes: String(value.stockHoldMinutes),
+  })
   const hours = toWhole(form.value!.hours)
-  const valid = Number.isInteger(hours) && hours >= ABANDON_HOURS.min && hours <= ABANDON_HOURS.max
+  const holdMinutes = toWhole(form.value!.holdMinutes)
+  const hoursValid = Number.isInteger(hours) && hours >= ABANDON_HOURS.min && hours <= ABANDON_HOURS.max
+  const holdValid = Number.isInteger(holdMinutes) && holdMinutes >= STOCK_HOLD_MINUTES.min && holdMinutes <= STOCK_HOLD_MINUTES.max
+  const valid = hoursValid && holdValid
 
   function submit() {
     save.mutate(
-      { abandonAfterMinutes: hours * 60, version: value.version },
+      // Both go; the server records only the ones that moved.
+      { abandonAfterMinutes: hours * 60, stockHoldMinutes: holdMinutes, version: value.version },
       {
         onSuccess: (next) => {
           form.discard()
-          toast(`Unpaid orders now close after ${abandonWords(next.abandonAfterMinutes)}.`)
+          const said: string[] = []
+          if (next.abandonAfterMinutes !== value.abandonAfterMinutes) said.push(`Unpaid orders now close after ${abandonWords(next.abandonAfterMinutes)}.`)
+          if (next.stockHoldMinutes !== value.stockHoldMinutes) said.push(`Checkout now holds stock for ${next.stockHoldMinutes} minutes.`)
+          toast(said.join(" ") || "Saved.")
         },
         onError: (err) => toast(saveError(err)),
       },
@@ -186,8 +207,23 @@ function Loaded({ value }: { value: HousekeepingDTO }) {
               unit="hours"
               value={form.value!.hours}
               disabled={!value.mayEdit}
-              invalid={!valid}
+              invalid={!hoursValid}
               onChange={(e) => form.set("hours", e.target.value)}
+            />
+          </SettingsRow>
+        </SettingsList>
+      </SettingsSection>
+      <SettingsSection tour="housekeeping.stockHold" title={STOCK_HOLD_SECTION.title} description={STOCK_HOLD_SECTION.description}>
+        {value.mayEdit ? null : <SettingsReadOnly>Only an administrator can change the hold time.</SettingsReadOnly>}
+        <SettingsList>
+          <SettingsRow htmlFor="hk-stock-hold" label={STOCK_HOLD_SECTION.label} hint={STOCK_HOLD_SECTION.hint}>
+            <UnitInput
+              id="hk-stock-hold"
+              unit="minutes"
+              value={form.value!.holdMinutes}
+              disabled={!value.mayEdit}
+              invalid={!holdValid}
+              onChange={(e) => form.set("holdMinutes", e.target.value)}
             />
           </SettingsRow>
         </SettingsList>
@@ -209,6 +245,13 @@ function HousekeepingSkeleton() {
         <SettingsSection title={ABANDON_SECTION.title} description={ABANDON_SECTION.description}>
           <SettingsList>
             <SettingsRow label={ABANDON_SECTION.label} hint={ABANDON_SECTION.hint}>
+              <Bone kind="control" className="w-24" />
+            </SettingsRow>
+          </SettingsList>
+        </SettingsSection>
+        <SettingsSection title={STOCK_HOLD_SECTION.title} description={STOCK_HOLD_SECTION.description}>
+          <SettingsList>
+            <SettingsRow label={STOCK_HOLD_SECTION.label} hint={STOCK_HOLD_SECTION.hint}>
               <Bone kind="control" className="w-24" />
             </SettingsRow>
           </SettingsList>

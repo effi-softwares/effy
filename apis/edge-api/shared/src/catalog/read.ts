@@ -3,6 +3,7 @@
 
 import type { PackUnit, VariantState } from "@effy/shared-types";
 
+import { stockHeldSql } from "../lib/availability";
 import type { Queryable } from "../lib/db";
 import { variantLabelSql } from "./label";
 
@@ -48,6 +49,8 @@ export interface VariantRow {
   mediaStorageKey: string | null;
   stockTracked: boolean;
   stockOnHand: number | null;
+  /** 114: units in shoppers' live checkout holds (operator pages only; never changes the shelf count). */
+  stockHeld: number;
   lowStockThreshold: number | null;
   state: VariantState;
 }
@@ -90,14 +93,14 @@ export async function readVariantSets(
       label: string | null; code: string; sku: string | null; gtin: string | null; shop_price_amount: string; shop_compare_at_amount: string | null;
       price_amount: string | null; compare_at_amount: string | null; weight_grams: number; weight_is_assumed: boolean;
       pack_quantity: string | null; pack_unit: PackUnit | null; media_id: string | null; media_storage_key: string | null;
-      stock_tracked: boolean; stock_on_hand: number | null; low_stock_threshold: number | null; state: VariantState;
+      stock_tracked: boolean; stock_on_hand: number | null; stock_held: number; low_stock_threshold: number | null; state: VariantState;
     }>(
       `SELECT v.id::text, v.product_id::text, v.position, v.option1_value_id::text, v.option2_value_id::text,
               ${variantLabelSql("v")} AS label,
               v.code, v.sku, v.gtin, v.shop_price_amount::text, v.shop_compare_at_amount::text,
               v.price_amount::text, v.compare_at_amount::text, v.weight_grams, v.weight_is_assumed,
               v.pack_quantity::text, v.pack_unit, v.media_id::text, m.storage_key AS media_storage_key,
-              v.stock_tracked, v.stock_on_hand, v.low_stock_threshold, v.state
+              v.stock_tracked, v.stock_on_hand, ${stockHeldSql("v")} AS stock_held, v.low_stock_threshold, v.state
          FROM public.product_variant v
          LEFT JOIN public.product_media m ON m.id = v.media_id
         WHERE v.product_id = ANY($1::uuid[])
@@ -141,6 +144,7 @@ export async function readVariantSets(
       mediaStorageKey: r.media_storage_key,
       stockTracked: r.stock_tracked,
       stockOnHand: r.stock_on_hand === null ? null : Number(r.stock_on_hand),
+      stockHeld: Number(r.stock_held),
       lowStockThreshold: r.low_stock_threshold === null ? null : Number(r.low_stock_threshold),
       state: r.state,
     });

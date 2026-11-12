@@ -4,7 +4,7 @@ import { Copy, Pencil } from "lucide-react";
 
 import { cn } from "@effy/design-system";
 import { Badge, Button, Input, Label, toast } from "@effy/design-system/ui";
-import { unitPriceText } from "@effy/shared-types";
+import { heldStockWords, unitPriceText } from "@effy/shared-types";
 
 import {
   gaugeShare,
@@ -463,6 +463,10 @@ export function SizeStockView({ size, actions }: { size: SizeView; actions?: Rea
           <p className="text-[13px] text-muted-foreground">
             {size.stock.alertAt !== null ? `Alert at ${size.stock.alertAt} or fewer` : "No low-stock alert"}
           </p>
+          {/* 114: what shoppers' checkouts hold right now, under the count the shop entered. */}
+          {heldStockWords(size.stock.held, size.stock.leftToSell) ? (
+            <p className="text-[13px] text-muted-foreground">{heldStockWords(size.stock.held, size.stock.leftToSell)}</p>
+          ) : null}
         </>
       ) : (
         <p className="text-sm text-muted-foreground">

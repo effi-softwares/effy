@@ -25,6 +25,7 @@ function row(over: Partial<StockRow> = {}): StockRow {
     shopId: "shop-1",
     tracked: true,
     onHand: 5,
+    held: 0,
     threshold: null,
     shopDefaultThreshold: null,
     ...over,

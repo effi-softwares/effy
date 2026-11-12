@@ -16,8 +16,9 @@ import {
 import { requireStaff } from "../lib/guard";
 
 /**
- * PUT /orders/v1/housekeeping/settings (113 FR-001): an administrator sets the abandon time (1 hour to 7 days); the change
- * is recorded, and back-office re-reads the page (live kind `housekeeping`).
+ * PUT /orders/v1/housekeeping/settings (113 FR-001, 114 FR-019): an administrator sets the abandon time (1 hour to 7 days)
+ * and how long checkout holds stock (5 to 60 minutes); each change is recorded, and back-office re-reads the page (live
+ * kind `housekeeping`).
  */
 export const handler = async (event: AuthedEvent, context: Context): Promise<APIGatewayProxyStructuredResultV2> => {
   const guard = await requireStaff(event, context);
@@ -27,7 +28,7 @@ export const handler = async (event: AuthedEvent, context: Context): Promise<API
     update = parseHousekeepingSettings(objectBody(event.body));
   } catch (err) {
     if (err instanceof HousekeepingSettingsInvalid) {
-      return refused(guard.scope, 400, "invalid_settings", err.message, { errors: [{ field: "abandonAfterMinutes", message: err.message }] });
+      return refused(guard.scope, 400, "invalid_settings", err.message, { errors: [{ field: err.field, message: err.message }] });
     }
     throw err;
   }
@@ -39,7 +40,7 @@ export const handler = async (event: AuthedEvent, context: Context): Promise<API
   } catch (err) {
     if (err instanceof HousekeepingForbidden) return forbidden(guard.scope);
     if (err instanceof HousekeepingSettingsChanged) {
-      return refused(guard.scope, 409, "settings_changed", "the abandon time was changed by someone else - reload and try again");
+      return refused(guard.scope, 409, "settings_changed", "the clean-up settings were changed by someone else - reload and try again");
     }
     if (err instanceof ConnectionLimitError) throw err;
     guard.scope.log.error({ err }, "housekeeping: settings update failed");

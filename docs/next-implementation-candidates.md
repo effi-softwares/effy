@@ -12,6 +12,11 @@ re-run: test and deploy states are quoted from the feature history, not observed
 > specs 074–082, starting with 074 Customer Points. The items below remain valid candidates; item 5
 > (order emails) and item 7 (`TrackOrderScreen`) are folded into its E5.
 
+> ⚠ **Stale beyond the items marked done (2026-11-12).** Since this survey: notifications 109–112, 113 (items 2, 3) and
+> 114 (item 16) are built; the shop mobile app (item 17) was deleted; back-office has customers, staff, activity logs (104)
+> and promotions/banners (094, 108) - items 18–21 need re-surveying before they are picked. Still open as of 2026-11-12:
+> 9, 10, 11 (disputes), 12 (the ABN is operator input), 13, 14, 15, 22–26.
+
 **Recommended next spec:** items 1 and 2 together - both are already named as "still ahead" in
 `CLAUDE.md`, and item 16 depends on the sweep. Then item 3, which unblocks store submission.
 
@@ -24,9 +29,9 @@ re-run: test and deploy states are quoted from the feature history, not observed
 | 1 | **Deliver the event backbone.** `event_outbox` is written at payment and nothing drains it. The SNS/SQS fan-out in the architecture has no publisher. | `apis/edge-api/shared/src/payments/outbox.ts:17` |
 | 2 | **(113, done)** **Sweep abandoned unpaid orders.** `pending_payment` orders linger forever; no sweep exists in any service. They also block account closure. | No sweep function or schedule under `apis/edge-api`; `ORDER-FLOW-GAPS.md` Tier 4 |
 | 3 | **(113, done)** **Account erasure worker.** The service comment says erasure "runs automatically", but no erasure function exists. Store-submission blocker row 10. ⚠ **It MUST call `forfeit` from `@effy/edge-shared/points`** when a closure becomes final (074 FR-024, research R10): until it does, a closed account's points are unusable but never recorded as forfeited. | `apis/edge-api/customer/serverless.yml:375`; `apis/edge-api/customer/src/functions/`; `docs/store-submission/submission-checklist.md` |
-| 4 | **Customer notifications inbox.** The mobile screen is backed by a fixture that returns an empty list. The `customer` service has no notifications read route, though `notification_request` rows are written. | `apps/customer-mobile/.../features/notifications/domain/NotificationFixtures.kt`; `apis/edge-api/customer/src/` |
+| 4 | **(110, done)** **Customer notifications inbox.** The mobile screen is backed by a fixture that returns an empty list. The `customer` service has no notifications read route, though `notification_request` rows are written. | `apps/customer-mobile/.../features/notifications/domain/NotificationFixtures.kt`; `apis/edge-api/customer/src/` |
 | 5 | **Order-ready and out-for-delivery emails.** The order emails are confirmation, with-courier, delivery-changed and delivered. Web-only shoppers hear nothing in between. | `packages/email-kit/src/catalog.ts` |
-| 6 | **Customer push copy.** Customers are still told "Your order is ready for handoff" - internal vocabulary. | `apis/edge-api/notifications/src/worker/copy.ts:83` |
+| 6 | **(109, done)** **Customer push copy.** Customers are still told "Your order is ready for handoff" - internal vocabulary. | `apis/edge-api/notifications/src/worker/copy.ts:83` |
 | 7 | **`TrackOrderScreen` is dead code.** No route, and it carries its own `TrackStage` vocabulary beside the server-derived stage. Wire it or delete it. | `apps/customer-mobile/.../features/tracking/presentation/TrackOrderScreen.kt` (referenced only by its own test) |
 | 8 | **iOS push bridge.** No `SwiftPushBridge` or `AppDelegate`; all three iOS apps use `NoOpPushTokenProvider`. Blocked on the Apple Developer account. | `docs/observability-apple-blockers.md`; `apps/*-mobile/.../core/push/PushTokenProvider.kt` |
 | 9 | **Driver masked contact.** The contract type exists, the driver service has no route, and the buttons are disabled. | `packages/shared-types/src/driver.ts:446`; `apis/edge-api/driver/serverless.yml`; `EnRouteScreen.kt:106`, `ArrivedScreen.kt:94` |
@@ -41,7 +46,7 @@ re-run: test and deploy states are quoted from the feature history, not observed
 | 13 | **Shop settlement and payouts.** 067 added margin, but there are no payout, statement or refund-cost-attribution tables. | No match in `db/migrations` or `apis/edge-api` |
 | 14 | **Returns, replacements and substitutions.** The platform can only refund. | `ORDER-FLOW-GAPS.md` G3, Tier 2 |
 | 15 | **Guest checkout.** Checkout redirects a guest to sign-in at the highest-intent moment. **(docs only - the redirect was not re-verified)** | `ORDER-FLOW-GAPS.md` Tier 4 |
-| 16 | **Checkout stock reservation.** The oversell window between payment intent and payment is accepted, not closed. Depends on item 2. **(docs only)** | 054 spec A6; `ORDER-FLOW-GAPS.md` G2 |
+| 16 | **(114, done)** **Checkout stock reservation.** The oversell window between payment intent and payment is accepted, not closed. Depends on item 2. **(docs only)** | 054 spec A6; `ORDER-FLOW-GAPS.md` G2 |
 
 ## C. Surfaces and parity
 

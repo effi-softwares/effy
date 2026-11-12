@@ -20,11 +20,12 @@ import { createOrdersRepository } from "../orders/repository";
 import { createOrdersService, OrderNotFoundError as ReceiptNotFoundError } from "../orders/service";
 import { createWebhookHandler } from "../webhook/handler";
 import { runUnpaidOrders } from "../housekeeping/job";
+import { abandonOrder } from "@effy/edge-shared/payments";
 import { DeliveryChoiceError } from "./delivery-choice";
 import { defaultQuoter, quoteForCheckout, type PromoSource } from "./quote";
 import {
   createCheckoutService, DeliveryFeeChangedError, EmptyCartError, NotServiceableError, OrderNotFoundError, PointsExceedTotalError, PromotionsChangedRefusal,
-  type CheckoutService, type IntentInput,
+  StockChangedError, type CheckoutService, type IntentInput,
 } from "./service";
 import { createCheckoutStore, SlotUnavailableError, type CheckoutStore } from "./store";
 
@@ -143,7 +144,25 @@ async function shopper(cart: Record<string, number>) {
   return { customerId, addressId, cartId, sub: tag };
 }
 
+/**
+ * 114: "the lines the client showed". A test that does not say otherwise shows exactly what the server would sell it
+ * now (as a correct client does); `withShownLines` fills them in. The 114 tests pass their own.
+ */
+const SHOWN_AS_SERVED: IntentInput["shownLines"] = Object.freeze([]);
+function withShownLines(base: CheckoutService): CheckoutService {
+  return {
+    ...base,
+    async createIntent(customerId, i, now, observe) {
+      const shownLines = i.shownLines === SHOWN_AS_SERVED
+        ? (await store.cartLines(customerId)).map((l) => ({ variantId: l.variantId, quantity: l.quantity }))
+        : i.shownLines;
+      return base.createIntent(customerId, { ...i, shownLines }, now, observe);
+    },
+  };
+}
+
 const input = (addressId: string, over: Partial<IntentInput> = {}): IntentInput => ({
+  shownLines: SHOWN_AS_SERVED,
   addressId, billingAddressId: "",
   // Every Effy order has a window. The default is a later day: the plain fee, no today premium.
   deliveryWindow: { slotId, date: effyDays(new Date(), 3, [], new Set(), true)[1]!.date },
@@ -161,6 +180,7 @@ const orderRow = (orderId: string) =>
             delivery_handover AS handover, delivery_note AS note FROM public."order" WHERE id = $1`,
     [orderId],
   );
+const variantOf = async (name: string) => (await one<{ id: string }>(`SELECT id::text AS id FROM public.product_variant WHERE product_id = $1`, [product[name]])).id;
 const stockOf = async (name: string) => (await one<{ n: number }>(`SELECT stock_on_hand AS n FROM public.product_variant WHERE product_id = $1`, [product[name]])).n;
 const pay = (orderId: string) => transact((tx) => finalizeSucceeded(tx, orderId));
 const bookedToday = async () => (await slotLoad(pool, melbourneDate(new Date()))).get(slotId) ?? 0;
@@ -212,11 +232,13 @@ d("070 - checkout, finalisation and the webhook against the real schema", () => 
 
   beforeEach(async () => {
     gateway = fakeGateway();
-    svc = createCheckoutService({
+    svc = withShownLines(createCheckoutService({
       store, gateway: gateway.gw, policy: () => loadCartPolicy(pool), promos: async () => NO_PROMOTIONS,
       quoter: defaultQuoter(pool), publishableKey: "pk_test_x", transact,
-    });
+    }));
     await pool.query(`DELETE FROM public.delivery_slot_booking`);
+    // 114: earlier tests' unpaid orders would otherwise still hold Scarce and Last.
+    await pool.query(`DELETE FROM public.stock_hold`);
     await pool.query(`UPDATE public.delivery_slot SET capacity = 3, status = 'active' WHERE id = $1`, [slotId]);
     await pool.query(`UPDATE public.product_variant SET stock_on_hand = 2 WHERE product_id = $1`, [product.Scarce]);
     await pool.query(`UPDATE public.product_variant SET stock_on_hand = 1 WHERE product_id = $1`, [product.Last]);
@@ -372,18 +394,41 @@ d("070 - checkout, finalisation and the webhook against the real schema", () => 
     expect(await count(`SELECT 1 FROM public.shop_fulfillment WHERE order_id = $1`, [orderId])).toBe(1);
   });
 
-  it("two shoppers paying at once for the last unit never drive the count negative, and the oversell is flagged", async () => {
+  it("114 US1: two shoppers for the last unit - the first to press Pay holds it; the second is refused before any intent", async () => {
     const a = await shopper({ Last: 1 });
     const b = await shopper({ Last: 1 });
-    // Both intents are created while the unit is still on the shelf.
     const oa = await svc.createIntent(a.customerId, input(a.addressId), new Date());
+    expect(await count(`SELECT 1 FROM public.stock_hold WHERE order_id = $1`, [oa.orderId])).toBe(1);
+    // B's checkout still shows the unit (it read before A pressed Pay), but it is no longer there to sell.
+    const intentsBefore = gateway.created();
+    await expect(
+      svc.createIntent(b.customerId, input(b.addressId, { shownLines: [{ variantId: await variantOf("Last"), quantity: 1 }] }), new Date()),
+    ).rejects.toBeInstanceOf(StockChangedError);
+    expect(gateway.created()).toBe(intentsBefore);
+    expect(await count(`SELECT 1 FROM public.stock_hold h JOIN public."order" o ON o.id = h.order_id WHERE o.customer_id = $1`, [b.customerId])).toBe(0);
+
+    const out = await pay(oa.orderId);
+    expect(out).toMatchObject({ applied: true, stockShortfall: false, stockHoldLate: false });
+    expect(await stockOf("Last")).toBe(0);
+    expect(await count(`SELECT 1 FROM public.stock_hold WHERE order_id = $1`, [oa.orderId])).toBe(0);
+  });
+
+  it("114 SC-002: a payment that outran its hold takes nothing another shopper holds in time, and its oversell is flagged", async () => {
+    const a = await shopper({ Last: 1 });
+    const b = await shopper({ Last: 1 });
+    const oa = await svc.createIntent(a.customerId, input(a.addressId), new Date());
+    // A's hold runs out; B presses Pay and holds the unit.
+    await pool.query(`UPDATE public.stock_hold SET held_until = now() - interval '1 second' WHERE order_id = $1`, [oa.orderId]);
     const ob = await svc.createIntent(b.customerId, input(b.addressId), new Date());
 
-    const outs = await Promise.all([pay(oa.orderId), pay(ob.orderId)]);
-    expect(outs.every((o) => o.applied)).toBe(true);
+    // A's bank finally says yes: late, short by the unit B holds, and the shelf keeps it for B.
+    const lateA = await pay(oa.orderId);
+    expect(lateA).toMatchObject({ applied: true, stockHoldLate: true, stockShortfall: true });
+    expect(await stockOf("Last")).toBe(1);
+    // B paid within the hold: complete.
+    const inTimeB = await pay(ob.orderId);
+    expect(inTimeB).toMatchObject({ applied: true, stockHoldLate: false, stockShortfall: false });
     expect(await stockOf("Last")).toBe(0);
-    expect(outs.filter((o) => o.stockShortfall)).toHaveLength(1);
-    // The pick line is pre-flagged with exactly the missing unit.
     expect(
       (await pool.query<{ u: number }>(
         `SELECT fi.unavailable_quantity AS u FROM public.fulfillment_item fi
@@ -391,6 +436,68 @@ d("070 - checkout, finalisation and the webhook against the real schema", () => 
         [[oa.orderId, ob.orderId]],
       )).rows.map((r) => r.u),
     ).toEqual([1]);
+  });
+
+  it("two payments racing for the last unit (holds both lapsed) never drive the count negative, and the oversell is flagged", async () => {
+    const a = await shopper({ Last: 1 });
+    const b = await shopper({ Last: 1 });
+    const oa = await svc.createIntent(a.customerId, input(a.addressId), new Date());
+    await pool.query(`DELETE FROM public.stock_hold WHERE order_id = $1`, [oa.orderId]);
+    const ob = await svc.createIntent(b.customerId, input(b.addressId), new Date());
+    await pool.query(`DELETE FROM public.stock_hold WHERE order_id = $1`, [ob.orderId]);
+
+    const outs = await Promise.all([pay(oa.orderId), pay(ob.orderId)]);
+    expect(outs.every((o) => o.applied)).toBe(true);
+    expect(await stockOf("Last")).toBe(0);
+    expect(outs.filter((o) => o.stockShortfall)).toHaveLength(1);
+  });
+
+  it("114 US2: shown lines that differ are refused before anything is written; an earlier attempt's holds go", async () => {
+    const s = await shopper({ Scarce: 2 });
+    const first = await svc.createIntent(s.customerId, input(s.addressId), new Date());
+    expect(await count(`SELECT 1 FROM public.stock_hold WHERE order_id = $1`, [first.orderId])).toBe(1);
+    const intents = gateway.created();
+    // The client shows 3 (a stale screen): refused, no intent, and the earlier hold is released.
+    await expect(
+      svc.createIntent(s.customerId, input(s.addressId, { shownLines: [{ variantId: await variantOf("Scarce"), quantity: 3 }] }), new Date()),
+    ).rejects.toBeInstanceOf(StockChangedError);
+    expect(gateway.created()).toBe(intents);
+    expect(await count(`SELECT 1 FROM public.stock_hold WHERE order_id = $1`, [first.orderId])).toBe(0);
+    // Showing what can be sold (a capped line shown as capped) pays as shown.
+    const again = await svc.createIntent(s.customerId, input(s.addressId, { shownLines: [{ variantId: await variantOf("Scarce"), quantity: 2 }] }), new Date());
+    expect(again.orderId).toBe(first.orderId);
+    expect(await count(`SELECT 1 FROM public.stock_hold WHERE order_id = $1`, [again.orderId])).toBe(1);
+  });
+
+  it("114 G4: an error after the hold (the provider down) leaves no stock held", async () => {
+    const s = await shopper({ Scarce: 1 });
+    const original = gateway.gw.createPaymentIntent;
+    gateway.gw.createPaymentIntent = async () => { throw new Error("provider unreachable"); };
+    try {
+      await expect(svc.createIntent(s.customerId, input(s.addressId), new Date())).rejects.toThrow("provider unreachable");
+    } finally {
+      gateway.gw.createPaymentIntent = original;
+    }
+    expect(await count(`SELECT 1 FROM public.stock_hold h JOIN public."order" o ON o.id = h.order_id WHERE o.customer_id = $1`, [s.customerId])).toBe(0);
+  });
+
+  it("114 G4: a refusal before the hold (points the shopper does not have) holds no stock", async () => {
+    const s = await shopper({ Scarce: 1 });
+    // No balance: the points hold refuses, after the order is written and before the stock is held.
+    await expect(svc.createIntent(s.customerId, input(s.addressId, { pointsToUse: 50 }), new Date())).rejects.toThrow();
+    expect(await count(`SELECT 1 FROM public.stock_hold h JOIN public."order" o ON o.id = h.order_id WHERE o.customer_id = $1`, [s.customerId])).toBe(0);
+  });
+
+  it("114 US3: a declined card keeps the holds for a retry; closing the order as unpaid releases them at once", async () => {
+    const s = await shopper({ Scarce: 1 });
+    const r = await svc.createIntent(s.customerId, input(s.addressId), new Date());
+    const intent = (await one<{ id: string }>(`SELECT stripe_payment_intent_id AS id FROM public.payment WHERE order_id = $1`, [r.orderId])).id;
+    // A decline leaves the intent payable (113): the hold stands.
+    gateway.settle(intent, "requires_payment");
+    expect(await count(`SELECT 1 FROM public.stock_hold WHERE order_id = $1`, [r.orderId])).toBe(1);
+    const closed = await abandonOrder({ gateway: gateway.gw, transact, q: pool }, r.orderId);
+    expect(closed.result).toBe("abandoned");
+    expect(await count(`SELECT 1 FROM public.stock_hold WHERE order_id = $1`, [r.orderId])).toBe(0);
   });
 
   // Same-day places
@@ -1789,7 +1896,7 @@ d("070 - checkout, finalisation and the webhook against the real schema", () => 
         lines: i.lines.map((l) => ({ variantId: l.variantId, productId: l.productId, unitCents: l.unitCents, quantity: l.quantity })),
         deliveryType: i.deliveryType, deliveryFeeCents: i.deliveryFeeCents, now: i.now, excludeOrderId: i.excludeOrderId ?? null,
       });
-    const real = createCheckoutService({ store, gateway: gateway.gw, policy: () => loadCartPolicy(pool), promos, quoter: defaultQuoter(pool), publishableKey: "pk_test_x", transact });
+    const real = withShownLines(createCheckoutService({ store, gateway: gateway.gw, policy: () => loadCartPolicy(pool), promos, quoter: defaultQuoter(pool), publishableKey: "pk_test_x", transact }));
     const code = `TENPC${++seq}`;
     const promo = await one<{ id: string }>(
       `INSERT INTO public.promotion (name, kind, trigger, value_type, percent_off, applies_to, published_at, headline, created_by)

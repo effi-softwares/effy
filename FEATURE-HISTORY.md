@@ -4,6 +4,54 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
+**114-checkout-stock-holds** - Hold Stock at Checkout ([spec](specs/114-checkout-stock-holds/spec.md)). 🔨 **BUILT 2026-11-12;
+NOT MIGRATED, APPLIED, DEPLOYED OR WALKED.** Pressing Pay holds the counted sizes in the order for the hold time, so two shoppers
+can never both buy the last unit (closes 054's accepted residual oversell window, candidate register item 16).
+- **Migration** `20261112120000_checkout_stock_holds.sql` (additive; real goose up / down-to 20261112090000 / up on local
+  Postgres): table `stock_hold` (order, size, customer, quantity, `held_until`; PK (order, size)); `housekeeping_settings.stock_hold_min`
+  (default 15, CHECK 5–60).
+- ⚠ **A HOLD COUNTS ONLY WHILE `held_until > now()`** - nothing sweeps it. Rows are DELETED when the order ends (paid →
+  `consumeStockHolds`, abandoned/failed → `releaseStockHolds`, both in `finalize.ts`) or replaced by the next Pay. ONE writer:
+  `@effy/edge-shared/stock` `holds.ts` (`holds.guard.test.ts`). A hold never changes `stock_on_hand`.
+- ⚠ **LEFT TO SELL = SHELF − OTHER CUSTOMERS' LIVE HOLDS**, written once: `stockHeldSql(v, exceptCustomer?)` in
+  `lib/availability.ts`; `variantPurchasableSql` / `productAvailableSql` / `variantAvailabilityColumns` / `purchasable` /
+  `outOfStock` / `leftToSell` all take it. "Own" is the CUSTOMER, never the order (a shopper can briefly have two unpaid orders).
+  Listings pass no customer. `availability.guard` now also fails a hand-written `stock_on_hand` comparison in shopper code -
+  it caught the cart, and saved items had a second definition (both moved onto the rule).
+- ⚠ **BEHAVIOUR CHANGE: THE INTENT CARRIES `shownLines` (REQUIRED)** - the payable lines the client showed. Any difference,
+  before writing or under the size locks, is 409 `stock_changed` (`STOCK_CHANGED_MESSAGE`, Kotlin twin pinned to
+  `checkout-words.fixtures.json`); nothing charged, the order's holds released. Before 114 checkout silently charged for
+  whatever was left. **The stock is held LAST** (after promotions, points, the window, billing), and any error after it
+  releases it - except `PaymentInProgressError` (a payment that did start keeps its stock).
+- **Finalize**: the shortfall and the shelf deduction use left = shelf − other customers' live holds, so a payment that
+  outran its hold takes nothing another shopper holds in time (SC-002); `StockHoldLate{outcome}` (short = today's short-order
+  path). Metrics `StockHolds`, `StockHoldsEnded`, `StockHoldLate` in `Effy/Commerce` (`MONEY_METRIC_NAMESPACE`) whichever
+  service ends the hold; alarm `StockHoldLateShort` (≥ 3 a day) in `infra/envs/dev/stock-holds.tf`.
+- **Live**: after commit, `announceStockChange` → shop `stock` + `ops` `stock` (the intent route, `abandonOrder`, failed orders,
+  finalize). The intent route left `change-map.guard`'s SILENT list. shop-web `stock` now refreshes the product page;
+  back-office maps `stock` → products and shop stock.
+- **Operators**: `ProductStockDTO.held` / `leftToSell` (built only by `stockState()`; inventory, shop product page,
+  Availability), `BackOfficeVariantDTO.stockHeld` (catalog). Consoles show "2 in checkouts · 3 left to sell" under the shelf
+  count (`heldStockWords`, shared-types; web-kit product page sizes and shop Availability). Low/out stay on the shelf (FR-018).
+  back-office Shop › Stock is a low-stock list and is unchanged. shop-web `VariantsSection.tsx` is dead code (nothing imports it).
+- **Hold time**: Settings › Clean-ups gains "Stock at checkout" (admins; 5–60 min) on 113's route (`stockHoldMinutes`, at least
+  one field per PUT; a change row per field); activity words; tour HK version 2 (step 4, in 107's inventory). **No new routes**
+  (staff gateway 234/300).
+- **Clients**: customer-web sends `shownLines(mirror lines)` and on 409 adopts the returned cart; the customer app's
+  `PlaceOrder.shownLines` (`shownLinesOf` over the cart store), `StockChanged`, ViewModel re-reads the cart and quote.
+- **Verified**: holds container 12/12 (SC-001: 20 racing for 5 → exactly 5), commerce checkout container 74/74 then 108/109
+  in the full run, orders housekeeping 5/5, inventory/storefront/customer container all pass; every backend service typechecks
+  and its unit suite passes; back-office 445, shop-web 533, customer-web 740, web-kit 259; three builds and depcruise clean;
+  app host tests 501/502 + Android and iOS compile. **Failures not caused by 114** (each checked): commerce 094 "changed
+  promotion refused" (passes alone, fails only in the full run), consignment P6, orders S4, catalog 103 "page past the end"
+  (fails with 114's catalog changes reverted), shop Availability 103 paging (fixture breaks `product_option_value_position_check`),
+  shop insights time-to-ready, app `UnitPriceWordsTest`, `check-no-telemetry-pii.sh` (the notifications worker's `email`).
+- **Docs**: ORDER-FLOW-GAPS (054 A6 closed), the candidate register (#4, #6, #16 done + a staleness note), customer
+  capabilities (Notifications row), Apple blockers (D7's time-sensitive step) - notifications backlog F5 done. F8 left open.
+- **Deploy order**: `make db-up ENV=dev` → `make apply ENV=dev` → `SERVICE=commerce`, `SERVICE=orders`, `make edge-deploy-all` →
+  customer-web **together with commerce** (`shownLines` is required: an older client is refused at Pay with 422) → back-office,
+  shop-web → the customer app. The walk: `specs/114-checkout-stock-holds/quickstart.md`.
+
 **113-data-lifecycle** - Data Lifecycle ([spec](specs/113-data-lifecycle/spec.md)). ✅ **SIGNED OFF 2026-11-12: APPLIED, MIGRATED AND
 DEPLOYED TO DEV; WALK NOT RECORDED.** Three clean-ups that run by themselves, a back-office page to watch them, and the rules
 for what a deleted customer leaves behind (candidate register items 2 and 3, notifications backlog A9).

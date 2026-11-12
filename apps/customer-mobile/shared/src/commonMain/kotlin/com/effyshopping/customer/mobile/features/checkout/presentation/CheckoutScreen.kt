@@ -104,6 +104,7 @@ import com.effyshopping.customer.mobile.core.presentation.ProductImage
 import com.effyshopping.customer.mobile.resources.lucide_lock
 import com.effyshopping.customer.mobile.resources.lucide_map_pin
 import com.effyshopping.customer.mobile.features.cart.domain.CartSnapshot
+import com.effyshopping.customer.mobile.features.checkout.domain.shownLinesOf
 import com.effyshopping.customer.mobile.features.checkout.domain.CheckoutPoints
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -133,6 +134,8 @@ fun CheckoutScreen(
             handoff = container.paymentHandoff,
             quoteDelivery = container.quoteDelivery,
             saveAddressInstructions = container.saveAddressInstructions,
+            shownLines = { shownLinesOf(container.cart.snapshot().lines) },
+            refreshCart = { container.syncCart() },
         )
     }
     val state by vm.state.collectAsState()

@@ -95,6 +95,8 @@ sealed class AnalyticsEvent(val name: String, val props: Map<String, String> = e
     class DeliveryFeeViewed(free: Boolean, smallOrder: Boolean, surcharge: Boolean) :
         AnalyticsEvent("delivery_fee_viewed", mapOf("free" to free.toString(), "small_order" to smallOrder.toString(), "surcharge" to surcharge.toString()))
     data object CheckoutDeliveryFeeChanged : AnalyticsEvent("checkout_delivery_fee_changed")
+    // 114: the cart changed while paying (stock another shopper took); nothing was charged. As customer-web's.
+    data object CheckoutStockChanged : AnalyticsEvent("checkout_stock_changed")
 
     // Points. No amounts, no balance: a balance is account data, not behaviour. The same names
     // and props as customer-web's.

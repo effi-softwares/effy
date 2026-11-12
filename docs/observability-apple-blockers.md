@@ -85,6 +85,12 @@ Expected on iOS until the account exists: the Xcode console prints `Push: no APN
    allow notifications. A `device_token` row with `platform = 'ios'` appears. Place an order → "Order
    confirmed" arrives.
 
+6. **Time-sensitive notifications (notifications backlog D7, not built yet).** When D7 is built, important
+   messages go as `time-sensitive` and offers as `passive` (never `critical`). Before it ships: Xcode → target
+   `iosApp` → Signing & Capabilities → `+` → **Time Sensitive Notifications** (it adds
+   `com.apple.developer.usernotifications.time-sensitive` to `iosApp.entitlements`), for the customer and driver
+   apps. Without it iOS treats a time-sensitive push as active, silently.
+
 > TestFlight / App Store builds rewrite `aps-environment` to `production` by themselves; the APNs key works
 > for both environments.
 

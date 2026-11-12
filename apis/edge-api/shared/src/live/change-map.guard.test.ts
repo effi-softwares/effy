@@ -38,7 +38,6 @@ const SILENT: Record<string, string> = {
   "commerce/cart-saved-v1-delete": "cart — own sync mechanism (027)",
   "commerce/cart-v1-delete": "cart — own sync mechanism (027)",
   "commerce/checkout-quote-v1-post": "a delivery quote; writes nothing a screen shows",
-  "commerce/checkout-intent-v1-post": "creates an UNPAID order, which no shop, driver or back-office screen lists; the slot hold it takes is confirmed (and announced) at payment",
   "commerce/list-add-to-cart-v1-post": "the shopper's own lists (068)",
   "commerce/list-entry-v1-delete": "the shopper's own lists (068)",
   "commerce/list-entry-v1-put": "the shopper's own lists (068)",

@@ -11,7 +11,8 @@ const INBOX: QueryKey = ["shop", "inbox"]
 
 export const LIVE_ROUTES: Partial<Record<LiveKind, readonly QueryKey[]>> = {
   orders: [TODAY, FULFILLMENT],
-  stock: [TODAY, STOCK],
+  // 114: holds move a product page's "in checkouts" numbers too.
+  stock: [TODAY, STOCK, PRODUCT],
   attention: [TODAY],
   // Effy changed the category tree or a form (101): the picker and any open details form re-read.
   taxonomy: [TAXONOMY],

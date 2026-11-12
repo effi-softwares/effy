@@ -120,6 +120,8 @@ export interface ProductHoldDTO {
 export interface BackOfficeVariantDTO extends ReviewVariantDTO {
   stockTracked: boolean;
   stockOnHand: WireInt | null;
+  /** 114: units in shoppers' live checkout holds (never changes the shelf count); null when untracked. */
+  stockHeld: WireInt | null;
   lowStockThreshold: WireInt | null;
 }
 

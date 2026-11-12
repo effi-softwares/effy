@@ -16,6 +16,10 @@ import { announce, type LiveChange } from "../live";
 import { release as releasePoints, spendHeld } from "../points/ledger";
 import { confirmUses, releaseUses } from "../promotions/uses";
 import { notify } from "../notifications/notify";
+import { stockHeldSql } from "../lib/availability";
+import { consumeStockHolds, releaseStockHolds, type ReleaseResult } from "../stock/holds";
+import { meterStockHoldsEnded } from "../stock/announce";
+import { MONEY_METRIC_NAMESPACE } from "./index";
 
 export interface FinalizeOutcome {
   /** False when the order was not pending (a redelivery): nothing ran. */
@@ -37,11 +41,18 @@ export interface FinalizeOutcome {
   pointsShortfall: number;
   /** Who delivers the order; null when nothing was applied. */
   deliveryType: "effy" | "courier" | null;
+  /**
+   * 114: the payment landed after a counted line's checkout hold had run out (or with none). It took only what other
+   * shoppers did not hold; anything missing is `stockShortfall`. Alarmed when short (`StockHoldLate`).
+   */
+  stockHoldLate: boolean;
+  /** 114: the order's holds this payment ended. */
+  stockHoldsEnded: { live: number; lapsed: number };
 }
 
 const NOT_APPLIED: FinalizeOutcome = {
   applied: false, slotConfirmed: false, slotOverCapacity: false, stockShortfall: false, shopIds: [], customerSub: null, stockShopIds: [],
-  pointsSpent: 0, pointsShortfall: 0, deliveryType: null,
+  pointsSpent: 0, pointsShortfall: 0, deliveryType: null, stockHoldLate: false, stockHoldsEnded: { live: 0, lapsed: 0 },
 };
 
 /**
@@ -153,6 +164,10 @@ SELECT v.id FROM public.product_variant v
     [orderId],
   );
 
+  // What this order may take: the shelf less OTHER customers' live checkout holds (114). An order paid within its own
+  // hold always fits (holds never exceed the shelf); a late one cannot take units another shopper holds in time.
+  const LEFT_FOR_ORDER = `GREATEST(0, COALESCE(v.stock_on_hand, 0) - ${stockHeldSql("v", "o.customer_id")})`;
+
   // Flag the shortfall before deducting: after the deduction the shelf reads 0. Pick rows are created
   // with the deficit already unavailable.
   const flagged = await tx.query(
@@ -160,19 +175,21 @@ SELECT v.id FROM public.product_variant v
 INSERT INTO public.fulfillment_item
     (shop_fulfillment_id, order_item_id, ordered_quantity, unavailable_quantity)
 SELECT sf.id, oi.id, oi.quantity,
-       LEAST(oi.quantity, oi.quantity - COALESCE(v.stock_on_hand, 0))
+       LEAST(oi.quantity, oi.quantity - ${LEFT_FOR_ORDER})
   FROM public.order_item oi
+  JOIN public."order" o ON o.id = oi.order_id
   JOIN public.shop_fulfillment sf ON sf.order_id = oi.order_id AND sf.shop_id = oi.shop_id
   JOIN public.product_variant v ON v.id = oi.variant_id
  WHERE oi.order_id = $1
    AND v.stock_tracked
-   AND oi.quantity > COALESCE(v.stock_on_hand, 0)
+   AND oi.quantity > ${LEFT_FOR_ORDER}
 ON CONFLICT (shop_fulfillment_id, order_item_id) DO NOTHING`,
     [orderId],
   );
 
-  // Stock. `GREATEST(0, …)` keeps a negative count impossible despite the locks; `prev` carries the
-  // before-value into the movement. Untracked variants match nothing.
+  // Stock: the shelf goes down by what was sold - the order's quantity, up to what it may take (114: never units
+  // another shopper holds in time). `GREATEST(0, …)` keeps a negative count impossible despite the locks; `prev`
+  // carries the before-value into the movement. Untracked variants match nothing.
   const stockMoved = await tx.query<{ shop_id: string }>(
     `
 WITH ordered AS (
@@ -181,9 +198,10 @@ WITH ordered AS (
      WHERE oi.order_id = $1
      GROUP BY oi.variant_id, oi.shop_id
 ), prev AS (
-    SELECT v.id, v.product_id, o.shop_id, v.stock_on_hand, o.qty
+    SELECT v.id, v.product_id, od.shop_id, v.stock_on_hand,
+           LEAST(od.qty, GREATEST(0, COALESCE(v.stock_on_hand, 0) - ${stockHeldSql("v", "(SELECT ord.customer_id FROM public.\"order\" ord WHERE ord.id = $1)")})) AS qty
       FROM public.product_variant v
-      JOIN ordered o ON o.variant_id = v.id
+      JOIN ordered od ON od.variant_id = v.id
      WHERE v.stock_tracked
      ORDER BY v.id
      FOR UPDATE OF v
@@ -201,6 +219,9 @@ SELECT product_id, id, shop_id, after - before, before, after, 'order_paid', 'sy
 RETURNING shop_id::text AS shop_id`,
     [orderId],
   );
+
+  // 114: the order's checkout holds are used up; a payment that outran them is recorded as late.
+  const holds = await consumeStockHolds(tx, orderId);
 
   // "New order to pick": one per active staff member of each shop, per package.
   const staffByPackage = (
@@ -281,20 +302,26 @@ DELETE FROM public.cart_item WHERE cart_id = (
     stockShortfall: (flagged.rowCount ?? 0) > 0,
     shopIds,
     customerSub: meta.cognito_sub,
-    stockShopIds: [...new Set(stockMoved.rows.map((r) => r.shop_id))],
+    stockShopIds: [...new Set([...stockMoved.rows.map((r) => r.shop_id), ...holds.shopIds])],
     pointsSpent: points.spent,
     pointsShortfall: points.shortfallPoints,
     deliveryType: meta.delivery_type,
+    stockHoldLate: holds.hadCountedLines && holds.late,
+    stockHoldsEnded: holds.ended,
   };
 }
 
-/** Marks the order and its payment failed. The cart is preserved. */
-export async function finalizeFailed(tx: Queryable, orderId: string): Promise<void> {
+/**
+ * Marks the order and its payment failed. The cart is preserved. Returns the stock holds it ended (114 FR-012a): the
+ * caller meters them and announces `stock` after the commit (`announceStockChange`).
+ */
+export async function finalizeFailed(tx: Queryable, orderId: string): Promise<ReleaseResult> {
   await tx.query(`UPDATE public."order" SET status='failed', updated_at=now() WHERE id=$1 AND status='pending_payment'`, [orderId]);
   await tx.query(`UPDATE public.payment SET status='failed', updated_at=now() WHERE order_id=$1`, [orderId]);
-  // Points and promotion uses held for this checkout are usable again at once.
+  // Points, promotion uses and stock held for this checkout are usable again at once.
   await releasePoints(tx, orderId);
   await releaseUses(tx, orderId, "payment_failed");
+  return releaseStockHolds(tx, orderId);
 }
 
 export interface AbandonOutcome {
@@ -303,6 +330,8 @@ export interface AbandonOutcome {
   customerSub: string | null;
   /** Points went back to the customer's balance. */
   pointsReleased: boolean;
+  /** 114: the stock holds it ended (announced and metered by `abandonOrder` after the commit). */
+  stockReleased: ReleaseResult;
 }
 
 /**
@@ -319,7 +348,9 @@ export async function finalizeAbandoned(tx: Queryable, orderId: string, now: Dat
       RETURNING c.cognito_sub AS sub`,
     [orderId],
   );
-  if ((closed.rowCount ?? 0) === 0) return { applied: false, customerSub: null, pointsReleased: false };
+  if ((closed.rowCount ?? 0) === 0) {
+    return { applied: false, customerSub: null, pointsReleased: false, stockReleased: { released: 0, lapsed: 0, shopIds: [] } };
+  }
 
   await tx.query(`UPDATE public.payment SET status = 'canceled', updated_at = now() WHERE order_id = $1`, [orderId]);
   const held = await tx.query(`SELECT 1 FROM public.points_hold WHERE order_id = $1 AND state = 'held'`, [orderId]);
@@ -330,7 +361,9 @@ export async function finalizeAbandoned(tx: Queryable, orderId: string, now: Dat
       WHERE order_id = $1 AND state = 'held'`,
     [orderId],
   );
-  return { applied: true, customerSub: closed.rows[0]!.sub, pointsReleased: (held.rowCount ?? 0) > 0 };
+  // 114: its checkout stock goes back on sale at once (FR-011).
+  const stockReleased = await releaseStockHolds(tx, orderId);
+  return { applied: true, customerSub: closed.rows[0]!.sub, pointsReleased: (held.rowCount ?? 0) > 0, stockReleased };
 }
 
 /** The metrics a finalisation raises. After the commit. */
@@ -345,6 +378,13 @@ export function meterFinalize(namespace: string, out: FinalizeOutcome): void {
   if (out.pointsSpent > 0) emitMetric(namespace, "PointsSpent", 1);
   // Alarmed: Effy absorbed value it did not plan to.
   if (out.pointsShortfall > 0) emitMetric(namespace, "PointsHoldShortfall", 1);
+  // 114: in the fixed money namespace whichever service took the payment, so one alarm sees every late short payment.
+  if (out.applied) {
+    if (out.stockHoldLate) {
+      emitMetric(MONEY_METRIC_NAMESPACE, "StockHoldLate", 1, { outcome: out.stockShortfall ? "short" : "complete" });
+    }
+    meterStockHoldsEnded("paid", out.stockHoldsEnded);
+  }
 }
 
 /**
@@ -355,6 +395,8 @@ export async function announcePaid(out: FinalizeOutcome): Promise<void> {
   if (!out.applied) return;
   const changes: LiveChange[] = out.shopIds.map((shopId) => ({ scope: "shop", shopId, kind: "orders" }));
   for (const shopId of out.stockShopIds) changes.push({ scope: "shop", shopId, kind: "stock" });
+  // 114: back-office's product stock (held and left to sell) moved too.
+  if (out.stockShopIds.length > 0) changes.push({ scope: "ops", kind: "stock" });
   if (out.customerSub) changes.push({ scope: "customer", sub: out.customerSub, kind: "orders" });
   // The customer's points balance moved too.
   if (out.customerSub && out.pointsSpent > 0) changes.push({ scope: "customer", sub: out.customerSub, kind: "points" });

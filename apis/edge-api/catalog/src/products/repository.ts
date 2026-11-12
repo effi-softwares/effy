@@ -4,7 +4,7 @@
 
 import type pg from "pg";
 
-import { limitOffsetClause, LOW_STOCK_PREDICATE, orderBy, query } from "@effy/edge-shared";
+import { limitOffsetClause, LOW_STOCK_PREDICATE, orderBy, query, stockHeldSql } from "@effy/edge-shared";
 import type { BackOfficeProductState, Storage } from "@effy/shared-types";
 
 import { PRODUCT_LIST, type ProductListRequest } from "./list";
@@ -190,13 +190,15 @@ export interface VariantStockRow {
   id: string;
   stock_tracked: boolean;
   stock_on_hand: number | null;
+  /** 114: units in shoppers' live checkout holds; never changes the shelf count. */
+  stock_held: number;
   low_stock_threshold: number | null;
 }
 
 export async function readVariantStock(productId: string): Promise<VariantStockRow[]> {
   const res = await query<VariantStockRow>(
-    `SELECT id::text, stock_tracked, stock_on_hand, low_stock_threshold
-       FROM public.product_variant WHERE product_id = $1`,
+    `SELECT v.id::text, v.stock_tracked, v.stock_on_hand, ${stockHeldSql("v")} AS stock_held, v.low_stock_threshold
+       FROM public.product_variant v WHERE v.product_id = $1`,
     [productId],
   );
   return res.rows;

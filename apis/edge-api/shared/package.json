@@ -13,6 +13,7 @@
     "./live": "./src/live/index.ts",
     "./testing": "./src/testing/index.ts",
     "./promotions": "./src/promotions/index.ts",
+    "./stock": "./src/stock/index.ts",
     "./labels": "./src/labels/index.ts",
     "./documents": "./src/documents/index.ts",
     "./catalog": "./src/catalog/index.ts",

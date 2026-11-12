@@ -19,6 +19,8 @@ const NOW = new Date("2026-07-30T12:00:00Z");
 
 interface Product {
   name: string; price: string; status?: string; tracked?: boolean; onHand?: number | null; shop?: string;
+  /** 114: units other shoppers' checkouts hold. */
+  held?: number;
 }
 
 /** An in-memory cart repository with the same observable rules as the real one. */
@@ -42,7 +44,7 @@ function world(products: Record<string, Product>, policy: Partial<CartPolicy> = 
       pack_quantity: null, pack_unit: null, unit_basis: null,
       shop_id: p.shop ?? "shop-1", quantity: e.qty, name: p.name,
       unit_price_amount: p.price, currency: "AUD", status: p.status ?? "active", stock_tracked: p.tracked ?? false,
-      stock_on_hand: p.tracked ? (p.onHand ?? 0) : null, storage_key: null, image_widths: null, unit_price_at_add: e.atAdd,
+      stock_on_hand: p.tracked ? (p.onHand ?? 0) : null, stock_held: p.held ?? 0, storage_key: null, image_widths: null, unit_price_at_add: e.atAdd,
     };
   };
   const guard = (changeId: string, fn: () => void): boolean => {
@@ -66,7 +68,7 @@ function world(products: Record<string, Product>, policy: Partial<CartPolicy> = 
     }),
     variantStatus: async (pid): Promise<VariantStatusRow | null> => {
       const p = products[pid];
-      return p ? { product_id: pid, status: p.status ?? "active", variant_state: "active", price_amount: p.price, stock_tracked: p.tracked ?? false, stock_on_hand: p.tracked ? (p.onHand ?? 0) : null } : null;
+      return p ? { product_id: pid, status: p.status ?? "active", variant_state: "active", price_amount: p.price, stock_tracked: p.tracked ?? false, stock_on_hand: p.tracked ? (p.onHand ?? 0) : null, stock_held: p.held ?? 0 } : null;
     },
     variantSnapshots: async (ids) => ids.filter((i) => products[i]).map((i) => ({ ...row(i, { qty: 0, atAdd: null }), id: "" })),
     orderItemsForReorder: async (customerId, orderId) => {
@@ -253,6 +255,20 @@ describe("add", () => {
     expect(w.cart.get(A)?.qty).toBe(4);
   });
 
+  it("114: 'only N available' counts what other shoppers' checkouts hold", async () => {
+    const w = world({ [A]: { ...milk, tracked: true, onHand: 5, held: 3 } });
+    const err = await w.svc.add(CUSTOMER, A, "c1", 3).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(InsufficientStockError);
+    expect((err as InsufficientStockError).available).toBe(2);
+    await w.svc.add(CUSTOMER, A, "c2", 2);
+    expect(w.cart.get(A)?.qty).toBe(2);
+  });
+
+  it("114: everything held reads as out of stock, never as someone else holding it", async () => {
+    const w = world({ [A]: { ...milk, tracked: true, onHand: 2, held: 2 } });
+    await expect(w.svc.add(CUSTOMER, A, "c1", 1)).rejects.toBeInstanceOf(ProductUnavailableError);
+  });
+
   it("clamps to the per-line ceiling and says so", async () => {
     const w = world({ [A]: milk }, { maxLineQuantity: 5 });
     const cart = await w.svc.add(CUSTOMER, A, "c1", 9);
@@ -362,7 +378,7 @@ describe("reorder", () => {
   const order = (items: Partial<ReorderCandidate>[]) =>
     items.map((i, n): ReorderCandidate => {
       const pid = i.product_id ?? id(n + 1);
-      return { product_id: pid, variant_id: pid, variant_label: null, quantity: 1, name: `Item ${n + 1}`, status: "active", variant_state: "active", stock_tracked: false, stock_on_hand: null, ...i };
+      return { product_id: pid, variant_id: pid, variant_label: null, quantity: 1, name: `Item ${n + 1}`, status: "active", variant_state: "active", stock_tracked: false, stock_on_hand: null, stock_held: 0, ...i };
     });
 
   it("someone else's order and a missing order are the SAME not-found", async () => {
@@ -526,8 +542,11 @@ describe("dedupe / payableCents", () => {
     const row = (over: Partial<CartLineRow>): CartLineRow => ({
       id: "l", product_id: A, variant_id: A, variant_label: null, age_restricted: false, variant_state: "active", pack_quantity: null, pack_unit: null, unit_basis: null,
       shop_id: "s", quantity: 2, name: "n", unit_price_amount: "10.00", currency: "AUD",
-      status: "active", stock_tracked: false, stock_on_hand: null, storage_key: null, image_widths: null, unit_price_at_add: null, ...over,
+      status: "active", stock_tracked: false, stock_on_hand: null, stock_held: 0, storage_key: null, image_widths: null, unit_price_at_add: null, ...over,
     });
     expect(payableCents([row({}), row({ status: "unavailable" }), row({ stock_tracked: true, stock_on_hand: 1, quantity: 5 })])).toBe(2000 + 1000);
+    // 114: other shoppers' live holds come off what can be supplied; all held = nothing payable.
+    expect(payableCents([row({ stock_tracked: true, stock_on_hand: 5, stock_held: 3, quantity: 4 })])).toBe(2000);
+    expect(payableCents([row({ stock_tracked: true, stock_on_hand: 2, stock_held: 2, quantity: 1 })])).toBe(0);
   });
 });

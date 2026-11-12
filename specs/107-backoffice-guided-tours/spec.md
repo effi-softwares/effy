@@ -411,14 +411,15 @@ every role whenever its part is on screen. Role marks: **Admin or manager**, **A
 | 3 | Message limit | Largest message | The most people one message may reach. A bigger message is refused. Only administrators can change it. | |
 | 4 | Activity | Rule changes | Every change to these limits, and who made it. | |
 
-### HK - Clean-ups (113: specs/113-data-lifecycle/spec.md › Guided tours)
+### HK - Clean-ups (113: specs/113-data-lifecycle/spec.md › Guided tours; step 4 added by 114, version 2)
 
 | # | Points at | Title | Text | Shown when |
 |---|---|---|---|---|
 | 1 | Page heading | Clean-ups | Jobs that run by themselves to close unpaid orders, erase deleted accounts and remove old phone registrations. | |
 | 2 | The jobs | Did it work? | When each one last ran, what it did and when it runs next. One that failed or hasn't run is marked. | |
 | 3 | Abandon time | Unpaid orders | How long an unpaid checkout waits before it is closed and its points and codes are freed. | |
-| 4 | Activity | Earlier runs | Every run and every change to the abandon time, with who changed it. | |
+| 4 | Hold time | Stock at checkout | How long a shopper's items stay held for them after they press Pay. Unused holds go back on sale by themselves. | |
+| 5 | Activity | Earlier runs | Every run and every change to these settings, with who changed it. | |
 
 ### ML - Messages (112: specs/112-backoffice-messages/spec.md › Guided tours)
 

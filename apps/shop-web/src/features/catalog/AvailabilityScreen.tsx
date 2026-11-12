@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query"
 import { useSearch } from "@tanstack/react-router"
 import { ArrowDown, CircleAlert, CircleSlash, ImageOff, ToggleRight } from "lucide-react"
 
-import type { AvailabilityFilter, ShopAvailabilityDTO, ShopAvailabilityRowDTO } from "@effy/shared-types"
+import { heldStockWords, type AvailabilityFilter, type ShopAvailabilityDTO, type ShopAvailabilityRowDTO } from "@effy/shared-types"
 import { Badge, Label, Switch, toast } from "@effy/design-system/ui"
 import { DataTable, ListPage, listQueryOptions, SearchBox, useListState, ViewSelect, type EffyColumnDef } from "@effy/web-kit/data-table"
 import { PageHeader } from "@effy/web-kit/patterns"
@@ -48,7 +48,18 @@ const columns: EffyColumnDef<ShopAvailabilityRowDTO>[] = [
   {
     id: "stock",
     header: "In stock",
-    cell: ({ row }) => (row.original.stock.tracked ? (row.original.stock.onHand ?? 0) : <span className="text-muted-foreground">Not counted</span>),
+    cell: ({ row }) => {
+      const s = row.original.stock
+      if (!s.tracked) return <span className="text-muted-foreground">Not counted</span>
+      // 114: what shoppers' checkouts hold, under the shelf count the shop entered.
+      const held = heldStockWords(s.held, s.leftToSell)
+      return (
+        <>
+          {s.onHand ?? 0}
+          {held ? <span className="mt-0.5 block whitespace-nowrap text-xs text-muted-foreground">{held}</span> : null}
+        </>
+      )
+    },
     meta: { label: "In stock", align: "numeric", sortKey: "stock" },
   },
   {

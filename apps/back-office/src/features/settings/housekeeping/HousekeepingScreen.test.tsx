@@ -15,6 +15,7 @@ const at = (minAgo: number) => new Date(Date.now() - minAgo * 60_000).toISOStrin
 
 const PAGE = (mayEdit: boolean): HousekeepingDTO => ({
   abandonAfterMinutes: 1440,
+  stockHoldMinutes: 15,
   version: "2026-11-12T00:00:00.000Z",
   mayEdit,
   jobs: [
@@ -83,7 +84,7 @@ describe("Settings › Clean-ups (113 US5)", () => {
     await userEvent.click(screen.getByRole("button", { name: "Save" }))
     await waitFor(() =>
       expect(repo.updateHousekeepingSettings).toHaveBeenCalledWith(
-        { abandonAfterMinutes: 720, version: "2026-11-12T00:00:00.000Z" },
+        { abandonAfterMinutes: 720, stockHoldMinutes: 15, version: "2026-11-12T00:00:00.000Z" },
         expect.anything(),
       ),
     )
@@ -103,5 +104,31 @@ describe("Settings › Clean-ups (113 US5)", () => {
     expect(await screen.findByLabelText("Abandon time")).toBeDisabled()
     expect(screen.getByText("Only an administrator can change the abandon time.")).toBeTruthy()
     expect(screen.queryByRole("button", { name: "Save" })).toBeNull()
+  })
+
+  it("114: an administrator sets how long checkout holds stock, 5 to 60 minutes", async () => {
+    repo.updateHousekeepingSettings.mockResolvedValue({ ...PAGE(true), stockHoldMinutes: 20 })
+    show()
+    const input = await screen.findByLabelText("Hold time")
+    expect(input).toHaveValue("15")
+    await userEvent.clear(input)
+    await userEvent.type(input, "61")
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled()
+    await userEvent.clear(input)
+    await userEvent.type(input, "20")
+    await userEvent.click(screen.getByRole("button", { name: "Save" }))
+    await waitFor(() =>
+      expect(repo.updateHousekeepingSettings).toHaveBeenCalledWith(
+        { abandonAfterMinutes: 1440, stockHoldMinutes: 20, version: "2026-11-12T00:00:00.000Z" },
+        expect.anything(),
+      ),
+    )
+  })
+
+  it("114: a manager or CSA sees the hold time but can't change it", async () => {
+    repo.getHousekeeping.mockResolvedValue(PAGE(false))
+    show()
+    expect(await screen.findByLabelText("Hold time")).toBeDisabled()
+    expect(screen.getByText("Only an administrator can change the hold time.")).toBeTruthy()
   })
 })

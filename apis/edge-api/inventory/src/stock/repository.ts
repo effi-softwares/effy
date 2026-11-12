@@ -19,6 +19,7 @@ import {
   pageClause,
   query,
   runOffsetPage,
+  stockHeldSql,
   withTransaction,
 } from "@effy/edge-shared";
 import { variantLabelSql } from "@effy/edge-shared/catalog";
@@ -33,6 +34,7 @@ interface StockDbRow {
   shop_id: string;
   stock_tracked: boolean;
   stock_on_hand: number | null;
+  stock_held: number;
   low_stock_threshold: number | null;
   shop_default_threshold: number | null;
 }
@@ -44,6 +46,7 @@ SELECT v.product_id::text    AS product_id,
        v.shop_id::text       AS shop_id,
        v.stock_tracked       AS stock_tracked,
        v.stock_on_hand       AS stock_on_hand,
+       ${stockHeldSql("v")}  AS stock_held,
        v.low_stock_threshold AS low_stock_threshold,
        s.default_low_stock_threshold AS shop_default_threshold
   FROM public.product_variant v
@@ -58,6 +61,7 @@ function toStockRow(r: StockDbRow): StockRow {
     shopId: r.shop_id,
     tracked: r.stock_tracked,
     onHand: r.stock_on_hand,
+    held: Number(r.stock_held),
     threshold: r.low_stock_threshold,
     shopDefaultThreshold: r.shop_default_threshold,
   };

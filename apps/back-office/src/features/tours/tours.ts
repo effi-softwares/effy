@@ -523,7 +523,8 @@ export const BACK_OFFICE_TOURS = defineTours([
   // HK - Clean-ups (113)
   {
     key: "housekeeping",
-    version: 1,
+    // 2: the stock hold time (114).
+    version: 2,
     title: "Clean-ups",
     path: "/settings/housekeeping",
     steps: [
@@ -543,9 +544,14 @@ export const BACK_OFFICE_TOURS = defineTours([
         text: "How long an unpaid checkout waits before it is closed and its points and codes are freed.",
       },
       {
+        target: "housekeeping.stockHold",
+        title: "Stock at checkout",
+        text: "How long a shopper's items stay held for them after they press Pay. Unused holds go back on sale by themselves.",
+      },
+      {
         target: "page-activity",
         title: "Earlier runs",
-        text: "Every run and every change to the abandon time, with who changed it.",
+        text: "Every run and every change to these settings, with who changed it.",
       },
     ],
   },

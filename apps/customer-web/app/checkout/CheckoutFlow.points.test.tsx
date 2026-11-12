@@ -2,11 +2,11 @@ import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
-import type { AddressDTO, DeliveryQuoteDTO } from "@effy/shared-types"
+import { STOCK_CHANGED_MESSAGE, type AddressDTO, type DeliveryQuoteDTO } from "@effy/shared-types"
 
 import { capture } from "@/lib/telemetry"
 
-import { addToCart, resetCart } from "@/lib/cart-store"
+import { addToCart, readCart, resetCart } from "@/lib/cart-store"
 import { CheckoutFlow } from "./CheckoutFlow"
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }))
@@ -115,5 +115,33 @@ describe("074 - points at checkout (web)", () => {
     render(<CheckoutFlow initialAddresses={[ADDRESS]} />)
     await waitFor(() => expect(payButton()).toBeEnabled())
     expect(screen.queryByRole("checkbox", { name: /use points/i })).not.toBeInTheDocument()
+  })
+
+  // 114: the lines shown go with payment start, and a basket that changed is refused, never charged unseen.
+  it("sends the lines it shows, and on stock_changed says so, adopts the cart as it is now, and charges nothing", async () => {
+    intentReply = () =>
+      jsonRes(
+        {
+          code: "stock_changed",
+          cart: {
+            revision: 999, lines: [], savedLines: [], itemSubtotalAmount: "0.00", discountAmount: "0.00", grandTotalAmount: "0.00",
+            currency: "AUD", notices: [], discount: null, promotions: [],
+            checkout: { allowed: false, blockedReason: "no_payable_items", minimumSubtotalAmount: null, remainingAmount: null },
+            limits: { maxLineQuantity: 99, maxDistinctItems: 100 },
+          },
+        },
+        false,
+        409,
+      )
+    const user = userEvent.setup()
+    render(<CheckoutFlow initialAddresses={[ADDRESS]} />)
+    await waitFor(() => expect(payButton()).toBeEnabled())
+    await user.click(payButton())
+    await waitFor(() => expect(intentBodies).toHaveLength(1))
+    expect(intentBodies[0]?.shownLines).toEqual([{ variantId: "v1", quantity: 1 }])
+    expect(await screen.findByText(STOCK_CHANGED_MESSAGE)).toBeInTheDocument()
+    expect(capture).toHaveBeenCalledWith({ name: "checkout_stock_changed", props: {} })
+    expect(screen.queryByText("Payment step")).not.toBeInTheDocument()
+    expect(readCart().lines).toEqual([])
   })
 })

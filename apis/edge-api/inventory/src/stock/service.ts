@@ -59,7 +59,7 @@ function optionalNote(value: unknown): string | null {
 /** The shared mapping, so "low" means one thing. */
 export function toStockDTO(row: StockRow): ProductStockDTO {
   return stockState({
-    productId: row.productId, variantId: row.variantId, tracked: row.tracked, onHand: row.onHand,
+    productId: row.productId, variantId: row.variantId, tracked: row.tracked, onHand: row.onHand, held: row.held,
     threshold: row.threshold, shopDefaultThreshold: row.shopDefaultThreshold,
   });
 }

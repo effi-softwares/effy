@@ -29,6 +29,10 @@ export interface SizeStock {
   /** false: nobody counts it, so it never runs out. */
   tracked: boolean;
   onHand: number | null;
+  /** 114: units in shoppers' live checkout holds (0 when none). Never changes `onHand`, the shelf the shop counted. */
+  held: number;
+  /** 114: what shoppers can still buy (`onHand` less `held`, never below 0); null when not counted. */
+  leftToSell: number | null;
   /** The level the shop is told at (its own, else the shop default); null when nothing counts as low. */
   alertAt: number | null;
   low: boolean;

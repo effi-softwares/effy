@@ -2,7 +2,7 @@
 // lists. The entry's foreign key gives one direction; SWEEP_ORPHANS, run in every removing
 // transaction, gives the other. Every writer takes the per-customer transaction lock first, or two
 // concurrent saves could both pass the cap.
-import { pooled, renditionWidthsSql, withTransaction, type Queryable, type Transactor } from "@effy/edge-shared";
+import { pooled, renditionWidthsSql, stockHeldSql, withTransaction, type Queryable, type Transactor } from "@effy/edge-shared";
 import { variantLabelSql } from "@effy/edge-shared/catalog";
 import { DEFAULT_LIST_ID, type PackUnit, type UnitBasis } from "@effy/shared-types";
 
@@ -110,12 +110,14 @@ SELECT s.product_id::text                        AS product_id,
          WHEN p.status = 'archived' THEN 'no_longer_sold'
          WHEN p.status <> 'active'  THEN 'temporarily_unavailable'
          WHEN rv.id IS NOT NULL AND rv.state <> 'active' THEN 'temporarily_unavailable'
-         WHEN rv.id IS NOT NULL AND rv.stock_tracked AND coalesce(rv.stock_on_hand, 0) <= 0 THEN 'temporarily_unavailable'
+         -- 114: units other shoppers' checkouts hold are not there to buy (\`stockHeldSql\`, the rule's own sum).
+         WHEN rv.id IS NOT NULL AND rv.stock_tracked
+              AND coalesce(rv.stock_on_hand, 0) - ${stockHeldSql("rv", "e.customer_id")} <= 0 THEN 'temporarily_unavailable'
          WHEN rv.id IS NULL AND NOT EXISTS (
               -- availability-exempt: product_variant - classifying WHY (the CASE above), not deciding.
               SELECT 1 FROM public.product_variant sv
                WHERE sv.product_id = p.id AND sv.state = 'active'
-                 AND (NOT sv.stock_tracked OR sv.stock_on_hand > 0)) THEN 'temporarily_unavailable'
+                 AND (NOT sv.stock_tracked OR sv.stock_on_hand - ${stockHeldSql("sv", "e.customer_id")} > 0)) THEN 'temporarily_unavailable'
          ELSE 'purchasable'
        END                                       AS verdict
 FROM public.customer_list_entry e

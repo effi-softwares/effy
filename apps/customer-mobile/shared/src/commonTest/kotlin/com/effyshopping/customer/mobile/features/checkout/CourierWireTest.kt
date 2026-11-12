@@ -60,7 +60,7 @@ class CourierWireTest {
 
     @Test
     fun `the intent says which type the screen showed`() {
-        fun sent(type: DeliveryType?) = json.encodeToString(CreateCheckoutIntentRequest.serializer(), PlaceOrder(addressId = "a1", deliveryType = type).toRequest())
+        fun sent(type: DeliveryType?) = json.encodeToString(CreateCheckoutIntentRequest.serializer(), PlaceOrder(addressId = "a1", deliveryType = type, shownLines = emptyList()).toRequest())
         assertTrue(sent(DeliveryType.COURIER).contains(""""deliveryType":"courier""""), sent(DeliveryType.COURIER))
         assertTrue(sent(DeliveryType.EFFY).contains(""""deliveryType":"effy""""))
         assertFalse(sent(null).contains("deliveryType"), sent(null))
@@ -81,5 +81,28 @@ class CourierWireTest {
         ).toDomain()
         assertEquals(OrderDelivery(DeliveryType.COURIER, "2–4 business days"), row(""","delivery":{"type":"courier","courierEstimate":"2–4 business days"}""").delivery)
         assertEquals(OrderDelivery(DeliveryType.EFFY, null), row(""","delivery":{"type":"effy","courierEstimate":null}""").delivery)
+    }
+
+    @Test
+    fun `114 - the request carries the lines shown, and the stock refusal is decoded`() {
+        val sent = json.encodeToString(
+            CreateCheckoutIntentRequest.serializer(),
+            PlaceOrder(addressId = "a1", shownLines = listOf(com.effyshopping.customer.mobile.features.checkout.domain.ShownLine("v1", 2))).toRequest(),
+        )
+        assertTrue(sent.contains(""""shownLines":[{"quantity":2,"variantId":"v1"}]"""), sent)
+        val refusal = """{"type":"https://effyshopping.com/problems/conflict","title":"Your cart changed","status":409,"code":"stock_changed"}"""
+        assertNotNull(com.effyshopping.customer.mobile.features.checkout.data.stockChangedOrNull(refusal))
+        assertNull(com.effyshopping.customer.mobile.features.checkout.data.stockChangedOrNull("""{"code":"promotions_changed"}"""))
+    }
+
+    @Test
+    fun `114 - only available lines with a quantity are shown as payable`() {
+        val line = com.effyshopping.customer.mobile.features.cart.domain.GuestCartLine(
+            variantId = "v1", productId = "p1", name = "Milk", imageUrl = null, unitPriceAmount = "1.00", currency = "AUD", quantity = 2, packageKey = "k",
+        )
+        val shown = com.effyshopping.customer.mobile.features.checkout.domain.shownLinesOf(
+            listOf(line, line.copy(variantId = "v2", available = false), line.copy(variantId = "v3", quantity = 0)),
+        )
+        assertEquals(listOf(com.effyshopping.customer.mobile.features.checkout.domain.ShownLine("v1", 2)), shown)
     }
 }

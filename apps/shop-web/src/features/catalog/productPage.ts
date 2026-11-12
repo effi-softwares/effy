@@ -31,6 +31,8 @@ export function shopSizes(detail: ProductDetail): SizeView[] {
         stock: {
           tracked: v.stock.tracked,
           onHand: v.stock.onHand,
+          held: v.stock.held ?? 0,
+          leftToSell: v.stock.leftToSell,
           alertAt: v.stock.effectiveThreshold,
           low: v.stock.low,
           out: v.stock.outOfStock,

@@ -56,11 +56,18 @@ export interface ProductStockDTO {
   tracked: boolean
   /** null exactly when untracked (the database makes "tracked with no count" unrepresentable). */
   onHand: WireInt | null
+  /**
+   * 114: units in other shoppers' live checkout holds. A hold never changes `onHand` (the shelf the shop entered).
+   * null exactly when untracked.
+   */
+  held: WireInt | null
+  /** 114: max(0, onHand - held), what shoppers can still buy. null exactly when untracked. */
+  leftToSell: WireInt | null
   /** The variant's own threshold, or null to fall back to the shop default. */
   threshold: WireInt | null
   /** Own threshold, else shop default, else null (nothing counts as low). */
   effectiveThreshold: WireInt | null
-  /** tracked && onHand === 0. */
+  /** tracked && onHand === 0 - judged on the shelf, never on holds (114 FR-018). */
   outOfStock: boolean
   /** tracked && effectiveThreshold !== null && onHand > 0 && onHand <= effectiveThreshold. Never also `outOfStock`. */
   low: boolean
@@ -134,4 +141,13 @@ export interface SetThresholdRequest {
 export interface SetShopStockSettingsRequest {
   /** null clears the shop default. */
   defaultThreshold: WireInt | null
+}
+
+/**
+ * 114: how both consoles say what checkouts hold, under a size's shelf count - "2 in checkouts · 3 left to sell".
+ * Null when nothing is held (the shelf count says it all). Numbers only: never who holds them (FR-017).
+ */
+export function heldStockWords(held: number | null, leftToSell: number | null): string | null {
+  if (held === null || held <= 0) return null
+  return `${held} in checkouts · ${leftToSell ?? 0} left to sell`
 }

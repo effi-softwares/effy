@@ -1,7 +1,7 @@
 // What the charge is computed from and the pending order it is recorded against. Payment
 // finalisation lives in `@effy/edge-shared/payments`.
 import {
-  formatCents, parseCents, pooled, variantPurchasableSql, withTransaction, type Queryable, type Transactor,
+  formatCents, parseCents, pooled, stockHeldSql, variantPurchasableSql, withTransaction, type Queryable, type Transactor,
 } from "@effy/edge-shared";
 import { variantLabelSql } from "@effy/edge-shared/catalog";
 import {
@@ -9,6 +9,7 @@ import {
 } from "@effy/edge-shared/delivery";
 import type { PaymentMethodSummary } from "@effy/edge-shared/payments";
 import { holdUses } from "@effy/edge-shared/promotions";
+import { holdStock as holdOrderStock, releaseStockHolds as releaseOrderStock, type HoldStockResult, type ReleaseResult } from "@effy/edge-shared/stock";
 import type { DeliveryPromise } from "@effy/shared-types";
 import { hold as holdLedgerPoints, loadSettings as loadPointsSettings, usable as usablePoints } from "@effy/edge-shared/points";
 import { randomBytes } from "node:crypto";
@@ -26,7 +27,7 @@ export interface CheckoutLine {
   shopId: string;
   name: string;
   unitCents: number;
-  /** What will be charged, already capped at stock. */
+  /** What will be charged, already capped at what is left to sell to this shopper (114: shelf less others' holds). */
   quantity: number;
   /** What the cart asked for, before the cap. */
   requestedQuantity: number;
@@ -145,6 +146,10 @@ export interface CheckoutStore {
   /** Writes the promotion records and holds their uses in one transaction; throws `PromotionsChangedError`. */
   recordPromotions(orderId: string, customerId: string, priced: Pricing, now: Date): Promise<void>;
   savePaymentMethod(orderId: string, m: PaymentMethodSummary): Promise<void>;
+  /** 114: holds the order's counted sizes for the hold time (its own transaction, the size locks), or nothing. */
+  holdStock(orderId: string, customerId: string): Promise<HoldStockResult>;
+  /** 114: ends every stock hold of the customer's unpaid orders (a refused or failed payment start). */
+  releaseHeldStock(customerId: string): Promise<ReleaseResult>;
 }
 
 /** Takes the caller's connection: the webhook runs it in a transaction. */
@@ -173,12 +178,14 @@ SELECT ci.product_id::text AS product_id,
        -- ; the shop's own price rides beside it.
        v.price_amount::text AS unit_price_amount,
        v.shop_price_amount::text AS shop_unit_price_amount,
-       -- ⚠ the quantity PAID FOR is capped at what the shop can supply. Without this a
-       -- line asking for 5 with 2 on the shelf would create a charge for 5, and the shopper would
-       -- pay in full for three units that do not exist.
+       -- ⚠ the quantity PAID FOR is capped at what is left to sell to this shopper: the shelf less other
+       -- shoppers' live checkout holds (114; their own holds are theirs). Without this a line asking for 5
+       -- with 2 left would create a charge for 5, and the shopper would pay for three units they cannot have.
        -- ⚠ In SQL, not in code, so it cannot be forgotten by a second caller of this read.
        LEAST(ci.quantity,
-             CASE WHEN v.stock_tracked THEN v.stock_on_hand ELSE ci.quantity END) AS quantity,
+             CASE WHEN v.stock_tracked
+                  THEN GREATEST(0, v.stock_on_hand - ${stockHeldSql("v", "$1")})
+                  ELSE ci.quantity END) AS quantity,
        ci.quantity         AS requested_quantity,
        v.weight_grams      AS weight_grams,
        p.storage           AS storage_class
@@ -186,7 +193,7 @@ FROM public.cart c
 JOIN public.cart_item ci ON ci.cart_id = c.id
 JOIN public.product p ON p.id = ci.product_id
 JOIN public.product_variant v ON v.id = ci.variant_id
-WHERE c.customer_id = $1 AND ${variantPurchasableSql("p", "v")}
+WHERE c.customer_id = $1 AND ${variantPurchasableSql("p", "v", "$1")}
 ORDER BY ci.added_at ASC`,
           [customerId],
         )
@@ -430,6 +437,26 @@ ON CONFLICT (order_id) DO UPDATE SET stripe_payment_intent_id = EXCLUDED.stripe_
     holdPoints: (orderId, customerId, points, now) =>
       transact(async (tx) => {
         await holdLedgerPoints(tx, { customerId, orderId, points, now });
+      }),
+
+    holdStock: (orderId, customerId) => transact((tx) => holdOrderStock(tx, { orderId, customerId })),
+
+    releaseHeldStock: (customerId) =>
+      transact(async (tx) => {
+        const pending = (
+          await tx.query<{ id: string }>(
+            `SELECT id::text AS id FROM public."order" WHERE customer_id = $1 AND status = 'pending_payment'`,
+            [customerId],
+          )
+        ).rows;
+        const out: ReleaseResult = { released: 0, lapsed: 0, shopIds: [] };
+        for (const { id } of pending) {
+          const r = await releaseOrderStock(tx, id);
+          out.released += r.released;
+          out.lapsed += r.lapsed;
+          out.shopIds = [...new Set([...out.shopIds, ...r.shopIds])];
+        }
+        return out;
       }),
 
     /** No intent and nothing charged; the row gives refunds a payment record to find. */

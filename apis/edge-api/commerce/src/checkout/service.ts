@@ -1,6 +1,7 @@
 // The amount is decided here and nowhere else: catalogue prices, promotions re-evaluated now, the
 // delivery engine's fee. No figure a client sends is used.
 import { PromotionsChangedError } from "@effy/edge-shared/promotions";
+import { announceStockChange, meterStockHold, meterStockHoldsEnded } from "@effy/edge-shared/stock";
 import {
   CURRENCY, emitMetric, formatCents, metricNamespace, operatingStamp, parseCents, withTransaction, type RequestScope, type Transactor,
 } from "@effy/edge-shared";
@@ -76,6 +77,37 @@ export interface IntentInput {
   shownDeliveryAmount: string;
   /** The promotions total (goods + delivery) the client shows; "" when none was sent. */
   expectedDiscount?: string;
+  /** 114: the payable lines the client showed, already validated (UUIDs, whole quantities ≥ 1, no repeats). */
+  shownLines: readonly { variantId: string; quantity: number }[];
+}
+
+/**
+ * 114: told which shops' held stock changed, so the route can announce `stock` after the commit. The service never
+ * announces itself: the route does (`change-map.guard`).
+ */
+export interface IntentObserver {
+  stockChanged(shopIds: readonly string[]): void;
+}
+
+/**
+ * 114: the lines the client showed are not what can be sold and held now (another shopper took stock, or a line
+ * went off sale). Nothing was charged; the shopper re-reads the cart and confirms again.
+ */
+export class StockChangedError extends Error {
+  constructor() {
+    super("checkout: the cart changed while paying");
+  }
+}
+
+/** Same sizes and quantities, order ignored. */
+export function sameLines(
+  shown: readonly { variantId: string; quantity: number }[],
+  payable: readonly { variantId: string; quantity: number }[],
+): boolean {
+  const a = new Map<string, number>();
+  for (const l of payable) a.set(l.variantId, (a.get(l.variantId) ?? 0) + l.quantity);
+  if (a.size !== shown.length) return false;
+  return shown.every((l) => a.get(l.variantId) === l.quantity);
 }
 
 export type { PromoSource };
@@ -150,6 +182,13 @@ export function createCheckoutService(deps: {
   const transact = deps.transact ?? withTransaction;
   const ns = () => metricNamespace();
 
+  /** The order can never be paid: fail it; its stock goes back on sale and the shops are told after the commit (114). */
+  async function failOrder(orderId: string): Promise<void> {
+    const r = await transact((tx) => finalizeFailed(tx, orderId));
+    meterStockHoldsEnded("failed", { live: r.released - r.lapsed, lapsed: r.lapsed });
+    await announceStockChange(r.shopIds);
+  }
+
   async function settlePaid(orderId: string): Promise<FinalizeOutcome> {
     const out = await transact((tx) => finalizeSucceeded(tx, orderId));
     meterFinalize(ns(), out);
@@ -193,7 +232,7 @@ export function createCheckoutService(deps: {
     }
     if (status === "failed" || status === "canceled") {
       // A cancelled intent can never be paid: release the order.
-      await transact((tx) => finalizeFailed(tx, pending.orderId));
+      await failOrder(pending.orderId);
       return false;
     }
     // Live: same order, key and intent, which the double-charge guard depends on.
@@ -217,16 +256,29 @@ export function createCheckoutService(deps: {
     mayReusePendingOrder,
 
     /** Safe to call again for the same basket: it resolves to the same order and intent. */
-    async createIntent(customerId: string, input: IntentInput, now: Date) {
+    async createIntent(customerId: string, input: IntentInput, now: Date, observe?: IntentObserver) {
       if (!isUuid(input.addressId)) throw new AddressNotFoundError();
 
       const lines = await store.cartLines(customerId);
+
+      // 114: the basket the client showed must be the one that can be sold now, or nothing is charged. Checked before
+      // every other refusal (the lines decide both totals) and before anything is written - except that an earlier
+      // attempt's stock holds go, so nothing stays held for a payment that did not start.
+      if (!(input.shownLines.length === 0 && lines.length === 0) && !sameLines(input.shownLines, lines)) {
+        const released = await store.releaseHeldStock(customerId);
+        meterStockHoldsEnded("refused", { live: released.released - released.lapsed, lapsed: released.lapsed });
+        observe?.stockChanged(released.shopIds);
+        meterStockHold("refused_shown");
+        throw new StockChangedError();
+      }
+
       const address = await store.addressSnapshot(customerId, input.addressId);
       if (!address) throw new AddressNotFoundError();
       // Refused here: the provider would fail a zero amount without explanation.
       if (lines.length === 0) throw new EmptyCartError();
 
-      // Out-of-stock lines are already gone and partial lines capped, so the charge covers only stock.
+      // Out-of-stock lines are already gone and partial lines capped (to what is left to sell), so the charge covers
+      // only stock; a capped line the client showed as capped pays as shown.
       const itemSubtotalCents = lines.reduce((sum, l) => sum + l.unitCents * l.quantity, 0);
       if (lines.some((l) => l.requestedQuantity > l.quantity)) emitMetric(ns(), "StockBlocked", 1, { stage: "checkout" });
 
@@ -387,6 +439,21 @@ export function createCheckoutService(deps: {
       // Written on every intent, so a cleared note is not delivered from an earlier draft.
       await store.setOrderDeliveryInstructions(orderId, input.deliveryInstructions.handover, input.deliveryInstructions.note);
 
+      // 114: the stock is held LAST, so every earlier refusal (promotions, the window, points, an address) leaves none
+      // held. Under the size locks: another checkout may have taken the units since the read above.
+      const held = await store.holdStock(orderId, customerId);
+      meterStockHoldsEnded("replaced", { live: held.liveReplaced, lapsed: held.lapsedReplaced });
+      observe?.stockChanged(held.shopIds);
+      if (!held.ok) {
+        meterStockHold("refused_locked");
+        throw new StockChangedError();
+      }
+      if (held.counted) meterStockHold("held");
+
+      // Anything that fails from here (the provider, a payment already in progress) must not leave stock held for a
+      // payment that never started.
+      try {
+
       const pointsSplit = {
         pointsUsed, pointsAmount: formatCents(pointsValueCents), cardAmount: formatCents(cardCents),
       };
@@ -456,6 +523,16 @@ export function createCheckoutService(deps: {
         ...(slotHeldUntil ? { slotHeldUntil: operatingStamp(slotHeldUntil) } : {}),
         ...(sold ? { deliveryType: sold.type } : {}),
       };
+      } catch (err) {
+        // A payment already under way for this order did start: its stock stays held for it.
+        if (err instanceof PaymentInProgressError) throw err;
+        const released = await store.releaseHeldStock(customerId).catch(() => null);
+        if (released) {
+          meterStockHoldsEnded("refused", { live: released.released - released.lapsed, lapsed: released.lapsed });
+          observe?.stockChanged(released.shopIds);
+        }
+        throw err;
+      }
     },
 
     /** Settles the order even if the provider's webhook never arrives. */
@@ -470,7 +547,7 @@ export function createCheckoutService(deps: {
         await capturePaymentMethod(scope, orderId, intentId);
         return { orderId, paid: true };
       }
-      if (status === "failed") await transact((tx) => finalizeFailed(tx, orderId));
+      if (status === "failed") await failOrder(orderId);
       return { orderId, paid: false };
     },
 

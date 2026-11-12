@@ -1,12 +1,14 @@
-// Computes the charge, writes the pending order, holds the delivery place and creates the payment
-// intent. Safe to repeat. The request carries no amount or billing details: both come from the order.
+// Computes the charge, writes the pending order, holds the delivery place and the stock (114) and creates the payment
+// intent. Safe to repeat. The request carries no amount or billing details: both come from the order. It carries the
+// lines the client showed: a basket that changed is refused (409 stock_changed), never charged unseen.
 import { json, validationFailed } from "@effy/edge-shared";
+import { announceStockChange } from "@effy/edge-shared/stock";
 import { normaliseDeliveryInstructions } from "@effy/shared-types";
 
 import { DeliveryChoiceError } from "../checkout/delivery-choice";
 import { quoteForCheckout } from "../checkout/quote";
-import { checkoutError, deliveryChoiceRefused, deliveryFeeChanged, promotionsChanged } from "../checkout/respond";
-import { DeliveryFeeChangedError, PromotionsChangedRefusal } from "../checkout/service";
+import { checkoutError, deliveryChoiceRefused, deliveryFeeChanged, promotionsChanged, stockChanged } from "../checkout/respond";
+import { DeliveryFeeChangedError, PromotionsChangedRefusal, StockChangedError } from "../checkout/service";
 import { isUuid } from "../lib/ids";
 import { customerRoute, jsonBody, stringField } from "../lib/route";
 import { cartService, checkoutService, quoteDeps } from "../lib/wiring";
@@ -14,6 +16,24 @@ import { cartService, checkoutService, quoteDeps } from "../lib/wiring";
 /** A non-negative amount with exactly two decimal places - how every amount crosses the wire. */
 const AMOUNT = /^\d{1,7}\.\d{2}$/;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+/** More than any cart can hold; a longer list is junk. */
+const MAX_SHOWN_LINES = 500;
+
+/** 114: the payable lines the client showed - required; UUIDs, whole quantities ≥ 1, no size twice. */
+export function parseShownLines(raw: unknown): { variantId: string; quantity: number }[] | null {
+  if (!Array.isArray(raw) || raw.length > MAX_SHOWN_LINES) return null;
+  const seen = new Set<string>();
+  const out: { variantId: string; quantity: number }[] = [];
+  for (const item of raw) {
+    if (typeof item !== "object" || item === null) return null;
+    const { variantId, quantity } = item as { variantId?: unknown; quantity?: unknown };
+    if (typeof variantId !== "string" || !isUuid(variantId) || seen.has(variantId)) return null;
+    if (typeof quantity !== "number" || !Number.isSafeInteger(quantity) || quantity < 1) return null;
+    seen.add(variantId);
+    out.push({ variantId, quantity });
+  }
+  return out;
+}
 
 export const handler = customerRoute(async ({ event, scope, customer }) => {
   const body = jsonBody(event);
@@ -42,6 +62,11 @@ export const handler = customerRoute(async ({ event, scope, customer }) => {
     return validationFailed(scope, "expectedDiscount must be an amount like 5.00");
   }
   const expectedDiscount = typeof rawExpected === "string" ? rawExpected : "";
+
+  const shownLines = parseShownLines(body.shownLines);
+  if (shownLines === null) {
+    return validationFailed(scope, "shownLines must list each line shown once, as a size id and a whole quantity of at least 1");
+  }
 
   const rawWindow: unknown = body.deliveryWindow;
   let deliveryWindow: { slotId: string; date: string } | null = null;
@@ -74,18 +99,28 @@ export const handler = customerRoute(async ({ event, scope, customer }) => {
     ]);
   }
 
+  // 114: the shops whose held stock moved, told after the hold's transaction committed (also on a refusal).
+  const stockShops = new Set<string>();
   try {
     const result = await checkoutService.createIntent(
       customer.id,
       {
         addressId, billingAddressId, deliveryWindow, deliveryType, deliveryPromise,
         deliveryInstructions: instructions.value, wantsProviderMethodList: wantsList === true, pointsToUse,
-        shownDeliveryAmount, expectedDiscount,
+        shownDeliveryAmount, expectedDiscount, shownLines,
       },
       new Date(),
+      { stockChanged: (ids) => ids.forEach((id) => stockShops.add(id)) },
     );
+    await announceStockChange([...stockShops]);
     return json(200, result, scope);
   } catch (err) {
+    await announceStockChange([...stockShops]);
+    if (err instanceof StockChangedError) {
+      // The current cart, re-read: it flags each changed line in its existing words.
+      const cart = await cartService.get(customer.id).catch(() => null);
+      return stockChanged(scope, cart);
+    }
     if (err instanceof PromotionsChangedRefusal) {
       // The current cart, so the shopper sees the new total before paying.
       const cart = await cartService.get(customer.id).catch(() => null);

@@ -271,6 +271,8 @@ export type StorefrontEvent =
   | { name: "checkout_delivery_fee_changed"; props: Record<string, never> }
   // An offer changed between the cart and the pay button.
   | { name: "checkout_promotions_changed"; props: Record<string, never> }
+  // 114: the cart changed while paying (stock another shopper took); nothing was charged.
+  | { name: "checkout_stock_changed"; props: Record<string, never> }
   // Payment. Never a card number (not even the last four), security code, payment-method id, provider
   // customer id or amount. `method` is a family, not a provider.
   | { name: "payment_method_selected"; props: { method: PaymentMethodFamily } }

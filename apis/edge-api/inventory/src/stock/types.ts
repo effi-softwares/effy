@@ -32,6 +32,8 @@ export interface StockRow {
   shopId: string;
   tracked: boolean;
   onHand: number | null;
+  /** 114: units in shoppers' live checkout holds; never changes `onHand`. */
+  held: number;
   threshold: number | null;
   shopDefaultThreshold: number | null;
 }

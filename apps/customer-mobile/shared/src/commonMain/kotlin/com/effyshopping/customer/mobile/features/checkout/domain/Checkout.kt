@@ -272,7 +272,19 @@ data class PlaceOrder(
      * refuses ([DeliveryFeeChanged]) and nothing is written or charged. Null sends no check.
      */
     val shownDeliveryAmount: String? = null,
+    /**
+     * 114: the payable lines this screen shows ([shownLinesOf]). If the server cannot sell and hold exactly these
+     * now (another shopper took stock), it refuses ([StockChanged]) and nothing is held or charged.
+     */
+    val shownLines: List<ShownLine>,
 )
+
+/** One payable line as checkout shows it (114). */
+data class ShownLine(val variantId: String, val quantity: Int)
+
+/** 114: what the cart shows as payable - available lines, at the quantity the platform said can be sold. */
+fun shownLinesOf(lines: List<com.effyshopping.customer.mobile.features.cart.domain.GuestCartLine>): List<ShownLine> =
+    lines.filter { it.available && it.quantity > 0 }.map { ShownLine(it.variantId, it.quantity) }
 
 /** One line of what delivery costs. Only [DeliveryFeeLineKind.FreeDelivery] is negative. */
 enum class DeliveryFeeLineKind { Delivery, WindowSurcharge, SmallOrder, FreeDelivery }
@@ -300,6 +312,12 @@ class DeliveryFeeChanged(val quote: DeliveryQuote?) : Exception("delivery fee ch
 
 /** An offer changed, or its last use went, between the cart and the pay button. Nothing was charged. */
 class PromotionsChanged : Exception("promotions changed")
+
+/**
+ * 114: the cart changed between the screen and the pay button (another shopper took stock, or a line went off
+ * sale). Nothing was held or charged; the cart is re-read and says which line changed.
+ */
+class StockChanged : Exception("stock changed")
 
 /** Points as a way of paying, on a receipt: never a discount line. */
 data class PaymentSplit(val pointsUsed: Long, val pointsAmount: String, val cardAmount: String)

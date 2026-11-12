@@ -1054,13 +1054,21 @@
             "null"
           ]
         },
+        "shownLines": {
+          "description": "114: the payable lines the checkout displayed (the cart's quantities, already capped where stock is short). The server compares them, as a set, with what it can sell and hold now; any difference is 409 `stock_changed` with nothing charged. Required: a client that skipped it could be charged for a basket it never showed.",
+          "items": {
+            "$ref": "#/definitions/ShownLine"
+          },
+          "type": "array"
+        },
         "wantsProviderMethodList": {
           "description": "Set by a client rendering a provider-owned payment-method list (mobile), which needs a customer session; always minted for the authenticated subject. There is no `billingDetails` here: they derive from the order's snapshot.",
           "type": "boolean"
         }
       },
       "required": [
-        "addressId"
+        "addressId",
+        "shownLines"
       ],
       "type": "object"
     },
@@ -3640,6 +3648,23 @@
         "alt",
         "focusX",
         "focusY"
+      ],
+      "type": "object"
+    },
+    "ShownLine": {
+      "additionalProperties": false,
+      "description": "One payable line as the checkout showed it (114).",
+      "properties": {
+        "quantity": {
+          "$ref": "#/definitions/WireInt"
+        },
+        "variantId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "variantId",
+        "quantity"
       ],
       "type": "object"
     },

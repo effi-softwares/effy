@@ -77,6 +77,8 @@ internal fun PlaceOrder.toRequest(): CreateCheckoutIntentRequest = CreateCheckou
     pointsToUse = pointsToUse.takeIf { it > 0 },
     // What this screen shows for delivery; the server refuses a total it would not charge.
     shownDeliveryAmount = shownDeliveryAmount,
+    // 114: the lines this screen shows; the server refuses a basket it cannot sell and hold now.
+    shownLines = shownLines.map { com.effyshopping.customer.mobile.commerce.contract.ShownLine(quantity = it.quantity.toLong(), variantID = it.variantId) },
 )
 
 // Delivery quote: DTO → domain

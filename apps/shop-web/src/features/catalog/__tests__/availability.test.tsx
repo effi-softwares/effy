@@ -31,6 +31,8 @@ const row = (over: Partial<ShopAvailabilityRowDTO> = {}): ShopAvailabilityRowDTO
     variantId: "v1",
     tracked: true,
     onHand: 0,
+    held: 0,
+    leftToSell: 0,
     threshold: null,
     effectiveThreshold: 5,
     outOfStock: true,
@@ -60,6 +62,14 @@ describe("Availability (099)", () => {
     expect(lastAsked().get("filter")).toBeNull()
     await userEvent.click(screen.getByRole("combobox", { name: "Show" }))
     expect(screen.getByRole("option", { name: /Everything/ })).toHaveTextContent("9")
+  })
+
+  it("114: under the shelf count, what shoppers' checkouts hold and what is left to sell", async () => {
+    get.mockResolvedValue(
+      page([row({ stock: { ...row().stock, onHand: 5, held: 2, leftToSell: 3, outOfStock: false } })]),
+    )
+    wrap()
+    expect(await screen.findByText("2 in checkouts · 3 left to sell")).toBeInTheDocument()
   })
 
   it("takes a size off sale in one tap, through the product's own route", async () => {

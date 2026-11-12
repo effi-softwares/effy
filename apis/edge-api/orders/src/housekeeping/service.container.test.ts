@@ -74,6 +74,28 @@ describe.skipIf(!RUN)("113 - the clean-ups, for back-office", () => {
     expect((await readHousekeeping(pool, new Date(), true)).abandonAfterMinutes).toBe(720);
   });
 
+  it("114: the stock hold time - admins only, against the version, one change row per field that moved", async () => {
+    const before = await readHousekeeping(pool, new Date(), true);
+    expect(before.stockHoldMinutes).toBe(15);
+    await expect(
+      transact((tx) => updateHousekeepingSettings(tx, "mgr-1", { stockHoldMinutes: 20, version: before.version }, false)),
+    ).rejects.toBeInstanceOf(HousekeepingForbidden);
+    expect(
+      await transact((tx) =>
+        updateHousekeepingSettings(tx, "adm-1", { stockHoldMinutes: 20, abandonAfterMinutes: before.abandonAfterMinutes, version: before.version }, true),
+      ),
+    ).toBe(true);
+    const after = await readHousekeeping(pool, new Date(), true);
+    expect(after.stockHoldMinutes).toBe(20);
+    expect(after.abandonAfterMinutes).toBe(before.abandonAfterMinutes);
+    const rows = await pool.query<{ field: string; old_value: string; new_value: string }>(
+      `SELECT field, old_value, new_value FROM public.housekeeping_settings_change WHERE field = 'stockHoldMinutes'`,
+    );
+    expect(rows.rows).toEqual([{ field: "stockHoldMinutes", old_value: "15", new_value: "20" }]);
+    const log = await activityEntries(pool, housekeepingActivitySource());
+    expect(log.map((e) => e.detail)).toContain("Changed how long checkout holds stock from 15 to 20 minutes");
+  });
+
   it("the activity says each run, each late refund and each change, and names no customer", async () => {
     const tag = `hk-${Date.now()}`;
     const customer = (

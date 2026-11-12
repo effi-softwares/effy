@@ -266,6 +266,10 @@ for `shop-web` only.
     destination (`link_kind`), a schedule and groups; NULL `trigger`/`value_type`/`applies_to` (`promotion_banner_shape_ck`). The
     engine never sees one (`automaticOnly` excludes it, `toCandidate` throws). A fact a setting owns is written as a **live value**
     (`{free_delivery_amount}`, `{order_minimum}`), filled at read by `live-values.ts` only; an empty value hides the banner.
+  - ⚠ **STOCK IS HELD AT PAYMENT START (114)** - `stock_hold`, ONE writer `@effy/edge-shared/stock` `holds.ts`; a hold counts
+    only while `held_until > now()` (nothing sweeps it) and never changes `stock_on_hand`. Left to sell = shelf − OTHER
+    CUSTOMERS' live holds, written once (`stockHeldSql` in `lib/availability.ts`); "own" is the customer, never the order. The
+    intent's required `shownLines` must match what can be sold and held (409 `stock_changed`).
   - ⚠ **Points logic lives once** (074) - `@effy/edge-shared/points` is the only writer of the
     append-only points ledger; the balance is `public.points_usable`, never stored, never recomputed
     elsewhere. Points are a **way of paying**, not a discount: `order.grand_total_amount` is unchanged
@@ -660,6 +664,7 @@ the entries carry gotchas and deploy-ordering rules that the code does not. Slic
 
 Features recorded:
 
+- **114-checkout-stock-holds** - Hold Stock at Checkout (Pay holds the order's counted sizes for the hold time; left to sell = shelf − other customers' live holds, one rule in `availability.ts`; one writer `stock/holds.ts`; the intent carries `shownLines`, a difference is 409 `stock_changed`; holds expire by time, no sweep; hold time on Settings › Clean-ups; no new routes) - built 2026-11-12; not migrated, deployed or walked
 - **113-data-lifecycle** - Data Lifecycle (unpaid orders closed after the abandon time through one `abandonOrder`, payment cancelled first; a declined card no longer loses a later payment; deleted accounts erased on the promised date, whole, orders kept stripped; restore refused after the date; old phone registrations pruned; Settings › Clean-ups; staff gateway 234/300) - signed off 2026-11-12: applied, migrated and deployed to dev; walk not recorded
 - **112-backoffice-messages** - Back-Office Messages (People › Messages: announcements to drivers and shops, important notices, offers and news to customers who said yes, direct messages; fixed audience filters with a live count; previews; send now or later; stop, cancel, withdraw; a report that adds up; sent by a resumable `messages` worker through `notify()`; new stack `admin-messages`, staff gateway 231/300 past the 75% warning) - signed off 2026-11-11: applied, migrated and deployed to dev; walk not recorded
 - **111-notification-preferences** - Notification Preferences & Marketing Consent (one category policy in shared-types; customers choose push/email per category; offers and news only after a recorded yes in Effy's versioned words; `notify()` writes nothing / `skipped` / `capped` / held to 08:00; the one-time ask after an order; limits in back-office; Android channels per category) - migrated and deployed to dev, signed off with 112 (2026-11-11); not walked; consent wording live as a draft, awaits approval
@@ -750,5 +755,5 @@ Features recorded:
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/113-data-lifecycle/plan.md
+at specs/114-checkout-stock-holds/plan.md
 <!-- SPECKIT END -->

@@ -16,6 +16,8 @@ const paid = (over: Partial<FinalizeOutcome> = {}): FinalizeOutcome => ({
   pointsSpent: 0,
   pointsShortfall: 0,
   deliveryType: null,
+  stockHoldLate: false,
+  stockHoldsEnded: { live: 0, lapsed: 0 },
   ...over,
 });
 
@@ -41,6 +43,8 @@ describe("announcePaid (071)", () => {
     await announcePaid(paid({ stockShopIds: ["shop-a"] }));
     const changes = announce.mock.calls[0]![0] as unknown[];
     expect(changes).toContainEqual({ scope: "shop", shopId: "shop-a", kind: "stock" });
+    // 114: back-office's held and left-to-sell numbers moved too.
+    expect(changes).toContainEqual({ scope: "ops", kind: "stock" });
     expect(changes).not.toContainEqual({ scope: "shop", shopId: "shop-b", kind: "stock" });
   });
 

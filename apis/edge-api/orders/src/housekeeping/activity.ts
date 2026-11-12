@@ -1,4 +1,5 @@
-// 113 US5: the clean-ups' activity log (104 drawer): every run, every late-payment refund, every abandon-time change.
+// 113 US5: the clean-ups' activity log (104 drawer): every run, every late-payment refund, every settings change (the
+// abandon time; 114's stock hold time).
 // Read only. A run's words come from HOUSEKEEPING_JOBS, so the page and the log say it the same way.
 import { activityFact, activityFactNumber, staffNameSql, type ActivityRow, type ActivitySource } from "@effy/edge-shared"
 import { abandonWords, housekeepingJob, runWords, type HousekeepingJob } from "@effy/shared-types"
@@ -9,6 +10,13 @@ function entry(r: ActivityRow) {
   if (r.kind === "settings") {
     const from = activityFactNumber(r, "from")
     const to = activityFactNumber(r, "to")
+    // 114: how long checkout holds stock.
+    if (r.action === "stockHoldMinutes") {
+      return {
+        title: "Stock hold time changed",
+        detail: `Changed how long checkout holds stock from ${from ?? "?"} to ${to ?? "?"} minutes`,
+      }
+    }
     return {
       title: "Abandon time changed",
       detail: `${from === null ? "?" : abandonWords(from)} → ${to === null ? "?" : abandonWords(to)}`,
@@ -55,6 +63,7 @@ export function housekeepingActivitySource(): ActivitySource {
       phone_registrations: "Phone registrations",
       late_refund: "Refunded",
       abandonAfterMinutes: "Abandon time changed",
+      stockHoldMinutes: "Stock hold time changed",
     },
     entry,
   }

@@ -82,6 +82,8 @@ class CheckoutViewModelTest {
         private var refusal: com.effyshopping.customer.mobile.features.checkout.domain.DeliveryChoiceRefused? = null,
         /** A quote per address: who delivers is decided from where the order is going. */
         private val quoteFor: Map<String, DeliveryQuote> = emptyMap(),
+        /** 114: when set, the first intent is refused as "the cart changed while paying". */
+        private var stockChanged: Boolean = false,
     ) : CheckoutRepository {
         var lastOrder: PlaceOrder? = null
         var intents = 0
@@ -90,6 +92,7 @@ class CheckoutViewModelTest {
             intents += 1
             feeChangedTo?.let { feeChangedTo = null; throw com.effyshopping.customer.mobile.features.checkout.domain.DeliveryFeeChanged(it) }
             refusal?.let { refusal = null; throw it }
+            if (stockChanged) { stockChanged = false; throw com.effyshopping.customer.mobile.features.checkout.domain.StockChanged() }
             return CheckoutIntent(
                 orderId = "o1", orderNumber = "EFY-1", clientSecret = "cs",
                 publishableKey = "pk", grandTotalAmount = "10.00", currency = "AUD",
@@ -107,6 +110,8 @@ class CheckoutViewModelTest {
         addresses: List<SavedAddress>,
         checkout: FakeCheckout = FakeCheckout(),
         handoff: PaymentHandoff = PaymentHandoff(),
+        shown: () -> List<com.effyshopping.customer.mobile.features.checkout.domain.ShownLine> = { emptyList() },
+        refreshCart: suspend () -> Unit = {},
     ): CheckoutViewModel {
         val repo = FakeAddresses(addresses)
         lastAddresses = repo
@@ -117,6 +122,8 @@ class CheckoutViewModelTest {
             handoff = handoff,
             quoteDelivery = QuoteDelivery(checkout),
             saveAddressInstructions = SaveAddressInstructions(repo),
+            shownLines = shown,
+            refreshCart = refreshCart,
         )
     }
 
@@ -294,6 +301,33 @@ class CheckoutViewModelTest {
         vm.payNow()
         assertEquals(2, checkout.intents)
         assertEquals("7.50", checkout.lastOrder?.shownDeliveryAmount)
+        assertTrue(ready(vm)!!.handedOffToPayment)
+    }
+
+    @Test
+    fun `114 - the lines on screen go with payment, and a cart that changed is re-read, nothing paid, and paid again`() = runTest {
+        var showing = listOf(
+            com.effyshopping.customer.mobile.features.checkout.domain.ShownLine("v1", 4),
+        )
+        var cartReads = 0
+        val checkout = FakeCheckout(stockChanged = true)
+        val vm = vm(
+            listOf(addr("a", isDefault = true)), checkout = checkout,
+            shown = { showing },
+            refreshCart = { cartReads += 1; showing = listOf(com.effyshopping.customer.mobile.features.checkout.domain.ShownLine("v1", 2)) },
+        )
+
+        vm.payNow()
+        val s = ready(vm)!!
+        assertEquals(com.effyshopping.customer.mobile.features.checkout.presentation.CheckoutWords.STOCK_CHANGED, s.error)
+        assertFalse(s.handedOffToPayment)
+        assertFalse(s.paying)
+        assertEquals(1, cartReads)
+        assertEquals(4, checkout.lastOrder?.shownLines?.single()?.quantity)
+
+        vm.payNow()
+        assertEquals(2, checkout.intents)
+        assertEquals(2, checkout.lastOrder?.shownLines?.single()?.quantity)
         assertTrue(ready(vm)!!.handedOffToPayment)
     }
 

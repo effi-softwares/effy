@@ -12,6 +12,7 @@ const REVIEW: QueryKey = ["product-review"]
 const CUSTOMERS: QueryKey = ["customers"]
 const TAXONOMY: QueryKey = ["taxonomy"]
 const PRODUCTS: QueryKey = ["products"]
+const SHOP_STOCK: QueryKey = ["admin", "shop-stock"]
 // The Overview's runs and shops behind: a run changes on `dispatch`, a shop readying a package on `orders`.
 const OVERVIEW_RUNS: QueryKey = ["dispatch", "overview"]
 
@@ -36,4 +37,7 @@ export const LIVE_ROUTES: Partial<Record<LiveKind, readonly QueryKey[]>> = {
   messages: [["back-office", "messages"]],
   // A clean-up ran, or the abandon time changed (113).
   housekeeping: [["settings", "housekeeping"]],
+  // Stock moved: a sale, or checkouts holding or releasing it (114) - a product's "in checkouts" and a shop's
+  // low-stock counts.
+  stock: [PRODUCTS, SHOP_STOCK],
 }

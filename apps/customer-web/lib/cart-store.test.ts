@@ -12,6 +12,7 @@ import {
   setCartQty,
   groupByPackage,
   linePayload,
+  shownLines,
   readCart,
   removeLine,
   setLineQty,
@@ -73,6 +74,14 @@ describe("cartCount", () => {
 describe("linePayload", () => {
   it("projects to productId + quantity", () => {
     expect(linePayload([line("a", 2)])).toEqual([{ variantId: "a", quantity: 2 }])
+  })
+})
+
+describe("shownLines (114)", () => {
+  it("is the payable lines as shown: unavailable and empty lines are not sent", () => {
+    expect(
+      shownLines([line("a", 2), { ...line("b", 1), available: false }, line("c", 0), { ...line("d", 3), available: true }]),
+    ).toEqual([{ variantId: "a", quantity: 2 }, { variantId: "d", quantity: 3 }])
   })
 })
 
