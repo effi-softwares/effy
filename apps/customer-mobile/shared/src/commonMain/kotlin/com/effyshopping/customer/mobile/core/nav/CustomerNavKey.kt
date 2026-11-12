@@ -41,6 +41,8 @@ sealed interface CustomerNavKey : NavKey {
         val title: String,
         val categoryKey: String? = null,
         val saleOnly: Boolean = false,
+        /** 116: search words an Effy link carried (`/search?q=…`), applied on arrival. */
+        val query: String? = null,
     ) : CustomerNavKey
 
     /**

@@ -28,19 +28,19 @@ Time: about 30 minutes.
   ```
   AWS_PROFILE=ef make apply ENV=dev
   ```
-- [ ] **0.3 Redeploy customer-web** (the link file is written when it builds).
-- [ ] **0.4 Check the website now publishes it.** On the computer:
+- [x] **0.3 Redeploy customer-web** (the link file is written when it builds).
+- [x] **0.4 Check the website now publishes it.** On the computer:
   ```
   curl -i https://dev.effyshopping.com/.well-known/assetlinks.json
   ```
   ✅ Expect: `200`, `content-type: application/json`, and your fingerprint in the text.
   ❌ A `404` means 0.2 or 0.3 didn't take.
-- [ ] **0.5 Tell the app its host.** In `apps/customer-mobile/secrets.properties` add:
+- [x] **0.5 Tell the app its host.** In `apps/customer-mobile/secrets.properties` add:
   ```
   WEB_SITE_HOST=dev.effyshopping.com
   ```
   Build and install the app on the phone (uninstall the old one first).
-- [ ] **0.6 Check Android trusts the link.** On the computer:
+- [x] **0.6 Check Android trusts the link.** On the computer:
   ```
   adb shell pm get-app-links com.effyshopping.customer.mobile
   ```

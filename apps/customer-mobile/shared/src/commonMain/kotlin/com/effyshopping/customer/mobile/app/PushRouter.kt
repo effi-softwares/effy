@@ -39,8 +39,19 @@ fun pushNavSteps(destination: CustomerDestination?): List<PushNavStep> = when (d
         PushNavStep.ResetToRoot,
         PushNavStep.Push(CustomerNavKey.Results(title = destination.title ?: AISLE_TITLE, categoryKey = destination.aisleKey)),
     )
-    // The search screen opens on its own field; a query in the destination is not pre-filled yet.
-    is CustomerDestination.Search -> listOf(PushNavStep.SelectTab(CustomerNavKey.Search), PushNavStep.ResetToRoot)
+    // 116 FR-002: the words a link (or a push) carried are searched, as the website would; no words opens the tab.
+    is CustomerDestination.Search -> {
+        val words = destination.query?.trim().orEmpty()
+        if (words.isEmpty()) {
+            listOf(PushNavStep.SelectTab(CustomerNavKey.Search), PushNavStep.ResetToRoot)
+        } else {
+            listOf(
+                PushNavStep.SelectTab(CustomerNavKey.Search),
+                PushNavStep.ResetToRoot,
+                PushNavStep.Push(CustomerNavKey.Results(title = SEARCH_TITLE, query = words)),
+            )
+        }
+    }
     CustomerDestination.Sale -> listOf(
         PushNavStep.SelectTab(CustomerNavKey.Home),
         PushNavStep.ResetToRoot,
@@ -50,3 +61,4 @@ fun pushNavSteps(destination: CustomerDestination?): List<PushNavStep> = when (d
 
 internal const val AISLE_TITLE = "Shop"
 internal const val SALE_TITLE = "On sale"
+internal const val SEARCH_TITLE = "Search"

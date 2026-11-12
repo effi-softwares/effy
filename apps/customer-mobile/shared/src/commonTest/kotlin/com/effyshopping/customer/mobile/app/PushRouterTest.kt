@@ -45,6 +45,11 @@ class PushRouterTest {
             pushNavSteps(CustomerDestination.Aisle("dairy", "Dairy")).last(),
         )
         assertEquals(PushNavStep.Push(CustomerNavKey.Results(title = SALE_TITLE, saleOnly = true)), pushNavSteps(CustomerDestination.Sale).last())
-        assertEquals(opens(PushNavStep.SelectTab(CustomerNavKey.Search), PushNavStep.ResetToRoot), pushNavSteps(CustomerDestination.Search("milk")))
+        // 116 FR-002: the words are searched; no words opens the tab.
+        assertEquals(
+            opens(PushNavStep.SelectTab(CustomerNavKey.Search), PushNavStep.ResetToRoot, PushNavStep.Push(CustomerNavKey.Results(title = SEARCH_TITLE, query = "milk"))),
+            pushNavSteps(CustomerDestination.Search("milk")),
+        )
+        assertEquals(opens(PushNavStep.SelectTab(CustomerNavKey.Search), PushNavStep.ResetToRoot), pushNavSteps(CustomerDestination.Search()))
     }
 }

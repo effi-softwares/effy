@@ -15,8 +15,12 @@
         android:theme="@style/Theme.Effy.Splash">
         <!-- 013 FR-020/D11: allowBackup=false keeps Amplify's encrypted token store off device backups.
              A finer-grained dataExtractionRules exclusion is spike S6/T058 (the exact prefs filenames). -->
+        <!-- 116: singleTop - a link (or anything else) arriving while the app is open goes to THIS screen (onNewIntent).
+             With the default, Android stacked a second MainActivity on top, and the first one - still composed underneath,
+             sharing the container - took the link: the visible screen stayed on Home. -->
         <activity
             android:exported="true"
+            android:launchMode="singleTop"
             android:name=".MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

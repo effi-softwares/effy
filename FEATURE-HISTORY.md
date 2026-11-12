@@ -41,6 +41,11 @@ Android works now; the iPhone halves are built and switched off until the paid A
   driver-guard; `terraform validate`. **Failures not caused by 116** (each seen in 115 too): shared `shopper-handler` 070,
   consignment P6, app `UnitPriceWordsTest`, shared-types package-status (099), `check-no-telemetry-pii.sh` (the drain's
   `email` channel name).
+- **Defects found walking it on Android (2026-11-12), both fixed**: (1) a link while the app was open stacked a SECOND
+  `MainActivity`, and the one underneath (sharing the container) took the link - the visible screen stayed on Home;
+  `MainActivity` is now `launchMode="singleTop"`. (2) `/search?q=…` opened the bare Search tab (109's router never passed
+  the words) and every `SearchScreen` shared one ViewModel, so an "On sale" list left the Search tab filtered to sale;
+  the router now pushes `Results(query = …)`, and each result list keys its own ViewModel (`stateKey`).
 - **iPhone switch-on**: `docs/observability-apple-blockers.md` "After paying", steps 6–7 (team id → apply → notifications
   + customer-web; Associated Domains and Time Sensitive capabilities).
 - **Deploy order**: set `android_app_cert_sha256` (the app's signing key SHA-256; the dev debug key's from

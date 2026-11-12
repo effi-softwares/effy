@@ -491,6 +491,9 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                         onCart = { navState.selectTab(CustomerNavKey.Cart) },
                         entryCategoryKey = key.categoryKey,
                         entrySaleOnly = key.saleOnly,
+                        entryQuery = key.query,
+                        // 116: each result list keeps its own state - never the Search tab's or another list's.
+                        stateKey = "results:${key.title}|${key.categoryKey}|${key.saleOnly}|${key.query}",
                         title = key.title,
                     )
                 }

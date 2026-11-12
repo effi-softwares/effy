@@ -149,6 +149,13 @@ fun SearchScreen(
      */
     entryCategoryKey: String? = null,
     entrySaleOnly: Boolean = false,
+    /** 116: search words an Effy link carried, applied once on arrival. */
+    entryQuery: String? = null,
+    /**
+     * 116: this screen's own state, apart from the Search tab's and every other result list's. Without it every
+     * SearchScreen shared one ViewModel, so an "On sale" list left the Search tab filtered to sale.
+     */
+    stateKey: String? = null,
     /**
      * What the shopper is looking at.
      *
@@ -163,7 +170,7 @@ fun SearchScreen(
     onAllProducts: () -> Unit = {},
     onSale: () -> Unit = {},
 ) {
-    val vm = viewModel { SearchViewModel(container.searchProducts, container.getFacets) }
+    val vm = viewModel(key = stateKey) { SearchViewModel(container.searchProducts, container.getFacets) }
     val state by vm.state.collectAsState()
     // 033 FR-007/FR-020: One membership read for the whole grid, and one mirror every tile's heart
     // reads - never a boolean per tile, and never a request per product.
@@ -197,9 +204,13 @@ fun SearchScreen(
     //
     // Keyed on the refinements so it applies on arrival and never fights the shopper afterwards: if
     // they clear the chip, this must not put it straight back.
-    LaunchedEffect(entryCategoryKey, entrySaleOnly) {
+    LaunchedEffect(entryCategoryKey, entrySaleOnly, entryQuery) {
         if (entryCategoryKey != null) vm.applyCategory(entryCategoryKey)
         if (entrySaleOnly) vm.applySaleOnly(true)
+        if (!entryQuery.isNullOrBlank() && vm.state.value.query != entryQuery) {
+            vm.onQueryChange(entryQuery)
+            field = TextFieldValue(entryQuery, TextRange(entryQuery.length))
+        }
     }
 
     val loadMore by remember {
