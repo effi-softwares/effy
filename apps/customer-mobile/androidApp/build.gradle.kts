@@ -64,6 +64,15 @@ android {
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
         versionName = "1.0"
+        // 116 B7: the host whose shopper links open this app (AndroidManifest's autoVerify filter). Empty: `links.invalid`,
+        // so nothing is claimed and every link opens the website.
+        @Suppress("UNCHECKED_CAST")
+        val linkHost = (rootProject.extra["effyConfig"] as Map<String, String>)["WEB_SITE_HOST"].orEmpty().trim()
+        if (linkHost.contains("/") || linkHost.contains(":")) {
+            throw GradleException("WEB_SITE_HOST is a host only (dev.effyshopping.com), not a URL: $linkHost")
+        }
+        if (linkHost.isEmpty()) logger.warn("customer-mobile: WEB_SITE_HOST is not set - Effy links will open the website, not the app (116).")
+        manifestPlaceholders["effyLinkHost"] = linkHost.ifEmpty { "links.invalid" }
     }
     packaging {
         resources {

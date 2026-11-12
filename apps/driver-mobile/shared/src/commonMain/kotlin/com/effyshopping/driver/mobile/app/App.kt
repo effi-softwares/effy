@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.effyshopping.driver.mobile.core.platform.MapLauncher
+import com.effyshopping.driver.mobile.core.platform.rememberSetAppBadge
 import com.effyshopping.driver.mobile.core.platform.NoOpMapLauncher
 import com.effyshopping.driver.mobile.core.platform.NoOpPlatformUiController
 import com.effyshopping.driver.mobile.core.platform.PlatformUiController
@@ -58,6 +59,16 @@ fun App(
         val scope = rememberCoroutineScope()
         // Hold the live channel exactly while in the foreground and signed in.
         LiveLifecycle(container.live, signedIn = session is SessionState.SignedIn)
+        // 116 FR-016: signing out clears the icon (a change from signed in, never a cold start's first state).
+        val setAppBadge = rememberSetAppBadge()
+        var badgeWasSignedIn by remember { mutableStateOf(false) }
+        LaunchedEffect(session) {
+            if (session is SessionState.SignedIn) badgeWasSignedIn = true
+            else if (session == SessionState.SignedOut && badgeWasSignedIn) {
+                badgeWasSignedIn = false
+                setAppBadge(0)
+            }
+        }
 
         // 109 FR-014: a notification tapped while nobody is signed in is held (in memory only) for the shell to check
         // with the server after sign-in; a barred driver's is dropped. Signed in, DriverShell opens it directly.

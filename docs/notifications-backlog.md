@@ -1,5 +1,10 @@
 # Effy Notifications - Backlog
 
+> **Status (2026-11-12): every item is built or closed.** Specs 109–116 built it (116 last: B7, C6, D7); F8, C8 and C9 were
+> closed (decision 7). The iPhone halves of B7 and D7 are built and switched off until the paid Apple account - the
+> steps are in `docs/observability-apple-blockers.md`, "After paying". 113–116 are not all deployed or walked yet; see
+> FEATURE-HISTORY.md.
+
 Written 2026-11-07, after mobile push was finished (050 follow-up). This backlog covers three things:
 - staff in back-office sending their own messages (promotions, announcements, important notices,
   messages to one person or to a group);
@@ -183,7 +188,7 @@ Sources are listed at the end. Summary:
 | B4 | P0 | DRV-APP | S | **The driver router.** Generalise DriverShell's `run_*` handling to the closed list, keep its "Today if not yours" fallback, and add `notification{id}`. | Each driver kind is tested. |
 | B5 | P1 | SW | S | **The shop router.** The service worker and `useNotificationNavigation` map a destination to a console route through one function in `@effy/web-kit`. | Every shop type opens the same route as today. |
 | B6 | P1 | CUST-APP, DRV-APP, SW | S | **A tap marks the item read and seen** (`POST …/notifications/{id}/read`). Analytics records `NotificationOpened{type, category, campaignId?}` **after** the screen shows. | Opening a push clears its unread dot everywhere. |
-| B7 | P3 | CUST-APP, CW | L | **Universal / App Links** (`https://effyshopping.com/...` opens the app). Not needed for push, but useful for email and SMS. Needs the paid Apple account. | A link in an email opens the app screen. |
+| B7 | (116, done; iPhone switched on after paying) P3 | CUST-APP, CW | L | **Universal / App Links** (`https://effyshopping.com/...` opens the app). Not needed for push, but useful for email and SMS. Needs the paid Apple account. | A link in an email opens the app screen. |
 
 ## Epic C - Inboxes · P0/P1
 
@@ -201,7 +206,7 @@ centred dialogs on the customer app (`EffySheet`), and nothing refreshes on a ti
 | C3 | P1 | CW | L | **Customer web inbox.** A header bell with the count, and `/account/notifications` (same list, filters, archive, detail). Uses the session cookie through the storefront's server; the live channel refreshes the count. | Parity with C2, except swipe. |
 | C4 | P0 | DRV-APP | M | **Driver inbox.** A bell on Today with the count (or an Account row; design decides). List, unread, pinned important, tap → B4, mark all read. No category chips: drivers have 3 categories at most. | A driver sees "Run assigned" and an announcement from back-office in the list. |
 | C5 | P1 | SW | L | **Shop inbox.** A bell in the console header opens a right Drawer (shadcn, floating, per the overlay rule), plus a `/notifications` page. Filters: category, unread. Mark all read; archive. Tap → B5. Needs a guided tour (106 rule) and a named exception in `list-screens.guard` (an inbox is a feed, not a DataTable). | The tour passes `tours.guard`; Drawer and page both work. |
-| C6 | P2 | CUST-APP, DRV-APP | S | **The app icon badge equals the unseen count** (iOS `badge` in the APNs payload; Android launcher dot via the channel). Cleared on `seen`. | The icon shows 3 after 3 new items and 0 after the inbox is opened. |
+| C6 | (116, done) P2 | CUST-APP, DRV-APP | S | **The app icon badge equals the unseen count** (iOS `badge` in the APNs payload; Android launcher dot via the channel). Cleared on `seen`. | The icon shows 3 after 3 new items and 0 after the inbox is opened. |
 | C7 | P2 | all inboxes | S | **Expiry and pinning shown properly.** An offer shows "Ends Sun"; an expired item disappears; an important item stays pinned until it's read or `pinned_until` passes. | Tested with a clock. |
 | C8 | Closed: not needed (decision 7) | BO | M | **Back-office staff inbox** (system alerts: a campaign finished, a send failed). Deferred: E9 is dropped, so nothing needs it yet. | - |
 | C9 | Closed: not needed (decision 7) | all | M | **Snooze** (Novu-style). Only if shops ask for it. | - |
@@ -218,7 +223,7 @@ In spec 111 ([specs/111-notification-preferences](../specs/111-notification-pref
 | D4 | (111, done) P0 | CUST-APP, CW | M | **Customer "Notifications" settings**: a switch per category × channel (push, email, and inbox where it isn't required), with plain wording and a link to the phone's settings if the OS permission is off. A one-time opt-in sheet for offers after the first order (not at first launch). | A shopper can see and change every choice; required categories show as fixed with a reason. |
 | D5 | (111, done) P0 | 045 (legal) | S | **Consent wording and privacy policy lines** for promotional push and email (authored prose, spec 045). The sender is identified in every promotion ("Effy"); unsubscribe is one tap from the inbox item (D4 link). | Legal text published; the opt-in sheet uses it word for word. |
 | D6 | (111, done) P1 | CUST-APP, DRV-APP | S | **Android channels per category**:<br>• customer: Order updates (HIGH), Offers & news (DEFAULT), Important (HIGH);<br>• driver: Work (HIGH), Announcements (DEFAULT), Important (HIGH).<br>The server sets `android.notification.channel_id` from the category. | Settings → Apps → Effy lists the channels; muting Offers there doesn't mute orders. |
-| D7 | (deferred: paid Apple account) P1 | BE | S | **iOS interruption level by importance.** Important → `time-sensitive` (add the capability with the entitlement step in `observability-apple-blockers.md`); offers → `passive`. Never `critical`. | The payload carries the right level (a sender test). |
+| D7 | (116, built; switched on after paying) P1 | BE | S | **iOS interruption level by importance.** Important → `time-sensitive` (add the capability with the entitlement step in `observability-apple-blockers.md`); offers → `passive`. Never `critical`. | The payload carries the right level (a sender test). |
 | D8 | (111, done) P2 | DRV-APP, SW | S | **Driver and shop settings show categories as fixed** ("Work messages can't be turned off - they're part of your job") and keep the device on/off. Shop web keeps 059's per-device type mutes for push. | No silent dead ends. |
 | D9 | (111, done) P1 | BE | S | **Quiet hours** for `offers` and `news`: none sent between 21:00 and 08:00 in `OPERATING_TZ`; held until 08:00. Important, work and orders ignore it. | A test with the clock at 22:00. |
 | D10 | (111, done) P1 | BE | S | **Frequency cap** for promotions per customer: at most 1 a day and 3 a week, configurable in back-office settings. Over the cap → inbox only, no push. | A test; the campaign report counts how many were capped. |
@@ -277,7 +282,7 @@ messages need no marketing consent. Customer promotions wait for spec 3.
    needed** - reopen when a shop asks for snooze or staff need alerts. What remains is built in two specs:
    **115** - email as a campaign channel, triggered and recurring messages, `{first_name}` in inbox items (E11–E13);
    **116** - email links open the app, iOS urgency levels and the app-icon badge (B7, D7, C6's iOS part; Android now,
-   iOS switched on after the paid Apple account).
+   iOS switched on after the paid Apple account). Both built 2026-11-12: the backlog is complete.
 
 ## Decisions (answered by the operator, 2026-11-08)
 

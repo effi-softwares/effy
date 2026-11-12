@@ -483,3 +483,33 @@ variable "delivery_override_daily_alarm" {
     error_message = "delivery_override_daily_alarm must be a whole number of at least 1."
   }
 }
+
+# ── 116: links that open the customer app, and iPhone urgency ───────────────────────────────────
+# Real-world identifiers (constitution): asked for, never inferred - so NO DEFAULT. `<env>.tfvars` must say them on purpose;
+# `[]` / `""` mean "off" (links open the website; no time-sensitive pushes). Format checks refuse a placeholder.
+
+variable "android_app_cert_sha256" {
+  description = "SHA-256 fingerprints of the key(s) that sign the customer Android app (`./gradlew :androidApp:signingReport`). Published in /.well-known/assetlinks.json so Effy links open the app. [] = links open the website."
+  type        = list(string)
+
+  validation {
+    condition     = alltrue([for f in var.android_app_cert_sha256 : can(regex("^([0-9A-F]{2}:){31}[0-9A-F]{2}$", f))])
+    error_message = "android_app_cert_sha256: each entry is 32 upper-case hex pairs separated by colons (AA:BB:…)."
+  }
+}
+
+variable "apple_team_id" {
+  description = "The Apple Developer team id (10 characters), once the paid account exists. Switches on iPhone universal links (apple-app-site-association) and time-sensitive pushes. \"\" = off."
+  type        = string
+
+  validation {
+    condition     = var.apple_team_id == "" || can(regex("^[A-Z0-9]{10}$", var.apple_team_id))
+    error_message = "apple_team_id: empty, or the 10-character team id from the Apple Developer account."
+  }
+}
+
+variable "apple_customer_bundle_id" {
+  description = "The customer iOS app's bundle id (our own code's identifier). Changes with 050's \"after paying\" steps."
+  type        = string
+  default     = "com.effyshopping.customer.mobile"
+}

@@ -1,7 +1,7 @@
 // 115: a back-office message by email - the ONE building of its email (research R1, R5), used by the notifications
 // drain for every recipient and by the admin service's test send. The words are the inbox item's own; marketing kinds
 // (offers, news) carry the unsubscribe link and the RFC 8058 one-click headers. Pure, so both callers and the tests share it.
-import { customerWebPathFor, fillFirstName, parseDestination, type CustomerDestination } from "@effy/shared-types";
+import { customerWebUrlFor, fillFirstName, parseDestination, type CustomerDestination } from "@effy/shared-types";
 
 import type { Queryable } from "../../lib/db";
 
@@ -59,7 +59,7 @@ export function messageEmailVars(
       hasImage: m.imageUrl !== null,
       imageUrl: m.imageUrl ?? "",
       buttonLabel: "Open in Effy",
-      buttonUrl: `${urls.site}${customerWebPathFor(destination)}`,
+      buttonUrl: customerWebUrlFor(urls.site, destination),
       marketing,
       reason: MARKETING_REASON[m.category] ?? "",
       senderName: "Effy",

@@ -202,4 +202,21 @@ d("notify (109)", () => {
       vi.unstubAllGlobals();
     }
   });
+
+  it("116: a new item with no push now queues a badge correction; an immediate push queues none", async () => {
+    const queued = async (sub: string) =>
+      (await pool.query(`SELECT audience FROM public.notification_badge_correction WHERE recipient_sub = $1`, [sub])).rows;
+    // An immediate push carries the badge itself.
+    await transact((tx) => notify(tx, { type: "order_paid", recipients: [{ sub: "bq-1" }], subject: { entityId: "o-9" }, dedupeScope: scope(), channels: ["push"] }));
+    expect(await queued("bq-1")).toEqual([]);
+    // No push at all (a driver's housekeeping item): the count still rose.
+    await transact((tx) => notify(tx, { type: "run_opens_soon", recipients: [{ sub: "bq-2" }], subject: { entityId: "r-9" }, dedupeScope: scope(), channels: [] }));
+    expect(await queued("bq-2")).toEqual([{ audience: "driver" }]);
+    // Twice: still one row (combined).
+    await transact((tx) => notify(tx, { type: "run_opens_soon", recipients: [{ sub: "bq-2" }], subject: { entityId: "r-10" }, dedupeScope: scope(), channels: [] }));
+    expect(await queued("bq-2")).toHaveLength(1);
+    // Shop staff: never (the console's badge is live).
+    await transact((tx) => notify(tx, { type: "shop_new_order", recipients: [{ sub: "bq-3" }], subject: { entityId: "f-9" }, dedupeScope: scope(), channels: [] }));
+    expect(await queued("bq-3")).toEqual([]);
+  });
 });

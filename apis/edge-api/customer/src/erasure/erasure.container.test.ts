@@ -307,6 +307,13 @@ describe.skipIf(!RUN)("113 - account erasure against real PostgreSQL", () => {
     expect((await pool.query(`SELECT 1 FROM public.message_automation_recipient WHERE customer_id = $1`, [c.customerId])).rowCount).toBe(0)
   })
 
+  it("116: removes a queued badge correction for the account", async () => {
+    const c = await seedCustomer()
+    await pool.query(`INSERT INTO public.notification_badge_correction (recipient_sub, audience) VALUES ($1, 'customer')`, [c.sub])
+    await runErasure(fakes().deps)
+    expect((await pool.query(`SELECT 1 FROM public.notification_badge_correction WHERE recipient_sub = $1`, [c.sub])).rowCount).toBe(0)
+  })
+
   it("keeps every order, stripped to suburb and postcode, and forfeits the points against the empty record", async () => {
     const c = await seedCustomer()
     await runErasure(fakes().deps)

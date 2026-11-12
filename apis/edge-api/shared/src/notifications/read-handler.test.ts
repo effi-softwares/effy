@@ -21,7 +21,7 @@ describe("POST /{audience}/v1/notifications/{id}/read (109)", () => {
     const read = vi.fn<typeof markRead>(async () => ({
       notificationId: ID, readAt: "2026-11-07T09:12:03.120Z", destination: { kind: "order", orderId: "o-1" },
     }));
-    const res = await makeNotificationReadHandler("customer", read)(event("sub-1", ID), ctx);
+    const res = await makeNotificationReadHandler("customer", read, async () => undefined, async () => undefined)(event("sub-1", ID), ctx);
     expect(res.statusCode).toBe(200);
     expect(JSON.parse(res.body!)).toEqual({ notificationId: ID, readAt: "2026-11-07T09:12:03.120Z", destination: { kind: "order", orderId: "o-1" } });
     expect(read).toHaveBeenCalledWith("sub-1", "customer", ID);
@@ -29,7 +29,7 @@ describe("POST /{audience}/v1/notifications/{id}/read (109)", () => {
 
   it("404 notification-not-found when it is not the caller's (never 403)", async () => {
     const read = vi.fn<typeof markRead>(async () => null);
-    const res = await makeNotificationReadHandler("driver", read)(event("sub-1", ID), ctx);
+    const res = await makeNotificationReadHandler("driver", read, async () => undefined, async () => undefined)(event("sub-1", ID), ctx);
     expect(res.statusCode).toBe(404);
     expect(JSON.parse(res.body!).type).toBe("https://effyshopping.com/problems/notification-not-found");
     expect(read).toHaveBeenCalledWith("sub-1", "driver", ID);
@@ -37,7 +37,7 @@ describe("POST /{audience}/v1/notifications/{id}/read (109)", () => {
 
   it("400 for an id that is not a uuid, without touching the database", async () => {
     const read = vi.fn<typeof markRead>();
-    const res = await makeNotificationReadHandler("shop", read)(event("sub-1", "not-a-uuid"), ctx);
+    const res = await makeNotificationReadHandler("shop", read, async () => undefined, async () => undefined)(event("sub-1", "not-a-uuid"), ctx);
     expect(res.statusCode).toBe(400);
     expect(JSON.parse(res.body!).type).toBe("https://effyshopping.com/problems/invalid-notification-id");
     expect(read).not.toHaveBeenCalled();
@@ -45,7 +45,7 @@ describe("POST /{audience}/v1/notifications/{id}/read (109)", () => {
 
   it("401 without a subject", async () => {
     const read = vi.fn<typeof markRead>();
-    const res = await makeNotificationReadHandler("customer", read)(event(undefined, ID), ctx);
+    const res = await makeNotificationReadHandler("customer", read, async () => undefined, async () => undefined)(event(undefined, ID), ctx);
     expect(res.statusCode).toBe(401);
     expect(read).not.toHaveBeenCalled();
   });

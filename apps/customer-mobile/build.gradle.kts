@@ -70,6 +70,9 @@ val optionalKeys = listOf(
     "POSTHOG_HOST",       // https://us.i.posthog.com | https://eu.i.posthog.com
     "TELEMETRY_ENABLED",  // "true" | "false" - analytics kill switch
     "DEBUG_TOOLS",        // "true" shows the in-app observability test panel. Never in prod.
+    // 116: the customer website's host the app opens links for (e.g. dev.effyshopping.com). Empty: the app claims no
+    // links and they keep opening the website. Asked for, never derived: the host must match the published assetlinks.
+    "WEB_SITE_HOST",
 )
 
 /**

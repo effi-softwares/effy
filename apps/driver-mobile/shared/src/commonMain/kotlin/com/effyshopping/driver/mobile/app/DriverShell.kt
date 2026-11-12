@@ -44,7 +44,7 @@ import com.effyshopping.driver.mobile.core.nav.HistoryRoot
 import com.effyshopping.driver.mobile.core.nav.HubCheckinRoute
 import com.effyshopping.driver.mobile.core.nav.InboxRoute
 import com.effyshopping.mobile.kit.live.LiveKind
-import com.effyshopping.driver.mobile.core.platform.rememberClearAppBadge
+import com.effyshopping.driver.mobile.core.platform.rememberSetAppBadge
 import com.effyshopping.driver.mobile.features.inbox.presentation.InboxBell
 import com.effyshopping.driver.mobile.features.inbox.presentation.InboxScreen
 import com.effyshopping.driver.mobile.features.inbox.presentation.InboxViewModel
@@ -162,7 +162,11 @@ fun DriverShell(
         container.analyticsDriver.capture(AnalyticsEvent.NotificationOpened(type, fallback = fellBack))
     }
     val inboxCount by container.inboxBadge.count.collectAsState()
-    val clearAppBadge = rememberClearAppBadge()
+    // 116 FR-015: while the app is open the icon follows the bell (only from a count actually read).
+    val setAppBadge = rememberSetAppBadge()
+    val clearAppBadge = { setAppBadge(0) }
+    val badgeKnown by container.inboxBadge.known.collectAsState()
+    LaunchedEffect(inboxCount, badgeKnown) { if (badgeKnown) setAppBadge(inboxCount) }
     val openedNotification by container.openedNotification.collectAsState()
     LaunchedEffect(openedNotification) {
         val opened = openedNotification ?: return@LaunchedEffect

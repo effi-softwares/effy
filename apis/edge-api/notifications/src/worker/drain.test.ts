@@ -226,3 +226,26 @@ describe("sending keeps up (109 US6)", () => {
     expect(s.rows.find((r) => r.id === "urgent")!.status).toBe("sent");
   });
 });
+
+describe("116 D7 - urgency on iPhones, from importance and category", () => {
+  const ios = (t: string): RecipientToken => ({ fcmToken: t, platform: "ios", mutedTypes: [] });
+  const levels = async (on: boolean) => {
+    const s = new FakeStore();
+    s.tokens.set("customer:sub-1", [ios("tok-1")]);
+    s.add({ id: "imp", importance: "important", category: "important" });
+    s.add({ id: "msg", importance: "important", category: "offers", type: "customer_message" });
+    s.add({ id: "off", importance: "normal", category: "offers", type: "customer_message" });
+    s.add({ id: "ord", importance: "normal", category: "orders" });
+    const d = deps(s, { timeSensitiveOn: on });
+    await drainOnce(d);
+    return Object.fromEntries(d.sent.map((m) => [m.notificationId, m.interruptionLevel]));
+  };
+
+  it("switched on: important (system or a back-office message) breaks through; offers are quiet; the rest ordinary", async () => {
+    expect(await levels(true)).toEqual({ "n-imp": "time-sensitive", "n-msg": "time-sensitive", "n-off": "passive", "n-ord": "active" });
+  });
+
+  it("switched off (before the paid Apple account): nothing asks for time-sensitive, and nothing fails", async () => {
+    expect(await levels(false)).toEqual({ "n-imp": "active", "n-msg": "active", "n-off": "passive", "n-ord": "active" });
+  });
+});

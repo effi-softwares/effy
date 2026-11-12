@@ -15,6 +15,7 @@ import {
 
 import { afterCommit, type Queryable } from "../lib/db";
 import { announceInbox } from "./announce-inbox";
+import { requestBadgeCorrections } from "./badge";
 import {
   catalogueEntry,
   isMessageType,
@@ -136,7 +137,7 @@ export async function notify(tx: Queryable, input: NotifyInput, options: NotifyO
 
   // $16 = the clock, $17 = Effy's zone, $18–$20 = a message's source, id and picture (112). `pol` is the category's
   // policy row; `input` carries each recipient's customer id (customers only) so their choices and consent can be read.
-  const res = await tx.query<{ created: string; subs: string[] | null }>(
+  const res = await tx.query<{ created: string; subs: string[] | null; badge_subs: string[] | null }>(
     `WITH pol AS (
          SELECT * FROM ${policyValuesSql()} WHERE pol.audience = $3 AND pol.category = $5
      ), input AS (
@@ -181,10 +182,15 @@ export async function notify(tx: Queryable, input: NotifyInput, options: NotifyO
                 -- Quiet hours (FR-018): a promotional push or email (115) due at night waits for 08:00; its inbox item does not.
                 CASE WHEN j.promo_push AND j.status = 'pending' THEN ${quietUntilSql("$16::timestamptz", "$17")} END
            FROM judged j
-         RETURNING 1
+         RETURNING notification_id, channel, status, not_before
      )
      SELECT (SELECT count(*) FROM inserted)::text AS created, (SELECT count(*) FROM delivered) AS deliveries,
-            (SELECT array_agg(recipient_sub) FROM inserted) AS subs`,
+            (SELECT array_agg(recipient_sub) FROM inserted) AS subs,
+            -- 116: whose count rose with no push going out now (push off, capped, held to 08:00, or none asked for).
+            (SELECT array_agg(i.recipient_sub) FROM inserted i
+              WHERE NOT EXISTS (SELECT 1 FROM delivered d
+                                 WHERE d.notification_id = i.id AND d.channel = 'push' AND d.status = 'pending'
+                                   AND d.not_before IS NULL)) AS badge_subs`,
     [
       [...byPerson.keys()],
       [...byPerson.values()],
@@ -208,6 +214,10 @@ export async function notify(tx: Queryable, input: NotifyInput, options: NotifyO
       message?.imageUrl ?? null,
     ],
   );
+  // 116: a new item with no push now still changes the icon's number - their phones get a silent correction (same
+  // transaction, so a rolled-back change queues nothing). An immediate push carries the badge itself (110 R8).
+  const badgeSubs = res.rows[0]?.badge_subs ?? [];
+  if (badgeSubs.length > 0) await requestBadgeCorrections(tx, badgeSubs.map((sub) => ({ audience: entry.audience, sub })));
   // Their open screens re-read once the change has committed (110 R6); a repeat created nothing and says nothing.
   const subs = res.rows[0]?.subs ?? [];
   if (subs.length > 0) {

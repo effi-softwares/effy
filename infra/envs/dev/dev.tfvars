@@ -182,3 +182,9 @@ firebase_api_key             = "AIzaSyBnSIBJ-eJVbX3TZJr81i7MATVjJSxvnak"
 firebase_app_id              = "1:156903323347:web:775e1a55ce33ae7a3c4626"
 firebase_messaging_sender_id = "156903323347"
 firebase_vapid_public_key    = "BFtiWZrQmvX7pUildkzxb3mfRZ5Yl0P6mnaZPDUPW33smtGv_jRXOJ6NCNDeaada9K0c2ZOy5TMVhfw1k6BJfMQ"
+
+# 116 - off until the operator supplies them (asked for, never inferred). Keep or change these on purpose.
+# android_app_cert_sha256: the dev build's signing key fingerprint, from `./gradlew :androidApp:signingReport`.
+android_app_cert_sha256 = []
+# apple_team_id: the paid Apple Developer account's team id (docs/observability-apple-blockers.md, "After paying").
+apple_team_id = ""

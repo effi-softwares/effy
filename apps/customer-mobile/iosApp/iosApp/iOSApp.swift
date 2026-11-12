@@ -47,6 +47,11 @@ struct iOSApp: App {
                 pushBridge: pushBridge
             )
             .ignoresSafeArea()
+            // 116 B7: an Effy universal link opens its screen. Needs the Associated Domains entitlement, which is
+            // NOT attached until the paid Apple account (docs/observability-apple-blockers.md, "After paying").
+            .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { activity in
+                if let url = activity.webpageURL { IosAppLinkOpen.shared.opened(url: url.absoluteString) }
+            }
         }
     }
 

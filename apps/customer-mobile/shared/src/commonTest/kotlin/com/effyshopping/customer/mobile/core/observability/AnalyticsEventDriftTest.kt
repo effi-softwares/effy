@@ -21,6 +21,7 @@ class AnalyticsEventDriftTest {
         "push_permission_granted",
         "push_permission_denied",
         "notification_opened",
+        "app_link_opened",
         // commerce-events.md
         "storefront_viewed",
         "product_viewed",
@@ -38,6 +39,7 @@ class AnalyticsEventDriftTest {
 
     private val allEvents: List<AnalyticsEvent> = listOf(
         AnalyticsEvent.ScreenViewed("home"),
+        AnalyticsEvent.AppLinkOpened("order"),
         AnalyticsEvent.StorefrontViewed,
         AnalyticsEvent.ProductViewed("p1"),
         AnalyticsEvent.ProductAddedToCart("p1", 2),

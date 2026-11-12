@@ -3,10 +3,12 @@
 // 109: sends public.notification_delivery in batches until about 15 s of the run are left.
 import type { Context, ScheduledHandler } from "aws-lambda";
 
-import { logger, pooled } from "@effy/edge-shared";
+import { logger, pooled, withTransaction, type Transactor } from "@effy/edge-shared";
 import { isKnownNotificationType } from "@effy/edge-shared/notifications";
+import { isAppleTeamId } from "@effy/shared-types";
 
 import { createSender, type SendResult } from "../fcm/sender";
+import { sendBadgeCorrections } from "./badge";
 import { drainOnce } from "./drain";
 import { createEmailSender } from "./email-sender";
 import { inBatch, pendingStats } from "./repository";
@@ -58,6 +60,8 @@ export const handler: ScheduledHandler = async (_event, context?: Context) => {
       now: () => Date.now(),
       inBatch,
       sendEach: (messages) => sender.sendEach(messages),
+      // 116 D7: time-sensitive only for a real team id (the SSM placeholder `off` is not one).
+      timeSensitiveOn: isAppleTeamId(process.env.APPLE_TEAM_ID),
       sendEmail,
       sendMessageEmail: (d) =>
         emailSender.sendMessage({
@@ -66,9 +70,19 @@ export const handler: ScheduledHandler = async (_event, context?: Context) => {
         }),
       log,
     });
+    // 116 C6: silent badge corrections, after the deliveries (their own pushes already carry the count).
+    const transact: Transactor = (fn) => withTransaction((client) => fn(client));
+    const badges = await sendBadgeCorrections({
+      db: pooled,
+      transact,
+      now: () => new Date(),
+      senderConfigured: sender.configured,
+      sendBadges: (messages) => sender.sendBadges(messages),
+      log,
+    });
     const backlog = await pendingStats(pooled);
 
-    log.info({ metric: "notification_drain", ...summary, backlog }, "notification drain complete");
+    log.info({ metric: "notification_drain", ...summary, backlog, badges }, "notification drain complete");
     // The `NotificationSendFailed` alarm's series, emitted every run including 0.
     emf([[]], {
       NotificationSendFailed: summary.failed,
@@ -89,6 +103,12 @@ export const handler: ScheduledHandler = async (_event, context?: Context) => {
     for (const [platform, c] of Object.entries(byPlatform)) {
       emf([["platform"]], { PushSentByPlatform: c.sent, PushFailedByPlatform: c.failed }, { platform });
     }
+    for (const [audience, c] of Object.entries(badges.byAudience)) {
+      emf([["audience", "outcome"]], { BadgeCorrections: c.sent }, { audience, outcome: "sent" });
+      if (c.noDevices > 0) emf([["audience", "outcome"]], { BadgeCorrections: c.noDevices }, { audience, outcome: "no_devices" });
+      if (c.failed > 0) emf([["audience", "outcome"]], { BadgeCorrections: c.failed }, { audience, outcome: "failed" });
+    }
+    emf([[]], { BadgeCorrectionsQueued: badges.queued });
     if (summary.failed > 0) {
       log.error({ failed: summary.failed, emailFailed: summary.emailFailed }, "notification sends failed");
     }

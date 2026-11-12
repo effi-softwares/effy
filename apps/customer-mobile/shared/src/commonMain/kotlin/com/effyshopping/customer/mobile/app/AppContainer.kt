@@ -504,6 +504,17 @@ class AppContainer(
         kotlinx.coroutines.flow.MutableStateFlow<com.effyshopping.customer.mobile.core.push.OpenedNotification?>(null)
 
     /**
+     * 116 B7: an Effy link the phone handed to the app, until the shell has acted on it. Written by Android's MainActivity
+     * (and iOS's `continue userActivity`, once switched on).
+     */
+    val openedLink =
+        kotlinx.coroutines.flow.MutableStateFlow<com.effyshopping.customer.mobile.core.push.OpenedLink?>(null)
+
+    /** A link to the shopper's own page (orders, points) opened while signed out: held in memory until sign-in. */
+    val pendingLink =
+        kotlinx.coroutines.flow.MutableStateFlow<com.effyshopping.customer.mobile.core.push.OpenedLink?>(null)
+
+    /**
      * A notification tapped while signed out (109 FR-014), held IN MEMORY ONLY until someone signs in. The shell then
      * asks the server whether it is theirs before opening anything, and drops it otherwise. A closed app forgets it.
      */

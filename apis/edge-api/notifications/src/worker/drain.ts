@@ -7,7 +7,7 @@
 import type { DevicePlatform, RecipientToken } from "@effy/edge-shared";
 
 import type { PushMessage, SendResult } from "../fcm/sender";
-import { fillFirstName } from "@effy/shared-types";
+import { fillFirstName, interruptionLevelFor } from "@effy/shared-types";
 
 export type DeliveryChannel = "push" | "email";
 export type Audience = "customer" | "shop" | "driver";
@@ -37,6 +37,8 @@ export interface ClaimedDelivery {
   imageUrl?: string | null;
   /** 115: the notification's category (a message email is marketing when it is offers or news). */
   category?: string;
+  /** 116 D7: `important` breaks through Focus on iPhones (when switched on). */
+  importance?: string;
   /**
    * False when a held promotional push may no longer go: consent withdrawn or push turned off since it was written
    * (111 FR-011). Absent or true otherwise.
@@ -74,6 +76,8 @@ export interface DrainDeps {
   sendEach(messages: readonly PushMessage[]): Promise<SendResult[]>;
   /** Resolves what it renders from `entityId` at send time. */
   sendEmail(to: string, type: string, entityId: string): Promise<SendResult>;
+  /** 116 D7: the environment's Apple team id is real - important iPhone pushes may be time-sensitive. */
+  timeSensitiveOn?: boolean;
   /** 115: a back-office message by email; "suppressed" = not sent to a bouncing or complaining address. */
   sendMessageEmail?(d: ClaimedDelivery): Promise<SendResult | "suppressed">;
   log?: { warn(obj: unknown, msg: string): void };
@@ -170,7 +174,7 @@ async function pushes(deps: DrainDeps, store: BatchStore, rows: ClaimedDelivery[
       return;
     }
     for (const t of reachable) {
-      messages.push(messageFor(d, t.fcmToken, t.platform));
+      messages.push(messageFor(d, t.fcmToken, t.platform, deps.timeSensitiveOn ?? false));
       owner.push(index);
     }
   });
@@ -223,7 +227,7 @@ async function pushes(deps: DrainDeps, store: BatchStore, rows: ClaimedDelivery[
  * One push for one device. 115 FR-023: the lock screen NEVER shows a name - a stored first-name placeholder is filled
  * with the message's fallback ("Hi there"), whoever the recipient is.
  */
-export function messageFor(d: ClaimedDelivery, token: string, platform: DevicePlatform): PushMessage {
+export function messageFor(d: ClaimedDelivery, token: string, platform: DevicePlatform, timeSensitiveOn = false): PushMessage {
   return {
     token,
     platform,
@@ -237,6 +241,8 @@ export function messageFor(d: ClaimedDelivery, token: string, platform: DevicePl
     badge: d.badge,
     androidChannel: d.androidChannel ?? null,
     imageUrl: d.imageUrl ?? null,
+    // 116 D7: how urgently an iPhone shows it - important breaks through Focus (once switched on), offers and news quietly.
+    interruptionLevel: interruptionLevelFor(d.importance ?? "normal", d.category ?? "", timeSensitiveOn),
   };
 }
 

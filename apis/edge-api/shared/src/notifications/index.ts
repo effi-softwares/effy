@@ -10,3 +10,4 @@ export * from "./inbox-handlers";
 export * from "./preferences";
 export * from "./preferences-handlers";
 export * from "./messages";
+export * from "./badge";

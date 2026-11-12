@@ -4,6 +4,50 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
+**116-links-badges-urgency** - Reaching the Right Place ([spec](specs/116-links-badges-urgency/spec.md)). 🔨 **BUILT 2026-11-12;
+NOT MIGRATED, APPLIED, DEPLOYED OR WALKED.** The last notifications backlog items (B7, C6, D7): the backlog is complete.
+Android works now; the iPhone halves are built and switched off until the paid Apple account.
+- **Migration** `20261113120000_badge_corrections.sql` (additive; goose up / down-to 20261113090000 / up on local Postgres):
+  `notification_badge_correction` (one row per person and audience, customer/driver), `notification_badge_sweep` (the
+  expiry sweep's watermark, one row), partial index `notification_expiring_unseen_idx`.
+- **Links (B7)**: the customer app claims exactly `APP_LINK_PATHS` (shared-types) - home, orders, an order, points, a
+  product, search/aisle, offers - never unsubscribe, help, legal or sign-in. ONE parser, `parseWebLink` (the inverse of
+  `customerWebPathFor`), Kotlin twin `WebLink.parse`, both pinned to `web-links.fixtures.json` (the TS test also pins the
+  Kotlin copy and the Android manifest's paths). customer-web publishes `/.well-known/assetlinks.json` and
+  `apple-app-site-association`, prerendered from the build env, **404 until the operator supplies the identity**.
+  `proxy.ts` skips `/.well-known/`. A link opens through the shell like a tap: public pages at once, orders and points
+  after sign-in (`linkPlan`); nothing is checked with the server - the screen loads through the signed-in session.
+  Analytics `app_link_opened{kind}`. Every shopper link in emails is now `customerWebUrlFor` - the points email moved
+  from `/account?tab=points` (never an app page) to `/account/points`; the receipt drain's fallback to the reserved
+  production apex is gone (unset `WEB_SITE_URL` fails loudly).
+- **Badge (C6)**: an inbox change anywhere (seen, read, read all, archive; a new item whose push did not go out at once,
+  via `notify()`; an expiry or a 112 withdrawal, via the watermark sweep) queues ONE correction per person
+  (`@effy/edge-shared/notifications` `badge.ts`; `badge.guard`). The drain sends it after 15 s (combining) as a silent
+  push: iOS `aps.badge` only (`apns-push-type: alert`, priority 5, collapse id); Android a data message with the count and
+  the latest 50 unseen ids, and the app takes away shown notifications not in it. ⚠ **EVERY APP PUSH IS NOW TAGGED BY
+  ITS NOTIFICATION ID** (`android.notification.tag`; the in-app path too) - that is how Android finds them. While the
+  app is open, `rememberSetAppBadge` (replacing 110's `rememberClearAppBadge`) follows the bell, from a count actually
+  read (`InboxBadge.known`), and sign-out clears it. Metrics `BadgeCorrections{audience, outcome}`,
+  `BadgeCorrectionsQueued`; no new alarm (the drain's covers it). An Android phone in Doze may receive a correction late.
+- **Urgency (D7)**: `interruptionLevelFor(importance, category, on)`: important → `time-sensitive` (importance wins),
+  offers/news → `passive`, else `active`; never `critical`. `time-sensitive` only when `APPLE_TEAM_ID` is a real id
+  (`isAppleTeamId`; SSM holds `off` until then). Android unchanged (111's channels, now pinned).
+- ⚠ **REAL-WORLD IDENTIFIERS**: Terraform `android_app_cert_sha256` and `apple_team_id` have **no default** (`plan` fails
+  until `<env>.tfvars` says them); dev.tfvars says `[]` / `""` = off on purpose. The app's `WEB_SITE_HOST`
+  (`secrets.properties`) is optional: empty claims no links. New `infra/envs/dev/app-links.tf`.
+- **Verified**: edge-api units 3,046; containers notifications 50 (badge 6), customer 53, shared 302 (notify +1 badge
+  case); shared-types (link fixtures 40); customer-web 749 + build (both well-known routes static) + depcruise; customer
+  app host tests 514/515 + Android and iOS Kotlin compile (the full Xcode build was skipped - it stalled resolving Swift packages - so the one-line `onContinueUserActivity` in `iOSApp.swift` is not compiled yet; it is switched off anyway); driver app host tests + both compiles; mobile-guard,
+  driver-guard; `terraform validate`. **Failures not caused by 116** (each seen in 115 too): shared `shopper-handler` 070,
+  consignment P6, app `UnitPriceWordsTest`, shared-types package-status (099), `check-no-telemetry-pii.sh` (the drain's
+  `email` channel name).
+- **iPhone switch-on**: `docs/observability-apple-blockers.md` "After paying", steps 6–7 (team id → apply → notifications
+  + customer-web; Associated Domains and Time Sensitive capabilities).
+- **Deploy order**: set `android_app_cert_sha256` (the app's signing key SHA-256; the dev debug key's from
+  `./gradlew :androidApp:signingReport`) in `dev.tfvars`, `make apply ENV=dev` → `make db-up ENV=dev` →
+  `make edge-deploy-all ENV=dev` (edge-shared changed; notifications carries the drain step) → customer-web → set
+  `WEB_SITE_HOST` and build both apps. The walk: `specs/116-links-badges-urgency/quickstart.md`.
+
 **115-messages-email-automation** - Messages That Do More ([spec](specs/115-messages-email-automation/spec.md)). 🔨 **BUILT
 2026-11-12; NOT MIGRATED, DEPLOYED OR WALKED.** Notifications backlog E11 (email as a channel), E12 (triggered and repeating
 messages) and E13 (the first name). Both consent wordings are DRAFTS awaiting the operator's approval.

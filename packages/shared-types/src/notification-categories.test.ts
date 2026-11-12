@@ -96,3 +96,14 @@ describe("notification categories (111 FR-001, FR-002)", () => {
     for (const p of KOTLIN_COPIES) expect(existsSync(p), p).toBe(true);
   });
 });
+
+describe("116 FR-021 - Android's urgency stays 111's", () => {
+  it("important is a high-importance channel; offers and news a default one (both apps pin these channels)", () => {
+    const ch = (audience: "customer" | "driver", id: string) =>
+      (fixtures.androidChannels as Record<string, { id: string; importance: string }[]>)[audience]!.find((c) => c.id === id)!.importance;
+    expect(ch("customer", "important")).toBe("high");
+    expect(ch("driver", "important")).toBe("high");
+    expect(ch("customer", "offers_news")).toBe("default");
+  });
+});
+

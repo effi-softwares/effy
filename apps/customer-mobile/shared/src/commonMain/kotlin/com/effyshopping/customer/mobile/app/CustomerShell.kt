@@ -15,6 +15,7 @@ import androidx.compose.animation.SharedTransitionLayout
 import com.effyshopping.customer.mobile.core.platform.platformTag
 import com.effyshopping.customer.mobile.core.presentation.LocalIsIos
 import com.effyshopping.customer.mobile.core.presentation.LocalInboxCount
+import com.effyshopping.customer.mobile.core.platform.rememberSetAppBadge
 import com.effyshopping.customer.mobile.core.presentation.LocalOpenNotifications
 import com.effyshopping.customer.mobile.features.notifications.settings.presentation.NotificationSettingsScreen
 import androidx.compose.runtime.getValue
@@ -42,6 +43,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.backhandler.BackHandler
@@ -59,6 +62,9 @@ import com.effyshopping.customer.mobile.core.session.SessionState
 import com.effyshopping.customer.mobile.core.observability.AnalyticsEvent
 import com.effyshopping.customer.mobile.core.push.CustomerDestination
 import com.effyshopping.customer.mobile.core.push.HeldOutcome
+import com.effyshopping.customer.mobile.core.push.LinkPlan
+import com.effyshopping.customer.mobile.core.push.linkKind
+import com.effyshopping.customer.mobile.core.push.linkPlan
 import com.effyshopping.customer.mobile.core.push.verifiedDestinationOf
 import com.effyshopping.customer.mobile.core.push.parseCustomerDestination
 import com.effyshopping.customer.mobile.features.account.presentation.AccountRoutes
@@ -201,7 +207,54 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
             }
         }
     }
+    /**
+     * 116 B7: an Effy link opens its screen the way a notification does ([pushNavSteps]); a public page at once, the
+     * shopper's own pages after sign-in ([linkPlan]). Nothing is read or marked: a link is not a notification.
+     */
+    fun openFromLink(destination: CustomerDestination?) {
+        for (step in pushNavSteps(destination)) {
+            when (step) {
+                is PushNavStep.SelectTab -> navState.selectTab(step.tab)
+                PushNavStep.ResetToRoot -> navState.resetToRoot()
+                is PushNavStep.Push -> navState.push(step.key)
+            }
+        }
+        container.analyticsDriver.capture(AnalyticsEvent.AppLinkOpened(linkKind(destination)))
+    }
+    val openedLink by container.openedLink.collectAsState()
+    LaunchedEffect(openedLink) {
+        val link = openedLink ?: return@LaunchedEffect
+        container.openedLink.value = null
+        when (val plan = linkPlan(link, signedIn)) {
+            is LinkPlan.Open -> openFromLink(plan.destination)
+            is LinkPlan.SignInFirst -> {
+                container.pendingLink.value = plan.link
+                navState.push(CustomerNavKey.SignIn())
+            }
+        }
+    }
+    val pendingLink by container.pendingLink.collectAsState()
+    LaunchedEffect(pendingLink, signedIn) {
+        val held = pendingLink ?: return@LaunchedEffect
+        if (!signedIn) return@LaunchedEffect
+        container.pendingLink.value = null
+        openFromLink(held.destination)
+    }
     val inboxCount by container.inboxBadge.count.collectAsState()
+    // 116 FR-015/016: while the app is open the icon follows the count the bell shows; signing out clears it. Set only
+    // from a count actually read (a cold start begins at 0 before the session is known, and must not wipe the badge).
+    val setAppBadge = rememberSetAppBadge()
+    val badgeKnown by container.inboxBadge.known.collectAsState()
+    var badgeWasSignedIn by remember { mutableStateOf(false) }
+    LaunchedEffect(signedIn, inboxCount, badgeKnown) {
+        if (signedIn) {
+            badgeWasSignedIn = true
+            if (badgeKnown) setAppBadge(inboxCount)
+        } else if (badgeWasSignedIn) {
+            badgeWasSignedIn = false
+            setAppBadge(0)
+        }
+    }
     val pendingOpen by container.pendingOpen.collectAsState()
     LaunchedEffect(pendingOpen, signedIn) {
         val held = pendingOpen ?: return@LaunchedEffect

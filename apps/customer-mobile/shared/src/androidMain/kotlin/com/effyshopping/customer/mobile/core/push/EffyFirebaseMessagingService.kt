@@ -27,6 +27,14 @@ class EffyFirebaseMessagingService : FirebaseMessagingService() {
     }
 
     override fun onMessageReceived(message: RemoteMessage) {
+        // 116 C6: a silent badge correction - take away what is no longer unseen, show nothing.
+        BadgeCorrection.of(message.data)?.let { correction ->
+            val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            val shown = runCatching { manager.activeNotifications.toList() }.getOrDefault(emptyList())
+            val gone = badgeCancellations(shown.map { it.tag }, correction).toSet()
+            for (n in shown) if (n.tag in gone) manager.cancel(n.tag, n.id)
+            return
+        }
         val shown = message.notification ?: return
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         if (!manager.areNotificationsEnabled()) return // the shopper said no
@@ -55,7 +63,8 @@ class EffyFirebaseMessagingService : FirebaseMessagingService() {
                 }
             }
             .build()
-        manager.notify(id, notification)
+        // 116: tagged by its notification id, like the ones the system tray shows, so a correction can find it.
+        manager.notify(message.data["notificationId"], id, notification)
     }
 }
 

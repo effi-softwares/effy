@@ -26,7 +26,7 @@ vi.mock("@effy/edge-shared", () => ({
   ),
 }));
 
-import { createSender, FCM_BATCH_LIMIT, toFcmMessage, type PushMessage } from "./sender";
+import { BADGE_KEEP_LIMIT, createSender, FCM_BATCH_LIMIT, toBadgeMessage, toFcmMessage, type PushMessage } from "./sender";
 
 const message = (over: Partial<PushMessage> = {}): PushMessage => ({
   token: "tok",
@@ -103,9 +103,9 @@ describe("⚠ P1 - the sender branches on platform", () => {
     };
     expect(msg.apns.payload.aps.badge).toBe(3);
     expect(msg.android.notification?.notificationCount).toBe(3);
-    const none = toFcmMessage(message({ platform: "android" })) as unknown as { apns: { payload: { aps: Record<string, unknown> } }; android: Record<string, unknown> };
+    const none = toFcmMessage(message({ platform: "android" })) as unknown as { apns: { payload: { aps: Record<string, unknown> } }; android: { notification: Record<string, unknown> } };
     expect(none.apns.payload.aps).not.toHaveProperty("badge");
-    expect(none.android).not.toHaveProperty("notification");
+    expect(none.android.notification).not.toHaveProperty("notificationCount");
     expect(toFcmMessage(message({ platform: "web", badge: 3 }))).not.toHaveProperty("apns");
   });
 
@@ -113,7 +113,7 @@ describe("⚠ P1 - the sender branches on platform", () => {
     const msg = toFcmMessage(message({ platform: "android", badge: 2, androidChannel: "offers_news" })) as unknown as {
       android: { notification?: { notificationCount?: number; channelId?: string } };
     };
-    expect(msg.android.notification).toEqual({ notificationCount: 2, channelId: "offers_news" });
+    expect(msg.android.notification).toEqual({ notificationCount: 2, channelId: "offers_news", tag: message().notificationId });
     const web = toFcmMessage(message({ platform: "web", androidChannel: "orders" })) as unknown as Record<string, unknown>;
     expect(web).not.toHaveProperty("android");
   });
@@ -180,5 +180,54 @@ describe("⚠ fail-open when unconfigured", () => {
     expect(sender.configured).toBe(false);
     await expect(sender.sendEach([message()])).resolves.toEqual([{ ok: false, prune: false, errorClass: "fcm_not_configured" }]);
     expect(sendEach).not.toHaveBeenCalled();
+  });
+});
+
+describe("116 - the shown notification's tag, and urgency on iPhones", () => {
+  it("every app push is tagged by its notification id on Android; the web is unchanged", () => {
+    for (const platform of ["android", "ios"] as const) {
+      const m = toFcmMessage(message({ platform })) as unknown as { android: { notification: { tag?: string } } };
+      expect(m.android.notification.tag).toBe(message().notificationId);
+    }
+    expect(toFcmMessage(message({ platform: "web" }))).not.toHaveProperty("android");
+  });
+
+  it("carries the interruption level it is given, and none when absent", () => {
+    for (const level of ["active", "passive", "time-sensitive"] as const) {
+      const m = toFcmMessage(message({ platform: "ios", interruptionLevel: level })) as unknown as { apns: { payload: { aps: Record<string, unknown> } } };
+      expect(m.apns.payload.aps["interruption-level"]).toBe(level);
+    }
+    const none = toFcmMessage(message({ platform: "ios" })) as unknown as { apns: { payload: { aps: Record<string, unknown> } } };
+    expect(none.apns.payload.aps).not.toHaveProperty("interruption-level");
+    expect(JSON.stringify(toFcmMessage(message({ platform: "ios", interruptionLevel: "time-sensitive" })))).not.toContain("critical");
+  });
+});
+
+describe("116 - badge corrections are silent", () => {
+  const ids = Array.from({ length: 60 }, (_, i) => `00000000-0000-4000-8000-${String(i).padStart(12, "0")}`);
+
+  it("iOS: the icon number only - an alert push with no alert, no sound, collapsing", () => {
+    expect(toBadgeMessage({ token: "t", platform: "ios", count: 3, keep: ids })).toEqual({
+      token: "t",
+      apns: { headers: { "apns-push-type": "alert", "apns-priority": "5", "apns-collapse-id": "badge" }, payload: { aps: { badge: 3 } } },
+    });
+  });
+
+  it("Android: data only, normal priority, collapsing; the keep list is bounded", () => {
+    const m = toBadgeMessage({ token: "t", platform: "android", count: 0, keep: ids }) as unknown as {
+      data: Record<string, string>; android: Record<string, unknown>; notification?: unknown;
+    };
+    expect(m.notification).toBeUndefined();
+    expect(m.android).toEqual({ priority: "normal", collapseKey: "badge" });
+    expect(m.data.type).toBe("badge");
+    expect(m.data.count).toBe("0");
+    expect(m.data.keep!.split(",")).toHaveLength(BADGE_KEEP_LIMIT);
+    expect(Object.values(m.data).every((v) => typeof v === "string")).toBe(true);
+  });
+
+  it("sends badges in batches through the same sender", async () => {
+    const sender = await createSender();
+    const res = await sender.sendBadges([{ token: "a", platform: "ios", count: 1, keep: [] }, { token: "b", platform: "android", count: 1, keep: ["x"] }]);
+    expect(res).toEqual([{ ok: true, prune: false }, { ok: true, prune: false }]);
   });
 });

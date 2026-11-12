@@ -69,8 +69,8 @@ function signInUrl(request: NextRequest): URL {
 
 /**
  * Pages, Server Actions and our own `/api` routes. Not build assets, not files, not the analytics
- * relay (`/rc`).
+ * relay (`/rc`), and not `/.well-known/` (116: the app-link files must be served as they are, with no cookie).
  */
 export const config = {
-  matcher: ["/((?!_next/|rc/|.*\\.[\\w]+$).*)"],
+  matcher: ["/((?!_next/|rc/|\\.well-known/|.*\\.[\\w]+$).*)"],
 }

@@ -43,7 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.effyshopping.customer.mobile.app.AppContainer
-import com.effyshopping.customer.mobile.core.platform.rememberClearAppBadge
+import com.effyshopping.customer.mobile.core.platform.rememberSetAppBadge
 import com.effyshopping.customer.mobile.core.presentation.EffyAppBar
 import com.effyshopping.customer.mobile.core.presentation.EffyChip
 import com.effyshopping.customer.mobile.core.presentation.EffyEmptyState
@@ -84,14 +84,14 @@ import org.jetbrains.compose.resources.painterResource
  */
 @Composable
 fun InboxScreen(container: AppContainer, snackbar: SnackbarHostState, onOpen: (InboxItem) -> Unit, onSettings: () -> Unit = {}) {
-    val clearAppBadge = rememberClearAppBadge()
+    val setAppBadge = rememberSetAppBadge()
     val vm = viewModel {
         InboxViewModel(
             inbox = container.inbox,
             liveChanges = container.live.changes(LiveKind.INBOX),
             onCount = container.inboxBadge::set,
             track = container.analyticsDriver::capture,
-            clearAppBadge = clearAppBadge,
+            clearAppBadge = { setAppBadge(0) },
         )
     }
     val state by vm.state.collectAsStateWithLifecycle()

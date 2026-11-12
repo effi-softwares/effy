@@ -6,7 +6,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.core.app.NotificationManagerCompat
 
 @Composable
-actual fun rememberClearAppBadge(): () -> Unit {
+actual fun rememberSetAppBadge(): (Int) -> Unit {
     val context = LocalContext.current
-    return remember(context) { { runCatching { NotificationManagerCompat.from(context).cancelAll() } } }
+    return remember(context) { { count -> if (count <= 0) runCatching { NotificationManagerCompat.from(context).cancelAll() } } }
 }

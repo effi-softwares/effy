@@ -12,6 +12,7 @@ import com.effyshopping.customer.mobile.core.observability.IosAnalyticsDriver
 import com.effyshopping.customer.mobile.core.observability.IosCrashBridge
 import com.effyshopping.customer.mobile.core.observability.IosCrashReporter
 import com.effyshopping.customer.mobile.core.push.IosPushBridge
+import com.effyshopping.customer.mobile.core.push.IosAppLinkOpen
 import com.effyshopping.customer.mobile.core.push.IosPushOpen
 import com.effyshopping.customer.mobile.core.push.IosPushTokenProvider
 
@@ -42,6 +43,8 @@ fun MainViewController(
             ).also { built ->
                 // A tapped notification (AppDelegate.swift) - including the one that launched the app.
                 IosPushOpen.attach { built.openedNotification.value = it }
+                // 116: an Effy universal link (switched off until the paid Apple account).
+                IosAppLinkOpen.attach { built.openedLink.value = it }
             }
         }
         container.startObservability()

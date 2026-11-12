@@ -85,11 +85,29 @@ Expected on iOS until the account exists: the Xcode console prints `Push: no APN
    allow notifications. A `device_token` row with `platform = 'ios'` appears. Place an order → "Order
    confirmed" arrives.
 
-6. **Time-sensitive notifications (notifications backlog D7, not built yet).** When D7 is built, important
-   messages go as `time-sensitive` and offers as `passive` (never `critical`). Before it ships: Xcode → target
-   `iosApp` → Signing & Capabilities → `+` → **Time Sensitive Notifications** (it adds
-   `com.apple.developer.usernotifications.time-sensitive` to `iosApp.entitlements`), for the customer and driver
-   apps. Without it iOS treats a time-sensitive push as active, silently.
+6. **Time-sensitive notifications (116 D7 - built, switched off).** The drain already gives every iPhone push its
+   urgency: important → `time-sensitive`, offers and news → `passive`, the rest `active`, never `critical`. Until a
+   real team id is set, important goes as `active`. To switch it on:
+   - Xcode → target `iosApp` → Signing & Capabilities → `+` → **Time Sensitive Notifications**, for the customer and
+     driver apps (it adds `com.apple.developer.usernotifications.time-sensitive` to `iosApp.entitlements`). Without it
+     iOS silently treats a time-sensitive push as active.
+   - In `infra/envs/<env>/<env>.tfvars` set `apple_team_id = "<the 10-character Team ID>"` (it was `""` on purpose),
+     then `make apply ENV=<env>`. That writes SSM `/effy/<env>/apple/team_id` (it held `off`).
+   - `make edge-deploy SERVICE=notifications ENV=<env>`: the drain reads it as `APPLE_TEAM_ID`.
+   - Check: a push of an important notification (a back-office **Important** message to your own account) shows the
+     "Time Sensitive" label on the lock screen and breaks through a Focus that silences Effy.
+7. **Effy links open the app on iPhones (116 B7 - built, switched off).** Android does it already. Customer app only.
+   - Step 6's `apple_team_id` also makes the customer website publish `/.well-known/apple-app-site-association`
+     (built at deploy time): deploy customer-web after `make apply`. Check
+     `curl -i https://<host>/.well-known/apple-app-site-association` gives **200**, `content-type: application/json`, no
+     redirect, and lists `"<TEAM_ID>.com.effyshopping.customer.mobile"` (the bundle id from step 3).
+   - Xcode → customer `iosApp` → Signing & Capabilities → `+` → **Associated Domains** → add
+     `applinks:<host>` (e.g. `applinks:dev.effyshopping.com` - the host in `WEB_SITE_HOST`, see the app's
+     `secrets.properties`). It is added to `iosApp.entitlements`.
+   - Install the app (Apple fetches the association file at install), then tap an order link in an Effy email in
+     Mail: the app opens on the order. `/email/unsubscribe` links still open Safari (not claimed).
+   - Badge corrections (116 C6) need nothing more: they arrive as soon as pushes reach iPhones (step 5). Open the inbox
+     on the website and the iPhone's icon number goes to 0 within two minutes.
 
 > TestFlight / App Store builds rewrite `aps-environment` to `production` by themselves; the APNs key works
 > for both environments.

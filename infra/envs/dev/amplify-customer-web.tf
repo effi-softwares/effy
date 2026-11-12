@@ -61,7 +61,8 @@ module "amplify_customer_web" {
   framework     = "Next.js - SSR"
   stage         = "DEVELOPMENT"
 
-  env_vars = local.customer_web_env
+  # 116: the app-link identities (app-links.tf) ride with the rest of the build env.
+  env_vars = merge(local.customer_web_env, local.app_link_env)
 
   # Amplify's build cannot reliably assume a Terraform-created service role (SSR IaC edge case).
   # Empty = Terraform creates one (may fail with "Unable to assume specified IAM Role"). The working

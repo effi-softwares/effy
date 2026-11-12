@@ -3,6 +3,7 @@
 //
 // One message per device token, sent in batches (`sendEach`, at most 500 per call), so a large send takes minutes,
 // not hours (109). The payload is specs/109-notification-record/contracts/push-payload.md.
+import type { InterruptionLevel } from "@effy/shared-types";
 import { getSecretString, type DevicePlatform } from "@effy/edge-shared";
 import { cert, getApps, initializeApp, type App } from "firebase-admin/app";
 import { getMessaging, type Message } from "firebase-admin/messaging";
@@ -25,6 +26,20 @@ export interface PushMessage {
   androidChannel?: string | null;
   /** A back-office message's picture (112): shown expanded on Android, and by the shop console. iOS shows it in the inbox. */
   imageUrl?: string | null;
+  /** 116 D7: how urgently an iPhone shows it (`interruptionLevelFor`). Absent = the phone's default (active). */
+  interruptionLevel?: InterruptionLevel;
+}
+
+/**
+ * 116 C6: a silent badge correction to one app device. iOS: the icon number only. Android: the count and the unseen
+ * notification ids still to keep on screen (the launcher counts shown notifications; no number can be set).
+ */
+export interface BadgeMessage {
+  token: string;
+  platform: "android" | "ios";
+  count: number;
+  /** The person's latest unseen notification ids (at most 50). */
+  keep: readonly string[];
 }
 
 export interface SendResult {
@@ -38,6 +53,8 @@ export interface Sender {
   configured: boolean;
   /** One result per message, in order. */
   sendEach(messages: readonly PushMessage[]): Promise<SendResult[]>;
+  /** 116: silent badge corrections, batched like pushes. */
+  sendBadges(messages: readonly BadgeMessage[]): Promise<SendResult[]>;
 }
 
 /** FCM's limit per `sendEach` call. */
@@ -119,11 +136,45 @@ export function toFcmMessage(m: PushMessage): Message {
     // iOS would need a notification service extension to show the picture (waits for the paid Apple account).
     notification: { title: m.title, body: m.body, ...(m.imageUrl ? { imageUrl: m.imageUrl } : {}) },
     data,
-    android: { priority: "high", ...(Object.keys(androidNotification).length > 0 ? { notification: androidNotification } : {}) },
+    // 116: the shown notification is tagged by its id, so a badge correction can take it off the screen once it is seen.
+    android: { priority: "high", notification: { ...androidNotification, tag: m.notificationId } },
     apns: {
       headers: { "apns-priority": "10" },
-      payload: { aps: { sound: "default", ...(badge !== undefined ? { badge } : {}) } },
+      payload: {
+        aps: {
+          sound: "default",
+          ...(badge !== undefined ? { badge } : {}),
+          // 116 D7: never "critical" (InterruptionLevel has no such value).
+          ...(m.interruptionLevel ? { "interruption-level": m.interruptionLevel } : {}),
+        },
+      },
     },
+  };
+}
+
+/** The keep list is bounded so the data payload stays far under FCM's 4 KB (50 ids ≈ 1.9 KB). */
+export const BADGE_KEEP_LIMIT = 50;
+
+/**
+ * A silent correction (116 C6, contracts/push.md). It never shows, sounds or vibrates; a phone that was offline gets
+ * only the latest one (collapse key / id "badge").
+ */
+export function toBadgeMessage(m: BadgeMessage): Message {
+  const count = Math.max(0, Math.floor(m.count));
+  if (m.platform === "ios") {
+    return {
+      token: m.token,
+      // Apple: a badge-only update is an `alert` push with no alert; priority 5 (not time-critical).
+      apns: {
+        headers: { "apns-push-type": "alert", "apns-priority": "5", "apns-collapse-id": "badge" },
+        payload: { aps: { badge: count } },
+      },
+    };
+  }
+  return {
+    token: m.token,
+    data: { type: "badge", count: String(count), keep: m.keep.slice(0, BADGE_KEEP_LIMIT).join(",") },
+    android: { priority: "normal", collapseKey: "badge" },
   };
 }
 
@@ -139,31 +190,36 @@ export async function createSender(): Promise<Sender> {
       async sendEach(messages) {
         return messages.map(() => ({ ok: false, prune: false, errorClass: "fcm_not_configured" }));
       },
+      async sendBadges(messages) {
+        return messages.map(() => ({ ok: false, prune: false, errorClass: "fcm_not_configured" }));
+      },
     };
 
   const messaging = getMessaging(app);
+  async function batch<T>(messages: readonly T[], build: (m: T) => Message): Promise<SendResult[]> {
+    const out: SendResult[] = [];
+    for (let i = 0; i < messages.length; i += FCM_BATCH_LIMIT) {
+      const chunk = messages.slice(i, i + FCM_BATCH_LIMIT);
+      try {
+        const res = await messaging.sendEach(chunk.map(build));
+        for (const r of res.responses) {
+          if (r.success) out.push({ ok: true, prune: false });
+          else {
+            const code = errorCode(r.error);
+            out.push({ ok: false, prune: PRUNABLE.has(code), errorClass: code });
+          }
+        }
+      } catch (err) {
+        // The whole call failed (auth, network): every message in it may be retried.
+        const code = errorCode(err);
+        for (let k = 0; k < chunk.length; k += 1) out.push({ ok: false, prune: false, errorClass: code });
+      }
+    }
+    return out;
+  }
   return {
     configured: true,
-    async sendEach(messages): Promise<SendResult[]> {
-      const out: SendResult[] = [];
-      for (let i = 0; i < messages.length; i += FCM_BATCH_LIMIT) {
-        const chunk = messages.slice(i, i + FCM_BATCH_LIMIT);
-        try {
-          const res = await messaging.sendEach(chunk.map(toFcmMessage));
-          for (const r of res.responses) {
-            if (r.success) out.push({ ok: true, prune: false });
-            else {
-              const code = errorCode(r.error);
-              out.push({ ok: false, prune: PRUNABLE.has(code), errorClass: code });
-            }
-          }
-        } catch (err) {
-          // The whole call failed (auth, network): every message in it may be retried.
-          const code = errorCode(err);
-          for (let k = 0; k < chunk.length; k += 1) out.push({ ok: false, prune: false, errorClass: code });
-        }
-      }
-      return out;
-    },
+    sendEach: (messages) => batch(messages, toFcmMessage),
+    sendBadges: (messages) => batch(messages, toBadgeMessage),
   };
 }

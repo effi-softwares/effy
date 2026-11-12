@@ -2,6 +2,9 @@ package com.effyshopping.customer.mobile
 
 import android.Manifest
 import android.content.Intent
+import com.effyshopping.customer.mobile.core.config.AppConfig
+import com.effyshopping.customer.mobile.core.push.OpenedLink
+import com.effyshopping.customer.mobile.core.push.WebLink
 import android.content.pm.PackageManager
 import android.os.Build
 import android.graphics.Color
@@ -59,6 +62,8 @@ class MainActivity : ComponentActivity() {
         val container = (application as EffyApp).container
         // Opened by tapping a notification: the shell opens what it was about.
         PushOpen.consume(intent)?.let { container.openedNotification.value = it }
+        // 116: opened from an Effy link (Android App Links): the shell opens its screen.
+        openedLinkOf(intent)?.let { container.openedLink.value = it }
 
         // Ask for notification permission on Android 13+ (older versions grant it at
         // install). Pre-33 devices need no prompt; the check keeps it silent there.
@@ -78,5 +83,20 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         PushOpen.consume(intent)?.let { (application as EffyApp).container.openedNotification.value = it }
+        openedLinkOf(intent)?.let { (application as EffyApp).container.openedLink.value = it }
+    }
+
+    /**
+     * An `https` link on Effy's own host only (116 B7). The activity is exported, so another app could hand it any URI:
+     * a foreign host or scheme is ignored, never opened.
+     */
+    private fun openedLinkOf(intent: Intent?): OpenedLink? {
+        if (intent?.action != Intent.ACTION_VIEW) return null
+        val uri = intent.data ?: return null
+        val host = AppConfig.webSiteHost
+        if (host.isEmpty() || uri.scheme != "https" || !uri.host.equals(host, ignoreCase = true)) return null
+        val pathAndQuery = (uri.encodedPath ?: "/") + (uri.encodedQuery?.let { "?$it" } ?: "")
+        intent.data = null // a recreated activity must not open it twice
+        return WebLink.parse(pathAndQuery)
     }
 }

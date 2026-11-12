@@ -30,6 +30,9 @@ object AppConfig {
     /** Show the in-app observability test panel (Privacy screen). Debug builds only. */
     val debugTools: Boolean get() = BuildKonfig.DEBUG_TOOLS == "true"
 
+    /** 116 B7: the website host whose shopper links this app opens; empty = none (they open the website). */
+    val webSiteHost: String get() = BuildKonfig.WEB_SITE_HOST.trim()
+
     /**
      * "Continue with Google" is shown only when true. False: federation is parked
      * (`customer_google_enabled = false`). Un-parking it means wiring native sign-in (hosted UI and the

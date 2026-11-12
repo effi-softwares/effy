@@ -159,6 +159,8 @@ export async function eraseCustomer(
   // By the sign-in id: devices and notifications (109's purge stays as the backstop; deliveries cascade).
   await tx.query(`DELETE FROM public.device_token WHERE subject_sub = $1 AND audience = 'customer'`, [c.sub])
   await tx.query(`DELETE FROM public.notification WHERE recipient_sub = $1 AND audience = 'customer'`, [c.sub])
+  // 116: a queued badge correction for the closed account (no personal detail, but its tokens are gone).
+  await tx.query(`DELETE FROM public.notification_badge_correction WHERE recipient_sub = $1 AND audience = 'customer'`, [c.sub])
 
   // By the address: the newsletter and email delivery history, and the staff audit entries that name it.
   if (c.email) {

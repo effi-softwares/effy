@@ -3,7 +3,7 @@
 import { logger, pooled, query } from "@effy/edge-shared";
 import { customerCompensationOf } from "@effy/edge-shared/delivery";
 import { customerWords, type EntryKind } from "@effy/edge-shared/points";
-import { compensationLine, courierEstimateSentence, DELIVERY_TYPE_WORDS, formatArrival, movedLines, OPERATING_TZ } from "@effy/shared-types";
+import { compensationLine, courierEstimateSentence, customerWebUrlFor, DELIVERY_TYPE_WORDS, formatArrival, movedLines, OPERATING_TZ } from "@effy/shared-types";
 import { emailRecipientOf, isSuppressed, messageEmailVars, type MessageEmail } from "@effy/edge-shared/notifications";
 import { identityFromEnv, MailConfigError } from "@effy/email-kit";
 import { sendEmail } from "@effy/email-kit/send";
@@ -185,7 +185,8 @@ export function createEmailSender(opts: EmailSenderOptions) {
       const site = opts.siteUrl.replace(/\/$/, "");
       let res: Awaited<ReturnType<typeof sendEmail>>;
       if (type === "points_credited" || type === "points_expiring") {
-        const pointsUrl = `${site}/account?tab=points`;
+        // 116: the points page the app also opens (the old `/account?tab=points` was never an app page).
+        const pointsUrl = customerWebUrlFor(site, { kind: "points" });
         if (type === "points_credited") {
           const loaded = await loadCredited(entityId);
           if (!loaded) return { ok: false, prune: false, errorClass: "points_entry_not_found" };
@@ -193,13 +194,13 @@ export function createEmailSender(opts: EmailSenderOptions) {
         } else {
           const loaded = await loadExpiring(entityId);
           if (!loaded) return { ok: false, prune: false, errorClass: "points_notice_not_found" };
-          res = await sendEmail("points-expiring", { ...loaded, pointsUrl, shopUrl: `${site}/` }, { to, audience: "customer" }, logger);
+          res = await sendEmail("points-expiring", { ...loaded, pointsUrl, shopUrl: customerWebUrlFor(site, { kind: "home" }) }, { to, audience: "customer" }, logger);
         }
       } else if (type === "order_delivery_changed") {
         const c = await loadDeliveryChanged(entityId);
         if (!c) return { ok: false, prune: false, errorClass: "delivery_override_not_found" };
         const { orderId, ...vars } = c;
-        res = await sendEmail("order-delivery-changed", { ...vars, orderUrl: `${site}/orders/${orderId}` }, { to, audience: "customer" }, logger);
+        res = await sendEmail("order-delivery-changed", { ...vars, orderUrl: customerWebUrlFor(site, { kind: "order", orderId }) }, { to, audience: "customer" }, logger);
       } else if (type === "order_with_courier") {
         const c = await loadWithCourier(entityId);
         if (!c) return { ok: false, prune: false, errorClass: "consignment_not_found" };
@@ -212,7 +213,7 @@ export function createEmailSender(opts: EmailSenderOptions) {
             reference: c.reference ?? "",
             hasTracking: c.tracking_url !== null,
             trackingUrl: c.tracking_url ?? "",
-            orderUrl: `${site}/orders/${c.order_id}`,
+            orderUrl: customerWebUrlFor(site, { kind: "order", orderId: c.order_id }),
           },
           { to, audience: "customer" },
           logger,
@@ -225,7 +226,7 @@ export function createEmailSender(opts: EmailSenderOptions) {
           {
             orderNumber: loaded.order_number,
             deliveredOn: formatDeliveredOn(loaded.delivered_at),
-            orderUrl: `${site}/orders/${entityId}`,
+            orderUrl: customerWebUrlFor(site, { kind: "order", orderId: entityId }),
           },
           { to, audience: "customer" },
           logger,

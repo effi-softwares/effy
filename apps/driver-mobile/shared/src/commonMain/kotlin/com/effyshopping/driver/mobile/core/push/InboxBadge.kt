@@ -24,13 +24,19 @@ class InboxBadge(
 ) {
     private val _count = MutableStateFlow(0)
     val count: StateFlow<Int> = _count.asStateFlow()
+    private val _known = MutableStateFlow(false)
+    /** 116: true once the count was read for the signed-in driver - the icon is set only from a number we know. */
+    val known: StateFlow<Boolean> = _known.asStateFlow()
     private var active = false
 
     init {
         scope.launch {
             signedIn.distinctUntilChanged().collect { yes ->
                 active = yes
-                if (yes) refresh() else _count.value = 0
+                if (yes) refresh() else {
+                    _count.value = 0
+                    _known.value = false
+                }
             }
         }
         scope.launch { changes.collect { if (active) refresh() } }
@@ -40,6 +46,7 @@ class InboxBadge(
         scope.launch {
             try {
                 _count.value = read()
+                _known.value = true
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Throwable) {

@@ -7,7 +7,7 @@
 //   POST  /{aud}/v1/notifications/read-all       { before }  mark all read
 //   PATCH /{aud}/v1/notifications/{id}           { archived } archive / undo
 //
-// Every change tells the person's other screens (`inbox`) once it is done.
+// Every change tells the person's other screens (`inbox`) once it is done, and corrects their phones' badge (116).
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 import {
   inboxCategoriesFor,
@@ -22,6 +22,7 @@ import { type AuthedEvent, subject } from "../lib/claims";
 import { json, preamble, refused, unauthenticated, type RequestScope } from "../lib/http";
 import { parseJsonBody } from "../validate";
 import { announceInbox } from "./announce-inbox";
+import { correctBadgesSoon } from "./badge";
 import { decodeCursor, INBOX_MAX_PAGE_SIZE, listInbox, markSeen, readAll, setArchived, unseenCount } from "./inbox";
 import { isNotificationId } from "./read";
 
@@ -32,6 +33,8 @@ export interface InboxDeps {
   readAll: typeof readAll;
   archive: typeof setArchived;
   announce: (audience: NotificationAudience, sub: string) => Promise<void>;
+  /** 116: the person's phones get a silent badge correction (never throws). */
+  badge: (audience: NotificationAudience, sub: string) => Promise<void>;
 }
 
 const DEFAULTS: InboxDeps = {
@@ -41,6 +44,7 @@ const DEFAULTS: InboxDeps = {
   readAll,
   archive: setArchived,
   announce: (audience, sub) => announceInbox([{ audience, sub }]),
+  badge: (audience, sub) => correctBadgesSoon([{ audience, sub }]),
 };
 
 type Handler = (event: AuthedEvent, context: Context) => Promise<APIGatewayProxyStructuredResultV2>;
@@ -109,6 +113,7 @@ export function makeInboxHandlers(audience: NotificationAudience, overrides: Par
     if (typeof before !== "string") return before;
     const body: InboxCountDTO = { unseenCount: await deps.seen(sub, audience, before) };
     await deps.announce(audience, sub);
+    await deps.badge(audience, sub);
     return json(200, body, scope);
   });
 
@@ -117,6 +122,7 @@ export function makeInboxHandlers(audience: NotificationAudience, overrides: Par
     if (typeof before !== "string") return before;
     const body: InboxReadAllDTO = await deps.readAll(sub, audience, before);
     await deps.announce(audience, sub);
+    await deps.badge(audience, sub);
     return json(200, body, scope);
   });
 
@@ -131,6 +137,7 @@ export function makeInboxHandlers(audience: NotificationAudience, overrides: Par
     // Someone else's, another audience's, or gone: one answer, so nothing confirms an id exists.
     if (!found) return refused(scope, 404, "notification_not_found", "there is no such notification");
     await deps.announce(audience, sub);
+    await deps.badge(audience, sub);
     const out: InboxArchiveDTO = { id, archived };
     return json(200, out, scope);
   });

@@ -27,6 +27,7 @@ function deps(): InboxDeps & { [K in keyof InboxDeps]: ReturnType<typeof vi.fn> 
     readAll: vi.fn(async () => ({ updated: 3, unseenCount: 0 })),
     archive: vi.fn(async () => true),
     announce: vi.fn(async () => undefined),
+    badge: vi.fn(async () => undefined),
   } as never;
 }
 
@@ -115,5 +116,19 @@ describe("inbox routes (110)", () => {
     const h = makeInboxHandlers("customer", deps());
     expect((await h.patch(event({ id: "nope", body: { archived: true } }), ctx)).statusCode).toBe(400);
     expect((await h.patch(event({ id: ID, body: { archived: "yes" } }), ctx)).statusCode).toBe(400);
+  });
+
+  it("116: every change corrects the person's phones' badge; a refused one does not", async () => {
+    const d = deps();
+    const h = makeInboxHandlers("customer", d);
+    const before = "2026-11-12T09:00:00.000000Z";
+    await h.seen(event({ body: { before } }), ctx);
+    await h.readAll(event({ body: { before } }), ctx);
+    await h.patch(event({ id: ID, body: { archived: true } }), ctx);
+    expect(d.badge).toHaveBeenCalledTimes(3);
+    expect(d.badge).toHaveBeenCalledWith("customer", "sub-1");
+    d.archive.mockResolvedValueOnce(false);
+    await h.patch(event({ id: ID, body: { archived: true } }), ctx);
+    expect(d.badge).toHaveBeenCalledTimes(3);
   });
 });

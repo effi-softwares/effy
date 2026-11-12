@@ -134,6 +134,9 @@ sealed class AnalyticsEvent(val name: String, val props: Map<String, String> = e
     class OffersAskAnswered(answer: String) : AnalyticsEvent("offers_ask_answered", mapOf("answer" to answer, "surface" to "app"))
     class OffersStoppedFromInbox(category: String) : AnalyticsEvent("offers_stopped_from_inbox", mapOf("category" to category, "surface" to "app"))
 
+    // 116 - an Effy link opened the app. The page kind only (FR-006).
+    class AppLinkOpened(kind: String) : AnalyticsEvent("app_link_opened", mapOf("kind" to kind, "surface" to "app"))
+
     // 115 - offers and news by email. Category and answer only.
     class MarketingEmailToggled(category: String, enabled: Boolean) :
         AnalyticsEvent("marketing_email_toggled", mapOf("category" to category, "on" to enabled.toString(), "surface" to "app"))

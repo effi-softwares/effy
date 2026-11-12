@@ -31,6 +31,10 @@ in its `AnalyticsEvent` sealed class; the per-app drift check keeps them aligned
 | `offers_ask_shown` | `{ surface }` | The one-time offers ask appeared on an order confirmation (111) |
 | `offers_ask_answered` | `{ answer, surface }` | The customer answered it: `answer` = `yes` / `no` (closing it counts as `no`) |
 | `offers_stopped_from_inbox` | `{ category, surface }` | "Stop offers like this" / "Stop news like this" on an inbox item (111); `category` = `offers` / `news` |
+| `marketing_email_toggled` | `{ category, on, surface }` | Email for offers or news turned on (after the email wording's yes) or off (115); `on` = `"true"` / `"false"` |
+| `email_unsubscribed` | - | The website's unsubscribe page stopped offers and news by email (115). No token, no address |
+| `email_unsubscribe_undone` | - | Undo on that page (115) |
+| `app_link_opened` | `{ kind, surface }` | An Effy link opened the customer app (116), after its screen shows. `kind` = the page (`home`, `orders`, `order`, `points`, `product`, `aisle`, `search`, `sale`, `unknown`); no id, no message, no campaign |
 
 113 (data lifecycle) adds no client event. Its clean-ups report as backend metrics in the `Effy/Housekeeping` namespace
 (`HousekeepingRan`, `HousekeepingFailed`, `HousekeepingPartial` per job; `UnpaidOrdersClosed`, `UnpaidOrdersStillPaying`,

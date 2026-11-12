@@ -81,3 +81,35 @@ object IosPushOpen {
         }
     }
 }
+
+/**
+ * 116 B7: where the iOS app reports an Effy universal link (`onContinueUserActivity` in iOSApp.swift). Like
+ * [IosPushOpen], a link can launch the app before the container exists, so it waits here until [attach].
+ *
+ * ⚠ Switched off until the paid Apple account: universal links need the Associated Domains entitlement and the
+ * website's apple-app-site-association (docs/observability-apple-blockers.md, "After paying"). Until then iOS never
+ * calls this, and links open the website.
+ */
+object IosAppLinkOpen {
+    private var sink: ((OpenedLink) -> Unit)? = null
+    private var pending: OpenedLink? = null
+
+    /** The link's full URL. A foreign host or scheme is ignored. */
+    fun opened(url: String) {
+        val host = com.effyshopping.customer.mobile.core.config.AppConfig.webSiteHost
+        val prefix = "https://$host"
+        if (host.isEmpty() || !url.startsWith(prefix, ignoreCase = true)) return
+        val rest = url.substring(prefix.length)
+        if (rest.isNotEmpty() && rest[0] != '/' && rest[0] != '?') return // e.g. https://dev.effyshopping.com.evil
+        val link = WebLink.parse(rest.ifEmpty { "/" })
+        sink?.invoke(link) ?: run { pending = link }
+    }
+
+    fun attach(sink: (OpenedLink) -> Unit) {
+        this.sink = sink
+        pending?.let {
+            pending = null
+            sink(it)
+        }
+    }
+}

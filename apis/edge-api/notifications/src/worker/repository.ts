@@ -21,6 +21,7 @@ interface ClaimedRow {
   expires_at: Date | null;
   badge: number;
   category: string;
+  importance: string;
   allowed: boolean;
   image_url: string | null;
 }
@@ -40,7 +41,7 @@ export function batchStore(tx: Queryable): BatchStore {
                   WHERE u.recipient_sub = n.recipient_sub AND u.audience = n.audience
                     AND u.seen_at IS NULL AND u.archived_at IS NULL
                     AND (u.expires_at IS NULL OR u.expires_at > now())) AS badge,
-                n.category,
+                n.category, n.importance,
                 CASE WHEN pol.marketing THEN ${channelAllowedSql("c.id", "d.channel")} ELSE true END AS allowed
            FROM public.notification_delivery d
            JOIN public.notification n ON n.id = d.notification_id
@@ -78,6 +79,7 @@ export function batchStore(tx: Queryable): BatchStore {
           allowed: r.allowed !== false,
           imageUrl: r.image_url,
           category: r.category,
+          importance: r.importance,
         };
       });
     },

@@ -3,8 +3,9 @@ package com.effyshopping.customer.mobile.core.platform
 import androidx.compose.runtime.Composable
 
 /**
- * Clears the number or dot on the app's icon once the inbox has been seen (110 R8). iOS: the badge count goes to 0;
- * Android: the app's shown notifications are cancelled, which takes the launcher dot with them.
+ * Puts the unseen count on the app's icon (110 R8; 116 FR-015). iOS: the icon shows the number. Android: no number can
+ * be set - the launcher counts the notifications on screen - so 0 takes Effy's shown notifications away, and any other
+ * number leaves them (the silent corrections keep them to the unseen ones, `badgeCancellations`).
  */
 @Composable
-expect fun rememberClearAppBadge(): () -> Unit
+expect fun rememberSetAppBadge(): (Int) -> Unit

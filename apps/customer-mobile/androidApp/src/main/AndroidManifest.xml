@@ -23,6 +23,23 @@
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- 116 B7: Effy's shopper links open the app (Android App Links, verified against the website's
+                 /.well-known/assetlinks.json). Exactly APP_LINK_PATHS (shared-types) - never unsubscribe, help, legal or
+                 sign-in. The host is WEB_SITE_HOST (build config). -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" />
+                <data android:host="${effyLinkHost}" />
+                <data android:path="/" />
+                <data android:path="/orders" />
+                <data android:pathPrefix="/orders/" />
+                <data android:path="/account/points" />
+                <data android:pathPrefix="/product/" />
+                <data android:path="/search" />
+                <data android:path="/offers" />
+            </intent-filter>
         </activity>
 
         <!-- 050 - FCM service (class lives in :shared/androidMain, on the classpath). Forwards token

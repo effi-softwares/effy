@@ -5,6 +5,6 @@ import androidx.compose.runtime.remember
 import platform.UserNotifications.UNUserNotificationCenter
 
 @Composable
-actual fun rememberClearAppBadge(): () -> Unit = remember {
-    { UNUserNotificationCenter.currentNotificationCenter().setBadgeCount(0L, withCompletionHandler = null) }
+actual fun rememberSetAppBadge(): (Int) -> Unit = remember {
+    { count -> UNUserNotificationCenter.currentNotificationCenter().setBadgeCount(count.coerceAtLeast(0).toLong(), withCompletionHandler = null) }
 }

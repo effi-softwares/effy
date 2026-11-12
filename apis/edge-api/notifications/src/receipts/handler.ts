@@ -37,8 +37,10 @@ function emitFailureMetric(failed: number, skipped: number): void {
 export const handler: ScheduledHandler = async () => {
   const log = logger.child({ worker: "receipt-drain" });
   try {
-    // Falls back to the canonical host rather than a broken link.
-    const siteUrl = process.env.WEB_SITE_URL || "https://effyshopping.com";
+    // 116: no fallback. The apex is production's and reserved; a guessed address that silently works is worse than a
+    // stop (constitution, Real-World Identifiers). Unset → the drain fails loudly and the receipts stay pending.
+    const siteUrl = process.env.WEB_SITE_URL;
+    if (!siteUrl) throw new Error("receipt drain: WEB_SITE_URL is not set (SSM /effy/<stage>/web/site_url)");
 
     const sender = createReceiptSender({ siteUrl });
     if (!sender.mailerConfigured) {

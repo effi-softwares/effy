@@ -1,6 +1,6 @@
 // Every money value, quantity and date is formatted here: SES templates cannot format.
 import {
-  ARRIVAL_UNCONFIRMED, asapSentence, courierEstimateSentence, DELIVERY_WINDOW_WORDS, courierLines, DELIVERY_FEE_LINE_LABEL, DELIVERY_TYPE_WORDS, formatArrival,
+  ARRIVAL_UNCONFIRMED, asapSentence, courierEstimateSentence, customerWebUrlFor, DELIVERY_WINDOW_WORDS, courierLines, DELIVERY_FEE_LINE_LABEL, DELIVERY_TYPE_WORDS, formatArrival,
   type DeliveryFeeLineKind,
   OPERATING_TZ,
 } from "@effy/shared-types";
@@ -208,7 +208,7 @@ export function createReceiptSender(opts: ReceiptSenderOptions) {
         deliveryAddress: addressLines(order.delivery_address),
         billingSameAsDelivery: !order.billing_address,
         billingAddress: addressLines(order.billing_address),
-        orderUrl: `${opts.siteUrl.replace(/\/$/, "")}/orders/${req.orderId}`,
+        orderUrl: customerWebUrlFor(opts.siteUrl, { kind: "order", orderId: req.orderId }),
       };
 
       const res = await sendEmail(
