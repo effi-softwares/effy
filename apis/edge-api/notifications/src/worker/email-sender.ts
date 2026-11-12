@@ -1,6 +1,6 @@
 // Resolves what it renders at send time from the entity id: the outbox carries routing ids only. The
 // address was snapshotted at enqueue and is never looked up here.
-import { logger, pooled, query } from "@effy/edge-shared";
+import { logger, pooled, type Queryable } from "@effy/edge-shared";
 import { customerCompensationOf } from "@effy/edge-shared/delivery";
 import { customerWords, type EntryKind } from "@effy/edge-shared/points";
 import { compensationLine, courierEstimateSentence, customerWebUrlFor, DELIVERY_TYPE_WORDS, formatArrival, movedLines, OPERATING_TZ } from "@effy/shared-types";
@@ -33,8 +33,8 @@ interface DeliveredRow {
 }
 
 /** The day its last package arrived. */
-async function loadDelivered(orderId: string): Promise<DeliveredRow | null> {
-  const res = await query<DeliveredRow>(
+async function loadDelivered(orderId: string, db: Queryable): Promise<DeliveredRow | null> {
+  const res = await db.query<DeliveredRow>(
     `SELECT o.order_number,
             (SELECT MAX(pa.arrived_at)
                FROM public.shop_fulfillment sf
@@ -60,9 +60,9 @@ const dollars = (cents: number) => (cents / 100).toFixed(2);
 const longDate = (ymd: string) => new Intl.DateTimeFormat("en-AU", { dateStyle: "full", timeZone: TZ }).format(new Date(`${ymd}T12:00:00+10:00`));
 
 /** Reason words from the account page's vocabulary; the staff note is not selected. */
-async function loadCredited(entryId: string) {
+async function loadCredited(entryId: string, db: Queryable) {
   const row = (
-    await query<{ kind: string; points: number; reason: string; order_number: string | null; last_day: string; cents_per_point: number }>(
+    await db.query<{ kind: string; points: number; reason: string; order_number: string | null; last_day: string; cents_per_point: number }>(
       `SELECT e.kind, e.points, e.reason, o.order_number,
               ((e.expires_at - interval '1 second') AT TIME ZONE '${TZ}')::date::text AS last_day,
               (SELECT cents_per_point FROM public.points_settings WHERE id = 1) AS cents_per_point
@@ -81,9 +81,9 @@ async function loadCredited(entryId: string) {
   };
 }
 
-async function loadExpiring(noticeId: string) {
+async function loadExpiring(noticeId: string, db: Queryable) {
   const row = (
-    await query<{ points: number; expiry_date: string; cents_per_point: number }>(
+    await db.query<{ points: number; expiry_date: string; cents_per_point: number }>(
       `SELECT n.points, n.expiry_date::text AS expiry_date,
               (SELECT cents_per_point FROM public.points_settings WHERE id = 1) AS cents_per_point
          FROM public.points_expiry_notice n WHERE n.id = $1`,
@@ -95,9 +95,9 @@ async function loadExpiring(noticeId: string) {
 }
 
 /** Selects nothing about the shop, other parcels or the fee. */
-async function loadWithCourier(consignmentId: string) {
+async function loadWithCourier(consignmentId: string, db: Queryable) {
   return (
-    await query<{ order_id: string; order_number: string; courier_name: string; reference: string | null; tracking_url: string | null }>(
+    await db.query<{ order_id: string; order_number: string; courier_name: string; reference: string | null; tracking_url: string | null }>(
       `SELECT o.id::text AS order_id, o.order_number, s.courier_name, c.reference, c.tracking_url
          FROM public.courier_consignment c
          JOIN public.courier_service s ON s.id = c.courier_service_id
@@ -110,9 +110,9 @@ async function loadWithCourier(consignmentId: string) {
 }
 
 /** Selects nothing about the staff reason, the courier fee or the difference. */
-async function loadDeliveryChanged(overrideId: string) {
+async function loadDeliveryChanged(overrideId: string, db: Queryable) {
   const row = (
-    await query<{
+    await db.query<{
       order_id: string; order_number: string; to_type: "effy" | "courier"; compensation: string; amount_cents: number; points: number | null;
       estimate: string | null; window_start: string | null; window_end: string | null;
     }>(
@@ -164,18 +164,24 @@ export function createEmailSender(opts: EmailSenderOptions) {
     mailerConfigured: identity !== null,
 
     /** 115: a back-office message by email. Suppressed addresses are not sent to (marketing and service alike). */
-    async sendMessage(m: MessageEmail): Promise<MessageEmailResult> {
+    /**
+     * `db` is the drain's batch transaction: the Lambda's pool has ONE connection, which that transaction holds, so a
+     * read through `pooled` here waited 5 s, threw, and rolled back the batch - its pushes re-sent every minute (dev,
+     * 2026-11-13).
+     */
+    async sendMessage(m: MessageEmail, db: Queryable = pooled): Promise<MessageEmailResult> {
       if (!identity) return { ok: false, prune: false, errorClass: "mail_not_configured" };
-      if (await isSuppressed(pooled, m.to)) return "suppressed";
+      if (await isSuppressed(db, m.to)) return "suppressed";
       const site = opts.siteUrl.replace(/\/$/, "");
       const edge = (opts.edgeUrl ?? "").replace(/\/$/, "");
-      const built = messageEmailVars(m, await emailRecipientOf(pooled, m.recipientSub), { site, edge });
+      const built = messageEmailVars(m, await emailRecipientOf(db, m.recipientSub), { site, edge });
       if (!built) return { ok: false, prune: false, errorClass: "no_unsubscribe_token" };
       const res = await sendEmail("message", built.vars, { to: m.to, audience: "customer", headers: built.headers }, logger);
       return res.outcome === "sent" ? { ok: true, prune: false } : { ok: false, prune: false, errorClass: "send_failed" };
     },
 
-    async send(to: string, type: NotificationType, entityId: string): Promise<SendResult> {
+    /** `db`: the drain's batch transaction (see `sendMessage`). */
+    async send(to: string, type: NotificationType, entityId: string, db: Queryable = pooled): Promise<SendResult> {
       if (!identity) return { ok: false, prune: false, errorClass: "mail_not_configured" };
       if (!hasEmailTemplate(type)) {
         // This type has no template on this channel: not retryable.
@@ -188,21 +194,21 @@ export function createEmailSender(opts: EmailSenderOptions) {
         // 116: the points page the app also opens (the old `/account?tab=points` was never an app page).
         const pointsUrl = customerWebUrlFor(site, { kind: "points" });
         if (type === "points_credited") {
-          const loaded = await loadCredited(entityId);
+          const loaded = await loadCredited(entityId, db);
           if (!loaded) return { ok: false, prune: false, errorClass: "points_entry_not_found" };
           res = await sendEmail("points-credited", { ...loaded, pointsUrl }, { to, audience: "customer" }, logger);
         } else {
-          const loaded = await loadExpiring(entityId);
+          const loaded = await loadExpiring(entityId, db);
           if (!loaded) return { ok: false, prune: false, errorClass: "points_notice_not_found" };
           res = await sendEmail("points-expiring", { ...loaded, pointsUrl, shopUrl: customerWebUrlFor(site, { kind: "home" }) }, { to, audience: "customer" }, logger);
         }
       } else if (type === "order_delivery_changed") {
-        const c = await loadDeliveryChanged(entityId);
+        const c = await loadDeliveryChanged(entityId, db);
         if (!c) return { ok: false, prune: false, errorClass: "delivery_override_not_found" };
         const { orderId, ...vars } = c;
         res = await sendEmail("order-delivery-changed", { ...vars, orderUrl: customerWebUrlFor(site, { kind: "order", orderId }) }, { to, audience: "customer" }, logger);
       } else if (type === "order_with_courier") {
-        const c = await loadWithCourier(entityId);
+        const c = await loadWithCourier(entityId, db);
         if (!c) return { ok: false, prune: false, errorClass: "consignment_not_found" };
         res = await sendEmail(
           "order-with-courier",
@@ -219,7 +225,7 @@ export function createEmailSender(opts: EmailSenderOptions) {
           logger,
         );
       } else {
-        const loaded = await loadDelivered(entityId);
+        const loaded = await loadDelivered(entityId, db);
         if (!loaded) return { ok: false, prune: false, errorClass: "order_not_found" };
         res = await sendEmail(
           "order-delivered",

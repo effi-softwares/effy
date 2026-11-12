@@ -28,6 +28,7 @@ interface ClaimedRow {
 
 export function batchStore(tx: Queryable): BatchStore {
   return {
+    db: tx,
     /**
      * Immediate before bulk, then oldest first; locked until this batch's transaction ends. A push held for quiet hours
      * is not claimed before its `not_before` (111 R4); when it is, a promotional one is judged again (`allowed`).

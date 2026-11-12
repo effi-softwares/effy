@@ -47,6 +47,12 @@ Android works now; the iPhone halves are built and switched off until the paid A
   `MainActivity` is now `launchMode="singleTop"`. (2) `/search?q=…` opened the bare Search tab (109's router never passed
   the words) and every `SearchScreen` shared one ViewModel, so an "On sale" list left the Search tab filtered to sale;
   the router now pushes `Results(query = …)`, and each result list keys its own ViewModel (`stateKey`).
+  (3) ⚠ **ONE PUSH ARRIVED OVER AND OVER (2026-11-13)**: the drain's batch transaction holds the Lambda pool's ONLY
+  connection (`max: 1`), and the email sender read through `pooled` / `query()` inside it - every email waited 5 s, threw,
+  and rolled the batch back AFTER its pushes had gone, so they were re-sent every minute with attempts still 0. Latent
+  since the email loaders moved into the drain (053/109); exposed by 115's message emails. Fixed: every email read goes
+  through the batch's own transaction (`BatchStore.db`), an email that throws is that email's retry (`emailSafely`),
+  never the batch's, and `drain.test.ts` fails a `query(` or bare `pooled` in `email-sender.ts`.
 - **iPhone switch-on**: `docs/observability-apple-blockers.md` "After paying", steps 6–7 (team id → apply → notifications
   + customer-web; Associated Domains and Time Sensitive capabilities).
 - **Deploy order**: set `android_app_cert_sha256` (the app's signing key SHA-256; the dev debug key's from

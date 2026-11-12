@@ -3,7 +3,7 @@
 // 109: sends public.notification_delivery in batches until about 15 s of the run are left.
 import type { Context, ScheduledHandler } from "aws-lambda";
 
-import { logger, pooled, withTransaction, type Transactor } from "@effy/edge-shared";
+import { logger, pooled, withTransaction, type Queryable, type Transactor } from "@effy/edge-shared";
 import { isKnownNotificationType } from "@effy/edge-shared/notifications";
 import { isAppleTeamId } from "@effy/shared-types";
 
@@ -47,9 +47,9 @@ export const handler: ScheduledHandler = async (_event, context?: Context) => {
 
     const emailSender = createEmailSender({ siteUrl: process.env.WEB_SITE_URL ?? "", edgeUrl: process.env.EDGE_API_URL ?? "" });
     if (!emailSender.mailerConfigured) log.warn("mail not configured - email deliveries will retry");
-    const sendEmail = (to: string, type: string, entityId: string): Promise<SendResult> =>
+    const sendEmail = (to: string, type: string, entityId: string, db: Queryable): Promise<SendResult> =>
       isKnownNotificationType(type)
-        ? emailSender.send(to, type, entityId)
+        ? emailSender.send(to, type, entityId, db)
         : Promise.resolve({ ok: false, prune: false, errorClass: "unknown_type" });
 
     const summary = await drainOnce({
@@ -63,11 +63,11 @@ export const handler: ScheduledHandler = async (_event, context?: Context) => {
       // 116 D7: time-sensitive only for a real team id (the SSM placeholder `off` is not one).
       timeSensitiveOn: isAppleTeamId(process.env.APPLE_TEAM_ID),
       sendEmail,
-      sendMessageEmail: (d) =>
+      sendMessageEmail: (d, db) =>
         emailSender.sendMessage({
           to: d.recipientEmail ?? "", recipientSub: d.recipientSub, messageId: d.entityId, category: d.category ?? "",
           title: d.title, body: d.body, destination: d.destination, imageUrl: d.imageUrl ?? null,
-        }),
+        }, db),
       log,
     });
     // 116 C6: silent badge corrections, after the deliveries (their own pushes already carry the count).

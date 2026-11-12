@@ -4,7 +4,7 @@
 // written and an overlapping invocation can never send them twice. Batches repeat until the queue is empty or the time
 // budget is spent, which is what lets 20,000 deliveries clear in minutes. Immediate deliveries are claimed before
 // bulk ones (priority, then age), so one notification never waits behind a large send.
-import type { DevicePlatform, RecipientToken } from "@effy/edge-shared";
+import type { DevicePlatform, Queryable, RecipientToken } from "@effy/edge-shared";
 
 import type { PushMessage, SendResult } from "../fcm/sender";
 import { fillFirstName, interruptionLevelFor } from "@effy/shared-types";
@@ -63,6 +63,8 @@ export interface BatchStore {
   tokensFor(recipients: ReadonlyArray<{ sub: string; audience: Audience }>): Promise<Map<string, RecipientToken[]>>;
   record(outcomes: readonly Outcome[]): Promise<void>;
   prune(tokens: readonly string[]): Promise<void>;
+  /** The batch's own transaction, for an email that must read the database (the pool's one connection is this). */
+  db: Queryable;
 }
 
 export interface DrainDeps {
@@ -75,11 +77,11 @@ export interface DrainDeps {
   inBatch<T>(fn: (store: BatchStore) => Promise<T>): Promise<T>;
   sendEach(messages: readonly PushMessage[]): Promise<SendResult[]>;
   /** Resolves what it renders from `entityId` at send time. */
-  sendEmail(to: string, type: string, entityId: string): Promise<SendResult>;
+  sendEmail(to: string, type: string, entityId: string, db: Queryable): Promise<SendResult>;
   /** 116 D7: the environment's Apple team id is real - important iPhone pushes may be time-sensitive. */
   timeSensitiveOn?: boolean;
   /** 115: a back-office message by email; "suppressed" = not sent to a bouncing or complaining address. */
-  sendMessageEmail?(d: ClaimedDelivery): Promise<SendResult | "suppressed">;
+  sendMessageEmail?(d: ClaimedDelivery, db: Queryable): Promise<SendResult | "suppressed">;
   log?: { warn(obj: unknown, msg: string): void };
 }
 
@@ -145,7 +147,7 @@ async function runBatch(deps: DrainDeps, store: BatchStore, channels: DeliveryCh
   }
 
   await pushes(deps, store, live.filter((d) => d.channel === "push"), outcomes, s);
-  for (const d of live.filter((x) => x.channel === "email")) outcomes.push(await email(deps, d, s));
+  for (const d of live.filter((x) => x.channel === "email")) outcomes.push(await emailSafely(deps, store.db, d, s));
 
   await store.record(outcomes);
   return batch.length;
@@ -246,16 +248,38 @@ export function messageFor(d: ClaimedDelivery, token: string, platform: DevicePl
   };
 }
 
-async function email(deps: DrainDeps, d: ClaimedDelivery, s: DrainSummary): Promise<Outcome> {
+/**
+ * One email, never throwing. The pushes of this batch have already gone out when emails are sent: a throw here would
+ * roll the whole batch back - those pushes recorded as never sent, and sent again every minute, without end (seen on dev
+ * 2026-11-13: one important message arrived on a phone again and again). An unexpected error is this email's own
+ * retry, then its failure, like any other.
+ */
+async function emailSafely(deps: DrainDeps, db: Queryable, d: ClaimedDelivery, s: DrainSummary): Promise<Outcome> {
+  try {
+    return await email(deps, db, d, s);
+  } catch (err) {
+    const error = `threw:${err instanceof Error ? err.name : "unknown"}`.slice(0, 60);
+    deps.log?.warn({ notificationId: d.notificationId, type: d.type, channel: "email", err: err instanceof Error ? err.message : String(err) }, "email send threw");
+    if (d.attempts + 1 >= deps.maxAttempts) {
+      s.failed += 1;
+      s.emailFailed += 1;
+      return { id: d.id, status: "failed", error, attempted: true };
+    }
+    s.retried += 1;
+    return { id: d.id, status: "retry", error, attempted: true };
+  }
+}
+
+async function email(deps: DrainDeps, db: Queryable, d: ClaimedDelivery, s: DrainSummary): Promise<Outcome> {
   if (!d.recipientEmail) {
     // A check forbids this.
     return { id: d.id, status: "failed", error: "no_email", attempted: false };
   }
   // A held promotional email released at 08:00 is judged again (consent or the switch withdrawn overnight → skipped).
   if (d.allowed === false) return { id: d.id, status: "skipped", error: null, attempted: false };
-  const sent = d.type === "customer_message" && deps.sendMessageEmail ? await deps.sendMessageEmail(d) : null;
+  const sent = d.type === "customer_message" && deps.sendMessageEmail ? await deps.sendMessageEmail(d, db) : null;
   if (sent === "suppressed") return { id: d.id, status: "skipped", error: "suppressed", attempted: false };
-  const r = sent ?? (await deps.sendEmail(d.recipientEmail, d.type, d.entityId));
+  const r = sent ?? (await deps.sendEmail(d.recipientEmail, d.type, d.entityId, db));
   if (r.ok) {
     s.sent += 1;
     s.emailSent += 1;

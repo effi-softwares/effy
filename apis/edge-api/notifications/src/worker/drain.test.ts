@@ -1,6 +1,9 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import { describe, expect, it, vi } from "vitest";
 
-import type { RecipientToken } from "@effy/edge-shared";
+import type { Queryable, RecipientToken } from "@effy/edge-shared";
 
 import type { PushMessage, SendResult } from "../fcm/sender";
 import { drainOnce, type BatchStore, type ClaimedDelivery, type DeliveryChannel, type DrainDeps, type Outcome } from "./drain";
@@ -23,8 +26,12 @@ class FakeStore {
     });
   }
 
+  /** Stands for the batch's transaction: an email must read through it, never the one-connection pool. */
+  readonly db = { query: async () => ({ rows: [] }) } as unknown as Queryable;
+
   store(): BatchStore {
     return {
+      db: this.db,
       claim: async (limit: number, channels: readonly DeliveryChannel[]) =>
         this.rows
           .filter((r) => r.status === "pending" && channels.includes(r.channel))
@@ -152,7 +159,7 @@ describe("delivery drain (109)", () => {
     s.add({ channel: "email", recipientEmail: "c@example.test", type: "order_delivered", entityId: "o-9" });
     const d = deps(s);
     const summary = await drainOnce(d);
-    expect(d.sendEmail).toHaveBeenCalledWith("c@example.test", "order_delivered", "o-9");
+    expect(d.sendEmail).toHaveBeenCalledWith("c@example.test", "order_delivered", "o-9", expect.anything());
     expect(summary).toMatchObject({ emailSent: 1, sent: 1 });
   });
 
@@ -247,5 +254,47 @@ describe("116 D7 - urgency on iPhones, from importance and category", () => {
 
   it("switched off (before the paid Apple account): nothing asks for time-sensitive, and nothing fails", async () => {
     expect(await levels(false)).toEqual({ "n-imp": "active", "n-msg": "active", "n-off": "passive", "n-ord": "active" });
+  });
+});
+
+describe("an email that throws never re-sends the batch's pushes (dev, 2026-11-13)", () => {
+  it("the push is recorded sent and the email becomes a retry, then a failure - the batch is never rolled back", async () => {
+    const s = new FakeStore();
+    s.tokens.set("customer:sub-1", [android("tok-1")]);
+    s.add({ id: "push", channel: "push", type: "customer_message", category: "important", importance: "important" });
+    s.add({ id: "mail", channel: "email", recipientEmail: "a@example.test", type: "customer_message", category: "important" });
+    const d = deps(s, { sendMessageEmail: vi.fn(async () => { throw new Error("template exploded"); }) });
+    await drainOnce(d);
+    expect(d.sent).toHaveLength(1);
+    expect(s.recorded.find((o) => o.id === "push")).toMatchObject({ status: "sent" });
+    expect(s.recorded.find((o) => o.id === "mail")).toMatchObject({ status: "retry", error: "threw:Error", attempted: true });
+
+    const last = new FakeStore();
+    last.add({ id: "mail", channel: "email", recipientEmail: "a@example.test", type: "customer_message", attempts: 4 });
+    await drainOnce(deps(last, { sendMessageEmail: vi.fn(async () => { throw new Error("again"); }) }));
+    expect(last.recorded[0]).toMatchObject({ status: "failed", error: "threw:Error" });
+  });
+});
+
+describe("emails read through the batch's own transaction (the pool has one connection)", () => {
+  it("both email paths are handed the batch's db - never left to borrow from the pool the batch holds", async () => {
+    const s = new FakeStore();
+    s.add({ id: "msg", channel: "email", recipientEmail: "a@example.test", type: "customer_message" });
+    s.add({ id: "sys", channel: "email", recipientEmail: "a@example.test", type: "order_delivered" });
+    const sendMessageEmail = vi.fn(async (_d: ClaimedDelivery, _db: Queryable): Promise<SendResult> => ({ ok: true, prune: false }));
+    const d = deps(s, { sendMessageEmail });
+    await drainOnce(d);
+    expect(sendMessageEmail.mock.calls[0]![1]).toBe(s.db);
+    expect((d.sendEmail as ReturnType<typeof vi.fn>).mock.calls[0]![3]).toBe(s.db);
+  });
+
+  it("the email sender never reads through the shared pool or query() while sending", () => {
+    const src = readFileSync(resolve(__dirname, "email-sender.ts"), "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/\/\/.*$/gm, "")
+      .replace(/^import .*$/gm, "");
+    expect(src).not.toMatch(/await query[<(]/);
+    // `pooled` only as a parameter default (for callers outside a transaction).
+    expect(src.match(/pooled/g)?.length ?? 0).toBe(src.match(/db: Queryable = pooled/g)?.length ?? 0);
   });
 });
