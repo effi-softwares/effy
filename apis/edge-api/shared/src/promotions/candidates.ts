@@ -1,6 +1,7 @@
 import type { BannerLinkKind, BannerTarget, LiveValueKey, ShopperPromotionDTO } from "@effy/shared-types";
 
 import type { Queryable } from "../lib/db";
+import { PLACED_ORDER_SQL } from "../lib/placed-order";
 import { parseCents } from "../lib/money";
 
 import type { BasketLine, Candidate } from "./engine";
@@ -244,7 +245,7 @@ export async function shopperFacts(db: Queryable, customerId: string, now: Date,
     db.query<{ created_at: Date; has_ordered: boolean }>(
       `SELECT c.created_at,
               EXISTS (SELECT 1 FROM public."order" o
-                       WHERE o.customer_id = c.id AND o.status NOT IN ('pending_payment', 'failed', 'canceled')
+                       WHERE o.customer_id = c.id AND ${PLACED_ORDER_SQL("o")} AND o.status <> 'canceled'
                          AND ($2::uuid IS NULL OR o.id <> $2)) AS has_ordered
          FROM public.customer c WHERE c.id = $1`,
       [customerId, excludeOrderId],

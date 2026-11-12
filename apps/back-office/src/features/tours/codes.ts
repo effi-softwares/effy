@@ -16,6 +16,7 @@ export const CODE_TO_KEY: Readonly<Record<string, string>> = {
   CU: "customers",
   CS: "points-settings",
   CN: "notification-settings",
+  HK: "housekeeping",
   ML: "messages",
   ME: "message-editor",
   MS: "message",

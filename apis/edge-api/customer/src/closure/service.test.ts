@@ -10,22 +10,28 @@ vi.mock("./repo", async () => {
     findBlockingOrders: vi.fn(),
     findLiveRequest: vi.fn(),
     findPointsHeld: vi.fn(async () => ({ points: 0, valueCents: 0 })),
+    findUnpaidOrders: vi.fn(async () => []),
     closeAccount: vi.fn(),
     restoreAccount: vi.fn(),
   }
 })
+vi.mock("@effy/edge-shared/payments", () => ({ abandonOrder: vi.fn(), stripeGateway: {} }))
 vi.mock("../password/cognito", () => ({
   sendEmailVerificationCode: vi.fn(),
   verifyEmailCode: vi.fn(),
   globalSignOut: vi.fn(),
 }))
 
+import { abandonOrder } from "@effy/edge-shared/payments"
+
 import { findByCognitoSub } from "../customer/repo"
 import * as cognito from "../password/cognito"
 import {
   ClosureAlreadyRequestedError,
   ClosureBlockedError,
+  ClosureFinalError,
   NoLiveClosureRequestError,
+  PaymentInProgressError,
   previewClosure,
   requestClosure,
   restoreClosure,
@@ -36,6 +42,7 @@ import {
   findBlockingOrders,
   findLiveRequest,
   findPointsHeld,
+  findUnpaidOrders,
   restoreAccount,
   GRACE_PERIOD_DAYS,
   IN_TRANSIT_BLOCK_DAYS,
@@ -43,6 +50,7 @@ import {
 } from "./repo"
 
 import type { CustomerRow } from "../customer/model"
+import { RETAINED } from "./retained"
 
 const customer = (over: Partial<CustomerRow> = {}): CustomerRow =>
   ({
@@ -77,6 +85,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   vi.mocked(findLiveRequest).mockResolvedValue(null)
   vi.mocked(findBlockingOrders).mockResolvedValue([])
+  vi.mocked(findUnpaidOrders).mockResolvedValue([])
   vi.mocked(cognito.verifyEmailCode).mockResolvedValue(undefined)
   vi.mocked(cognito.globalSignOut).mockResolvedValue(undefined)
   vi.mocked(cognito.sendEmailVerificationCode).mockResolvedValue("s•••@example.com")
@@ -130,19 +139,20 @@ describe("previewClosure", () => {
     expect(b.target).toEqual({ kind: "order", id: "o-1" })
   })
 
-  it("marks an awaiting-payment order as shopper-resolvable, and one in transit as not", async () => {
+  it("names only a paid order on its way: an unpaid checkout never blocks (113)", async () => {
     vi.mocked(findByCognitoSub).mockResolvedValue(customer())
-    vi.mocked(findBlockingOrders).mockResolvedValue([
-      blockingOrder({ id: "o-pending", status: "pending_payment" }),
-      blockingOrder({ id: "o-paid", status: "paid" }),
-    ])
+    vi.mocked(findBlockingOrders).mockResolvedValue([blockingOrder({ id: "o-paid", status: "paid" })])
 
     const preview = await previewClosure("sub-1")
 
-    expect(preview.blockers[0]!.kind).toBe("order_awaiting_payment")
-    expect(preview.blockers[0]!.resolvableByShopper).toBe(true)
-    expect(preview.blockers[1]!.kind).toBe("order_in_transit")
-    expect(preview.blockers[1]!.resolvableByShopper).toBe(false)
+    expect(preview.blockers.map((b) => b.kind)).toEqual(["order_in_transit"])
+    expect(preview.blockers[0]).not.toHaveProperty("resolvableByShopper")
+  })
+
+  it("says exactly what erasure keeps for security (113 FR-016)", () => {
+    const security = RETAINED.find((r) => r.category === "Security records")
+    expect(security?.reason).toMatch(/barred/)
+    expect(security?.reason).toMatch(/Nothing else is kept/)
   })
 
   /** No balance or refund is modelled, so neither may be named as a blocker. */
@@ -231,6 +241,39 @@ describe("requestClosure", () => {
     )
   })
 
+  it("closes unpaid checkouts after the code and before the account (113 FR-007)", async () => {
+    vi.mocked(findByCognitoSub).mockResolvedValue(customer())
+    vi.mocked(findUnpaidOrders).mockResolvedValue([{ id: "o-unpaid", order_number: "EFY-UNPAID" }])
+    vi.mocked(abandonOrder).mockResolvedValue({ result: "abandoned" })
+    vi.mocked(closeAccount).mockResolvedValue({
+      customer: customer({ closure_state: "closing" }),
+      eraseAfter: new Date("2026-09-02T00:00:00Z"),
+    })
+
+    await requestClosure("sub-1", "access-token", "123456")
+
+    expect(abandonOrder).toHaveBeenCalledWith({ gateway: {} }, "o-unpaid")
+    const verify = vi.mocked(cognito.verifyEmailCode).mock.invocationCallOrder[0]!
+    const abandon = vi.mocked(abandonOrder).mock.invocationCallOrder[0]!
+    const write = vi.mocked(closeAccount).mock.invocationCallOrder[0]!
+    expect(verify).toBeLessThan(abandon)
+    expect(abandon).toBeLessThan(write)
+  })
+
+  it("refuses with the order number when a payment is going through, and closes nothing", async () => {
+    for (const result of ["in_progress", "unreachable", "paid"] as const) {
+      vi.mocked(closeAccount).mockClear()
+      vi.mocked(findByCognitoSub).mockResolvedValue(customer())
+      vi.mocked(findUnpaidOrders).mockResolvedValue([{ id: "o-unpaid", order_number: "EFY-UNPAID" }])
+      vi.mocked(abandonOrder).mockResolvedValue({ result })
+
+      const err = await requestClosure("sub-1", "access-token", "123456").catch((e: unknown) => e)
+      expect(err).toBeInstanceOf(PaymentInProgressError)
+      expect((err as PaymentInProgressError).orderNumber).toBe("EFY-UNPAID")
+      expect(closeAccount).not.toHaveBeenCalled()
+    }
+  })
+
   /** A barred customer may still delete their account: barring is not a hold on their data. */
   it("lets a BARRED customer close their account", async () => {
     vi.mocked(findByCognitoSub).mockResolvedValue(customer({ status: "barred" }))
@@ -273,6 +316,18 @@ describe("restoreClosure", () => {
     vi.mocked(restoreAccount).mockResolvedValue(customer({ closure_state: "open" }))
 
     await expect(restoreClosure("sub-1")).resolves.toHaveProperty("restoredAt")
+  })
+
+  it("refuses once the date the customer was told has passed (113 FR-009)", async () => {
+    vi.mocked(findByCognitoSub).mockResolvedValue(customer({ closure_state: "closing" }))
+    vi.mocked(restoreAccount).mockResolvedValue(null)
+    vi.mocked(findLiveRequest).mockResolvedValue({
+      id: "r-1", customer_id: "c-1", requested_at: new Date("2026-01-01T00:00:00Z"),
+      erase_after: new Date(Date.now() - 60_000), verification_method: "email_code",
+      cancelled_at: null, cancelled_reason: null,
+    } as never)
+
+    await expect(restoreClosure("sub-1")).rejects.toBeInstanceOf(ClosureFinalError)
   })
 
   it("answers distinctly when there was nothing to restore", async () => {

@@ -6,7 +6,7 @@ import { transactorFor, type Transactor } from "@effy/edge-shared";
 import { notify } from "@effy/edge-shared/notifications";
 import { migrationSql } from "@effy/edge-shared/testing";
 
-import { purge } from "./repository";
+import { pruneRegistrations, purge, purgeRuns } from "./repository";
 
 /** 109 US7 - retention cut-offs and an erased customer, against real PostgreSQL. */
 const RUN = process.env.CONTAINER_TESTS === "1";
@@ -46,6 +46,29 @@ d("notification purge (109)", () => {
 
   beforeEach(async () => {
     await pool.query("TRUNCATE public.notification_delivery, public.notification, public.customer_closure_request, public.customer, public.message CASCADE");
+  });
+
+  it("113: a phone registration not confirmed for 270 days goes; a fresher one stays", async () => {
+    await pool.query(`DELETE FROM public.device_token`);
+    await pool.query(
+      `INSERT INTO public.device_token (subject_sub, audience, platform, fcm_token, last_seen_at) VALUES
+         ('old', 'customer', 'android', 'tok-old', $1), ('fresh', 'driver', 'ios', 'tok-fresh', $2), ('web', 'shop', 'web', 'tok-web', $3)`,
+      [daysAgo(271), daysAgo(269), daysAgo(400)],
+    );
+    expect(await pruneRegistrations(pool, NOW, Number.POSITIVE_INFINITY)).toBe(2);
+    const left = await pool.query<{ fcm_token: string }>(`SELECT fcm_token FROM public.device_token`);
+    expect(left.rows.map((r) => r.fcm_token)).toEqual(["tok-fresh"]);
+  });
+
+  it("113: clean-up runs older than 400 days go, newer ones stay", async () => {
+    await pool.query(`DELETE FROM public.housekeeping_run`);
+    await pool.query(
+      `INSERT INTO public.housekeeping_run (job, started_at, finished_at, outcome, counts) VALUES
+         ('unpaid_orders', $1, $1, 'ok', '{}'), ('unpaid_orders', $2, $2, 'ok', '{}')`,
+      [daysAgo(401), daysAgo(90)],
+    );
+    expect(await purgeRuns(pool, NOW)).toBe(1);
+    expect((await pool.query(`SELECT 1 FROM public.housekeeping_run`)).rowCount).toBe(1);
   });
 
   it("a customer's notification goes after 180 days, not before (FR-023)", async () => {

@@ -169,7 +169,7 @@ Sources are listed at the end. Summary:
 | A6 | P1 | BE | S | **Customer account deletion removes their inbox items and device tokens** (the delete-account flow). | Nothing is left for a deleted `sub`. |
 | A7 | (110, done) P1 | PKG, BE | S | **Live kind `inbox`** added to `LIVE_KINDS` (and its Kotlin twin), announced to the recipient's own channel after `notify` commits. | A new item updates the badge in an open app with no timer (`check-no-refresh-timers.sh` stays green). |
 | A8 | P1 | BE (notifications) | M | **Throughput.** The FCM sender uses `sendEach` (≤500 per call). The drain keeps claiming until about 50s of its 60s budget is used. Raise the batch size. Emit a metric for the backlog. | 20,000 pending pushes clear in under 10 minutes in a load test. |
-| A9 | P2 | BE | S | **Prune old tokens.** Drop `device_token` rows not seen for 270 days, matching FCM's own expiry. Refresh `last_seen_at` on every app start (customer and driver already re-register). | No pushes are sent to long-dead tokens. |
+| A9 | P2 | BE | S | **(113, done)** **Prune old tokens.** Drop `device_token` rows not seen for 270 days, matching FCM's own expiry. Refresh `last_seen_at` on every app start (customer and driver already re-register). | No pushes are sent to long-dead tokens. |
 
 ## Epic B - One destination vocabulary and router (tap → the right screen) · P0
 

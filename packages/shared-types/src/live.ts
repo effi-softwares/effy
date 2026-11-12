@@ -29,6 +29,8 @@ export const LIVE_KINDS = [
   "inbox",
   // A back-office message was created, changed, or moved on while sending (112). Back-office only.
   "messages",
+  // A clean-up ran, or the abandon time changed (113). Back-office only.
+  "housekeeping",
 ] as const;
 
 export type LiveKind = (typeof LIVE_KINDS)[number];

@@ -20,8 +20,8 @@ export async function upsertCustomer(input: {
    * nothing: the emailed code and the current password are Cognito's gates regardless.
    */
   seedHasPassword?: boolean
-}): Promise<CustomerRow> {
-  const res = await query<CustomerRow>(
+}): Promise<CustomerRow & { inserted?: boolean }> {
+  const res = await query<CustomerRow & { inserted?: boolean }>(
     `INSERT INTO public.customer (cognito_sub, email, given_name, family_name, has_password)
      VALUES ($1, $2, $3, $4, $5)
      ON CONFLICT (cognito_sub) DO UPDATE
@@ -39,7 +39,7 @@ export async function upsertCustomer(input: {
             -- authority thereafter.
             -- phone:         NEVER. Same argument as the names - it is the customer's.
             -- closure_state: NEVER, and this is the most dangerous one. See the warning above.
-     RETURNING ${CUSTOMER_COLUMNS}`,
+     RETURNING ${CUSTOMER_COLUMNS}, (xmax = 0) AS inserted`,
     [
       input.cognitoSub,
       input.email,

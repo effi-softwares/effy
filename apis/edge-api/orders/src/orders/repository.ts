@@ -1,4 +1,4 @@
-import { OPERATING_TZ } from "@effy/shared-types";
+import { ERASED_CUSTOMER_WORD, OPERATING_TZ } from "@effy/shared-types";
 import { COURIER_COLLECTION_SQL } from "@effy/edge-shared/delivery";
 import type { DeliveryFeeBreakdownDTO, HandoverPreference, OrderAwaiting } from "@effy/shared-types";
 
@@ -10,6 +10,7 @@ import {
   likePattern,
   orderBy,
   pageClause,
+  PLACED_ORDER_SQL,
   query,
 } from "@effy/edge-shared";
 
@@ -84,7 +85,7 @@ export interface ListParams {
  * orders arriving while paging cause no repeats. The non-view filters are shared with `viewCounts`.
  */
 function baseWhere(params: ListParams): { where: string[]; args: unknown[] } {
-  const where: string[] = ["o.status <> 'pending_payment'"];
+  const where: string[] = [PLACED_ORDER_SQL("o")];
   const args: unknown[] = [];
 
   if (params.q) {
@@ -240,7 +241,8 @@ export async function list(req: OrderListRequest): Promise<(OrderSummaryRow & { 
             o.status,
             o.placed_at,
             o.created_at,
-            c.email::text AS customer_email,
+            -- 113: an erased customer has no address left; the list says ERASED_CUSTOMER_WORD.
+            COALESCE(c.email::text, '${ERASED_CUSTOMER_WORD}') AS customer_email,
             o.grand_total_amount::text,
             o.currency,
             o.delivery_type,
@@ -288,8 +290,10 @@ export interface OrderDetailRow {
   placed_at: Date | null;
   created_at: Date;
   customer_id: string;
-  customer_email: string;
+  /** Null once the customer was erased (113). */
+  customer_email: string | null;
   customer_name: string | null;
+  customer_erased: boolean;
   item_subtotal_amount: string;
   delivery_fee_amount: string;
   /** Staff only. */
@@ -327,6 +331,7 @@ export async function findOrder(orderId: string): Promise<OrderDetailRow | null>
             c.email::text AS customer_email,
             -- ⚠ given_name/family_name, NOT first_name/last_name: Cognito's standard attributes.
             NULLIF(TRIM(CONCAT_WS(' ', c.given_name, c.family_name)), '') AS customer_name,
+            (c.closure_state = 'erased') AS customer_erased,
             o.item_subtotal_amount::text,
             o.delivery_fee_amount::text,
             o.delivery_fee_breakdown,
@@ -629,11 +634,11 @@ export async function today(countedRefundStatuses: readonly string[]): Promise<T
     `WITH day AS (SELECT (now() AT TIME ZONE '${OPERATING_TZ}')::date AS d)
      SELECT day.d::text AS date,
             (SELECT count(*) FROM public."order" o
-              WHERE o.placed_at IS NOT NULL AND o.status <> 'pending_payment'
+              WHERE ${PLACED_ORDER_SQL("o")}
                 AND o.delivery_type = 'effy'
                 AND (o.placed_at AT TIME ZONE '${OPERATING_TZ}')::date = day.d)::text AS effy,
             (SELECT count(*) FROM public."order" o
-              WHERE o.placed_at IS NOT NULL AND o.status <> 'pending_payment'
+              WHERE ${PLACED_ORDER_SQL("o")}
                 AND o.delivery_type = 'courier'
                 AND (o.placed_at AT TIME ZONE '${OPERATING_TZ}')::date = day.d)::text AS courier,
             (SELECT count(DISTINCT r.order_id) FROM public.refund r
@@ -652,7 +657,7 @@ export async function today(countedRefundStatuses: readonly string[]): Promise<T
 const TZ = OPERATING_TZ;
 const DAY0 = `date_trunc('day', now() AT TIME ZONE '${TZ}')`;
 const at = (local: string) => `((${local}) AT TIME ZONE '${TZ}')`;
-const PLACED = `o.placed_at IS NOT NULL AND o.status <> 'pending_payment'`;
+const PLACED = PLACED_ORDER_SQL("o");
 
 export interface TodayFiguresRow {
   cancelled: string;

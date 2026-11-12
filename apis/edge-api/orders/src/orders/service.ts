@@ -21,7 +21,7 @@ import { COUNTED_REFUND_STATUSES, imageUrlOrNull, keysetListPage, offsetListPage
 import type { ListPage } from "@effy/shared-types";
 
 import type { CourierListRequest, OrderListRequest } from "./list";
-import { CONSIGNMENT_PROBLEMS, COURIER_VIEWS, PACKAGE_STATUSES, type PackageStatus, leastAdvanced, parcelCustodyOf, type OrderAssignment, type PackageStatusView, type ParcelZone, OPERATING_TZ } from "@effy/shared-types";
+import { CONSIGNMENT_PROBLEMS, COURIER_VIEWS, PACKAGE_STATUSES, type PackageStatus, leastAdvanced, parcelCustodyOf, type OrderAssignment, type PackageStatusView, type ParcelZone, OPERATING_TZ, ERASED_CUSTOMER_WORD } from "@effy/shared-types";
 
 import { judgePromise } from "./promise";
 import { consignmentsFor, nextCourierPickup, parseClock } from "@effy/edge-shared/delivery";
@@ -351,9 +351,10 @@ export async function getOrder(orderId: string): Promise<AdminOrderDetailDTO | n
     asapEstimate: order.asap_estimate ?? null,
     courierCollection: order.courier_collection ?? null,
 
-    customerId: order.customer_id,
-    customerEmail: order.customer_email,
-    customerName: order.customer_name,
+    // 113: an erased customer is "Deleted customer", with no address and no page to link to.
+    customerId: order.customer_erased ? null : order.customer_id,
+    customerEmail: order.customer_erased ? null : order.customer_email,
+    customerName: order.customer_erased ? ERASED_CUSTOMER_WORD : order.customer_name,
     customerOrderCount,
 
     items,

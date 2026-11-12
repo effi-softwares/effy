@@ -190,8 +190,9 @@ the database. Make a run fail: the page shows the failure and the alarm fires.
 
 1. **Given** last night's runs, **When** a manager opens the page, **Then** each clean-up shows when it last ran, its
    result, its counts and when it runs next.
-2. **Given** a clean-up that has not run for over 26 hours, or whose last run failed, **When** anyone opens the page,
-   **Then** it is marked as a problem. The operator has already been alerted.
+2. **Given** a clean-up that has not run within its bound (FR-022), or whose last run failed, **When** anyone opens the
+   page, **Then** it is marked as a problem. The operator has already been alerted. A run that only partly worked is
+   marked too.
 3. **Given** a customer who deleted their account 5 days ago, **When** a CSA opens their page, **Then** it says
    "Being deleted: erased on {date}. Signing in before then restores the account." Staff can't restore it or erase it
    early.
@@ -240,12 +241,17 @@ the database. Make a run fail: the page shows the failure and the alarm fires.
   - free the points and promotion uses held for it;
   - release any delivery place it held;
   - keep the customer's cart.
-- **FR-004**: A closed abandoned order MUST NOT appear in the customer's order list on any surface. It MUST NOT count as
+- **FR-004**: An order that ended without being paid (abandoned or failed) MUST NOT appear in the customer's order list on any
+  surface. It MUST NOT count as
   an order anywhere staff count orders, and it MUST NOT make a customer "has ordered" for promotions or message
   audiences.
 - **FR-005**: A payment that succeeds for an order already closed as abandoned MUST be refunded in full automatically.
   It MUST be recorded and shown to staff.
 - **FR-006**: Returning to checkout MUST restart the abandon time for the customer's unpaid order.
+- **FR-006a**: A declined card MUST leave the order awaiting payment, so the customer can try again on the same screen and a
+  later success places the order. Only the clean-up (FR-001), a payment that can no longer be taken, or closing the account
+  (FR-007) ends an unpaid order. *(Found in planning: today a decline marks the order failed at once, and a retry that then
+  succeeds is charged with no order placed.)*
 
 **Account closure (amends 034 FR-042)**
 
@@ -254,12 +260,14 @@ the database. Make a run fail: the page shows the failure and the alarm fires.
   - If its payment is being processed, deletion MUST be refused with a message saying so, and nothing changes.
   - A paid order still on its way blocks exactly as 034 defines.
 - **FR-008**: Closing an account MUST remove the account's phone registrations at once, so no notification reaches a
-  phone during the 30 days. Signing in again to restore MUST let the app register again.
+  phone during the 30 days. Signing in again to restore MUST let the app register again. *(Already true since 109; kept
+  here so it is checked.)*
 
 **Erasure**
 
 - **FR-009**: A closing account MUST be erased no earlier than its stored erase date, and within 24 hours after it. An
-  account restored before the date MUST NOT be erased.
+  account restored before the date MUST NOT be erased. Once the date has passed, signing in MUST NOT restore it, even if
+  erasure hasn't run yet: the customer was told it can't be undone after that date.
 - **FR-010**: Erasure MUST delete:
   - name, email and phone;
   - saved addresses and delivery instructions;
@@ -268,7 +276,11 @@ the database. Make a run fail: the page shows the failure and the alarm fires.
   - feedback the customer sent, and replies to it;
   - newsletter and marketing choices, and the record of consent answers;
   - notification choices and phone registrations;
-  - any unpaid or failed orders.
+  - the business name and ABN given for tax invoices on each order, the record of receipts emailed to them, and their email
+    delivery history;
+  - the address files on courier labels, and the free-text note on any delivery proof.
+- **FR-010a**: Orders that were never paid (awaiting payment, failed or abandoned) MUST be stripped like paid orders
+  (FR-013), not deleted: they can carry promotion, points and refund records that must stay whole.
 - **FR-011**: Erasure MUST remove the customer's sign-in, including any linked Google sign-in, so the email is free.
   It MUST also remove the payment provider's record of their saved cards.
 - **FR-012**: Erasure MUST forfeit any points left, recorded in the points history like any other forfeit (074 FR-024).
@@ -278,13 +290,17 @@ the database. Make a run fail: the page shows the failure and the alarm fires.
   "Deleted customer".
   - The recipient name, phone, street address and delivery notes on these orders MUST be removed. Suburb and postcode
     are kept.
+  - An order still on its way at erasure keeps its address until it is finished; the next erasure run after that removes
+    it.
+  - Delivery proof (photo or signature, and when it was taken) is kept as part of the delivery record.
 - **FR-014**: A tax invoice Effy issued at the customer's request MUST be kept exactly as issued, because the law
   requires it.
 - **FR-015**: After erasure, no back-office search, page, list, activity log, export or report may show the customer's
   name, email, phone or street address, apart from an issued tax invoice (FR-014).
 - **FR-016**: For an account that was barred when it was erased, Effy MUST keep only a one-way fingerprint of its email
-  and phone, the date and the bar reason. Nothing else MUST be kept for security.
-  - A new registration that matches it MUST be allowed, and shown to staff as matching a barred, erased account.
+  and phone, and the date. Nothing else MUST be kept for security.
+  - A new registration that matches it MUST be allowed. The new customer's back-office page MUST say it matches an
+    account that was barred and deleted on {date}.
   - For an account that was not barred, nothing is kept for security.
   - The pre-deletion screen's "Security and fraud checks" line MUST be reworded to say exactly this (034 SC-010: every
     sentence must be true).
@@ -306,12 +322,15 @@ the database. Make a run fail: the page shows the failure and the alarm fires.
 - **FR-022**: Back-office MUST have one page listing the three clean-ups. For each, it shows:
   - when it last ran, its result and what it did, in counts;
   - when it runs next;
-  - whether it needs attention (failed, or not run for over 26 hours).
+  - whether it needs attention: the last run failed or partly failed, or it hasn't run within its bound (unpaid orders 1
+    hour, account erasure 2 hours, phone registrations 26 hours).
   
-  Admins, managers and CSAs can see the page. Only admins can change the abandon time. The page has a guided tour.
+  Admins, managers and CSAs can see the page. Only admins can change the abandon time. The page has a guided tour
+  (HK, below).
 - **FR-023**: Each clean-up MUST keep a history of its runs, opened from the page as an activity log. Older runs are kept
   for at least 90 days.
-- **FR-024**: A failed run, or a clean-up that hasn't run when due, MUST alert the operator.
+- **FR-024**: A failed run, a clean-up that hasn't run within its bound (FR-022), or an account that still can't be
+  erased after three runs MUST alert the operator. The page and the alert use the same bounds.
 - **FR-025**: A customer's back-office page MUST show when the account is being deleted and the erase date. It MUST NOT
   offer staff a way to restore the account or erase it early.
 - **FR-026**: Each clean-up MUST work through a backlog in batches, without slowing customers' shopping. Accounts and
@@ -324,8 +343,7 @@ the database. Make a run fail: the page shows the failure and the alarm fires.
 - **Closure request** (034): the customer's request, its erase date, and whether it was restored. Gains when it was
   erased.
 - **Erasure record**: proof that a closure was carried out (reference and time), with nothing identifying the person.
-- **Security fingerprint**: for a barred account only. A one-way fingerprint of email and phone, the date and the bar
-  reason.
+- **Security fingerprint**: for a barred account only. A one-way fingerprint of email and phone, and the date.
 - **Phone registration**: a device that may receive notifications, and when it was last confirmed.
 - **Clean-up run**: one run of one clean-up. It records when it started and ended, the result, what it did in counts,
   and any problem.
@@ -352,6 +370,19 @@ the database. Make a run fail: the page shows the failure and the alarm fires.
   failure reaches the operator without anyone opening the page.
 - **SC-009**: Restoring an account during the 30 days never loses any of its data.
 
+## Guided tours
+
+The words below are the source for back-office's tour tests (107 rule).
+
+### HK - Clean-ups (new page, Settings › Business)
+
+| # | Points at | Title | Text | Shown when |
+|---|---|---|---|---|
+| 1 | Page heading | Clean-ups | Jobs that run by themselves to close unpaid orders, erase deleted accounts and remove old phone registrations. | |
+| 2 | The jobs | Did it work? | When each one last ran, what it did and when it runs next. One that failed or hasn't run is marked. | |
+| 3 | Abandon time | Unpaid orders | How long an unpaid checkout waits before it is closed and its points and codes are freed. | |
+| 4 | Activity | Earlier runs | Every run and every change to the abandon time, with who changed it. | |
+
 ## Assumptions
 
 - **The erase date is the one already stored** for each closure (30 days after the request, 034). This spec doesn't
@@ -370,8 +401,8 @@ the database. Make a run fail: the page shows the failure and the alarm fires.
   Nothing is sent to those services.
 - **Only customer accounts** are erased by this spec. Driver, shop staff and back-office accounts are removed by staff
   through their existing tools.
-- **The clean-ups run once a day, overnight** on Effy's clock. The unpaid-order clean-up may run more often, so that an
-  abandon time of 1 hour means about an hour.
+- **How often they run**: unpaid orders every 15 minutes (so an abandon time of 1 hour means about an hour), account
+  erasure every hour, phone registrations once a day.
 - **Staff can't restore or erase early**: restoring is the customer's own deliberate act (034 FR-041a), and erasing
   before the promised date breaks the promise of 30 days.
 

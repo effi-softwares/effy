@@ -40,7 +40,7 @@ const lowerFirst = (s: string) => s.charAt(0).toLowerCase() + s.slice(1)
 
 export function orderRowWords(o: OrderSummaryDTO, now: Date = new Date()): OrderRowWords {
   if (o.status === "canceled") return { badge: "Cancelled", tone: "secondary", line: "This order was cancelled.", inProgress: false }
-  if (o.status === "failed") return { badge: "Payment failed", tone: "secondary", line: "The payment didn't go through, so nothing was sent.", inProgress: false }
+  // An order that ended unpaid (failed or abandoned) is never listed (113), so it has no words here.
   if (o.status === "pending_payment") return { badge: "Awaiting payment", tone: "outline", line: "We're waiting for the payment to complete.", inProgress: false }
   if (o.fullyRefunded) return { badge: "Refunded", tone: "secondary", line: "Refunded in full", inProgress: false }
 

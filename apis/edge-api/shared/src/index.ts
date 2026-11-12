@@ -35,5 +35,7 @@ export * from "./lib/metrics";
 export * from "./lib/list-query";
 export * from "./lib/activity";
 export * from "./lib/capped-set";
+export * from "./lib/housekeeping";
+export * from "./lib/placed-order";
 export * from "./lib/shopper-handler";
 export * from "./status";

@@ -60,6 +60,7 @@ export const handleWebhook = createWebhookHandler({
     await refundService.handleRefundEvent(tx, evt);
   },
   afterPaid: (scope, orderId, intentId) => checkoutService.capturePaymentMethod(scope, orderId, intentId),
+  submitRefund: (refundId) => refundService.submitRecorded(refundId),
 });
 
 export const ordersService = createOrdersService({ repo: createOrdersRepository() });

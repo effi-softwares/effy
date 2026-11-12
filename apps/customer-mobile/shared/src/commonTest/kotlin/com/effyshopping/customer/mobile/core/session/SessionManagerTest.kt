@@ -111,6 +111,22 @@ class SessionManagerTest {
         assertEquals(0, h.records.calls)
     }
 
+    /**
+     * 113 FR-020: a session restored when the app starts runs the sign-in hook, which re-registers this device's push
+     * token (AppContainer `registerDeviceToken`) and so refreshes when it was last seen. A phone that stops opening the
+     * app is removed after 270 days.
+     */
+    @Test
+    fun `a session restored at start runs the sign-in hook once`() = runSession {
+        val h = Harness(records = Script({ customer }))
+        val manager = h.manager(this)
+
+        manager.bootstrap()
+
+        assertEquals(SessionState.Authenticated(customer), manager.state.value)
+        assertEquals(1, h.authenticatedFired)
+    }
+
     @Test
     fun `an unreachable database leaves a signed-in shopper signed in`() = runSession {
         val h = Harness(records = Script(failing(AppError.Unavailable)))

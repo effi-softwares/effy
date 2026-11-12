@@ -104,6 +104,21 @@ locals {
       threshold = 1
       stops     = "080 - late courier parcels (at the hub, at a supplier, with the courier) are no longer being counted, so the courier-late alarms cannot fire on a real parcel (they will fire on the missing data instead)."
     }
+    # 113 - the clean-ups (housekeeping.tf adds their staleness alarms).
+    unpaid-orders = {
+      function  = "effy-edge-commerce-${var.env}-unpaidOrders"
+      period    = 900
+      periods   = 2
+      threshold = 1
+      stops     = "113 - unpaid orders are no longer being closed: points, codes and delivery places stay held."
+    }
+    account-erasure = {
+      function  = "effy-edge-customer-${var.env}-accountErasure"
+      period    = 3600
+      periods   = 2
+      threshold = 1
+      stops     = "113 - deleted accounts are no longer being erased on the date customers were told."
+    }
   }
 }
 

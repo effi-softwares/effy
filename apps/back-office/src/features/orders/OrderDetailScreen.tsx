@@ -29,7 +29,7 @@ import {
 } from "lucide-react"
 
 import { Avatar, AvatarFallback, Badge, Button, toast } from "@effy/design-system/ui"
-import { leastAdvanced, STATUS_WORD, type PackageStatusView } from "@effy/shared-types"
+import { ERASED_CUSTOMER_WORD, leastAdvanced, STATUS_WORD, type PackageStatusView } from "@effy/shared-types"
 import { ActionBarButton, useActionBar, useActionBarDensity } from "@effy/web-kit/action-bar"
 import { ActivityButton, ActivityLogDrawer } from "@effy/web-kit/activity-log"
 import { ErrorState, PackageStatusPill, useHeaderDetail } from "@effy/web-kit/console"
@@ -171,6 +171,9 @@ function OrderPage({
   const request = order.refundRequest?.status === "open" ? order.refundRequest : null
   const movable = canRecord && order.status === "paid" && order.deliveryType !== null
   const units = order.items.reduce((n, i) => n + i.quantity, 0)
+  // 113: an erased customer has no page, no address and no points to show - only "Deleted customer".
+  const customerId = order.customerId
+  const customerName = order.customerName ?? order.customerEmail ?? ERASED_CUSTOMER_WORD
   const stage = CUSTOMER_STAGES.find((s) => s.stage === order.stage)
   const problems = order.packages.filter((p) => p.statusView?.status === "problem")
   const late = order.packages.filter((p) => p.late && p.statusView?.status !== "problem")
@@ -263,21 +266,23 @@ function OrderPage({
           <InspectorSection
             title="Customer"
             actions={
-              <Button variant="ghost" size="sm" asChild>
-                <Link to="/customers/$customerId" params={{ customerId: order.customerId }}>
-                  Open
-                </Link>
-              </Button>
+              customerId ? (
+                <Button variant="ghost" size="sm" asChild>
+                  <Link to="/customers/$customerId" params={{ customerId }}>
+                    Open
+                  </Link>
+                </Button>
+              ) : undefined
             }
           >
             <div className="mb-3 flex items-center gap-3">
               <Avatar aria-hidden="true" className="size-10">
                 <AvatarFallback className="bg-primary-muted text-primary">
-                  {initialsOf(order.customerName ?? order.customerEmail)}
+                  {initialsOf(customerName)}
                 </AvatarFallback>
               </Avatar>
               <div className="min-w-0">
-                <div className="truncate font-semibold">{order.customerName ?? order.customerEmail}</div>
+                <div className="truncate font-semibold">{customerName}</div>
                 <div className="text-[13px] text-muted-foreground">
                   {order.customerOrderCount === 1 ? "Their first order" : `${order.customerOrderCount} orders`}
                 </div>
@@ -285,16 +290,20 @@ function OrderPage({
             </div>
             <InspectorRows
               rows={[
-                {
-                  key: "email",
-                  icon: Mail,
-                  label: "Email",
-                  value: (
-                    <a href={`mailto:${order.customerEmail}`} className="link">
-                      {order.customerEmail}
-                    </a>
-                  ),
-                },
+                ...(order.customerEmail
+                  ? [
+                      {
+                        key: "email",
+                        icon: Mail,
+                        label: "Email",
+                        value: (
+                          <a href={`mailto:${order.customerEmail}`} className="link">
+                            {order.customerEmail}
+                          </a>
+                        ),
+                      },
+                    ]
+                  : []),
                 ...(typeof order.deliveryAddress.city === "string"
                   ? [
                       {
@@ -307,15 +316,17 @@ function OrderPage({
                   : []),
               ]}
             />
-            <div className="mt-3">
-              <OrderCustomerPoints
-                customerId={order.customerId}
-                customerName={order.customerName ?? order.customerEmail}
-                orderId={order.id}
-                orderNumber={order.orderNumber}
-                layout="block"
-              />
-            </div>
+            {customerId ? (
+              <div className="mt-3">
+                <OrderCustomerPoints
+                  customerId={customerId}
+                  customerName={customerName}
+                  orderId={order.id}
+                  orderNumber={order.orderNumber}
+                  layout="block"
+                />
+              </div>
+            ) : null}
           </InspectorSection>
           <InspectorSection title="Order facts">
             <InspectorRows
@@ -405,9 +416,13 @@ function OrderPage({
             </span>
             <span>
               <User aria-hidden="true" />
-              <Link to="/customers/$customerId" params={{ customerId: order.customerId }} className="link">
-                {order.customerName ?? order.customerEmail}
-              </Link>
+              {customerId ? (
+                <Link to="/customers/$customerId" params={{ customerId }} className="link">
+                  {customerName}
+                </Link>
+              ) : (
+                customerName
+              )}
             </span>
             <span>
               {units} {units === 1 ? "item" : "items"} ·{" "}

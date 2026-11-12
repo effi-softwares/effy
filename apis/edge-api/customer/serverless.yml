@@ -91,7 +91,22 @@ provider:
             - cognito-idp:ListUsers
             - cognito-idp:AdminCreateUser
             - cognito-idp:AdminLinkProviderForUser
+            # 113: erasure removes the sign-in on the deletion date.
+            - cognito-idp:AdminDeleteUser
           Resource: ${ssm:/effy/${sls:stage}/auth/customer/user_pool_arn}
+
+        # 113: the provider's customer record (erasure) and an unpaid order's payment (closure), and the key that
+        # fingerprints a barred account's email and phone (read at erasure and at registration).
+        - Effect: Allow
+          Action: secretsmanager:GetSecretValue
+          Resource:
+            - ${ssm:/effy/${sls:stage}/stripe/secret_key_arn}
+            - ${ssm:/effy/${sls:stage}/customer/erasure_fingerprint_key_arn}
+
+        # 113: an erased customer's courier labels (they carry the name and street). That prefix only.
+        - Effect: Allow
+          Action: s3:DeleteObject
+          Resource: arn:aws:s3:::effy-${sls:stage}-product-media/courier-label/*
   layers:
     - ${param:secretsExtensionArn}
   # No provider.vpc (dev only).
@@ -321,7 +336,10 @@ functions:
 
   customerClosureV1Post:
     handler: src/functions/customer-closure-v1-post.handler
-    description: Close the account - verifies a fresh code, then closes and revokes all sessions (034 US3)
+    description: Close the account - verifies a fresh code, closes unpaid orders, then closes and revokes all sessions (034 US3, 113)
+    environment:
+      # 113: an unpaid order's payment is cancelled at the provider before the order is closed.
+      STRIPE_SECRET_KEY_ARN: ${ssm:/effy/${sls:stage}/stripe/secret_key_arn}
     events:
       - httpApi:
           method: POST
@@ -495,6 +513,19 @@ functions:
     events:
       - schedule:
           rate: rate(1 day)
+
+  # 113: erases accounts whose deletion date has passed (Settings › Clean-ups). Alarmed in background-functions.tf.
+  accountErasure:
+    handler: src/functions/account-erasure-scheduled.handler
+    description: Hourly - erase accounts whose deletion date has passed, whole, one at a time (113 US1).
+    timeout: 300
+    environment:
+      STRIPE_SECRET_KEY_ARN: ${ssm:/effy/${sls:stage}/stripe/secret_key_arn}
+      ERASURE_FINGERPRINT_KEY_ARN: ${ssm:/effy/${sls:stage}/customer/erasure_fingerprint_key_arn}
+      S3_MEDIA_BUCKET: ${ssm:/effy/${sls:stage}/media/bucket}
+    events:
+      - schedule:
+          rate: rate(1 hour)
 
   # Checks the ledger adds up, reporting the count every run, zero included.
   pointsReconcile:

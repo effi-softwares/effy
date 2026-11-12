@@ -57,7 +57,7 @@ describe("commerce functions", () => {
 
   it("the only functions that are not routes are the ones named here", () => {
     // A function with no HTTP event escapes every route rule above.
-    expect(scheduled.map((d) => d.name)).toEqual(["refundReconcile"]);
+    expect(scheduled.map((d) => d.name).sort()).toEqual(["refundReconcile", "unpaidOrders"]);
     for (const d of scheduled) expect(source(d.file)).not.toMatch(/customerRoute\(|publicRoute\(/);
   });
 

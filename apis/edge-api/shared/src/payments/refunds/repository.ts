@@ -648,3 +648,25 @@ SELECT r.id::text AS id, r.order_id::text AS order_id, round(r.amount * 100)::bi
 }
 
 export type RefundRepository = ReturnType<typeof createRefundRepository>;
+
+/**
+ * 113 FR-005: the refund of a payment that arrived for an order already closed unpaid - the whole card amount, by the
+ * system, keyed on the payment so a redelivered notification records nothing twice. Null on that idempotent hit.
+ * Submitted after the commit like every recorded refund (`submitRecorded`).
+ */
+export async function recordUnplacedRefund(
+  tx: Queryable,
+  input: { orderId: string; amount: string; currency: string; intentId: string },
+): Promise<string | null> {
+  const inserted = (
+    await tx.query<{ id: string }>(
+      `INSERT INTO public.refund
+           (order_id, kind, amount, currency, reason, note, idempotency_key, actor_kind, actor_sub, card_amount, status)
+       VALUES ($1, 'unplaced', $2::numeric, $3, 'order_abandoned', NULL, $4, 'system', NULL, $2::numeric, 'submitting')
+       ON CONFLICT (idempotency_key) DO NOTHING
+       RETURNING id::text AS id`,
+      [input.orderId, input.amount, input.currency, `unplaced:${input.intentId}`],
+    )
+  ).rows[0];
+  return inserted?.id ?? null;
+}

@@ -29,29 +29,36 @@ export async function findBlockingOrders(customerId: string): Promise<BlockingOr
             o.status,
             o.created_at,
             -- ⚠ NEVER NULL: a block must state when it ends, and the DTO's non-nullable field makes
-            -- any other blocker unrepresentable. Both kinds age out on the
-            -- same bound; an awaiting-payment order is additionally clearable by the customer.
+            -- any other blocker unrepresentable.
             o.created_at + ($2 || ' days')::interval AS clears_at
        FROM public."order" o
       WHERE o.customer_id = $1
-        AND (
-              o.status = 'pending_payment'
-           OR (
-                o.status = 'paid'
-                AND o.created_at > now() - ($2 || ' days')::interval
-                -- The fulfilment term: an order blocks while ANY package is not yet finished.
-                -- ⚠ The finished states are LISTED, so a new working state blocks (safe by default)
-                -- while a new finished one must be added here deliberately.
-                AND EXISTS (
-                      SELECT 1
-                        FROM public.shop_fulfillment f
-                       WHERE f.order_id = o.id
-                         AND f.status NOT IN ('delivered', 'unfulfillable', 'withdrawn')
-                    )
-              )
+        -- Only a paid order on its way blocks. An unpaid checkout no longer does (113): closing the
+        -- account closes it (findUnpaidOrders + abandonOrder).
+        AND o.status = 'paid'
+        AND o.created_at > now() - ($2 || ' days')::interval
+        -- The fulfilment term: an order blocks while ANY package is not yet finished.
+        -- ⚠ The finished states are LISTED, so a new working state blocks (safe by default)
+        -- while a new finished one must be added here deliberately.
+        AND EXISTS (
+              SELECT 1
+                FROM public.shop_fulfillment f
+               WHERE f.order_id = o.id
+                 AND f.status NOT IN ('delivered', 'unfulfillable', 'withdrawn')
             )
       ORDER BY o.created_at DESC`,
     [customerId, String(IN_TRANSIT_BLOCK_DAYS)],
+  )
+  return res.rows
+}
+
+/** 113: the customer's checkouts still awaiting payment, closed (abandoned) when they close the account. */
+export async function findUnpaidOrders(customerId: string): Promise<{ id: string; order_number: string }[]> {
+  const res = await query<{ id: string; order_number: string }>(
+    `SELECT o.id::text AS id, o.order_number FROM public."order" o
+      WHERE o.customer_id = $1 AND o.status = 'pending_payment'
+      ORDER BY o.created_at`,
+    [customerId],
   )
   return res.rows
 }
@@ -133,6 +140,8 @@ export async function restoreAccount(input: {
               updated_at       = now()
         WHERE customer_id  = $1
           AND cancelled_at IS NULL
+          -- 113 FR-009: past the date the customer was told, it can't be undone, even before erasure runs.
+          AND erase_after > now()
         RETURNING id`,
       [input.customerId],
     )

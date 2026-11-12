@@ -166,6 +166,8 @@ SELECT o.id::text AS id, o.order_number AS order_number, o.status AS status,
           FROM public.refund r WHERE r.order_id = o.id) AS refunds
 FROM public."order" o
 WHERE o.customer_id = $1
+  -- 113 FR-004: an order that ended unpaid (abandoned or failed) never was an order; one still awaiting payment shows.
+  AND (o.placed_at IS NOT NULL OR o.status = 'pending_payment')
 ORDER BY o.created_at DESC`,
         [customerId],
       ),
@@ -218,7 +220,8 @@ LEFT JOIN LATERAL (
    ORDER BY x.created_at DESC, x.id DESC
    LIMIT 1
 ) mv ON true
-WHERE o.id = $1 AND o.customer_id = $2`,
+WHERE o.id = $1 AND o.customer_id = $2
+  AND (o.placed_at IS NOT NULL OR o.status = 'pending_payment')`,
             [orderId, customerId],
           )
         )[0] ?? null

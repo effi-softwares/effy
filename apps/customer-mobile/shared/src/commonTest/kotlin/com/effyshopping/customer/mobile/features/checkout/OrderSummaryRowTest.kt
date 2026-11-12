@@ -39,7 +39,7 @@ class OrderSummaryRowTest {
     @Test
     fun `an order with no stage falls back to its payment status`() {
         assertEquals("Paid" to EffyStatusKind.InProgress, orderStageWord(order(stage = null)))
-        assertEquals("Payment failed" to EffyStatusKind.Problem, orderStageWord(order(status = "failed")))
+        assertEquals("Awaiting payment" to EffyStatusKind.Problem, orderStageWord(order(status = "pending_payment", stage = null)))
     }
 
     @Test

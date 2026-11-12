@@ -34,7 +34,7 @@ export function createCustomerService(deps: CustomerServiceDeps = {}) {
   const isWriter = deps.isWriter ?? ((sub: string) => hasStaffRole(sub, OUTWARD_ACTION_ROLES));
   const now = deps.now ?? (() => new Date());
 
-  async function requireCustomer(id: string): Promise<repo.CustomerRow> {
+  async function requireCustomer(id: string): Promise<repo.CustomerDetailRow> {
     if (!UUID.test(id)) throw new CustomerNotFoundError();
     const c = await repo.customer(id);
     if (!c) throw new CustomerNotFoundError();
@@ -70,6 +70,8 @@ export function createCustomerService(deps: CustomerServiceDeps = {}) {
       const [summary, orders] = await Promise.all([balanceSummary(db, c.id, now()), repo.recentOrders(c.id)]);
       return {
         id: c.id, name: c.name, email: c.email,
+        closingEraseAfter: c.closing_erase_after ? c.closing_erase_after.toISOString() : null,
+        matchesErasedBarredOn: c.matches_erased_barred_on,
         points: { usable: summary.usable, valueAmount: formatCents(summary.valueCents), held: summary.held, nextExpiry: summary.nextExpiry },
         recentOrders: orders.map((o) => ({
           id: o.id, orderNumber: o.order_number, placedAt: o.placed_at ? o.placed_at.toISOString() : null, total: o.grand_total_amount,

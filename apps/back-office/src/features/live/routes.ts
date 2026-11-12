@@ -34,4 +34,6 @@ export const LIVE_ROUTES: Partial<Record<LiveKind, readonly QueryKey[]>> = {
   ],
   // A message was written, sent, stopped or withdrawn, or moved on while sending (112).
   messages: [["back-office", "messages"]],
+  // A clean-up ran, or the abandon time changed (113).
+  housekeeping: [["settings", "housekeeping"]],
 }

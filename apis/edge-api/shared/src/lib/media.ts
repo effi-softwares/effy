@@ -1,7 +1,7 @@
 // Direct-to-S3 presigned upload and read for every service that stores images. Bytes never pass
 // through Lambda: a presigned PUT for upload, short-lived presigned GETs for reads. The key prefix is a
 // parameter, and validation throws `MediaValidationError` for each caller to map.
-import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 export const ALLOWED_IMAGE_CONTENT_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -117,6 +117,14 @@ export async function readObjectPrefix(storageKey: string, bytes: number): Promi
   const body = await res.Body?.transformToByteArray();
   if (!body) throw new Error(`media: could not read ${storageKey}`);
   return Buffer.from(body);
+}
+
+/**
+ * 113: removes one stored object (an erased customer's courier label). Deleting a key that is already gone succeeds,
+ * so a retried erasure never fails here. IAM limits each caller to its own prefix.
+ */
+export async function deleteMediaObject(storageKey: string): Promise<void> {
+  await client().send(new DeleteObjectCommand({ Bucket: bucket(), Key: storageKey }));
 }
 
 /** For list and detail responses. */

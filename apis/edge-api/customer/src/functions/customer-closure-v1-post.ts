@@ -7,6 +7,7 @@ import {
   preamble,
   problem,
   ProblemType,
+  refused,
   unavailable,
 } from "@effy/edge-shared"
 
@@ -14,14 +15,14 @@ import {
   ClosureAlreadyRequestedError,
   ClosureBlockedError,
   CustomerRecordMissingError,
+  PaymentInProgressError,
   requestClosure,
 } from "../closure/service"
 import { requireCaller, TokenMismatchError } from "../password/identity"
 
 /**
- * Closes the account immediately; erasure follows automatically, with no human step and no
- * deactivate option. Permanent erasure is not built yet, so the apps must not be submitted to the
- * stores (submission-blockers.md).
+ * Closes the account immediately; erasure follows automatically on the date given, with no human step
+ * and no deactivate option (113's hourly `accountErasure`). Unpaid checkouts close with it.
  */
 export const handler = async (
   event: AuthedEvent,
@@ -88,6 +89,12 @@ function mapError(
   // Each failure is distinct: a new code, an order to resolve, or nothing to do.
   if (err instanceof ClosureBlockedError) {
     return json(409, { blockers: err.blockers }, scope)
+  }
+  if (err instanceof PaymentInProgressError) {
+    // 113: the client says "A payment for order {number} is going through. Try again in a few minutes."
+    return refused(scope, 409, "payment_in_progress", "a payment for an unpaid order is going through - try again shortly", {
+      errors: [{ field: "orderNumber", message: err.orderNumber }],
+    })
   }
   if (err instanceof ClosureAlreadyRequestedError) {
     return problem(

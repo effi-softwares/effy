@@ -36,7 +36,8 @@ export interface CustomerDTO {
 
   /**
    * Has this customer asked to be deleted? Not a value of `status`, which is a platform sanction the
-   * customer cannot influence (a customer can be barred and closing). No `"closed"`: erasure removes the row.
+   * customer cannot influence (a customer can be barred and closing). An erased account (113) is never served: its
+   * row stays, emptied, only so orders and points keep their owner (`erased`, refused by every customer route).
    */
   closureState: ClosureState;
 
@@ -150,10 +151,11 @@ export interface PasswordWriteResultDTO {
  * non-nullable): earlier rules left frequent shoppers permanently undeletable.
  */
 export type ClosureBlockerKind =
-  /** Checkout started, money not taken; the customer can resolve it in-app. */
-  | "order_awaiting_payment"
-  /** Paid, goods plausibly in transit; clears on fulfilment or after a short bound. */
-  | "order_in_transit";
+  /**
+   * Paid, goods plausibly in transit; clears on fulfilment or after a short bound. An unpaid checkout no longer
+   * blocks (113): closing the account closes it.
+   */
+  "order_in_transit";
 
 export interface ClosureBlockerDTO {
   kind: ClosureBlockerKind;
@@ -165,8 +167,6 @@ export interface ClosureBlockerDTO {
   target: { kind: "order"; id: string };
   /** Never null. */
   clearsAt: string;
-  /** Whether the customer can act on it, or only wait. */
-  resolvableByShopper: boolean;
 }
 
 /** A category of data kept after erasure, and why, carried as data so every surface states the same true reason. */
@@ -212,3 +212,17 @@ export interface ClosureResultDTO {
 export interface ClosureRestoreResultDTO {
   restoredAt: string;
 }
+
+/** What staff see for a customer who was erased (113): every staff reader falls back to it. */
+export const ERASED_CUSTOMER_WORD = "Deleted customer";
+
+/**
+ * The closure refusals added by 113, and their words (both clients say exactly these). `payment-in-progress` carries
+ * the order number (`errors[0].message`); `closure-final` the erase date.
+ */
+export const CLOSURE_REFUSAL_WORDS = {
+  "payment-in-progress": (orderNumber: string) =>
+    `A payment for order ${orderNumber} is going through. Try again in a few minutes.`,
+  "closure-final": (date: string) =>
+    `This account was deleted on ${date} and can't be restored. You can create a new account with the same email.`,
+} as const;

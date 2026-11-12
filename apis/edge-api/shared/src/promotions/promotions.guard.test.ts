@@ -33,6 +33,8 @@ const sources = files(services).map((f) => ({ file: relative(services, f), src: 
 const DEFINITION = "promotion|promotion_code|promotion_target|promotion_customer|promotion_group|promotion_group_member";
 const ADMIN = /^admin\/src\/(promotions|promotion-groups|promotion-skins)\//;
 const SHARED = /^shared\/src\/promotions\//;
+/** 113: erasure removes an erased customer from promotion target lists (`promotion_customer`) and nothing else. */
+const ERASURE = "customer/src/erasure/repository.ts";
 
 describe("094 — promotions live once", () => {
   it("scans the services", () => expect(sources.length).toBeGreaterThan(300));
@@ -48,7 +50,7 @@ describe("094 — promotions live once", () => {
     const writers = sources
       .filter((s) => new RegExp(`(INSERT INTO|UPDATE|DELETE FROM)\\s+public\\.(${DEFINITION})\\b`).test(s.src))
       .map((s) => s.file)
-      .filter((f) => !ADMIN.test(f));
+      .filter((f) => !ADMIN.test(f) && f !== ERASURE);
     expect(writers).toEqual([]);
   });
 
@@ -56,7 +58,7 @@ describe("094 — promotions live once", () => {
     const readers = sources
       .filter((s) => new RegExp(`(FROM|JOIN)\\s+public\\.(${DEFINITION}|promotion_use)\\b`).test(s.src))
       .map((s) => s.file)
-      .filter((f) => !ADMIN.test(f) && !SHARED.test(f));
+      .filter((f) => !ADMIN.test(f) && !SHARED.test(f) && f !== ERASURE);
     expect(readers).toEqual([]);
   });
 

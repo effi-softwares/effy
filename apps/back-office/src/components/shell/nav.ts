@@ -3,6 +3,7 @@ import {
   BadgePercent,
   ReceiptText,
   ShieldCheck,
+  Recycle,
   ShoppingCart,
   Waypoints,
   Boxes,
@@ -168,6 +169,8 @@ export const NAV_GROUPS: readonly NavGroup[] = [
       // Effy's tax identity and the tax-invoice switch.
       { key: "tax", label: "Tax and invoices", to: "/settings/tax", icon: ReceiptText, requiredRole: "admin" },
       { key: "team", label: "Team and access", to: "/settings/team", icon: ShieldCheck, requiredRole: "admin" },
+      // 113 - the jobs that run by themselves, and the abandon time. Every role may look.
+      { key: "housekeeping", label: "Clean-ups", to: "/settings/housekeeping", icon: Recycle },
       // Every settings page, grouped and explained, last (features/settings/SettingsIndexScreen.tsx - kept in step by its test).
       { key: "settings", label: "All settings", to: "/settings", icon: Settings },
     ],

@@ -129,8 +129,8 @@ export async function confirmUses(tx: Queryable, orderId: string, now: Date = ne
   return n;
 }
 
-/** Lets this order's uses go: payment failed, or it was cancelled before fulfilment. */
-export async function releaseUses(tx: Queryable, orderId: string, why: "payment_failed" | "cancelled", now: Date = new Date()): Promise<number> {
+/** Lets this order's uses go: payment failed, it was cancelled before fulfilment, or nobody paid for it (113, `expired`). */
+export async function releaseUses(tx: Queryable, orderId: string, why: "payment_failed" | "cancelled" | "expired", now: Date = new Date()): Promise<number> {
   const res = await tx.query(
     `UPDATE public.promotion_use
         SET status = 'released', released_at = $3, release_reason = $2, hold_expires_at = NULL

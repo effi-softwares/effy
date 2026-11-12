@@ -1,5 +1,7 @@
 package com.effyshopping.customer.mobile.app
 
+import com.effyshopping.customer.mobile.core.error.AppError
+import com.effyshopping.customer.mobile.core.error.AppException
 import com.effyshopping.customer.mobile.core.platform.phoneInDarkMode
 import com.effyshopping.customer.mobile.core.platform.StatusBarIcons
 import androidx.compose.ui.unit.sp
@@ -140,7 +142,8 @@ fun App(container: AppContainer) {
                 // Signing in surfaces the choice; this screen makes it.
                 SessionState.Closing -> Inset { CenteredMessage {
                     var working by remember { mutableStateOf(false) }
-                    var failed by remember { mutableStateOf(false) }
+                    // 113: null, or what to say - the server's refusal words when the deletion date has passed.
+                    var failed by remember { mutableStateOf<String?>(null) }
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
                             "Your account is scheduled for deletion",
@@ -154,21 +157,23 @@ fun App(container: AppContainer) {
                             textAlign = TextAlign.Center,
                             modifier = Modifier.padding(top = 8.dp),
                         )
-                        if (failed) EffyInlineError("We couldn't restore it just now. Please try again.", modifier = Modifier.padding(top = 8.dp))
+                        failed?.let { EffyInlineError(it, modifier = Modifier.padding(top = 8.dp)) }
                         EffyPrimaryButton(
                             label = "Restore my account",
                             enabled = !working,
                             onClick = {
                                 working = true
-                                failed = false
+                                failed = null
                                 scope.launch {
-                                    val ok = runCatching { container.restoreAccount.invoke() }.isSuccess
+                                    val outcome = runCatching { container.restoreAccount.invoke() }
+                                    val ok = outcome.isSuccess
                                     if (ok) {
                                         // Re-read the record so the shell renders the live account
                                         // rather than a stale local guess.
                                         runCatching { container.session.refreshRecord() }
                                     } else {
-                                        failed = true
+                                        failed = ((outcome.exceptionOrNull() as? AppException)?.error as? AppError.Validation)?.message
+                                            ?: "We couldn't restore it just now. Please try again."
                                     }
                                     working = false
                                 }

@@ -24,6 +24,12 @@ describe("completion state", () => {
     expect(completionState({ status: "pending_payment" }, "succeeded")).toBe("confirming")
   })
 
+  // 113 FR-006a: a decline keeps the order awaiting payment; its payment says failed.
+  it("says the payment was not completed for a declined card on an order still awaiting payment", () => {
+    expect(completionState({ status: "pending_payment", paymentStatus: "failed" })).toBe("abandoned")
+    expect(completionState({ status: "pending_payment", paymentStatus: "failed" }, "succeeded")).toBe("abandoned")
+  })
+
   it("has no receipt when the order could not be read at all", () => {
     expect(completionState(null)).toBe("confirming")
     expect(completionState(null, "canceled")).toBe("abandoned")

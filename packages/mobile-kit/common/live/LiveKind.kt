@@ -36,7 +36,10 @@ enum class LiveKind(val wire: String) {
     INBOX("inbox"),
 
     /** A back-office message changed (112). Back-office only; the apps never receive it. */
-    MESSAGES("messages");
+    MESSAGES("messages"),
+
+    /** A clean-up ran or the abandon time changed (113). Back-office only; the apps never receive it. */
+    HOUSEKEEPING("housekeeping");
 
     companion object {
         /** `null` for a kind this build has never heard of (a newer backend). */

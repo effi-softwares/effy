@@ -493,3 +493,25 @@ export async function consignmentsFor(q: Queryable, packageIds: readonly string[
   ).rows;
   return new Map(rows.map((r) => [r.package_id, r]));
 }
+
+/**
+ * 113: an erased customer's courier labels carry their name and street. Clears the label key of every consignment on
+ * these orders and returns the keys, for the caller to delete the files after its transaction commits (a deleted file
+ * with a rolled-back row would point at nothing). Called only by account erasure. Kept here: this module is the one
+ * writer of `courier_consignment`.
+ */
+export async function clearLabelsForErasure(tx: Queryable, orderIds: readonly string[]): Promise<string[]> {
+  if (orderIds.length === 0) return [];
+  const labels = await tx.query<{ id: string; label_key: string }>(
+    `SELECT cc.id::text AS id, cc.label_key FROM public.courier_consignment cc
+       JOIN public.shop_fulfillment f ON f.id = cc.shop_fulfillment_id
+      WHERE f.order_id = ANY($1::uuid[]) AND cc.label_key IS NOT NULL
+      FOR UPDATE OF cc`,
+    [orderIds],
+  );
+  if (labels.rows.length === 0) return [];
+  await tx.query(`UPDATE public.courier_consignment SET label_key = NULL, updated_at = now() WHERE id = ANY($1::uuid[])`, [
+    labels.rows.map((r) => r.id),
+  ]);
+  return labels.rows.map((r) => r.label_key);
+}

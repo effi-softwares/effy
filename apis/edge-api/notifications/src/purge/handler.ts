@@ -1,9 +1,9 @@
 // The daily notification purge (109). Thrown errors reach the background-function alarm.
 import type { Context, ScheduledHandler } from "aws-lambda";
 
-import { logger, pooled } from "@effy/edge-shared";
+import { emitMetric, HOUSEKEEPING_METRIC_NAMESPACE, logger, pooled, recordRun } from "@effy/edge-shared";
 
-import { purge } from "./repository";
+import { pruneRegistrations, purge, purgeRuns } from "./repository";
 
 const RESERVE_MS = 15_000;
 
@@ -23,6 +23,16 @@ export const handler: ScheduledHandler = async (_event, context?: Context) => {
         NotificationsPurged: summary.notifications + summary.erased,
       }),
     );
+
+    // 113: the phone-registration clean-up, recorded for Settings › Clean-ups. Runs last, so a slow purge above costs
+    // it a day rather than the notifications their retention.
+    const at = new Date();
+    await recordRun("phone_registrations", async () => {
+      const removed = await pruneRegistrations(pooled, at, started + remaining - RESERVE_MS);
+      if (removed > 0) emitMetric(HOUSEKEEPING_METRIC_NAMESPACE, "PhoneRegistrationsRemoved", removed);
+      return { counts: { removed }, problems: [] };
+    });
+    await purgeRuns(pooled, at);
   } catch (err) {
     log.error({ err }, "notification purge failed");
     throw err;

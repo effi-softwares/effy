@@ -14,6 +14,7 @@ import {
   Truck,
   Warehouse,
   Wallet,
+  Recycle,
 } from "lucide-react"
 
 import type { BackOfficeRole } from "@effy/shared-types"
@@ -152,6 +153,14 @@ export const SETTINGS_GROUPS: readonly SettingsGroup[] = [
         hint: "Everyone with a back-office account, and what each role may do.",
         icon: ShieldCheck,
         requiredRole: "admin",
+      },
+      {
+        // 113: every role may look; only an administrator changes the abandon time.
+        key: "housekeeping",
+        to: "/settings/housekeeping",
+        label: "Clean-ups",
+        hint: "Unpaid orders closed, deleted accounts erased, old phone registrations removed - and when each last ran.",
+        icon: Recycle,
       },
     ],
   },

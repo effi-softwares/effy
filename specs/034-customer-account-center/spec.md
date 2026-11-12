@@ -559,6 +559,11 @@ legal surface a published app is required to have.
     completes in hours; 7 days is generous for it, short enough that even a weekly shopper has ample
     windows in which to delete, and it is a **backstop**, not the primary exit — once the delivery
     lifecycle can report completion, almost every order will clear in hours instead.
+
+  **Amendment 3 (113 data lifecycle, 2026-11-12)** — **an order awaiting payment no longer blocks.** Confirming
+  deletion closes it on the spot (its payment cancelled at the provider first); only a payment going through at that
+  moment refuses deletion, saying so. A paid order on its way still blocks as above. See
+  specs/113-data-lifecycle/spec.md FR-007.
 - **FR-042a**: The platform MUST NOT name as a blocker any obligation it does not actually model. *(No
   balance and no refund concept exists; telling a shopper an unsettled balance blocks them would be a
   refusal they could never act on.)*
@@ -707,7 +712,8 @@ legal surface a published app is required to have.
 - **SC-010**: Every claim in the pre-deletion disclosure is true of the built system, verified item by
   item — no statement describes behaviour that does not yet exist.
 - **SC-011**: The store-submission checklist records the erasure slice as an **unmet blocking dependency**
-  until it ships.
+  until it ships. *(113, 2026-11-12: built - erasure on the date, the sign-in removed, restore refused after the date;
+  the checklist row now says built, not yet deployed.)*
 - **SC-012**: A blocked deletion always names its blocker and offers a route to it — **zero** dead ends
   across every blocking condition.
 - **SC-013**: The address book's add button obscures **no** list row at any supported text size, on both

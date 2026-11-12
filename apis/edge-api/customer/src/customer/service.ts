@@ -1,5 +1,6 @@
 import type { CustomerDTO } from "@effy/shared-types"
 
+import { markIfMatchesErasedBarred } from "../erasure/match"
 import { toDTO, type CustomerRow } from "./model"
 import { updateProfile, upsertCustomer } from "./repo"
 
@@ -32,7 +33,8 @@ function assertActive(row: CustomerRow): void {
 
   // A closing customer is refused everywhere but the explicit restore. The closure flow reads the record
   // directly, so this gate cannot refuse it and a barred customer can still delete.
-  if (row.closure_state === "closing") throw new CustomerClosingError()
+  // An erased account (113) has no sign-in left; a stale token is refused the same way.
+  if (row.closure_state === "closing" || row.closure_state === "erased") throw new CustomerClosingError()
 }
 
 /** Upserts first, then checks the ban: a barred customer still has a record. */
@@ -51,6 +53,8 @@ export async function getOrCreateCustomer(identity: {
     familyName: identity.familyName,
     seedHasPassword: identity.seedHasPassword,
   })
+  // 113 FR-016: a new account that matches a barred, erased one is marked for staff, never refused.
+  if (row.inserted) await markIfMatchesErasedBarred(row.id, "email", identity.email)
 
   assertActive(row)
   return toDTO(row)
@@ -63,6 +67,7 @@ export async function updateCustomerProfile(
 ): Promise<CustomerDTO> {
   const row = await updateProfile(cognitoSub, input.givenName, input.familyName, normalizePhone(input.phone))
   if (!row) throw new CustomerNotFoundError()
+  if (row.phone) await markIfMatchesErasedBarred(row.id, "phone", row.phone)
 
   // Barred or closing customers may not edit their profile.
   assertActive(row)

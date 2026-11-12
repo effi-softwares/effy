@@ -469,6 +469,40 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
+  # 113 US5: Settings › Clean-ups - the clean-ups' last runs and the abandon time.
+  housekeepingV1:
+    handler: src/functions/housekeeping-v1-get.handler
+    description: Back-office - the clean-ups (unpaid orders, account erasure, phone registrations) and the abandon time (113). Any active staff.
+    events:
+      - httpApi:
+          method: GET
+          path: /orders/v1/housekeeping
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  housekeepingSettingsUpdateV1:
+    handler: src/functions/housekeeping-v1-put.handler
+    description: Back-office - change the abandon time for unpaid orders (113). Administrators only; every change recorded.
+    events:
+      - httpApi:
+          method: PUT
+          path: /orders/v1/housekeeping/settings
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  housekeepingActivityV1:
+    handler: src/functions/housekeeping-activity-v1-get.handler
+    description: Back-office - every clean-up run, late-payment refund and abandon-time change, in the activity drawer (113, 104). Any active staff.
+    events:
+      - httpApi:
+          method: GET
+          path: /orders/v1/housekeeping/activity
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
   customerNotificationPreferencesV1:
     handler: src/functions/customer-notification-preferences-v1-get.handler
     description: Back-office - a customer's notification choices and marketing consent, read only (111 US7). Any active staff.

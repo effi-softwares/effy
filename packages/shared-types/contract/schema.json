@@ -42,10 +42,6 @@
           "description": "Shopper-facing reference, e.g. `EFY-HVX2AE`.",
           "type": "string"
         },
-        "resolvableByShopper": {
-          "description": "Whether the customer can act on it, or only wait.",
-          "type": "boolean"
-        },
         "target": {
           "additionalProperties": false,
           "description": "The same destination as a closed vocabulary (mobile has no URL router).",
@@ -70,17 +66,13 @@
         "reference",
         "href",
         "target",
-        "clearsAt",
-        "resolvableByShopper"
+        "clearsAt"
       ],
       "type": "object"
     },
     "ClosureBlockerKind": {
+      "const": "order_in_transit",
       "description": "Why a customer cannot be deleted yet. Every blocker must say when it clears (`clearsAt` is non-nullable): earlier rules left frequent shoppers permanently undeletable.",
-      "enum": [
-        "order_awaiting_payment",
-        "order_in_transit"
-      ],
       "type": "string"
     },
     "ClosureChallengeResultDTO": {
@@ -271,7 +263,7 @@
       "properties": {
         "closureState": {
           "$ref": "#/definitions/ClosureState",
-          "description": "Has this customer asked to be deleted? Not a value of `status`, which is a platform sanction the customer cannot influence (a customer can be barred and closing). No `\"closed\"`: erasure removes the row."
+          "description": "Has this customer asked to be deleted? Not a value of `status`, which is a platform sanction the customer cannot influence (a customer can be barred and closing). An erased account (113) is never served: its row stays, emptied, only so orders and points keep their owner (`erased`, refused by every customer route)."
         },
         "createdAt": {
           "type": "string"

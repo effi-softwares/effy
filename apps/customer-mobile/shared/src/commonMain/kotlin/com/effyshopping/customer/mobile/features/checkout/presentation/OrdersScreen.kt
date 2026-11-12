@@ -327,11 +327,13 @@ private fun OrderRow(order: OrderSummary, onOpen: (String) -> Unit, onReorder: (
     }
 }
 
-/** The stage pill: the server's stage when the list carries it, else the payment status. */
+/**
+ * The stage pill: the server's stage when the list carries it, else the payment status. An order that ended unpaid
+ * (failed or abandoned) is never listed (113), so it has no word here.
+ */
 internal fun orderStageWord(order: OrderSummary): Pair<String, EffyStatusKind> = when {
     order.fullyRefunded -> "Refunded" to EffyStatusKind.Inert
     order.status == "cancelled" -> "Cancelled" to EffyStatusKind.Inert
-    order.status == "failed" -> "Payment failed" to EffyStatusKind.Problem
     order.status == "pending_payment" -> "Awaiting payment" to EffyStatusKind.Problem
     order.stage == OrderStage.Delivered -> "Delivered" to EffyStatusKind.Done
     order.stage == OrderStage.OnTheWay -> "On the way" to EffyStatusKind.InProgress
@@ -355,7 +357,6 @@ internal fun orderArrivalLine(order: OrderSummary): String? {
 private fun statusLabel(status: String) = when (status) {
     "paid" -> "Paid"
     "pending_payment" -> "Awaiting payment"
-    "failed" -> "Payment failed"
     else -> status
 }
 

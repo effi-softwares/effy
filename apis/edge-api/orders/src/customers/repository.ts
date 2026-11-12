@@ -1,6 +1,6 @@
 // Who the customer is, their points and last orders, and the browsable list of customers (103). Points come from
 // @effy/edge-shared/points.
-import { dayRangeCondition, likePattern, limitOffsetClause, orderBy, query, runOffsetPage } from "@effy/edge-shared";
+import { dayRangeCondition, likePattern, limitOffsetClause, orderBy, PLACED_ORDER_SQL, query, runOffsetPage } from "@effy/edge-shared";
 
 import { CUSTOMER_LIST, type CustomerListRequest } from "./list";
 
@@ -8,6 +8,13 @@ export interface CustomerRow {
   id: string;
   name: string;
   email: string;
+}
+
+export interface CustomerDetailRow extends CustomerRow {
+  /** The date a deleted account is erased, while it can still be restored (113). */
+  closing_erase_after: Date | null;
+  /** This registration matched a barred, erased account (113 FR-016). */
+  matches_erased_barred_on: string | null;
 }
 
 export interface ListRow extends CustomerRow {
@@ -27,7 +34,7 @@ const ORDER_FACTS = `
   LEFT JOIN LATERAL (
     SELECT count(*)::int AS order_count, max(x.created_at) AS last_order_at
       FROM public."order" x
-     WHERE x.customer_id = c.id AND x.status NOT IN ('pending_payment', 'failed')
+     WHERE x.customer_id = c.id AND ${PLACED_ORDER_SQL("x")}
   ) o ON TRUE`;
 
 /**
@@ -37,7 +44,8 @@ const ORDER_FACTS = `
 export async function list(req: CustomerListRequest) {
   return runOffsetPage(req, async (read) => {
     const args: unknown[] = [];
-    const where: string[] = [];
+    // 113: an erased customer has nothing left to show; their orders say "Deleted customer".
+    const where: string[] = [`c.closure_state <> 'erased'`];
     if (req.q && ORDER_NUMBER.test(req.q)) {
       args.push(req.q.toUpperCase());
       where.push(`c.id = (SELECT x.customer_id FROM public."order" x WHERE x.order_number = $${args.length})`);
@@ -65,8 +73,18 @@ export async function list(req: CustomerListRequest) {
   });
 }
 
-export async function customer(id: string): Promise<CustomerRow | null> {
-  return (await query<CustomerRow>(`SELECT c.id::text AS id, ${NAME} AS name, c.email::text AS email FROM public.customer c WHERE c.id = $1`, [id])).rows[0] ?? null;
+export async function customer(id: string): Promise<CustomerDetailRow | null> {
+  return (
+    await query<CustomerDetailRow>(
+      `SELECT c.id::text AS id, ${NAME} AS name, c.email::text AS email,
+              (SELECT r.erase_after FROM public.customer_closure_request r
+                WHERE r.customer_id = c.id AND r.cancelled_at IS NULL AND r.erased_at IS NULL
+                  AND c.closure_state = 'closing') AS closing_erase_after,
+              c.matches_erased_barred_on::text AS matches_erased_barred_on
+         FROM public.customer c WHERE c.id = $1 AND c.closure_state <> 'erased'`,
+      [id],
+    )
+  ).rows[0] ?? null;
 }
 
 export interface RecentOrderRow {
@@ -82,7 +100,7 @@ export async function recentOrders(customerId: string, limit = 5): Promise<Recen
       `
 SELECT o.id::text AS id, o.order_number, o.placed_at, o.grand_total_amount::text AS grand_total_amount
   FROM public."order" o
- WHERE o.customer_id = $1 AND o.status NOT IN ('pending_payment', 'failed')
+ WHERE o.customer_id = $1 AND ${PLACED_ORDER_SQL("o")}
  ORDER BY o.created_at DESC
  LIMIT $2`,
       [customerId, limit],

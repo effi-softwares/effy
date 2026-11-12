@@ -45,11 +45,6 @@ data class ClosureBlockerDTO (
     val reference: String,
 
     /**
-     * Whether the customer can act on it, or only wait.
-     */
-    val resolvableByShopper: Boolean,
-
-    /**
      * The same destination as a closed vocabulary (mobile has no URL router).
      */
     val target: Target
@@ -61,7 +56,6 @@ data class ClosureBlockerDTO (
  */
 @Serializable
 enum class ClosureBlockerKind(val value: String) {
-    @SerialName("order_awaiting_payment") OrderAwaitingPayment("order_awaiting_payment"),
     @SerialName("order_in_transit") OrderInTransit("order_in_transit");
 }
 
@@ -165,8 +159,9 @@ data class ClosureResultDTO (
  * request is refused except restore.
  *
  * Has this customer asked to be deleted? Not a value of `status`, which is a platform
- * sanction the customer cannot influence (a customer can be barred and closing). No
- * `"closed"`: erasure removes the row.
+ * sanction the customer cannot influence (a customer can be barred and closing). An erased
+ * account (113) is never served: its row stays, emptied, only so orders and points keep
+ * their owner (`erased`, refused by every customer route).
  */
 @Serializable
 enum class ClosureState(val value: String) {
@@ -193,8 +188,9 @@ enum class CredentialRoute(val value: String) {
 data class CustomerDTO (
     /**
      * Has this customer asked to be deleted? Not a value of `status`, which is a platform
-     * sanction the customer cannot influence (a customer can be barred and closing). No
-     * `"closed"`: erasure removes the row.
+     * sanction the customer cannot influence (a customer can be barred and closing). An erased
+     * account (113) is never served: its row stays, emptied, only so orders and points keep
+     * their owner (`erased`, refused by every customer route).
      */
     val closureState: ClosureState,
 

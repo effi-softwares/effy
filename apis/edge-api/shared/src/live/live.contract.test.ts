@@ -81,7 +81,7 @@ describe("071 — the channel's infrastructure", () => {
     // `promotions`, `taxonomy` (101), `products` (102), `inbox` (110) and `messages` (112) are not watched: an alarm
     // holds at most 10 metrics, and a stale back-office screen, category picker, shop product page or bell count
     // (re-read whenever the app comes back to the front) is the only cost.
-    const unwatched = new Set(["promotions", "taxonomy", "products", "inbox", "messages"]);
+    const unwatched = new Set(["promotions", "taxonomy", "products", "inbox", "messages", "housekeeping"]);
     expect(list("live_kinds")).toEqual(LIVE_KINDS.filter((k) => !unwatched.has(k)));
   });
 

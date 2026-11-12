@@ -44,7 +44,8 @@ export async function resolveCustomer(
   const row = await lookup(sub);
   // No row: the customer never completed sign-in on the customer service.
   if (!row) return { ok: false, response: unauthenticated(scope) };
-  if (row.status === "barred" || row.closure_state === "closing") {
+  // Closing, or erased (113: the sign-in is gone, so only a stale token could reach here).
+  if (row.status === "barred" || row.closure_state === "closing" || row.closure_state === "erased") {
     return { ok: false, response: forbidden(scope) };
   }
   return { ok: true, customer: { id: row.id, sub } };

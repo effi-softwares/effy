@@ -9,13 +9,25 @@ package com.effyshopping.customer.mobile.features.account.domain
  * fails. Erasure runs automatically once requested.
  */
 
-/** Why closure is blocked. Only conditions the platform actually models may appear. */
+/**
+ * Why closure is blocked. Only conditions the platform actually models may appear. An unpaid checkout no longer
+ * blocks (113): deleting the account closes it.
+ */
 enum class ClosureBlockerKind {
-    /** Checkout started, money not taken. The shopper resolves this themselves, in-app. */
-    ORDER_AWAITING_PAYMENT,
-
     /** Paid, goods plausibly still in transit. Clears on fulfilment or after a short bound. */
     ORDER_IN_TRANSIT,
+}
+
+/**
+ * The two closure refusals added by 113, word for word with `CLOSURE_REFUSAL_WORDS` in @effy/shared-types
+ * customer.ts (the website says the same).
+ */
+object ClosureRefusalWords {
+    fun paymentInProgress(orderNumber: String) =
+        "A payment for order $orderNumber is going through. Try again in a few minutes."
+
+    fun closureFinal(date: String) =
+        "This account was deleted on $date and can't be restored. You can create a new account with the same email."
 }
 
 /**
@@ -27,13 +39,10 @@ data class ClosureBlocker(
     val reference: String,
     val orderId: String,
     val clearsAtIso: String,
-    val resolvableByShopper: Boolean,
 ) {
     /** What the shopper is told, in one sentence they can act on. */
     val sentence: String
         get() = when (kind) {
-            ClosureBlockerKind.ORDER_AWAITING_PAYMENT ->
-                "Order $reference is waiting for payment. Finish or cancel it, then you can delete your account."
             ClosureBlockerKind.ORDER_IN_TRANSIT ->
                 "Order $reference is on its way. You'll be able to delete your account once it's complete."
         }

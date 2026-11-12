@@ -11,7 +11,7 @@ vi.mock("@effy/edge-shared", () => ({
   withTransaction: async (fn: (c: unknown) => unknown) => fn(holder.pool),
 }))
 
-import { closeAccount, findBlockingOrders, IN_TRANSIT_BLOCK_DAYS } from "./repo"
+import { closeAccount, findBlockingOrders, findUnpaidOrders, IN_TRANSIT_BLOCK_DAYS, restoreAccount } from "./repo"
 
 /**
  * The closure-blocking predicate against real Postgres. It must let weekly shoppers delete, must not
@@ -79,14 +79,20 @@ describe.skipIf(!RUN)("findBlockingOrders - against real PostgreSQL", () => {
 
   const blockersFor = (customerId: string) => findBlockingOrders(customerId)
 
-  it("blocks an order awaiting payment", async () => {
+  it("no longer blocks on an order awaiting payment (113): closing the account closes it", async () => {
     const c = await seedCustomer()
     await seedOrder(c, "pending_payment", 0, null)
 
+    expect(await blockersFor(c)).toHaveLength(0)
+    expect((await findUnpaidOrders(c)).map((o) => o.order_number)).toEqual([expect.stringMatching(/^EFY-/)])
+  })
+
+  it("a paid order on its way states when its block ends", async () => {
+    const c = await seedCustomer()
+    await seedOrder(c, "paid", 0, "picking")
+
     const rows = await blockersFor(c)
     expect(rows).toHaveLength(1)
-    expect(rows[0]!.status).toBe("pending_payment")
-    // A block must state its end.
     expect(rows[0]!.clears_at).toBeInstanceOf(Date)
   })
 
@@ -160,7 +166,7 @@ describe.skipIf(!RUN)("findBlockingOrders - against real PostgreSQL", () => {
 
   it("returns the human-facing order_number, which is the column that actually exists", async () => {
     const c = await seedCustomer()
-    await seedOrder(c, "pending_payment", 0, null)
+    await seedOrder(c, "paid", 0, "picking")
 
     const rows = await blockersFor(c)
     // `public."order"` calls it `order_number`, not `reference`.
@@ -227,5 +233,24 @@ describe.skipIf(!RUN)("closeAccount - 109: no push reaches a closing account", (
     await closeAccount({ customerId: c.rows[0]!.id, cognitoSub: "closing-1", verificationMethod: "email_code" })
     const left = await pool.query<{ fcm_token: string }>(`SELECT fcm_token FROM public.device_token ORDER BY fcm_token`)
     expect(left.rows.map((r) => r.fcm_token)).toEqual(["tok-3"])
+  })
+
+  it("113 FR-009: restores before the date, and never after it", async () => {
+    const before = await pool.query<{ id: string }>(
+      `INSERT INTO public.customer (cognito_sub, email) VALUES ('restore-1', 'restore-1@example.test') RETURNING id`,
+    )
+    await closeAccount({ customerId: before.rows[0]!.id, cognitoSub: "restore-1", verificationMethod: "email_code" })
+    expect(await restoreAccount({ customerId: before.rows[0]!.id, cognitoSub: "restore-1" })).not.toBeNull()
+
+    const after = await pool.query<{ id: string }>(
+      `INSERT INTO public.customer (cognito_sub, email) VALUES ('restore-2', 'restore-2@example.test') RETURNING id`,
+    )
+    await closeAccount({ customerId: after.rows[0]!.id, cognitoSub: "restore-2", verificationMethod: "email_code" })
+    await pool.query(`UPDATE public.customer_closure_request SET erase_after = now() - interval '1 minute' WHERE customer_id = $1`, [
+      after.rows[0]!.id,
+    ])
+    expect(await restoreAccount({ customerId: after.rows[0]!.id, cognitoSub: "restore-2" })).toBeNull()
+    const row = await pool.query<{ closure_state: string }>(`SELECT closure_state FROM public.customer WHERE id = $1`, [after.rows[0]!.id])
+    expect(row.rows[0]!.closure_state).toBe("closing")
   })
 })

@@ -533,8 +533,8 @@ data class StorefrontCategoryDTO (
     val icon: String? = null,
 
     /**
-     * The category's own picture, else one derived from a product in it, chosen
-     * deterministically; null renders a brand tile.
+     * The picture staff attached to the category, and only that (never a product's photograph).
+     * Null → the client shows `icon`, else the default glyph.
      */
     @SerialName("imageUrl")
     val imageURL: String? = null,

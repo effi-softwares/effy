@@ -4126,7 +4126,7 @@
           ]
         },
         "imageUrl": {
-          "description": "The category's own picture, else one derived from a product in it, chosen deterministically; null renders a brand tile.",
+          "description": "The picture staff attached to the category, and only that (never a product's photograph). Null → the client shows `icon`, else the default glyph.",
           "type": [
             "string",
             "null"

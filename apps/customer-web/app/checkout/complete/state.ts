@@ -17,6 +17,9 @@ export function completionState(order: CompletionOrder, redirectStatus?: string)
   const paid = order?.paymentStatus === "succeeded" || order?.status === "paid"
   if (paid) return "receipt"
   if (redirectStatus === "failed" || redirectStatus === "canceled") return "abandoned"
+  // 113 FR-006a: a declined card leaves the order awaiting payment with its payment marked failed - it will not
+  // become paid by waiting, so the shopper is told and offered the payment step again, never left "confirming".
+  if (order?.paymentStatus === "failed") return "abandoned"
   return "confirming"
 }
 

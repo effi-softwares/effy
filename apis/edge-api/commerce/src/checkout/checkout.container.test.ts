@@ -19,6 +19,7 @@ import { flatPricing, NO_PROMOTIONS } from "../promotions/testing";
 import { createOrdersRepository } from "../orders/repository";
 import { createOrdersService, OrderNotFoundError as ReceiptNotFoundError } from "../orders/service";
 import { createWebhookHandler } from "../webhook/handler";
+import { runUnpaidOrders } from "../housekeeping/job";
 import { DeliveryChoiceError } from "./delivery-choice";
 import { defaultQuoter, quoteForCheckout, type PromoSource } from "./quote";
 import {
@@ -87,6 +88,7 @@ function fakeGateway() {
     createCustomerSession: async () => ({ clientSecret: "cuss_secret" }),
     listSavedCards: async () => [],
     detachPaymentMethod: async () => undefined,
+    deleteCustomer: async () => undefined,
   };
   return {
     gw,
@@ -593,13 +595,127 @@ d("070 - checkout, finalisation and the webhook against the real schema", () => 
     expect(await stockOf("Scarce")).toBe(1);
   });
 
-  it("a failed-payment notification fails the order and keeps the cart", async () => {
+  it("113 FR-006a: a declined card leaves the order awaiting payment, its holds and its cart", async () => {
     const p = await pendingWithIntent();
     const sig = gateway.sign({ id: "evt_fail", type: "payment_intent.payment_failed", paymentIntentId: p.intentId, intentStatus: "failed" });
     expect(await handlerWith(transact)(scope, "{}", sig)).toBe("handled");
-    expect((await orderRow(p.orderId)).status).toBe("failed");
+    expect((await orderRow(p.orderId)).status).toBe("pending_payment");
+    expect(await one(`SELECT status FROM public.payment WHERE order_id = $1`, [p.orderId])).toEqual({ status: "failed" });
     expect(await count(`SELECT 1 FROM public.cart_item WHERE cart_id = $1`, [p.cartId])).toBe(1);
     expect(await stockOf("Scarce")).toBe(2);
+  });
+
+  it("113 FR-006a: a retry that succeeds after a decline places the order (the defect: charged, no order)", async () => {
+    const p = await pendingWithIntent();
+    const handle = handlerWith(transact);
+    await handle(scope, "{}", gateway.sign({ id: "evt_decl", type: "payment_intent.payment_failed", paymentIntentId: p.intentId, intentStatus: "failed" }));
+    // The next checkout attempt reuses the same order and intent (the payment is still live at the provider).
+    const again = await svc.createIntent(p.customerId, input(p.addressId), new Date());
+    expect(again.orderId).toBe(p.orderId);
+    await handle(scope, "{}", gateway.sign({ id: "evt_retry", type: "payment_intent.succeeded", paymentIntentId: p.intentId, intentStatus: "succeeded" }));
+    expect((await orderRow(p.orderId)).status).toBe("paid");
+    expect(await count(`SELECT 1 FROM public.refund WHERE order_id = $1`, [p.orderId])).toBe(0);
+  });
+
+  it("113 FR-005: a payment that arrives for an abandoned order is refunded in full, once", async () => {
+    const p = await pendingWithIntent();
+    await pool.query(`UPDATE public."order" SET status = 'abandoned' WHERE id = $1`, [p.orderId]);
+    const submitted: string[] = [];
+    const handle = createWebhookHandler({
+      gateway: gateway.gw, refunds: async () => undefined, afterPaid: async () => undefined, transact,
+      submitRefund: async (id) => void submitted.push(id),
+    });
+    const sig = gateway.sign({ id: "evt_late", type: "payment_intent.succeeded", paymentIntentId: p.intentId, intentStatus: "succeeded" });
+    expect(await handle(scope, "{}", sig)).toBe("handled");
+    expect((await orderRow(p.orderId)).status).toBe("abandoned");
+    const refunds = await pool.query<{ kind: string; reason: string; actor_kind: string; amount: string; status: string }>(
+      `SELECT kind, reason, actor_kind, amount::text, status FROM public.refund WHERE order_id = $1`, [p.orderId]);
+    expect(refunds.rows).toEqual([{ kind: "unplaced", reason: "order_abandoned", actor_kind: "system", amount: expect.any(String), status: "submitting" }]);
+    const paidAmount = (await one<{ a: string }>(`SELECT amount::text AS a FROM public.payment WHERE order_id = $1`, [p.orderId])).a;
+    expect(Number(refunds.rows[0]!.amount)).toBe(Number(paidAmount));
+    expect(submitted).toHaveLength(1);
+    // A second notification for the same payment records nothing more.
+    await handle(scope, "{}", gateway.sign({ id: "evt_late_2", type: "payment_intent.succeeded", paymentIntentId: p.intentId, intentStatus: "succeeded" }));
+    expect(await count(`SELECT 1 FROM public.refund WHERE order_id = $1`, [p.orderId])).toBe(1);
+  });
+
+  // 113 US2: the unpaid-orders clean-up.
+
+  const quietRun = (over: Partial<Parameters<typeof runUnpaidOrders>[0]> = {}) =>
+    runUnpaidOrders({ gateway: gateway.gw, transact, q: pool, settlePaid: (id) => svc.settlePaid(id), announceClosed: async () => undefined, ...over });
+  const age = (orderId: string, minutes: number) =>
+    pool.query(`UPDATE public."order" SET updated_at = now() - ($2 || ' minutes')::interval WHERE id = $1`, [orderId, String(minutes)]);
+
+  it("113: closes an unpaid order past the abandon time - payment cancelled, points back, cart kept", async () => {
+    const s = await shopper({ Milk: 2 });
+    await givePoints(s.customerId, 1000);
+    const r = await svc.createIntent(s.customerId, input(s.addressId, { pointsToUse: 500 }), new Date());
+    expect(await pointsNow(s.customerId)).toBe(500);
+    await age(r.orderId, 25 * 60);
+
+    const out = await quietRun();
+    expect(out.counts.closed).toBeGreaterThanOrEqual(1);
+    expect((await orderRow(r.orderId)).status).toBe("abandoned");
+    expect(await one(`SELECT status FROM public.payment WHERE order_id = $1`, [r.orderId])).toEqual({ status: "canceled" });
+    expect(await pointsNow(s.customerId)).toBe(1000);
+    expect(await count(`SELECT 1 FROM public.cart_item WHERE cart_id = $1`, [s.cartId])).toBe(1);
+  });
+
+  it("113: leaves an order inside the abandon time, and returning to checkout restarts it (FR-006)", async () => {
+    const s = await shopper({ Milk: 1 });
+    const r = await svc.createIntent(s.customerId, input(s.addressId), new Date());
+    await age(r.orderId, 23 * 60);
+    await quietRun();
+    expect((await orderRow(r.orderId)).status).toBe("pending_payment");
+
+    await age(r.orderId, 25 * 60);
+    await svc.createIntent(s.customerId, input(s.addressId), new Date()); // back at checkout
+    await quietRun();
+    expect((await orderRow(r.orderId)).status).toBe("pending_payment");
+  });
+
+  it("113: reads the abandon time from settings", async () => {
+    const s = await shopper({ Milk: 1 });
+    const r = await svc.createIntent(s.customerId, input(s.addressId), new Date());
+    await age(r.orderId, 90);
+    await pool.query(`UPDATE public.housekeeping_settings SET abandon_after_min = 60`);
+    try {
+      await quietRun();
+      expect((await orderRow(r.orderId)).status).toBe("abandoned");
+    } finally {
+      await pool.query(`UPDATE public.housekeeping_settings SET abandon_after_min = 1440`);
+    }
+  });
+
+  it("113: a payment being made is left alone, and one that went through is placed", async () => {
+    const paying = await pendingWithIntent();
+    gateway.settle(paying.intentId, "requires_action");
+    const paid = await pendingWithIntent();
+    gateway.settle(paid.intentId, "succeeded");
+    await age(paying.orderId, 25 * 60);
+    await age(paid.orderId, 25 * 60);
+
+    const out = await quietRun();
+    expect(out.counts.stillPaying).toBeGreaterThanOrEqual(1);
+    expect(out.counts.paidLate).toBeGreaterThanOrEqual(1);
+    expect((await orderRow(paying.orderId)).status).toBe("pending_payment");
+    expect((await orderRow(paid.orderId)).status).toBe("paid");
+  });
+
+  it("113: works through a backlog in batches, never more than one batch a run", async () => {
+    const ids: string[] = [];
+    for (let i = 0; i < 3; i++) {
+      const s = await shopper({ Milk: 1 });
+      const r = await svc.createIntent(s.customerId, input(s.addressId), new Date());
+      await age(r.orderId, 30 * 60 + i);
+      ids.push(r.orderId);
+    }
+    let stopAfter = 1;
+    // Time runs out after the first order: the rest wait for the next run.
+    const out = await quietRun({ timeLeft: () => (stopAfter-- > 0 ? 60_000 : 1_000) });
+    expect(out.counts.closed).toBe(1);
+    const after = await quietRun();
+    expect(after.counts.closed).toBeGreaterThanOrEqual(2);
   });
 
   it("an invalid signature is refused, and an event type the platform does not act on is acknowledged unrecorded", async () => {

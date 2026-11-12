@@ -571,6 +571,15 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
 
+  # 113: closes orders nobody paid for (Settings › Clean-ups). Alarmed in background-functions.tf and housekeeping.tf.
+  unpaidOrders:
+    handler: src/functions/unpaid-orders-scheduled.handler
+    description: Every 15 minutes - close orders still awaiting payment after the abandon time, payment cancelled first (113 US2).
+    timeout: 120
+    events:
+      - schedule:
+          rate: rate(15 minutes)
+
   # Resolves refunds whose submission to the provider never got an answer.
   refundReconcile:
     handler: src/functions/refund-reconcile-scheduled.handler

@@ -15,6 +15,7 @@ import { SoundChip } from "@/components/console/SoundChip"
 import { NotificationBell } from "@/features/notifications/NotificationBell"
 import { PwaBanners } from "@/components/console/PwaBanners"
 import { useNotificationRead } from "@/features/notifications/useNotificationNavigation"
+import { useConfirmRegistration } from "@/features/notifications/useConfirmRegistration"
 import { getLiveDescriptor } from "@/features/live/repo"
 import { LIVE_ROUTES } from "@/features/live/routes"
 import { navGroups } from "@/components/layout/nav"
@@ -72,6 +73,8 @@ function AppShell() {
   const navigate = useNavigate()
   const navBadges = useNavBadges()
   useNotificationRead()
+  // 113: keeps this device's notification registration alive while the console is in use.
+  useConfirmRegistration()
   const { data: me } = useQuery(meQuery)
   const record = useHeaderRecord()
   const tourState = useQuery({ ...tourStateQuery, enabled: data?.status === "signed-in" })

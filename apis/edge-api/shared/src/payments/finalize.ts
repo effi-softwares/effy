@@ -297,6 +297,42 @@ export async function finalizeFailed(tx: Queryable, orderId: string): Promise<vo
   await releaseUses(tx, orderId, "payment_failed");
 }
 
+export interface AbandonOutcome {
+  /** False: the order was no longer awaiting payment (paid, failed or already abandoned), and nothing changed. */
+  applied: boolean;
+  customerSub: string | null;
+  /** Points went back to the customer's balance. */
+  pointsReleased: boolean;
+}
+
+/**
+ * 113: closes an order nobody paid for - the unpaid-orders clean-up and closing an account, both through
+ * `abandonOrder` (`abandon.ts`), which has already made sure the payment can no longer be taken. One transaction, the
+ * caller's; the first statement is the guard. Frees the points and promotion uses held for it and its delivery place.
+ * The cart is untouched, so the customer can check out again.
+ */
+export async function finalizeAbandoned(tx: Queryable, orderId: string, now: Date = new Date()): Promise<AbandonOutcome> {
+  const closed = await tx.query<{ sub: string | null }>(
+    `UPDATE public."order" o SET status = 'abandoned', updated_at = now()
+       FROM public.customer c
+      WHERE o.id = $1 AND o.status = 'pending_payment' AND c.id = o.customer_id
+      RETURNING c.cognito_sub AS sub`,
+    [orderId],
+  );
+  if ((closed.rowCount ?? 0) === 0) return { applied: false, customerSub: null, pointsReleased: false };
+
+  await tx.query(`UPDATE public.payment SET status = 'canceled', updated_at = now() WHERE order_id = $1`, [orderId]);
+  const held = await tx.query(`SELECT 1 FROM public.points_hold WHERE order_id = $1 AND state = 'held'`, [orderId]);
+  await releasePoints(tx, orderId);
+  await releaseUses(tx, orderId, "expired", now);
+  await tx.query(
+    `UPDATE public.delivery_slot_booking SET state = 'released', held_until = NULL, updated_at = now()
+      WHERE order_id = $1 AND state = 'held'`,
+    [orderId],
+  );
+  return { applied: true, customerSub: closed.rows[0]!.sub, pointsReleased: (held.rowCount ?? 0) > 0 };
+}
+
 /** The metrics a finalisation raises. After the commit. */
 export function meterFinalize(namespace: string, out: FinalizeOutcome): void {
   if (out.slotConfirmed) {

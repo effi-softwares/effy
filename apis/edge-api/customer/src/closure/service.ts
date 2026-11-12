@@ -2,8 +2,9 @@ import type {
   ClosureBlockerDTO,
   ClosurePreviewDTO,
   ClosureResultDTO,
-  RetainedCategoryDTO,
 } from "@effy/shared-types"
+
+import { abandonOrder, stripeGateway, type AbandonDeps } from "@effy/edge-shared/payments"
 
 import { findByCognitoSub } from "../customer/repo"
 import * as cognito from "../password/cognito"
@@ -12,10 +13,12 @@ import {
   findBlockingOrders,
   findLiveRequest,
   findPointsHeld,
+  findUnpaidOrders,
   restoreAccount,
   GRACE_PERIOD_DAYS,
   type BlockingOrderRow,
 } from "./repo"
+import { RETAINED } from "./retained"
 
 /**
  * A barred customer may still close their account (barring protects the platform, it does not hold
@@ -43,6 +46,22 @@ export class NoLiveClosureRequestError extends Error {
   }
 }
 
+/** 113: an unpaid order's payment is going through (or couldn't be checked): nothing is closed. */
+export class PaymentInProgressError extends Error {
+  constructor(readonly orderNumber: string) {
+    super("a payment for an unpaid order is in progress")
+    this.name = "PaymentInProgressError"
+  }
+}
+
+/** 113 FR-009: the date the customer was told has passed; the account can't be restored. */
+export class ClosureFinalError extends Error {
+  constructor(readonly eraseAfter: Date) {
+    super("the closure is final")
+    this.name = "ClosureFinalError"
+  }
+}
+
 export class CustomerRecordMissingError extends Error {
   constructor() {
     super("customer record not found")
@@ -50,33 +69,10 @@ export class CustomerRecordMissingError extends Error {
   }
 }
 
-/**
- * What is kept after erasure, and why: one list for mobile and web. Needs legal confirmation before
- * launch, and every sentence must be true of the system. Keep the verb "DELETE"
- * (`deletion-copy.test.ts` checks).
- */
-const RETAINED: RetainedCategoryDTO[] = [
-  {
-    category: "Your orders and receipts",
-    reason:
-      "Tax and accounting rules require us to keep a record of every completed sale, even after you delete your account.",
-  },
-  {
-    category: "Your payment records",
-    reason:
-      "Financial rules require us to hold on to proof of payments and refunds. It is also what lets us help you if a payment is ever disputed.",
-  },
-  {
-    category: "Security and fraud checks",
-    reason:
-      "A small amount of security information stays with us so we can keep Effy safe for everyone who shops here.",
-  },
-]
-
+/** Only a paid order on its way blocks (113): it clears itself by `clearsAt`. */
 function toBlockerDTO(row: BlockingOrderRow): ClosureBlockerDTO {
-  const awaitingPayment = row.status === "pending_payment"
   return {
-    kind: awaitingPayment ? "order_awaiting_payment" : "order_in_transit",
+    kind: "order_in_transit",
     reference: row.order_number,
 
     // Web routes on `href`, mobile on `target`, both from the order id.
@@ -84,9 +80,22 @@ function toBlockerDTO(row: BlockingOrderRow): ClosureBlockerDTO {
     target: { kind: "order", id: row.id },
 
     clearsAt: row.clears_at.toISOString(),
+  }
+}
 
-    // Awaiting payment is the customer's to resolve; in transit clears itself by `clearsAt`.
-    resolvableByShopper: awaitingPayment,
+/**
+ * 113 FR-007: closes the customer's unpaid checkouts before the account. The provider is asked first (abandonOrder);
+ * anything but "closed" refuses closure with the order's number. No `settlePaid`: a payment that went through just
+ * now is placed by the webhook, through commerce, and is then a paid order (one implementation, research R5).
+ */
+export async function abandonUnpaidOrders(
+  customerId: string,
+  deps: Pick<AbandonDeps, "gateway"> = { gateway: stripeGateway },
+): Promise<void> {
+  for (const o of await findUnpaidOrders(customerId)) {
+    const { result } = await abandonOrder({ gateway: deps.gateway }, o.id)
+    if (result === "abandoned" || result === "gone") continue
+    throw new PaymentInProgressError(o.order_number)
   }
 }
 
@@ -159,6 +168,9 @@ export async function requestClosure(
   // Throws CodeMismatchException / ExpiredCodeException (400 in the handler).
   await cognito.verifyEmailCode(accessToken, code)
 
+  // 113: unpaid checkouts close with the account. A payment going through refuses closure (nothing is closed).
+  await abandonUnpaidOrders(customer.id)
+
   const { eraseAfter } = await closeAccount({
     customerId: customer.id,
     cognitoSub,
@@ -184,7 +196,12 @@ export async function restoreClosure(cognitoSub: string): Promise<{ restoredAt: 
   if (!customer) throw new CustomerRecordMissingError()
 
   const row = await restoreAccount({ customerId: customer.id, cognitoSub })
-  if (!row) throw new NoLiveClosureRequestError()
+  if (!row) {
+    // 113 FR-009: a live request past its date is final, not "nothing to restore".
+    const live = await findLiveRequest(customer.id)
+    if (live && live.erase_after.getTime() <= Date.now()) throw new ClosureFinalError(live.erase_after)
+    throw new NoLiveClosureRequestError()
+  }
 
   return { restoredAt: new Date().toISOString() }
 }

@@ -37,12 +37,16 @@ describe("111 - choices and consent", () => {
     ]);
   });
 
-  it("they are removed by the erasure purge only", () => {
-    expect(where(/DELETE FROM\s+public\.customer_(notification_choice|marketing_consent)\b/)).toEqual(["notifications/src/purge/repository.ts"]);
+  it("they are removed by the erasure purge and account erasure (113) only", () => {
+    expect(where(/DELETE FROM\s+public\.customer_(notification_choice|marketing_consent)\b/)).toEqual([
+      "customer/src/erasure/repository.ts",
+      "notifications/src/purge/repository.ts",
+    ]);
   });
 
-  it("the consent history is read directly only by preferences.ts, the consent activity source and the purge", () => {
+  it("the consent history is read directly only by preferences.ts, the consent activity source, the purge and erasure", () => {
     expect(where(/public\.customer_marketing_consent\b/)).toEqual([
+      "customer/src/erasure/repository.ts",
       "notifications/src/purge/repository.ts",
       "orders/src/activity/consent.ts",
       "shared/src/notifications/preferences.ts",

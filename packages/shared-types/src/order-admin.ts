@@ -264,8 +264,11 @@ export interface AdminOrderDetailDTO {
   /** How this courier order's parcels reach the courier; null unless a courier delivers. */
   courierCollection: "hub" | "supplier" | null;
 
-  customerId: string;
-  customerEmail: string;
+  /** Null once the customer was erased (113): there is no customer page to open. */
+  customerId: string | null;
+  /** Null once the customer was erased (113). */
+  customerEmail: string | null;
+  /** "Deleted customer" (ERASED_CUSTOMER_WORD) once erased. */
   customerName: string | null;
   /** The customer's paid orders, this one included. */
   customerOrderCount: number;

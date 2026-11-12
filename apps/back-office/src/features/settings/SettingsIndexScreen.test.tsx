@@ -50,8 +50,8 @@ describe("Settings index (settings redesign)", () => {
       expect(keys(r)).not.toContain("tax")
       expect(keys(r)).not.toContain("team")
     }
-    // The Business group has nothing left for them, so it is not drawn at all.
-    expect(visibleSettings(["csa"]).map((g) => g.title)).not.toContain("Business")
+    // 113: the Business group keeps only Clean-ups for them (every role may look at it).
+    expect(visibleSettings(["csa"]).find((g) => g.title === "Business")?.entries.map((e) => e.key)).toEqual(["housekeeping"])
   })
 
   it("draws each page as a link with its sentence", async () => {
@@ -62,10 +62,11 @@ describe("Settings index (settings redesign)", () => {
     expect(screen.getByRole("link", { name: /Team and access/ })).toHaveAttribute("href", "/settings/team")
   })
 
-  it("shows customer support no Business section", async () => {
+  it("shows customer support only Clean-ups under Business", async () => {
     show(["csa"])
     await screen.findByRole("link", { name: /Coverage/ })
-    expect(screen.queryByRole("heading", { name: "Business" })).not.toBeInTheDocument()
+    expect(screen.getByRole("link", { name: /Clean-ups/ })).toHaveAttribute("href", "/settings/housekeeping")
     expect(screen.queryByRole("link", { name: /Tax and invoices/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole("link", { name: /Team and access/ })).not.toBeInTheDocument()
   })
 })

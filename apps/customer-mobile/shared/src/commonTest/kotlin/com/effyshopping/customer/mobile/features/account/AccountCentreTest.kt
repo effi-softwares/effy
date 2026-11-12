@@ -7,6 +7,7 @@ import com.effyshopping.customer.mobile.core.storage.hasDeviceShoppingData
 import com.effyshopping.customer.mobile.features.account.domain.ClosureBlocker
 import com.effyshopping.customer.mobile.features.account.domain.ClosureBlockerKind
 import com.effyshopping.customer.mobile.features.account.domain.ClosurePreview
+import com.effyshopping.customer.mobile.features.account.domain.ClosureRefusalWords
 import com.effyshopping.customer.mobile.features.account.domain.Customer
 import com.effyshopping.customer.mobile.features.account.domain.CustomerName
 import com.effyshopping.customer.mobile.features.account.domain.CustomerStanding
@@ -95,7 +96,6 @@ class AccountCentreTest {
         reference = "EFY-HVX2AE",
         orderId = "o-1",
         clearsAtIso = "2026-08-10T00:00:00Z",
-        resolvableByShopper = kind == ClosureBlockerKind.ORDER_AWAITING_PAYMENT,
     )
 
     /**
@@ -124,10 +124,23 @@ class AccountCentreTest {
         }
     }
 
+    /** 113: an unpaid checkout no longer blocks; the only blocker is a paid order on its way. */
     @Test
-    fun `an awaiting-payment order is shopper-resolvable and one in transit is not`() {
-        assertTrue(blocker(ClosureBlockerKind.ORDER_AWAITING_PAYMENT).resolvableByShopper)
-        assertFalse(blocker(ClosureBlockerKind.ORDER_IN_TRANSIT).resolvableByShopper)
+    fun `only a paid order on its way can block`() {
+        assertEquals(listOf(ClosureBlockerKind.ORDER_IN_TRANSIT), ClosureBlockerKind.entries.toList())
+    }
+
+    /** Word for word with CLOSURE_REFUSAL_WORDS in @effy/shared-types (the website says the same). */
+    @Test
+    fun `the closure refusals say what happened, in Effy's words`() {
+        assertEquals(
+            "A payment for order EFY-AB12 is going through. Try again in a few minutes.",
+            ClosureRefusalWords.paymentInProgress("EFY-AB12"),
+        )
+        assertEquals(
+            "This account was deleted on 2026-12-12 and can't be restored. You can create a new account with the same email.",
+            ClosureRefusalWords.closureFinal("2026-12-12"),
+        )
     }
 
     @Test

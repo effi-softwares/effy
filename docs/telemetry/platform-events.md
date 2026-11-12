@@ -32,5 +32,10 @@ in its `AnalyticsEvent` sealed class; the per-app drift check keeps them aligned
 | `offers_ask_answered` | `{ answer, surface }` | The customer answered it: `answer` = `yes` / `no` (closing it counts as `no`) |
 | `offers_stopped_from_inbox` | `{ category, surface }` | "Stop offers like this" / "Stop news like this" on an inbox item (111); `category` = `offers` / `news` |
 
+113 (data lifecycle) adds no client event. Its clean-ups report as backend metrics in the `Effy/Housekeeping` namespace
+(`HousekeepingRan`, `HousekeepingFailed`, `HousekeepingPartial` per job; `UnpaidOrdersClosed`, `UnpaidOrdersStillPaying`,
+`AccountsErased`, `AccountErasureRetried`, `PhoneRegistrationsRemoved`) and `UnplacedPaymentRefunded` in `Effy/Commerce`;
+the alarms are in `infra/envs/dev/housekeeping.tf`.
+
 Audience-specific funnels live in [commerce-events.md](commerce-events.md) (customer),
 [fulfillment-events.md](fulfillment-events.md) (shop) and [driver-events.md](driver-events.md) (driver).

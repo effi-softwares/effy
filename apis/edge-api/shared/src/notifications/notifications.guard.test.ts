@@ -53,8 +53,11 @@ describe("109 - the notification record's writers", () => {
     expect(where(/UPDATE\s+public\.notification_delivery\b/)).toEqual(["notifications/src/worker/repository.ts"]);
   });
 
-  it("notifications and deliveries are removed by the purge only", () => {
-    expect(where(/DELETE FROM\s+public\.notification(_delivery)?\b/)).toEqual(["notifications/src/purge/repository.ts"]);
+  it("notifications and deliveries are removed by the purge, and by account erasure (113), only", () => {
+    expect(where(/DELETE FROM\s+public\.notification(_delivery)?\b/)).toEqual([
+      "customer/src/erasure/repository.ts",
+      "notifications/src/purge/repository.ts",
+    ]);
   });
 
   it("nothing names the old notification_request (dropped in Stage B)", () => {

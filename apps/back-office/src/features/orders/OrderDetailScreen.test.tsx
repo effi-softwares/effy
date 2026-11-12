@@ -41,10 +41,17 @@ const ORDER = {
 }
 const LIST = { items: ["o0", "o1", "o2"].map((id) => ({ id })), total: 14, pageSize: 25, totalCapped: false, page: null, nextCursor: null, ignored: [] }
 
+// Per-test changes to the order (113: an erased customer).
+let mockOrderOverride: Record<string, unknown> = {}
+
 vi.mock("@/lib/api", () => ({
   api: {
     get: async (path: string) =>
-      path.startsWith("/orders/v1/orders/o") ? ORDER : path.startsWith("/orders/v1/orders?") ? LIST : new Promise(() => {}),
+      path.startsWith("/orders/v1/orders/o")
+        ? { ...ORDER, ...mockOrderOverride }
+        : path.startsWith("/orders/v1/orders?")
+          ? LIST
+          : new Promise(() => {}),
     post: () => new Promise(() => {}),
     put: () => new Promise(() => {}),
     patch: () => new Promise(() => {}),
@@ -72,6 +79,19 @@ function renderOrder() {
 }
 
 describe("the order page", () => {
+  it("shows an erased customer as Deleted customer, with no link, address or points (113)", async () => {
+    mockOrderOverride = { customerId: null, customerEmail: null, customerName: "Deleted customer" }
+    try {
+      renderOrder()
+      expect((await screen.findAllByText("Deleted customer")).length).toBeGreaterThan(0)
+      expect(screen.queryByRole("link", { name: "Deleted customer" })).toBeNull()
+      expect(screen.queryByRole("link", { name: "Open" })).toBeNull()
+      expect(screen.queryByText("mia.thompson@example.com")).toBeNull()
+    } finally {
+      mockOrderOverride = {}
+    }
+  })
+
   it("draws each package's journey, in the nine words, with the step it is at", async () => {
     renderOrder()
     const journeys = await screen.findAllByRole("list", { name: "Where it is" })

@@ -4,12 +4,14 @@ import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import { Bell, CircleMinus, CirclePlus, Coins, History, Inbox, Mail, Send, ShoppingBag } from "lucide-react"
 
+import { OPERATING_TZ } from "@effy/shared-types"
 import { Avatar, AvatarFallback, Button } from "@effy/design-system/ui"
 import { ActivityLogDrawer, useActivityAction, useActivityLog } from "@effy/web-kit/activity-log"
 import { ErrorState, useHeaderDetail } from "@effy/web-kit/console"
 
 import {
   Bone,
+  Callout,
   DetailPageSkeleton,
   DetailRowsSkeleton,
   ListSkeleton,
@@ -33,6 +35,9 @@ import { DebitPointsSheet } from "./components/DebitPointsSheet"
 import { formatDay, formatPoints } from "./components/points-format"
 import { customerDetailQuery, customersKeys, pointsSettingsQuery } from "./queries"
 import { tourStatus, useTourPage } from "@effy/web-kit/tour"
+
+/** The erase date, in words, on Effy's clock (113). */
+const eraseDate = new Intl.DateTimeFormat("en-AU", { day: "numeric", month: "long", year: "numeric", timeZone: OPERATING_TZ })
 
 export function CustomerDetailScreen({ customerId }: { customerId: string }) {
   const { data: session } = useQuery(sessionQuery)
@@ -101,6 +106,18 @@ export function CustomerDetailScreen({ customerId }: { customerId: string }) {
           </>
         }
       />
+
+      {/* 113: a deletion in progress, and a registration that matches a barred, erased account. Staff can't restore or erase. */}
+      {c.closingEraseAfter ? (
+        <Callout tone="muted" title={`Being deleted: erased on ${eraseDate.format(new Date(c.closingEraseAfter))}`}>
+          Signing in before then restores the account.
+        </Callout>
+      ) : null}
+      {c.matchesErasedBarredOn ? (
+        <Callout tone="info" title="Matches a barred account">
+          {`Matches an account that was barred and deleted on ${eraseDate.format(new Date(`${c.matchesErasedBarredOn}T12:00:00Z`))}.`}
+        </Callout>
+      ) : null}
 
       <div className="ef-detail">
         <div className="ef-detail__main">

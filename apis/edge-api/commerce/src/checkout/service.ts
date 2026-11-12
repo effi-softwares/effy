@@ -476,6 +476,9 @@ export function createCheckoutService(deps: {
 
     capturePaymentMethod,
 
+    /** 113: places an order whose payment went through, with commerce's own post-payment steps (the unpaid-orders clean-up). */
+    settlePaid,
+
     /** A provider failure propagates: "no cards" and "could not ask" are different facts. */
     async listKeptCards(customerId: string, now: Date) {
       const { providerCustomerId } = await store.paymentProfile(customerId);

@@ -8,7 +8,7 @@ import {
 } from "@effy/edge-shared";
 import { announceOrderOfProviderRefund } from "@effy/edge-shared/live";
 import {
-  announcePaid, finalizeFailed, finalizeSucceeded, meterFinalize,
+  announcePaid, finalizeSucceeded, meterFinalize, refundUnplaced,
   type FinalizeOutcome, type PaymentGateway, type WebhookEvent,
 } from "@effy/edge-shared/payments";
 
@@ -24,6 +24,8 @@ export function createWebhookHandler(deps: {
   /** After the payment commits; best-effort. */
   afterPaid: (scope: Pick<RequestScope, "log">, orderId: string, intentId: string) => Promise<void>;
   afterRefund?: (providerRefundId: string) => Promise<void>;
+  /** 113: sends a late-payment refund recorded in the event's transaction, after it commits. */
+  submitRefund?: (refundId: string) => Promise<unknown>;
   transact?: Transactor;
 }) {
   const transact = deps.transact ?? withTransaction;
@@ -36,6 +38,7 @@ export function createWebhookHandler(deps: {
     if (evt.paymentIntentId === "" && !evt.refundId) return count(evt, "ignored");
 
     let paid: { orderId: string; out: FinalizeOutcome } | null = null;
+    let lateRefund: string | null = null;
     let refundSettled: string | null = null;
     let outcome: WebhookOutcome;
     try {
@@ -57,9 +60,19 @@ export function createWebhookHandler(deps: {
         if (!orderId) return "handled";
 
         if (evt.intentStatus === "succeeded") {
-          paid = { orderId, out: await finalizeSucceeded(tx, orderId) };
+          const out = await finalizeSucceeded(tx, orderId);
+          paid = { orderId, out };
+          // 113 FR-005: the order had already ended unpaid (abandoned, or its payment cancelled), so nobody may keep
+          // the money - it goes back in full. A redelivery records nothing twice (keyed on the intent).
+          if (!out.applied) lateRefund = await refundUnplaced(tx, orderId, evt.paymentIntentId);
         } else if (evt.intentStatus === "failed") {
-          await finalizeFailed(tx, orderId);
+          // 113 FR-006a: a declined card is not the end of the order. The customer can try again on the same screen,
+          // and a later success places it; only the unpaid-orders clean-up (or a cancelled payment) ends it.
+          await tx.query(
+            `UPDATE public.payment SET status = 'failed', updated_at = now()
+              WHERE order_id = $1 AND status <> 'succeeded'`,
+            [orderId],
+          );
         }
         return "handled";
       });
@@ -74,6 +87,15 @@ export function createWebhookHandler(deps: {
       meterFinalize(metricNamespace(), settled.out);
       await announcePaid(settled.out);
       await deps.afterPaid(scope, settled.orderId, evt.paymentIntentId);
+    }
+    const late = lateRefund as string | null;
+    if (late && deps.submitRefund) {
+      try {
+        await deps.submitRefund(late);
+      } catch (err) {
+        // Recorded as submitting: refundReconcile sends it.
+        scope.log.warn({ err, refundId: late }, "checkout: late-payment refund left for the reconciler");
+      }
     }
     const settledRefund = refundSettled as string | null;
     if (settledRefund) {

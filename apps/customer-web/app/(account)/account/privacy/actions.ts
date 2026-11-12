@@ -1,10 +1,12 @@
 "use server"
 
 import { redirect } from "next/navigation"
-import type {
-  ClosureChallengeResultDTO,
-  ClosurePreviewDTO,
-  ClosureResultDTO,
+import { isDomainError } from "@effy/api-client"
+import {
+  CLOSURE_REFUSAL_WORDS,
+  type ClosureChallengeResultDTO,
+  type ClosurePreviewDTO,
+  type ClosureResultDTO,
 } from "@effy/shared-types"
 
 import { edgeApi, perCustomer } from "@/lib/api/edge"
@@ -63,6 +65,11 @@ export async function closeAccount(code: string): Promise<Result> {
       perCustomer,
     )
   } catch (err) {
+    // 113: an unpaid checkout's payment is going through - nothing was closed, try again shortly.
+    if (isDomainError(err) && err.type?.endsWith("/payment-in-progress")) {
+      const orderNumber = err.fields?.find((f) => f.field === "orderNumber")?.message ?? ""
+      return { ok: false, error: CLOSURE_REFUSAL_WORDS["payment-in-progress"](orderNumber) }
+    }
     return { ok: false, error: messageFor(err, "We couldn't delete your account.") }
   }
 

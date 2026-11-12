@@ -48,6 +48,13 @@ describe("resolveCustomer", () => {
     }
   });
 
+  it("an erased account is refused like a closing one (113)", async () => {
+    const erased = await resolveCustomer(event("sub-1"), scope, row("active", "erased"));
+    const closing = await resolveCustomer(event("sub-1"), scope, row("active", "closing"));
+    expect(erased.ok).toBe(false);
+    if (!erased.ok && !closing.ok) expect(erased.response.body).toBe(closing.response.body);
+  });
+
   it("a lookup failure propagates - it is never mistaken for 'not signed in'", async () => {
     await expect(
       resolveCustomer(event("sub-1"), scope, async () => {

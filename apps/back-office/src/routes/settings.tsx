@@ -4,6 +4,7 @@ import { withActivityLog } from "@effy/web-kit/activity-log"
 
 import { PointsSettingsScreen } from "@/features/customers/PointsSettingsScreen"
 import { NotificationSettingsScreen } from "@/features/settings/notifications/NotificationSettingsScreen"
+import { HousekeepingScreen } from "@/features/settings/housekeeping/HousekeepingScreen"
 import { coverageList } from "@/features/delivery/coverage/list"
 import { DeliveryDaysScreen } from "@/features/delivery/DeliveryDaysScreen"
 import {
@@ -97,6 +98,14 @@ export const notificationSettingsRoute = createRoute({
   path: "settings/notifications",
   validateSearch: (search: Record<string, unknown>) => withActivityLog(search),
   component: NotificationSettingsScreen,
+})
+
+// 113 - the clean-ups, the abandon time, and their activity drawer (104).
+export const housekeepingRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "settings/housekeeping",
+  validateSearch: (search: Record<string, unknown>) => withActivityLog(search),
+  component: HousekeepingScreen,
 })
 
 export const taxSettingsRoute = createRoute({

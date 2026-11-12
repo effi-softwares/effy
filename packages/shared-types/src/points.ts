@@ -107,6 +107,10 @@ export interface CustomerDetailDTO {
   id: string
   name: string
   email: string
+  /** The customer deleted their account; it is erased on this date unless they sign in first (113). */
+  closingEraseAfter: string | null
+  /** This registration matches an account that was barred and erased on this date (113, FR-016). */
+  matchesErasedBarredOn: string | null
   points: CustomerPointsSummaryDTO
   recentOrders: { id: string; orderNumber: string; placedAt: string | null; total: string }[]
 }

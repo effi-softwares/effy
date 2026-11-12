@@ -335,7 +335,7 @@ export async function expireLot(tx: Queryable, lotId: string, now: Date): Promis
 
 /**
  * Forfeits every unexpired point when an account closure becomes final. Returns the points forfeited.
- * No caller yet: account erasure is not built (docs/next-implementation-candidates.md item 3).
+ * Called by 113's account erasure (`customer/src/erasure/repository.ts`), first, while the history still has its owner.
  */
 export async function forfeit(tx: Queryable, customerId: string, now: Date): Promise<number> {
   await lockAccount(tx, customerId);

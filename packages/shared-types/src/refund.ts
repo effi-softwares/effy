@@ -19,6 +19,11 @@ export type RefundKind =
    * order does not claim money it no longer holds. No lines and no Effy actor.
    */
   | "external"
+  /**
+   * 113: a payment that arrived for an order already closed (abandoned or failed), returned in full by the system.
+   * Never chosen by a person.
+   */
+  | "unplaced"
 
 /**
  * Why money was returned, in Effy's vocabulary (the provider's `requested_by_customer` covers all of
@@ -31,6 +36,8 @@ export type RefundReason =
   | "goodwill"
   /** Pairs with the `external` kind: money moved and nothing else is known. */
   | "external"
+  /** Pairs with the `unplaced` kind (113). */
+  | "order_abandoned"
 
 /** A refund's reason in words (the activity logs, 104). `courier_override` is the back-office move's compensation (081). */
 export const REFUND_REASON_WORDS: Readonly<Record<RefundReason | "courier_override", string>> = {
@@ -40,6 +47,7 @@ export const REFUND_REASON_WORDS: Readonly<Record<RefundReason | "courier_overri
   goodwill: "Goodwill",
   external: "Refunded outside Effy",
   courier_override: "Moved to courier delivery",
+  order_abandoned: "Payment after the order closed",
 }
 
 /** Five states, each a different answer to "did the money go?": `submitting`/`submitted` says whether a retry is safe, `failed`/`refused` whether retrying could help. */

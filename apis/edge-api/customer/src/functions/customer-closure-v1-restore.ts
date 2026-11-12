@@ -1,9 +1,10 @@
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda"
 
 import type { AuthedEvent } from "@effy/edge-shared"
-import { json, preamble, problem, ProblemType, subject, unavailable } from "@effy/edge-shared"
+import { json, preamble, problem, ProblemType, refused, subject, unavailable } from "@effy/edge-shared"
 
 import {
+  ClosureFinalError,
   CustomerRecordMissingError,
   NoLiveClosureRequestError,
   restoreClosure,
@@ -35,6 +36,12 @@ export const handler = async (
     scope.log.info({ sub }, "account closure cancelled - account restored")
     return json(200, result, scope)
   } catch (err) {
+    if (err instanceof ClosureFinalError) {
+      // 113 FR-009: the client says "This account was deleted on {date} and can't be restored. …"
+      return refused(scope, 409, "closure_final", "the deletion date has passed - this account can't be restored", {
+        errors: [{ field: "eraseAfter", message: err.eraseAfter.toISOString() }],
+      })
+    }
     if (err instanceof NoLiveClosureRequestError) {
       // Distinguishable, so the client simply carries on for an account that was never closing.
       return problem(

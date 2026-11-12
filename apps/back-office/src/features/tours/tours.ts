@@ -520,6 +520,35 @@ export const BACK_OFFICE_TOURS = defineTours([
       },
     ],
   },
+  // HK - Clean-ups (113)
+  {
+    key: "housekeeping",
+    version: 1,
+    title: "Clean-ups",
+    path: "/settings/housekeeping",
+    steps: [
+      {
+        target: "page-title",
+        title: "Clean-ups",
+        text: "Jobs that run by themselves to close unpaid orders, erase deleted accounts and remove old phone registrations.",
+      },
+      {
+        target: "housekeeping.jobs",
+        title: "Did it work?",
+        text: "When each one last ran, what it did and when it runs next. One that failed or hasn't run is marked.",
+      },
+      {
+        target: "housekeeping.abandon",
+        title: "Unpaid orders",
+        text: "How long an unpaid checkout waits before it is closed and its points and codes are freed.",
+      },
+      {
+        target: "page-activity",
+        title: "Earlier runs",
+        text: "Every run and every change to the abandon time, with who changed it.",
+      },
+    ],
+  },
   // ML - Messages (112)
   {
     key: "messages",

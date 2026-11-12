@@ -4,6 +4,11 @@
 //
 // 112: before a back-office message's recipients' rows can go, its report is frozen on the message (R15), and an
 // erased customer's id is taken out of every message they were chosen for by hand.
+//
+// 113: account erasure (customer service) now deletes an erased customer's notifications, choices and consent itself;
+// the steps below stay as the backstop, matching on the erase date (an erased request is past it too). Two more jobs:
+// phone registrations not confirmed for 270 days (`pruneRegistrations`, its own clean-up run), and clean-up runs older
+// than 400 days (`purgeRuns`, the one deleter of `housekeeping_run`).
 import type { Queryable } from "@effy/edge-shared";
 import { messageReport } from "@effy/edge-shared/notifications";
 
@@ -19,6 +24,38 @@ export interface PurgeSummary {
   preferencesErased: number;
   /** Message reports made final before their rows go (112). */
   reportsFrozen: number;
+}
+
+/** 113 FR-021: a registration no app has confirmed for this long belongs to a phone that is gone (FCM's own expiry). */
+export const REGISTRATION_RETENTION_DAYS = 270;
+/** 113 FR-023: clean-up runs are kept at least 90 days; this keeps a little over a year. */
+export const RUN_RETENTION_DAYS = 400;
+export const REGISTRATION_BATCH = 1_000;
+
+/** Removes stale phone registrations in batches until none are left or the deadline. Returns how many went. */
+export async function pruneRegistrations(db: Queryable, at: Date, deadline: number, now: () => number = Date.now): Promise<number> {
+  let removed = 0;
+  for (;;) {
+    const res = await db.query(
+      `DELETE FROM public.device_token
+        WHERE id IN (SELECT id FROM public.device_token
+                      WHERE last_seen_at < $1::timestamptz - make_interval(days => $2)
+                      LIMIT ${REGISTRATION_BATCH})`,
+      [at.toISOString(), REGISTRATION_RETENTION_DAYS],
+    );
+    const n = res.rowCount ?? 0;
+    removed += n;
+    if (n < REGISTRATION_BATCH || now() >= deadline) return removed;
+  }
+}
+
+/** Old clean-up runs (113): the one place `housekeeping_run` loses a row. */
+export async function purgeRuns(db: Queryable, at: Date): Promise<number> {
+  const res = await db.query(
+    `DELETE FROM public.housekeeping_run WHERE started_at < $1::timestamptz - make_interval(days => $2)`,
+    [at.toISOString(), RUN_RETENTION_DAYS],
+  );
+  return res.rowCount ?? 0;
 }
 
 /** A message sent this long ago has its numbers frozen: deliveries go at 30 days. */

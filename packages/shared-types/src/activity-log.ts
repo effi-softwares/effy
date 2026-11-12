@@ -113,6 +113,11 @@ export const ACTIVITY_LOGS = {
   // 112 - a message's own log, and the back-office messages one person (or one shop) received.
   "bo-message": { kinds: { written: "Written", test: "Tests", sending: "Sending", stopped: "Stopped or withdrawn" }, subject: null },
   "bo-messages-received": { kinds: { opened: "Opened", unopened: "Not opened" }, subject: null },
+  // 113 - the clean-ups: each run (by outcome), late-payment refunds and abandon-time changes.
+  "bo-housekeeping": {
+    kinds: { ok: "Worked", partial: "Partly worked", failed: "Failed", refund: "Late payments", settings: "Settings" },
+    subject: "Order",
+  },
   "bo-email": {
     kinds: {
       delivery: "Delivered",

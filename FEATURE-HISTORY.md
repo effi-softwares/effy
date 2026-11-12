@@ -4,6 +4,59 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
+**113-data-lifecycle** - Data Lifecycle ([spec](specs/113-data-lifecycle/spec.md)). 🔨 **BUILT 2026-11-12; NOT APPLIED,
+MIGRATED, DEPLOYED OR WALKED.** Three clean-ups that run by themselves, a back-office page to watch them, and the rules
+for what a deleted customer leaves behind (candidate register items 2 and 3, notifications backlog A9).
+- **Migration** `20261112090000_data_lifecycle.sql` (additive; real goose up / down-to 20261111090000 / up on local Postgres):
+  order status `abandoned` + `order_unpaid_idx`; refund kind `unplaced` / reason `order_abandoned`; customer `erased`, nullable
+  `email`, `erased_at`, `matches_erased_barred_on` (+ CHECKs); closure `erased_at` + `closure_due_idx`; new
+  `erased_barred_fingerprint`, `housekeeping_run` (append-only, one writer `recordRun`), `housekeeping_settings` (+ `_change`).
+- **Unpaid orders** (commerce `unpaidOrders`, every 15 minutes): closes orders awaiting payment past the abandon time (default 24 h,
+  admin 1 h-7 d) through ONE entry point, `abandonOrder` (`@effy/edge-shared/payments`): the payment is cancelled at the provider
+  first, then `finalizeAbandoned` frees points, promotion uses and the delivery place; a payment that went through is placed; one
+  in progress or a provider that can't be asked is left for the next run. "Placed" is defined once: `PLACED_ORDER_SQL`
+  (`placed_at IS NOT NULL`), five readers switched, `placed-order.guard`.
+- ⚠ **DEFECT FOUND AND FIXED**: a declined card marked the order `failed` at once (webhook `payment_failed`), so a retry that then
+  succeeded on the same screen was **charged with no order placed**. A decline now only marks the payment `failed`; the order
+  stays awaiting payment. A success for an order already ended (`abandoned`/`failed`) is refunded in full (`refundUnplaced`,
+  kind `unplaced`, keyed on the intent; alarm `UnplacedPaymentRefunded`). The storefront's completion page treats a declined
+  payment as "not completed" instead of waiting.
+- **Erasure** (customer `accountErasure`, hourly, 25 a run): provider customer deleted (`gateway.deleteCustomer`), Cognito user
+  deleted (`AdminDeleteUser`), then one transaction (`customer/src/erasure/repository.ts`): points forfeited first; personal tables
+  deleted; **no order deleted** (RESTRICT children: promotion uses, refunds, points entries) - every finished or never-paid order
+  stripped to suburb/postcode, notes and refund-request messages removed, delivery-proof notes removed, courier label keys cleared
+  through `clearLabelsForErasure` (consignment.ts, the one writer) and the files deleted after commit; an order still on its way
+  keeps its address until `scrubFinishedOrders` on a later run; tax invoices kept as issued; deliverability audit entries scrubbed;
+  a tombstone customer row; HMAC fingerprints of email/phone for a barred account only (key in Secrets Manager, seeded by hand).
+  A failing step leaves the account `closing` and the run `partial`; alarm after three failing runs. Known accepted window: Cognito
+  deleted but DB step failed → the email can't re-register for up to an hour.
+- **Closure**: an unpaid order no longer blocks (034 FR-042 amendment 3) - closing abandons it, refusing with
+  `payment-in-progress` only if its payment is going through (the customer service never settles a payment). Restore refused once
+  `erase_after` has passed (`closure-final`). `ClosureBlockerDTO` lost `order_awaiting_payment` and `resolvableByShopper` (both
+  clients updated). "What we keep" moved to `customer/src/closure/retained.ts`; the security line rewritten to say exactly what is
+  kept. Every line of the deletion screen checked against the built erasure (034 SC-010).
+- **Phone registrations**: the notifications purge removes registrations unconfirmed for 270 days (`pruneRegistrations`, its own
+  run) and runs older than 400 days (`purgeRuns`). shop-web re-confirms on open (`useConfirmRegistration`); both apps already
+  re-register on start (customer pinned by a SessionManager test; driver read, no host test - it needs the whole container).
+- **Staff**: back-office Settings › Business › **Clean-ups** (`/settings/housekeeping`, every role reads, admins edit the abandon
+  time; StaticTable, activity drawer `bo-housekeeping`, tour HK, skeleton, live kind `housekeeping`); "Deleted customer" on orders of
+  an erased customer (no link, no email); "Being deleted: erased on {date}" and the barred-match note on the customer page. Three
+  routes in `orders`: staff gateway **231 → 234/300 (78%)**.
+- **Infra** (`make apply`): `housekeeping.tf` (fingerprint-key secret + SSM ARN, staleness alarms 1 h / 2 h / 26 h on
+  `HousekeepingRan`, erasure-retried, unplaced-refund), `background-functions.tf` (`unpaid-orders`, `account-erasure`).
+- **Verified**: every service `tsc` and vitest (shared 1,092; commerce 249; customer 187; orders 31; notifications 65; all others
+  green); container suites on local Postgres - shared 279/281, commerce 102/103, customer 51/51 (erasure full-database scan finds
+  only the issued tax invoice), notifications 30/30, orders 97/98, admin 73/90. Failures not caused by 113: consignment P6, orders
+  S4, admin 077 pricing + 080 courier services (`DB_HOST is not set` and one validation status; no file they read changed), and
+  commerce "094 - the cart's promotions … a changed promotion refused" (fails with 113's promotions change reverted; the step under
+  test - the quote refusing an ended promotion - is untouched; not re-run at HEAD: no offline install). back-office 443, shop-web
+  532, customer-web 738 + builds + depcruise; design-system guards; no-refresh-timers; customer app 497/498 (`UnitPriceWordsTest`,
+  pre-existing) + Android/iOS builds; driver app host tests + Android/iOS builds; mobile and driver guards.
+- **Open**: seed the fingerprint key (`aws secretsmanager put-secret-value --profile ef --region ap-southeast-2 --secret-id
+  effy-dev-erasure-fingerprint-key --secret-string "{\"key\":\"$(openssl rand -hex 32)\"}"`); deploy in quickstart order:
+  `make apply ENV=dev` → `make db-up ENV=dev` → `SERVICE=commerce` → `SERVICE=customer` → `SERVICE=notifications` →
+  `SERVICE=orders` → `make edge-deploy-all ENV=dev` → back-office, shop-web, customer-web → customer app; then the quickstart walk.
+
 **112-backoffice-messages** - Back-Office Messages ([spec](specs/112-backoffice-messages/spec.md)). ✅ **SIGNED OFF 2026-11-11:
 APPLIED, MIGRATED AND DEPLOYED TO DEV (operator); THE QUICKSTART WALK WAS NOT RECORDED.** Spec 4 of the notifications programme (backlog E1–E8, E10; E9 dropped by decision 5;
 E11–E13 later). Staff write a message once, choose who gets it from fixed filters, preview it, send it now or later, and read

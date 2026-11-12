@@ -28,8 +28,9 @@ async function customer() {
 async function order(customerId: string, status = "pending_payment") {
   return (
     await one<{ id: string }>(
-      `INSERT INTO public."order" (customer_id, order_number, status, currency, item_subtotal_amount, grand_total_amount, delivery_fee_amount, delivery_address, delivery_type, delivery_type_reason)
-       VALUES ($1, $2, $3, 'AUD', 40.00, 40.00, 0, '{}'::jsonb, 'effy', 'in_coverage') RETURNING id::text AS id`,
+      // A paid order was placed: payment sets both (113 counts "ordered" by placed_at).
+      `INSERT INTO public."order" (customer_id, order_number, status, currency, item_subtotal_amount, grand_total_amount, delivery_fee_amount, delivery_address, delivery_type, delivery_type_reason, placed_at)
+       VALUES ($1, $2, $3, 'AUD', 40.00, 40.00, 0, '{}'::jsonb, 'effy', 'in_coverage', CASE WHEN $3 = 'paid' THEN now() END) RETURNING id::text AS id`,
       [customerId, `EFY-PU${++seq}`, status],
     )
   ).id;

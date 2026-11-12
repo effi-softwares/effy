@@ -13,7 +13,8 @@ export interface CustomerRow {
   family_name: string | null
   phone: string | null
   status: CustomerStatus
-  closure_state: ClosureState
+  /** `erased` (113) never reaches a DTO: `assertActive` refuses it first. */
+  closure_state: ClosureState | "erased"
   has_password: boolean
   password_updated_at: Date | null
   created_at: Date
@@ -45,7 +46,7 @@ export function toDTO(row: CustomerRow): CustomerDTO {
     status: row.status,
 
     // Not a third `status` value: status is a sanction the customer cannot influence; closure is their decision.
-    closureState: row.closure_state,
+    closureState: row.closure_state === "erased" ? "closing" : row.closure_state,
 
     // The only thing deciding "Set a password" vs "Change password"; a Google-linked customer can hold one.
     hasPassword: row.has_password,

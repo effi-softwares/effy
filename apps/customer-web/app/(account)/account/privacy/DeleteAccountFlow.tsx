@@ -56,10 +56,9 @@ export function DeleteAccountFlow() {
         <ul className="space-y-3">
           {preview.blockers.map((b) => (
             <li key={b.reference} className="border-y py-3">
+              {/* 113: only a paid order on its way blocks; an unpaid checkout closes with the account. */}
               <p className="text-sm">
-                {b.kind === "order_awaiting_payment"
-                  ? `Order ${b.reference} is waiting for payment. Finish or cancel it, then you can delete your account.`
-                  : `Order ${b.reference} is on its way. You'll be able to delete your account once it's complete.`}
+                {`Order ${b.reference} is on its way. You'll be able to delete your account once it's complete.`}
               </p>
               <Link
                 href={b.href}

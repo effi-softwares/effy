@@ -154,6 +154,11 @@ export interface PaymentGateway {
   listSavedCards(providerCustomerId: string): Promise<SavedCard[]>;
   /** Removes a kept card. The caller must have verified ownership. */
   detachPaymentMethod(paymentMethodId: string): Promise<void>;
+  /**
+   * 113: deletes the provider's customer record and its kept cards, at erasure. A customer the provider no longer has
+   * counts as done, so a retried erasure never fails here.
+   */
+  deleteCustomer(providerCustomerId: string): Promise<void>;
 }
 
 /** Pinned API version, so the shapes this adapter was proven against do not change. */
@@ -399,5 +404,14 @@ export const stripeGateway: PaymentGateway = {
 
   async detachPaymentMethod(paymentMethodId) {
     await (await stripe()).paymentMethods.detach(paymentMethodId);
+  },
+
+  async deleteCustomer(providerCustomerId) {
+    try {
+      await (await stripe()).customers.del(providerCustomerId);
+    } catch (err) {
+      if (err instanceof Stripe.errors.StripeInvalidRequestError && err.code === "resource_missing") return;
+      throw err;
+    }
   },
 };
