@@ -133,4 +133,8 @@ sealed class AnalyticsEvent(val name: String, val props: Map<String, String> = e
     data object OffersAskShown : AnalyticsEvent("offers_ask_shown", mapOf("surface" to "app"))
     class OffersAskAnswered(answer: String) : AnalyticsEvent("offers_ask_answered", mapOf("answer" to answer, "surface" to "app"))
     class OffersStoppedFromInbox(category: String) : AnalyticsEvent("offers_stopped_from_inbox", mapOf("category" to category, "surface" to "app"))
+
+    // 115 - offers and news by email. Category and answer only.
+    class MarketingEmailToggled(category: String, enabled: Boolean) :
+        AnalyticsEvent("marketing_email_toggled", mapOf("category" to category, "on" to enabled.toString(), "surface" to "app"))
 }

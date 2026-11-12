@@ -3,10 +3,12 @@ import { Bell, Image as ImageIcon } from "lucide-react"
 import { MESSAGE_LIMITS, type NotificationAudience } from "@effy/shared-types"
 import { Button } from "@effy/design-system/ui"
 
-import { cut, type MessageDraft } from "../draft"
+import { cut, filledFor, type MessageDraft } from "../draft"
 import { AUDIENCE_WORD, destinationWords } from "../words"
 
 const APP: Record<NotificationAudience, string> = { customer: "Effy", driver: "Effy Driver", shop: "Effy Shop" }
+/** The name the previews greet, so staff see where a first name lands. */
+const SAMPLE_NAME = "Sam"
 
 /**
  * The message as people will see it (112 FR-005): a locked iPhone and Android phone, the inbox row and the opened
@@ -15,7 +17,10 @@ const APP: Record<NotificationAudience, string> = { customer: "Effy", driver: "E
  */
 export function Previews({ draft, audience }: { draft: MessageDraft; audience: NotificationAudience }) {
   const title = draft.title.trim() || "Your title"
-  const body = draft.body.trim() || "Your text appears here."
+  const raw = draft.body.trim() || "Your text appears here."
+  // 115: the inbox and the email show a sample name; a lock screen always shows the fallback, never a name.
+  const body = filledFor(raw, draft, SAMPLE_NAME)
+  const lockBody = filledFor(raw, draft, null)
   const { ios, android } = MESSAGE_LIMITS.lockScreen
   const marketing = draft.kind === "offer" || draft.kind === "news"
   return (
@@ -29,7 +34,7 @@ export function Previews({ draft, audience }: { draft: MessageDraft; audience: N
               <span>now · iPhone</span>
             </div>
             <p className="mt-1 text-sm font-semibold">{cut(title, ios.title)}</p>
-            <p className="text-sm">{cut(body, ios.body)}</p>
+            <p className="text-sm">{cut(lockBody, ios.body)}</p>
           </div>
           <div className="rounded-lg border bg-muted/60 p-3">
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -39,7 +44,7 @@ export function Previews({ draft, audience }: { draft: MessageDraft; audience: N
             <div className="mt-1 flex gap-3">
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold">{cut(title, android.title)}</p>
-                <p className="text-sm">{cut(body, android.body)}</p>
+                <p className="text-sm">{cut(lockBody, android.body)}</p>
               </div>
               {draft.pictureUrl ? <img src={draft.pictureUrl} alt="" className="size-12 rounded object-cover" /> : null}
             </div>
@@ -90,6 +95,27 @@ export function Previews({ draft, audience }: { draft: MessageDraft; audience: N
           </p>
         </div>
       </section>
+
+      {draft.email && audience === "customer" ? (
+        <section aria-label="By email" className="space-y-3" data-tour="messages.email-preview">
+          <h3 className="text-sm font-medium text-muted-foreground">By email</h3>
+          <div className="space-y-3 rounded-lg border bg-background p-4">
+            <p className="text-xs text-muted-foreground">From Effy · Subject: {title}</p>
+            {draft.pictureUrl ? <img src={draft.pictureUrl} alt="" className="aspect-video w-full rounded-md object-cover" /> : null}
+            <p className="text-base font-semibold">{title}</p>
+            <p className="whitespace-pre-line text-sm">{body}</p>
+            <Button type="button" size="sm" tabIndex={-1}>
+              Open in Effy
+            </Button>
+            <p className="text-xs text-muted-foreground">
+              {marketing
+                ? `You're getting this because you said yes to ${draft.kind === "offer" ? "offers" : "news"} by email. Unsubscribe`
+                : "A message from Effy about your account."}
+            </p>
+          </div>
+          <p className="text-xs text-muted-foreground">Close to the real email. Send a test to see it exactly.</p>
+        </section>
+      ) : null}
     </div>
   )
 }

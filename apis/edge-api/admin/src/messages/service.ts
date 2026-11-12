@@ -2,11 +2,17 @@
 // (contracts/messages-api.md); the people a message reaches are worked out by the shared audience module, and every
 // recipient's notification is written by notify(), so 111's consent, choices, limits and night hold apply unchanged.
 // Sending to many happens in the notifications service's `messages` worker; a send here only moves the message on.
-import { MediaValidationError, offsetListPage, parseListQuery, pooled, presignUpload, publicImageUrl, withTransaction, type Queryable } from "@effy/edge-shared";
+import { logger, MediaValidationError, offsetListPage, parseListQuery, pooled, presignUpload, publicImageUrl, withTransaction, type Queryable } from "@effy/edge-shared";
+import { sendEmail } from "@effy/email-kit/send";
 import { announce } from "@effy/edge-shared/live";
 import {
   AudienceInvalid,
+  checkMessageWords,
   countAudience,
+  emailRecipientOf,
+  ensureUnsubscribeTokens,
+  isMarketingCategory,
+  messageEmailVars,
   messageReport,
   messageTypeFor,
   notify,
@@ -21,6 +27,8 @@ import {
   MESSAGE_KIND_VALUES,
   MESSAGE_LIMITS,
   MESSAGE_MUST_NAME_EFFY,
+  NAME_FALLBACK_DEFAULT,
+  normaliseFirstName,
   audiencesFor,
   messageFiling,
   messageKind,
@@ -77,7 +85,7 @@ function isoOrNull(v: unknown, what: string): Date | null {
   return d;
 }
 
-const DRAFT_KEYS = ["kind", "title", "body", "pictureKey", "push", "endsAt", "audiences"] as const;
+const DRAFT_KEYS = ["kind", "title", "body", "pictureKey", "push", "email", "nameFallback", "endsAt", "audiences"] as const;
 
 /**
  * A draft from the wire (create and edit). The closed shape; the kind's audiences (MESSAGE_KINDS); each audience's filter
@@ -98,6 +106,11 @@ export function parseDraft(body: unknown, extraKeys: readonly string[] = []): Me
     throw invalid("pictureKey: a picture uploaded for a message, or null");
   }
   if (typeof body.push !== "boolean") throw invalid("push: true or false");
+  // 115: email and the first-name fallback; absent = no email, "there".
+  const email = body.email ?? false;
+  if (typeof email !== "boolean") throw invalid("email: true or false");
+  const nameFallback = body.nameFallback ?? NAME_FALLBACK_DEFAULT;
+  if (typeof nameFallback !== "string") throw invalid("nameFallback: the word used when someone has no first name");
   if (k === "direct" && !body.push) throw invalid("a direct message always notifies the phone");
   const endsAt = isoOrNull(body.endsAt, "endsAt");
   if (endsAt && endsAt.getTime() <= Date.now()) throw invalid("endsAt: must be in the future");
@@ -138,7 +151,18 @@ export function parseDraft(body: unknown, extraKeys: readonly string[] = []): Me
         : (only1.filter as { people?: string[] }).people?.length === 1 && Object.keys(only1.filter).length === 1);
     if (!one) throw invalid("a direct message is for one person, or one shop's staff");
   }
-  return { kind: k, title, body: text, pictureKey, push: body.push, endsAt, audiences };
+  // 115: the one check of a message's words (shared with automatic messages and the worker).
+  // A draft may not name Effy yet: sending and testing check it (mustNameEffy), as in 112.
+  const problem = checkMessageWords(
+    { kind: k, title, body: text, nameFallback, email, audiences: audiences.map((a) => a.audience) },
+    { draft: true },
+  );
+  if (problem) {
+    throw new MessageError(400, problem.code === "message_must_name_effy" ? "message_must_name_effy" : "invalid_message", problem.message, {
+      errors: [{ field: problem.field, message: problem.message }],
+    });
+  }
+  return { kind: k, title, body: text, pictureKey, push: body.push, email, nameFallback: nameFallback.trim(), endsAt, audiences };
 }
 
 function mayWrite(actor: Actor, kind: MessageKind): void {
@@ -197,6 +221,9 @@ async function toDTO(db: Queryable, m: MessageRecord): Promise<MessageDTO> {
     pictureKey: m.pictureKey,
     pictureUrl: m.pictureKey ? publicImageUrl(m.pictureKey) : null,
     push: m.push,
+    email: m.email,
+    nameFallback: m.nameFallback,
+    automationId: m.automationId,
     endsAt: m.endsAt?.toISOString() ?? null,
     audiences: m.audiences.map((a) => ({
       audience: a.audience,
@@ -381,6 +408,7 @@ export async function testSend(id: string, body: unknown, actor: Actor): Promise
         body: m.body,
         destination: target.destination,
         imageUrl: m.pictureKey ? publicImageUrl(m.pictureKey) : null,
+        nameFallback: m.nameFallback,
       },
     });
     const row = (await tx.query<{ status: string | null; not_before: Date | null }>(
@@ -392,6 +420,8 @@ export async function testSend(id: string, body: unknown, actor: Actor): Promise
     await repo.appendEvent(tx, m.id, "test_sent", actor.sub, { to: audience, written: row !== undefined });
     return row;
   });
+  // 115: the test email, sent here - not through notify(), whose switches would hide it - and recorded nowhere.
+  if (m.email && audience === "customer") await sendTestEmail(m, sub, target.destination as Record<string, unknown>, filing.category);
   if (!written) return { inbox: "not_written", reason: "no_consent", push: "none" };
   const push: MessageTestDTO["push"] =
     written.status === null ? "none"
@@ -400,6 +430,32 @@ export async function testSend(id: string, body: unknown, actor: Actor): Promise
           : written.not_before && written.not_before.getTime() > Date.now() ? "held"
             : "queued";
   return { inbox: "written", reason: null, push };
+}
+
+/**
+ * 115 (I5): the email of a test send, to the test account's own address, with 112's "Test: " prefix. Built by the same
+ * code as every recipient's (`messageEmailVars`); a marketing test gets the account's unsubscribe token so the link works.
+ * Never fails the test send: a mail problem is logged.
+ */
+async function sendTestEmail(m: MessageRecord, sub: string, destination: Record<string, unknown>, category: string): Promise<void> {
+  try {
+    const to = (await pooled.query<{ email: string | null }>(`SELECT email::text AS email FROM public.customer WHERE cognito_sub = $1`, [sub])).rows[0]?.email;
+    if (!to) return;
+    if (isMarketingCategory(category)) await withTransaction((tx) => ensureUnsubscribeTokens(tx, [sub]));
+    const built = messageEmailVars(
+      {
+        to, recipientSub: sub, messageId: "", category, title: m.title,
+        body: normaliseFirstName(m.body, m.nameFallback), destination,
+        imageUrl: m.pictureKey ? publicImageUrl(m.pictureKey) : null,
+      },
+      await emailRecipientOf(pooled, sub),
+      { site: (process.env.WEB_SITE_URL ?? "").replace(/\/$/, ""), edge: (process.env.EDGE_API_URL ?? "").replace(/\/$/, "") },
+    );
+    if (!built) return;
+    await sendEmail("message", built.vars, { to, audience: "customer", headers: built.headers, subjectPrefix: "Test: " });
+  } catch (err) {
+    logger.warn({ err: err instanceof Error ? err.name : "unknown" }, "messages: the test email was not sent");
+  }
 }
 
 /** Send now, or at a time (R7, R12): the count confirmed, the largest message respected, the kind's rules met. */

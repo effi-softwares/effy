@@ -134,7 +134,9 @@ describe("the code placeholder", () => {
 
 describe("transactional mail", () => {
   it("offers no unsubscribe", () => {
-    for (const id of templateIds()) {
+    // 115: `message` is the one template that can be marketing; its Unsubscribe shows only when `marketing` is true
+    // (test/message.test.ts proves both ways). Every other template is transactional.
+    for (const id of templateIds().filter((t) => t !== "message")) {
       const source = (dist(`${id}.html`) + dist(`${id}.txt`)).toLowerCase();
       expect(source.includes("unsubscribe"), `${id}: transactional mail must not offer unsubscribe`).toBe(false);
     }

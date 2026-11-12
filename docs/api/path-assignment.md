@@ -133,6 +133,14 @@ See the numbers: `make gateway-usage ENV=<env>` (deployed) · `pnpm --filter @ef
 > `PUT /orders/v1/housekeeping/settings` (admins only) and `GET /orders/v1/housekeeping/activity`. Staff 231 →
 > **234/300 (78%)**; 112's plan stands. The clean-ups themselves are route-less: `unpaidOrders` (commerce),
 > `accountErasure` (customer) and a step of the notifications purge.
+>
+> **115 - messages by email, automatic and repeating messages.** `customer` (shared) gained two PUBLIC routes for the
+> unsubscribe link in a marketing email: `POST /customer/v1/email-unsubscribe` (the website page, or a mail program's
+> RFC 8058 one-click `?t=…&m=…`) and `POST /customer/v1/email-unsubscribe/undo`. The token is the credential; no
+> authorizer (shared 187 → 189/300). `admin-messages` (staff) gained six routes for automatic messages under 112's
+> prefix, `/admin/v1/messages/automations…` (list, create, read, edit, state, activity); the literal segment wins over
+> 112's `{id}` (`automations/routes.test.ts`). Staff 234 → **240/300 (80%)**. The runner is route-less, in the
+> `messages` worker. 112's plan stands and is now near: a third gateway before about 255.
 | `driver` | shared | driver | driver app |
 | `admin` | **staff** | back-office | staff, shops, delivery configuration |
 | `admin-promotions` (same source as `admin`, 095) | **staff** | back-office | promotions, display groups, skins and pictures (`/admin/v1/promotions…`, `/admin/v1/promotion-groups…`, `/admin/v1/promotion-skins…`) - split out at CloudFormation's 500-resource limit |

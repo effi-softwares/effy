@@ -7,6 +7,7 @@
 import type { DevicePlatform, RecipientToken } from "@effy/edge-shared";
 
 import type { PushMessage, SendResult } from "../fcm/sender";
+import { fillFirstName } from "@effy/shared-types";
 
 export type DeliveryChannel = "push" | "email";
 export type Audience = "customer" | "shop" | "driver";
@@ -34,6 +35,8 @@ export interface ClaimedDelivery {
   androidChannel?: string | null;
   /** A back-office message's picture (112). */
   imageUrl?: string | null;
+  /** 115: the notification's category (a message email is marketing when it is offers or news). */
+  category?: string;
   /**
    * False when a held promotional push may no longer go: consent withdrawn or push turned off since it was written
    * (111 FR-011). Absent or true otherwise.
@@ -71,6 +74,8 @@ export interface DrainDeps {
   sendEach(messages: readonly PushMessage[]): Promise<SendResult[]>;
   /** Resolves what it renders from `entityId` at send time. */
   sendEmail(to: string, type: string, entityId: string): Promise<SendResult>;
+  /** 115: a back-office message by email; "suppressed" = not sent to a bouncing or complaining address. */
+  sendMessageEmail?(d: ClaimedDelivery): Promise<SendResult | "suppressed">;
   log?: { warn(obj: unknown, msg: string): void };
 }
 
@@ -214,14 +219,18 @@ async function pushes(deps: DrainDeps, store: BatchStore, rows: ClaimedDelivery[
   }
 }
 
-function messageFor(d: ClaimedDelivery, token: string, platform: DevicePlatform): PushMessage {
+/**
+ * One push for one device. 115 FR-023: the lock screen NEVER shows a name - a stored first-name placeholder is filled
+ * with the message's fallback ("Hi there"), whoever the recipient is.
+ */
+export function messageFor(d: ClaimedDelivery, token: string, platform: DevicePlatform): PushMessage {
   return {
     token,
     platform,
     type: d.type,
     notificationId: d.notificationId,
-    title: d.title,
-    body: d.body,
+    title: fillFirstName(d.title, null),
+    body: fillFirstName(d.body, null),
     destination: JSON.stringify(d.destination),
     tag: d.tag,
     group: d.group,
@@ -236,7 +245,11 @@ async function email(deps: DrainDeps, d: ClaimedDelivery, s: DrainSummary): Prom
     // A check forbids this.
     return { id: d.id, status: "failed", error: "no_email", attempted: false };
   }
-  const r = await deps.sendEmail(d.recipientEmail, d.type, d.entityId);
+  // A held promotional email released at 08:00 is judged again (consent or the switch withdrawn overnight → skipped).
+  if (d.allowed === false) return { id: d.id, status: "skipped", error: null, attempted: false };
+  const sent = d.type === "customer_message" && deps.sendMessageEmail ? await deps.sendMessageEmail(d) : null;
+  if (sent === "suppressed") return { id: d.id, status: "skipped", error: "suppressed", attempted: false };
+  const r = sent ?? (await deps.sendEmail(d.recipientEmail, d.type, d.entityId));
   if (r.ok) {
     s.sent += 1;
     s.emailSent += 1;

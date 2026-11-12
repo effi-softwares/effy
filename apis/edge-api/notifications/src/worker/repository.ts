@@ -77,6 +77,7 @@ export function batchStore(tx: Queryable): BatchStore {
           androidChannel: findPolicy(r.audience, r.category)?.androidChannel ?? null,
           allowed: r.allowed !== false,
           imageUrl: r.image_url,
+          category: r.category,
         };
       });
     },

@@ -156,6 +156,10 @@ function peopleSql(p: Params, audience: NotificationAudience, filter: AudienceFi
     if (f.neverOrdered) where.push(`NOT EXISTS (SELECT 1 FROM public."order" o WHERE o.customer_id = c.id AND o.status = 'paid')`);
     if (f.hasPoints) where.push(`public.points_usable(c.id, ${p.add(now.toISOString())}::timestamptz) > 0`);
     if (f.appUsers) where.push(`EXISTS (SELECT 1 FROM public.device_token t WHERE t.subject_sub = c.cognito_sub AND t.audience = 'customer')`);
+    // 115: one automatic run's people (set by the worker, never by staff: parseAudience refuses the key).
+    if (f.automationRun) {
+      where.push(`EXISTS (SELECT 1 FROM public.message_automation_recipient ar WHERE ar.run_id = ${p.add(f.automationRun)}::uuid AND ar.customer_id = c.id)`);
+    }
     return `SELECT c.cognito_sub AS sub, c.id
               FROM public.customer c
              WHERE c.cognito_sub IS NOT NULL AND c.status = 'active' AND c.closure_state = 'open'

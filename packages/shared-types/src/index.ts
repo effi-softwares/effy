@@ -62,4 +62,6 @@ export * from "./notification-inbox";
 export * from "./notification-categories";
 export * from "./notification-preferences";
 export * from "./messages";
+export * from "./message-automations";
+export * from "./email-unsubscribe";
 export * from "./housekeeping";

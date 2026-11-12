@@ -5,6 +5,10 @@ import { withActivityLog } from "@effy/web-kit/activity-log"
 import { MessageEditorScreen } from "@/features/messages/MessageEditorScreen"
 import { MessageScreen } from "@/features/messages/MessageScreen"
 import { MessagesListScreen } from "@/features/messages/MessagesListScreen"
+import { AutomaticEditorScreen } from "@/features/messages/automatic/AutomaticEditorScreen"
+import { AutomaticListScreen } from "@/features/messages/automatic/AutomaticListScreen"
+import { AutomaticScreen } from "@/features/messages/automatic/AutomaticScreen"
+import { automaticList } from "@/features/messages/automatic/list"
 import { messagesList } from "@/features/messages/list"
 
 import { appRoute } from "./app"
@@ -46,5 +50,40 @@ export const editMessageRoute = createRoute({
   component: function EditMessageRoute() {
     const { messageId } = editMessageRoute.useParams()
     return <MessageEditorScreen messageId={messageId} />
+  },
+})
+
+// 115: automatic messages - the list, the composer (new or editing) and one automatic message with its runs.
+export const automaticIndexRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "messages/automatic",
+  validateSearch: (raw: Record<string, unknown>) => automaticList.validateSearch(raw),
+  component: AutomaticListScreen,
+})
+
+export const newAutomaticRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "messages/automatic/new",
+  component: function NewAutomaticRoute() {
+    return <AutomaticEditorScreen />
+  },
+})
+
+export const automaticDetailRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "messages/automatic/$automationId",
+  validateSearch: (raw: Record<string, unknown>) => withActivityLog(raw),
+  component: function AutomaticDetailRoute() {
+    const { automationId } = automaticDetailRoute.useParams()
+    return <AutomaticScreen automationId={automationId} />
+  },
+})
+
+export const editAutomaticRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "messages/automatic/$automationId/edit",
+  component: function EditAutomaticRoute() {
+    const { automationId } = editAutomaticRoute.useParams()
+    return <AutomaticEditorScreen automationId={automationId} />
   },
 })

@@ -1,7 +1,13 @@
 import {
   MESSAGE_LIMITS,
   MESSAGE_MUST_NAME_EFFY,
+  NAME_FALLBACK_DEFAULT,
+  TITLE_HAS_NAME,
   audiencesFor,
+  fillFirstName,
+  hasFirstNamePlaceholder,
+  normaliseFirstName,
+  validNameFallback,
   messageKind,
   messageNamesEffy,
   type AudienceFilter,
@@ -28,6 +34,10 @@ export interface MessageDraft {
   /** What the previews show: the stored picture, or a file just chosen. */
   pictureUrl: string | null
   push: boolean
+  /** 115: also by email (customers only). */
+  email: boolean
+  /** 115: the word in place of {first name} when someone has none, and on every lock screen. */
+  nameFallback: string
   endsAt: string
   audiences: Record<NotificationAudience, AudienceDraft>
 }
@@ -44,7 +54,10 @@ export function emptyDraft(kind: MessageKind = "announcement"): MessageDraft {
   const allowed = audiencesFor(kind)
   const audiences = {} as Record<NotificationAudience, AudienceDraft>
   for (const a of AUDIENCES) audiences[a] = { on: allowed[0] === a, filter: {}, destination: DEFAULT_DESTINATION[a] }
-  return { kind, title: "", body: "", pictureKey: null, pictureUrl: null, push: true, endsAt: "", audiences }
+  return {
+    kind, title: "", body: "", pictureKey: null, pictureUrl: null, push: true, email: false, nameFallback: NAME_FALLBACK_DEFAULT,
+    endsAt: "", audiences,
+  }
 }
 
 /** Changing the kind keeps the words and turns off audiences it doesn't allow. */
@@ -81,6 +94,8 @@ export function draftOf(m: MessageDTO, copy = false): MessageDraft {
     pictureKey: m.pictureKey,
     pictureUrl: m.pictureUrl,
     push: m.push,
+    email: m.email,
+    nameFallback: m.nameFallback,
     endsAt: ends,
   }
 }
@@ -97,6 +112,9 @@ export function bodyOf(d: MessageDraft): MessageDraftDTO {
     body: d.body.trim(),
     pictureKey: d.pictureKey,
     push: d.kind === "direct" ? true : d.push,
+    // Email goes to customers only: off when no customer audience is chosen.
+    email: d.email && chosenAudiences(d).includes("customer"),
+    nameFallback: d.nameFallback.trim() || NAME_FALLBACK_DEFAULT,
     endsAt: fromLocal(d.endsAt),
     audiences: chosenAudiences(d).map((a) => ({
       audience: a,
@@ -110,6 +128,8 @@ export function bodyOf(d: MessageDraft): MessageDraftDTO {
 export function draftProblems(d: MessageDraft, forSend: boolean): string[] {
   const out: string[] = []
   if (!d.title.trim()) out.push("Add a title.")
+  if (hasFirstNamePlaceholder(d.title)) out.push(TITLE_HAS_NAME)
+  if (!validNameFallback(d.nameFallback)) out.push("The word used when someone has no first name: 1 to 20 characters, no { } or |.")
   if (d.title.trim().length > MESSAGE_LIMITS.title)
     out.push(`The title is longer than ${MESSAGE_LIMITS.title} characters.`)
   if (!d.body.trim()) out.push("Add the text.")
@@ -125,3 +145,9 @@ export function cut(text: string, max: number): string {
   const t = text.trim()
   return t.length > max ? `${t.slice(0, max - 1).trimEnd()}…` : t
 }
+
+/** 115: what the email and the inbox show a person with this first name (null = the fallback). */
+export function filledFor(text: string, d: Pick<MessageDraft, "nameFallback">, firstName: string | null): string {
+  return fillFirstName(normaliseFirstName(text, d.nameFallback.trim() || NAME_FALLBACK_DEFAULT), firstName)
+}
+

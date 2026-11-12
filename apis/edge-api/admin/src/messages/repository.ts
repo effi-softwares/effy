@@ -26,6 +26,9 @@ export interface MessageRecord {
   body: string;
   pictureKey: string | null;
   push: boolean;
+  email: boolean;
+  nameFallback: string;
+  automationId: string | null;
   status: MessageStatus;
   sendAt: Date | null;
   endsAt: Date | null;
@@ -46,6 +49,10 @@ export interface MessageWrite {
   body: string;
   pictureKey: string | null;
   push: boolean;
+  /** 115: also by email (customers only). */
+  email: boolean;
+  /** 115: the word in place of `{first name}`. */
+  nameFallback: string;
   endsAt: Date | null;
   audiences: { audience: NotificationAudience; filter: AudienceFilter; destination: MessageDestination }[];
 }
@@ -57,6 +64,9 @@ interface MessageRow {
   body: string;
   picture_key: string | null;
   push: boolean;
+  email: boolean;
+  name_fallback: string;
+  automation_id: string | null;
   status: MessageStatus;
   send_at: Date | null;
   ends_at: Date | null;
@@ -70,7 +80,8 @@ interface MessageRow {
   created_at: Date;
 }
 
-const COLUMNS = `m.id::text AS id, m.kind, m.title, m.body, m.picture_key, m.push, m.status, m.send_at, m.ends_at, m.sent_at,
+const COLUMNS = `m.id::text AS id, m.kind, m.title, m.body, m.picture_key, m.push, m.email, m.name_fallback,
+  m.automation_id::text AS automation_id, m.status, m.send_at, m.ends_at, m.sent_at,
   m.not_sent_reason, m.withdrawn_at, m.duplicated_from::text AS duplicated_from, m.version, m.created_by,
   ${staffNameSql("m.created_by")} AS created_by_name, m.created_at`;
 
@@ -99,6 +110,9 @@ function toRecord(r: MessageRow, audiences: AudienceRecord[]): MessageRecord {
     body: r.body,
     pictureKey: r.picture_key,
     push: r.push,
+    email: r.email,
+    nameFallback: r.name_fallback,
+    automationId: r.automation_id,
     status: r.status,
     sendAt: r.send_at,
     endsAt: r.ends_at,
@@ -123,9 +137,9 @@ export async function readMessage(db: Queryable, id: string, lock = false): Prom
 
 export async function insertMessage(tx: Queryable, w: MessageWrite, actor: string, duplicatedFrom: string | null): Promise<string> {
   const id = (await tx.query<{ id: string }>(
-    `INSERT INTO public.message (kind, title, body, picture_key, push, ends_at, duplicated_from, created_by)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id::text AS id`,
-    [w.kind, w.title, w.body, w.pictureKey, w.push, w.endsAt, duplicatedFrom, actor],
+    `INSERT INTO public.message (kind, title, body, picture_key, push, email, name_fallback, ends_at, duplicated_from, created_by)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id::text AS id`,
+    [w.kind, w.title, w.body, w.pictureKey, w.push, w.email, w.nameFallback, w.endsAt, duplicatedFrom, actor],
   )).rows[0]!.id;
   await writeAudiences(tx, id, w);
   return id;
@@ -145,10 +159,10 @@ async function writeAudiences(tx: Queryable, id: string, w: MessageWrite): Promi
 export async function updateMessage(tx: Queryable, id: string, w: MessageWrite): Promise<void> {
   await tx.query(
     `UPDATE public.message
-        SET kind = $2, title = $3, body = $4, picture_key = $5, push = $6, ends_at = $7,
+        SET kind = $2, title = $3, body = $4, picture_key = $5, push = $6, ends_at = $7, email = $8, name_fallback = $9,
             version = version + 1, updated_at = now()
       WHERE id = $1`,
-    [id, w.kind, w.title, w.body, w.pictureKey, w.push, w.endsAt],
+    [id, w.kind, w.title, w.body, w.pictureKey, w.push, w.endsAt, w.email, w.nameFallback],
   );
   await writeAudiences(tx, id, w);
 }

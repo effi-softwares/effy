@@ -284,6 +284,29 @@ describe.skipIf(!RUN)("113 - account erasure against real PostgreSQL", () => {
     expect(await placesNaming(c.marks)).toEqual(["tax_document.snapshot"])
   })
 
+  it("115: removes the unsubscribe token and the record of which automatic messages reached them", async () => {
+    const c = await seedCustomer()
+    await pool.query(`UPDATE public.customer SET email_unsubscribe_token = $2 WHERE id = $1`, [c.customerId, "T".repeat(43)])
+    const automationId = await id(
+      `INSERT INTO public.message_automation (name, kind, audience, destination, title, body, mode, trigger_kind, trigger_value, created_by)
+       VALUES ('Win back', 'offer', 'customer', '{"kind":"home"}'::jsonb, 'From Effy', 'We miss you at Effy', 'trigger', 'not_ordered_days', 30, 'staff-1')
+       RETURNING id::text AS id`,
+    )
+    const runId = await id(
+      `INSERT INTO public.message_automation_run (automation_id, outcome, matched) VALUES ($1, 'nobody', 0) RETURNING id::text AS id`,
+      [automationId],
+    )
+    await pool.query(
+      `INSERT INTO public.message_automation_recipient (automation_id, customer_id, occurrence_key, run_id) VALUES ($1, $2, 'none', $3)`,
+      [automationId, c.customerId, runId],
+    )
+
+    await runErasure(fakes().deps)
+
+    expect(await one(`SELECT email_unsubscribe_token FROM public.customer WHERE id = $1`, [c.customerId])).toEqual({ email_unsubscribe_token: null })
+    expect((await pool.query(`SELECT 1 FROM public.message_automation_recipient WHERE customer_id = $1`, [c.customerId])).rowCount).toBe(0)
+  })
+
   it("keeps every order, stripped to suburb and postcode, and forfeits the points against the empty record", async () => {
     const c = await seedCustomer()
     await runErasure(fakes().deps)

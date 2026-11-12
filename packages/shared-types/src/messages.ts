@@ -182,6 +182,50 @@ export function messageNamesEffy(title: string, body: string): boolean {
 
 export const MESSAGE_MUST_NAME_EFFY = "Offers and news must say they're from Effy.";
 
+// ── The first name (115 E13) ─────────────────────────────────────────────────────────────────────────────────────
+
+/** What staff type in a body. Never in a title: the title is on every lock screen. */
+export const FIRST_NAME_PLACEHOLDER = "{first name}";
+export const NAME_FALLBACK_DEFAULT = "there";
+export const NAME_FALLBACK_LIMIT = 20;
+export const TITLE_HAS_NAME = "A first name can't go in the title - it shows on the lock screen. Put it in the message.";
+
+const PLACEHOLDER = /\{first name(?:\|([^{}]*))?\}/gi;
+
+/** True when the text holds the placeholder in either form. */
+export function hasFirstNamePlaceholder(text: string): boolean {
+  return new RegExp(PLACEHOLDER.source, "i").test(text);
+}
+
+/** A fallback word staff may use: 1–20 characters, no braces or bar. */
+export function validNameFallback(fallback: string): boolean {
+  const t = fallback.trim();
+  return t.length >= 1 && t.length <= NAME_FALLBACK_LIMIT && !/[{}|]/.test(t);
+}
+
+/**
+ * How a body is STORED: every `{first name}` becomes `{first name|<fallback>}`, so whoever reads it later knows the
+ * fallback. No name is ever stored (research R8).
+ */
+export function normaliseFirstName(text: string, fallback: string): string {
+  return text.replace(PLACEHOLDER, () => `{first name|${fallback.trim()}}`);
+}
+
+/**
+ * The ONE filling of the placeholder. `firstName` null fills the fallback - which is what the phone notification always
+ * gets, so no name is ever on a lock screen (FR-023). A bare `{first name}` with no stored fallback fills "there".
+ */
+export function fillFirstName(text: string, firstName: string | null): string {
+  const name = firstName?.trim() || null;
+  return text.replace(PLACEHOLDER, (_m, fallback: string | undefined) => name ?? (fallback?.trim() || NAME_FALLBACK_DEFAULT));
+}
+
+/** A driver's or shop staff member's first name: the first word of their name, or null (FR-022). */
+export function firstWordOf(name: string | null | undefined): string | null {
+  const w = name?.trim().split(/\s+/)[0];
+  return w ? w : null;
+}
+
 // ── Audience filters (R4): a closed shape per audience; {} = everyone in it ───────────────────────────────────────
 
 export interface CustomerAudienceFilter {
@@ -199,6 +243,11 @@ export interface CustomerAudienceFilter {
   hasPoints?: true;
   /** Has a phone signed in to the app. */
   appUsers?: true;
+  /**
+   * 115: the people one automatic message's run found (`message_automation_recipient`). Written by the sending worker
+   * only, with the automation's own filter beside it; the shared parser refuses it from staff.
+   */
+  automationRun?: string;
 }
 
 export type DriverFunction = "collection" | "delivery";
@@ -250,6 +299,10 @@ export interface MessageDraftDTO {
   body: string;
   pictureKey: string | null;
   push: boolean;
+  /** 115: also by email (customer audiences only). */
+  email: boolean;
+  /** 115: the word in place of `{first name}` when someone has none, and on every lock screen. */
+  nameFallback: string;
   /** ISO 8601, or null. */
   endsAt: string | null;
   audiences: MessageAudienceDraft[];
@@ -276,6 +329,22 @@ export interface MessagePushReportDTO {
   notSentEnded: number;
 }
 
+/**
+ * 115: each recipient's email, in parts that add up to `reached` (A1). Unsubscribes are beside it, not in it: someone
+ * who unsubscribed from this email was also sent it.
+ */
+export interface MessageEmailReportDTO {
+  sent: number;
+  failed: number;
+  /** Still pending: held for the night, or not yet sent. */
+  heldForNight: number;
+  waiting: number;
+  overLimit: number;
+  notSent: { noAddress: number; turnedOff: number; suppressed: number; ended: number };
+  /** Beside the sum. */
+  unsubscribed: number;
+}
+
 /** Each group's parts add up to its total (FR-023). */
 export interface MessageReportDTO {
   matched: number;
@@ -283,6 +352,8 @@ export interface MessageReportDTO {
   /** Offer and news only: matched − reached. */
   noConsent: number;
   push: MessagePushReportDTO;
+  /** 115: null when the message had no email. */
+  email: MessageEmailReportDTO | null;
   seen: number;
   opened: number;
   archived: number;
@@ -300,6 +371,10 @@ export interface MessageDTO {
   pictureKey: string | null;
   pictureUrl: string | null;
   push: boolean;
+  email: boolean;
+  nameFallback: string;
+  /** 115: the automatic message this send came from, or null. */
+  automationId: string | null;
   endsAt: string | null;
   audiences: MessageAudienceDTO[];
   status: MessageStatus;

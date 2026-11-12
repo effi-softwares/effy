@@ -12,9 +12,11 @@ interface Line {
 }
 
 const push = (k: keyof MessagePushReportDTO) => (r: MessageReportDTO) => r.push[k]
+/** 115: an email count; 0 for an audience with no email (drivers, shops). */
+const mail = (f: (e: NonNullable<MessageReportDTO["email"]>) => number) => (r: MessageReportDTO) => (r.email ? f(r.email) : 0)
 
 /** The report's lines (112 FR-023, R15). Each group's parts add up to the line they sit under. */
-export function reportLines(m: Pick<MessageDTO, "kind" | "push">): Line[] {
+export function reportLines(m: Pick<MessageDTO, "kind" | "push" | "email">): Line[] {
   const marketing = m.kind === "offer" || m.kind === "news"
   return [
     { id: "matched", label: "People it was for", value: (r) => r.matched },
@@ -41,6 +43,22 @@ export function reportLines(m: Pick<MessageDTO, "kind" | "push">): Line[] {
           { id: "muted", label: "Muted on that device", part: true, value: push("muted") },
           { id: "failed", label: "Failed", part: true, value: push("failed") },
           { id: "notSentEnded", label: "Not sent: withdrawn or ended", part: true, value: push("notSentEnded") },
+        ]
+      : []),
+    // 115 (A1): the email parts add up to the customers reached; unsubscribes sit after the group, outside the sum.
+    ...(m.email
+      ? [
+          { id: "email", label: "Emails (customers reached)", value: mail((e) => e.sent + e.failed + e.heldForNight + e.waiting + e.overLimit + e.notSent.noAddress + e.notSent.turnedOff + e.notSent.suppressed + e.notSent.ended) },
+          { id: "e-sent", label: "Sent", part: true, value: mail((e) => e.sent) },
+          { id: "e-off", label: "Email turned off by the person", part: true, value: mail((e) => e.notSent.turnedOff) },
+          { id: "e-limit", label: "Over the promotion limit", part: true, value: mail((e) => e.overLimit) },
+          { id: "e-held", label: "Held for the night", part: true, value: mail((e) => e.heldForNight) },
+          { id: "e-waiting", label: "Waiting to go", part: true, value: mail((e) => e.waiting) },
+          { id: "e-noAddress", label: "No email address", part: true, value: mail((e) => e.notSent.noAddress) },
+          { id: "e-suppressed", label: "Address bounces or complained", part: true, value: mail((e) => e.notSent.suppressed) },
+          { id: "e-failed", label: "Failed", part: true, value: mail((e) => e.failed) },
+          { id: "e-ended", label: "Not sent: withdrawn or ended", part: true, value: mail((e) => e.notSent.ended) },
+          { id: "e-unsubscribed", label: "Unsubscribed from this email", value: mail((e) => e.unsubscribed) },
         ]
       : []),
     { id: "seen", label: "Seen in their inbox", value: (r) => r.seen },

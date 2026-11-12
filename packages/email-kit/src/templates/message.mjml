@@ -1,0 +1,33 @@
+<mjml lang="en" dir="ltr">
+  <mj-head>
+    <mj-include path="../generated/theme.mjml" />
+    <mj-title>{{title}}</mj-title>
+    <mj-preview>{{preheader}}</mj-preview>
+  </mj-head>
+
+  <mj-body width="600px">
+    <mj-include path="../components/header.mjml" />
+
+    <mj-section padding="0 32px 32px 32px">
+      <mj-column>
+        <mj-text mj-class="h1" css-class="e-ink e-h1">
+          {{title}}
+        </mj-text>
+
+        <mj-text css-class="e-ink" padding="16px 0 0 0">
+          {{#if hasImage}}<img src="{{imageUrl}}" alt="" width="536" style="width:100%;max-width:536px;height:auto;display:block;border-radius:8px;margin:0 0 16px 0;" />{{/if}}{{#each paragraphs}}<p style="margin:0 0 12px 0;">{{text}}</p>{{/each}}
+        </mj-text>
+
+        <mj-button href="{{buttonUrl}}" css-class="e-btn-bg e-btn-fg" align="left" padding="12px 0 0 0">
+          {{buttonLabel}}
+        </mj-button>
+
+        <mj-text mj-class="small" css-class="e-muted" padding="24px 0 0 0">
+          {{#if marketing}}From {{senderName}}. You're getting this because you said yes to {{reason}} by email. <a href="{{unsubscribeUrl}}" style="color:%mutedInk%;text-decoration:underline;">Unsubscribe</a>{{else}}A message from {{senderName}} about your account.{{/if}}
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-include path="../components/footer.mjml" />
+  </mj-body>
+</mjml>

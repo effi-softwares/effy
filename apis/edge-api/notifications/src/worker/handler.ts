@@ -43,7 +43,7 @@ export const handler: ScheduledHandler = async (_event, context?: Context) => {
     const sender = await createSender();
     if (!sender.configured) log.warn("fcm not configured - push deliveries remain pending; email still drains");
 
-    const emailSender = createEmailSender({ siteUrl: process.env.WEB_SITE_URL ?? "" });
+    const emailSender = createEmailSender({ siteUrl: process.env.WEB_SITE_URL ?? "", edgeUrl: process.env.EDGE_API_URL ?? "" });
     if (!emailSender.mailerConfigured) log.warn("mail not configured - email deliveries will retry");
     const sendEmail = (to: string, type: string, entityId: string): Promise<SendResult> =>
       isKnownNotificationType(type)
@@ -59,6 +59,11 @@ export const handler: ScheduledHandler = async (_event, context?: Context) => {
       inBatch,
       sendEach: (messages) => sender.sendEach(messages),
       sendEmail,
+      sendMessageEmail: (d) =>
+        emailSender.sendMessage({
+          to: d.recipientEmail ?? "", recipientSub: d.recipientSub, messageId: d.entityId, category: d.category ?? "",
+          title: d.title, body: d.body, destination: d.destination, imageUrl: d.imageUrl ?? null,
+        }),
       log,
     });
     const backlog = await pendingStats(pooled);

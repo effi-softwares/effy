@@ -31,8 +31,24 @@ const where = (re: RegExp) => sources.filter((s) => re.test(s.src)).map((s) => s
 describe("112 - the message record's writers", () => {
   it("scans the services", () => expect(sources.length).toBeGreaterThan(300));
 
-  it("a message is created by the admin service's repository only", () => {
-    expect(where(/INSERT INTO\s+public\.message\b(?!_)/)).toEqual(["admin/src/messages/repository.ts"]);
+  it("a message is created by the admin service's repository, and by the sending worker's for automatic runs (115)", () => {
+    expect(where(/INSERT INTO\s+public\.message\b(?!_)/)).toEqual([
+      "admin/src/messages/repository.ts",
+      // automatic runs: each run of an automatic message becomes an ordinary message (115 R6, I2)
+      "notifications/src/messages/repository.ts",
+    ]);
+  });
+
+  it("an automatic message is written by its admin repository; its runs, recipients and next run by the worker (115)", () => {
+    expect(where(/(INSERT INTO|UPDATE)\s+public\.message_automation\b(?!_)/)).toEqual([
+      "admin/src/messages/automations/repository.ts",
+      "notifications/src/messages/repository.ts",
+    ]);
+    expect(where(/(INSERT INTO|UPDATE|DELETE FROM)\s+public\.message_automation_(run|recipient)\b/)).toEqual([
+      "customer/src/erasure/repository.ts",
+      "notifications/src/messages/repository.ts",
+    ]);
+    expect(where(/(UPDATE|DELETE FROM)\s+public\.message_automation_event\b/)).toEqual([]);
   });
 
   it("a message's state is changed by the admin repository and the sending worker's repository only", () => {

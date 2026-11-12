@@ -32,6 +32,8 @@ data class NotificationPreferences(
     /** Show the one-time offers ask on an order confirmation. */
     val askForOffers: Boolean,
     val wordingVersion: String,
+    /** 115: the marketing-email wording current now (`MarketingEmailConsent`); a build showing older words is refused. */
+    val emailWordingVersion: String = "",
 ) {
     fun consent(category: String): ConsentState? = when (category) {
         "offers" -> offers
@@ -46,6 +48,8 @@ data class PreferencesUpdate(
     val consent: Map<String, Boolean> = emptyMap(),
     val via: ConsentVia? = null,
     val wordingVersion: String? = null,
+    /** 115: the marketing-email wording shown, required when email is turned on for Offers or News. */
+    val emailWordingVersion: String? = null,
 ) {
     data class Choice(val category: String, val channel: PreferenceChannel, val enabled: Boolean)
 }

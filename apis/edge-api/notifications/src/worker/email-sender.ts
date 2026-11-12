@@ -1,9 +1,10 @@
 // Resolves what it renders at send time from the entity id: the outbox carries routing ids only. The
 // address was snapshotted at enqueue and is never looked up here.
-import { logger, query } from "@effy/edge-shared";
+import { logger, pooled, query } from "@effy/edge-shared";
 import { customerCompensationOf } from "@effy/edge-shared/delivery";
 import { customerWords, type EntryKind } from "@effy/edge-shared/points";
 import { compensationLine, courierEstimateSentence, DELIVERY_TYPE_WORDS, formatArrival, movedLines, OPERATING_TZ } from "@effy/shared-types";
+import { emailRecipientOf, isSuppressed, messageEmailVars, type MessageEmail } from "@effy/edge-shared/notifications";
 import { identityFromEnv, MailConfigError } from "@effy/email-kit";
 import { sendEmail } from "@effy/email-kit/send";
 
@@ -142,7 +143,13 @@ async function loadDeliveryChanged(overrideId: string) {
 
 export interface EmailSenderOptions {
   siteUrl: string;
+  /** 115: the edge API's public address, for the one-click unsubscribe (RFC 8058) a mail program posts to. */
+  edgeUrl?: string;
 }
+
+/** "suppressed": the address bounces or complained (038 deliverability) - not sent, never retried. */
+export type MessageEmailResult = SendResult | "suppressed";
+export type { MessageEmail };
 
 export function createEmailSender(opts: EmailSenderOptions) {
   let identity: ReturnType<typeof identityFromEnv> | null = null;
@@ -155,6 +162,18 @@ export function createEmailSender(opts: EmailSenderOptions) {
 
   return {
     mailerConfigured: identity !== null,
+
+    /** 115: a back-office message by email. Suppressed addresses are not sent to (marketing and service alike). */
+    async sendMessage(m: MessageEmail): Promise<MessageEmailResult> {
+      if (!identity) return { ok: false, prune: false, errorClass: "mail_not_configured" };
+      if (await isSuppressed(pooled, m.to)) return "suppressed";
+      const site = opts.siteUrl.replace(/\/$/, "");
+      const edge = (opts.edgeUrl ?? "").replace(/\/$/, "");
+      const built = messageEmailVars(m, await emailRecipientOf(pooled, m.recipientSub), { site, edge });
+      if (!built) return { ok: false, prune: false, errorClass: "no_unsubscribe_token" };
+      const res = await sendEmail("message", built.vars, { to: m.to, audience: "customer", headers: built.headers }, logger);
+      return res.outcome === "sent" ? { ok: true, prune: false } : { ok: false, prune: false, errorClass: "send_failed" };
+    },
 
     async send(to: string, type: NotificationType, entityId: string): Promise<SendResult> {
       if (!identity) return { ok: false, prune: false, errorClass: "mail_not_configured" };

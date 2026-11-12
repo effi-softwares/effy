@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
 import { Link, useSearch } from "@tanstack/react-router"
-import { Plus, Send } from "lucide-react"
+import { Plus, Repeat, Send } from "lucide-react"
 
 import {
   MESSAGE_KIND_VALUES,
@@ -98,14 +98,22 @@ export function MessagesListScreen() {
           title="Messages"
           description="Announcements, important notices, offers and news sent from here, and what happened to each."
           actions={
-            canManage ? (
-              <Button asChild>
-                <Link data-tour="messages.new" to="/messages/new">
-                  <Plus aria-hidden="true" />
-                  New message
+            <>
+              <Button variant="outline" asChild>
+                <Link data-tour="messages.automatic" to="/messages/automatic">
+                  <Repeat aria-hidden="true" />
+                  Automatic messages
                 </Link>
               </Button>
-            ) : null
+              {canManage ? (
+                <Button asChild>
+                  <Link data-tour="messages.new" to="/messages/new">
+                    <Plus aria-hidden="true" />
+                    New message
+                  </Link>
+                </Button>
+              ) : null}
+            </>
           }
         />
       }

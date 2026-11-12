@@ -19,6 +19,7 @@ describe("a customer's notification choices in back-office (111 US7)", () => {
         { category: "support", required: true, marketing: false, push: true, email: true, changeable: [] },
       ],
       consent: { offers: { granted: true, answeredAt: "2026-11-10T01:00:00Z" }, news: { granted: false, answeredAt: null } },
+      messageEmail: "suppressed",
     })
     render(
       <QueryClientProvider client={new QueryClient()}>
@@ -26,7 +27,9 @@ describe("a customer's notification choices in back-office (111 US7)", () => {
       </QueryClientProvider>,
     )
     expect(await screen.findByText("App off · Email on")).toBeTruthy()
-    expect(screen.getByText(/^Said yes on .* · App on$/)).toBeTruthy()
+    expect(screen.getByText(/^Said yes on .* · App on · Email off$/)).toBeTruthy()
+    // 115: an address that bounces gets no message email.
+    expect(screen.getByText(/the address bounces or reported spam/)).toBeTruthy()
     expect(screen.getByText("Not asked yet - off")).toBeTruthy()
     expect(screen.getAllByText("Always on")).toHaveLength(2)
     expect(screen.queryByRole("button")).toBeNull()

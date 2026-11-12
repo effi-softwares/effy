@@ -22,6 +22,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.effyshopping.customer.mobile.app.AppContainer
 import com.effyshopping.customer.mobile.core.platform.rememberTurnOnNotifications
 import com.effyshopping.customer.mobile.core.presentation.EffyAppBar
+import com.effyshopping.customer.mobile.core.presentation.EffyConfirmSheet
 import com.effyshopping.customer.mobile.core.presentation.EffyErrorState
 import com.effyshopping.customer.mobile.core.presentation.EffyGroup
 import com.effyshopping.customer.mobile.core.presentation.EffyGroupDivider
@@ -32,6 +33,7 @@ import com.effyshopping.customer.mobile.core.presentation.EffySwitchRow
 import com.effyshopping.customer.mobile.core.push.CategoryPolicy
 import com.effyshopping.customer.mobile.core.push.NotificationCategoryPolicy
 import com.effyshopping.customer.mobile.features.legal.generated.MarketingConsent
+import com.effyshopping.customer.mobile.features.legal.generated.MarketingEmailConsent
 import com.effyshopping.customer.mobile.features.notifications.settings.domain.CategoryChoice
 import com.effyshopping.customer.mobile.features.notifications.settings.domain.NotificationPreferences
 import com.effyshopping.customer.mobile.features.notifications.settings.domain.PreferenceChannel
@@ -79,6 +81,18 @@ fun NotificationSettingsScreen(container: AppContainer, snackbar: SnackbarHostSt
             }
         }
     }
+
+    // 115: email for Offers or News is a yes in Effy's own words, asked before anything is saved.
+    if (state.emailAsk != null) {
+        EffyConfirmSheet(
+            title = MarketingEmailConsent.heading,
+            body = MarketingEmailConsent.body,
+            confirmLabel = MarketingEmailConsent.yes,
+            cancelLabel = MarketingEmailConsent.no,
+            onConfirm = vm::confirmMarketingEmail,
+            onDismiss = vm::dismissMarketingEmail,
+        )
+    }
 }
 
 @Composable
@@ -114,7 +128,7 @@ private fun ChannelGroup(policy: CategoryPolicy, choice: CategoryChoice, vm: Not
     }
 }
 
-/** Offers and News: the main switch is the shopper's yes; the phone switch shows once they have said it. */
+/** Offers and News: the main switch is the shopper's yes; the phone and email switches show once they have said it. */
 @Composable
 private fun MarketingGroup(policy: CategoryPolicy, choice: CategoryChoice, prefs: NotificationPreferences, vm: NotificationSettingsViewModel) {
     val granted = prefs.consent(policy.category)?.granted == true
@@ -128,6 +142,10 @@ private fun MarketingGroup(policy: CategoryPolicy, choice: CategoryChoice, prefs
         if (granted) {
             EffyGroupDivider()
             EffySwitchRow(label = "Phone notifications", checked = choice.push, onCheckedChange = { vm.setChannel(policy.category, PreferenceChannel.PUSH, it) })
+            if (PreferenceChannel.EMAIL in choice.changeable) {
+                EffyGroupDivider()
+                EffySwitchRow(label = "Email", checked = choice.email, onCheckedChange = { vm.setMarketingEmail(policy.category, it) })
+            }
         }
     }
 }

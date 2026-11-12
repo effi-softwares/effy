@@ -204,6 +204,29 @@ export const CATALOG = {
     onSendFailure: "swallow",
   },
 
+  // 115: a back-office message by email (offers and news to customers who turned email on; important and direct to
+  // every customer). The words are the message's own; marketing kinds carry the unsubscribe link and headers.
+  message: {
+    vars: {
+      title: "string",
+      preheader: "string",
+      paragraphs: { of: { text: "string" } },
+      hasImage: "boolean",
+      imageUrl: "string",
+      buttonLabel: "string",
+      buttonUrl: "string",
+      marketing: "boolean",
+      reason: "string",
+      senderName: "string",
+      unsubscribeUrl: "string",
+    },
+    subject: (v) => String(v.title),
+    preheader: (v) => String(v.preheader),
+    audiences: CUSTOMER_ONLY,
+    sentBy: "platform",
+    onSendFailure: "swallow",
+  },
+
   "newsletter-confirmation": {
     vars: { confirmUrl: "string", expiresIn: "string" },
     subject: (_v, p) => `Confirm your ${p.productName} subscription`,

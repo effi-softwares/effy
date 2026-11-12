@@ -93,3 +93,27 @@ describe("parseDraft (112)", () => {
     expect(parseDraft({ ...announcement, pictureKey: `promotions/messages-${ID}/abc_DEF-1.webp` }).pictureKey).toBe(`promotions/messages-${ID}/abc_DEF-1.webp`);
   });
 });
+
+describe("parseDraft - email and the first name (115)", () => {
+  const offer = {
+    ...announcement,
+    kind: "offer",
+    title: "Berries are back",
+    body: "Hi {first name}, 10% off berries from Effy.",
+    audiences: [{ audience: "customer", filter: {}, destination: { kind: "sale" } }],
+  };
+
+  it("accepts email to customers and a fallback, and defaults to no email and \"there\"", () => {
+    expect(parseDraft({ ...offer, email: true, nameFallback: " friend " })).toMatchObject({ email: true, nameFallback: "friend" });
+    expect(parseDraft(offer)).toMatchObject({ email: false, nameFallback: "there" });
+  });
+
+  it("refuses the first name in the title, a bad fallback, and email to drivers", () => {
+    refused({ ...offer, title: "Hi {first name}" });
+    refused({ ...offer, nameFallback: "a{b}" });
+    refused({ ...offer, nameFallback: "" });
+    refused({ ...announcement, email: true });
+    refused({ ...offer, email: "yes" });
+  });
+});
+

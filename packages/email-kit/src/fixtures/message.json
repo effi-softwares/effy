@@ -1,0 +1,16 @@
+{
+  "title": "Fresh berries are back at Effy",
+  "preheader": "Hi there, strawberries and blueberries are in.",
+  "paragraphs": [
+    { "text": "Hi Sam, strawberries and blueberries are back this week." },
+    { "text": "Get 10% off your next berry order with Effy until Sunday." }
+  ],
+  "hasImage": true,
+  "imageUrl": "https://media.dev.effyshopping.com/promotions/messages-1/berries.webp",
+  "buttonLabel": "See the offer",
+  "buttonUrl": "https://dev.effyshopping.com/sale",
+  "marketing": true,
+  "reason": "offers",
+  "senderName": "Effy",
+  "unsubscribeUrl": "https://dev.effyshopping.com/email/unsubscribe?t=AAAA&m=1"
+}

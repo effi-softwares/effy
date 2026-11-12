@@ -44,6 +44,14 @@ provider:
     DB_SECRET_ARN: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
     S3_MEDIA_BUCKET: ${ssm:/effy/${sls:stage}/media/bucket}
     MEDIA_PUBLIC_BASE_URL: ${ssm:/effy/${sls:stage}/media/public_base_url}
+    # 115: a test send by email - every key in email-kit's MAIL_ENV_KEYS, plus the web and edge addresses for its links.
+    MAIL_SENDER: ${ssm:/effy/${sls:stage}/ses/sender}
+    MAIL_REPLY_TO: ${ssm:/effy/${sls:stage}/ses/reply_to}
+    MAIL_REPLY_TO_INTERNAL: ${ssm:/effy/${sls:stage}/ses/reply_to_internal, ''}
+    MAIL_CONFIGURATION_SET: ${ssm:/effy/${sls:stage}/ses/configuration_set}
+    MAIL_POSTAL_ADDRESS: ${ssm:/effy/${sls:stage}/mail/postal_address, ''}
+    WEB_SITE_URL: ${ssm:/effy/${sls:stage}/web/site_url, ''}
+    EDGE_API_URL: ${ssm:/effy/${sls:stage}/edge/api_endpoint}
   iam:
     role:
       statements:
@@ -59,6 +67,12 @@ provider:
         - Effect: Allow
           Action: appsync:EventPublish
           Resource: ${ssm:/effy/${sls:stage}/live/api_arn}/channelNamespace/*
+        # 115: the test email - the identity and the configuration set, or the send is denied.
+        - Effect: Allow
+          Action: ses:SendEmail
+          Resource:
+            - ${ssm:/effy/${sls:stage}/ses/identity_arn}
+            - ${ssm:/effy/${sls:stage}/ses/configuration_set_arn}
   layers:
     - ${param:secretsExtensionArn}
   # No provider.vpc (dev only).
@@ -227,6 +241,74 @@ functions:
       - httpApi:
           method: GET
           path: /admin/v1/messages/received
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  # 115: automatic messages. The literal `automations` segment wins over 112's `{id}` (HTTP API routing prefers the
+  # most specific route), so these never reach a message route (automations-routes.test.ts).
+  automationsListV1:
+    handler: src/functions/automations-list-v1-get.handler
+    description: List automatic messages (paged; status, mode) - 115
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/messages/automations
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  automationsCreateV1:
+    handler: src/functions/automations-create-v1-post.handler
+    description: Set up an automatic message - 115
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/messages/automations
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  automationsGetV1:
+    handler: src/functions/automations-get-v1-get.handler
+    description: One automatic message with its runs - 115
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/messages/automations/{id}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  automationsUpdateV1:
+    handler: src/functions/automations-update-v1-patch.handler
+    description: Edit an automatic message (future runs only) - 115
+    events:
+      - httpApi:
+          method: PATCH
+          path: /admin/v1/messages/automations/{id}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  automationsStateV1:
+    handler: src/functions/automations-state-v1-post.handler
+    description: Pause, resume or end an automatic message - 115
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/messages/automations/{id}/state
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  automationsActivityV1:
+    handler: src/functions/automations-activity-v1-get.handler
+    description: An automatic message's activity (104 drawer) - 115
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/messages/automations/{id}/activity
           authorizer:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}

@@ -589,7 +589,7 @@ export const BACK_OFFICE_TOURS = defineTours([
   // ME - New message (112)
   {
     key: "message-editor",
-    version: 1,
+    version: 2,
     title: "New message",
     path: "/messages/new",
     roles: ["admin", "manager"],
@@ -629,6 +629,16 @@ export const BACK_OFFICE_TOURS = defineTours([
         title: "Send or schedule",
         text: "Send it now, or pick a time. You can edit or cancel a scheduled message until it starts.",
       },
+      {
+        target: "messages.first-name",
+        title: "Their first name",
+        text: "Insert it in the text: each person's inbox and email show their own name. Phone notifications use the word you choose.",
+      },
+      {
+        target: "messages.email",
+        title: "By email too",
+        text: "Customers can get it by email as well. Offers and news go only to those who turned on email for them.",
+      },
     ],
   },
   // MS - Message (112)
@@ -661,6 +671,83 @@ export const BACK_OFFICE_TOURS = defineTours([
         target: "page-more",
         title: "Activity",
         text: "Who wrote, tested, sent, stopped or withdrew it, and when.",
+      },
+    ],
+  },
+  // AM - Automatic messages (115)
+  {
+    key: "automatic-messages",
+    version: 1,
+    title: "Automatic messages",
+    path: "/messages/automatic",
+    steps: [
+      {
+        target: "page-title",
+        title: "Automatic messages",
+        text: "Messages that send themselves when something happens, or on a repeat.",
+      },
+      {
+        target: "automatic.new",
+        title: "Set one up",
+        text: "A win-back after a quiet spell, a reminder about a cart, or a notice every week.",
+        roles: ["admin", "manager"],
+        shownWhen: "Admin or manager",
+      },
+      {
+        target: "automatic.list",
+        title: "Every automatic message",
+        text: "When each one sends, whether it's running, and when it last ran and runs next.",
+      },
+      {
+        target: "automatic.status",
+        title: "Running or not",
+        text: "Running, paused or ended. A paused one sends nothing until it is resumed.",
+      },
+    ],
+  },
+  // AE - New automatic message (115)
+  {
+    key: "automatic-editor",
+    version: 1,
+    title: "New automatic message",
+    path: "/messages/automatic/new",
+    roles: ["admin", "manager"],
+    steps: [
+      {
+        target: "automatic.when",
+        title: "When it sends",
+        text: "When something happens, like a customer not ordering for 30 days, or on a repeat at a time you choose.",
+      },
+      {
+        target: "automatic.save",
+        title: "Start it",
+        text: "It runs from its next time. Each run is sent as its own message, with the same rules as one sent by hand.",
+      },
+    ],
+  },
+  // AU - An automatic message (115)
+  {
+    key: "automatic-message",
+    version: 1,
+    title: "An automatic message",
+    needsRecord: "automation",
+    steps: [
+      {
+        target: "automatic.runs",
+        title: "Every run",
+        text: "When it ran, how many people it found, and a link to the report of the message it sent.",
+      },
+      {
+        target: "automatic.actions",
+        title: "Pause or resume",
+        text: "Pausing stops it at once. Resuming never sends what was missed while it was paused.",
+        roles: ["admin", "manager"],
+        shownWhen: "Admin or manager",
+      },
+      {
+        target: "page-more",
+        title: "Activity",
+        text: "Who set it up, changed, paused, resumed or ended it, and when.",
       },
     ],
   },

@@ -6,6 +6,10 @@ import type { PreferenceChannel } from "./notification-categories";
 
 export type ConsentSurface = "app" | "web";
 export type ConsentVia = "settings" | "prompt" | "inbox";
+/** 115: consent history rows may also come from an email (the unsubscribe link, a mail program's one-click). */
+export type ConsentHistorySurface = ConsentSurface | "email";
+export type ConsentHistoryVia = ConsentVia | "email_link" | "one_click";
+export type ConsentChannel = "notifications" | "email";
 
 /** One category as the customer sees it: the effective choice per channel (theirs, else the default). */
 export interface PreferenceCategoryDTO {
@@ -38,6 +42,8 @@ export interface NotificationPreferencesDTO {
   askForOffers: boolean;
   /** The consent wording version the server holds as current. */
   wordingVersion: string;
+  /** 115: the marketing-EMAIL wording version current now; sent back as `emailWordingVersion` when turning email on. */
+  emailWordingVersion: string;
 }
 
 export interface PreferenceChoiceChange {
@@ -60,12 +66,23 @@ export interface NotificationPreferencesChange {
   consent?: ConsentChange;
   /** The wording version shown; required with `consent`, and must be the current one (else 409). */
   wordingVersion?: string;
+  /**
+   * 115: the marketing-email wording shown; required when a change turns email ON for offers or news, and must be the
+   * current one (else 409 `consent_wording_changed`). Email for a category also needs that category's yes (else 400
+   * `consent_required`).
+   */
+  emailWordingVersion?: string;
 }
 
 /** `GET /orders/v1/customers/{customerId}/notification-preferences` (back-office, read-only). */
 export interface StaffNotificationPreferencesDTO {
   categories: PreferenceCategoryDTO[];
   consent: MarketingConsentDTO;
+  /**
+   * 115 FR-008: whether message email can reach them - `suppressed` when their address bounces or reported spam (038's
+   * record; repaired in back-office › Deliverability), `no_address` when they have none.
+   */
+  messageEmail: "reachable" | "no_address" | "suppressed";
 }
 
 /** `GET` / `PUT /orders/v1/notifications/settings`. */

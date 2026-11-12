@@ -55,6 +55,8 @@ provider:
     MAIL_CONFIGURATION_SET: ${ssm:/effy/${sls:stage}/ses/configuration_set}
     MAIL_POSTAL_ADDRESS: ${ssm:/effy/${sls:stage}/mail/postal_address, ''}
     WEB_SITE_URL: ${ssm:/effy/${sls:stage}/web/site_url, ''}
+    # 115: the edge API's public address, for the one-click unsubscribe header in marketing email.
+    EDGE_API_URL: ${ssm:/effy/${sls:stage}/edge/api_endpoint}
     # Drain tuning. The code has defaults, but the deployment states what it runs with.
     NOTIF_MAX_ATTEMPTS: ${param:notifMaxAttempts}
     NOTIF_BATCH_SIZE: ${param:notifBatchSize}

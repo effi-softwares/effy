@@ -664,6 +664,7 @@ the entries carry gotchas and deploy-ordering rules that the code does not. Slic
 
 Features recorded:
 
+- **115-messages-email-automation** - Messages That Do More (a message also by email, offers/news only after a yes in Effy's email wording; one-tap unsubscribe and undo; limits count messages, not pushes; automatic messages on a trigger or a repeat, each run an ordinary message created by the worker; `{first name}` filled at read, the lock screen always the fallback; staff gateway 240/300) - built 2026-11-12; not migrated, deployed or walked; both consent wordings are drafts
 - **114-checkout-stock-holds** - Hold Stock at Checkout (Pay holds the order's counted sizes for the hold time; left to sell = shelf − other customers' live holds, one rule in `availability.ts`; one writer `stock/holds.ts`; the intent carries `shownLines`, a difference is 409 `stock_changed`; holds expire by time, no sweep; hold time on Settings › Clean-ups; no new routes) - built 2026-11-12; not migrated, deployed or walked
 - **113-data-lifecycle** - Data Lifecycle (unpaid orders closed after the abandon time through one `abandonOrder`, payment cancelled first; a declined card no longer loses a later payment; deleted accounts erased on the promised date, whole, orders kept stripped; restore refused after the date; old phone registrations pruned; Settings › Clean-ups; staff gateway 234/300) - signed off 2026-11-12: applied, migrated and deployed to dev; walk not recorded
 - **112-backoffice-messages** - Back-Office Messages (People › Messages: announcements to drivers and shops, important notices, offers and news to customers who said yes, direct messages; fixed audience filters with a live count; previews; send now or later; stop, cancel, withdraw; a report that adds up; sent by a resumable `messages` worker through `notify()`; new stack `admin-messages`, staff gateway 231/300 past the 75% warning) - signed off 2026-11-11: applied, migrated and deployed to dev; walk not recorded
@@ -755,5 +756,5 @@ Features recorded:
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/114-checkout-stock-holds/plan.md
+at specs/115-messages-email-automation/plan.md
 <!-- SPECKIT END -->

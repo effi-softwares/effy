@@ -4,6 +4,7 @@ import com.effyshopping.customer.mobile.core.error.AppError
 import com.effyshopping.customer.mobile.core.error.AppException
 import com.effyshopping.customer.mobile.core.observability.AnalyticsEvent
 import com.effyshopping.customer.mobile.features.legal.generated.MarketingConsent
+import com.effyshopping.customer.mobile.features.legal.generated.MarketingEmailConsent
 import com.effyshopping.customer.mobile.features.notifications.settings.domain.CategoryChoice
 import com.effyshopping.customer.mobile.features.notifications.settings.domain.ConsentState
 import com.effyshopping.customer.mobile.features.notifications.settings.domain.ConsentVia
@@ -135,5 +136,63 @@ class NotificationSettingsViewModelTest {
         vm.setConsent("offers", true)
         assertFalse(vm.state.value.prefs!!.offers.granted)
         assertNotNull(vm.state.value.message)
+    }
+
+    // ---- 115: offers and news by email ----
+
+    private fun newsByEmail(granted: Boolean) = FakeRepo().apply {
+        prefs = prefs.copy(
+            categories = prefs.categories + CategoryChoice("news", required = false, marketing = true, push = true, email = false, changeable = setOf(PreferenceChannel.PUSH, PreferenceChannel.EMAIL)),
+            news = ConsentState(granted, if (granted) "2026-11-10T00:00:00Z" else null),
+        )
+    }
+
+    @Test
+    fun turning_email_on_asks_in_effys_email_words_and_saves_only_on_the_yes() {
+        val repo = newsByEmail(granted = true)
+        val vm = NotificationSettingsViewModel(repo, events::add)
+        vm.setMarketingEmail("news", true)
+        assertEquals("news", vm.state.value.emailAsk, "the sheet is shown")
+        assertTrue(repo.updates.isEmpty(), "nothing saved before the yes")
+        vm.confirmMarketingEmail()
+        val sent = repo.updates.single()
+        assertEquals(listOf(PreferencesUpdate.Choice("news", PreferenceChannel.EMAIL, true)), sent.choices)
+        assertEquals(MarketingEmailConsent.version, sent.emailWordingVersion)
+        assertEquals(null, vm.state.value.emailAsk)
+        assertTrue(vm.state.value.prefs!!.categories.first { it.category == "news" }.email)
+        assertEquals("marketing_email_toggled", events.single().name)
+    }
+
+    @Test
+    fun not_now_saves_nothing() {
+        val repo = newsByEmail(granted = true)
+        val vm = NotificationSettingsViewModel(repo, events::add)
+        vm.setMarketingEmail("news", true)
+        vm.dismissMarketingEmail()
+        assertEquals(null, vm.state.value.emailAsk)
+        assertTrue(repo.updates.isEmpty())
+        assertFalse(vm.state.value.prefs!!.categories.first { it.category == "news" }.email)
+    }
+
+    @Test
+    fun turning_email_off_saves_at_once_without_wording() {
+        val repo = newsByEmail(granted = true).apply {
+            prefs = prefs.copy(categories = prefs.categories.map { if (it.category == "news") it.copy(email = true) else it })
+        }
+        val vm = NotificationSettingsViewModel(repo, events::add)
+        vm.setMarketingEmail("news", false)
+        assertEquals(null, vm.state.value.emailAsk)
+        val sent = repo.updates.single()
+        assertEquals(listOf(PreferencesUpdate.Choice("news", PreferenceChannel.EMAIL, false)), sent.choices)
+        assertEquals(null, sent.emailWordingVersion)
+    }
+
+    @Test
+    fun email_cannot_be_asked_for_without_a_yes_to_the_category() {
+        val repo = newsByEmail(granted = false)
+        val vm = NotificationSettingsViewModel(repo, events::add)
+        vm.setMarketingEmail("news", true)
+        assertEquals(null, vm.state.value.emailAsk)
+        assertTrue(repo.updates.isEmpty())
     }
 }

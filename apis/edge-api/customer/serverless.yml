@@ -387,6 +387,24 @@ functions:
           method: GET
           path: /customer/v1/newsletter/confirm
 
+  # 115 US2: the unsubscribe link in a marketing email. PUBLIC - the 32-byte random token is the credential; no rate
+  # limiter (the edge has none shared; a token cannot be guessed). Always 200, one shape.
+  emailUnsubscribeV1Post:
+    handler: src/functions/email-unsubscribe-v1-post.handler
+    description: PUBLIC - stop offers and news by email from an email link or one-click (115 FR-004)
+    events:
+      - httpApi:
+          method: POST
+          path: /customer/v1/email-unsubscribe
+
+  emailUnsubscribeUndoV1Post:
+    handler: src/functions/email-unsubscribe-undo-v1-post.handler
+    description: PUBLIC - undo an email unsubscribe within 7 days (115 FR-005)
+    events:
+      - httpApi:
+          method: POST
+          path: /customer/v1/email-unsubscribe/undo
+
   # A Cognito trigger, not a route (wired in auth-customer.tf): links Google sign-ins to the native
   # profile, refusing unverified emails (src/lib/account-linking.ts).
   preSignUp:

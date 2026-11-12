@@ -8,7 +8,10 @@
 // The person's say is applied here, in the same statement (111; contracts/sending-rules.md): a marketing notification
 // reaches only customers with a current yes (others get no row at all); a channel they turned off is written
 // `skipped`; a promotional push over the limits is `capped`; one at night is held until 08:00 (`not_before`).
-import { OPERATING_TZ, parseDestination, policyFor, serializeDestination, type NotificationDestination } from "@effy/shared-types";
+import {
+  hasFirstNamePlaceholder, NAME_FALLBACK_DEFAULT, normaliseFirstName, OPERATING_TZ, parseDestination, policyFor, serializeDestination,
+  type NotificationDestination,
+} from "@effy/shared-types";
 
 import { afterCommit, type Queryable } from "../lib/db";
 import { announceInbox } from "./announce-inbox";
@@ -28,7 +31,7 @@ import {
   effyDayStartSql,
   policyValuesSql,
   PROMO_LOCK_SQL,
-  promoPushesSinceSql,
+  promoSentSinceSql,
   quietUntilSql,
 } from "./preferences";
 
@@ -70,6 +73,8 @@ export interface NotifyMessage {
   body: string;
   destination: NotificationDestination;
   imageUrl: string | null;
+  /** 115: the word in place of `{first name}` (stored with the body; filled when read - never a name in the row). */
+  nameFallback?: string;
 }
 
 /** Test seams only: production callers pass nothing. */
@@ -108,8 +113,12 @@ export async function notify(tx: Queryable, input: NotifyInput, options: NotifyO
   if (message && parseDestination(entry.audience, serializeDestination(message.destination)) === null) {
     throw new Error(`notify: a ${entry.audience} cannot open this destination (${message.destination.kind})`);
   }
+  if (message && hasFirstNamePlaceholder(message.title)) {
+    // The title is on every lock screen: a name never goes there (115 FR-023).
+    throw new Error(`notify: a message title cannot hold the first-name placeholder (${input.type})`);
+  }
   const words = message
-    ? { title: message.title, body: message.body }
+    ? { title: message.title, body: normaliseFirstName(message.body, message.nameFallback ?? NAME_FALLBACK_DEFAULT) }
     : options.entry
       ? (entry.words?.(input.subject) ?? { title: entry.title, body: entry.body })
       : wordsFor(input.type, input.subject);
@@ -153,12 +162,13 @@ export async function notify(tx: Queryable, input: NotifyInput, options: NotifyO
          SELECT n.id AS notification_id, ch.channel, CASE WHEN ch.channel = 'email' THEN i.email END AS recipient_email,
                 CASE
                   WHEN NOT ${channelAllowedSql("i.customer_id", "ch.channel")} THEN 'skipped'
-                  WHEN pol.marketing AND ch.channel = 'push'
-                       AND (${promoPushesSinceSql("i.sub", effyDayStartSql("$16::timestamptz", "$17"))} >= l.per_day
-                            OR ${promoPushesSinceSql("i.sub", "($16::timestamptz - interval '7 days')")} >= l.per_week) THEN 'capped'
+                  -- 115: the limits count marketing messages (push or email), and cap both channels (FR-011).
+                  WHEN pol.marketing AND ch.channel = ANY (ARRAY['push', 'email'])
+                       AND (${promoSentSinceSql("i.sub", effyDayStartSql("$16::timestamptz", "$17"))} >= l.per_day
+                            OR ${promoSentSinceSql("i.sub", "($16::timestamptz - interval '7 days')")} >= l.per_week) THEN 'capped'
                   ELSE 'pending'
                 END AS status,
-                pol.marketing AND ch.channel = 'push' AS promo_push
+                pol.marketing AND ch.channel = ANY (ARRAY['push', 'email']) AS promo_push
            FROM inserted n
            JOIN eligible i ON i.sub = n.recipient_sub
           CROSS JOIN pol
@@ -168,7 +178,7 @@ export async function notify(tx: Queryable, input: NotifyInput, options: NotifyO
      ), delivered AS (
          INSERT INTO public.notification_delivery (notification_id, channel, recipient_email, priority, status, not_before)
          SELECT j.notification_id, j.channel, j.recipient_email, $14, j.status,
-                -- Quiet hours (FR-018): a promotional push due at night waits for 08:00; its inbox item does not.
+                -- Quiet hours (FR-018): a promotional push or email (115) due at night waits for 08:00; its inbox item does not.
                 CASE WHEN j.promo_push AND j.status = 'pending' THEN ${quietUntilSql("$16::timestamptz", "$17")} END
            FROM judged j
          RETURNING 1

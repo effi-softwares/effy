@@ -143,6 +143,8 @@ export async function eraseCustomer(
     `DELETE FROM public.customer_notification_choice WHERE customer_id = $1`,
     `DELETE FROM public.points_expiry_notice WHERE customer_id = $1`,
     `DELETE FROM public.promotion_customer WHERE customer_id = $1`,
+    // 115: which automatic messages reached them (the account row is kept, so its cascade never fires).
+    `DELETE FROM public.message_automation_recipient WHERE customer_id = $1`,
     `DELETE FROM public.order_business_identity WHERE order_id IN (SELECT id FROM public."order" WHERE customer_id = $1)`,
     `DELETE FROM public.receipt_dispatch WHERE order_id IN (SELECT id FROM public."order" WHERE customer_id = $1)`,
   ]
@@ -193,6 +195,7 @@ export async function eraseCustomer(
   await tx.query(
     `UPDATE public.customer
         SET email = NULL, given_name = NULL, family_name = NULL, phone = NULL, stripe_customer_id = NULL,
+            email_unsubscribe_token = NULL,
             has_password = false, password_updated_at = NULL,
             closure_state = 'erased', erased_at = $2, updated_at = now()
       WHERE id = $1`,

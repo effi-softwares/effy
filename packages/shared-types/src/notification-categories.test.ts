@@ -52,10 +52,14 @@ describe("notification categories (111 FR-001, FR-002)", () => {
     }
   });
 
-  it("only the customer's offers and news are marketing, and they start off by email (none is sent)", () => {
+  it("only the customer's offers and news are marketing; email for them is a switch the customer turns on (115)", () => {
     expect(NOTIFICATION_CATEGORY_POLICY.filter((p) => p.marketing).map((p) => `${p.audience}:${p.category}`)).toEqual(["customer:offers", "customer:news"]);
     expect(MARKETING_CATEGORIES).toEqual(["offers", "news"]);
-    for (const c of MARKETING_CATEGORIES) expect(policyFor("customer", c).changeable).toEqual(["push"]);
+    for (const c of MARKETING_CATEGORIES) {
+      expect(policyFor("customer", c).changeable).toEqual(["push", "email"]);
+      // Off until the customer turns it on: a yes to offers is not a yes to email.
+      expect(policyFor("customer", c).defaults.email).toBe(false);
+    }
   });
 
   it("every driver and shop category is required (FR-003)", () => {

@@ -86,6 +86,7 @@ export function filterWords(audience: NotificationAudience, filter: AudienceFilt
     if (f.neverOrdered) parts.push("never ordered")
     if (f.hasPoints) parts.push("have points")
     if (f.appUsers) parts.push("use the app")
+    if (f.automationRun) parts.push("found by the automatic message this time")
   } else if (audience === "driver") {
     const f = filter as DriverAudienceFilter
     if (f.people) parts.push(plural(f.people.length, "chosen driver", "chosen drivers"))
@@ -113,3 +114,13 @@ const dateTime = new Intl.DateTimeFormat("en-AU", {
 export const whenWords = (iso: string | null) => (iso ? dateTime.format(new Date(iso)) : "-")
 
 export const percent = (share: number | null) => (share === null ? "-" : `${Math.round(share * 100)}%`)
+
+/** 115: who gets the email, said under the switch. */
+export const EMAIL_WHO = {
+  marketing: "Only to customers who said yes and turned on email for this. Every email has an unsubscribe link.",
+  service: "To every customer in the audience with an email address.",
+} as const
+
+/** 115: said when withdrawing a message that went by email. */
+export const EMAIL_CANNOT_RECALL = "Emails already sent stay sent."
+

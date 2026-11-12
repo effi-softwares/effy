@@ -3,7 +3,9 @@ import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { transactorFor, type Transactor } from "@effy/edge-shared";
-import { applyPreferencesChange, CONSENT_WORDING_VERSION, readPreferences } from "@effy/edge-shared/notifications";
+import {
+  applyPreferencesChange, CONSENT_WORDING_VERSION, EMAIL_WORDING_VERSION, readPreferences, undoEmailUnsubscribe, unsubscribeFromEmail,
+} from "@effy/edge-shared/notifications";
 import { activityEntries, migrationSql } from "@effy/edge-shared/testing";
 
 import { consentActivitySource } from "../activity/consent";
@@ -65,6 +67,26 @@ describe.skipIf(!RUN)("111 - promotion limits and a customer's consent, for back
     expect(log.map((e) => [e.title, e.detail, e.actor])).toEqual([
       ["Said no to offers", `In the app, from an offer in their inbox. Wording ${CONSENT_WORDING_VERSION}`, "Customer"],
       ["Said yes to offers", `On the website, on the order confirmation. Wording ${CONSENT_WORDING_VERSION}`, "Customer"],
+    ]);
+  });
+
+  it("115: email answers say 'by email', and an unsubscribe says where it came from", async () => {
+    const id = (await pool.query<{ id: string }>(`INSERT INTO public.customer (cognito_sub, email) VALUES ('c-email', 'e@example.test') RETURNING id::text AS id`)).rows[0]!.id;
+    await transact((tx) => applyPreferencesChange(tx, id, { surface: "web", via: "settings", consent: { offers: true }, wordingVersion: CONSENT_WORDING_VERSION }));
+    await transact((tx) => applyPreferencesChange(tx, id, { surface: "app", changes: [{ category: "offers", channel: "email", enabled: true }], emailWordingVersion: EMAIL_WORDING_VERSION }));
+    // Distinct times, so the log's order never rests on a random id.
+    await pool.query(`UPDATE public.customer_marketing_consent SET created_at = now() - interval '3 days' WHERE customer_id = $1 AND channel = 'notifications'`, [id]);
+    await pool.query(`UPDATE public.customer_marketing_consent SET created_at = now() - interval '2 days' WHERE customer_id = $1 AND channel = 'email'`, [id]);
+    await transact((tx) => unsubscribeFromEmail(tx, id, null, "one_click"));
+    await pool.query(`UPDATE public.customer_marketing_consent SET created_at = now() - interval '1 day' WHERE customer_id = $1 AND via = 'one_click'`, [id]);
+    await transact((tx) => undoEmailUnsubscribe(tx, id));
+
+    const log = await activityEntries(pool, consentActivitySource(id));
+    expect(log.map((e) => [e.title, e.detail])).toEqual([
+      ["Said yes to offers by email", `From an email, through the unsubscribe link. Wording ${EMAIL_WORDING_VERSION}`],
+      ["Said no to offers by email", `From an email, with their mail program's unsubscribe button. Wording ${EMAIL_WORDING_VERSION}`],
+      ["Said yes to offers by email", `In the app, in Notification settings. Wording ${EMAIL_WORDING_VERSION}`],
+      ["Said yes to offers", `On the website, in Notification settings. Wording ${CONSENT_WORDING_VERSION}`],
     ]);
   });
 });

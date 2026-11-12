@@ -1,0 +1,13 @@
+{{title}}
+
+{{#each paragraphs}}{{text}}
+
+{{/each}}{{buttonLabel}}: {{buttonUrl}}
+
+{{#if marketing}}From {{senderName}}. You're getting this because you said yes to {{reason}} by email.
+Unsubscribe: {{unsubscribeUrl}}{{else}}A message from {{senderName}} about your account.{{/if}}
+
+--
+{{effyProductName}}{{#if effyPostalAddress}}
+{{effyPostalAddress}}{{/if}}
+Questions? Reply to this email or write to {{effySupportEmail}}.

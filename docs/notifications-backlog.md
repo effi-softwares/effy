@@ -203,8 +203,8 @@ centred dialogs on the customer app (`EffySheet`), and nothing refreshes on a ti
 | C5 | P1 | SW | L | **Shop inbox.** A bell in the console header opens a right Drawer (shadcn, floating, per the overlay rule), plus a `/notifications` page. Filters: category, unread. Mark all read; archive. Tap → B5. Needs a guided tour (106 rule) and a named exception in `list-screens.guard` (an inbox is a feed, not a DataTable). | The tour passes `tours.guard`; Drawer and page both work. |
 | C6 | P2 | CUST-APP, DRV-APP | S | **The app icon badge equals the unseen count** (iOS `badge` in the APNs payload; Android launcher dot via the channel). Cleared on `seen`. | The icon shows 3 after 3 new items and 0 after the inbox is opened. |
 | C7 | P2 | all inboxes | S | **Expiry and pinning shown properly.** An offer shows "Ends Sun"; an expired item disappears; an important item stays pinned until it's read or `pinned_until` passes. | Tested with a clock. |
-| C8 | P3 | BO | M | **Back-office staff inbox** (system alerts: a campaign finished, a send failed). Deferred: E9 is dropped, so nothing needs it yet. | - |
-| C9 | P3 | all | M | **Snooze** (Novu-style). Only if shops ask for it. | - |
+| C8 | Closed: not needed (decision 7) | BO | M | **Back-office staff inbox** (system alerts: a campaign finished, a send failed). Deferred: E9 is dropped, so nothing needs it yet. | - |
+| C9 | Closed: not needed (decision 7) | all | M | **Snooze** (Novu-style). Only if shops ask for it. | - |
 
 ## Epic D - Categories, preferences and consent · P0 for promotions
 
@@ -237,9 +237,9 @@ In spec 111 ([specs/111-notification-preferences](../specs/111-notification-pref
 | E8 | (112, done) P1 | BE, BO | S | **Templates / duplicate**: start a new message from a previous one. | - |
 | E9 | Dropped (decision 5) | BE, BO | M | ~~**Approval for big sends**~~: a campaign to more than N people, or any `important` one, needs a second admin to approve (four-eyes). | A manager's send waits for approval. |
 | E10 | (112, done) P2 | BE | S | **Safeguards**:<br>• the server refuses a promotion whose body has no sender ("Effy") or that targets drivers or shops;<br>• "all customers" needs an extra typed confirmation;<br>• a hard cap per campaign (configurable);<br>• a kill switch that stops a sending campaign. | Each refusal is tested. |
-| E11 | P3 | BE, BO | L | **Email as a campaign channel** (marketing email with the unsubscribe link and postal address; the Spam Act). Builds on email-kit. | - |
-| E12 | P3 | BE, BO | M | **Recurring and triggered messages** ("didn't order for 30 days", "points expire in 7 days" as push). Only after E6 shows what works. | - |
-| E13 | P3 | BO | S | **Personalisation tokens** (`{first_name}`) for the inbox only, never on the lock screen (the telemetry and lock-screen no-PII rules). | - |
+| E11 | P3 | BE, BO | L | **Email as a campaign channel** (marketing email with the unsubscribe link and postal address; the Spam Act). Builds on email-kit. | ✅ 115 |
+| E12 | P3 | BE, BO | M | **Recurring and triggered messages** ("didn't order for 30 days", "points expire in 7 days" as push). Only after E6 shows what works. | ✅ 115 |
+| E13 | P3 | BO | S | **Personalisation tokens** (`{first_name}`) for the inbox only, never on the lock screen (the telemetry and lock-screen no-PII rules). | ✅ 115 |
 
 ## Epic F - Fix, improve or remove in what exists
 
@@ -252,7 +252,7 @@ In spec 111 ([specs/111-notification-preferences](../specs/111-notification-pref
 | F5 | (114, done) P2 | docs | S | **Update stale docs**: `next-implementation-candidates.md` (#4, #6, #8), `customer-capabilities.md` (Notifications row), `observability-apple-blockers.md` (adds the time-sensitive capability step from D7). | - |
 | F6 | (110, done) P2 | CUST-APP | S | **Remove the `NotificationsScreen` empty-state-only code** once C2 lands (Account shortcut and Home bell point at the inbox). | - |
 | F7 | (110, done) P2 | BE | S | **`points_expiring` as push too** (it's email-only today). Category `points`. | - |
-| F8 | P3 | CW | L | **Web push for customers** (service worker on the storefront). Low value until there are real web shoppers; iOS needs a home-screen PWA. Probably *not doing*: the inbox covers the web. | Decide; record it. |
+| F8 | Closed: not doing (decision 7) | CW | L | **Web push for customers** (service worker on the storefront). Low value until there are real web shoppers; iOS needs a home-screen PWA. Probably *not doing*: the inbox covers the web. | Decide; record it. |
 | F9 | (110, done) P2 | BE | S | **A driver who signs in late gets the work notifications they missed.** Today a `run_assigned` made before the driver's first sign-in is skipped (`no_token`, seen 2026-11-07). With A1 it is in their inbox anyway; also show a pinned "You have N runs today" when they first sign in on a new phone. | A new phone shows the morning's assignments. |
 
 ---
@@ -269,6 +269,15 @@ In spec 111 ([specs/111-notification-preferences](../specs/111-notification-pref
 
 If speed matters more than order: spec 4 for **drivers and shops only** can follow spec 2, because staff
 messages need no marketing consent. Customer promotions wait for spec 3.
+
+## Decisions (answered by the operator, 2026-11-12)
+
+7. **The rest of the backlog.** F8 (web push for customers) is **not doing**: the website inbox and email cover it, and
+   iPhone web push only works from the home screen. C8 (back-office staff inbox) and C9 (snooze) are **closed as not
+   needed** - reopen when a shop asks for snooze or staff need alerts. What remains is built in two specs:
+   **115** - email as a campaign channel, triggered and recurring messages, `{first_name}` in inbox items (E11–E13);
+   **116** - email links open the app, iOS urgency levels and the app-icon badge (B7, D7, C6's iOS part; Android now,
+   iOS switched on after the paid Apple account).
 
 ## Decisions (answered by the operator, 2026-11-08)
 

@@ -7,7 +7,7 @@ import { DetailRowsSkeleton, Panel, PanelSkeleton } from "@effy/web-kit/patterns
 import { customerNotificationsQuery } from "../queries"
 import { formatDay } from "./points-format"
 
-const LABELS = categoriesFor("customer").map((p) => p.label)
+const LABELS = [...categoriesFor("customer").map((p) => p.label), "Message email"]
 const DESCRIPTION = "What this customer chose. Only they can change it; every yes and no to offers is under Consent history."
 
 /** 111 US7 - a customer's notification choices and their current yes or no to offers and news. Read only. */
@@ -36,6 +36,11 @@ export function NotificationsPanel({ customerId }: { customerId: string }) {
               </div>
             )
           })}
+          {/* 115 FR-008: an address that bounces or complained gets no message email. */}
+          <div className="ef-dl__row">
+            <dt>Message email</dt>
+            <dd>{MESSAGE_EMAIL_WORDS[prefs.data.messageEmail]}</dd>
+          </div>
         </dl>
       )}
     </Panel>
@@ -51,5 +56,11 @@ function consentWords(consent: ConsentStateDTO, choice: PreferenceCategoryDTO | 
   if (!consent.answeredAt) return "Not asked yet - off"
   const when = formatDay(consent.answeredAt.slice(0, 10))
   if (!consent.granted) return `Said no on ${when}`
-  return `Said yes on ${when} · App ${choice?.push ? "on" : "off"}`
+  return `Said yes on ${when} · App ${choice?.push ? "on" : "off"} · Email ${choice?.email ? "on" : "off"}`
 }
+
+const MESSAGE_EMAIL_WORDS = {
+  reachable: "Can be sent",
+  no_address: "No email address",
+  suppressed: "Not sent - the address bounces or reported spam (see Deliverability)",
+} as const

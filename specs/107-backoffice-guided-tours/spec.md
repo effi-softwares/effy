@@ -441,6 +441,8 @@ every role whenever its part is on screen. Role marks: **Admin or manager**, **A
 | 5 | Destination | Where a tap leads | The screen that opens when someone taps it. | |
 | 6 | Send to me | Try it first | Sends it to one of your own accounts exactly as others will get it. | |
 | 7 | Send | Send or schedule | Send it now, or pick a time. You can edit or cancel a scheduled message until it starts. | |
+| 8 | First name | Their first name | Insert it in the text: each person's inbox and email show their own name. Phone notifications use the word you choose. | |
+| 9 | Email | By email too | Customers can get it by email as well. Offers and news go only to those who turned on email for them. | |
 
 ### MS - A message (needs a record)
 
@@ -450,6 +452,30 @@ every role whenever its part is on screen. Role marks: **Admin or manager**, **A
 | 2 | Actions | Stop or take it back | Stop sending halts it at once. Withdraw removes it from every inbox, but notifications already shown on phones stay. | Admin or manager |
 | 3 | Duplicate | Use it again | Start a new message with the same words and audience. | Admin or manager |
 | 4 | Activity | Activity | Who wrote, tested, sent, stopped or withdrew it, and when. | |
+
+### AM - Automatic messages (115: specs/115-messages-email-automation/spec.md)
+
+| # | Points at | Title | Text | Shown when |
+|---|---|---|---|---|
+| 1 | Page heading | Automatic messages | Messages that send themselves when something happens, or on a repeat. | |
+| 2 | New automatic message | Set one up | A win-back after a quiet spell, a reminder about a cart, or a notice every week. | Admin or manager |
+| 3 | The list | Every automatic message | When each one sends, whether it's running, and when it last ran and runs next. | |
+| 4 | Status | Running or not | Running, paused or ended. A paused one sends nothing until it is resumed. | |
+
+### AE - New automatic message (Admin or manager)
+
+| # | Points at | Title | Text | Shown when |
+|---|---|---|---|---|
+| 1 | When | When it sends | When something happens, like a customer not ordering for 30 days, or on a repeat at a time you choose. | |
+| 2 | Save | Start it | It runs from its next time. Each run is sent as its own message, with the same rules as one sent by hand. | |
+
+### AU - An automatic message (needs a record)
+
+| # | Points at | Title | Text | Shown when |
+|---|---|---|---|---|
+| 1 | Runs | Every run | When it ran, how many people it found, and a link to the report of the message it sent. | |
+| 2 | Actions | Pause or resume | Pausing stops it at once. Resuming never sends what was missed while it was paused. | Admin or manager |
+| 3 | Activity | Activity | Who set it up, changed, paused, resumed or ended it, and when. | |
 
 ### CD - A customer (needs a record)
 

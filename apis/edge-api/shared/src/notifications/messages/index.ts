@@ -2,3 +2,7 @@
 export * from "./audience";
 export * from "./withdraw";
 export * from "./report";
+export * from "./words";
+export * from "./unsubscribe";
+export * from "./email";
+export * from "./unsubscribe-handlers";

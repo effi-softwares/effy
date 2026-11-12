@@ -4,12 +4,13 @@
 //
 // The policy (required, marketing, defaults) is declared once in @effy/shared-types notification-categories.ts and
 // enters SQL as a VALUES list built from it, never stored. specs/111-notification-preferences/contracts/.
-import { MARKETING_CONSENT } from "@effy/legal-content/consent";
+import { MARKETING_CONSENT, MARKETING_EMAIL_CONSENT } from "@effy/legal-content/consent";
 import {
   categoriesFor,
   findPolicy,
   MARKETING_CATEGORIES,
   NOTIFICATION_CATEGORY_POLICY,
+  UNSUBSCRIBE_UNDO_DAYS,
   type ConsentSurface,
   type ConsentVia,
   type MarketingCategory,
@@ -27,6 +28,8 @@ export const PROMO_LOCK_SQL = `SELECT pg_advisory_xact_lock(hashtext('notificati
 
 /** The current consent wording version; an answer given to any other is refused (409). */
 export const CONSENT_WORDING_VERSION: string = MARKETING_CONSENT.version;
+/** 115: the words shown when a customer turns on marketing EMAIL. */
+export const EMAIL_WORDING_VERSION: string = MARKETING_EMAIL_CONSENT.version;
 
 /** Statuses that count as a promotional push given (sent, or waiting to be). */
 export const PROMO_COUNTED_STATUSES = ["pending", "sent", "no_device", "muted"] as const;
@@ -84,16 +87,28 @@ export function quietUntilSql(now: string, tz: string): string {
 }
 
 /**
- * How many promotional pushes this recipient was given since `since` (an SQL timestamptz expression). The partial
- * index notification_marketing_idx keeps it to their marketing rows.
+ * 115: how many customers unsubscribed from email through a link in this message's email (its report). A SELECT
+ * fragment, so the consent history is still read only here (preferences.guard).
  */
-export function promoPushesSinceSql(recipientSub: string, since: string): string {
+export function emailUnsubscribedCountSql(messageId: string): string {
+  return `SELECT count(DISTINCT u.customer_id)::int FROM public.customer_marketing_consent u
+           WHERE u.message_id = ${messageId} AND u.channel = 'email' AND NOT u.granted`;
+}
+
+/**
+ * How many promotional MESSAGES this recipient was given since `since` (an SQL timestamptz expression): marketing
+ * notifications with at least one push or email delivery in a counted status. 115: the limits count messages, not
+ * pushes, so a customer with push off and email on is limited too, and a message by both channels counts once (FR-011).
+ * The partial index notification_marketing_idx keeps it to their marketing rows.
+ */
+export function promoSentSinceSql(recipientSub: string, since: string): string {
   return `(SELECT count(*) FROM public.notification m
-             JOIN public.notification_delivery md ON md.notification_id = m.id AND md.channel = 'push'
             WHERE m.recipient_sub = ${recipientSub} AND m.audience = 'customer'
               AND m.category = ANY (ARRAY[${MARKETING_CATEGORIES.map(sqlText).join(", ")}])
               AND m.created_at >= ${since}
-              AND md.status = ANY (ARRAY[${PROMO_COUNTED_STATUSES.map(sqlText).join(", ")}]))`;
+              AND EXISTS (SELECT 1 FROM public.notification_delivery md
+                           WHERE md.notification_id = m.id AND md.channel = ANY (ARRAY['push', 'email'])
+                             AND md.status = ANY (ARRAY[${PROMO_COUNTED_STATUSES.map(sqlText).join(", ")}])))`;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -102,7 +117,7 @@ export function promoPushesSinceSql(recipientSub: string, since: string): string
 export class PreferencesRefused extends Error {
   constructor(
     readonly status: 400 | 409,
-    readonly code: "invalid_preferences_change" | "category_required" | "consent_wording_changed",
+    readonly code: "invalid_preferences_change" | "category_required" | "consent_wording_changed" | "consent_required",
     detail: string,
   ) {
     super(detail);
@@ -132,7 +147,7 @@ export async function readPreferences(db: Queryable, customerId: string): Promis
     return { granted: row?.granted ?? false, answeredAt: row ? new Date(row.created_at).toISOString() : null };
   };
   const out: MarketingConsentDTO = { offers: state("offers"), news: state("news") };
-  return { categories, consent: out };
+  return { categories, consent: out, emailWordingVersion: EMAIL_WORDING_VERSION };
 }
 
 /** Show the one-time offers ask (FR-012): never answered, and they have placed an order (the confirmation is the gate). */
@@ -153,7 +168,7 @@ export async function preferencesFor(db: Queryable, customerId: string): Promise
 
 const SURFACES: readonly ConsentSurface[] = ["app", "web"];
 const VIAS: readonly ConsentVia[] = ["settings", "prompt", "inbox"];
-const CHANGE_FIELDS = new Set(["surface", "via", "changes", "consent", "wordingVersion"]);
+const CHANGE_FIELDS = new Set(["surface", "via", "changes", "consent", "wordingVersion", "emailWordingVersion"]);
 
 /** A validated change, or a refusal (the contract's table). Pure, so the handler and tests share it. */
 export function parsePreferencesChange(body: unknown): NotificationPreferencesChange {
@@ -199,8 +214,18 @@ export function parsePreferencesChange(body: unknown): NotificationPreferencesCh
     consent = c as NotificationPreferencesChange["consent"];
   }
 
+  // 115: turning marketing EMAIL on is consent, given in Effy's email wording - the current version only.
+  const emailOn = changes.some((c) => c.channel === "email" && c.enabled && (MARKETING_CATEGORIES as string[]).includes(c.category));
+  if (emailOn) {
+    if (typeof b.emailWordingVersion !== "string" || b.emailWordingVersion === "") throw bad("emailWordingVersion is required to turn email on");
+    if (b.emailWordingVersion !== EMAIL_WORDING_VERSION) {
+      throw new PreferencesRefused(409, "consent_wording_changed", "the wording has changed; read it again");
+    }
+  }
+
   return {
     surface: b.surface as ConsentSurface,
+    ...(b.emailWordingVersion !== undefined ? { emailWordingVersion: b.emailWordingVersion as string } : {}),
     ...(b.via !== undefined ? { via: b.via as ConsentVia } : {}),
     ...(changes.length > 0 ? { changes } : {}),
     ...(consent ? { consent } : {}),
@@ -213,6 +238,15 @@ export function parsePreferencesChange(body: unknown): NotificationPreferencesCh
  * explicit answer is always recorded, even when it repeats the current one).
  */
 export async function applyPreferencesChange(tx: Queryable, customerId: string, change: NotificationPreferencesChange): Promise<void> {
+  // 115: email for offers or news means nothing without a yes to them (here or already) - refused, not stored.
+  const emailOn = (change.changes ?? []).filter((c) => c.channel === "email" && c.enabled && (MARKETING_CATEGORIES as string[]).includes(c.category));
+  for (const c of emailOn) {
+    const inChange = change.consent?.[c.category as MarketingCategory];
+    if (inChange === false) throw new PreferencesRefused(400, "consent_required", `say yes to ${c.category} before getting them by email`);
+    if (inChange === true) continue;
+    const yes = await tx.query(`SELECT 1 FROM public.marketing_consent_current WHERE customer_id = $1 AND category = $2 AND granted`, [customerId, c.category]);
+    if (yes.rowCount === 0) throw new PreferencesRefused(400, "consent_required", `say yes to ${c.category} before getting them by email`);
+  }
   for (const c of change.changes ?? []) {
     await tx.query(
       `INSERT INTO public.customer_notification_choice (customer_id, category, channel, enabled, surface)
@@ -230,6 +264,105 @@ export async function applyPreferencesChange(tx: Queryable, customerId: string, 
       [customerId, answers.map((a) => a[0]), answers.map((a) => a[1]), change.surface, change.via, change.wordingVersion],
     );
   }
+  // 115: every marketing-email switch is also a consent answer about email (the record the law asks for).
+  const emailAnswers = (change.changes ?? []).filter((c) => c.channel === "email" && (MARKETING_CATEGORIES as string[]).includes(c.category));
+  if (emailAnswers.length > 0) {
+    await tx.query(
+      `INSERT INTO public.customer_marketing_consent (customer_id, category, granted, surface, via, wording_version, channel)
+       SELECT $1, a.category, a.granted, $4, $5, $6, 'email' FROM unnest($2::text[], $3::boolean[]) AS a(category, granted)`,
+      [
+        customerId,
+        emailAnswers.map((a) => a.category),
+        emailAnswers.map((a) => a.enabled),
+        change.surface,
+        change.via ?? "settings",
+        change.emailWordingVersion ?? EMAIL_WORDING_VERSION,
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// 115: unsubscribing from marketing email - from the link in an email or a mail program's one-click, without signing in.
+// Written here because this module is the ONE writer of choices and consent (preferences.guard); the route resolves the
+// token first (messages/unsubscribe.ts).
+
+/** Turns email off for offers and news; a "no" is recorded for each that was on. Returns how many were on. */
+export async function unsubscribeFromEmail(
+  tx: Queryable,
+  customerId: string,
+  messageId: string | null,
+  via: "email_link" | "one_click",
+): Promise<number> {
+  const on = (
+    await tx.query<{ category: string }>(
+      `SELECT category FROM public.customer_notification_choice
+        WHERE customer_id = $1 AND channel = 'email' AND category = ANY ($2::text[]) AND enabled`,
+      [customerId, MARKETING_CATEGORIES],
+    )
+  ).rows.map((r) => r.category);
+  await tx.query(
+    `INSERT INTO public.customer_notification_choice (customer_id, category, channel, enabled, surface)
+     SELECT $1, c, 'email', false, 'email' FROM unnest($2::text[]) AS c
+     ON CONFLICT (customer_id, category, channel) DO UPDATE SET enabled = false, surface = 'email', changed_at = now()`,
+    [customerId, MARKETING_CATEGORIES],
+  );
+  if (on.length > 0) {
+    await tx.query(
+      `INSERT INTO public.customer_marketing_consent (customer_id, category, granted, surface, via, wording_version, channel, message_id)
+       -- A link naming a message that is not there (or was deleted) records no message, never a refusal.
+       SELECT $1, c, false, 'email', $3, $4, 'email', (SELECT m.id FROM public.message m WHERE m.id = $5::uuid)
+         FROM unnest($2::text[]) AS c`,
+      [customerId, on, via, EMAIL_WORDING_VERSION, messageId],
+    );
+  }
+  return on.length;
+}
+
+/**
+ * The categories the latest email-link unsubscribe turned off, if it is under UNSUBSCRIBE_UNDO_DAYS old and nothing
+ * has been said since (a yes in settings, or another unsubscribe) - what an undo would restore. Empty = nothing to undo.
+ */
+async function undoableCategories(db: Queryable, customerId: string): Promise<string[]> {
+  return (
+    await db.query<{ category: string }>(
+      `WITH last AS (
+         SELECT max(created_at) AS at FROM public.customer_marketing_consent
+          WHERE customer_id = $1 AND channel = 'email' AND NOT granted AND via = ANY (ARRAY['email_link', 'one_click'])
+       )
+       SELECT c.category FROM public.customer_marketing_consent c, last
+        WHERE c.customer_id = $1 AND c.channel = 'email' AND NOT c.granted AND c.created_at = last.at
+          AND last.at > now() - make_interval(days => $2::int)
+          AND NOT EXISTS (SELECT 1 FROM public.customer_marketing_consent n
+                           WHERE n.customer_id = $1 AND n.channel = 'email' AND n.category = c.category AND n.created_at > last.at)`,
+      [customerId, UNSUBSCRIBE_UNDO_DAYS],
+    )
+  ).rows.map((r) => r.category);
+}
+
+/** Whether an undo would restore anything now (the unsubscribe page shows Undo only then). */
+export async function emailUnsubscribeUndoable(db: Queryable, customerId: string): Promise<boolean> {
+  return (await undoableCategories(db, customerId)).length > 0;
+}
+
+/**
+ * Restores email for the categories the latest email-link unsubscribe turned off, within UNSUBSCRIBE_UNDO_DAYS. False
+ * when there is nothing to undo.
+ */
+export async function undoEmailUnsubscribe(tx: Queryable, customerId: string): Promise<boolean> {
+  const latest = await undoableCategories(tx, customerId);
+  if (latest.length === 0) return false;
+  await tx.query(
+    `UPDATE public.customer_notification_choice SET enabled = true, surface = 'email', changed_at = now()
+      WHERE customer_id = $1 AND channel = 'email' AND category = ANY ($2::text[])`,
+    [customerId, latest],
+  );
+  await tx.query(
+    `INSERT INTO public.customer_marketing_consent (customer_id, category, granted, surface, via, wording_version, channel)
+     SELECT $1, c, true, 'email', 'email_link', $3, 'email' FROM unnest($2::text[]) AS c`,
+    [customerId, latest, EMAIL_WORDING_VERSION],
+  );
+  return true;
 }
 
 /** The customer behind a sub, or null. */

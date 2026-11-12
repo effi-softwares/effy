@@ -2,7 +2,7 @@ import { useState } from "react"
 
 import { useQueryClient } from "@tanstack/react-query"
 
-import { MESSAGE_LIMITS, type MessageDestination, type NotificationAudience } from "@effy/shared-types"
+import { MESSAGE_LIMITS, NAME_FALLBACK_DEFAULT, type MessageDestination, type NotificationAudience } from "@effy/shared-types"
 import {
   Button,
   Checkbox,
@@ -50,6 +50,8 @@ export function DirectMessageDialog({
   const [body, setBody] = useState("")
   const [destination, setDestination] = useState<MessageDestination>(DEFAULT_DESTINATION[audience])
   const [managersOnly, setManagersOnly] = useState(false)
+  // 115: a direct message to a customer may go by email too (a service message: no marketing consent needed).
+  const [email, setEmail] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const ready = title.trim().length > 0 && body.trim().length > 0
@@ -68,6 +70,8 @@ export function DirectMessageDialog({
         body: body.trim(),
         pictureKey: null,
         push: true,
+        email: audience === "customer" && email,
+        nameFallback: NAME_FALLBACK_DEFAULT,
         endsAt: null,
         audiences: [{ audience, filter, destination }],
       })
@@ -119,6 +123,12 @@ export function DirectMessageDialog({
               {body.trim().length} of {MESSAGE_LIMITS.body}
             </p>
           </div>
+          {audience === "customer" ? (
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox checked={email} onCheckedChange={(v) => setEmail(v === true)} />
+              Also send it by email
+            </label>
+          ) : null}
           {audience === "shop" ? (
             <label className="flex items-center gap-2 text-sm">
               <Checkbox checked={managersOnly} onCheckedChange={(v) => setManagersOnly(v === true)} />

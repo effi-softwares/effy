@@ -4,6 +4,61 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
+**115-messages-email-automation** - Messages That Do More ([spec](specs/115-messages-email-automation/spec.md)). 🔨 **BUILT
+2026-11-12; NOT MIGRATED, DEPLOYED OR WALKED.** Notifications backlog E11 (email as a channel), E12 (triggered and repeating
+messages) and E13 (the first name). Both consent wordings are DRAFTS awaiting the operator's approval.
+- **Migration** `20261113090000_messages_email_automation.sql` (additive; goose up / down-to 20261112120000 / up on local
+  Postgres): email choice rows for offers/news; consent `channel` (`notifications` | `email`) and `message_id`;
+  `marketing_consent_current` reads notification answers only, new `marketing_email_consent_current`;
+  `notification_delivery_not_before_ck` widened to email; `customer.email_unsubscribe_token` (UNIQUE, 43 chars);
+  `message.email` / `name_fallback` / `automation_id` + `message_title_name_check`; tables `message_automation`, `_run`,
+  `_recipient`, `_event` (revoked from `effy_shopper`).
+- **Email (US1)**: a message may also go by email (customers only) through `notify()` and the drain (email-kit template
+  `message`). Offers and news by email need the category's yes AND the email switch, which is a recorded yes in Effy's email
+  wording (`marketing-email-2026-11`, DRAFT). ⚠ **G1: THE LIMITS COUNT MARKETING MESSAGES, NOT PUSHES** (`promoSentSinceSql`) - over
+  a limit push and email are both `capped`; a marketing email at night waits for 08:00 like the push. Suppressed addresses
+  (bounced/complained) are `skipped` / `suppressed`. The report gains an email partition that adds up. Test sends also email
+  (straight through email-kit, `Test: `). Customer settings (web + app) gain an Email switch under Offers and News, asking in the
+  email wording first.
+- **Unsubscribe (US2)**: two PUBLIC routes on `customer` - `POST /customer/v1/email-unsubscribe` (body, or RFC 8058 one-click
+  `?t=&m=`) and `/undo` (7 days); one shape always, so a wrong token reveals nothing. Writes stay in `preferences.ts`
+  (`unsubscribeFromEmail`, `undoEmailUnsubscribe`, `emailUnsubscribedCountSql` - 111's guard caught the report reading the
+  consent table directly). customer-web `/email/unsubscribe` posts **from the browser after load** (mail scanners prefetch).
+  Erasure clears the token and the automation recipient rows. The consent log says "by email", "from an email", "through the
+  unsubscribe link", "with their mail program's unsubscribe button".
+- **Automatic messages (US3/US4)**: six staff routes on `admin-messages` under `/admin/v1/messages/automations…` (the literal
+  segment beats 112's `{id}`; `automations/routes.test.ts`). The runner is the first step of every `messages` pass
+  (`notifications/src/messages/automations.ts`): a run becomes an ORDINARY message (status scheduled, sent the same minute by
+  112's path). ⚠ **`notifications/src/messages/repository.ts` IS NOW THE SECOND CREATOR OF `public.message`** ("automatic runs",
+  `messages.guard`). Triggers (offers/news to customers only): `not_ordered_days` at 07:00 Effy time, `cart_left_hours` hourly;
+  once per occurrence (UNIQUE recipient key: the last paid order, plus the cart for a reminder - removing or refilling a line
+  makes no new key); only moments at or after `activated_at`, which a changed trigger AND a resume reset (no backlog, nothing
+  missed sent). The run's audience is the internal filter `automationRun` (parseAudience refuses it from staff). Repeats: day /
+  week on days / month on 1–28 at a time; a run waits while the last is still sending, then advances to the first due time after
+  now; past its end it finishes. Metrics `AutomationRuns`, `AutomationRecipients` (Effy/Notifications); no new alarm.
+- **First name (US5)**: `{first name}` in the body only (never the title - DB CHECK too), stored as `{first name|fallback}`;
+  filled at read (`fillFirstName`): inbox and email get the name (drivers/shop staff: the first word of their name), every push
+  and the email preheader the fallback. No name in any row, log or metric.
+- **back-office**: composer (Insert first name, fallback, email switch and preview); report email lines; Messages › Automatic
+  messages (list, page with runs and pause/resume/end and activity `bo-automation`, editor with When). Tours AM, AE, AU new (107's
+  inventory now 60; AE was not in the plan - the automatic editor is its own screen), ME raised to version 2.
+- **Gateways**: shared 187 → 189/300; staff 234 → **240/300 (80%)**. ⚠ 112's plan - a third gateway (constitution amendment)
+  before about 255 - is now close: the next feature adding staff routes should do it first.
+- **Verified**: shared notification containers (email 7, unsubscribe 5, audience 10, all), notifications containers 44 (automations
+  10, first name 4), customer containers 52 (erasure 7), orders notification-settings 5, admin messages routes 18; every edge
+  unit suite (3,023); shared-types, email-kit 92, legal-content; back-office 455 + build; customer-web 745 + build + depcruise;
+  customer app host tests (505/506) and the driver fixture. Defects caught while building: the shared word check refused an
+  offer DRAFT not naming Effy (112 allows it until send) - fixed with a `draft` option; a flaky consent-log test (two rows, one
+  timestamp). **Failures not caused by 115** (each checked): shared `shopper-handler` 070 (local role limits), consignment P6 and
+  orders S4 (a "—" vs "-" in wording), admin pricing/courier-services/promotions (local stub has no `DB_HOST` for pooled queries),
+  app `UnitPriceWordsTest`, `check-no-telemetry-pii.sh` (the drain's `email` channel name - same three hits on HEAD), shared-types
+  package-status (099).
+- **Before a real offer goes out**: the operator approves `src/consent/marketing.json`'s 111 wording and `marketing-email.json`
+  (115), and sets `/effy/<env>/mail/postal_address` (shown in the marketing footer; empty today).
+- **Deploy order**: approve both wordings → `make db-up ENV=dev` → `make edge-deploy SERVICE=notifications ENV=dev` (the drain
+  must know message emails before anything writes one) → `make edge-deploy-all ENV=dev` (edge-shared changed: customer,
+  admin-messages and orders carry the new routes) → back-office, customer-web → the customer app. The walk: `specs/115-messages-email-automation/quickstart.md`.
+
 **114-checkout-stock-holds** - Hold Stock at Checkout ([spec](specs/114-checkout-stock-holds/spec.md)). 🔨 **BUILT 2026-11-12;
 NOT MIGRATED, APPLIED, DEPLOYED OR WALKED.** Pressing Pay holds the counted sizes in the order for the hold time, so two shoppers
 can never both buy the last unit (closes 054's accepted residual oversell window, candidate register item 16).

@@ -39,7 +39,7 @@ import { TestSendDialog } from "./components/TestSendDialog"
 import { messageError } from "./errorText"
 import { MessageStatusWord } from "./MessagesListScreen"
 import { MESSAGES_ROOT, messageQuery, useMessageAction } from "./queries"
-import { AUDIENCE_WORD, destinationWords, filterWords, KIND_WORD, whenWords } from "./words"
+import { AUDIENCE_WORD, destinationWords, EMAIL_CANNOT_RECALL, filterWords, KIND_WORD, whenWords } from "./words"
 
 type Act = "cancel" | "stop" | "withdraw"
 
@@ -258,6 +258,9 @@ function Loaded({ m }: { m: MessageDTO }) {
                   value: destinationWords(a.destination),
                 })),
                 { key: "push", label: "Phone notification", value: m.push ? "Yes" : "No, inbox only" },
+                ...(m.audiences.some((a) => a.audience === "customer")
+                  ? [{ key: "email", label: "Email", value: m.email ? "Yes" : "No" }]
+                  : []),
                 { key: "ends", label: "Ends", value: m.endsAt ? whenWords(m.endsAt) : "No end" },
                 { key: "by", label: "Written by", value: m.createdBy },
               ]}
@@ -270,7 +273,10 @@ function Loaded({ m }: { m: MessageDTO }) {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{confirming ? CONFIRM[confirming].title : ""}</AlertDialogTitle>
-            <AlertDialogDescription>{confirming ? CONFIRM[confirming].body : ""}</AlertDialogDescription>
+            <AlertDialogDescription>
+              {confirming ? CONFIRM[confirming].body : ""}
+              {confirming === "withdraw" && m.email ? ` ${EMAIL_CANNOT_RECALL}` : ""}
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Keep it</AlertDialogCancel>

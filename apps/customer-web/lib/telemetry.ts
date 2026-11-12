@@ -273,6 +273,10 @@ export type StorefrontEvent =
   | { name: "checkout_promotions_changed"; props: Record<string, never> }
   // 114: the cart changed while paying (stock another shopper took); nothing was charged.
   | { name: "checkout_stock_changed"; props: Record<string, never> }
+  // 115: marketing email turned on or off in settings, and the unsubscribe page. Category and booleans only.
+  | { name: "marketing_email_toggled"; props: { category: "offers" | "news"; on: "true" | "false" } }
+  | { name: "email_unsubscribed"; props: Record<string, never> }
+  | { name: "email_unsubscribe_undone"; props: Record<string, never> }
   // Payment. Never a card number (not even the last four), security code, payment-method id, provider
   // customer id or amount. `method` is a family, not a provider.
   | { name: "payment_method_selected"; props: { method: PaymentMethodFamily } }

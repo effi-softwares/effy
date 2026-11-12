@@ -9,6 +9,8 @@
 // Pinned  = listed, important, unread and its pin not yet passed; sent apart from the time-ordered pages and never in
 //           them, so a cursor stays exact.
 import {
+  fillFirstName,
+  firstWordOf,
   INBOX_CATEGORIES,
   OPERATING_TZ,
   type InboxCategory,
@@ -32,7 +34,18 @@ const PINNED = `importance = 'important' AND read_at IS NULL AND pinned_until IS
 /** Microseconds kept, so a cut-off or cursor built from it names exactly this row. */
 const STAMP = (col: string) => `to_char(${col} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`;
 
-const COLUMNS = `id::text AS id, type, category, importance, title, body, destination, expires_at, image_url,
+/**
+ * 115: the recipient's raw name, read only for a body holding the first-name placeholder (so every other row costs
+ * nothing): a customer's given name, a driver's or shop staff member's full name (its first word is used, `firstWordOf`).
+ */
+export const RECIPIENT_NAME_SQL = `CASE WHEN body LIKE '%{first name%' THEN CASE audience
+    WHEN 'customer' THEN (SELECT c.given_name FROM public.customer c WHERE c.cognito_sub = recipient_sub)
+    WHEN 'driver' THEN (SELECT d.name FROM public.driver d WHERE d.cognito_sub = recipient_sub LIMIT 1)
+    WHEN 'shop' THEN (SELECT ss.name FROM public.shop_staff ss WHERE ss.cognito_sub = recipient_sub LIMIT 1)
+  END END`;
+
+const COLUMNS = `id::text AS id, type, category, importance, title, body, destination, expires_at, image_url, audience,
+  ${RECIPIENT_NAME_SQL} AS recipient_name,
   ${STAMP("created_at")} AS created_at, ${STAMP("read_at")} AS read_at, ${STAMP("pinned_until")} AS pinned_until`;
 
 interface Row {
@@ -45,6 +58,8 @@ interface Row {
   destination: Record<string, string>;
   expires_at: Date | null;
   image_url: string | null;
+  audience: NotificationAudience;
+  recipient_name: string | null;
   created_at: string;
   read_at: string | null;
   pinned_until: string | null;
@@ -96,6 +111,12 @@ export function endsLabel(category: string, expiresAt: Date | null, now: Date = 
   return `Ends ${new Intl.DateTimeFormat("en-AU", { timeZone: OPERATING_TZ, day: "numeric", month: "short" }).format(expiresAt)}`;
 }
 
+/** A customer's given name is their first name; a driver's or shop staff member's is the first word of their name. */
+export function firstNameFor(audience: NotificationAudience, rawName: string | null): string | null {
+  if (!rawName) return null;
+  return audience === "customer" ? rawName.trim() || null : firstWordOf(rawName);
+}
+
 function toItem(r: Row, now: Date): InboxItemDTO {
   return {
     id: r.id,
@@ -103,7 +124,8 @@ function toItem(r: Row, now: Date): InboxItemDTO {
     category: r.category,
     importance: r.importance,
     title: r.title,
-    body: r.body,
+    // 115: the stored placeholder is filled here with the reader's first name, else the message's fallback.
+    body: fillFirstName(r.body, firstNameFor(r.audience, r.recipient_name)),
     destination: r.destination,
     createdAt: r.created_at,
     readAt: r.read_at,

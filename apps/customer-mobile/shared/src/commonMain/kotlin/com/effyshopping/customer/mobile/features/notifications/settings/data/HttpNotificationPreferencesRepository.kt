@@ -46,6 +46,7 @@ class HttpNotificationPreferencesRepository(private val edge: HttpClient) : Noti
             },
             consent = change.consent.takeIf { it.isNotEmpty() }?.let { ConsentChange(offers = it["offers"], news = it["news"]) },
             wordingVersion = change.wordingVersion,
+            emailWordingVersion = change.emailWordingVersion,
         )
         val response = edge.patch(PATH) {
             contentType(ContentType.Application.Json)
@@ -70,6 +71,7 @@ class HttpNotificationPreferencesRepository(private val edge: HttpClient) : Noti
         news = ConsentState(dto.consent.news.granted, dto.consent.news.answeredAt),
         askForOffers = dto.askForOffers,
         wordingVersion = dto.wordingVersion,
+        emailWordingVersion = dto.emailWordingVersion,
     )
 
     private suspend inline fun <T> request(block: () -> T): T =

@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.effyshopping.customer.mobile.core.observability.AnalyticsEvent
 import com.effyshopping.customer.mobile.features.legal.generated.MarketingConsent
+import com.effyshopping.customer.mobile.features.legal.generated.MarketingEmailConsent
 import com.effyshopping.customer.mobile.features.notifications.settings.domain.ConsentState
 import com.effyshopping.customer.mobile.features.notifications.settings.domain.ConsentVia
 import com.effyshopping.customer.mobile.features.notifications.settings.domain.ConsentWordingChanged
@@ -27,6 +28,8 @@ data class NotificationSettingsUiState(
     val prefs: NotificationPreferences? = null,
     /** A one-line message after a refused change ("We couldn't save that…"); cleared by [NotificationSettingsViewModel.messageShown]. */
     val message: String? = null,
+    /** 115: Offers or News waiting for the shopper's yes to email, in Effy's words (a sheet); null when none. */
+    val emailAsk: String? = null,
 )
 
 class NotificationSettingsViewModel(
@@ -76,6 +79,48 @@ class NotificationSettingsViewModel(
             PreferencesUpdate(consent = mapOf(category to granted), via = ConsentVia.SETTINGS, wordingVersion = MarketingConsent.version),
         )
         track(AnalyticsEvent.NotificationSettingChanged(category, "consent", granted))
+    }
+
+    /**
+     * 115: email for Offers or News. Turning it on first shows Effy's email wording (`MarketingEmailConsent`) and saves
+     * only on the yes ([confirmMarketingEmail]); turning it off saves at once.
+     */
+    fun setMarketingEmail(category: String, enabled: Boolean) {
+        val prefs = _state.value.prefs ?: return
+        val choice = prefs.categories.firstOrNull { it.category == category } ?: return
+        if (!choice.marketing || PreferenceChannel.EMAIL !in choice.changeable) return
+        if (enabled) {
+            if (prefs.consent(category)?.granted != true) return
+            _state.value = _state.value.copy(emailAsk = category)
+            return
+        }
+        saveEmail(prefs, category, false)
+    }
+
+    /** The yes on the email sheet. */
+    fun confirmMarketingEmail() {
+        val category = _state.value.emailAsk ?: return
+        _state.value = _state.value.copy(emailAsk = null)
+        val prefs = _state.value.prefs ?: return
+        saveEmail(prefs, category, true)
+    }
+
+    /** "Not now", or the sheet dismissed: nothing is saved. */
+    fun dismissMarketingEmail() {
+        _state.value = _state.value.copy(emailAsk = null)
+    }
+
+    private fun saveEmail(prefs: NotificationPreferences, category: String, enabled: Boolean) {
+        val optimistic = prefs.copy(categories = prefs.categories.map { if (it.category == category) it.with(PreferenceChannel.EMAIL, enabled) else it })
+        save(
+            prefs,
+            optimistic,
+            PreferencesUpdate(
+                choices = listOf(PreferencesUpdate.Choice(category, PreferenceChannel.EMAIL, enabled)),
+                emailWordingVersion = if (enabled) MarketingEmailConsent.version else null,
+            ),
+        )
+        track(AnalyticsEvent.MarketingEmailToggled(category, enabled))
     }
 
     fun messageShown() {

@@ -475,6 +475,12 @@ data class NotificationPreferencesDTO (
     val consent: MarketingConsentDTO,
 
     /**
+     * 115: the marketing-EMAIL wording version current now; sent back as `emailWordingVersion`
+     * when turning email on.
+     */
+    val emailWordingVersion: String,
+
+    /**
      * The consent wording version the server holds as current.
      */
     val wordingVersion: String
@@ -533,6 +539,14 @@ data class ConsentStateDTO (
 data class NotificationPreferencesChange (
     val changes: List<PreferenceChoiceChange>? = null,
     val consent: ConsentChange? = null,
+
+    /**
+     * 115: the marketing-email wording shown; required when a change turns email ON for offers
+     * or news, and must be the current one (else 409 `consent_wording_changed`). Email for a
+     * category also needs that category's yes (else 400 `consent_required`).
+     */
+    val emailWordingVersion: String? = null,
+
     val surface: ConsentSurface,
 
     /**

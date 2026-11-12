@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 
-import { MARKETING_CONSENT } from "@effy/legal-content/consent"
+import { MARKETING_CONSENT, MARKETING_EMAIL_CONSENT } from "@effy/legal-content/consent"
 import { categoriesFor, type NotificationCategoryPolicy, type NotificationPreferencesDTO, type PreferenceCategoryDTO } from "@effy/shared-types"
 
 import { Switch } from "@/components/ui/form"
@@ -10,7 +10,14 @@ import { capture } from "@/lib/telemetry"
 import { toast } from "@/lib/toast-store"
 
 type Channel = "push" | "email"
-type Change = { changes?: { category: string; channel: Channel; enabled: boolean }[]; consent?: Record<string, boolean>; via?: "settings"; wordingVersion?: string }
+type Change = {
+  changes?: { category: string; channel: Channel; enabled: boolean }[]
+  consent?: Record<string, boolean>
+  via?: "settings"
+  wordingVersion?: string
+  /** 115: the marketing-email wording shown, sent when turning email on. */
+  emailWordingVersion?: string
+}
 
 /**
  * Notification settings on the website (111 US1), at parity with the app: a switch per way each kind of message can
@@ -45,6 +52,17 @@ export function NotificationSettingsForm({ initial }: { initial: NotificationPre
     void save(prefs, optimistic, { changes: [{ category, channel, enabled }] })
   }
 
+  /** 115: email for offers or news - turning it on is a yes in Effy's email wording, shown beside the switch. */
+  function setMarketingEmail(category: "offers" | "news", enabled: boolean) {
+    const optimistic = { ...prefs, categories: prefs.categories.map((c) => (c.category === category ? { ...c, email: enabled } : c)) }
+    capture({ name: "marketing_email_toggled", props: { category, on: enabled ? "true" : "false" } })
+    void save(prefs, optimistic, {
+      changes: [{ category, channel: "email", enabled }],
+      via: "settings",
+      ...(enabled ? { emailWordingVersion: MARKETING_EMAIL_CONSENT.version } : {}),
+    })
+  }
+
   function setConsent(category: "offers" | "news", granted: boolean) {
     const answer = { granted, answeredAt: prefs.consent[category].answeredAt }
     const optimistic = { ...prefs, askForOffers: false, consent: { ...prefs.consent, [category]: answer } }
@@ -69,6 +87,7 @@ export function NotificationSettingsForm({ initial }: { initial: NotificationPre
                   granted={prefs.consent[policy.category as "offers" | "news"].granted}
                   onConsent={(g) => setConsent(policy.category as "offers" | "news", g)}
                   onPush={(e) => setChannel(policy.category, "push", e)}
+                  onEmail={(e) => setMarketingEmail(policy.category as "offers" | "news", e)}
                 />
               ) : (
                 <Channels policy={policy} choice={choice} onChange={(ch, e) => setChannel(policy.category, ch, e)} />
@@ -125,17 +144,23 @@ function Marketing({
   granted,
   onConsent,
   onPush,
+  onEmail,
 }: {
   policy: NotificationCategoryPolicy
   choice: PreferenceCategoryDTO
   granted: boolean
   onConsent: (granted: boolean) => void
   onPush: (enabled: boolean) => void
+  onEmail: (enabled: boolean) => void
 }) {
   return (
     <>
       <SwitchRow id={`${policy.category}-consent`} label={`Hear about ${policy.label.toLowerCase()}`} supporting={policy.description} checked={granted} onChange={onConsent} />
       {granted ? <SwitchRow id={`${policy.category}-push`} label="App notifications" checked={choice.push} onChange={onPush} /> : null}
+      {/* 115: email is its own yes, in Effy's email wording - shown here, beside the switch that gives it. */}
+      {granted && choice.changeable.includes("email") ? (
+        <SwitchRow id={`${policy.category}-email`} label="Email" supporting={MARKETING_EMAIL_CONSENT.body} checked={choice.email} onChange={onEmail} />
+      ) : null}
     </>
   )
 }

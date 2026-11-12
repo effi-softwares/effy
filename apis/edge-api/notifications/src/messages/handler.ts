@@ -41,6 +41,8 @@ export const handler: ScheduledHandler = async (_event, context?: Context) => {
                 { Name: "MessagesPagesWritten", Unit: "Count" },
                 { Name: "MessagesSent", Unit: "Count" },
                 { Name: "MessagesNotSent", Unit: "Count" },
+                { Name: "AutomationRuns", Unit: "Count" },
+                { Name: "AutomationRecipients", Unit: "Count" },
               ],
             },
           ],
@@ -48,6 +50,8 @@ export const handler: ScheduledHandler = async (_event, context?: Context) => {
         MessagesPagesWritten: summary.pages,
         MessagesSent: summary.sent,
         MessagesNotSent: summary.notSent,
+        AutomationRuns: summary.automationRuns,
+        AutomationRecipients: summary.automationRecipients,
       }),
     );
   } catch (err) {

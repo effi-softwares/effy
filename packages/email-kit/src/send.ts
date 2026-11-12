@@ -13,6 +13,10 @@ export interface SendOptions {
   readonly to: string;
   readonly audience: Audience;
   readonly phantom?: boolean;
+  /** 115: extra headers, e.g. List-Unsubscribe and List-Unsubscribe-Post (RFC 8058) on marketing email. */
+  readonly headers?: readonly { readonly name: string; readonly value: string }[];
+  /** 115: a subject prefix for staff test sends ("Test: "). */
+  readonly subjectPrefix?: string;
 }
 
 export interface SendResult {
@@ -56,12 +60,12 @@ export async function sendEmail<T extends TemplateId>(
         EmailTags: [{ Name: "effy-template", Value: id }],
         Content: {
           Simple: {
-            Subject: { Data: message.subject, Charset: "UTF-8" },
+            Subject: { Data: `${options.subjectPrefix ?? ""}${message.subject}`, Charset: "UTF-8" },
             Body: {
               Html: { Data: message.html, Charset: "UTF-8" },
               Text: { Data: message.text, Charset: "UTF-8" },
             },
-            Headers: [{ Name: "X-Effy-Template", Value: id }],
+            Headers: [{ Name: "X-Effy-Template", Value: id }, ...(options.headers ?? []).map((h) => ({ Name: h.name, Value: h.value }))],
           },
         },
       }),

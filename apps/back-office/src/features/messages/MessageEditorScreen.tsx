@@ -5,10 +5,12 @@ import { useNavigate } from "@tanstack/react-router"
 import { ImagePlus, Send, Trash2, UserRound } from "lucide-react"
 
 import {
+  FIRST_NAME_PLACEHOLDER,
   MESSAGE_KINDS,
   MESSAGE_LIMITS,
   MESSAGE_MUST_NAME_EFFY,
   OPERATING_CITY,
+  hasFirstNamePlaceholder,
   type MessageDTO,
   type MessageKind,
   type NotificationAudience,
@@ -27,6 +29,7 @@ import { Previews } from "./components/Previews"
 import { SendSheet } from "./components/SendSheet"
 import { TestSendDialog } from "./components/TestSendDialog"
 import { bodyOf, chosenAudiences, draftOf, draftProblems, emptyDraft, withKind, type MessageDraft } from "./draft"
+import { EMAIL_WHO } from "./words"
 import { messageError } from "./errorText"
 import { messageQuery, useCreateMessage, useUpdateMessage } from "./queries"
 import { uploadMessagePicture } from "./repo"
@@ -100,6 +103,7 @@ function Editor({ current, copyOf }: { current: MessageDTO | null; copyOf: Messa
   const [testing, setTesting] = useState(false)
   const [preview, setPreview] = useState<NotificationAudience | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
+  const bodyRef = useRef<HTMLTextAreaElement>(null)
   const count = useAudienceCount(d)
   useHeaderDetail(current ? current.title : "New message")
 
@@ -257,9 +261,28 @@ function Editor({ current, copyOf }: { current: MessageDTO | null; copyOf: Messa
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="message-body">Text</Label>
+                <div className="flex items-center justify-between gap-2">
+                  <Label htmlFor="message-body">Text</Label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    data-tour="messages.first-name"
+                    onClick={() => {
+                      // 115: the person's first name, filled in their inbox and email; never on a lock screen.
+                      const el = bodyRef.current
+                      const at = el ? el.selectionStart : d.body.length
+                      const end = el ? el.selectionEnd : d.body.length
+                      set("body", `${d.body.slice(0, at)}${FIRST_NAME_PLACEHOLDER}${d.body.slice(end)}`)
+                    }}
+                  >
+                    <UserRound aria-hidden="true" />
+                    Insert first name
+                  </Button>
+                </div>
                 <Textarea
                   id="message-body"
+                  ref={bodyRef}
                   rows={5}
                   value={d.body}
                   maxLength={MESSAGE_LIMITS.body}
@@ -273,6 +296,20 @@ function Editor({ current, copyOf }: { current: MessageDTO | null; copyOf: Messa
                 />
                 {marketing ? <p className="text-sm text-muted-foreground">{MESSAGE_MUST_NAME_EFFY}</p> : null}
               </div>
+              {hasFirstNamePlaceholder(d.body) ? (
+                <div className="max-w-xs space-y-2">
+                  <Label htmlFor="message-fallback">When someone has no first name</Label>
+                  <Input
+                    id="message-fallback"
+                    value={d.nameFallback}
+                    maxLength={20}
+                    onChange={(e) => set("nameFallback", e.target.value)}
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    Phone notifications always use this word: a name never shows on a lock screen.
+                  </p>
+                </div>
+              ) : null}
               <div className="space-y-2">
                 <span className="text-sm font-medium">Picture (optional)</span>
                 <input
@@ -343,6 +380,15 @@ function Editor({ current, copyOf }: { current: MessageDTO | null; copyOf: Messa
                   <Switch checked={d.push} onCheckedChange={(on) => set("push", on)} />
                   Also send a phone notification
                 </label>
+              ) : null}
+              {chosen.includes("customer") ? (
+                <div className="space-y-1" data-tour="messages.email">
+                  <label className="flex items-center gap-3 text-sm">
+                    <Switch checked={d.email} onCheckedChange={(on) => set("email", on)} />
+                    Also send it by email
+                  </label>
+                  <p className="pl-12 text-sm text-muted-foreground">{EMAIL_WHO[marketing ? "marketing" : "service"]}</p>
+                </div>
               ) : null}
               <div className="max-w-xs space-y-2">
                 <Label htmlFor="message-ends">Ends (optional)</Label>
