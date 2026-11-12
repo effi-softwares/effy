@@ -185,6 +185,6 @@ firebase_vapid_public_key    = "BFtiWZrQmvX7pUildkzxb3mfRZ5Yl0P6mnaZPDUPW33smtGv
 
 # 116 - off until the operator supplies them (asked for, never inferred). Keep or change these on purpose.
 # android_app_cert_sha256: the dev build's signing key fingerprint, from `./gradlew :androidApp:signingReport`.
-android_app_cert_sha256 = []
+android_app_cert_sha256 = ["A1:1F:EB:BD:2E:36:C2:7B:71:E3:14:72:DF:AD:18:75:1F:F6:99:BC:B9:2E:6A:B4:B1:A8:5C:D1:E9:01:36:CF"]
 # apple_team_id: the paid Apple Developer account's team id (docs/observability-apple-blockers.md, "After paying").
 apple_team_id = ""
