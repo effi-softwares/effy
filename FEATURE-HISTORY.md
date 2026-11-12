@@ -4,8 +4,8 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
-**113-data-lifecycle** - Data Lifecycle ([spec](specs/113-data-lifecycle/spec.md)). 🔨 **BUILT 2026-11-12; NOT APPLIED,
-MIGRATED, DEPLOYED OR WALKED.** Three clean-ups that run by themselves, a back-office page to watch them, and the rules
+**113-data-lifecycle** - Data Lifecycle ([spec](specs/113-data-lifecycle/spec.md)). ✅ **SIGNED OFF 2026-11-12: APPLIED, MIGRATED AND
+DEPLOYED TO DEV; WALK NOT RECORDED.** Three clean-ups that run by themselves, a back-office page to watch them, and the rules
 for what a deleted customer leaves behind (candidate register items 2 and 3, notifications backlog A9).
 - **Migration** `20261112090000_data_lifecycle.sql` (additive; real goose up / down-to 20261111090000 / up on local Postgres):
   order status `abandoned` + `order_unpaid_idx`; refund kind `unplaced` / reason `order_abandoned`; customer `erased`, nullable

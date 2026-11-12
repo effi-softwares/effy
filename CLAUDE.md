@@ -626,7 +626,7 @@ served by the one serverless backend** - `storefront` and `commerce` for shopper
 shop and driver services - at `edge-api.dev.effyshopping.com`, with back-office at
 `staff-api.dev.effyshopping.com` (075, moved 2026-10-08). The Go service that 040 deployed at
 `core-api.dev.effyshopping.com` no longer exists. Still ahead: **the event backbone**
-(not built). Abandoned unpaid orders are swept by 113 (built, not yet deployed).
+(not built). Abandoned unpaid orders are swept by 113 (deployed to dev).
 
 ⚠ **NO SCREEN REFRESHES ITS DATA ON A TIMER (071).** All six apps are told when something they show
 has changed - over a managed channel (AWS AppSync Events), independent of push notifications - and
@@ -660,7 +660,7 @@ the entries carry gotchas and deploy-ordering rules that the code does not. Slic
 
 Features recorded:
 
-- **113-data-lifecycle** - Data Lifecycle (unpaid orders closed after the abandon time through one `abandonOrder`, payment cancelled first; a declined card no longer loses a later payment; deleted accounts erased on the promised date, whole, orders kept stripped; restore refused after the date; old phone registrations pruned; Settings › Clean-ups; staff gateway 234/300) - built 2026-11-12; not applied, migrated, deployed or walked
+- **113-data-lifecycle** - Data Lifecycle (unpaid orders closed after the abandon time through one `abandonOrder`, payment cancelled first; a declined card no longer loses a later payment; deleted accounts erased on the promised date, whole, orders kept stripped; restore refused after the date; old phone registrations pruned; Settings › Clean-ups; staff gateway 234/300) - signed off 2026-11-12: applied, migrated and deployed to dev; walk not recorded
 - **112-backoffice-messages** - Back-Office Messages (People › Messages: announcements to drivers and shops, important notices, offers and news to customers who said yes, direct messages; fixed audience filters with a live count; previews; send now or later; stop, cancel, withdraw; a report that adds up; sent by a resumable `messages` worker through `notify()`; new stack `admin-messages`, staff gateway 231/300 past the 75% warning) - signed off 2026-11-11: applied, migrated and deployed to dev; walk not recorded
 - **111-notification-preferences** - Notification Preferences & Marketing Consent (one category policy in shared-types; customers choose push/email per category; offers and news only after a recorded yes in Effy's versioned words; `notify()` writes nothing / `skipped` / `capped` / held to 08:00; the one-time ask after an order; limits in back-office; Android channels per category) - migrated and deployed to dev, signed off with 112 (2026-11-11); not walked; consent wording live as a draft, awaits approval
 - **110-notification-inboxes** - Notification Inboxes (an inbox with a live bell in the customer app and website, the driver app and the shop console; seen/read/archive/mark-all; live kind `inbox` announced after commit by `notify()`; out for delivery; points expiry push; driver catch-up notice; push badge) - built 2026-11-08; migrated and deployed to dev, not walked
