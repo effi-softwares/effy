@@ -85,3 +85,5 @@ or Android refuses it. Losing a keystore means uninstalling the app on every pho
 - **iPhone builds** keep their own version in the Xcode project; this does not change it.
 - **Play Store uploads** (an AAB signed with an upload key) are not set up. The customer key here is
   a dev key, never a store key. See `docs/store-submission/`.
+- **Production distribution** (which store, public or unlisted, accounts, cost):
+  [distribution-plan.md](../store-submission/distribution-plan.md).

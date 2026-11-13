@@ -7,6 +7,9 @@ The itemised legal/privacy/deletion gate for submitting customer-mobile. States 
 Supersedes `specs/034-customer-account-center/SUBMISSION-BLOCKERS.md` Blocker 2 (privacy/terms did not
 exist - they now do) and keeps its other blockers honest.
 
+Where each app is published (public vs unlisted), the developer accounts and their cost:
+[distribution-plan.md](./distribution-plan.md).
+
 | # | Requirement | Store | State | Evidence / note |
 | --- | --- | --- | --- | --- |
 | 1 | In-app privacy policy link, easily accessible | Both | satisfied | Account → Privacy & data (web built; **mobile screen wiring pending**, see row 12) |

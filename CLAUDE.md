@@ -607,6 +607,11 @@ the standard three-module layout (`shared` + `androidApp` + `iosApp`) and packag
 numbers) only with `BUMP=patch|minor|major`. They write `customer-app-<version>+<build>.apk` / `driver-app-…`. The file
 is committed after each build. Guide: [docs/runbooks/android-release-apk.md](docs/runbooks/android-release-apk.md).
 
+⚠ **PRODUCTION DISTRIBUTION IS DECIDED (2026-11-13), NOT SET UP.** Customer app → public App Store + Play Store; driver
+app → an **unlisted** App Store app + Play (public listing or closed track). Both accounts in Effy's name as an
+organisation (D-U-N-S); US$99/yr + US$25 once covers all four. The first store builds MUST carry the in-app update check
+(minimum/latest build, 426 `app_update_required`) - not built yet. Plan: [docs/store-submission/distribution-plan.md](docs/store-submission/distribution-plan.md).
+
 Baseline stack: **Kotlin 2.4.0, Compose Multiplatform 1.11.1, AGP 9.0.1, minSdk 24 /
 compileSdk + targetSdk 36**. ⚠ **BOTH APPS MUST PIN THE SAME TRIO - `composeMultiplatform`,
 `kotlin` AND `material3` - AND THE DRIVER APP ONCE DID NOT.** Commit `6c7beaf` bumped it to CMP 1.12.0
