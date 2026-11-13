@@ -595,6 +595,11 @@ the standard three-module layout (`shared` + `androidApp` + `iosApp`) and packag
 - `apps/customer-mobile` - `com.effyshopping.customer.mobile` - the customer shopping app.
 - `apps/driver-mobile` - `com.effyshopping.driver.mobile` - the driver delivery app.
 
+⚠ **AN APP'S VERSION LIVES IN ITS `version.properties`, NEVER IN `build.gradle.kts` (2026-11-13).** `make cm-apk` /
+`make dm-apk` raise the build number (`versionCode`) by one on every release build, and the version (`versionName`, three
+numbers) only with `BUMP=patch|minor|major`. They write `customer-app-<version>+<build>.apk` / `driver-app-…`. The file
+is committed after each build. Guide: [docs/runbooks/android-release-apk.md](docs/runbooks/android-release-apk.md).
+
 Baseline stack: **Kotlin 2.4.0, Compose Multiplatform 1.11.1, AGP 9.0.1, minSdk 24 /
 compileSdk + targetSdk 36**. ⚠ **BOTH APPS MUST PIN THE SAME TRIO - `composeMultiplatform`,
 `kotlin` AND `material3` - AND THE DRIVER APP ONCE DID NOT.** Commit `6c7beaf` bumped it to CMP 1.12.0
@@ -757,5 +762,5 @@ Features recorded:
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/116-links-badges-urgency/plan.md
+at specs/119-backoffice-team-management/plan.md
 <!-- SPECKIT END -->

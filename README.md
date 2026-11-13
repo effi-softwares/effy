@@ -210,6 +210,17 @@ Policy (what's breaking vs additive, deprecation/sunset, 410 for retired version
 [docs/api/versioning-policy.md](docs/api/versioning-policy.md). Which backend a new
 endpoint belongs to: [docs/api/path-assignment.md](docs/api/path-assignment.md).
 
+### Android release APKs
+
+```bash
+make cm-apk                  # customer-app-1.0.0+2.apk - the build number goes up by one, every time
+make dm-apk BUMP=patch       # driver-app-1.0.1+3.apk  - BUMP=patch|minor|major also raises the version
+```
+
+Both numbers live in each app's committed `version.properties`. **Commit it after every release
+build**, or the same numbers get handed out again. Full guide:
+[docs/runbooks/android-release-apk.md](docs/runbooks/android-release-apk.md).
+
 ## 6. Secret-hygiene sweep
 
 ```bash

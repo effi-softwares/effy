@@ -34,7 +34,7 @@ TF_ROOTS := $(BOOTSTRAP_DIR) $(GLOBAL_DIR) $(INFRA_DIR)/envs/dev $(INFRA_DIR)/en
         shop-dev shop-build shop-lint shop-test \
         cw-dev cw-build cw-lint cw-test cw-e2e cw-gates cw-size cw-depcruise \
         shop-verify-isolation \
-        cm-contract-gen cm-contract-check cm-tokens-gen cm-tokens-check cm-guard cm-codegen cm-keystore cm-apk cm-ngrok-edge \
+        cm-contract-gen cm-contract-check cm-tokens-gen cm-tokens-check cm-guard cm-codegen cm-keystore cm-apk dm-apk cm-ngrok-edge \
         customer-ios customer-android driver-ios driver-android \
         brand-gen brand-check email-gen email-check email-preview \
         dev-status dev-stop dev-start check-dev-park check-no-phantm
@@ -432,13 +432,25 @@ cm-keystore: ## customer-mobile: generate the git-ignored DEV signing keystore (
 	    -dname "CN=Effy Customer Dev, OU=Development, O=Effy, L=Sydney, ST=NSW, C=AU"; \
 	  echo "cm-keystore: created $(CM_KEYSTORE) - ensure keystore.properties points at it"; \
 	fi
-cm-apk: ## customer-mobile: build a signed DEV release APK for sideloading (needs secrets.properties + a keystore)
+cm-apk: ## customer-mobile: signed DEV release APK, build number +1 (BUMP=patch|minor|major also raises the version)
 	@test -f apps/customer-mobile/secrets.properties || { echo "cm-apk: apps/customer-mobile/secrets.properties missing - copy secrets.properties.example and fill from 'make output ENV=dev'"; exit 1; }
 	@test -f apps/customer-mobile/keystore.properties || { echo "cm-apk: apps/customer-mobile/keystore.properties missing - run 'make cm-keystore' then create it (see keystore.properties)"; exit 1; }
+	@bash scripts/bump-version.sh apps/customer-mobile/version.properties $(BUMP)
 	@cd apps/customer-mobile && ./gradlew :androidApp:assembleRelease
-	@echo ""
-	@echo "cm-apk: APK ready → apps/customer-mobile/androidApp/build/outputs/apk/release/androidApp-release.apk"
-	@echo "        install:  adb install -r <that path>   (or share the file and open it on the phone)"
+	@apk=$$(bash scripts/name-apk.sh apps/customer-mobile/androidApp customer-app) && echo "" && \
+	  echo "cm-apk: APK ready → $$apk" && \
+	  echo "        install:  adb install -r '$$apk'   (or share the file and open it on the phone)"
+
+# --- driver-mobile: signed release APK for sideloading. Signed with release/effy-driver-release.jks through the
+# git-ignored keystore.properties (keystore.properties.example); every update must use that same key.
+dm-apk: ## driver-mobile: signed release APK, build number +1 (BUMP=patch|minor|major also raises the version)
+	@test -f apps/driver-mobile/secrets.properties || { echo "dm-apk: apps/driver-mobile/secrets.properties missing - copy secrets.properties.example and fill from 'make output ENV=dev'"; exit 1; }
+	@test -f apps/driver-mobile/keystore.properties || { echo "dm-apk: apps/driver-mobile/keystore.properties missing - copy keystore.properties.example and fill it in"; exit 1; }
+	@bash scripts/bump-version.sh apps/driver-mobile/version.properties $(BUMP)
+	@cd apps/driver-mobile && ./gradlew :androidApp:assembleRelease
+	@apk=$$(bash scripts/name-apk.sh apps/driver-mobile/androidApp driver-app) && echo "" && \
+	  echo "dm-apk: APK ready → $$apk" && \
+	  echo "        install:  adb install -r '$$apk'   (or share the file and open it on the phone)"
 
 # --- run the mobile apps: pick a simulator, emulator or phone from a numbered list (Enter = the default),
 # then the debug build is built, installed and launched, and the app's output streams here until Ctrl+C

@@ -39,8 +39,12 @@ android {
         applicationId = "com.effyshopping.driver.mobile"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
-        versionCode = 1
-        versionName = "1.0"
+        // The version lives in ../version.properties, raised by `make dm-apk` (scripts/bump-version.sh) - never here.
+        val version = Properties().apply { rootProject.file("version.properties").inputStream().use { load(it) } }
+        versionCode = version.getProperty("versionCode")?.toIntOrNull()
+            ?: throw GradleException("version.properties: versionCode is missing or not a number")
+        versionName = version.getProperty("versionName")?.takeIf { Regex("""\d+\.\d+\.\d+""").matches(it) }
+            ?: throw GradleException("version.properties: versionName must be three numbers (1.0.0)")
     }
     packaging {
         resources {

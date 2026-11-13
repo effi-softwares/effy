@@ -17,6 +17,9 @@ This is a Kotlin Multiplatform project targeting Android, iOS.
 Use the run configurations provided by the run widget in your IDE's toolbar. You can also use these commands and options:
 
 - Android app: `./gradlew :androidApp:assembleDebug`
+- Android release APK to share: `make dm-apk` from the repo root - it raises the build number and names the file
+  `<app>-<version>+<build>.apk`. The version lives in [version.properties](./version.properties); see
+  [docs/runbooks/android-release-apk.md](../../docs/runbooks/android-release-apk.md).
 - iOS app: open the [/iosApp](./iosApp) directory in Xcode and run it from there.
 
 ---
