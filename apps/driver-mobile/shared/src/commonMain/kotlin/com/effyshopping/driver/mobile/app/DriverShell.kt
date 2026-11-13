@@ -438,6 +438,8 @@ fun DriverShell(
                     val todaySt by todayVm.state.collectAsState()
                     val pending by container.offlineQueue.pending.collectAsState()
                     val proofs by container.proofOutbox.pending.collectAsState()
+                    val updateAvailable by container.appUpdateGate.available.collectAsState()
+                    val updateOffered by container.appUpdateGate.updateOffered.collectAsState()
                     AccountScreen(
                         // The duty row follows the toggle, not the value the session started with.
                         driver = session.driver.copy(dutyStatus = todaySt.dutyStatus),
@@ -445,11 +447,19 @@ fun DriverShell(
                         onAppearanceChange = container.appearance::setMode,
                         signingOut = signingOut,
                         onOpenHelp = { tabs.push(HelpRoute) },
-                        appVersion = container.appVersion,
+                        // 121: the version and the build number the update check compares, from version.properties.
+                        appVersion = "${AppConfig.appVersion} (${AppConfig.appBuild})",
                         dispatchPhone = AppConfig.dispatchPhone,
                         hubDeskPhone = AppConfig.hubDeskPhone,
                         handbookUrl = AppConfig.handbookUrl,
                         onDial = mapLauncher::dial,
+                        updateAvailable = updateAvailable && updateOffered,
+                        onUpdate = {
+                            container.analyticsDriver.capture(
+                                com.effyshopping.driver.mobile.core.observability.AnalyticsEvent.AppUpdateAction("available", "update"),
+                            )
+                            container.appUpdateGate.updateNow()
+                        },
                         onOpenLink = mapLauncher::openLink,
                         outstandingWork = todaySt.today?.remainingCount,
                         parcelsToReturn = todaySt.today?.toReturn?.count,

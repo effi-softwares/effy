@@ -1,0 +1,959 @@
+package com.effyshopping.mobile.kit.update
+
+/**
+ * A copy of `packages/shared-types/src/app-updates.fixtures.json`, embedded because `commonTest` cannot read a file
+ * outside the app. Do not edit by hand: `packages/shared-types/src/app-updates.test.ts` reads this file and fails if it
+ * differs. Change the source first, then copy it here.
+ */
+internal const val APP_UPDATE_FIXTURE = """
+{
+  "_comment": "121 - app update settings. Shared by packages/shared-types (TypeScript: validateAppUpdateSettings, decideAppUpdate) and both mobile apps through packages/mobile-kit (Kotlin: parseAppUpdateSettings, decideAppUpdate). `decide`: the outcome for a phone on `build`; `storeAllows` is false only on an Android install from Play when Play has no update for this phone. `publish`: what `make app-updates` accepts (`ok`). `phone`: what the phone accepts (`valid`) - only the shape and the order of the numbers; anything else is no answer, and the phone lets the person in. A copy is embedded in packages/mobile-kit/commonTest/update/AppUpdateFixture.kt; app-updates.test.ts fails a copy that differs.",
+  "decide": [
+    {
+      "name": "no settings \u2192 none",
+      "settings": null,
+      "platform": "ios",
+      "build": 1,
+      "noticeShownFor": null,
+      "storeAllows": true,
+      "expect": {
+        "level": "none"
+      }
+    },
+    {
+      "name": "below minimum \u2192 mandatory",
+      "settings": {
+        "schema": 1,
+        "ios": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://apps.apple.com/au/app/id6740012345"
+        },
+        "android": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://play.google.com/store/apps/details?id=com.effyshopping.customer.mobile"
+        }
+      },
+      "platform": "ios",
+      "build": 9,
+      "noticeShownFor": null,
+      "storeAllows": true,
+      "expect": {
+        "level": "mandatory"
+      }
+    },
+    {
+      "name": "at minimum, below recommended \u2192 optional",
+      "settings": {
+        "schema": 1,
+        "ios": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://apps.apple.com/au/app/id6740012345"
+        },
+        "android": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://play.google.com/store/apps/details?id=com.effyshopping.customer.mobile"
+        }
+      },
+      "platform": "ios",
+      "build": 10,
+      "noticeShownFor": null,
+      "storeAllows": true,
+      "expect": {
+        "level": "optional"
+      }
+    },
+    {
+      "name": "just below recommended \u2192 optional",
+      "settings": {
+        "schema": 1,
+        "ios": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://apps.apple.com/au/app/id6740012345"
+        },
+        "android": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://play.google.com/store/apps/details?id=com.effyshopping.customer.mobile"
+        }
+      },
+      "platform": "ios",
+      "build": 19,
+      "noticeShownFor": null,
+      "storeAllows": true,
+      "expect": {
+        "level": "optional"
+      }
+    },
+    {
+      "name": "at recommended, below latest \u2192 notice",
+      "settings": {
+        "schema": 1,
+        "ios": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://apps.apple.com/au/app/id6740012345"
+        },
+        "android": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://play.google.com/store/apps/details?id=com.effyshopping.customer.mobile"
+        }
+      },
+      "platform": "ios",
+      "build": 20,
+      "noticeShownFor": null,
+      "storeAllows": true,
+      "expect": {
+        "level": "notice",
+        "latest": 30
+      }
+    },
+    {
+      "name": "just below latest \u2192 notice",
+      "settings": {
+        "schema": 1,
+        "ios": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://apps.apple.com/au/app/id6740012345"
+        },
+        "android": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://play.google.com/store/apps/details?id=com.effyshopping.customer.mobile"
+        }
+      },
+      "platform": "ios",
+      "build": 29,
+      "noticeShownFor": null,
+      "storeAllows": true,
+      "expect": {
+        "level": "notice",
+        "latest": 30
+      }
+    },
+    {
+      "name": "at latest \u2192 none",
+      "settings": {
+        "schema": 1,
+        "ios": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://apps.apple.com/au/app/id6740012345"
+        },
+        "android": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://play.google.com/store/apps/details?id=com.effyshopping.customer.mobile"
+        }
+      },
+      "platform": "ios",
+      "build": 30,
+      "noticeShownFor": null,
+      "storeAllows": true,
+      "expect": {
+        "level": "none"
+      }
+    },
+    {
+      "name": "above latest (a test build) \u2192 none",
+      "settings": {
+        "schema": 1,
+        "ios": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://apps.apple.com/au/app/id6740012345"
+        },
+        "android": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://play.google.com/store/apps/details?id=com.effyshopping.customer.mobile"
+        }
+      },
+      "platform": "ios",
+      "build": 31,
+      "noticeShownFor": null,
+      "storeAllows": true,
+      "expect": {
+        "level": "none"
+      }
+    },
+    {
+      "name": "notice already shown for this latest \u2192 none",
+      "settings": {
+        "schema": 1,
+        "ios": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://apps.apple.com/au/app/id6740012345"
+        },
+        "android": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://play.google.com/store/apps/details?id=com.effyshopping.customer.mobile"
+        }
+      },
+      "platform": "ios",
+      "build": 25,
+      "noticeShownFor": 30,
+      "storeAllows": true,
+      "expect": {
+        "level": "none"
+      }
+    },
+    {
+      "name": "notice shown for an older latest \u2192 notice again",
+      "settings": {
+        "schema": 1,
+        "ios": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://apps.apple.com/au/app/id6740012345"
+        },
+        "android": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://play.google.com/store/apps/details?id=com.effyshopping.customer.mobile"
+        }
+      },
+      "platform": "ios",
+      "build": 25,
+      "noticeShownFor": 28,
+      "storeAllows": true,
+      "expect": {
+        "level": "notice",
+        "latest": 30
+      }
+    },
+    {
+      "name": "notice shown does not silence optional",
+      "settings": {
+        "schema": 1,
+        "ios": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://apps.apple.com/au/app/id6740012345"
+        },
+        "android": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://play.google.com/store/apps/details?id=com.effyshopping.customer.mobile"
+        }
+      },
+      "platform": "ios",
+      "build": 15,
+      "noticeShownFor": 30,
+      "storeAllows": true,
+      "expect": {
+        "level": "optional"
+      }
+    },
+    {
+      "name": "android staged rollout hides optional",
+      "settings": {
+        "schema": 1,
+        "ios": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://apps.apple.com/au/app/id6740012345"
+        },
+        "android": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://play.google.com/store/apps/details?id=com.effyshopping.customer.mobile"
+        }
+      },
+      "platform": "android",
+      "build": 15,
+      "noticeShownFor": null,
+      "storeAllows": false,
+      "expect": {
+        "level": "none"
+      }
+    },
+    {
+      "name": "android staged rollout hides notice",
+      "settings": {
+        "schema": 1,
+        "ios": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://apps.apple.com/au/app/id6740012345"
+        },
+        "android": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://play.google.com/store/apps/details?id=com.effyshopping.customer.mobile"
+        }
+      },
+      "platform": "android",
+      "build": 25,
+      "noticeShownFor": null,
+      "storeAllows": false,
+      "expect": {
+        "level": "none"
+      }
+    },
+    {
+      "name": "mandatory ignores the store",
+      "settings": {
+        "schema": 1,
+        "ios": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://apps.apple.com/au/app/id6740012345"
+        },
+        "android": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://play.google.com/store/apps/details?id=com.effyshopping.customer.mobile"
+        }
+      },
+      "platform": "android",
+      "build": 5,
+      "noticeShownFor": null,
+      "storeAllows": false,
+      "expect": {
+        "level": "mandatory"
+      }
+    },
+    {
+      "name": "platforms are separate: android uses its own numbers",
+      "settings": {
+        "schema": 1,
+        "ios": {
+          "minimum": 0,
+          "recommended": 0,
+          "latest": 0,
+          "storeUrl": "https://apps.apple.com/au/app/id6740012345"
+        },
+        "android": {
+          "minimum": 16,
+          "recommended": 16,
+          "latest": 16,
+          "storeUrl": "https://play.google.com/store/apps/details?id=com.effyshopping.customer.mobile"
+        }
+      },
+      "platform": "android",
+      "build": 15,
+      "noticeShownFor": null,
+      "storeAllows": true,
+      "expect": {
+        "level": "mandatory"
+      }
+    },
+    {
+      "name": "platforms are separate: ios unaffected by android",
+      "settings": {
+        "schema": 1,
+        "ios": {
+          "minimum": 0,
+          "recommended": 0,
+          "latest": 0,
+          "storeUrl": "https://apps.apple.com/au/app/id6740012345"
+        },
+        "android": {
+          "minimum": 16,
+          "recommended": 16,
+          "latest": 16,
+          "storeUrl": "https://play.google.com/store/apps/details?id=com.effyshopping.customer.mobile"
+        }
+      },
+      "platform": "ios",
+      "build": 15,
+      "noticeShownFor": null,
+      "storeAllows": true,
+      "expect": {
+        "level": "none"
+      }
+    },
+    {
+      "name": "all zeros \u2192 none",
+      "settings": {
+        "schema": 1,
+        "ios": {
+          "minimum": 0,
+          "recommended": 0,
+          "latest": 0,
+          "storeUrl": null
+        },
+        "android": {
+          "minimum": 0,
+          "recommended": 0,
+          "latest": 0,
+          "storeUrl": null
+        }
+      },
+      "platform": "ios",
+      "build": 1,
+      "noticeShownFor": null,
+      "storeAllows": true,
+      "expect": {
+        "level": "none"
+      }
+    },
+    {
+      "name": "only latest raised \u2192 notice",
+      "settings": {
+        "schema": 1,
+        "ios": {
+          "minimum": 0,
+          "recommended": 0,
+          "latest": 4,
+          "storeUrl": "https://apps.apple.com/au/app/id6740012345"
+        },
+        "android": {
+          "minimum": 0,
+          "recommended": 0,
+          "latest": 4,
+          "storeUrl": "https://play.google.com/store/apps/details?id=com.effyshopping.customer.mobile"
+        }
+      },
+      "platform": "ios",
+      "build": 3,
+      "noticeShownFor": null,
+      "storeAllows": true,
+      "expect": {
+        "level": "notice",
+        "latest": 4
+      }
+    }
+  ],
+  "publish": [
+    {
+      "name": "valid prod file",
+      "env": "prod",
+      "app": "customer",
+      "file": {
+        "schema": 1,
+        "ios": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://apps.apple.com/au/app/id6740012345"
+        },
+        "android": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://play.google.com/store/apps/details?id=com.effyshopping.customer.mobile"
+        }
+      },
+      "ok": true
+    },
+    {
+      "name": "all zeros with no store pages",
+      "env": "prod",
+      "app": "customer",
+      "file": {
+        "schema": 1,
+        "ios": {
+          "minimum": 0,
+          "recommended": 0,
+          "latest": 0,
+          "storeUrl": null
+        },
+        "android": {
+          "minimum": 0,
+          "recommended": 0,
+          "latest": 0,
+          "storeUrl": null
+        }
+      },
+      "ok": true
+    },
+    {
+      "name": "minimum above recommended",
+      "env": "prod",
+      "app": "customer",
+      "file": {
+        "schema": 1,
+        "ios": {
+          "minimum": 21,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://apps.apple.com/au/app/id6740012345"
+        },
+        "android": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://play.google.com/store/apps/details?id=com.effyshopping.customer.mobile"
+        }
+      },
+      "ok": false
+    },
+    {
+      "name": "recommended above latest",
+      "env": "prod",
+      "app": "customer",
+      "file": {
+        "schema": 1,
+        "ios": {
+          "minimum": 10,
+          "recommended": 31,
+          "latest": 30,
+          "storeUrl": "https://apps.apple.com/au/app/id6740012345"
+        },
+        "android": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://play.google.com/store/apps/details?id=com.effyshopping.customer.mobile"
+        }
+      },
+      "ok": false
+    },
+    {
+      "name": "a negative number",
+      "env": "prod",
+      "app": "customer",
+      "file": {
+        "schema": 1,
+        "ios": {
+          "minimum": -1,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://apps.apple.com/au/app/id6740012345"
+        },
+        "android": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://play.google.com/store/apps/details?id=com.effyshopping.customer.mobile"
+        }
+      },
+      "ok": false
+    },
+    {
+      "name": "a fraction",
+      "env": "prod",
+      "app": "customer",
+      "file": {
+        "schema": 1,
+        "ios": {
+          "minimum": 1.5,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://apps.apple.com/au/app/id6740012345"
+        },
+        "android": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://play.google.com/store/apps/details?id=com.effyshopping.customer.mobile"
+        }
+      },
+      "ok": false
+    },
+    {
+      "name": "a number as text",
+      "env": "prod",
+      "app": "customer",
+      "file": {
+        "schema": 1,
+        "ios": {
+          "minimum": "10",
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://apps.apple.com/au/app/id6740012345"
+        },
+        "android": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://play.google.com/store/apps/details?id=com.effyshopping.customer.mobile"
+        }
+      },
+      "ok": false
+    },
+    {
+      "name": "prod with a number above 0 and no store page",
+      "env": "prod",
+      "app": "customer",
+      "file": {
+        "schema": 1,
+        "ios": {
+          "minimum": 0,
+          "recommended": 0,
+          "latest": 3,
+          "storeUrl": null
+        },
+        "android": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://play.google.com/store/apps/details?id=com.effyshopping.customer.mobile"
+        }
+      },
+      "ok": false
+    },
+    {
+      "name": "dev with a number above 0 and no store page",
+      "env": "dev",
+      "app": "customer",
+      "file": {
+        "schema": 1,
+        "ios": {
+          "minimum": 0,
+          "recommended": 0,
+          "latest": 3,
+          "storeUrl": null
+        },
+        "android": {
+          "minimum": 3,
+          "recommended": 3,
+          "latest": 3,
+          "storeUrl": null
+        }
+      },
+      "ok": true
+    },
+    {
+      "name": "placeholder App Store id",
+      "env": "prod",
+      "app": "customer",
+      "file": {
+        "schema": 1,
+        "ios": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://apps.apple.com/au/app/id0000000000"
+        },
+        "android": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://play.google.com/store/apps/details?id=com.effyshopping.customer.mobile"
+        }
+      },
+      "ok": false
+    },
+    {
+      "name": "angle-bracket placeholder",
+      "env": "prod",
+      "app": "customer",
+      "file": {
+        "schema": 1,
+        "ios": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://apps.apple.com/au/app/id<operator-supplied>"
+        },
+        "android": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://play.google.com/store/apps/details?id=com.effyshopping.customer.mobile"
+        }
+      },
+      "ok": false
+    },
+    {
+      "name": "App Store url with the app's name",
+      "env": "prod",
+      "app": "customer",
+      "file": {
+        "schema": 1,
+        "ios": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://apps.apple.com/au/app/effy/id6740012345"
+        },
+        "android": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://play.google.com/store/apps/details?id=com.effyshopping.customer.mobile"
+        }
+      },
+      "ok": true
+    },
+    {
+      "name": "not an App Store url",
+      "env": "prod",
+      "app": "customer",
+      "file": {
+        "schema": 1,
+        "ios": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://example.com/effy"
+        },
+        "android": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://play.google.com/store/apps/details?id=com.effyshopping.customer.mobile"
+        }
+      },
+      "ok": false
+    },
+    {
+      "name": "another app's Play id",
+      "env": "prod",
+      "app": "customer",
+      "file": {
+        "schema": 1,
+        "ios": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://apps.apple.com/au/app/id6740012345"
+        },
+        "android": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://play.google.com/store/apps/details?id=com.effyshopping.driver.mobile"
+        }
+      },
+      "ok": false
+    },
+    {
+      "name": "the driver's own Play id",
+      "env": "prod",
+      "app": "driver",
+      "file": {
+        "schema": 1,
+        "ios": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://apps.apple.com/au/app/id6740012345"
+        },
+        "android": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://play.google.com/store/apps/details?id=com.effyshopping.driver.mobile"
+        }
+      },
+      "ok": true
+    },
+    {
+      "name": "the dev Play id",
+      "env": "dev",
+      "app": "customer",
+      "file": {
+        "schema": 1,
+        "ios": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://apps.apple.com/au/app/id6740012345"
+        },
+        "android": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://play.google.com/store/apps/details?id=com.effyshopping.customer.mobile.dev"
+        }
+      },
+      "ok": true
+    },
+    {
+      "name": "unknown schema",
+      "env": "prod",
+      "app": "customer",
+      "file": {
+        "schema": 2,
+        "ios": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://apps.apple.com/au/app/id6740012345"
+        },
+        "android": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://play.google.com/store/apps/details?id=com.effyshopping.customer.mobile"
+        }
+      },
+      "ok": false
+    },
+    {
+      "name": "unknown top-level key",
+      "env": "prod",
+      "app": "customer",
+      "file": {
+        "schema": 1,
+        "ios": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://apps.apple.com/au/app/id6740012345"
+        },
+        "android": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://play.google.com/store/apps/details?id=com.effyshopping.customer.mobile"
+        },
+        "extra": 1
+      },
+      "ok": false
+    },
+    {
+      "name": "unknown platform key",
+      "env": "prod",
+      "app": "customer",
+      "file": {
+        "schema": 1,
+        "ios": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://apps.apple.com/au/app/id6740012345",
+          "message": "hi"
+        },
+        "android": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://play.google.com/store/apps/details?id=com.effyshopping.customer.mobile"
+        }
+      },
+      "ok": false
+    },
+    {
+      "name": "a platform missing",
+      "env": "prod",
+      "app": "customer",
+      "file": {
+        "schema": 1,
+        "ios": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://apps.apple.com/au/app/id6740012345"
+        }
+      },
+      "ok": false
+    },
+    {
+      "name": "storeUrl missing rather than null",
+      "env": "prod",
+      "app": "customer",
+      "file": {
+        "schema": 1,
+        "ios": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30
+        },
+        "android": {
+          "minimum": 10,
+          "recommended": 20,
+          "latest": 30,
+          "storeUrl": "https://play.google.com/store/apps/details?id=com.effyshopping.customer.mobile"
+        }
+      },
+      "ok": false
+    }
+  ],
+  "phone": [
+    {
+      "name": "a valid file",
+      "body": "{\"schema\": 1, \"ios\": {\"minimum\": 10, \"recommended\": 20, \"latest\": 30, \"storeUrl\": \"https://apps.apple.com/au/app/id6740012345\"}, \"android\": {\"minimum\": 10, \"recommended\": 20, \"latest\": 30, \"storeUrl\": \"https://play.google.com/store/apps/details?id=com.effyshopping.customer.mobile\"}}",
+      "valid": true
+    },
+    {
+      "name": "all zeros",
+      "body": "{\"schema\": 1, \"ios\": {\"minimum\": 0, \"recommended\": 0, \"latest\": 0, \"storeUrl\": null}, \"android\": {\"minimum\": 0, \"recommended\": 0, \"latest\": 0, \"storeUrl\": null}}",
+      "valid": true
+    },
+    {
+      "name": "unknown keys are ignored under a known schema",
+      "body": "{\"schema\": 1, \"ios\": {\"minimum\": 10, \"recommended\": 20, \"latest\": 30, \"storeUrl\": \"https://apps.apple.com/au/app/id6740012345\", \"message\": \"x\"}, \"android\": {\"minimum\": 10, \"recommended\": 20, \"latest\": 30, \"storeUrl\": \"https://play.google.com/store/apps/details?id=com.effyshopping.customer.mobile\"}, \"later\": true}",
+      "valid": true
+    },
+    {
+      "name": "an unknown schema",
+      "body": "{\"schema\": 2, \"ios\": {\"minimum\": 10, \"recommended\": 20, \"latest\": 30, \"storeUrl\": \"https://apps.apple.com/au/app/id6740012345\"}, \"android\": {\"minimum\": 10, \"recommended\": 20, \"latest\": 30, \"storeUrl\": \"https://play.google.com/store/apps/details?id=com.effyshopping.customer.mobile\"}}",
+      "valid": false
+    },
+    {
+      "name": "minimum above recommended",
+      "body": "{\"schema\": 1, \"ios\": {\"minimum\": 21, \"recommended\": 20, \"latest\": 30, \"storeUrl\": \"https://apps.apple.com/au/app/id6740012345\"}, \"android\": {\"minimum\": 10, \"recommended\": 20, \"latest\": 30, \"storeUrl\": \"https://play.google.com/store/apps/details?id=com.effyshopping.customer.mobile\"}}",
+      "valid": false
+    },
+    {
+      "name": "recommended above latest",
+      "body": "{\"schema\": 1, \"ios\": {\"minimum\": 10, \"recommended\": 20, \"latest\": 30, \"storeUrl\": \"https://apps.apple.com/au/app/id6740012345\"}, \"android\": {\"minimum\": 10, \"recommended\": 31, \"latest\": 30, \"storeUrl\": \"https://play.google.com/store/apps/details?id=com.effyshopping.customer.mobile\"}}",
+      "valid": false
+    },
+    {
+      "name": "a negative number",
+      "body": "{\"schema\": 1, \"ios\": {\"minimum\": -1, \"recommended\": 20, \"latest\": 30, \"storeUrl\": \"https://apps.apple.com/au/app/id6740012345\"}, \"android\": {\"minimum\": 10, \"recommended\": 20, \"latest\": 30, \"storeUrl\": \"https://play.google.com/store/apps/details?id=com.effyshopping.customer.mobile\"}}",
+      "valid": false
+    },
+    {
+      "name": "a fraction",
+      "body": "{\"schema\": 1, \"ios\": {\"minimum\": 1.5, \"recommended\": 20, \"latest\": 30, \"storeUrl\": \"https://apps.apple.com/au/app/id6740012345\"}, \"android\": {\"minimum\": 10, \"recommended\": 20, \"latest\": 30, \"storeUrl\": \"https://play.google.com/store/apps/details?id=com.effyshopping.customer.mobile\"}}",
+      "valid": false
+    },
+    {
+      "name": "a number as text",
+      "body": "{\"schema\": 1, \"ios\": {\"minimum\": \"10\", \"recommended\": 20, \"latest\": 30, \"storeUrl\": \"https://apps.apple.com/au/app/id6740012345\"}, \"android\": {\"minimum\": 10, \"recommended\": 20, \"latest\": 30, \"storeUrl\": \"https://play.google.com/store/apps/details?id=com.effyshopping.customer.mobile\"}}",
+      "valid": false
+    },
+    {
+      "name": "a platform missing",
+      "body": "{\"schema\": 1, \"ios\": {\"minimum\": 10, \"recommended\": 20, \"latest\": 30, \"storeUrl\": \"https://apps.apple.com/au/app/id6740012345\"}}",
+      "valid": false
+    },
+    {
+      "name": "a store page that is not https",
+      "body": "{\"schema\": 1, \"ios\": {\"minimum\": 10, \"recommended\": 20, \"latest\": 30, \"storeUrl\": \"http://apps.apple.com/au/app/id6740012345\"}, \"android\": {\"minimum\": 10, \"recommended\": 20, \"latest\": 30, \"storeUrl\": \"https://play.google.com/store/apps/details?id=com.effyshopping.customer.mobile\"}}",
+      "valid": false
+    },
+    {
+      "name": "not JSON",
+      "body": "<html>403</html>",
+      "valid": false
+    },
+    {
+      "name": "empty",
+      "body": "",
+      "valid": false
+    }
+  ]
+}
+"""

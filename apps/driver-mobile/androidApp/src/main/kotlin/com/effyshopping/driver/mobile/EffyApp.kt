@@ -1,5 +1,6 @@
 package com.effyshopping.driver.mobile
 
+import com.effyshopping.mobile.kit.update.AndroidStoreUpdater
 import android.app.Application
 import android.util.Log
 import com.effyshopping.driver.mobile.app.AppContainer
@@ -37,6 +38,8 @@ class EffyApp : Application() {
             // Backlog B3 - proof photos taken with no signal, kept in app-private storage until sent.
             proofFiles = DirectoryProofFiles(java.io.File(filesDir, "proof-outbox").path),
             connectivity = AndroidConnectivity(applicationContext),
+            // 121: Play In-App Updates. MainActivity attaches itself (the result launcher must be registered there).
+            storeUpdater = AndroidStoreUpdater(applicationContext),
         )
     }
 

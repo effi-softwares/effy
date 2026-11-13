@@ -70,6 +70,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 import com.russhwolf.settings.Settings
 import kotlinx.coroutines.CoroutineScope
+import com.effyshopping.driver.mobile.core.http.httpEngine
+import com.effyshopping.driver.mobile.core.offline.SettingsAppUpdateStore
+import com.effyshopping.driver.mobile.core.offline.epochMillisNow
+import com.effyshopping.mobile.kit.update.AppUpdateGate
+import com.effyshopping.mobile.kit.update.AppUpdateRepository
+import com.effyshopping.mobile.kit.update.StoreUpdater
+import io.ktor.client.HttpClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlin.uuid.ExperimentalUuidApi
@@ -88,6 +95,9 @@ class AppContainer(
     val crashReporter: CrashReporter = NoOpCrashReporter,
     val analyticsDriver: AnalyticsDriver = NoOpAnalyticsDriver,
     val pushTokenProvider: PushTokenProvider = NoOpPushTokenProvider,
+    // 121: the platform's way to update - Play In-App Updates on Android (AndroidStoreUpdater, attached by
+    // MainActivity), the App Store app on iPhone (IosStoreUpdater).
+    val storeUpdater: StoreUpdater,
     private val appScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
     debugLogging: Boolean = false,
     /**
@@ -137,6 +147,27 @@ class AppContainer(
 
     // Offline write queue + drain coordinator. Persisted; survives process death.
     val offlineQueue: OfflineQueue by lazy { OfflineQueue(Settings()) }
+
+    /**
+     * 121: the launch gate - is this build still allowed, and is there a newer one? One per process. It reads a public
+     * file on the media CDN with its own plain client (no session): the check never needs sign-in. ⚠ The offline
+     * queue's flush stays above the gate in App.kt, so work recorded without signal is still sent under the mandatory
+     * screen.
+     */
+    val appUpdateGate: AppUpdateGate by lazy {
+        AppUpdateGate(
+            source = AppUpdateRepository(
+                client = HttpClient(httpEngine()) { expectSuccess = false },
+                url = AppConfig.appUpdatesUrl,
+                store = SettingsAppUpdateStore(Settings()),
+                now = ::epochMillisNow,
+            ),
+            updater = storeUpdater,
+            build = AppConfig.appBuild,
+            now = ::epochMillisNow,
+            scope = appScope,
+        )
+    }
     /** Proof captured with no signal (backlog B3): the images live in [proofFiles], the list in settings. */
     val proofOutbox: ProofOutbox by lazy { ProofOutbox(Settings(), proofFiles) }
     val syncCoordinator: SyncCoordinator by lazy {

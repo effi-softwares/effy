@@ -18,6 +18,9 @@ import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.effyshopping.customer.mobile.app.App
 import com.effyshopping.customer.mobile.core.push.PushOpen
+import com.effyshopping.mobile.kit.update.AndroidStoreUpdater
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
@@ -60,6 +63,9 @@ class MainActivity : ComponentActivity() {
         }
         super.onCreate(savedInstanceState)
         val container = (application as EffyApp).container
+        // 121: the update gate's Play In-App Updates need this activity (its result launcher is registered here, before
+        // the activity starts).
+        (container.storeUpdater as? AndroidStoreUpdater)?.attach(this)
         // Opened by tapping a notification: the shell opens what it was about.
         PushOpen.consume(intent)?.let { container.openedNotification.value = it }
         // 116: opened from an Effy link (Android App Links): the shell opens its screen.
@@ -77,6 +83,13 @@ class MainActivity : ComponentActivity() {
         setContent {
             App(container)
         }
+    }
+
+    /** 121: resume a Play update that was in progress, and notice a background download that finished meanwhile. */
+    override fun onResume() {
+        super.onResume()
+        val updater = (application as EffyApp).container.storeUpdater as? AndroidStoreUpdater ?: return
+        lifecycleScope.launch { updater.onResume() }
     }
 
     /** A notification tapped while the app was already open arrives here, not in [onCreate]. */

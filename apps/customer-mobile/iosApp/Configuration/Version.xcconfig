@@ -1,0 +1,4 @@
+// Written by scripts/bump-version.sh from ../../version.properties - never edit by hand (121).
+// One build number means one build on iPhone and Android; the in-app update check compares it.
+MARKETING_VERSION = 1.0.2
+CURRENT_PROJECT_VERSION = 3

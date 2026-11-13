@@ -1,5 +1,7 @@
 package com.effyshopping.driver.mobile.features.account
 
+import com.effyshopping.driver.mobile.resources.lucide_refresh_cw
+import com.effyshopping.driver.mobile.features.appupdate.AppUpdateWords
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -92,6 +94,9 @@ fun AccountScreen(
     onToggleAnalytics: () -> Unit = {},
     /** The duty row opens Today, where the driver goes on or off duty. */
     onOpenDuty: () -> Unit = {},
+    /** 121 (FR-021): an optional update or a notice applies (shown even after Later), and Update now can do something. */
+    updateAvailable: Boolean = false,
+    onUpdate: () -> Unit = {},
 ) {
     var confirmSignOut by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize()) {
@@ -193,6 +198,11 @@ fun AccountScreen(
             Column {
                 DriverSectionLabel("Help")
                 DriverGroup {
+                    if (updateAvailable) {
+                        DriverRow(AppUpdateWords.AVAILABLE, meta = "A new version of Effy Driver is ready", onClick = onUpdate,
+                            leading = { DriverIcon(Res.drawable.lucide_refresh_cw, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
+                            trailing = { DriverIcon(Res.drawable.lucide_chevron_right, size = 16.dp, tint = MaterialTheme.colorScheme.onSurfaceVariant) })
+                    }
                     if (dispatchPhone != null) {
                         DriverRow("Call dispatch", meta = "For anything about today's work", onClick = { onDial(dispatchPhone) },
                             leading = { DriverIcon(Res.drawable.lucide_smartphone, tint = MaterialTheme.colorScheme.onSurfaceVariant) },

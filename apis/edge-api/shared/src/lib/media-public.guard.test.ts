@@ -50,6 +50,15 @@ describe("the public picture set ↔ the bucket policy (086)", () => {
     expect(policy).toMatch(/AWS:SourceArn/);
   });
 
+  it("121: the apps' update settings are readable by the CDN at app-updates/ only, on a short cache", () => {
+    const policy = block('data "aws_iam_policy_document" "product_media"');
+    const stmt = policy.slice(policy.indexOf('sid       = "CdnReadsAppUpdateSettings"'));
+    expect(stmt).toMatch(/resources\s*=\s*\["\$\{aws_s3_bucket\.product_media\.arn\}\/app-updates\/\*"\]/);
+    expect(terraformPublicPrefixes()).not.toContain("app-updates"); // not a picture: publicImageUrl never builds it
+    expect(mediaTf).toMatch(/path_pattern\s*=\s*"\/app-updates\/\*"/);
+    expect(block('resource "aws_cloudfront_cache_policy" "app_updates"')).toMatch(/max_ttl\s*=\s*60/);
+  });
+
   it("the bucket keeps its public-access block fully on", () => {
     const pab = block('resource "aws_s3_bucket_public_access_block" "product_media"');
     for (const flag of ["block_public_acls", "block_public_policy", "ignore_public_acls", "restrict_public_buckets"]) {

@@ -34,6 +34,9 @@ val requiredKeys = listOf(
     // carries its own (config.go: the backend echo is "a convenience", not the source). Named …_KEY, so
     // mobile-guard allowlists exactly this one publishable key (the guard's FR-042 name check).
     "STRIPE_PUBLISHABLE_KEY",
+    // 121: the app's update settings on the media CDN - output `app_updates_url_customer` (make output ENV=<env>).
+    // Required: a build that cannot find its settings could never be told to update.
+    "APP_UPDATES_URL",
 )
 
 val secretsFile = rootProject.file("secrets.properties") // git-ignored
@@ -86,9 +89,18 @@ fun operatingTz(): String =
             ?.groupValues?.get(1)
         ?: throw GradleException("infra/envs/dev/dev.tfvars has no operating_timezone")
 
+// 121: the app's own version, from the one version file (`make cm-apk`/`dm-apk`/`cm-version`/`dm-version` raise it). The
+// update check compares APP_BUILD with the published settings; iOS reads the same numbers (Version.xcconfig).
+val versionProps = Properties().apply { rootProject.file("version.properties").inputStream().use { load(it) } }
+val appBuild: String = versionProps.getProperty("versionCode")?.takeIf { it.toIntOrNull() != null }
+    ?: throw GradleException("version.properties: versionCode is missing or not a number")
+val appVersion: String = versionProps.getProperty("versionName")?.takeIf { Regex("""\d+\.\d+\.\d+""").matches(it) }
+    ?: throw GradleException("version.properties: versionName must be three numbers (1.0.0)")
+
 // Exposed to the:shared module's BuildKonfig block. Required keys must be present (checked above);
 // optional keys default to "" so telemetry stays a no-op until configured.
 extra["effyConfig"] =
     requiredKeys.associateWith { configValue(it)!! } +
         optionalKeys.associateWith { configValue(it) ?: "" } +
-        ("OPERATING_TZ" to operatingTz())
+        ("OPERATING_TZ" to operatingTz()) +
+        ("APP_BUILD" to appBuild) + ("APP_VERSION" to appVersion)

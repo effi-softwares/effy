@@ -26,6 +26,13 @@ object AppConfig {
     val dispatchPhone: String? get() = BuildKonfig.DISPATCH_PHONE.trim().ifEmpty { null }
     val hubDeskPhone: String? get() = BuildKonfig.HUB_DESK_PHONE.trim().ifEmpty { null }
     val handbookUrl: String? get() = BuildKonfig.HANDBOOK_URL.trim().ifEmpty { null }
+
+    /** 121: where this app reads its update settings (a public file on the media CDN). */
+    val appUpdatesUrl: String get() = BuildKonfig.APP_UPDATES_URL
+
+    /** 121: this build's number (versionCode) and version (versionName), from version.properties. */
+    val appBuild: Int get() = BuildKonfig.APP_BUILD.toInt()
+    val appVersion: String get() = BuildKonfig.APP_VERSION
 }
 
 /**

@@ -54,8 +54,14 @@ kotlin {
         iosMain {
             kotlin.srcDir(rootProject.file("../../packages/mobile-kit/ios"))
         }
+        // 121: mobile-kit's own tests (the app-update decision and gate), written once and run in both apps.
+        commonTest {
+            kotlin.srcDir(rootProject.file("../../packages/mobile-kit/commonTest"))
+        }
 
         androidMain.dependencies {
+            // 121 - Play In-App Updates, used by packages/mobile-kit/android/update/StoreUpdater.android.kt.
+            implementation(libs.play.app.update)
             // In-app camera viewfinder for photo proof (design screen `proof-photo`).
             // Android only: iOS gets the same designed chrome with a system-camera handoff until a
             // swift AVFoundation bridge is written (research R8, plan Complexity Tracking).
@@ -112,6 +118,7 @@ kotlin {
             implementation(libs.ktor.client.darwin)
         }
         commonTest.dependencies {
+            implementation(libs.ktor.client.mock) // 121: AppUpdateRepository against a fake CDN
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutines.test)
             implementation(libs.compose.uiTest)

@@ -607,10 +607,17 @@ the standard three-module layout (`shared` + `androidApp` + `iosApp`) and packag
 numbers) only with `BUMP=patch|minor|major`. They write `customer-app-<version>+<build>.apk` / `driver-app-…`. The file
 is committed after each build. Guide: [docs/runbooks/android-release-apk.md](docs/runbooks/android-release-apk.md).
 
+⚠ **UPDATE PROMPTS COME FROM ONE FILE PER APP AND ENVIRONMENT (121)** - `config/app-updates/<env>/<app>.json`, published by
+`make app-updates ENV=<env>` (refuses an invalid or uncommitted file) to the media CDN; the decision is written once in
+`packages/mobile-kit/common/update/` (fixtures: `app-updates.fixtures.json`). A routine release raises only `latest`;
+`minimum` only after the Android rollout is at 100% and the iPhone build is live (`config/app-updates/README.md`). The gate
+sits above sign-in; in the driver app it stays BELOW the offline-queue flush. iOS takes its version from
+`version.properties` (`Version.xcconfig`; `make cm-version` / `dm-version` before an archive).
+
 ⚠ **PRODUCTION DISTRIBUTION IS DECIDED (2026-11-13), NOT SET UP.** Customer app → public App Store + Play Store; driver
 app → an **unlisted** App Store app + Play (public listing or closed track). Both accounts in Effy's name as an
-organisation (D-U-N-S); US$99/yr + US$25 once covers all four. The first store builds MUST carry the in-app update check
-(minimum/latest build, 426 `app_update_required`) - not built yet. Plan: [docs/store-submission/distribution-plan.md](docs/store-submission/distribution-plan.md).
+organisation (D-U-N-S); US$99/yr + US$25 once covers all four. The first store builds MUST carry the in-app update check (121, built). Plan: [docs/store-submission/distribution-plan.md](docs/store-submission/distribution-plan.md); operator steps:
+[docs/store-submission/publishing-runbook.md](docs/store-submission/publishing-runbook.md).
 
 Baseline stack: **Kotlin 2.4.0, Compose Multiplatform 1.11.1, AGP 9.0.1, minSdk 24 /
 compileSdk + targetSdk 36**. ⚠ **BOTH APPS MUST PIN THE SAME TRIO - `composeMultiplatform`,
@@ -681,6 +688,7 @@ the entries carry gotchas and deploy-ordering rules that the code does not. Slic
 
 Features recorded:
 
+- **121-in-app-updates** - App Updates Inside the App (before Home, each app reads `media.<zone>/app-updates/<app>.json`: below `minimum` a full screen, below `recommended` a sheet every launch, below `latest` once; Android updates through Play in-app, iPhone opens the App Store; settings in `config/app-updates/<env>/<app>.json`, `make app-updates ENV=<env>`; no back-office page; iOS version from `version.properties`) - built 2026-11-13; not applied, published or walked
 - **120-effy-toasts** - Effy's Own Toasts (one toast built from scratch for the three web apps, replacing sonner and the storefront's own; spring motion; a failure is never replaced by a lesser message; one sound set with a policy per app - the shop's new-order chime moved into it; new-notification toasts in shop-web and the storefront; first load 3.2 KB, the rest on demand; `make toast-guard`) - signed off 2026-11-13: deployed to dev and walked; sound in both consoles, top centre
 - **119-backoffice-team-management** - Back-Office Team Management (admins add people with one role, change role, disable/re-enable, remove (record kept), sign out everywhere, rename, repair sign-in disagreements, all from Settings › Team and access; ⚠ the staff record is the origin of a role - `/me` no longer creates records or reads the token's groups; one writer `@effy/edge-shared/team`; new stack `admin-team`, staff gateway 253/300 - a third gateway is next) - signed off 2026-11-13: applied, migrated and deployed to dev, works
 - **116-links-badges-urgency** - Reaching the Right Place (Effy links open the customer app on Android - App Links over `APP_LINK_PATHS`, one parser pinned on both sides; the icon badge corrected silently within two minutes of any inbox change, every app push tagged by its notification id; iPhone urgency from importance, never critical; the iPhone halves switched off until the paid Apple account; the notifications backlog is complete) - deployed to dev 2026-11-12; customer app walked on Android, driver app walk pending, iPhone after the paid Apple account
@@ -776,5 +784,5 @@ Features recorded:
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/120-effy-toasts/plan.md
+at specs/121-in-app-updates/plan.md
 <!-- SPECKIT END -->

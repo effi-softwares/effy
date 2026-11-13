@@ -33,6 +33,13 @@ object AppConfig {
     /** 116 B7: the website host whose shopper links this app opens; empty = none (they open the website). */
     val webSiteHost: String get() = BuildKonfig.WEB_SITE_HOST.trim()
 
+    /** 121: where this app reads its update settings (a public file on the media CDN). */
+    val appUpdatesUrl: String get() = BuildKonfig.APP_UPDATES_URL
+
+    /** 121: this build's number (versionCode) and version (versionName), from version.properties. */
+    val appBuild: Int get() = BuildKonfig.APP_BUILD.toInt()
+    val appVersion: String get() = BuildKonfig.APP_VERSION
+
     /**
      * "Continue with Google" is shown only when true. False: federation is parked
      * (`customer_google_enabled = false`). Un-parking it means wiring native sign-in (hosted UI and the

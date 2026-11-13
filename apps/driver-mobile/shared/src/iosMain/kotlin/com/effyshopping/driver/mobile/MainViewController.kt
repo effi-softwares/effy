@@ -1,5 +1,6 @@
 package com.effyshopping.driver.mobile
 
+import com.effyshopping.mobile.kit.update.IosStoreUpdater
 import androidx.compose.ui.window.ComposeUIViewController
 import com.effyshopping.driver.mobile.app.App
 import com.effyshopping.driver.mobile.app.AppContainer
@@ -47,6 +48,7 @@ fun MainViewController(
         proofFiles = DirectoryProofFiles(proofOutboxDirectory()),
         connectivity = IosConnectivity(),
         pushTokenProvider = IosPushTokenProvider(pushBridge),
+        storeUpdater = IosStoreUpdater(), // 121: the App Store app on Effy Driver's page
     )
     // A tapped notification (AppDelegate.swift) - including the one that launched the app - goes to the
     // driver's work, as on Android (DriverShell).

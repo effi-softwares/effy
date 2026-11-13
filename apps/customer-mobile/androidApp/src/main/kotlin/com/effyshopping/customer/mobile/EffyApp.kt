@@ -11,6 +11,7 @@ import com.effyshopping.customer.mobile.core.observability.PostHogAnalyticsDrive
 import com.effyshopping.customer.mobile.core.push.FirebasePushTokenProvider
 import com.effyshopping.customer.mobile.core.push.ensureNotificationChannels
 import com.effyshopping.customer.mobile.core.storage.initDevicePreferences
+import com.effyshopping.mobile.kit.update.AndroidStoreUpdater
 
 /**
  * The Android application. Configures Amplify once (from the in-code config string - no
@@ -31,6 +32,8 @@ class EffyApp : Application() {
                 host = AppConfig.posthogHost,
             ),
             pushTokenProvider = FirebasePushTokenProvider(applicationContext),
+            // 121: Play In-App Updates. MainActivity attaches itself (the result launcher must be registered there).
+            storeUpdater = AndroidStoreUpdater(applicationContext),
         )
     }
 

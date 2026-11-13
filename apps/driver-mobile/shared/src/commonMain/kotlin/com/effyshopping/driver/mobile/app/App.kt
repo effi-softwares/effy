@@ -1,5 +1,21 @@
 package com.effyshopping.driver.mobile.app
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.backhandler.BackHandler
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.effyshopping.driver.mobile.core.config.AppConfig
+import com.effyshopping.driver.mobile.core.platform.platformTag
+import com.effyshopping.driver.mobile.core.presentation.DriverSnack
+import com.effyshopping.driver.mobile.core.presentation.DriverSnackbar
+import com.effyshopping.driver.mobile.features.appupdate.AppUpdateLaunchSurface
+import com.effyshopping.driver.mobile.features.appupdate.AppUpdateViewModel
+import com.effyshopping.driver.mobile.features.appupdate.AppUpdateWords
+import com.effyshopping.driver.mobile.features.appupdate.MandatoryUpdateScreen
+import com.effyshopping.driver.mobile.features.appupdate.UpdateSheet
+import com.effyshopping.mobile.kit.update.FlexibleDownload
+import com.effyshopping.mobile.kit.update.GateState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -42,6 +58,7 @@ import kotlinx.coroutines.launch
  * the sign-in flow when signed out (the only public screen), a refusal message when barred/unprovisioned,
  * or the adaptive [DriverShell] when signed in. No guest; no driver content without a session.
  */
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class) // BackHandler (121: the mandatory screen)
 @Composable
 fun App(
     container: AppContainer,
@@ -73,6 +90,18 @@ fun App(
         // 109 FR-014: a notification tapped while nobody is signed in is held (in memory only) for the shell to check
         // with the server after sign-in; a barred driver's is dropped. Signed in, DriverShell opens it directly.
         val opened by container.openedNotification.collectAsState()
+
+        // 121: the launch gate - before sign-in and the shell. ⚠ BELOW the root effects above that flush the offline
+        // queue, which keep running under the mandatory screen: work recorded without signal is never held back.
+        val updates = viewModel { AppUpdateViewModel(container.appUpdateGate, container.analyticsDriver, platformTag()) }
+        val updateState by updates.state.collectAsState()
+        val updateOffered by updates.updateOffered.collectAsState()
+        val download by updates.download.collectAsState()
+        // Back on screen re-checks (FR-005); the first ON_START is the launch itself.
+        var startedOnce by remember { mutableStateOf(false) }
+        LifecycleEventEffect(Lifecycle.Event.ON_START) { if (startedOnce) updates.onForeground() else startedOnce = true }
+        // The mandatory screen never pops to what is behind it: back leaves the app.
+        BackHandler(enabled = updateState == GateState.Mandatory) { updates.leaveApp() }
         LaunchedEffect(session, opened) {
             val tapped = opened ?: return@LaunchedEffect
             when (session) {
@@ -107,7 +136,27 @@ fun App(
             com.effyshopping.driver.mobile.core.presentation.LocalReducedMotion provides platformState.reducedMotion,
         ) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-            when (val s = session) {
+          Box(modifier = Modifier.fillMaxSize()) {
+            when (updateState) {
+                GateState.Mandatory -> Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
+                    MandatoryUpdateScreen(
+                        updateOffered = updateOffered,
+                        dispatchPhone = AppConfig.dispatchPhone,
+                        onUpdate = updates::updateNow,
+                        onCallDispatch = { phone ->
+                            updates.chooseCallDispatch()
+                            mapLauncher.dial(phone)
+                        },
+                    )
+                }
+                // Before the app: the launch screen's mark, with the sheet over it (FR-011). The app opens on Later.
+                GateState.Optional, is GateState.Notice -> {
+                    AppUpdateLaunchSurface()
+                    UpdateSheet(updateOffered = updateOffered, onUpdate = updates::updateNow, onLater = updates::later)
+                }
+                // Under the launch intro, which waits for the answer.
+                GateState.Checking -> AppUpdateLaunchSurface()
+                GateState.Passed -> when (val s = session) {
                 // The launch intro covers this; it hands over only once the session is known.
                 SessionState.Restoring -> Unit
 
@@ -130,11 +179,24 @@ fun App(
                     }
                 }
             }
+            }
+            // 121: Play's background download is ready - on whatever screen is showing, until Restart.
+            DriverSnackbar(
+                snack = if (download == FlexibleDownload.Downloaded) {
+                    DriverSnack(AppUpdateWords.DOWNLOADED, DriverSnack.Kind.Info, AppUpdateWords.RESTART, updates::restart)
+                } else {
+                    null
+                },
+                onDismiss = {},
+                durationMillis = Long.MAX_VALUE,
+                modifier = Modifier.align(Alignment.BottomCenter).windowInsetsPadding(WindowInsets.safeDrawing),
+            )
+          }
         }
         }
         if (!introDone) {
             DriverIntro(
-                ready = session !is SessionState.Restoring,
+                ready = session !is SessionState.Restoring && updateState != GateState.Checking,
                 darkTheme = LocalEffyDark.current,
                 reducedMotion = platformState.reducedMotion,
                 onDarkGround = platformUiController::applyAppearance,

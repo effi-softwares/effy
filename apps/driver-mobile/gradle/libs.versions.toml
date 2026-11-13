@@ -1,4 +1,6 @@
 [versions]
+# 121 - Google Play In-App Updates (Android only: immediate for a mandatory update, flexible for the rest)
+playAppUpdate = "2.1.0"
 agp = "9.1.0"
 android-compileSdk = "37"
 android-minSdk = "24"
@@ -63,6 +65,7 @@ mlkitBarcode = "17.3.0"
 coil = "3.1.0"
 
 [libraries]
+play-app-update = { module = "com.google.android.play:app-update-ktx", version.ref = "playAppUpdate" }
 # 060 - CameraX, androidMain only. ⚠ This CLOSES a live defect as a side effect: rememberPhotoCapture
 # returns null on iOS, so photo proof is hidden there entirely today.
 coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
@@ -104,6 +107,7 @@ compose-ui-backhandler = { module = "org.jetbrains.compose.ui:ui-backhandler", v
 
 # 013 - networking (Ktor 3.x): one client per base URL, bearer plugin delegating to AuthDriver (D20/D21)
 ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
+ktor-client-mock = { module = "io.ktor:ktor-client-mock", version.ref = "ktor" } # 121 tests
 # Android engine = HttpURLConnection (NOT okhttp) - so Ktor doesn't pull okhttp 4.x and clash with
 # Amplify's AWS SDK, which needs okhttp 5.x (okhttp3.ConnectionListener). 013 runtime fix.
 ktor-client-android = { module = "io.ktor:ktor-client-android", version.ref = "ktor" }

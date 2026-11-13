@@ -593,6 +593,9 @@ importers:
       '@effy/edge-shared':
         specifier: workspace:*
         version: link:../shared
+      '@effy/shared-types':
+        specifier: workspace:*
+        version: link:../../../packages/shared-types
       pg:
         specifier: 8.22.0
         version: 8.22.0

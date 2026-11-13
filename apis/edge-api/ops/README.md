@@ -1,6 +1,6 @@
 # Operator tools (`@effy/edge-ops`)
 
-Three commands an operator runs **by hand, from a workstation, through `make`**. They are **not a
+Commands an operator runs **by hand, from a workstation, through `make`**. They are **not a
 service**: there is no `serverless.yml`, nothing here is deployed, and nothing calls them.
 
 | Command | What it does |
@@ -8,6 +8,8 @@ service**: there is no `serverless.yml`, nothing here is deployed, and nothing c
 | `make create-first-admin EMAIL=… NAME="…" ENV=dev` | Bootstrap (or recover) a back-office super-admin |
 | `make delete-admin EMAIL=… ENV=dev [FORCE=1]` | Completely remove a back-office admin - irreversible, asks first |
 | `make load-localities ENV=dev [CSVREL=path]` | Load the AU suburb / postcode reference data - idempotent |
+| `make app-updates-check` | Validate the apps' update settings files (`config/app-updates/`) - no AWS (121) |
+| `make app-updates ENV=dev [APP=customer\|driver]` | Publish them to the media CDN - refuses an invalid or uncommitted file (121) |
 
 Until feature 070 these were Go programs inside the second backend that feature retired. Their behaviour,
 arguments, output and confirm prompts are unchanged; only the language moved.

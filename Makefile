@@ -25,7 +25,7 @@ TF            := AWS_PROFILE=$(AWS_PROFILE) terraform
 # All Terraform roots (for fmt-check / validate / lint sweeps).
 TF_ROOTS := $(BOOTSTRAP_DIR) $(GLOBAL_DIR) $(INFRA_DIR)/envs/dev $(INFRA_DIR)/envs/qa $(INFRA_DIR)/envs/staging $(INFRA_DIR)/envs/prod
 
-.PHONY: gateway-usage help bootstrap-init bootstrap-apply init plan apply destroy output amplify-hooks fmt validate lint preflight \
+.PHONY: cm-version dm-version app-updates app-updates-check gateway-usage help bootstrap-init bootstrap-apply init plan apply destroy output amplify-hooks fmt validate lint preflight \
         global-init global-plan global-apply global-output dns-verify mail-verify mail-events-verify edge-health \
         db-new db-status db-up db-up-one db-down db-shopper-role check-goose \
         live-guards toast-guard shop-words-guard driver-words-guard purge-orders reset-dev-data seed-delivery seed-catalogue seed-banners wipe-dev create-first-admin load-localities delete-admin edge-install edge-offline edge-test edge-deploy edge-remove \
@@ -454,6 +454,23 @@ dm-apk: ## driver-mobile: signed release APK, build number +1 (BUMP=patch|minor|
 	@apk=$$(bash scripts/name-apk.sh apps/driver-mobile/androidApp driver-app) && echo "" && \
 	  echo "dm-apk: APK ready → $$apk" && \
 	  echo "        install:  adb install -r '$$apk'   (or share the file and open it on the phone)"
+
+# --- 121: version numbers alone (no Gradle), before an Xcode archive - App Store Connect refuses a build number it has
+# seen. Writes version.properties and iosApp/Configuration/Version.xcconfig; commit both.
+cm-version: ## customer-mobile: raise the build number (BUMP=patch|minor|major also raises the version) - before an iOS archive
+	@bash scripts/bump-version.sh apps/customer-mobile/version.properties $(BUMP)
+	@echo "cm-version: commit apps/customer-mobile/version.properties and iosApp/Configuration/Version.xcconfig"
+dm-version: ## driver-mobile: raise the build number (BUMP=patch|minor|major also raises the version) - before an iOS archive
+	@bash scripts/bump-version.sh apps/driver-mobile/version.properties $(BUMP)
+	@echo "dm-version: commit apps/driver-mobile/version.properties and iosApp/Configuration/Version.xcconfig"
+
+# --- 121: the apps' update settings (config/app-updates/<env>/<app>.json → https://media.<zone>/app-updates/<app>.json).
+# Edit, commit, publish. The publish refuses an invalid or uncommitted file. Guide: config/app-updates/README.md.
+app-updates-check: ## Validate every app update settings file and the iOS version files (no AWS)
+	@pnpm --filter @effy/edge-ops exec tsx src/publish-app-updates.ts check
+	@bash scripts/check-app-versions.sh
+app-updates: preflight ## OPERATOR: publish the app update settings for ENV (APP=customer|driver for one) to the media CDN
+	@AWS_PROFILE=$(AWS_PROFILE) pnpm --filter @effy/edge-ops exec tsx src/publish-app-updates.ts publish --env $(ENV) $(if $(APP),--app $(APP),)
 
 # --- run the mobile apps: pick a simulator, emulator or phone from a numbered list (Enter = the default),
 # then the debug build is built, installed and launched, and the app's output streams here until Ctrl+C

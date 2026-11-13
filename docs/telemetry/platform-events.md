@@ -14,6 +14,14 @@ in its `AnalyticsEvent` sealed class; the per-app drift check keeps them aligned
 |---|---|---|
 | `screen_viewed` | `{ name }` | A screen/route is shown (mobile). Web pageviews are auto-captured by the SDK; `name` is a **stable route key**, never free text or a URL with query/PII. |
 
+## App updates (mobile, 121)
+
+| Event | Props | Emitted when |
+|---|---|---|
+| `app_update_prompt_shown` | `{ level, platform, build }` | The update screen or sheet is shown before Home. `level` = `mandatory` / `optional` / `notice`; `platform` = `ios` / `android`; `build` = this build's number |
+| `app_update_action` | `{ level, action }` | A choice on it, or on Account's "Update available" row. `action` = `update` / `later` / `restart` / `website` (customer) / `call_dispatch` (driver) |
+| `app_update_completed` | `{ fromBuild, toBuild }` | The first launch on a newer build after a prompt (how many prompts end in an update) |
+
 ## Push notifications (mobile)
 
 | Event | Props | Emitted when |

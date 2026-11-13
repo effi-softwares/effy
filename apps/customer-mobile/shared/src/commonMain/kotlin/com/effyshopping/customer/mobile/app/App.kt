@@ -55,6 +55,19 @@ import com.effyshopping.customer.mobile.features.onboarding.presentation.Onboard
 import com.effyshopping.mobile.kit.ui.LocalMotionLevel
 import kotlinx.coroutines.launch
 import com.effyshopping.customer.mobile.core.presentation.EffyPrimaryButton
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.ui.backhandler.BackHandler
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.effyshopping.customer.mobile.core.config.AppConfig
+import com.effyshopping.customer.mobile.core.platform.platformTag
+import com.effyshopping.customer.mobile.core.presentation.EffySnackbarHost
+import com.effyshopping.customer.mobile.features.appupdate.AppUpdateLaunchSurface
+import com.effyshopping.customer.mobile.features.appupdate.AppUpdateViewModel
+import com.effyshopping.customer.mobile.features.appupdate.MandatoryUpdateScreen
+import com.effyshopping.customer.mobile.features.appupdate.UpdateDownloadedBar
+import com.effyshopping.customer.mobile.features.appupdate.UpdateSheet
+import com.effyshopping.mobile.kit.update.FlexibleDownload
+import com.effyshopping.mobile.kit.update.GateState
 
 /**
  * The app root. A top-level **session gate** picks the graph: `Restoring` splash, `Unreachable` (signed in,
@@ -62,6 +75,7 @@ import com.effyshopping.customer.mobile.core.presentation.EffyPrimaryButton
  * bottom bar / navigation rail over Home · Search · Orders · Account). `Restoring` is its own screen so
  * the guest home never flickers in before a signed-in session resolves.
  */
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class) // BackHandler (121: the mandatory screen)
 @Composable
 fun App(container: AppContainer) {
     // Register the app's Coil ImageLoader (cancellation-safe engine) once, during composition - before
@@ -81,6 +95,19 @@ fun App(container: AppContainer) {
         // Hold the live channel exactly while in the foreground and signed in. A guest holds none.
         LiveLifecycle(container.live, signedIn = session is SessionState.Authenticated)
         val scope = rememberCoroutineScope()
+
+        // 121: the launch gate - before Home, and before sign-in and the introduction, so guests are covered. Below the
+        // session bootstrap above, which keeps running. The intro waits for its answer (at most 1.5 s).
+        val updates = viewModel { AppUpdateViewModel(container.appUpdateGate, container.analyticsDriver, platformTag()) }
+        val updateState by updates.state.collectAsState()
+        val updateOffered by updates.updateOffered.collectAsState()
+        val download by updates.download.collectAsState()
+        val updateBar = remember { SnackbarHostState() }
+        // Back on screen re-checks (FR-005); the first ON_START is the launch itself.
+        var startedOnce by remember { mutableStateOf(false) }
+        LifecycleEventEffect(Lifecycle.Event.ON_START) { if (startedOnce) updates.onForeground() else startedOnce = true }
+        // The mandatory screen never pops to what is behind it: back leaves the app.
+        BackHandler(enabled = updateState == GateState.Mandatory) { updates.leaveApp() }
 
         // FR-033. `remember` so the store is read once per process, not on every recomposition, and
         // `mutableStateOf` so dismissing the introduction re-renders into the shell immediately
@@ -113,7 +140,24 @@ fun App(container: AppContainer) {
             // tokens diverge again, the storefront must follow `page`.
             color = EffySurface.page,
         ) {
-            when (val s = session) {
+          Box(modifier = Modifier.fillMaxSize()) {
+            when (updateState) {
+                GateState.Mandatory -> Inset {
+                    MandatoryUpdateScreen(
+                        updateOffered = updateOffered,
+                        webSiteHost = AppConfig.webSiteHost,
+                        onUpdate = updates::updateNow,
+                        onWebsite = updates::chooseWebsite,
+                    )
+                }
+                // Before Home: the launch screen's mark, with the sheet over it (FR-011). Home opens on Later.
+                GateState.Optional, is GateState.Notice -> {
+                    Inset { AppUpdateLaunchSurface() }
+                    UpdateSheet(updateOffered = updateOffered, onUpdate = updates::updateNow, onLater = updates::later)
+                }
+                // Under the launch intro, which waits for the answer.
+                GateState.Checking -> Inset { AppUpdateLaunchSurface() }
+                GateState.Passed -> when (val s = session) {
                 SessionState.Restoring -> Inset { CenteredMessage { EffyWordmark(size = 40.sp) } }
 
                 SessionState.Unreachable -> Inset { UnreachableScreen(container) }
@@ -220,6 +264,14 @@ fun App(container: AppContainer) {
                         })
                     }
             }
+            }
+            // 121: Play's background download is ready - on whatever screen is showing.
+            if (download == FlexibleDownload.Downloaded) UpdateDownloadedBar(updateBar, onRestart = updates::restart)
+            EffySnackbarHost(
+                updateBar,
+                modifier = Modifier.align(Alignment.BottomCenter).windowInsetsPadding(WindowInsets.safeDrawing),
+            )
+          }
         }
 
         // The launch intro, over everything, once per cold start: the native splash's "e." grows
@@ -231,7 +283,11 @@ fun App(container: AppContainer) {
         // them itself while it is showing.
         if (introDone) StatusBarIcons(lightIcons = dark)
         if (!introDone) {
-            EffyIntro(ready = session !is SessionState.Restoring, darkTheme = dark, onFinished = { introDone = true })
+            EffyIntro(
+                ready = session !is SessionState.Restoring && updateState != GateState.Checking,
+                darkTheme = dark,
+                onFinished = { introDone = true },
+            )
         }
     }
     }

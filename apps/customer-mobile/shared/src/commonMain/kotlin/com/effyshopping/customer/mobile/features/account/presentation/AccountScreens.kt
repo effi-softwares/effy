@@ -1,5 +1,7 @@
 package com.effyshopping.customer.mobile.features.account.presentation
 
+import com.effyshopping.customer.mobile.resources.lucide_refresh_cw
+import com.effyshopping.customer.mobile.features.appupdate.AppUpdateWords
 import androidx.compose.foundation.selection.selectableGroup
 import com.effyshopping.customer.mobile.resources.lucide_sun_moon
 import com.effyshopping.customer.mobile.core.theme.AppearanceMode
@@ -301,6 +303,9 @@ private fun AccountScreen(container: AppContainer, vm: AccountViewModel, custome
     val collapse = rememberEffyCollapse()
     val appearance by container.appearance.collectAsState()
     var choosingAppearance by remember { mutableStateOf(false) }
+    // 121 (FR-021): an optional update or a notice applies - shown here even after Later.
+    val updateAvailable by container.appUpdateGate.available.collectAsState()
+    val updateOffered by container.appUpdateGate.updateOffered.collectAsState()
     if (choosingAppearance) {
         EffySheet(title = "Appearance", onDismiss = { choosingAppearance = false }, cancelLabel = "Done") {
             Column(Modifier.selectableGroup()) {
@@ -412,6 +417,14 @@ private fun AccountScreen(container: AppContainer, vm: AccountViewModel, custome
                 // Give feedback (guest or signed-in).
                 AccountRow("Give feedback", Res.drawable.lucide_message_square, last = true) { nav.push(CustomerNavKey.Feedback) }
             }
+            if (updateAvailable && updateOffered) {
+                EffyGroup(caption = "App") {
+                    AccountRow(AppUpdateWords.AVAILABLE, Res.drawable.lucide_refresh_cw, last = true) {
+                        container.analyticsDriver.capture(AnalyticsEvent.AppUpdateAction("available", "update"))
+                        container.appUpdateGate.updateNow()
+                    }
+                }
+            }
             // The one entry to the full legal list (About is inside it).
             EffyGroup(caption = "Legal") {
                 AccountRow("Legal & policies", Res.drawable.lucide_file_text, last = true) { nav.push(CustomerNavKey.LegalIndex) }
@@ -421,7 +434,8 @@ private fun AccountScreen(container: AppContainer, vm: AccountViewModel, custome
 
             state.error?.let { EffyInlineError(it) }
             Text(
-                "Effy for iPhone and Android",
+                // 121 (FR-021): the version and build, so a customer can tell support which one they have.
+                "Effy for iPhone and Android · Version ${AppConfig.appVersion} (${AppConfig.appBuild})",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,

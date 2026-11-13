@@ -13,6 +13,9 @@ import com.effyshopping.driver.mobile.app.App
 import com.effyshopping.driver.mobile.core.platform.AndroidMapLauncher
 import com.effyshopping.driver.mobile.core.platform.AndroidPlatformUiController
 import com.effyshopping.driver.mobile.core.push.PushOpen
+import com.effyshopping.mobile.kit.update.AndroidStoreUpdater
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     private lateinit var platformUiController: AndroidPlatformUiController
@@ -34,6 +37,9 @@ class MainActivity : ComponentActivity() {
         }
         super.onCreate(savedInstanceState)
         val container = (application as EffyApp).container
+        // 121: the update gate's Play In-App Updates need this activity (its result launcher is registered here, before
+        // the activity starts).
+        (container.storeUpdater as? AndroidStoreUpdater)?.attach(this)
         // Opened by tapping a notification: tell the shell, which goes to the driver's work.
         PushOpen.consume(intent)?.let { container.openedNotification.value = it }
         platformUiController = AndroidPlatformUiController(this, window)
@@ -43,6 +49,13 @@ class MainActivity : ComponentActivity() {
         setContent {
             App(container, platformUiController, AndroidMapLauncher(applicationContext))
         }
+    }
+
+    /** 121: resume a Play update that was in progress, and notice a background download that finished meanwhile. */
+    override fun onResume() {
+        super.onResume()
+        val updater = (application as EffyApp).container.storeUpdater as? AndroidStoreUpdater ?: return
+        lifecycleScope.launch { updater.onResume() }
     }
 
     /** A notification tapped while the app was already open arrives here, not in [onCreate]. */

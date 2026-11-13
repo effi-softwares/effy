@@ -4,6 +4,50 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
+**121-in-app-updates** - App Updates Inside the App ([spec](specs/121-in-app-updates/spec.md)). 🔨 **BUILT 2026-11-13 - NOT
+APPLIED, PUBLISHED OR WALKED.** The customer and driver apps (iPhone and Android) check, before Home, a small public file for
+their app and environment, and decide from their own build number: **mandatory** (below `minimum`: a full screen, nothing
+else reachable), **optional** (below `recommended`: a sheet with Update now / Later at every launch) or **notice** (below
+`latest`: the same sheet once per latest build). No back-office page (operator decision: it is a developers' setting).
+- **The file**: `config/app-updates/<env>/<app>.json` (committed; git history is the record) → `make app-updates ENV=<env>
+  [APP=…]` (refuses an invalid or uncommitted file, uploads with `Cache-Control: public, max-age=60` and the commit as
+  metadata, invalidates `/app-updates/*`) → `https://media.<zone>/app-updates/<app>.json` on the 086 media CDN: a new
+  `/app-updates/*` behaviour (60 s, compressed) and bucket statement `CdnReadsAppUpdateSettings` - ⚠ NOT added to
+  `public_media_prefixes` (not a picture). No service, route or gateway; ~US$1 per million launches past the free tier.
+  Rules for raising each number: `config/app-updates/README.md`. `make app-updates-check` validates without AWS.
+- **One rule, both apps**: shape + publisher checks `@effy/shared-types/app-updates.ts`; the phone's reading, decision,
+  fetch (ETag → 304), saved answer and launch gate in `packages/mobile-kit/common/update/` (both apps compile it);
+  `app-updates.fixtures.json` pins TypeScript and Kotlin (18 decide, 21 publish, 13 phone cases; the Kotlin copy is
+  checked byte-for-byte). mobile-kit gained `commonTest/`, srcDir'd into both apps (22 tests).
+- **Timing**: a saved answer under 3 min is used at once, else the gate waits ≤ 1.5 s, then the saved answer, else lets
+  the person in; the read always finishes and a late **mandatory** takes over (a late "lifted" releases a stale mandatory).
+  Back on screen: re-read, act on mandatory only. ⚠ The waits are `withTimeoutOrNull` - no timers.
+- **Update now**: Android - Play In-App Updates (`AndroidStoreUpdater`, attached by each `MainActivity`; immediate when
+  mandatory, background download + "Update downloaded · Restart" otherwise; optional/notice shown on a Play install only
+  when Play has the update for that phone - staged rollouts); else the Play page. iPhone - the App Store app. A null
+  `storeUrl` (dev only) hides Update now.
+- **Placement**: above sign-in, the introduction and the shell (guests too); the launch intro waits for the answer.
+  ⚠ Driver: BELOW `App.kt`'s root effects that flush the offline queue - work recorded without signal is still sent under
+  the mandatory screen. Back on the mandatory screen leaves the app. A pending push/link waits behind the gate.
+- **Account**: version + build shown; "Update available" row while optional or notice applies (even after Later).
+- **Version numbers**: `scripts/bump-version.sh` also writes `iosApp/Configuration/Version.xcconfig` (included by
+  `Config.xcconfig`; the old hard-coded 1.0 / 1 removed); `scripts/check-app-versions.sh`; `make cm-version` /
+  `dm-version` before an iOS archive. BuildKonfig gained `APP_BUILD`, `APP_VERSION` and the **required**
+  `APP_UPDATES_URL` (added to both local `secrets.properties`).
+- **Telemetry**: `app_update_prompt_shown`, `app_update_action`, `app_update_completed` (platform-events.md).
+- **Verified**: shared-types (47 app-updates tests), edge-ops (6), the media guard (+1), Kotlin update tests on the
+  Android host in both apps, both Android apps `assembleDebug`, both apps' iOS main compile, `mobile-guard`,
+  `driver-guard`, `check-no-refresh-timers`, `terraform validate`. ⚠ **Found, not fixed (older than 121)**: both apps'
+  iOS **test** builds fail on test names containing commas (Kotlin/Native forbids them - e.g. `TabNavigationTest`,
+  `InboxMessageTest`; 121's own names were fixed); customer `UnitPriceWordsTest` expects 17 fixture cases, the file has 22
+  (since 2026-10-30); shared-types `package-status.guard` (099).
+- **Not proven until the stores exist**: Play's immediate/flexible flows and the staged-rollout check (quickstart
+  "Store-only checks"); prod (no prod environment yet).
+- **Operator steps**: (1) `make apply ENV=dev` (media.tf); (2) `make app-updates ENV=dev` (all-zero files);
+  (3) `APP_UPDATES_URL` is already in both local `secrets.properties` (dev URL); (4) build both apps and walk
+  `specs/121-in-app-updates/quickstart.md`; (5) commit `version.properties` + `Version.xcconfig` after each release build.
+  The screen wording is a draft (spec "Words").
+
 **120-effy-toasts** - Effy's Own Toasts ([spec](specs/120-effy-toasts/spec.md)). ✅ **SIGNED OFF 2026-11-13: DEPLOYED TO DEV
 AND WALKED BY THE OPERATOR ("good for now") - sound in both consoles, toasts at the top centre.** One toast of Effy's own, built from scratch (outside toast products were studied for what makes them feel good,
 nothing copied), for shop-web, back-office and customer-web - replacing sonner (consoles) and customer-web's

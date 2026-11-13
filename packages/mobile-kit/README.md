@@ -31,7 +31,10 @@ Each app wires all three:
 commonMain  { kotlin.srcDir(rootProject.file("../../packages/mobile-kit/common")) }
 androidMain { kotlin.srcDir(rootProject.file("../../packages/mobile-kit/android")) }
 iosMain     { kotlin.srcDir(rootProject.file("../../packages/mobile-kit/ios")) }
+commonTest  { kotlin.srcDir(rootProject.file("../../packages/mobile-kit/commonTest")) }   // 121
 ```
+
+`commonTest/` (121) holds mobile-kit's own tests, written once and run by **both** apps' `allTests`.
 
 ⚠ **A new `expect` goes in `common/` and BOTH actuals must be added at once.** A missing actual is a
 link error in one app only, and it will be the app you are not currently building.
@@ -46,6 +49,7 @@ link error in one app only, and it will be the app you are not currently buildin
 | `shell/ResponsiveNavigation.kt` | the adaptive chrome: **bottom bar on compact / navigation rail on expanded** from one destination set (`ResponsiveDestination`), with real per-destination icons |
 | `common/ui/EffyComponents.kt` | the shared page/field/action/section vocabulary (safe-area `EffyPage`, `EffyTextField`, `EffyPrimaryAction`, `EffySection`, loading + placeholder states) |
 | `common/ui/OtpInput.kt` + `android/` + `ios/` actuals | **the platform's one-time-code field** (035). One logical accessibility node - never per-digit boxes. `normalizeOtp` strips non-digits and ⚠ **does not truncate**; length is enforced once, at the submit gate, by `isCompleteOtp` |
+| `common/update/` + `android/update/` + `ios/update/` (121) | **app updates**: the settings file's shape (`AppUpdateSettings`), the one decision (`decideAppUpdate`, pinned to `packages/shared-types/src/app-updates.fixtures.json`), the fetch with the saved answer (`AppUpdateRepository` over each app's `AppUpdateStore`), the launch gate (`AppUpdateGate`), and the store action (`StoreUpdater`: Play In-App Updates on Android, the App Store app on iPhone). Each app draws its own screens |
 
 Each app inlines its own top-level session gate as an **exhaustive `when(session)`** over its own sealed
 `SessionState` (more type-safe than a generic gate), and its own return-to-intent (the customer app captures

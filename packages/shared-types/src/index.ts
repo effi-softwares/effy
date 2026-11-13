@@ -66,3 +66,4 @@ export * from "./messages";
 export * from "./message-automations";
 export * from "./email-unsubscribe";
 export * from "./housekeeping";
+export * from "./app-updates";

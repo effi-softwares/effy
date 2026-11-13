@@ -236,6 +236,45 @@ resource "aws_cloudfront_response_headers_policy" "media" {
   }
 }
 
+# ── 121: the apps' update settings (app-updates/<app>.json) ──────────────────────────────────────────
+# NOT immutable like the pictures: the file at one address changes when a release goes out. A minute at the edge and in
+# the app, keyed on the path alone; `make app-updates` also invalidates /app-updates/* on every publish. Phones send
+# If-None-Match, so an unchanged file is an empty 304 from the edge.
+resource "aws_cloudfront_cache_policy" "app_updates" {
+  name        = "${module.shared.name_prefix}-app-updates"
+  comment     = "121 - app update settings: a minute at the edge, path only"
+  default_ttl = 60
+  max_ttl     = 60
+  min_ttl     = 0
+
+  parameters_in_cache_key_and_forwarded_to_origin {
+    cookies_config {
+      cookie_behavior = "none"
+    }
+    headers_config {
+      header_behavior = "none"
+    }
+    query_strings_config {
+      query_string_behavior = "none"
+    }
+    enable_accept_encoding_gzip   = true
+    enable_accept_encoding_brotli = true
+  }
+}
+
+resource "aws_cloudfront_response_headers_policy" "app_updates" {
+  name    = "${module.shared.name_prefix}-app-updates"
+  comment = "121 - app update settings: a minute in the app, never immutable"
+
+  custom_headers_config {
+    items {
+      header   = "Cache-Control"
+      value    = "public, max-age=60"
+      override = true
+    }
+  }
+}
+
 # no access logging in dev: the bucket's own reads are not audited either
 # trivy:ignore:avd-aws-0010
 # no WAF: static, public, immutable files with no write path
@@ -264,6 +303,18 @@ resource "aws_cloudfront_distribution" "media" {
     compress                   = false
     cache_policy_id            = aws_cloudfront_cache_policy.media.id
     response_headers_policy_id = aws_cloudfront_response_headers_policy.media.id
+  }
+
+  # 121: the apps' update settings - a short cache, unlike the pictures' year (above).
+  ordered_cache_behavior {
+    path_pattern               = "/app-updates/*"
+    target_origin_id           = "media-bucket"
+    viewer_protocol_policy     = "redirect-to-https"
+    allowed_methods            = ["GET", "HEAD"]
+    cached_methods             = ["GET", "HEAD"]
+    compress                   = true
+    cache_policy_id            = aws_cloudfront_cache_policy.app_updates.id
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.app_updates.id
   }
 
   restrictions {
@@ -318,6 +369,25 @@ data "aws_iam_policy_document" "product_media" {
     sid       = "CdnReadsPublicPicturesOnly"
     actions   = ["s3:GetObject"]
     resources = [for p in local.public_media_prefixes : "${aws_s3_bucket.product_media.arn}/${p}/*"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["cloudfront.amazonaws.com"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "AWS:SourceArn"
+      values   = [aws_cloudfront_distribution.media.arn]
+    }
+  }
+
+  # 121: the apps' update settings. Not a picture, so not in local.public_media_prefixes (publicImageUrl never builds
+  # an address here); still read by the CDN only, and written only by `make app-updates`.
+  statement {
+    sid       = "CdnReadsAppUpdateSettings"
+    actions   = ["s3:GetObject"]
+    resources = ["${aws_s3_bucket.product_media.arn}/app-updates/*"]
 
     principals {
       type        = "Service"
@@ -539,4 +609,24 @@ resource "aws_cloudwatch_metric_alarm" "media_cdn_4xx" {
   comparison_operator = "GreaterThanOrEqualToThreshold"
   treat_missing_data  = "notBreaching"
   alarm_actions       = [aws_sns_topic.alerts_us_east_1.arn]
+}
+
+# ── 121: where the apps' update settings are published ─────────────────────────────────────────────────
+# `make app-updates` reads the bucket from /effy/<env>/media/bucket (above) and this distribution id to invalidate.
+resource "aws_ssm_parameter" "app_updates_distribution_id" {
+  name  = "/effy/${var.env}/app_updates/distribution_id"
+  type  = "String"
+  value = aws_cloudfront_distribution.media.id
+  tier  = "Standard"
+}
+
+# Each app's APP_UPDATES_URL (secrets.properties).
+output "app_updates_url_customer" {
+  description = "121 - the customer app's update settings: APP_UPDATES_URL in apps/customer-mobile/secrets.properties"
+  value       = "https://${local.media_host}/app-updates/customer.json"
+}
+
+output "app_updates_url_driver" {
+  description = "121 - the driver app's update settings: APP_UPDATES_URL in apps/driver-mobile/secrets.properties"
+  value       = "https://${local.media_host}/app-updates/driver.json"
 }

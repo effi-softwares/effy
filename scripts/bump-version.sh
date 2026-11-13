@@ -7,6 +7,15 @@
 #   scripts/bump-version.sh <version.properties> [patch|minor|major]
 set -euo pipefail
 
+write_xcconfig() {
+  cat > "$1" <<XC
+// Written by scripts/bump-version.sh from ../../version.properties - never edit by hand (121).
+// One build number means one build on iPhone and Android; the in-app update check compares it.
+MARKETING_VERSION = $2
+CURRENT_PROJECT_VERSION = $3
+XC
+}
+
 file="${1:?usage: bump-version.sh <version.properties> [patch|minor|major]}"
 part="${2:-}"
 [ -f "$file" ] || { echo "bump-version: $file missing" >&2; exit 1; }
@@ -31,3 +40,11 @@ tmp="$file.tmp"
 sed -e "s/^versionName=.*/versionName=$new_name/" -e "s/^versionCode=.*/versionCode=$new_code/" "$file" > "$tmp"
 mv "$tmp" "$file"
 echo "bump-version: $name+$code → $new_name+$new_code ($file)"
+
+# 121: the iPhone build carries the same two numbers, so one build number means one build on both platforms (the
+# update check compares it). Config.xcconfig includes this file; scripts/check-app-versions.sh fails a mismatch.
+xcconfig="$(dirname "$file")/iosApp/Configuration/Version.xcconfig"
+if [ -d "$(dirname "$xcconfig")" ]; then
+  write_xcconfig "$xcconfig" "$new_name" "$new_code"
+  echo "bump-version: $xcconfig → $new_name ($new_code)"
+fi

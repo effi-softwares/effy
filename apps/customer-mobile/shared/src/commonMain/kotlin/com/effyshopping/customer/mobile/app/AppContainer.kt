@@ -123,6 +123,13 @@ import com.effyshopping.customer.mobile.features.auth.domain.SignInWithEmailOtp
 import com.effyshopping.customer.mobile.features.auth.domain.SignInWithPassword
 import com.effyshopping.customer.mobile.features.auth.domain.StartPasswordReset
 import kotlinx.coroutines.CoroutineScope
+import com.effyshopping.customer.mobile.core.http.httpEngine
+import com.effyshopping.customer.mobile.core.storage.DevicePreferencesAppUpdateStore
+import com.effyshopping.customer.mobile.core.storage.epochMillisNow
+import com.effyshopping.mobile.kit.update.AppUpdateGate
+import com.effyshopping.mobile.kit.update.AppUpdateRepository
+import com.effyshopping.mobile.kit.update.StoreUpdater
+import io.ktor.client.HttpClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.map
@@ -146,6 +153,9 @@ class AppContainer(
     val crashReporter: CrashReporter = NoOpCrashReporter,
     val analyticsDriver: AnalyticsDriver = NoOpAnalyticsDriver,
     val pushTokenProvider: PushTokenProvider = NoOpPushTokenProvider,
+    // 121: the platform's way to update - Play In-App Updates on Android (AndroidStoreUpdater, attached by
+    // MainActivity), the App Store app on iPhone (IosStoreUpdater).
+    val storeUpdater: StoreUpdater,
     private val appScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
     debugLogging: Boolean = false,
 ) {
@@ -185,6 +195,26 @@ class AppContainer(
 
     /** The device store, one instance (the guest landing offers "clear data on this device"). */
     val preferences: DevicePreferences by lazy { devicePreferences() }
+
+    /**
+     * 121: the launch gate - is this build still allowed, and is there a newer one? One per process, so turning the
+     * phone or recreating the activity never asks again. It reads a public file on the media CDN with its own plain
+     * client (no session, no base URL): the check never needs sign-in.
+     */
+    val appUpdateGate: AppUpdateGate by lazy {
+        AppUpdateGate(
+            source = AppUpdateRepository(
+                client = HttpClient(httpEngine()) { expectSuccess = false },
+                url = AppConfig.appUpdatesUrl,
+                store = DevicePreferencesAppUpdateStore(preferences),
+                now = ::epochMillisNow,
+            ),
+            updater = storeUpdater,
+            build = AppConfig.appBuild,
+            now = ::epochMillisNow,
+            scope = appScope,
+        )
+    }
 
     /** The shopper's appearance choice (Account → Appearance), remembered on this device. */
     val appearance: kotlinx.coroutines.flow.MutableStateFlow<com.effyshopping.customer.mobile.core.theme.AppearanceMode> by lazy {

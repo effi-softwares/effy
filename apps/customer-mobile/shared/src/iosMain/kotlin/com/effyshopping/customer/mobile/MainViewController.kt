@@ -1,5 +1,6 @@
 package com.effyshopping.customer.mobile
 
+import com.effyshopping.mobile.kit.update.IosStoreUpdater
 import androidx.compose.runtime.remember
 import androidx.compose.ui.window.ComposeUIViewController
 import com.effyshopping.customer.mobile.app.App
@@ -40,6 +41,7 @@ fun MainViewController(
                 crashReporter = IosCrashReporter(crashBridge),
                 analyticsDriver = IosAnalyticsDriver(analyticsBridge, AppConfig.posthogKey, AppConfig.posthogHost),
                 pushTokenProvider = IosPushTokenProvider(pushBridge),
+                storeUpdater = IosStoreUpdater(), // 121: the App Store app on Effy's page
             ).also { built ->
                 // A tapped notification (AppDelegate.swift) - including the one that launched the app.
                 IosPushOpen.attach { built.openedNotification.value = it }

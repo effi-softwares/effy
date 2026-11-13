@@ -65,8 +65,14 @@ kotlin {
         iosMain {
             kotlin.srcDir(rootProject.file("../../packages/mobile-kit/ios"))
         }
+        // 121: mobile-kit's own tests (the app-update decision and gate), written once and run in both apps.
+        commonTest {
+            kotlin.srcDir(rootProject.file("../../packages/mobile-kit/commonTest"))
+        }
 
         androidMain.dependencies {
+            // 121 - Play In-App Updates, used by packages/mobile-kit/android/update/StoreUpdater.android.kt.
+            implementation(libs.play.app.update)
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.ktor.client.android)
             // The in-app payment element. Compose-scoped, so it lives here beside the payment screen: a
@@ -118,6 +124,7 @@ kotlin {
             implementation(libs.ktor.client.darwin)
         }
         commonTest.dependencies {
+            implementation(libs.ktor.client.mock) // 121: AppUpdateRepository against a fake CDN
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutines.test)
             implementation(libs.kotlinx.coroutines.test)

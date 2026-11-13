@@ -17,6 +17,17 @@ sealed class AnalyticsEvent(val name: String, val props: Map<String, String> = e
     // Cross-surface (platform-events.md)
     class ScreenViewed(screen: String) : AnalyticsEvent("screen_viewed", mapOf("name" to screen))
 
+    // 121 - app updates (platform-events.md, "App updates"). Bounded values and build numbers only.
+    /** The update screen or sheet was shown. `level` = mandatory | optional | notice; `platform` = ios | android. */
+    class AppUpdatePromptShown(level: String, platform: String, build: Int) :
+        AnalyticsEvent("app_update_prompt_shown", mapOf("level" to level, "platform" to platform, "build" to build.toString()))
+    /** A choice on it. `action` = update | later | restart | website | call_dispatch. */
+    class AppUpdateAction(level: String, action: String) :
+        AnalyticsEvent("app_update_action", mapOf("level" to level, "action" to action))
+    /** The first launch on a newer build after a prompt. */
+    class AppUpdateCompleted(fromBuild: Int, toBuild: Int) :
+        AnalyticsEvent("app_update_completed", mapOf("fromBuild" to fromBuild.toString(), "toBuild" to toBuild.toString()))
+
     // Driver workflow (driver-events.md)
     class DutyToggled(on: Boolean) : AnalyticsEvent("driver_duty_toggled", mapOf("on" to on.toString()))
     class CollectionRunOpened(runId: String) : AnalyticsEvent("collection_run_opened", mapOf("runId" to runId))

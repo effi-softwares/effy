@@ -22,6 +22,10 @@ class AnalyticsEventDriftTest {
         "push_permission_denied",
         "notification_opened",
         "app_link_opened",
+        // platform-events.md - App updates (121)
+        "app_update_prompt_shown",
+        "app_update_action",
+        "app_update_completed",
         // commerce-events.md
         "storefront_viewed",
         "product_viewed",
@@ -40,6 +44,9 @@ class AnalyticsEventDriftTest {
     private val allEvents: List<AnalyticsEvent> = listOf(
         AnalyticsEvent.ScreenViewed("home"),
         AnalyticsEvent.AppLinkOpened("order"),
+        AnalyticsEvent.AppUpdatePromptShown("optional", "android", 3),
+        AnalyticsEvent.AppUpdateAction("optional", "later"),
+        AnalyticsEvent.AppUpdateCompleted(3, 4),
         AnalyticsEvent.StorefrontViewed,
         AnalyticsEvent.ProductViewed("p1"),
         AnalyticsEvent.ProductAddedToCart("p1", 2),

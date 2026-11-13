@@ -27,6 +27,9 @@ val requiredKeys = listOf(
     "COGNITO_APP_CLIENT_ID",  // the driver mobile client id - a name, not a key; NO client secret
     "COGNITO_REGION",
     "DRIVER_API_BASE_URL",    // edge-api/driver - the only backend this app calls
+    // 121: the app's update settings on the media CDN - output `app_updates_url_driver` (make output ENV=<env>).
+    // Required: a build that cannot find its settings could never be told to update.
+    "APP_UPDATES_URL",
 )
 
 val secretsFile = rootProject.file("secrets.properties") // git-ignored
@@ -64,7 +67,16 @@ val optionalKeys = listOf(
     "DISPATCH_PHONE", "HUB_DESK_PHONE", "HANDBOOK_URL",
 )
 
+// 121: the app's own version, from the one version file (`make cm-apk`/`dm-apk`/`cm-version`/`dm-version` raise it). The
+// update check compares APP_BUILD with the published settings; iOS reads the same numbers (Version.xcconfig).
+val versionProps = Properties().apply { rootProject.file("version.properties").inputStream().use { load(it) } }
+val appBuild: String = versionProps.getProperty("versionCode")?.takeIf { it.toIntOrNull() != null }
+    ?: throw GradleException("version.properties: versionCode is missing or not a number")
+val appVersion: String = versionProps.getProperty("versionName")?.takeIf { Regex("""\d+\.\d+\.\d+""").matches(it) }
+    ?: throw GradleException("version.properties: versionName must be three numbers (1.0.0)")
+
 // Optional telemetry config; missing values bake in "" so telemetry stays a no-op.
 extra["effyConfig"] =
     requiredKeys.associateWith { configValue(it)!! } +
-        optionalKeys.associateWith { configValue(it) ?: "" }
+        optionalKeys.associateWith { configValue(it) ?: "" } +
+        ("APP_BUILD" to appBuild) + ("APP_VERSION" to appVersion)
