@@ -606,7 +606,8 @@ the standard three-module layout (`shared` + `androidApp` + `iosApp`) and packag
 in `iosApp/Configuration/Version.xcconfig` (121).** `make cm-apk` /
 `make dm-apk` raise the build number (`versionCode`) by one on every release build, and the version (`versionName`, three
 numbers) only with `BUMP=patch|minor|major`. They write `customer-app-<version>+<build>.apk` / `driver-app-…`. The file
-is committed after each build. Guide: [docs/runbooks/android-release-apk.md](docs/runbooks/android-release-apk.md).
+is committed after each build. Guide: [docs/runbooks/android-release-apk.md](docs/runbooks/android-release-apk.md). Every
+run/build/version command for Android, the iOS simulator and a real iPhone: [docs/runbooks/mobile-builds.md](docs/runbooks/mobile-builds.md).
 
 ⚠ **UPDATE PROMPTS COME FROM ONE FILE PER APP AND ENVIRONMENT (121)** - `config/app-updates/<env>/<app>.json`, published by
 `make app-updates ENV=<env>` (refuses an invalid or uncommitted file) to the media CDN; the decision is written once in

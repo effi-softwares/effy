@@ -1,5 +1,7 @@
 # Android release APKs (customer + driver)
 
+All mobile run/build/version commands (Android, iOS simulator, iPhone) in one place: [mobile-builds.md](mobile-builds.md).
+
 How to build a signed APK to sideload on a phone or hand to a tester, and how its version is kept
 moving. All commands run from the **repo root**.
 
