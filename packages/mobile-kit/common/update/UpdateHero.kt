@@ -94,7 +94,7 @@ fun UpdateHero(
     )
 
     val canvas = tileSize * 1.9f
-    val badgeSize = tileSize * 0.34f
+    val badgeSize = tileSize * 0.46f
     Box(
         modifier = modifier.size(canvas).clearAndSetSemantics { },
         contentAlignment = Alignment.Center,
@@ -143,30 +143,31 @@ fun UpdateHero(
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .offset(x = badgeSize * 0.18f, y = badgeSize * 0.18f)
+                    .offset(x = badgeSize * 0.24f, y = badgeSize * 0.24f)
                     .size(badgeSize)
                     .graphicsLayer {
                         scaleX = badgeIn.value
                         scaleY = badgeIn.value
                     }
-                    .border(2.5.dp, colors.page, CircleShape)
+                    .border(3.dp, colors.page, CircleShape)
                     .clip(CircleShape)
                     .background(colors.badge),
             ) {
                 Canvas(Modifier.size(badgeSize)) {
                     val w = size.width
-                    val sw = w * 0.11f
-                    // The arrow bobs a little way down towards the tray and back; the tray stays still.
-                    val dy = if (animate) (drop - 0.5f) * w * 0.10f else 0f
+                    // The glyph keeps to the middle ~55% of the badge, so neither the arrow at the top of its bob nor the
+                    // tray's ends ever reach the white ring around the badge.
+                    val sw = w * 0.08f
+                    val dy = if (animate) (drop - 0.5f) * w * 0.06f else 0f
                     val cx = w / 2f
-                    val top = w * 0.22f + dy
-                    val tip = w * 0.58f + dy
-                    val wing = w * 0.17f
+                    val top = w * 0.30f + dy
+                    val tip = w * 0.56f + dy
+                    val wing = w * 0.12f
                     drawLine(colors.badgeInk, Offset(cx, top), Offset(cx, tip), strokeWidth = sw, cap = StrokeCap.Round)
                     drawLine(colors.badgeInk, Offset(cx - wing, tip - wing), Offset(cx, tip), strokeWidth = sw, cap = StrokeCap.Round)
                     drawLine(colors.badgeInk, Offset(cx + wing, tip - wing), Offset(cx, tip), strokeWidth = sw, cap = StrokeCap.Round)
-                    val trayY = w * 0.76f
-                    drawLine(colors.badgeInk, Offset(cx - w * 0.22f, trayY), Offset(cx + w * 0.22f, trayY), strokeWidth = sw, cap = StrokeCap.Round)
+                    val trayY = w * 0.70f
+                    drawLine(colors.badgeInk, Offset(cx - w * 0.16f, trayY), Offset(cx + w * 0.16f, trayY), strokeWidth = sw, cap = StrokeCap.Round)
                 }
             }
         }
