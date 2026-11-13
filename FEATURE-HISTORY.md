@@ -4,8 +4,8 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
-**119-backoffice-team-management** - Back-Office Team Management ([spec](specs/119-backoffice-team-management/spec.md)). 🛠 **BUILT
-2026-11-13; NOT APPLIED, MIGRATED, DEPLOYED OR WALKED.** Settings › Team and access manages the back-office team: add a
+**119-backoffice-team-management** - Back-Office Team Management ([spec](specs/119-backoffice-team-management/spec.md)). ✅ **SIGNED OFF
+2026-11-13: APPLIED, MIGRATED AND DEPLOYED TO DEV (`make gateway-usage`: staff 253/300); operator confirmed it works.** Settings › Team and access manages the back-office team: add a
 person with one role (optional invitation), change role, disable / re-enable, remove (record kept), sign out everywhere,
 rename (an admin anyone; anyone themselves), a person's page with its activity, and a check that shows and repairs where
 the sign-in pool disagrees with the records.
@@ -53,6 +53,7 @@ the sign-in pool disagrees with the records.
 - **Deploy order** (operator): `make apply ENV=dev` → `make db-up ENV=dev` → `make edge-deploy SERVICE=admin ENV=dev` →
   `make edge-deploy SERVICE=admin-team ENV=dev` → `make edge-deploy-all ENV=dev` (staffNameSql reaches orders, fleet,
   catalog, admin-messages, admin-promotions) → push `dev` → walk [quickstart.md](specs/119-backoffice-team-management/quickstart.md).
+  ✅ All done 2026-11-13 (operator); the walk was not recorded row by row.
 
 **116-links-badges-urgency** - Reaching the Right Place ([spec](specs/116-links-badges-urgency/spec.md)). ✅ **APPLIED, MIGRATED AND
 DEPLOYED TO DEV 2026-11-12; CUSTOMER APP WALKED ON ANDROID (links Part 1, badge Part 2, urgency Part 3 of `test-plan.md`).
