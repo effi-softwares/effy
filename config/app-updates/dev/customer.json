@@ -1,5 +1,5 @@
 {
   "schema": 1,
-  "ios": { "minimum": 9, "recommended": 10, "latest": 10, "storeUrl": "https://apps.apple.com/au/app/id098765" },
+  "ios": { "minimum": 9, "recommended": 9, "latest": 9, "storeUrl": "https://apps.apple.com/au/app/id098765" },
   "android": { "minimum": 9, "recommended": 9, "latest": 9, "storeUrl": "https://play.google.com/store/apps/details?id=com.effyshopping.customer.mobile" }
 }
