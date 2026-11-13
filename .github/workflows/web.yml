@@ -56,6 +56,9 @@ jobs:
       # sweeps above: a guard nothing runs is a rule nothing enforces.
       - name: "Gate: no data refresh timers (071 FR-009)"
         run: bash scripts/check-no-refresh-timers.sh
+      # 120 - one toast, Effy's own, for every web surface. A returned sonner import compiles and renders; only this fails.
+      - name: "Gate: one toast for every web surface (120)"
+        run: bash scripts/check-one-toast.sh
       # 079 - a shop is told who takes the package away ("Effy driver" / "Courier"), never the
       # customer's words for the delivery. A restored label compiles and renders; only this fails.
       - name: "Gate: no customer delivery words on shop screens (079 FR-028)"

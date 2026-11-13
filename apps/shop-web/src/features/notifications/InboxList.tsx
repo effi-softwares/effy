@@ -43,8 +43,8 @@ import { ListSkeleton, Loading } from "@effy/web-kit/patterns"
 import { cn } from "@/lib/utils"
 import { track } from "@/lib/telemetry"
 
-import { markNotificationRead } from "./api"
-import { markLocallyRead, useSetArchived } from "./inbox-api"
+import { useSetArchived } from "./inbox-api"
+import { openInboxItem } from "./openInboxItem"
 
 const ICONS: Record<string, LucideIcon> = {
   package: Package,
@@ -158,14 +158,15 @@ function InboxRow({ item, onOpened }: { item: InboxItemDTO; onOpened?: () => voi
     onOpened?.()
   }
 
-  const open = () => {
-    markLocallyRead(qc, item.id)
-    track({ name: "notif_inbox_item_opened", type: item.type, category: item.category, fallback: destination === null })
-    void markNotificationRead(item.id)
-    // A message from Effy (112) is read where it is: its words and picture, then a button to where it leads.
-    if (item.type === "shop_message") setReading(true)
-    else go()
-  }
+  const open = () =>
+    openInboxItem(item, {
+      qc,
+      push: (path) => {
+        router.history.push(path)
+        onOpened?.()
+      },
+      readInPlace: () => setReading(true),
+    })
 
   const remove = () => {
     archive.mutate({ id: item.id, archived: true })

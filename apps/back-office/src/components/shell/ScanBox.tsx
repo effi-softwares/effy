@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react"
 
 import { useLocation, useNavigate } from "@tanstack/react-router"
 
+import { playCue } from "@effy/design-system/toast"
 import { toast } from "@effy/design-system/ui"
 import { createWedge } from "@effy/web-kit/scanner"
 
@@ -34,13 +35,15 @@ export function ScanBox() {
         try {
           const found = await lookupLabel(raw, "scan")
           if (!found) {
-            toast.error("No bag has that label.")
+            toast.error("No bag has that label.", { sound: true })
             return
           }
-          if (found.voided) toast("That label was removed from its order. Throw it away.")
+          // Scanning is the one place back-office makes a sound (120 FR-020): heard, so eyes can stay on the bags.
+          if (found.voided) toast("That label was removed from its order. Throw it away.", { sound: true })
+          else playCue("success")
           void navigate(lookupLink(found) as never)
         } catch {
-          toast.error("Couldn't look that label up. Try again.")
+          toast.error("Couldn't look that label up. Try again.", { sound: true })
         } finally {
           busy.current = false
         }

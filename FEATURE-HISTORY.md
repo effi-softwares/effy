@@ -4,6 +4,58 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
+**120-effy-toasts** - Effy's Own Toasts ([spec](specs/120-effy-toasts/spec.md)). 🟡 **BUILT 2026-11-13; NOT DEPLOYED OR
+WALKED.** One toast of Effy's own, built from scratch (outside toast products were studied for what makes them feel good,
+nothing copied), for shop-web, back-office and customer-web - replacing sonner (consoles) and customer-web's
+`toast-store` + `ToastRegion`. No backend, database or infrastructure change.
+- **Where**: `@effy/design-system/toast` (new export; `@effy/design-system/ui` re-exports `toast`/`Toaster`, so the
+  consoles' 27 imports did not change) + `@effy/design-system/toast.css` (consoles through `console.css`, storefront
+  through `globals.css`). Imports nothing outside React and its own folder.
+- **Rules** (`store.ts`, pure over an injected clock, 24 tests): one toast at a time; a new message takes it over in
+  place; ⚠ **a failure still showing is never replaced by a lesser message** - the newest lesser one waits and appears
+  when the failure closes; only the owning caller changes it, a stale caller's late **failure** still gets through (spec
+  FR-008 amended while planning), its late success is dropped; repeats count "×n"; 5 s for success/info/warning,
+  sticky for failure, in progress and any toast with a button unless the caller sets `duration`; hover/focus pause.
+- **Motion** (`motion.ts`, `spring.ts`): content laid out once; a separate surface sized by springs (semi-implicit Euler,
+  fixed 1/240 s step, retargets keep velocity) and the content clipped to it - the page never reflows and text never
+  re-wraps mid-move; no transform at rest. Arrival from the edge, shake for a failure, hop for a warning, pulse for
+  success, the in-progress ring caught mid-turn. Reduced motion: fade only, no frame loop.
+- **Sound** (`sound.ts`, `cue.ts`): the platform's ONE sound set, made by the browser. Policy per Toaster: shop-web
+  `on`/`off` from its Sound setting (`ShopToaster`); back-office `opt-in`, only the scan box asks (`sound: true`) - and a
+  found label, which opens its order with no toast, plays `playCue("success")` itself (spec FR-020 amended); storefront
+  `never`. ⚠ The shop's **new-order chime moved here unchanged** (`playCue("new-order")`; test pins its notes and gains);
+  `apps/shop-web/src/lib/chime.ts` is deleted.
+- **Reading**: two live regions always on the page (polite; assertive for failures), a repeat said again, progress-only
+  changes silent; verified that a toast raised over a Radix dialog is still read out (`aria-hidden` spares `[aria-live]`).
+  Alt+T focuses the toast, Escape closes it and gives focus back; swipe to dismiss.
+- ⚠ **STOREFRONT BUDGET, MEASURED**: with everything on first load (6.1 KB) the search page was **173.8 / 174 KB**. So the
+  first load is only the rules, announcer and live regions (**3.2 KB**, `check-toast-size.mjs` holds ≤ 4 KB); the drawing
+  code (`ToastView.tsx`, 4.6 KB) loads when the page is idle or a toast arrives, the tones (0.9 KB) the first time one is
+  wanted. Guest pages before → after (arrivals included): index 165.7 → 167.8, search 168.1 → 170.3, product 163.7 →
+  165.8, cart 165.3 → 167.4, legal 156.9 → 159.0 KB. ⚠ The bell is in every page's header, so the arrival code first
+  added **1.9 KB to every guest page**; it is now `import()`ed from the bell (`arrivals.ts`), 0.2 KB.
+- **Storefront kinds corrected**: its old toast had one look for everything, so failures ("We couldn't save that…")
+  carried a tick; each message now has the kind its words say (failures `error`, "Sign in to save items for later"
+  `info`). Its toasts with a button keep their 5 s (`duration: 5000`). Words unchanged.
+- **Arrivals (phase 2)**: shop-web and the signed-in storefront toast a new inbox item with **Open** (several: "N new
+  notifications" → the inbox), driven by the bell's existing count (no timer, no new route); first read only sets the
+  mark; nothing on the inbox page or the item's own page; never `shop_new_order` (the banner owns it). One rule,
+  `inboxArrivals` / `inboxArrivalTitle` in `@effy/shared-types`; "open an item" extracted once per app
+  (`openInboxItem.ts`) and used by the inbox and the toast. Telemetry `notif_arrival_shown` / `notif_arrival_opened`
+  (type only). ⚠ **Defect found while building**: two quick count changes could drop the first look's mark and swallow a
+  real arrival; looks now run one after another from the last mark (test "two quick changes never lose an arrival").
+- **Guards**: `make toast-guard` / `scripts/check-one-toast.sh` (+ `web.yml`) fails a sonner import or dependency, a
+  `toast-store*`, or an app's own toast region (proven by breaking each); `check-component-shape.mjs` holds the toast's
+  surface at the overlay corner and its buttons at the control corner; `check-toast-size.mjs`.
+- **Verified**: design-system 56 toast tests + all guards; shared-types arrivals tests; shop-web 540, back-office 472,
+  customer-web 750 tests; typecheck of all six packages; production builds of all three apps; storefront `depcruise`,
+  `size`; `make live-guards`, `make toast-guard`, `make brand-guards`. ⚠ Not caused by 120: shared-types'
+  `package-status.guard.test.ts` fails on `shop-web/.../fulfillment/collection.ts` (the known 099 failure), and one
+  web-kit test failed once and passed on three reruns.
+- **Operator steps open**: deploy the three web apps (no order dependency); walk quickstart §3-§6 - ⚠ **the spring
+  values (`spring.ts`) and the tones (`sound.ts`) are starting values to tune by eye and ear** on a laptop and a phone;
+  record what was kept in research R2/R4.
+
 **119-backoffice-team-management** - Back-Office Team Management ([spec](specs/119-backoffice-team-management/spec.md)). ✅ **SIGNED OFF
 2026-11-13: APPLIED, MIGRATED AND DEPLOYED TO DEV (`make gateway-usage`: staff 253/300); operator confirmed it works.** Settings › Team and access manages the back-office team: add a
 person with one role (optional invitation), change role, disable / re-enable, remove (record kept), sign out everywhere,

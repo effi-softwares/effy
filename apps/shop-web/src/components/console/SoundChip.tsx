@@ -3,15 +3,23 @@ import { useEffect } from "react"
 import { useStore } from "@tanstack/react-store"
 import { Volume2, VolumeX } from "lucide-react"
 
+import { subscribeAudio, unlockAudio, unlockOnFirstGesture } from "@effy/design-system/toast"
 import { Button } from "@effy/design-system/ui"
 
-import { unlockAudio, unlockOnFirstGesture } from "@/lib/chime"
-import { consoleStore, setSoundOn } from "@/lib/console-store"
+import { consoleStore, setAudioReady, setSoundOn } from "@/lib/console-store"
 
 export function SoundChip() {
   const { soundOn, audioReady } = useStore(consoleStore, (s) => s)
 
-  useEffect(() => unlockOnFirstGesture(), [])
+  useEffect(() => {
+    // The platform's one sound set (120) says when audio can play; the chip shows it.
+    const stopListening = subscribeAudio(setAudioReady)
+    const stopUnlocking = unlockOnFirstGesture()
+    return () => {
+      stopListening()
+      stopUnlocking()
+    }
+  }, [])
 
   if (soundOn && !audioReady) {
     return (

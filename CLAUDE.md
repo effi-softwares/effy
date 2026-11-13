@@ -470,7 +470,12 @@ operator's choice); `--primary` / `--brand` / `--destructive` are the readable t
 `AlertDialog` ARE shadcn's responsive dialog - centred from 768px, a bottom Drawer below (`ResponsiveModal` is now
 an alias). Side panels are the Drawer `direction="left|right"`, FLOATING (8px inset, rounded on all four corners);
 there is no Sheet. customer-web guest routes fetch them on demand (`components/overlays/lazy.ts`);
-`dependency-cruiser.first-load.cjs` fails a static path from a guest route to radix/vaul/sonner. The two-identity history below (console vs storefront) is superseded.
+`dependency-cruiser.first-load.cjs` fails a static path from a guest route to radix/vaul. The two-identity history below (console vs storefront) is superseded.
+⚠ **ONE TOAST, EFFY'S OWN (120)** - `@effy/design-system/toast` (`toast`, `Toaster`, `toast.css`) for all three web apps;
+sonner and customer-web's `toast-store` are gone (`make toast-guard`). One visible at a time; a failure is never
+replaced by a lesser message; tones from ONE sound set (`playCue`; the shop's new-order chime is its `new-order` cue),
+per app by the `sound` policy (shop: its Sound setting; back-office: scanning only; storefront: `never`). The rules,
+announcer and live regions are first load (≤ 4 KB, `check-toast-size.mjs`); the drawing code and the tones load on demand.
 ⚠ **THE PLATFORM IS NO LONGER MONOCHROME.** On operator direction (design project `951bb710`,
 `theme-adoption-prompt.md`) the **"Effy Shop Console" appearance identity was adopted PLATFORM-WIDE**,
 reversing constitution v1.10.0 → v1.13.0 and features 026 / 041. One file carries it -
@@ -528,7 +533,7 @@ SC-004 web-px == mobile-dp parity, which 057 broke for shop-web, is **restored**
   lg 8 (cards, dialogs, panels)**. Avatars, switches, radios, dots and progress are `rounded-full`.
   ⚠ **The console look lives IN the shared components** (`@effy/design-system/ui`, 2026-10-25) - one
   button definition (sizes `default` 44 / `sm` 40 / `icon` 44), one badge, one input. The console stylesheet (`src/console.css`, which imports its tokens from `src/tokens.css`, the one console token file) only
-  restyles what customer-web also renders (dialog, drawer, OTP cells), the toasts, and the `ef-*` patterns (one set for both consoles; no `bo-`/`sh-` split)
+  restyles what customer-web also renders (dialog, drawer, OTP cells), imports the toast's own `toast.css`, and the `ef-*` patterns (one set for both consoles; no `bo-`/`sh-` split)
   and shell. A rule in `@layer components` cannot restyle a component: its own classes always win.
 - ⚠ **WHERE A CONSOLE STYLE GOES (back-office + shop-web) - one rule, no exceptions:**
   1. **Both consoles use it** (or a shared `@effy/web-kit` component does) → it MUST go in
@@ -671,6 +676,7 @@ the entries carry gotchas and deploy-ordering rules that the code does not. Slic
 
 Features recorded:
 
+- **120-effy-toasts** - Effy's Own Toasts (one toast built from scratch for the three web apps, replacing sonner and the storefront's own; spring motion; a failure is never replaced by a lesser message; one sound set with a policy per app - the shop's new-order chime moved into it; new-notification toasts in shop-web and the storefront; first load 3.2 KB, the rest on demand; `make toast-guard`) - built 2026-11-13; not deployed or walked; springs and tones to tune on the walk
 - **119-backoffice-team-management** - Back-Office Team Management (admins add people with one role, change role, disable/re-enable, remove (record kept), sign out everywhere, rename, repair sign-in disagreements, all from Settings › Team and access; ⚠ the staff record is the origin of a role - `/me` no longer creates records or reads the token's groups; one writer `@effy/edge-shared/team`; new stack `admin-team`, staff gateway 253/300 - a third gateway is next) - signed off 2026-11-13: applied, migrated and deployed to dev, works
 - **116-links-badges-urgency** - Reaching the Right Place (Effy links open the customer app on Android - App Links over `APP_LINK_PATHS`, one parser pinned on both sides; the icon badge corrected silently within two minutes of any inbox change, every app push tagged by its notification id; iPhone urgency from importance, never critical; the iPhone halves switched off until the paid Apple account; the notifications backlog is complete) - deployed to dev 2026-11-12; customer app walked on Android, driver app walk pending, iPhone after the paid Apple account
 - **115-messages-email-automation** - Messages That Do More (a message also by email, offers/news only after a yes in Effy's email wording; one-tap unsubscribe and undo; limits count messages, not pushes; automatic messages on a trigger or a repeat, each run an ordinary message created by the worker; `{first name}` filled at read, the lock screen always the fallback; staff gateway 240/300) - built 2026-11-12; not migrated, deployed or walked; both consent wordings are drafts
@@ -765,5 +771,5 @@ Features recorded:
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/119-backoffice-team-management/plan.md
+at specs/120-effy-toasts/plan.md
 <!-- SPECKIT END -->

@@ -46,6 +46,11 @@ export function useInboxPages(view: InboxView, enabled = true) {
   })
 }
 
+/** The newest few, for the arrival toast (120): read only when the unseen count rises. */
+export function fetchNewest(limit = 5): Promise<InboxPageDTO> {
+  return api.get<InboxPageDTO>(pagePath({ filter: "all", limit }, null))
+}
+
 export function useUnseenCount() {
   return useQuery({
     queryKey: [...INBOX_ROOT, "unseen"],

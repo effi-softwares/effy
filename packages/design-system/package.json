@@ -12,20 +12,23 @@
     "./tokens.css": "./src/tokens.css",
     "./console.css": "./src/console.css",
     "./skeleton.css": "./src/skeleton.css",
+    "./toast": "./src/toast/index.ts",
+    "./toast.css": "./src/toast.css",
     "./stripe-storefront-appearance": "./stripe/storefront-appearance.ts"
   },
   "types": "./src/index.ts",
   "scripts": {
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
-    "test": "node scripts/check-tokens.mjs && node scripts/check-component-shape.mjs && node scripts/check-token-usage.mjs && node scripts/check-banner-canvas.mjs",
+    "test": "node scripts/check-tokens.mjs && node scripts/check-component-shape.mjs && node scripts/check-token-usage.mjs && node scripts/check-banner-canvas.mjs && vitest run && node scripts/check-toast-size.mjs",
     "tokens:test": "node scripts/check-tokens.mjs",
     "tokens:usage": "node scripts/check-token-usage.mjs",
     "tokens:gen": "node scripts/gen-compose-theme.mjs && node scripts/gen-stripe-appearance.mjs",
     "tokens:check": "node scripts/check-compose-theme.mjs && node scripts/check-mobile-assets.mjs",
     "mobile-assets:sync": "node scripts/sync-mobile-assets.mjs",
     "mobile-assets:check": "node scripts/check-mobile-assets.mjs",
-    "banner-canvas:check": "node scripts/check-banner-canvas.mjs"
+    "banner-canvas:check": "node scripts/check-banner-canvas.mjs",
+    "test:unit": "vitest run"
   },
   "dependencies": {
     "@ncdai/react-wheel-picker": "1.2.3",
@@ -33,7 +36,6 @@
     "clsx": "^2.1.1",
     "lucide-react": "^1.24.0",
     "radix-ui": "^1.6.2",
-    "sonner": "^2.0.7",
     "tailwind-merge": "^3.6.0",
     "vaul": "^1.1.2"
   },
@@ -42,10 +44,15 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.1.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "esbuild": "0.28.1",
+    "jsdom": "^25.0.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "typescript": "~5.9.2"
+    "typescript": "~5.9.2",
+    "vitest": "^3.0.0"
   }
 }

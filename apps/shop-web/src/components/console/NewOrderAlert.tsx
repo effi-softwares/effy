@@ -5,12 +5,12 @@ import { useNavigate } from "@tanstack/react-router"
 import { useStore } from "@tanstack/react-store"
 import { ArrowRight, BellRing } from "lucide-react"
 
+import { playCue } from "@effy/design-system/toast"
 import { Banner } from "@effy/web-kit/patterns"
 
 import { courierPickupLine } from "@/features/fulfillment/courierPickup"
 import { deliveredByText } from "@/features/fulfillment/orderConsole"
 import { orderListQuery } from "@/features/fulfillment/queries"
-import { playChime } from "@/lib/chime"
 import { consoleStore } from "@/lib/console-store"
 
 const REPEAT_MS = 20_000
@@ -33,14 +33,14 @@ export function NewOrderAlert() {
   useEffect(() => {
     const fresh = waiting.some((o) => !heard.current.has(o.id))
     for (const o of waiting) heard.current.add(o.id)
-    if (fresh && soundOn) playChime()
+    if (fresh && soundOn) playCue("new-order")
   }, [waiting, soundOn])
 
   useEffect(() => {
     if (waiting.length === 0) return
     const t = setInterval(() => {
       setNow(Date.now())
-      if (soundOn) playChime()
+      if (soundOn) playCue("new-order")
     }, REPEAT_MS)
     return () => clearInterval(t)
   }, [waiting.length, soundOn])

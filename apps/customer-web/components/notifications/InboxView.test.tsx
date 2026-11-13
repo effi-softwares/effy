@@ -6,8 +6,12 @@ import type { InboxItemDTO, InboxPageDTO } from "@effy/shared-types"
 
 const push = vi.hoisted(() => vi.fn())
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push, refresh: vi.fn() }) }))
-const toast = vi.hoisted(() => vi.fn())
-vi.mock("@/lib/toast-store", () => ({ toast }))
+// Every kind records into one mock, so a test reads what was said whatever kind it was said as.
+const toast = vi.hoisted(() => {
+  const said = vi.fn()
+  return Object.assign(said, { success: said, error: said, info: said, warning: said })
+})
+vi.mock("@effy/design-system/toast", () => ({ toast }))
 vi.mock("@/lib/telemetry", () => ({ capture: vi.fn() }))
 
 const { InboxView } = await import("./InboxView")
@@ -51,9 +55,9 @@ describe("the customer's notifications on the website (110 US6)", () => {
     render(<InboxView initial={page()} filter="all" />)
     await userEvent.click(screen.getByRole("button", { name: /Archive “Order a”/ }))
     expect(screen.queryByText("Order a")).toBeNull()
-    const [, opts] = toast.mock.calls[0] as [string, { action: { label: string; run: () => void } }]
+    const [, opts] = toast.mock.calls[0] as [string, { action: { label: string; onClick: () => void } }]
     expect(opts.action.label).toBe("Undo")
-    opts.action.run()
+    opts.action.onClick()
     expect(await screen.findByText("Order a")).toBeTruthy()
     const patches = calls.filter((c) => c.init?.method === "PATCH").map((c) => c.init?.body)
     expect(patches).toEqual([JSON.stringify({ archived: true }), JSON.stringify({ archived: false })])
@@ -91,9 +95,9 @@ describe("the customer's notifications on the website (110 US6)", () => {
     await waitFor(() => expect(toast).toHaveBeenCalled())
     const prefs = calls.filter((c) => c.url === "/api/notification-preferences")
     expect(JSON.parse(String(prefs[0]!.init!.body))).toMatchObject({ consent: { offers: false }, via: "inbox" })
-    const [, opts] = toast.mock.calls[0] as [string, { action: { label: string; run: () => void } }]
+    const [, opts] = toast.mock.calls[0] as [string, { action: { label: string; onClick: () => void } }]
     expect(opts.action.label).toBe("Undo")
-    opts.action.run()
+    opts.action.onClick()
     await waitFor(() => expect(calls.filter((c) => c.url === "/api/notification-preferences")).toHaveLength(2))
   })
 })

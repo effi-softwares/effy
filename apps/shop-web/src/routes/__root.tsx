@@ -1,9 +1,8 @@
 import type { QueryClient } from "@tanstack/react-query"
 import { createRootRouteWithContext, Outlet } from "@tanstack/react-router"
 
-import { Toaster } from "@effy/design-system/ui"
-
 import { DevTools } from "@/components/DevTools"
+import { ShopToaster } from "@/components/console/ShopToaster"
 import { useNotificationNavigation } from "@/features/notifications/useNotificationNavigation"
 
 interface RouterContext {
@@ -20,7 +19,7 @@ function RootComponent() {
   return (
     <>
       <Outlet />
-      <Toaster position="bottom-right" />
+      <ShopToaster />
       {import.meta.env.DEV ? <DevTools /> : null}
     </>
   )

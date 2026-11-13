@@ -1,5 +1,6 @@
 @import "./tokens.css";
 @import "./skeleton.css";
+@import "./toast.css";
 @import "@ncdai/react-wheel-picker/style.css";
 
 /* A tap area of at least 44px on a touch screen, without changing how the control looks: an invisible
@@ -115,17 +116,6 @@
 [data-slot="dialog-description"] { @apply text-sm leading-5 text-muted-foreground; }
 [data-slot="drawer-description"] { @apply text-sm leading-5; }
 [data-slot="dialog-close"] { @apply grid size-9 place-items-center rounded-lg; }
-
-[data-sonner-toast] {
-  @apply rounded-xl! border! border-solid! border-border! bg-background! px-4! py-4! font-sans! text-sm! text-foreground!;
-  box-shadow: var(--shadow-lg) !important;
-}
-[data-sonner-toast] [data-title] { @apply font-medium; }
-[data-sonner-toast] [data-description] { @apply text-muted-foreground; }
-[data-sonner-toast][data-type="success"] [data-icon] { @apply text-success; }
-[data-sonner-toast][data-type="info"] [data-icon] { @apply text-primary; }
-[data-sonner-toast][data-type="error"] [data-icon],
-[data-sonner-toast][data-type="warning"] [data-icon] { @apply text-foreground; }
 
 @keyframes ef-dialog-in {
   from { opacity: 0; transform: scale(0.96); }

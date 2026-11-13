@@ -15,8 +15,11 @@ vi.mock("@/features/fulfillment/repo", async (importOriginal) => ({
   listOrders,
 }))
 
-const playChime = vi.hoisted(() => vi.fn())
-vi.mock("@/lib/chime", () => ({ playChime, unlockAudio: vi.fn(), unlockOnFirstGesture: () => () => { } }))
+const playCue = vi.hoisted(() => vi.fn())
+vi.mock("@effy/design-system/toast", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  playCue,
+}))
 
 const { NewOrderAlert } = await import("../NewOrderAlert")
 
@@ -39,7 +42,7 @@ describe("the new-order alert", () => {
     expect(await screen.findByText("EFY-2")).toBeInTheDocument()
     expect(screen.queryByText("EFY-1")).not.toBeInTheDocument()
     expect(screen.getByText(/6 items · Effy driver/)).toBeInTheDocument()
-    expect(playChime).toHaveBeenCalled()
+    expect(playCue).toHaveBeenCalledWith("new-order")
     await userEvent.click(screen.getByRole("button", { name: /open order/i }))
     expect(navigate).toHaveBeenCalledWith({ to: "/orders/$fulfillmentId", params: { fulfillmentId: "new" } })
   })
@@ -64,6 +67,6 @@ describe("the new-order alert", () => {
     const { container } = wrap(<NewOrderAlert />)
     await new Promise((r) => setTimeout(r, 0))
     expect(container).toBeEmptyDOMElement()
-    expect(playChime).not.toHaveBeenCalled()
+    expect(playCue).not.toHaveBeenCalled()
   })
 })

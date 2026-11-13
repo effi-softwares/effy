@@ -16,7 +16,8 @@ function RootComponent() {
   return (
     <>
       <Outlet />
-      <Toaster position="bottom-right" />
+      {/* Silent, except toasts that ask - the scan box (120 FR-020). */}
+      <Toaster position="bottom-right" sound="opt-in" />
       {import.meta.env.DEV ? <DevTools /> : null}
     </>
   )

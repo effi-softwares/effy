@@ -44,10 +44,28 @@ for (const name of ["dropdown-menu.tsx", "select.tsx", "dialog.tsx", "alert-dial
   }
 }
 
+// The toast (120) is drawn by its own stylesheet, not by Tailwind classes: a floating surface at the overlay corner,
+// its buttons at the control corner, never pills.
+{
+  const css = readFileSync(resolve(here, "../src/toast.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+  const rule = (selector) => {
+    const at = css.indexOf(`${selector} {`);
+    return at < 0 ? "" : css.slice(at, css.indexOf("}", at));
+  };
+  if (!/border-radius:\s*var\(--radius-xl/.test(rule(".ef-toast-surface"))) {
+    errors.push("toast.css: .ef-toast-surface must take the overlay corner (var(--radius-xl)), as dialogs do.");
+  }
+  const buttons = rule(".ef-toast-button,\n.ef-toast-close");
+  if (!/border-radius:\s*var\(--radius-lg/.test(buttons)) {
+    errors.push("toast.css: the toast's buttons must take the control corner (var(--radius-lg)).");
+  }
+  if (/9999px|50%/.test(buttons)) errors.push("toast.css: the toast's buttons are never pills.");
+}
+
 if (errors.length) {
   console.error("check-component-shape: FAILED\n  - " + errors.join("\n  - "));
   process.exit(1);
 }
 console.log(
-  `check-component-shape: OK - ${SQUARED.length} controls and tags never pills, controls at 8px, card at 12px, surfaces ≥ their rows`,
+  `check-component-shape: OK - ${SQUARED.length} controls and tags never pills, controls at 8px, card at 12px, surfaces ≥ their rows, the toast's surface and buttons`,
 );

@@ -6,6 +6,9 @@ vi.mock("@effy/web-kit/live", () => ({
   createLiveClient: () => ({ start: () => undefined, stop: () => undefined, state: () => "off", retryNow: () => undefined }),
 }))
 
+// The arrival toast (120) is tested on its own; here it only needs to be quiet.
+vi.mock("./useInboxArrivals", () => ({ useInboxArrivals: () => undefined }))
+
 const { NotificationBell } = await import("./NotificationBell")
 
 describe("the header bell (110 US6)", () => {

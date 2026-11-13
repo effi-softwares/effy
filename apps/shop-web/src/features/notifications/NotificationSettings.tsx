@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query"
 import { useStore } from "@tanstack/react-store"
 import { Bell, BellOff, BellRing, CircleCheck, MonitorSmartphone, Play, Share, Volume2, VolumeX } from "lucide-react"
 
+import { previewCue } from "@effy/design-system/toast"
 import { Alert, AlertDescription, AlertTitle, Badge, Button, Switch } from "@effy/design-system/ui"
 
 import {
@@ -22,7 +23,6 @@ import { categoriesFor } from "@effy/shared-types"
 
 import { Page } from "@/components/console/primitives"
 import { sessionQuery } from "@/features/auth/queries"
-import { previewChime } from "@/lib/chime"
 import { consoleStore, setSoundOn } from "@/lib/console-store"
 
 import type { NotificationSection } from "./api"
@@ -261,7 +261,7 @@ function SoundSetting() {
         htmlFor="sound-on"
         hint="The Sound button at the top of every page does the same."
       >
-        <Button variant="ghost" onClick={previewChime}>
+        <Button variant="ghost" onClick={() => previewCue("new-order")}>
           <Play aria-hidden="true" />
           Play
         </Button>

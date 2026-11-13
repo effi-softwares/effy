@@ -1,0 +1,291 @@
+/*
+ * Effy's toast (feature 120, research R6). One stylesheet for the two consoles (through console.css) and the
+ * storefront (through its globals.css). Theme tokens only; no colour is written here.
+ *
+ * Shape: the surface is a floating layer, so it takes the overlay corner (radius-xl, as dialogs do) and the one shadow a
+ * floating layer may have; its buttons take the control corner (radius-lg). No gradients.
+ * Motion is driven from script (toast/motion.ts); this file only draws, plus the small CSS gestures.
+ */
+
+.ef-toast-viewport {
+  position: fixed;
+  z-index: 60;
+  left: calc(16px + env(safe-area-inset-left, 0px));
+  right: calc(16px + env(safe-area-inset-right, 0px));
+  display: flex;
+  pointer-events: none;
+}
+.ef-toast-viewport[data-position^="bottom"] {
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  align-items: flex-end;
+}
+.ef-toast-viewport[data-position^="top"] {
+  top: calc(16px + env(safe-area-inset-top, 0px));
+  align-items: flex-start;
+}
+.ef-toast-viewport[data-position$="right"] { justify-content: flex-end; }
+.ef-toast-viewport[data-position$="center"] { justify-content: center; }
+.ef-toast-viewport[data-position$="left"] { justify-content: flex-start; }
+
+.ef-toast-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.ef-toast {
+  --ef-reveal: 0;
+  position: relative;
+  pointer-events: auto;
+  touch-action: none;
+  outline: none;
+  color: var(--popover-foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+.ef-toast-surface {
+  position: absolute;
+  left: 0;
+  width: 44px;
+  height: 44px;
+  box-sizing: border-box;
+  background: var(--popover);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl, 0.75rem);
+  box-shadow: var(--shadow-lg);
+}
+.ef-toast[data-edge="bottom"] .ef-toast-surface { bottom: 0; }
+.ef-toast[data-edge="top"] .ef-toast-surface { top: 0; }
+.ef-toast:focus-visible .ef-toast-surface {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.ef-toast-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: min(420px, calc(100vw - 32px));
+  min-height: 44px;
+  padding-inline-end: 6px;
+}
+.ef-toast-content[data-progress] { padding-bottom: 6px; }
+
+.ef-toast-lead {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  align-self: flex-start;
+}
+
+.ef-toast-copy,
+.ef-toast-actions {
+  opacity: calc(var(--ef-reveal) * 1.5 - 0.5);
+  filter: blur(calc((1 - var(--ef-reveal)) * 6px));
+  transform: translateX(calc((1 - var(--ef-reveal)) * -8px));
+}
+.ef-toast[data-settled] .ef-toast-copy,
+.ef-toast[data-settled] .ef-toast-actions {
+  filter: none;
+  transform: none;
+}
+
+.ef-toast-copy {
+  position: relative;
+  min-width: 0;
+  padding-block: 12px;
+  padding-inline-end: 8px;
+  overflow-wrap: anywhere;
+}
+.ef-toast-text { animation: ef-toast-roll-in 280ms var(--ease-move) both; }
+.ef-toast-ghost {
+  position: absolute;
+  inset: 12px auto auto 0;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: ef-toast-roll-out 220ms var(--ease-move) forwards;
+}
+.ef-toast-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  font-variant-numeric: tabular-nums;
+  text-wrap: pretty;
+}
+.ef-toast-count,
+.ef-toast-meta {
+  margin-inline-start: 6px;
+  color: var(--muted-foreground);
+  font-weight: 400;
+}
+.ef-toast-count { display: inline-block; animation: ef-toast-pop 320ms var(--ease-spring) both; }
+.ef-toast-meta { font-size: 12px; }
+.ef-toast-description {
+  margin: 2px 0 0;
+  color: var(--muted-foreground);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+/* Marks: one ring per kind, a glyph drawn into it. */
+.ef-toast-mark {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.ef-toast[data-kind="success"] .ef-toast-mark { color: var(--success); }
+.ef-toast[data-kind="error"] .ef-toast-mark { color: var(--destructive); }
+.ef-toast[data-kind="warning"] .ef-toast-mark { color: var(--warning); }
+.ef-toast[data-kind="info"] .ef-toast-mark,
+.ef-toast[data-kind="loading"] .ef-toast-mark { color: var(--primary); }
+.ef-toast-ring {
+  stroke-width: 1.75;
+  stroke-dasharray: 1 0;
+  transition: stroke-dasharray 420ms var(--ease-move);
+}
+.ef-toast[data-kind="loading"] .ef-toast-ring { stroke-dasharray: 0.72 0.28; }
+.ef-toast-glyph path {
+  stroke-width: 2;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: ef-toast-draw 300ms var(--ease-move) 160ms forwards;
+}
+.ef-toast-glyph path + path { animation-delay: 260ms; }
+.ef-toast-glyph {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.ef-toast[data-kind="success"] .ef-toast-glyph { animation: ef-toast-pulse 380ms var(--ease-spring) 420ms both; }
+
+.ef-toast-image {
+  width: 28px;
+  height: 28px;
+  border-radius: 9999px;
+  object-fit: cover;
+}
+
+/* Buttons: the control look, drawn here so the toast needs nothing from ui/. */
+.ef-toast-actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  align-self: flex-start;
+  padding-top: 6px;
+}
+.ef-toast-button,
+.ef-toast-close {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  margin: 0;
+  border: 0;
+  border-radius: var(--radius-lg, 0.5rem);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color var(--dur-fast, 150ms) ease-out;
+}
+/* 32px to see, 44px to touch. */
+.ef-toast-button::before,
+.ef-toast-close::before {
+  content: "";
+  position: absolute;
+  inset: -6px -2px;
+}
+.ef-toast-button { padding: 0 12px; }
+.ef-toast-button[data-variant="main"] {
+  background: var(--primary-fill);
+  color: var(--primary-foreground);
+}
+.ef-toast-button[data-variant="main"]:hover { background: color-mix(in srgb, var(--primary-fill) 88%, var(--foreground)); }
+.ef-toast-button[data-variant="quiet"]:hover,
+.ef-toast-close:hover { background: var(--muted); }
+.ef-toast-close {
+  width: 32px;
+  color: var(--muted-foreground);
+}
+.ef-toast-close svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.ef-toast-button:focus-visible,
+.ef-toast-close:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}
+
+.ef-toast-progress {
+  position: absolute;
+  left: 52px;
+  right: 14px;
+  bottom: 6px;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: var(--muted);
+}
+.ef-toast-progress > span {
+  display: block;
+  height: 100%;
+  background: var(--primary);
+  transform-origin: left;
+  transition: transform 300ms var(--ease-move);
+}
+
+@keyframes ef-toast-draw { to { stroke-dashoffset: 0; } }
+@keyframes ef-toast-pulse { 45% { transform: scale(1.14); } }
+@keyframes ef-toast-pop { from { transform: scale(0.6); opacity: 0; } }
+@keyframes ef-toast-roll-in { from { opacity: 0; transform: translateY(10px); filter: blur(3px); } }
+@keyframes ef-toast-roll-out { to { opacity: 0; transform: translateY(-10px); filter: blur(3px); } }
+@keyframes ef-toast-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes ef-toast-fade-out { from { opacity: 1; } to { opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .ef-toast { animation: ef-toast-fade-in 150ms ease-out both; }
+  .ef-toast[data-phase="closing"] { animation: ef-toast-fade-out 120ms ease-in forwards; }
+  .ef-toast-copy,
+  .ef-toast-actions {
+    opacity: 1;
+    filter: none;
+    transform: none;
+  }
+  .ef-toast-text,
+  .ef-toast-count,
+  .ef-toast-glyph { animation: none; }
+  .ef-toast-ghost { display: none; }
+  .ef-toast-glyph path {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+  .ef-toast-ring,
+  .ef-toast-progress > span { transition: none; }
+}

@@ -123,6 +123,9 @@ export type StorefrontEvent =
   // 110 - the inbox. Kind and category only.
   | { name: "inbox_opened"; props: { surface: "web" } }
   | { name: "inbox_item_opened"; props: { type: string; category: string; fallback: "true" | "false" } }
+  // 120 - a toast said a notification arrived. Kind only: never its words or id.
+  | { name: "notif_arrival_shown"; props: { count: number; type: string } }
+  | { name: "notif_arrival_opened"; props: { type: string } }
   | { name: "inbox_item_archived"; props: { type: string; category: string } }
   | { name: "inbox_archive_undone"; props: { type: string; category: string } }
   | { name: "inbox_marked_all_read"; props?: Record<string, never> }

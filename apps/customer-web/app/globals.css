@@ -5,6 +5,7 @@
 
 @import "@effy/design-system/tokens.css";
 @import "@effy/design-system/skeleton.css";
+@import "@effy/design-system/toast.css";
 
 @utility container {
   width: 100%;

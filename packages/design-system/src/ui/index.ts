@@ -31,7 +31,8 @@ export * from "./loader";
 export * from "./skeleton";
 export * from "./slider";
 export * from "./spinner";
-export * from "./sonner";
+// Effy's own toast (120), re-exported so the consoles keep one import for their primitives.
+export { toast, Toaster, type ToasterProps, type ToastOptions, type ToastPatch, type ToastButton } from "../toast";
 export * from "./switch";
 export * from "./table";
 export * from "./tabs";

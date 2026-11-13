@@ -68,6 +68,9 @@ type ShopAnalyticsEvent =
   // 110 - the inbox. Kind and category only.
   | { name: "notif_inbox_opened"; surface: "panel" | "page" }
   | { name: "notif_inbox_item_opened"; type: string; category: string; fallback: boolean }
+  // 120 - a toast said a notification arrived. Kind only: never its words or id.
+  | { name: "notif_arrival_shown"; count: number; type: string }
+  | { name: "notif_arrival_opened"; type: string }
   | { name: "notif_inbox_archived"; type: string; category: string }
   | { name: "notif_inbox_undo"; type: string; category: string }
   | { name: "notif_inbox_all_read" }

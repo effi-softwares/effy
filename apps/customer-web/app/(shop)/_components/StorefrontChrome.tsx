@@ -1,6 +1,8 @@
 import { Suspense } from "react"
 import Link from "next/link"
 
+import { Toaster } from "@effy/design-system/toast"
+
 import { AisleRow, AisleRowFallback } from "@/components/chrome/AisleRow"
 import { BottomBar } from "@/components/chrome/BottomBar"
 import { DeliveryBar, DeliveryBarFallback } from "@/components/chrome/DeliveryBar"
@@ -15,7 +17,6 @@ import { MiniCart } from "./MiniCart"
 import { MobileNavFallback } from "./MobileNav"
 import { MobileNavIsland } from "./MobileNavIsland"
 import { StorefrontFooter } from "./StorefrontFooter"
-import { ToastRegion } from "./ToastRegion"
 
 /**
  * The storefront frame (reference: Shared components · Storefront header / footer): the black
@@ -102,7 +103,8 @@ export function StorefrontChrome({
       </header>
 
       <main className="flex-1">{children}</main>
-      <ToastRegion />
+      {/* Effy's own toast (120): bottom centre, and never a sound on the storefront. */}
+      <Toaster position="bottom-center" sound="never" />
       <StorefrontFooter />
       <BottomBar />
     </div>

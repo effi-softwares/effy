@@ -12,8 +12,6 @@ import {
   INBOX_CATEGORIES,
   inboxTimeLabel,
   isInboxCategory,
-  parseDestination,
-  type CustomerDestination,
   type InboxItemDTO,
   type InboxPageDTO,
 } from "@effy/shared-types"
@@ -24,7 +22,9 @@ import { btnClass } from "@/components/storefront/actions"
 import { Dialog } from "@/components/ui/dialog"
 import { RowsSkeleton } from "@/components/ui/skeletons"
 import { capture } from "@/lib/telemetry"
-import { toast } from "@/lib/toast-store"
+import { toast } from "@effy/design-system/toast"
+
+import { destinationOf, isMarketing, isMessage, openInboxItem } from "./openInboxItem"
 
 const ICONS: Record<string, LucideIcon> = {
   package: Package,
@@ -40,10 +40,6 @@ const icon = (category: string): LucideIcon =>
 type Filter = "all" | "unread"
 type InboxItem = InboxItemDTO
 
-const isMarketing = (category: string) => category === "offers" || category === "news"
-/** A message from Effy's team (112): read where it is, with its picture, before going anywhere. */
-const isMessage = (type: string) => type === "customer_message"
-const destinationOf = (item: InboxItemDTO) => parseDestination("customer", item.destination) as CustomerDestination | null
 
 /**
  * The customer's notifications on the website (110 US6), at parity with the app except swipe: newest first, important
@@ -115,14 +111,7 @@ export function InboxView({ initial, filter, category }: { initial: InboxPageDTO
   }
 
   function open(item: InboxItemDTO) {
-    markRead(item.id)
-    const destination = parseDestination("customer", item.destination) as CustomerDestination | null
-    capture({ name: "inbox_item_opened", props: { type: item.type, category: item.category, fallback: destination ? "false" : "true" } })
-    void post(`/api/notifications/${encodeURIComponent(item.id)}/read`)
-    // 111 FR-024: an offer or news item always opens its detail first, where it can be stopped; so does a message
-    // from Effy (112), whose words and picture are the point.
-    if (destination && !isMarketing(item.category) && !isMessage(item.type)) router.push(customerWebPathFor(destination))
-    else setDetail(item)
+    openInboxItem(item, { push: (path) => router.push(path), showDetail: setDetail, markRead })
   }
 
   /** "Stop offers like this": a no from the inbox, with Undo (111 US6). */
@@ -136,12 +125,13 @@ export function InboxView({ initial, filter, category }: { initial: InboxPageDTO
         body: JSON.stringify({ consent: { [category]: granted }, via: "inbox", wordingVersion: MARKETING_CONSENT.version }),
       }).then((r) => r.ok, () => false)
     if (!(await answer(false))) {
-      toast("We couldn't change that. Try again in Notification settings.")
+      toast.error("We couldn't change that. Try again in Notification settings.")
       return
     }
     capture({ name: "offers_stopped_from_inbox", props: { category, surface: "web" } })
-    toast(category === "news" ? "You won't get news from Effy any more" : "You won't get offers from Effy any more", {
-      action: { label: "Undo", run: () => void answer(true) },
+    toast.success(category === "news" ? "You won't get news from Effy any more" : "You won't get offers from Effy any more", {
+      action: { label: "Undo", onClick: () => void answer(true) },
+      duration: 5000,
     })
   }
 
@@ -153,10 +143,11 @@ export function InboxView({ initial, filter, category }: { initial: InboxPageDTO
     setItems(drop)
     capture({ name: "inbox_item_archived", props: { type: item.type, category: item.category } })
     void patch(item.id, true)
-    toast("Notification archived", {
+    toast.success("Notification archived", {
+      duration: 5000,
       action: {
         label: "Undo",
-        run: () => {
+        onClick: () => {
           const back = (list: InboxItemDTO[]) =>
             list.some((i) => i.id === item.id) ? list : [...list.slice(0, index), item, ...list.slice(index)]
           if (wasPinned) setPinned(back)

@@ -5,8 +5,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { MARKETING_CONSENT, MARKETING_EMAIL_CONSENT } from "@effy/legal-content/consent"
 import type { NotificationPreferencesDTO } from "@effy/shared-types"
 
-const toast = vi.hoisted(() => vi.fn())
-vi.mock("@/lib/toast-store", () => ({ toast }))
+// Every kind records into one mock, so a test reads what was said whatever kind it was said as.
+const toast = vi.hoisted(() => {
+  const said = vi.fn()
+  return Object.assign(said, { success: said, error: said, info: said, warning: said })
+})
+vi.mock("@effy/design-system/toast", () => ({ toast }))
 vi.mock("@/lib/telemetry", () => ({ capture: vi.fn() }))
 
 const { NotificationSettingsForm } = await import("./NotificationSettingsForm")

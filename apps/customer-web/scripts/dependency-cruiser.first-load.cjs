@@ -5,7 +5,7 @@ module.exports = {
     {
       name: "no-heavy-ui-deps-on-guest-first-load",
       severity: "error",
-      comment: "radix-ui, sonner and vaul are too heavy for the guest bundle budget; import() them on demand.",
+      comment: "radix-ui and vaul are too heavy for the guest bundle budget; import() them on demand. (sonner is gone - the toast is @effy/design-system/toast, 120.)",
       from: {
         path: [
           "^app/(layout|page|not-found|error|global-error|loading)\\.tsx$",

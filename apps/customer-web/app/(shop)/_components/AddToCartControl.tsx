@@ -10,7 +10,7 @@ import { ActionButton } from "@/components/storefront/actions"
 import { addItem } from "@/lib/cart-actions"
 import { DEFAULT_PACKAGE_KEY } from "@/lib/cart-store"
 import { formatMoney } from "@/lib/money"
-import { toast } from "@/lib/toast-store"
+import { toast } from "@effy/design-system/toast"
 
 /** The snapshot an add captures (price, name and image frozen at add time). */
 interface AddToCartProduct {
@@ -75,8 +75,9 @@ export function AddToCartControl({
     setAdded(true)
     window.setTimeout(() => setAdded(false), 2000)
     // Acknowledge the add and offer the cart without navigating: a silent add produces duplicate adds.
-    toast(qty === 1 ? "Added to cart" : `Added ${qty} to cart`, {
-      action: { label: "View cart", run: () => router.push("/cart") },
+    toast.success(qty === 1 ? "Added to cart" : `Added ${qty} to cart`, {
+      action: { label: "View cart", onClick: () => router.push("/cart") },
+      duration: 5000,
     })
   }
 

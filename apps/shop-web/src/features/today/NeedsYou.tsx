@@ -19,10 +19,9 @@ import {
   Undo2,
   type LucideIcon,
 } from "lucide-react"
-import { toast } from "sonner"
 
 import { cn } from "@effy/design-system"
-import { Button } from "@effy/design-system/ui"
+import { Button, toast } from "@effy/design-system/ui"
 import { Bone, Loading } from "@effy/web-kit/patterns"
 
 import { BoardSection } from "@/components/console/BoardSection"

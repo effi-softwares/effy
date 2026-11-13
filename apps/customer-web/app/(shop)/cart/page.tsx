@@ -26,7 +26,7 @@ import { useCartMirror } from "@/lib/cart-store"
 import { refreshCart } from "@/lib/cart-sync"
 import { edgeApiBaseUrl } from "@/lib/config"
 import { formatMoney } from "@/lib/money"
-import { toast } from "@/lib/toast-store"
+import { toast } from "@effy/design-system/toast"
 import { useHydrated } from "@/lib/use-hydrated"
 import { useOnDemand } from "@/lib/use-on-demand"
 
@@ -70,8 +70,9 @@ export default function CartPage() {
     const before = lines.map((l) => ({ ...l }))
     setConfirming(false)
     clearAll()
-    toast("Your cart was emptied", {
-      action: { label: "Undo", run: () => before.forEach((l) => addItem(l)) },
+    toast.success("Your cart was emptied", {
+      action: { label: "Undo", onClick: () => before.forEach((l) => addItem(l)) },
+      duration: 5000,
     })
   }
 
@@ -259,11 +260,12 @@ function CartLineRow({ line }: { line: GuestCartLine }) {
     void import("@/lib/telemetry").then(({ capture }) =>
       capture({ name: "product_removed_from_cart", props: { productId: line.productId } }),
     )
-    toast(`Removed ${line.name}`, {
+    toast.success(`Removed ${line.name}`, {
       action: {
         label: "Undo",
-        run: () => addItem({ ...line }),
+        onClick: () => addItem({ ...line }),
       },
+      duration: 5000,
     })
   }
 
@@ -272,7 +274,8 @@ function CartLineRow({ line }: { line: GuestCartLine }) {
     setBusy(true)
     const ok = await setAsideItem(line.variantId)
     setBusy(false)
-    toast(ok ? `Saved ${line.name} for later` : "Sign in to save items for later")
+    if (ok) toast.success(`Saved ${line.name} for later`)
+    else toast.info("Sign in to save items for later")
   }
 
   return (
@@ -343,7 +346,7 @@ function SavedLineRow({ line }: { line: GuestCartLine }) {
     setBusy(true)
     const ok = await action(line.variantId)
     setBusy(false)
-    if (!ok) toast(failed)
+    if (!ok) toast.error(failed)
   }
   return (
     <li className="flex gap-4 p-4">

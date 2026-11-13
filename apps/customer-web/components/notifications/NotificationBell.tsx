@@ -8,6 +8,8 @@ import type { InboxCountDTO, LiveDescriptor } from "@effy/shared-types"
 // `/live`, never the package root (the root imports the auth SDK, which is barred from this app's client bundles).
 import { createCoalescer, createLiveClient } from "@effy/web-kit/live"
 
+import { useInboxArrivals } from "./useInboxArrivals"
+
 /**
  * The bell in the header for a signed-in customer (110 US6): the unseen count, linking to their notifications.
  *
@@ -18,6 +20,8 @@ import { createCoalescer, createLiveClient } from "@effy/web-kit/live"
 export function NotificationBell({ initialCount }: { initialCount: number }) {
   const [count, setCount] = useState(initialCount)
   useEffect(() => setCount(initialCount), [initialCount])
+  // A toast says what arrived (120 US5), from the same count - no second listener, no timer.
+  useInboxArrivals(count)
 
   useEffect(() => {
     let token: string | null = null

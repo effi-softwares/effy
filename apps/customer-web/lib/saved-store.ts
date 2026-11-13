@@ -159,7 +159,7 @@ export function resetSaved() {
   write(EMPTY, EMPTY)
 }
 
-/** Test seam, mirroring `__resetToasts` in `toast-store.ts`. */
+/** Test seam. */
 export function __resetSavedCache() {
   cache = EMPTY
   named = EMPTY

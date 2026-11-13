@@ -7,7 +7,7 @@ import { categoriesFor, type NotificationCategoryPolicy, type NotificationPrefer
 
 import { Switch } from "@/components/ui/form"
 import { capture } from "@/lib/telemetry"
-import { toast } from "@/lib/toast-store"
+import { toast } from "@effy/design-system/toast"
 
 type Channel = "push" | "email"
 type Change = {
@@ -40,9 +40,9 @@ export function NotificationSettingsForm({ initial }: { initial: NotificationPre
     }
     setPrefs(before)
     if (res?.status === 409) {
-      toast("Our wording has changed. Refresh the page to see it, then try again.")
+      toast.error("Our wording has changed. Refresh the page to see it, then try again.")
     } else {
-      toast("We couldn't save that. Check your connection and try again.")
+      toast.error("We couldn't save that. Check your connection and try again.")
     }
   }
 

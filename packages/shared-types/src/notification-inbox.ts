@@ -152,3 +152,29 @@ export function inboxTimeLabel(createdAt: string, now: Date = new Date(), tz: st
   const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
   return `${get("weekday")} ${get("day")} ${get("month")}`;
 }
+
+/**
+ * What arrived since the person last looked (feature 120 R8): the toast that says a notification came in, in the shop
+ * console and on the website. From the inbox's first page: items newer than `since`, unread, not of an excluded type
+ * and not about the page the person is on. `since` null means "first look": nothing is new, only the mark is set.
+ */
+export function inboxArrivals<T extends { type: string; createdAt: string; readAt: string | null }>(
+  page: { pinned: readonly T[]; items: readonly T[] },
+  since: string | null,
+  options: { exclude?: readonly string[]; isHere?: (item: T) => boolean } = {},
+): { arrived: T[]; newest: string | null } {
+  const all = [...page.pinned, ...page.items];
+  const newest = all.reduce<string | null>((n, i) => (n === null || Date.parse(i.createdAt) > Date.parse(n) ? i.createdAt : n), since);
+  if (since === null) return { arrived: [], newest };
+  const after = Date.parse(since);
+  const exclude = new Set(options.exclude ?? []);
+  const arrived = all
+    .filter((i) => Date.parse(i.createdAt) > after && i.readAt === null && !exclude.has(i.type) && !(options.isHere?.(i) ?? false))
+    .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+  return { arrived, newest };
+}
+
+/** The words of an arrival toast: one item says its own title; several say how many. */
+export function inboxArrivalTitle(arrived: readonly { title: string }[]): string {
+  return arrived.length === 1 ? arrived[0]!.title : `${arrived.length} new notifications`;
+}

@@ -1,6 +1,6 @@
 # Feature Specification: Effy's Own Toasts
 
-**Feature Branch**: `118-effy-toasts`
+**Feature Branch**: `120-effy-toasts`
 **Created**: 2026-11-13
 **Status**: Draft
 **Input**: User description: "Effy's own transient feedback ("toasts") for all three web surfaces (shop console, back-office,
@@ -11,7 +11,7 @@ progress bar, a picture; generated sounds per kind (shop console with its Sound 
 on the storefront); screen readers hear every message; Effy's theme; every existing toast moved with the same words.
 Phase 2: a toast when a new item arrives in the notification inbox (shop console, signed-in storefront)."
 
-> Number note: 117 is held for disputes (decided in 116's spec), so this is 118.
+> Number note: 117 is held for disputes (decided in 116's spec) and 119 was taken by team management, so this is 120 (first written as 118, renumbered 2026-11-13).
 
 ## Background
 
@@ -164,7 +164,7 @@ show a count on the bell.
 
 **One at a time, never hiding a failure**
 - **FR-007**: At most **one** toast is visible on a surface. A new message takes over the visible toast, changing it in place, EXCEPT that a **failure still showing MUST NOT be replaced by a success, information or in-progress message**; those wait and are shown, newest only, once the failure is closed. A warning MUST NOT replace a failure either.
-- **FR-008**: Only the most recent message from an action may change the visible toast; a slower, earlier action MUST NOT overwrite a newer message.
+- **FR-008**: Only the most recent message from an action may change the visible toast; a slower, earlier action MUST NOT overwrite a newer message. EXCEPTION (found while planning, 2026-11-13): if that slower action **fails**, its failure is shown as a new message under FR-007, because dropping it would hide a failure. Its late success is dropped.
 - **FR-009**: The same message (same kind, same words) shown again while it is visible MUST show a repeat count (×2, ×3…) and restart its countdown instead of showing again.
 
 **How long it stays**
@@ -182,7 +182,7 @@ show a count on the bell.
 **Sound**
 - **FR-018**: Each kind except in progress MUST have its own short, soft **tone**: success rises, failure falls, warning taps twice, information is one note. In-progress toasts and progress updates MUST be silent. Tones MUST be made by the browser, not played from recorded files.
 - **FR-019**: **Shop console**: tones play when, and only when, the shop console's existing **Sound** setting is on. The existing **new-order chime** MUST become part of the same set of Effy sounds and keep its current behaviour (when it plays, how often it repeats, the settings preview).
-- **FR-020**: **Back-office**: tones play only for **scanning results** shown as toasts.
+- **FR-020**: **Back-office**: tones play only for **scanning results**: the failure toasts of a scan, and - since a found label opens its order without a toast - a confirming tone on its own (built 2026-11-13).
 - **FR-021**: **Storefront**: a tone MUST NEVER play.
 - **FR-022**: A tone that the browser will not allow yet (before the person's first click or key press) MUST be skipped silently; sound MUST never cause an error or stop a toast.
 

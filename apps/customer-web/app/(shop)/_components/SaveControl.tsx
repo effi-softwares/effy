@@ -5,7 +5,7 @@ import { useState } from "react"
 
 import { toggleSaved } from "@/lib/saved-actions"
 import { useSavedIds } from "@/lib/saved-store"
-import { toast } from "@/lib/toast-store"
+import { toast } from "@effy/design-system/toast"
 
 /**
  * Loaded on demand, never imported. This control is on `/` and `/product/[id]`, and `/` had
@@ -49,7 +49,7 @@ export function SaveControl({
     if (result === "chooser") openChooser(productId, variantId)
     // The save has already happened, in one tap. The other lists are an offer after it.
     else if (result && !saved) {
-      toast("Saved", { action: { label: "Add to a list", run: () => openChooser(productId, variantId) } })
+      toast.success("Saved", { action: { label: "Add to a list", onClick: () => openChooser(productId, variantId) }, duration: 5000 })
     }
   }
 

@@ -33,6 +33,6 @@
 
 - FR-002 ("built by Effy, no outside toast product") and FR-018 ("tones made by the browser, not recorded files") name a
   constraint, not a design: both are the operator's stated requirements (2026-11-13) and stay.
-- Numbered 118: 117 is held for disputes (116's spec, "Decisions already taken").
+- Numbered 120: 117 is held for disputes (116's spec, "Decisions already taken"), 119 is team management; first written as 118.
 - Three choices were taken as recommended defaults rather than asked (one at a time with failures protected; back-office
   sound on scanning only; the arrival toast as phase 2). Revisit with `/speckit-clarify` if any is wrong.

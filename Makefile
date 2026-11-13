@@ -28,7 +28,7 @@ TF_ROOTS := $(BOOTSTRAP_DIR) $(GLOBAL_DIR) $(INFRA_DIR)/envs/dev $(INFRA_DIR)/en
 .PHONY: gateway-usage help bootstrap-init bootstrap-apply init plan apply destroy output amplify-hooks fmt validate lint preflight \
         global-init global-plan global-apply global-output dns-verify mail-verify mail-events-verify edge-health \
         db-new db-status db-up db-up-one db-down db-shopper-role check-goose \
-        live-guards shop-words-guard driver-words-guard purge-orders reset-dev-data seed-delivery seed-catalogue seed-banners wipe-dev create-first-admin load-localities delete-admin edge-install edge-offline edge-test edge-deploy edge-remove \
+        live-guards toast-guard shop-words-guard driver-words-guard purge-orders reset-dev-data seed-delivery seed-catalogue seed-banners wipe-dev create-first-admin load-localities delete-admin edge-install edge-offline edge-test edge-deploy edge-remove \
         verify-pool-credentials \
         bo-dev bo-build bo-lint bo-test \
         shop-dev shop-build shop-lint shop-test \
@@ -493,6 +493,9 @@ brand-guards: ## brand: FAIL if any RETIRED brand palette (Jade, Effy Emerald) s
 
 live-guards: ## live updates: FAIL if any screen in the six apps refreshes its data on a timer (071 FR-009)
 	@bash scripts/check-no-refresh-timers.sh
+
+toast-guard: ## toasts: FAIL if sonner, a second toast store or an app's own toast region comes back - one toast (120)
+	@bash scripts/check-one-toast.sh
 
 shop-words-guard: ## shop surfaces: FAIL if a shop screen says "same-day" or "standard" - the customer's words (079 FR-028)
 	@bash scripts/check-shop-delivery-words.sh

@@ -18,6 +18,7 @@ import { track } from "@/lib/telemetry"
 
 import { InboxList } from "./InboxList"
 import { flatten, newestShown, useInboxPages, useMarkAllRead, useMarkSeen, useUnseenCount } from "./inbox-api"
+import { useInboxArrivals } from "./useInboxArrivals"
 
 /** The installed console's icon shows the count where the browser supports it (110 R8); nothing otherwise. */
 function useAppBadge(count: number | undefined) {
@@ -38,6 +39,8 @@ export function NotificationBell() {
   const isMobile = useIsMobile()
   const unseen = useUnseenCount()
   useAppBadge(unseen.data)
+  // A toast says what arrived (120 US5), from the same count - no second listener, no timer.
+  useInboxArrivals()
   const count = unseen.data ?? 0
 
   return (
