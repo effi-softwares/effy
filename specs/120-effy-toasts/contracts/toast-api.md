@@ -7,8 +7,8 @@ The only way any web surface shows a toast. Also re-exported from `@effy/design-
 ```tsx
 import { Toaster } from "@effy/design-system/toast"
 
-<Toaster position="bottom-right" sound={soundOn ? "on" : "off"} />   // shop-web  (routes/__root.tsx)
-<Toaster position="bottom-right" sound="opt-in" />                   // back-office (routes/__root.tsx)
+<Toaster position="top-center" sound={soundOn ? "on" : "off"} />    // shop-web  (components/console/ShopToaster.tsx)
+<Toaster position="top-center" sound="on" />                         // back-office (routes/__root.tsx)
 <Toaster position="bottom-center" sound="never" />                   // customer-web (StorefrontChrome.tsx)
 ```
 

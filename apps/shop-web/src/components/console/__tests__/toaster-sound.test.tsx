@@ -17,8 +17,8 @@ describe("the shop console's toasts and its Sound setting (120 US1)", () => {
   it("plays tones while Sound is on and none while it is off", () => {
     act(() => setSoundOn(true))
     render(<ShopToaster />)
-    expect(props.at(-1)).toEqual({ position: "bottom-right", sound: "on" })
+    expect(props.at(-1)).toEqual({ position: "top-center", sound: "on" })
     act(() => setSoundOn(false))
-    expect(props.at(-1)).toEqual({ position: "bottom-right", sound: "off" })
+    expect(props.at(-1)).toEqual({ position: "top-center", sound: "off" })
   })
 })

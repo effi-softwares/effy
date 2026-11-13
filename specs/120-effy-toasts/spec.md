@@ -182,7 +182,7 @@ show a count on the bell.
 **Sound**
 - **FR-018**: Each kind except in progress MUST have its own short, soft **tone**: success rises, failure falls, warning taps twice, information is one note. In-progress toasts and progress updates MUST be silent. Tones MUST be made by the browser, not played from recorded files.
 - **FR-019**: **Shop console**: tones play when, and only when, the shop console's existing **Sound** setting is on. The existing **new-order chime** MUST become part of the same set of Effy sounds and keep its current behaviour (when it plays, how often it repeats, the settings preview).
-- **FR-020**: **Back-office**: tones play only for **scanning results**: the failure toasts of a scan, and - since a found label opens its order without a toast - a confirming tone on its own (built 2026-11-13).
+- **FR-020**: **Back-office**: every toast plays its kind's tone (operator decision 2026-11-13, after the first walk: sound in both consoles is "the main thing"; first written as scanning only). A found label, which opens its order with no toast, plays the confirming tone on its own.
 - **FR-021**: **Storefront**: a tone MUST NEVER play.
 - **FR-022**: A tone that the browser will not allow yet (before the person's first click or key press) MUST be skipped silently; sound MUST never cause an error or stop a toast.
 
@@ -192,7 +192,7 @@ show a count on the bell.
 
 **Appearance**
 - **FR-025**: The toast MUST wear Effy's one theme: its colours, type, corner shape and both appearances (the consoles in light and dark as the person chose; the storefront in light), with no gradients. Its shape MUST pass the design system's shape and colour checks; text MUST meet the contrast the rest of the theme meets.
-- **FR-026**: Toasts appear where they appear today: **bottom right** in the consoles, **bottom centre** on the storefront, clear of the screen's safe areas.
+- **FR-026**: Toasts appear at the **top centre** in both consoles (operator decision 2026-11-13; first written as bottom right) and at the **bottom centre** on the storefront, clear of the screen's safe areas.
 - **FR-027**: The toast MUST stay visible and usable above dialogs, side panels and guided tours.
 
 **Storefront size**

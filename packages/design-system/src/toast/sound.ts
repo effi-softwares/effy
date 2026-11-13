@@ -16,15 +16,16 @@ type Note = readonly [number, number, number, number];
 
 /** Rising = good news, falling = bad news, a double tap = look, one note = for your information. */
 const CUES: Record<Exclude<Cue, "new-order">, { wave: Wave; notes: readonly Note[] }> = {
-  success: { wave: "triangle", notes: [[783.99, 0, 0.6, 0.22], [1174.66, 0.09, 0.55, 0.26]] }, // G5 → D6
-  error: { wave: "triangle", notes: [[329.63, 0, 0.7, 0.26], [277.18, 0.12, 0.7, 0.3]] }, // E4 → C#4
-  warning: { wave: "triangle", notes: [[440, 0, 0.55, 0.12], [440, 0.14, 0.45, 0.12]] }, // A4, A4
-  info: { wave: "sine", notes: [[1046.5, 0, 0.5, 0.18]] }, // C6
+  success: { wave: "triangle", notes: [[783.99, 0, 0.9, 0.3], [1174.66, 0.1, 0.85, 0.36]] }, // G5 → D6
+  error: { wave: "triangle", notes: [[329.63, 0, 1, 0.34], [277.18, 0.13, 1, 0.4]] }, // E4 → C#4
+  warning: { wave: "triangle", notes: [[440, 0, 0.85, 0.16], [440, 0.16, 0.75, 0.16]] }, // A4, A4
+  info: { wave: "sine", notes: [[1046.5, 0, 0.8, 0.26]] }, // C6
 };
 
 const ATTACK = 0.012;
-const MASTER = 0.3;
-const SOFTEN_HZ = 2400;
+// Tuned 2026-11-13 after the first walk ("no sound"): the first values peaked at 0.18 and were easy to miss.
+const MASTER = 0.55;
+const SOFTEN_HZ = 3600;
 
 let ctx: AudioContext | null = null;
 const listeners = new Set<(ready: boolean) => void>();

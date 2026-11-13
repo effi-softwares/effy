@@ -474,7 +474,7 @@ there is no Sheet. customer-web guest routes fetch them on demand (`components/o
 ⚠ **ONE TOAST, EFFY'S OWN (120)** - `@effy/design-system/toast` (`toast`, `Toaster`, `toast.css`) for all three web apps;
 sonner and customer-web's `toast-store` are gone (`make toast-guard`). One visible at a time; a failure is never
 replaced by a lesser message; tones from ONE sound set (`playCue`; the shop's new-order chime is its `new-order` cue),
-per app by the `sound` policy (shop: its Sound setting; back-office: scanning only; storefront: `never`). The rules,
+per app by the `sound` policy (shop: its Sound setting; back-office: every toast; storefront: `never`); consoles at the top centre. The rules,
 announcer and live regions are first load (≤ 4 KB, `check-toast-size.mjs`); the drawing code and the tones load on demand.
 ⚠ **THE PLATFORM IS NO LONGER MONOCHROME.** On operator direction (design project `951bb710`,
 `theme-adoption-prompt.md`) the **"Effy Shop Console" appearance identity was adopted PLATFORM-WIDE**,

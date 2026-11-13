@@ -21,9 +21,11 @@ nothing copied), for shop-web, back-office and customer-web - replacing sonner (
   re-wraps mid-move; no transform at rest. Arrival from the edge, shake for a failure, hop for a warning, pulse for
   success, the in-progress ring caught mid-turn. Reduced motion: fade only, no frame loop.
 - **Sound** (`sound.ts`, `cue.ts`): the platform's ONE sound set, made by the browser. Policy per Toaster: shop-web
-  `on`/`off` from its Sound setting (`ShopToaster`); back-office `opt-in`, only the scan box asks (`sound: true`) - and a
-  found label, which opens its order with no toast, plays `playCue("success")` itself (spec FR-020 amended); storefront
-  `never`. ⚠ The shop's **new-order chime moved here unchanged** (`playCue("new-order")`; test pins its notes and gains);
+  `on`/`off` from its Sound setting (`ShopToaster`); back-office `on` for every toast - ⚠ first built as scanning only
+  (`opt-in`), changed after the first walk (operator 2026-11-13: "no sound … that is the main thing"); a found label,
+  which opens its order with no toast, plays `playCue("success")` itself; storefront `never`. ⚠ **The first tones peaked
+  at 0.18 and were easy to miss**: raised to master 0.55, peaks 0.8-1.0, filter 3.6 kHz. Verified in headless Chrome
+  (real `AudioContext` running, two oscillators per success). Both consoles' toasts moved to the **top centre**. ⚠ The shop's **new-order chime moved here unchanged** (`playCue("new-order")`; test pins its notes and gains);
   `apps/shop-web/src/lib/chime.ts` is deleted.
 - **Reading**: two live regions always on the page (polite; assertive for failures), a repeat said again, progress-only
   changes silent; verified that a toast raised over a Radix dialog is still read out (`aria-hidden` spares `[aria-live]`).

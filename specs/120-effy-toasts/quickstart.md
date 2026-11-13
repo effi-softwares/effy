@@ -24,7 +24,7 @@ Expected: each guest page grows by about 2 KB (measured 2026-11-13: search 168.1
 
 ## 3. Walk - shop console (`pnpm --filter @effy/shop-web dev`, Sound on)
 
-1. Mark several orders ready from the queue: the toast arrives from the bottom right as a mark, opens, changes in place
+1. Mark several orders ready from the queue: the toast arrives from the top centre as a mark, opens, changes in place
    to the result, success settles with a pulse and a rising tone (US1 #1-2).
 2. Make one fail (switch the network off in DevTools, then act): a failure shakes, plays the falling tone and stays.
    While it shows, save something that succeeds: the failure stays; close it and the success appears (US1 #3, SC-002).
@@ -40,7 +40,7 @@ Expected: each guest page grows by about 2 KB (measured 2026-11-13: search 168.1
 
 ## 4. Walk - back-office (`pnpm --filter @effy/back-office dev`)
 
-1. Save a setting, assign a driver, credit points: silent toasts (US2 #1).
+1. Save a setting, assign a driver, credit points: each toast plays its tone (after the first click in the tab).
 2. Scan box: a known label and an unknown one - each with its tone after the first click in the tab (US2 #2).
 
 ## 5. Walk - storefront (`pnpm --filter @effy/customer-web dev`)

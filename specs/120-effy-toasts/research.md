@@ -80,8 +80,8 @@ convention (for example the Alt+T shortcut), the reason is given.
   Through a gentle low-pass (2.4 kHz) and a master gain of 0.3. Every cue is under 450 ms. Pitches are a starting point,
   tuned by ear on a laptop and a phone during the walk.
 - **Policy per Toaster** (`sound` prop): `"on"` (every toast plays its kind's cue), `"off"` (nothing), `"opt-in"` (only
-  toasts that pass `sound: true`), `"never"` (nothing, and per-toast `sound` is ignored). shop-web: `on`/`off` from the
-  existing Sound setting. back-office: `opt-in`, and the scan box passes `sound: true`. customer-web: `never` (FR-021).
+  toasts that pass `sound: true`; unused since 2026-11-13), `"never"` (nothing, and per-toast `sound` is ignored). shop-web: `on`/`off` from the
+  existing Sound setting. back-office: `on` (operator 2026-11-13; first `opt-in`, scanning only). customer-web: `never` (FR-021).
   In progress and progress-only updates never play (FR-018). A blocked or missing audio context is a silent no-op inside
   `try` (FR-022).
 - **Rationale**: two sound systems (the chime and toast cues) would be two sources for one fact. Tones are generated, so
