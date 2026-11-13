@@ -17,14 +17,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.effyshopping.driver.mobile.core.presentation.DriverButton
 import com.effyshopping.driver.mobile.core.presentation.DriverButtonStyle
@@ -36,17 +32,23 @@ import com.effyshopping.driver.mobile.resources.Res
 import com.effyshopping.driver.mobile.resources.lucide_phone
 import com.effyshopping.mobile.kit.update.UpdateHero
 import com.effyshopping.mobile.kit.update.UpdateHeroColors
+import com.effyshopping.mobile.kit.update.UpdateMark
 import com.effyshopping.mobile.kit.update.updateEnter
 
 /** 121: the words, one set for both platforms (spec "Words"; draft, to be approved). */
 internal object AppUpdateWords {
     const val MANDATORY_TITLE = "Time to update Effy Driver"
-    const val MANDATORY_TEXT = "This version has stopped working. Update to the latest version to carry on with your work."
+    const val MANDATORY_TEXT = "We've made some important changes. Please update to the latest version to carry on with your work."
     const val UPDATE_NOW = "Update now"
     const val CALL_DISPATCH = "Call dispatch"
-    const val SHEET_TITLE = "A new version of Effy Driver is here"
-    const val SHEET_TEXT = "Update for the latest improvements and fixes. It only takes a moment."
-    const val LATER = "Not now"
+    // Optional: asked at every launch until updated - so its button says it will come back.
+    const val OPTIONAL_TITLE = "An important update is ready"
+    const val OPTIONAL_TEXT = "This update fixes problems you might run into on shift. Please update before your next run."
+    const val REMIND_LATER = "Remind me later"
+    // Notice: mentioned once - so its button promises nothing.
+    const val NOTICE_TITLE = "A new version of Effy Driver is here"
+    const val NOTICE_TEXT = "A few improvements and fixes. Update whenever it suits you."
+    const val NOT_NOW = "Not now"
     const val DOWNLOADED = "Update downloaded"
     const val RESTART = "Restart"
     const val AVAILABLE = "Update available"
@@ -71,29 +73,19 @@ private fun DriverUpdateHero(tileSize: Dp, modifier: Modifier = Modifier) {
         tileSize = tileSize,
         colors = UpdateHeroColors(
             tile = EffyRoles.splashGround,
-            tileEdge = MaterialTheme.colorScheme.outlineVariant,
+            // A hairline so the black icon keeps its edge on the dark theme; barely there on the light one.
+            tileEdge = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f),
+            markInk = EffyRoles.splashInk,
+            markDot = EffyRoles.splashDot,
             pulse = MaterialTheme.colorScheme.primary,
             badge = MaterialTheme.colorScheme.primary,
             badgeInk = MaterialTheme.colorScheme.onPrimary,
             page = MaterialTheme.colorScheme.background,
         ),
         animate = !LocalReducedMotion.current,
+        mark = UpdateMark.Driver,
         modifier = modifier,
-    ) {
-        // The driver app icon's "e." - the splash's letter and its blue full stop.
-        Text(
-            buildAnnotatedString {
-                append("e")
-                withStyle(SpanStyle(color = EffyRoles.splashDot)) { append(".") }
-            },
-            style = MaterialTheme.typography.displayMedium.copy(
-                fontSize = (tileSize.value * 0.46f).sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = (-0.05).em,
-            ),
-            color = EffyRoles.splashInk,
-        )
-    }
+    )
 }
 
 /**
@@ -167,7 +159,7 @@ internal fun MandatoryUpdateScreen(
  * in a sheet. It stays while Update now works (FR-014).
  */
 @Composable
-internal fun UpdateSheet(updateOffered: Boolean, busy: Boolean, onUpdate: () -> Unit, onLater: () -> Unit) {
+internal fun UpdateSheet(notice: Boolean, updateOffered: Boolean, busy: Boolean, onUpdate: () -> Unit, onLater: () -> Unit) {
     val animate = !LocalReducedMotion.current
     DriverSheet(title = null, onDismiss = { if (!busy) onLater() }) {
         Column(
@@ -176,13 +168,13 @@ internal fun UpdateSheet(updateOffered: Boolean, busy: Boolean, onUpdate: () -> 
         ) {
             Box(Modifier.padding(bottom = 4.dp)) { DriverUpdateHero(tileSize = 76.dp) }
             Text(
-                AppUpdateWords.SHEET_TITLE,
+                if (notice) AppUpdateWords.NOTICE_TITLE else AppUpdateWords.OPTIONAL_TITLE,
                 style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
                 textAlign = TextAlign.Center,
                 modifier = Modifier.updateEnter(0, animate),
             )
             Text(
-                AppUpdateWords.SHEET_TEXT,
+                if (notice) AppUpdateWords.NOTICE_TEXT else AppUpdateWords.OPTIONAL_TEXT,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
@@ -196,7 +188,7 @@ internal fun UpdateSheet(updateOffered: Boolean, busy: Boolean, onUpdate: () -> 
                     DriverButton(AppUpdateWords.UPDATE_NOW, onClick = onUpdate, loading = busy, modifier = Modifier.fillMaxWidth())
                 }
                 DriverButton(
-                    AppUpdateWords.LATER,
+                    if (notice) AppUpdateWords.NOT_NOW else AppUpdateWords.REMIND_LATER,
                     onClick = onLater,
                     style = DriverButtonStyle.Ghost,
                     enabled = !busy,

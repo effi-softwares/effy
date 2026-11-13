@@ -179,7 +179,7 @@ fun App(
             }
             }
             if (updateState == GateState.Optional || updateState is GateState.Notice) {
-                UpdateSheet(updateOffered = updateOffered, busy = updateBusy, onUpdate = updates::updateNow, onLater = updates::later)
+                UpdateSheet(notice = updateState is GateState.Notice, updateOffered = updateOffered, busy = updateBusy, onUpdate = updates::updateNow, onLater = updates::later)
             }
             // 121: Play's background download is ready - on whatever screen is showing, until Restart.
             DriverSnackbar(

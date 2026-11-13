@@ -255,7 +255,8 @@ version they are on.
   action and no way into the rest of the app. For customers it MUST also offer to shop on the Effy website; for drivers, to
   call dispatch when a dispatch number is set.
 - **FR-011**: Optional and notice MUST be a bottom sheet **over the app** (Home, or wherever the app opens), with **Update
-  now** and **Not now**. Dismissing the sheet counts as Not now. (Amended after the first walk: the sheet first sat over
+  now** and a second button - **Remind me later** on the optional sheet (it comes back), **Not now** on the notice
+  (said once). Dismissing the sheet counts as that second button. (Amended after the first walk: the sheet first sat over
   a bare launch screen, which read as the app having stalled.)
 - **FR-012**: A notice MUST be shown at most once per latest build on a phone. An optional update MUST be shown at every
   launch until the person updates or the setting changes.
@@ -307,15 +308,22 @@ version they are on.
 | Where | Customer app | Driver app |
 |---|---|---|
 | Mandatory title | Time to update Effy | Time to update Effy Driver |
-| Mandatory text | This version of Effy has stopped working. Update to the latest version to keep shopping. | This version has stopped working. Update to the latest version to carry on with your work. |
-| Mandatory version line | You have version 1.0.2 (4) | You have version 1.0.2 (4) |
+| Mandatory text | We've made some important changes. Please update to the latest version to keep shopping. | We've made some important changes. Please update to the latest version to carry on with your work. |
+| Mandatory version line | You have version 1.0.2 (5) | You have version 1.0.2 (5) |
 | Mandatory action | Update now | Update now |
 | Mandatory other | Shop on effyshopping.com instead | Call dispatch |
-| Sheet title | A new version of Effy is here | A new version of Effy Driver is here |
-| Sheet text | Update for the latest improvements and fixes. It only takes a moment. | the same |
-| Sheet actions | Update now · Not now | Update now · Not now |
+| Optional title | An important update is ready | An important update is ready |
+| Optional text | This update fixes problems and keeps Effy running smoothly. We recommend updating now. | This update fixes problems you might run into on shift. Please update before your next run. |
+| Optional actions | Update now · Remind me later | Update now · Remind me later |
+| Notice title | A new version of Effy is here | A new version of Effy Driver is here |
+| Notice text | We've made a few improvements and fixes. Update whenever it suits you. | A few improvements and fixes. Update whenever it suits you. |
+| Notice actions | Update now · Not now | Update now · Not now |
 | Downloaded bar | Update downloaded · Restart | Update downloaded · Restart |
 | Account row | Update available | Update available |
+
+Approved by the operator after the second walk (2026-11-13): the optional sheet's second button says it will come back
+("Remind me later"), the notice's promises nothing ("Not now"); the mandatory text says what changed, never that the app
+is broken.
 
 **Look** (2026-11-13, after the first walk): the app's own icon (the splash's "e." tile) with a round update badge on its
 corner, an arrow dropping into the badge's tray, and a soft pulse spreading behind - drawn in code from the app's theme,
