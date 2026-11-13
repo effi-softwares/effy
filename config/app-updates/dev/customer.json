@@ -1,5 +1,5 @@
 {
   "schema": 1,
-  "ios": { "minimum": 6, "recommended": 6, "latest": 8, "storeUrl": null },
-  "android": { "minimum": 6, "recommended": 6, "latest": 8, "storeUrl": "https://play.google.com/store/apps/details?id=com.effyshopping.customer.mobile" }
+  "ios": { "minimum": 6, "recommended": 6, "latest": 9, "storeUrl": null },
+  "android": { "minimum": 6, "recommended": 6, "latest": 9, "storeUrl": "https://play.google.com/store/apps/details?id=com.effyshopping.customer.mobile" }
 }
