@@ -97,6 +97,7 @@ fun App(
         val updateState by updates.state.collectAsState()
         val updateOffered by updates.updateOffered.collectAsState()
         val download by updates.download.collectAsState()
+        val updateBusy by updates.busy.collectAsState()
         // Back on screen re-checks (FR-005); the first ON_START is the launch itself.
         var startedOnce by remember { mutableStateOf(false) }
         LifecycleEventEffect(Lifecycle.Event.ON_START) { if (startedOnce) updates.onForeground() else startedOnce = true }
@@ -138,25 +139,22 @@ fun App(
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
           Box(modifier = Modifier.fillMaxSize()) {
             when (updateState) {
-                GateState.Mandatory -> Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
-                    MandatoryUpdateScreen(
-                        updateOffered = updateOffered,
-                        dispatchPhone = AppConfig.dispatchPhone,
-                        onUpdate = updates::updateNow,
-                        onCallDispatch = { phone ->
-                            updates.chooseCallDispatch()
-                            mapLauncher.dial(phone)
-                        },
-                    )
-                }
-                // Before the app: the launch screen's mark, with the sheet over it (FR-011). The app opens on Later.
-                GateState.Optional, is GateState.Notice -> {
-                    AppUpdateLaunchSurface()
-                    UpdateSheet(updateOffered = updateOffered, onUpdate = updates::updateNow, onLater = updates::later)
-                }
+                GateState.Mandatory -> MandatoryUpdateScreen(
+                    updateOffered = updateOffered,
+                    busy = updateBusy,
+                    version = AppConfig.appVersion,
+                    build = updates.build,
+                    dispatchPhone = AppConfig.dispatchPhone,
+                    onUpdate = updates::updateNow,
+                    onCallDispatch = { phone ->
+                        updates.chooseCallDispatch()
+                        mapLauncher.dial(phone)
+                    },
+                )
                 // Under the launch intro, which waits for the answer.
                 GateState.Checking -> AppUpdateLaunchSurface()
-                GateState.Passed -> when (val s = session) {
+                // The app itself - with the update sheet over it when one applies (FR-011).
+                GateState.Passed, GateState.Optional, is GateState.Notice -> when (val s = session) {
                 // The launch intro covers this; it hands over only once the session is known.
                 SessionState.Restoring -> Unit
 
@@ -179,6 +177,9 @@ fun App(
                     }
                 }
             }
+            }
+            if (updateState == GateState.Optional || updateState is GateState.Notice) {
+                UpdateSheet(updateOffered = updateOffered, busy = updateBusy, onUpdate = updates::updateNow, onLater = updates::later)
             }
             // 121: Play's background download is ready - on whatever screen is showing, until Restart.
             DriverSnackbar(

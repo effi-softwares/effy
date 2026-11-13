@@ -32,8 +32,8 @@ enum class FlexibleDownload { Idle, Downloading, Downloaded }
  * The launch gate (121). One per process, created in each app's `AppContainer`, so turning the phone or recreating the
  * activity never asks again; a **launch** (spec FR-005) is the first [onLaunch] in a process.
  *
- * - At launch: a saved answer under [freshMs] old is used at once; otherwise the answer is awaited for at most
- *   [launchWaitMs], then the saved answer, else the person is let in (FR-008, FR-009). The read always finishes in the
+ * - At launch: the answer is awaited for at most [launchWaitMs], then the saved answer, else the person is let in
+ *   (FR-008, FR-009). The read always finishes in the
  *   background and is saved; a mandatory answer that arrives late takes over at once, anything else waits for the next
  *   launch.
  * - Back on screen ([onForeground]): read again; only mandatory is acted on (FR-006).
@@ -51,8 +51,6 @@ class AppUpdateGate(
     private val now: () -> Long,
     private val scope: CoroutineScope,
     val launchWaitMs: Long = 1_500,
-    private val freshMs: Long = 3 * 60_000,
-    private val storeCheckMs: Long = 1_000,
 ) {
     private val _state = MutableStateFlow<GateState>(GateState.Checking)
     val state: StateFlow<GateState> = _state.asStateFlow()
@@ -63,6 +61,10 @@ class AppUpdateGate(
     /** An optional update or a notice applies (shown or not) - Account's "Update available" row (FR-021). */
     private val _available = MutableStateFlow(false)
     val available: StateFlow<Boolean> = _available.asStateFlow()
+
+    /** Update now is working (asking Play, opening the store): the button shows it, and a second tap does nothing. */
+    private val _busy = MutableStateFlow(false)
+    val busy: StateFlow<Boolean> = _busy.asStateFlow()
 
     /** Whether Update now can do anything: a store page, or Play able to update in place. */
     private val _updateOffered = MutableStateFlow(false)
@@ -92,14 +94,11 @@ class AppUpdateGate(
         storeJob = if (updater.platform == AppPlatform.Android) scope.async { storeAllowsNow() } else null
         val fetch = scope.async { source.fetch() }
         scope.launch {
+            // Always the real answer first (at most [launchWaitMs]); the saved one only when it does not come in time.
+            // Deciding from a saved answer first showed the last test's sheet and then swapped it for the new answer.
             val saved = source.saved()
-            val fresh = saved?.takeIf { now() - it.second in 0 until freshMs }?.first
-            val outcome = if (fresh != null) {
-                withTimeoutOrNull(storeCheckMs) { decide(fresh, waitForStore = true) } ?: decide(fresh, waitForStore = false)
-            } else {
-                withTimeoutOrNull(launchWaitMs) { decide(fetch.await() ?: saved?.first, waitForStore = true) }
-                    ?: decide(saved?.first, waitForStore = false)
-            }
+            val outcome = withTimeoutOrNull(launchWaitMs) { decide(fetch.await() ?: saved?.first, waitForStore = true) }
+                ?: decide(saved?.first, waitForStore = false)
             apply(outcome)
             // The read finishes whatever happened above; a late mandatory takes over, a late lift releases.
             val late = fetch.await() ?: return@launch
@@ -127,24 +126,34 @@ class AppUpdateGate(
         if (s is GateState.Optional || s is GateState.Notice) _state.value = GateState.Passed
     }
 
-    /** Update now - from the mandatory screen, the sheet, or Account's row (FR-014). */
+    /**
+     * Update now - from the mandatory screen, the sheet, or Account's row (FR-014). The screen it was pressed on STAYS
+     * until something has happened: Play's update or download has started (the sheet then gives way to the app; the
+     * download carries on), or the store page has opened (the sheet is still there on the way back, and Later is the
+     * way on). The mandatory screen never gives way.
+     */
     fun updateNow() {
+        if (_busy.value) return
         val storeUrl = current?.forPlatform(updater.platform)?.storeUrl
-        when (_state.value) {
-            GateState.Mandatory -> scope.launch {
-                if (!updater.startImmediate()) updater.openStore(storeUrl)
-            }
-            else -> {
-                if (_state.value is GateState.Optional || _state.value is GateState.Notice) _state.value = GateState.Passed
-                scope.launch {
-                    if (_download.value != FlexibleDownload.Idle) return@launch // already downloading, or ready
-                    _download.value = FlexibleDownload.Downloading
-                    val started = updater.startFlexible { _download.value = FlexibleDownload.Downloaded }
-                    if (!started) {
-                        _download.value = FlexibleDownload.Idle
-                        updater.openStore(storeUrl)
-                    }
+        val pressedOn = _state.value
+        _busy.value = true
+        scope.launch {
+            try {
+                if (pressedOn == GateState.Mandatory) {
+                    if (!updater.startImmediate()) updater.openStore(storeUrl)
+                    return@launch
                 }
+                if (_download.value != FlexibleDownload.Idle) return@launch // already downloading, or ready
+                _download.value = FlexibleDownload.Downloading
+                val started = updater.startFlexible { _download.value = FlexibleDownload.Downloaded }
+                if (started) {
+                    if (_state.value is GateState.Optional || _state.value is GateState.Notice) _state.value = GateState.Passed
+                } else {
+                    _download.value = FlexibleDownload.Idle
+                    updater.openStore(storeUrl)
+                }
+            } finally {
+                _busy.value = false
             }
         }
     }

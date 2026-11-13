@@ -15,7 +15,7 @@ same number on iPhone and Android.
 | A phone on build *b* | What it sees, before Home |
 |---|---|
 | *b* < `minimum` | **Update required**: a full screen; the app can't be used until updated |
-| *b* < `recommended` | A sheet with **Update now** and **Later**, at **every launch** |
+| *b* < `recommended` | A sheet with **Update now** and **Not now**, at **every launch** |
 | *b* < `latest` | The same sheet, **once** for that `latest` |
 | otherwise | nothing |
 
@@ -50,5 +50,5 @@ make app-updates ENV=prod APP=driver # one app only
 make app-updates-check               # validate every file, no AWS
 ```
 
-Phones act on a change within about 3 minutes. Git history is the record of who changed what and when. Never edit the
+Phones act on a change at their next launch (within about a minute of publishing). Git history is the record of who changed what and when. Never edit the
 S3 object by hand: it would bypass the checks and the history.

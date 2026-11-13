@@ -58,7 +58,7 @@ Research and alternatives: [research.md](./research.md).
 **Project Type**: mobile apps, plus a static file on the CDN, plus an operator script. No new service.
 
 **Performance Goals**:
-- At most 1.5 s added to a launch with no saved answer; nothing added with one under 3 minutes old.
+- At most 1.5 s added to a launch (the CDN usually answers in tens of milliseconds).
 - A published change reaches phones in under 5 minutes.
 
 **Constraints**:
@@ -181,7 +181,7 @@ docs/store-submission/{distribution-plan.md, publishing-runbook.md}   # point at
    - While `Checking`, the app draws the launch surface (the splash ground and mark), so going from the native splash to the gate shows no flash.
    - A push tap or link that opened the app waits behind the gate (the same pending-destination holder 109 uses through sign-in) and is delivered once the gate is `Passed`.
 2. **Timing** (the wait is `withTimeoutOrNull(1500)`; there is no `delay` loop, so `check-no-refresh-timers.sh` stays green)
-   - A saved answer under 3 minutes old is used at once; otherwise the gate waits at most 1.5 s.
+   - The gate waits for the real answer, at most 1.5 s, then uses the saved one (amended after the first walk).
    - The request has a 10 s timeout and its result is always saved.
    - On return to the foreground (the existing `LiveLifecycle`-style app lifecycle signal), the gate re-fetches and acts only on mandatory. This is a lifecycle event, not a timer.
 3. **The notice** is recorded when shown (`notice_shown_for = latest`), not when dismissed.

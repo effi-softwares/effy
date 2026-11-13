@@ -9,6 +9,7 @@ import io.ktor.http.headersOf
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -63,6 +64,8 @@ private class FakeUpdater(
     var available: Boolean? = null,
     var canImmediate: Boolean = false,
     var canFlexible: Boolean = false,
+    /** How long the store takes to answer (Play asking about this install). */
+    var answerDelayMs: Long = 0,
 ) : StoreUpdater {
     val opened = mutableListOf<String?>()
     var immediateStarts = 0
@@ -78,6 +81,7 @@ private class FakeUpdater(
     }
 
     override suspend fun startFlexible(onDownloaded: () -> Unit): Boolean {
+        delay(answerDelayMs)
         downloaded = onDownloaded
         return canFlexible
     }
@@ -97,12 +101,15 @@ class AppUpdateGateTest {
         AppUpdateGate(source, updater, build, now = { testScheduler.currentTime }, scope = this)
 
     @Test
-    fun `a fresh saved answer is used at once - without waiting for the read`() = runTest {
-        val source = FakeSource(fetchDelayMs = 60_000, savedAnswer = settings(minimum = 11) to 0L)
+    fun `the real answer wins over a saved one - no sheet that then turns into another screen`() = runTest {
+        val source = FakeSource(fetchDelayMs = 200, answer = settings(minimum = 11), savedAnswer = settings(recommended = 11) to 0L)
         val g = gate(source)
+        val seen = mutableListOf<GateState>()
+        backgroundScope.launch { g.state.collect { seen += it } }
         g.onLaunch()
-        runCurrent()
-        assertEquals(GateState.Mandatory, g.state.value)
+        advanceUntilIdle()
+        runCurrent() // let the background collector see the last value
+        assertEquals(listOf(GateState.Checking, GateState.Mandatory), seen)
     }
 
     @Test
@@ -250,6 +257,23 @@ class AppUpdateGateTest {
         g2.updateNow(); advanceUntilIdle()
         assertEquals(listOf<String?>("https://apps.apple.com/au/app/id6740012345"), ios.opened)
         assertEquals(FlexibleDownload.Idle, g2.download.value)
+        assertEquals(GateState.Optional, g2.state.value, "the sheet is still there on the way back from the store")
+        g2.later()
+        assertEquals(GateState.Passed, g2.state.value)
+    }
+
+    @Test
+    fun `while the store is asked the sheet stays and shows it is working - a second tap does nothing`() = runTest {
+        val updater = FakeUpdater(platform = AppPlatform.Android, storeInstall = false, answerDelayMs = 1_000)
+        val g = gate(FakeSource(answer = settings(recommended = 11, latest = 11)), updater)
+        g.onLaunch(); advanceUntilIdle()
+        g.updateNow(); runCurrent()
+        assertTrue(g.busy.value)
+        assertEquals(GateState.Optional, g.state.value, "never Home first")
+        g.updateNow(); advanceUntilIdle()
+        assertEquals(1, updater.opened.size, "one store page, not two")
+        assertFalse(g.busy.value)
+        assertEquals(GateState.Optional, g.state.value)
     }
 
     @Test

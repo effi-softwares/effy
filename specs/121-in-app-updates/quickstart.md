@@ -37,9 +37,9 @@ bash scripts/driver-guard.sh
 | # | Set in `config/app-updates/dev/<app>.json`, then commit and `make app-updates ENV=dev` | Expect |
 |---|---|---|
 | 1 | all `0` | Launch goes straight to Home |
-| 2 | `latest = B+1` | The sheet once, before Home. Later → Home. Relaunch → no sheet |
+| 2 | `latest = B+1` | The sheet once, over Home. Not now → Home. Relaunch → no sheet. Update now: the sheet stays (button working) until the store opens |
 | 3 | `latest = B+2` | The sheet once again |
-| 4 | `recommended = B+2` | The sheet at every launch. Later → Home. Bringing the app back to the screen shows no sheet |
+| 4 | `recommended = B+2` | The sheet at every launch, over Home. Not now → Home. Bringing the app back to the screen shows no sheet |
 | 5 | `minimum = B+1` (with a `storeUrl`) | The full screen at launch. No way into the app. Leave and return → still there. Customer: "Shop on effyshopping.com". Driver: "Call dispatch" |
 | 6 | (from 5) airplane mode, relaunch | The mandatory screen (saved answer) |
 | 7 | from 1, open the app on Home, then set `minimum = B+1`, wait 1 min, then leave and return | The mandatory screen replaces Home |

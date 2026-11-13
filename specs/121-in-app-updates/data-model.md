@@ -48,7 +48,7 @@ Kept through a two-method `AppUpdateStore` port (get/put a string) that each app
 |---|---|
 | `body` | the last valid file received (raw JSON) |
 | `etag` | its ETag, sent as `If-None-Match` |
-| `fetchedAt` | when it was last confirmed (200 or 304). Under 3 minutes old, the app uses it without waiting at launch. |
+| `fetchedAt` | when it was last confirmed (200 or 304). Used only when no answer comes within the launch wait. |
 
 ## NoticeShown (on the phone)
 
@@ -58,8 +58,8 @@ Key `app_update.notice_shown_for` (same port): an int holding the `latest` value
 
 ```
 Checking ──answer/timeout──► Mandatory | Optional | Notice | Passed
-Optional/Notice ──Later/Dismiss──► Passed
-Optional/Notice ──Update now──► (flexible download or store) ──► Passed
+Optional/Notice ──Not now/Dismiss──► Passed
+Optional/Notice ──Update now──► (busy) ──► Play download started: Passed · store page opened: stays
 Passed ──foreground check says Mandatory──► Mandatory
 Mandatory ──(never leaves until the build changes)
 Checking ──late mandatory answer──► Mandatory (also from Passed)

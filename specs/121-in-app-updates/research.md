@@ -65,11 +65,11 @@
 
 - **Decision**:
   - **The gate**: a shared `AppUpdateGate` state machine sits at each app's root, above the shell. While it is `Checking`, the app draws its launch surface (the same ground and mark as the native splash).
-  - **At launch**: start the fetch. Use a saved answer under 3 minutes old at once; otherwise wait at most 1.5 s (FR-008), then act on the saved answer, or on none. The fetch keeps running up to a 10 s request timeout; a late mandatory answer takes over at once, and a late optional answer or notice is saved for the next launch.
+  - **At launch**: start the fetch and wait at most 1.5 s (FR-008), then act on the saved answer, or on none. (The first build also used a saved answer under 3 minutes old at once; the walk showed it swapping one screen for another, so it was removed.) The fetch keeps running up to a 10 s request timeout; a late mandatory answer takes over at once, and a late optional answer or notice is saved for the next launch.
   - **On return to the foreground**: fetch again (one conditional request), and act only on mandatory (FR-006).
   - **Failures**: any parse or validation failure on the phone means "no answer" (fail open) and keeps the saved one (FR-009).
   - **Waiting destinations**: a push tap or link that opened the app waits behind the gate, like the existing pending destination held through sign-in.
-- **Propagation (FR-018)**: invalidation makes the edge fresh at once; the 60 s TTL is the fallback; phones use a saved answer for at most 3 minutes. So the worst case is under 5 minutes.
+- **Propagation (FR-018)**: invalidation makes the edge fresh at once; the 60 s TTL is the fallback; every launch reads the file. So the worst case is about a minute.
 
 ## R9. Telemetry
 

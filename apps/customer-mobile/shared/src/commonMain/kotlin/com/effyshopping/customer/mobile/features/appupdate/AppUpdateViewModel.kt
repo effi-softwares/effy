@@ -22,6 +22,12 @@ class AppUpdateViewModel(
     val state: StateFlow<GateState> = gate.state
     val download: StateFlow<FlexibleDownload> = gate.download
 
+    /** Update now is working (asking Play, opening the store): the button shows it, the screen stays. */
+    val busy: StateFlow<Boolean> = gate.busy
+
+    /** This build, for "You have version 1.0.2 (4)". */
+    val build: Int get() = gate.build
+
     /** Account's "Update available" row (FR-021). */
     val available: StateFlow<Boolean> = gate.available
 

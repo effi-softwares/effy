@@ -53,7 +53,7 @@ Always minimum ≤ recommended ≤ latest. For a phone on build *b*:
 | Condition | Outcome | What the person sees, before Home |
 |---|---|---|
 | *b* < minimum | **Mandatory** | A full screen: the app cannot be used until updated |
-| minimum ≤ *b* < recommended | **Optional** | A sheet with **Update now** and **Later**, at every launch |
+| minimum ≤ *b* < recommended | **Optional** | A sheet with **Update now** and **Not now**, at every launch |
 | recommended ≤ *b* < latest | **Notice** | The same sheet, **once** for that latest build |
 | *b* ≥ latest | **None** | Nothing |
 
@@ -96,22 +96,22 @@ reachable; Update now leads to the update; after updating, the app opens normall
 
 A release fixes a problem that makes some drivers' scans fail. A developer raises the driver app's **recommended** build on
 both platforms. Ana opens the driver app on the older build. Before Home, a sheet says a new version is ready, with
-**Update now** and **Later**. She presses Later and works as usual. The next time she launches the app, the sheet is there
+**Update now** and **Not now**. She presses Not now and works as usual. The next time she launches the app, the sheet is there
 again. She presses Update now: on Android the new version downloads while she keeps working, and a bar then offers to
 restart into it; on iPhone the App Store opens on Effy Driver's page.
 
 **Why this priority**: most important releases are not breaking; they need people to update soon without being blocked.
 
-**Independent Test**: set a recommended build above the installed one; launch; the sheet shows; Later reaches Home; a
+**Independent Test**: set a recommended build above the installed one; launch; the sheet shows; Not now reaches Home; a
 second launch shows the sheet again.
 
 **Acceptance Scenarios**:
 
 1. **Given** a build below recommended and not below minimum, **When** the app launches, **Then** the update sheet shows
-   before Home, with Update now and Later.
-2. **Given** the sheet, **When** Later is pressed (or the sheet is dismissed), **Then** Home opens and the person uses the
+   before Home, with Update now and Not now.
+2. **Given** the sheet, **When** Not now is pressed (or the sheet is dismissed), **Then** Home opens and the person uses the
    app normally until the next launch.
-3. **Given** Later was pressed, **When** the app is next launched (not merely brought back to the screen), **Then** the sheet
+3. **Given** Not now was pressed, **When** the app is next launched (not merely brought back to the screen), **Then** the sheet
    shows again.
 4. **Given** Update now on an Android phone that installed from the store, **When** pressed, **Then** the new version
    downloads while the person carries on, and once downloaded a bar offers **Restart**; restarting opens the new build.
@@ -123,7 +123,7 @@ second launch shows the sheet again.
 ### User Story 3 - A routine update is mentioned once (Priority: P2)
 
 A release adds a small improvement. A developer raises only the **latest** build. Lee opens the customer app on the older
-build and sees the update sheet once, before Home. Lee presses Later. On every later launch Lee goes straight to Home, until
+build and sees the update sheet once, before Home. Lee presses Not now. On every later launch Lee goes straight to Home, until
 the developers publish a newer latest build, which is mentioned once again.
 
 **Why this priority**: it is the default for most releases and keeps prompts rare; without it, every release would have to
@@ -177,7 +177,7 @@ Whenever an optional update or a notice applies, the app's Account area shows an
 the same update action. The app's version (version and build) is shown there too, so a person can tell support which
 version they are on.
 
-**Why this priority**: helpful after Later has been pressed or a notice has gone, but not needed to make the feature work.
+**Why this priority**: helpful after Not now has been pressed or a notice has gone, but not needed to make the feature work.
 
 **Independent Test**: with a notice that has already been shown, open Account: the row is there and leads to the update.
 
@@ -243,9 +243,9 @@ version they are on.
 - **FR-006**: On coming back to the screen, only a **mandatory** outcome is acted on; the optional sheet and the notice are
   shown only at launch.
 - **FR-007**: The app MUST NOT check on a timer.
-- **FR-008**: At launch the app MUST wait for the answer for no more than **1.5 seconds** while the launch screen shows. When
-  the last saved answer is less than 3 minutes old, it MUST use that answer without waiting, and still check in the
-  background: a mandatory answer that arrives takes over at once.
+- **FR-008**: At launch the app MUST wait for the answer for no more than **1.5 seconds** while the launch screen shows,
+  and act on that answer. (Amended after the first walk, 2026-11-13: acting on a saved answer first showed the last
+  answer's screen and then swapped it for the new one.)
 - **FR-009**: The app MUST save the last answer it received. With no answer in time, it MUST act on the saved answer; with
   neither, it MUST let the person in. A failed or unreadable check MUST NOT lock anyone out.
 
@@ -254,8 +254,9 @@ version they are on.
 - **FR-010**: Mandatory MUST be a full screen, not a sheet, shown before any other screen, with **Update now** as its main
   action and no way into the rest of the app. For customers it MUST also offer to shop on the Effy website; for drivers, to
   call dispatch when a dispatch number is set.
-- **FR-011**: Optional and notice MUST be a bottom sheet over the launch screen, before Home, with **Update now** and
-  **Later**. Dismissing the sheet counts as Later.
+- **FR-011**: Optional and notice MUST be a bottom sheet **over the app** (Home, or wherever the app opens), with **Update
+  now** and **Not now**. Dismissing the sheet counts as Not now. (Amended after the first walk: the sheet first sat over
+  a bare launch screen, which read as the app having stalled.)
 - **FR-012**: A notice MUST be shown at most once per latest build on a phone. An optional update MUST be shown at every
   launch until the person updates or the setting changes.
 - **FR-013**: The words on each screen MUST be one set per app, the same on both platforms (draft wording: "Words").
@@ -268,6 +269,10 @@ version they are on.
     mandatory, run the store's update inside the app (download, install and restart, which the person cannot skip); for
     optional and notice, download in the background while the app is used, then offer **Restart** when ready.
   - otherwise (every iPhone; Android when the in-app update is not possible): open the app's page in the store app.
+- **FR-014a**: The screen Update now was pressed on MUST stay, showing that it is working, until something has happened:
+  the store's own update or download has started (the sheet then gives way to the app), or the store page has opened
+  (on the way back the sheet is still there). It MUST never show the app first and then open the store. A second tap
+  while it is working does nothing. (Added after the first walk.)
 - **FR-015**: On Android, when the app was installed from the store, the optional sheet and the notice MUST be shown only
   when the store says this phone can get an update (an install from elsewhere, such as a test build, is decided by the
   settings alone). Mandatory MUST be shown whatever the store says (so a mistake shows, rather than silently letting an unsafe build
@@ -293,7 +298,7 @@ version they are on.
 
 - **FR-021**: When optional or notice applies, Account MUST show an Update available row that leads to the same action as
   Update now. Account MUST always show the app's version and build.
-- **FR-022**: Each outcome shown and each choice (Update now, Later, Restart, website, call dispatch) MUST be measured
+- **FR-022**: Each outcome shown and each choice (Update now, Not now, Restart, website, call dispatch) MUST be measured
   through the platform's existing product analytics, with the app, platform and build, and nothing that identifies the
   person beyond what that analytics already allows.
 
@@ -301,15 +306,21 @@ version they are on.
 
 | Where | Customer app | Driver app |
 |---|---|---|
-| Mandatory title | Update Effy to keep going | Update Effy Driver to keep going |
-| Mandatory text | This version of Effy no longer works. Update to the latest version to keep shopping. | This version no longer works. Update to the latest version to carry on with your work. |
+| Mandatory title | Time to update Effy | Time to update Effy Driver |
+| Mandatory text | This version of Effy has stopped working. Update to the latest version to keep shopping. | This version has stopped working. Update to the latest version to carry on with your work. |
+| Mandatory version line | You have version 1.0.2 (4) | You have version 1.0.2 (4) |
 | Mandatory action | Update now | Update now |
-| Mandatory other | Shop on effyshopping.com | Call dispatch |
-| Sheet title | A new version of Effy is ready | A new version of Effy Driver is ready |
-| Sheet text | Update for the latest improvements. | Update for the latest improvements. |
-| Sheet actions | Update now · Later | Update now · Later |
+| Mandatory other | Shop on effyshopping.com instead | Call dispatch |
+| Sheet title | A new version of Effy is here | A new version of Effy Driver is here |
+| Sheet text | Update for the latest improvements and fixes. It only takes a moment. | the same |
+| Sheet actions | Update now · Not now | Update now · Not now |
 | Downloaded bar | Update downloaded · Restart | Update downloaded · Restart |
 | Account row | Update available | Update available |
+
+**Look** (2026-11-13, after the first walk): the app's own icon (the splash's "e." tile) with a round update badge on its
+corner, an arrow dropping into the badge's tray, and a soft pulse spreading behind - drawn in code from the app's theme,
+light and dark; still under reduced motion. Full screen: the picture and words centred, the one action pinned at the
+bottom. Sheet: the same parts, centred.
 
 ### Key Entities
 
@@ -324,8 +335,7 @@ version they are on.
 
 - **SC-001**: On a build below the minimum, no screen but the mandatory one can be reached, on all four apps, including with
   no connection after a mandatory answer.
-- **SC-002**: The check adds no more than 1.5 seconds to a launch with a slow or absent connection, and no noticeable time
-  when an answer from the last 3 minutes is saved.
+- **SC-002**: The check adds no more than 1.5 seconds to a launch with a slow or absent connection.
 - **SC-003**: Published settings change what launching apps do within 5 minutes, in the environment published to only.
 - **SC-004**: A notice is shown exactly once per latest build per phone; an optional update at every launch until updated.
 - **SC-005**: Invalid settings never reach a phone (every rule in FR-017 is refused in a test).

@@ -41,6 +41,17 @@ else reachable), **optional** (below `recommended`: a sheet with Update now / La
   iOS **test** builds fail on test names containing commas (Kotlin/Native forbids them - e.g. `TabNavigationTest`,
   `InboxMessageTest`; 121's own names were fixed); customer `UnitPriceWordsTest` expects 17 fixture cases, the file has 22
   (since 2026-10-30); shared-types `package-status.guard` (099).
+- **First walk (2026-11-13, customer app, Android emulator, build 4 vs 5)**: notice, optional and mandatory all shown as
+  specified. Defects found and fixed: (1) **Update now went to Home, waited ~1 s, then opened the Play Store** - the gate
+  passed to Home before asking Play; now the screen stays with the button working (`AppUpdateGate.busy`) until Play's
+  download has started or the store page has opened, and the sheet is still there on the way back (spec FR-014a);
+  (2) **a glitch on the first mandatory launch** - a saved answer under 3 minutes old was acted on first (the optional
+  sheet from the previous test), then swapped; the launch now always waits for the real answer, ≤ 1.5 s (FR-008
+  amended). **Redesign** at the operator's request: the bare grey launch screen behind the sheet is gone (the sheet sits
+  over the app, FR-011 amended); one animated picture for both apps, `mobile-kit/common/update/UpdateHero.kt` (the app's
+  own "e." icon, an update badge with an arrow dropping into its tray, a soft pulse; drawn in code from the theme, still
+  under reduced motion), words staggered in; full screen with the action pinned at the bottom and "You have version …";
+  words revised ("Time to update Effy", "Not now"). Re-walk pending.
 - **Not proven until the stores exist**: Play's immediate/flexible flows and the staged-rollout check (quickstart
   "Store-only checks"); prod (no prod environment yet).
 - **Operator steps**: (1) `make apply ENV=dev` (media.tf); (2) `make app-updates ENV=dev` (all-zero files);

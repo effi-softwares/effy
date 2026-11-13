@@ -102,6 +102,7 @@ fun App(container: AppContainer) {
         val updateState by updates.state.collectAsState()
         val updateOffered by updates.updateOffered.collectAsState()
         val download by updates.download.collectAsState()
+        val updateBusy by updates.busy.collectAsState()
         val updateBar = remember { SnackbarHostState() }
         // Back on screen re-checks (FR-005); the first ON_START is the launch itself.
         var startedOnce by remember { mutableStateOf(false) }
@@ -142,22 +143,19 @@ fun App(container: AppContainer) {
         ) {
           Box(modifier = Modifier.fillMaxSize()) {
             when (updateState) {
-                GateState.Mandatory -> Inset {
-                    MandatoryUpdateScreen(
-                        updateOffered = updateOffered,
-                        webSiteHost = AppConfig.webSiteHost,
-                        onUpdate = updates::updateNow,
-                        onWebsite = updates::chooseWebsite,
-                    )
-                }
-                // Before Home: the launch screen's mark, with the sheet over it (FR-011). Home opens on Later.
-                GateState.Optional, is GateState.Notice -> {
-                    Inset { AppUpdateLaunchSurface() }
-                    UpdateSheet(updateOffered = updateOffered, onUpdate = updates::updateNow, onLater = updates::later)
-                }
+                GateState.Mandatory -> MandatoryUpdateScreen(
+                    updateOffered = updateOffered,
+                    busy = updateBusy,
+                    version = AppConfig.appVersion,
+                    build = updates.build,
+                    webSiteHost = AppConfig.webSiteHost,
+                    onUpdate = updates::updateNow,
+                    onWebsite = updates::chooseWebsite,
+                )
                 // Under the launch intro, which waits for the answer.
                 GateState.Checking -> Inset { AppUpdateLaunchSurface() }
-                GateState.Passed -> when (val s = session) {
+                // The app itself - with the update sheet over it when one applies (FR-011).
+                GateState.Passed, GateState.Optional, is GateState.Notice -> when (val s = session) {
                 SessionState.Restoring -> Inset { CenteredMessage { EffyWordmark(size = 40.sp) } }
 
                 SessionState.Unreachable -> Inset { UnreachableScreen(container) }
@@ -264,6 +262,9 @@ fun App(container: AppContainer) {
                         })
                     }
             }
+            }
+            if (updateState == GateState.Optional || updateState is GateState.Notice) {
+                UpdateSheet(updateOffered = updateOffered, busy = updateBusy, onUpdate = updates::updateNow, onLater = updates::later)
             }
             // 121: Play's background download is ready - on whatever screen is showing.
             if (download == FlexibleDownload.Downloaded) UpdateDownloadedBar(updateBar, onRestart = updates::restart)
