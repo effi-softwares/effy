@@ -3,7 +3,7 @@ TEAM_ID= 26NX5N856U
 PRODUCT_NAME=customer-mobile
 PRODUCT_BUNDLE_IDENTIFIER=com.effyshopping.customer.mobile.customer-mobile$(TEAM_ID)
 
-// 121: the version and build number come from version.properties (scripts/bump-version.sh writes Version.xcconfig).
+// 121: the iOS version and build number - iOS's own, independent of Android (make cm-ios-version raises them).
 #include "Version.xcconfig"
 
 // Push notifications (APNs). Commented out until the paid Apple Developer account exists: a free

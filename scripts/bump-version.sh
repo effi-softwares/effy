@@ -1,20 +1,14 @@
 #!/usr/bin/env bash
-# Raises an app's version before a release build. The build number (versionCode) ALWAYS goes up by one, so
+# Raises an app's ANDROID version before a release build (`make cm-apk` / `make dm-apk`). iOS has its own numbers,
+# raised only by scripts/bump-ios-version.sh (`make cm-ios-version` / `make dm-ios-version`): the two platforms are
+# built and released separately, so neither moves the other (121).
+# The build number (versionCode) ALWAYS goes up by one, so
 # no two APKs ever carry the same number and every one installs over the last. The version (versionName,
 # three numbers) changes only when asked: patch 1.0.0 → 1.0.1, minor → 1.1.0, major → 2.0.0. The build
 # number never resets - Android only accepts an update with a higher versionCode.
 #
 #   scripts/bump-version.sh <version.properties> [patch|minor|major]
 set -euo pipefail
-
-write_xcconfig() {
-  cat > "$1" <<XC
-// Written by scripts/bump-version.sh from ../../version.properties - never edit by hand (121).
-// One build number means one build on iPhone and Android; the in-app update check compares it.
-MARKETING_VERSION = $2
-CURRENT_PROJECT_VERSION = $3
-XC
-}
 
 file="${1:?usage: bump-version.sh <version.properties> [patch|minor|major]}"
 part="${2:-}"
@@ -41,10 +35,3 @@ sed -e "s/^versionName=.*/versionName=$new_name/" -e "s/^versionCode=.*/versionC
 mv "$tmp" "$file"
 echo "bump-version: $name+$code → $new_name+$new_code ($file)"
 
-# 121: the iPhone build carries the same two numbers, so one build number means one build on both platforms (the
-# update check compares it). Config.xcconfig includes this file; scripts/check-app-versions.sh fails a mismatch.
-xcconfig="$(dirname "$file")/iosApp/Configuration/Version.xcconfig"
-if [ -d "$(dirname "$xcconfig")" ]; then
-  write_xcconfig "$xcconfig" "$new_name" "$new_code"
-  echo "bump-version: $xcconfig → $new_name ($new_code)"
-fi

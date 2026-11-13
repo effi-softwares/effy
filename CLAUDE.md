@@ -602,7 +602,8 @@ the standard three-module layout (`shared` + `androidApp` + `iosApp`) and packag
 - `apps/customer-mobile` - `com.effyshopping.customer.mobile` - the customer shopping app.
 - `apps/driver-mobile` - `com.effyshopping.driver.mobile` - the driver delivery app.
 
-⚠ **AN APP'S VERSION LIVES IN ITS `version.properties`, NEVER IN `build.gradle.kts` (2026-11-13).** `make cm-apk` /
+⚠ **AN APP'S ANDROID VERSION LIVES IN ITS `version.properties`, NEVER IN `build.gradle.kts` (2026-11-13); its iOS version
+in `iosApp/Configuration/Version.xcconfig` (121).** `make cm-apk` /
 `make dm-apk` raise the build number (`versionCode`) by one on every release build, and the version (`versionName`, three
 numbers) only with `BUMP=patch|minor|major`. They write `customer-app-<version>+<build>.apk` / `driver-app-…`. The file
 is committed after each build. Guide: [docs/runbooks/android-release-apk.md](docs/runbooks/android-release-apk.md).
@@ -611,8 +612,10 @@ is committed after each build. Guide: [docs/runbooks/android-release-apk.md](doc
 `make app-updates ENV=<env>` (refuses an invalid or uncommitted file) to the media CDN; the decision is written once in
 `packages/mobile-kit/common/update/` (fixtures: `app-updates.fixtures.json`). A routine release raises only `latest`;
 `minimum` only after the Android rollout is at 100% and the iPhone build is live (`config/app-updates/README.md`). The gate
-sits above sign-in; in the driver app it stays BELOW the offline-queue flush. iOS takes its version from
-`version.properties` (`Version.xcconfig`; `make cm-version` / `dm-version` before an archive).
+sits above sign-in; in the driver app it stays BELOW the offline-queue flush. ⚠ **ANDROID AND iOS ARE NUMBERED
+INDEPENDENTLY**: Android in `version.properties` (`make cm-apk` / `dm-apk`), iOS in `iosApp/Configuration/Version.xcconfig`
+(`make cm-ios-version` / `dm-ios-version` before an archive); neither moves the other, the JSON has numbers per platform, and
+the iOS app reads its build from its own bundle. Never type a Version/Build in Xcode's General tab (`check-app-versions.sh`).
 
 ⚠ **PRODUCTION DISTRIBUTION IS DECIDED (2026-11-13), NOT SET UP.** Customer app → public App Store + Play Store; driver
 app → an **unlisted** App Store app + Play (public listing or closed track). Both accounts in Effy's name as an

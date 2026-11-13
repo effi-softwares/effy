@@ -9,8 +9,10 @@ config/app-updates/<env>/<app>.json      env = dev | prod      app = customer | 
 
 ## The three levels
 
-Each platform (`ios`, `android`) has three **build numbers**: `versionCode` in the app's `version.properties`, the
-same number on iPhone and Android.
+Each platform (`ios`, `android`) has three **build numbers**, compared with that platform's own build number - the
+two are independent: Android's `versionCode` in `apps/<app>-mobile/version.properties` (raised by `make cm-apk` /
+`dm-apk`), iOS's `CURRENT_PROJECT_VERSION` in `apps/<app>-mobile/iosApp/Configuration/Version.xcconfig` (raised by
+`make cm-ios-version` / `dm-ios-version`). Each app shows its own at the foot of Account.
 
 | A phone on build *b* | What it sees, before Home |
 |---|---|

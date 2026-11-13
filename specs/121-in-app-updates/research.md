@@ -57,9 +57,14 @@
 
 ## R7. The build number
 
-- **Decision**: the app's build number is `versionCode` from `version.properties`, baked in by each app's root build into BuildKonfig as `APP_BUILD` (and `APP_VERSION`) and read in common code. iOS gets the same numbers: `scripts/bump-version.sh` also writes `iosApp/Configuration/Version.xcconfig` (`MARKETING_VERSION`, `CURRENT_PROJECT_VERSION`), which `Config.xcconfig` includes in place of its own two lines. A guard test fails when the two disagree.
-- **Rationale**: the comparison is only meaningful when one number means the same build on both platforms (FR-002). The iOS project currently keeps `1.0` / `1`, which never move.
-- **Alternatives**: reading `CFBundleVersion` / `PackageInfo` at run time. That works too, but then on iOS the value is only right once the xcconfig is right. BuildKonfig keeps one source and is testable in common code.
+- **Decision** (amended 2026-11-13): each platform has its own version and build number. Android: `versionCode` /
+  `versionName` in `version.properties` (BuildKonfig `APP_BUILD` / `APP_VERSION`), raised by `make cm-apk` / `dm-apk`.
+  iOS: `CURRENT_PROJECT_VERSION` / `MARKETING_VERSION` in `iosApp/Configuration/Version.xcconfig`, raised by
+  `make cm-ios-version` / `dm-ios-version`; the app reads them from its installed bundle at run time.
+- **Rationale**: the settings already hold numbers per platform, so nothing needs the two to match; and the platforms are
+  built and released at different times (Android Studio, Xcode, the stores' separate histories). The first build shared one
+  number, which moved iOS's numbers on every Android build.
+- **Alternatives**: one shared counter (the first build: simple, but couples the platforms).
 
 ## R8. Launch timing and failure
 

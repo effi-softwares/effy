@@ -67,8 +67,9 @@ val optionalKeys = listOf(
     "DISPATCH_PHONE", "HUB_DESK_PHONE", "HANDBOOK_URL",
 )
 
-// 121: the app's own version, from the one version file (`make cm-apk`/`dm-apk`/`cm-version`/`dm-version` raise it). The
-// update check compares APP_BUILD with the published settings; iOS reads the same numbers (Version.xcconfig).
+// 121: the ANDROID version, from version.properties (`make cm-apk` / `dm-apk` raise it). The update check compares
+// APP_BUILD with the published settings' android numbers. iOS has its own, independent numbers (Version.xcconfig), which
+// the app reads from its installed bundle at run time instead.
 val versionProps = Properties().apply { rootProject.file("version.properties").inputStream().use { load(it) } }
 val appBuild: String = versionProps.getProperty("versionCode")?.takeIf { it.toIntOrNull() != null }
     ?: throw GradleException("version.properties: versionCode is missing or not a number")

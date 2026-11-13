@@ -48,3 +48,10 @@ class NoStoreUpdater(override val platform: AppPlatform) : StoreUpdater {
 
     override fun leaveApp() = Unit
 }
+
+/**
+ * The installed app's own version and build number where the platform says so at run time: iPhone (the bundle's
+ * CFBundleShortVersionString / CFBundleVersion, from iosApp/Configuration/Version.xcconfig - iOS's own numbers, 121).
+ * Null on Android, where the build's version.properties (BuildKonfig) IS the installed versionCode.
+ */
+expect fun installedVersionOrNull(): Pair<String, Int>?

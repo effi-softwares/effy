@@ -230,8 +230,10 @@ version they are on.
 - **FR-001**: The customer and driver apps, on iPhone and Android, MUST each decide at launch one outcome (mandatory,
   optional, notice or none) from their own build number and the settings for that app and platform, exactly as in "The
   levels".
-- **FR-002**: Build numbers MUST be compared as whole numbers. The build number MUST mean the same build on both platforms
-  of an app, and MUST rise with every release.
+- **FR-002**: Build numbers MUST be compared as whole numbers. Each platform of an app has its own build number, compared
+  only with that platform's settings, and it MUST rise with every release on that platform. (Amended 2026-11-13: one
+  number shared by both platforms moved iOS's numbers on every Android build; the platforms are built and released
+  separately.)
 - **FR-003**: Each app MUST read only its own settings (the customer app never the driver app's, and the reverse).
 - **FR-004**: Reading the settings MUST NOT need the person to be signed in.
 

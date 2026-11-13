@@ -30,9 +30,12 @@ else reachable), **optional** (below `recommended`: a sheet with Update now / La
   ⚠ Driver: BELOW `App.kt`'s root effects that flush the offline queue - work recorded without signal is still sent under
   the mandatory screen. Back on the mandatory screen leaves the app. A pending push/link waits behind the gate.
 - **Account**: version + build shown; "Update available" row while optional or notice applies (even after Later).
-- **Version numbers**: `scripts/bump-version.sh` also writes `iosApp/Configuration/Version.xcconfig` (included by
-  `Config.xcconfig`; the old hard-coded 1.0 / 1 removed); `scripts/check-app-versions.sh`; `make cm-version` /
-  `dm-version` before an iOS archive. BuildKonfig gained `APP_BUILD`, `APP_VERSION` and the **required**
+- **Version numbers** (amended after the walks): **Android and iOS are numbered independently.** Android:
+  `version.properties` (`make cm-apk` / `dm-apk`, BuildKonfig `APP_BUILD` / `APP_VERSION`). iOS: its own
+  `iosApp/Configuration/Version.xcconfig`, included by `Config.xcconfig` (the old hard-coded 1.0 / 1 removed), raised only
+  by `make cm-ios-version` / `dm-ios-version` (`scripts/bump-ios-version.sh`); the iOS app reads its build from its bundle
+  (`installedVersionOrNull`). `scripts/check-app-versions.sh` checks both and fails a Version/Build typed into Xcode's General
+  tab. Android Studio and Xcode builds read the files and never change them. BuildKonfig also gained the **required**
   `APP_UPDATES_URL` (added to both local `secrets.properties`).
 - **Telemetry**: `app_update_prompt_shown`, `app_update_action`, `app_update_completed` (platform-events.md).
 - **Verified**: shared-types (47 app-updates tests), edge-ops (6), the media guard (+1), Kotlin update tests on the

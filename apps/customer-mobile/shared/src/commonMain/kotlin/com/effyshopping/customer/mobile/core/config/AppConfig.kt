@@ -1,5 +1,6 @@
 package com.effyshopping.customer.mobile.core.config
 
+import com.effyshopping.mobile.kit.update.installedVersionOrNull
 import com.effyshopping.customer.mobile.config.BuildKonfig
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -36,9 +37,12 @@ object AppConfig {
     /** 121: where this app reads its update settings (a public file on the media CDN). */
     val appUpdatesUrl: String get() = BuildKonfig.APP_UPDATES_URL
 
-    /** 121: this build's number (versionCode) and version (versionName), from version.properties. */
-    val appBuild: Int get() = BuildKonfig.APP_BUILD.toInt()
-    val appVersion: String get() = BuildKonfig.APP_VERSION
+    /**
+     * 121: this build's version and build number, on ITS platform - iOS and Android are numbered independently. iPhone:
+     * read from the installed bundle (Version.xcconfig); Android: version.properties, baked in by BuildKonfig.
+     */
+    val appBuild: Int get() = installedVersionOrNull()?.second ?: BuildKonfig.APP_BUILD.toInt()
+    val appVersion: String get() = installedVersionOrNull()?.first ?: BuildKonfig.APP_VERSION
 
     /**
      * "Continue with Google" is shown only when true. False: federation is parked

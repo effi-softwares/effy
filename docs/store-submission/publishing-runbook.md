@@ -178,11 +178,12 @@ Both stores require working credentials for any app behind a login (Apple 2.1, P
 
 ### 2.2 Version numbers (built: 121)
 
-Each app's `iosApp/Configuration/Version.xcconfig` carries `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION`, written
-from `version.properties` by `scripts/bump-version.sh` (`make cm-apk`, `make cm-version`, and the driver equivalents),
-and `Config.xcconfig` includes it. One number means the same build on both platforms;
-`scripts/check-app-versions.sh` fails a mismatch. App Store Connect refuses an upload whose build number it has seen,
-so run `make cm-version` / `make dm-version` before each archive and commit both files.
+iOS has its **own** version and build number, independent of Android: `iosApp/Configuration/Version.xcconfig`
+(`MARKETING_VERSION`, `CURRENT_PROJECT_VERSION`), included by `Config.xcconfig`. `make cm-ios-version` /
+`make dm-ios-version [BUMP=patch|minor|major]` raises it - run it before each archive (App Store Connect refuses a build
+number it has seen) and commit the file. Android's builds never touch it, and it never touches Android's
+`version.properties`. Building or archiving in Xcode reads it and changes nothing. ⚠ Do not type a Version or Build into
+Xcode › target › General: Xcode writes it into the project, where it silently wins; `scripts/check-app-versions.sh` fails it.
 
 ### 2.3 Crash symbols `[CODE]`
 
@@ -318,8 +319,9 @@ Then **Dashboard › Set up your app**, every item:
 1. **Backend first.** Deploy any server change to prod, compatible with every build still above the
    minimum.
 2. **Version.** `BUMP=patch|minor|major` as appropriate (the build number rises by itself); commit
-   `version.properties` and `iosApp/Configuration/Version.xcconfig` (one number, both platforms, 121).
-3. **Build.** Android: `make cm-aab` / `make dm-aab` `[CODE]`. iOS: `make cm-version` / `make dm-version`
+   that platform's version file - Android `version.properties`, iOS `iosApp/Configuration/Version.xcconfig`; they are
+   numbered independently (121).
+3. **Build.** Android: `make cm-aab` / `make dm-aab` `[CODE]`. iOS: `make cm-ios-version` / `make dm-ios-version`
    first (App Store Connect refuses a build number it has seen), then archive and upload (2.4).
 4. **Test.** Play internal testing and TestFlight internal, with the same binary that ships.
 5. **Release notes** in both stores ("What's New" / "What's new").
@@ -354,7 +356,7 @@ and never in the repo. Not needed for the first releases.
 | 3 | Driver review sign-in and demo work | 0.5 |
 | 4 | iPhone-only targets (if decided), `ITSAppUsesNonExemptEncryption`, driver `PrivacyInfo.xcprivacy` | 0.6 |
 | 5 | Production bundle ids, entitlements on, Associated Domains | 2.1 |
-| 6 | ~~iOS version from `version.properties`~~: built (121, `Version.xcconfig`) | 2.2 |
+| 6 | ~~iOS version numbers~~: built (121, iOS's own `Version.xcconfig`, `make cm-ios-version`) | 2.2 |
 | 7 | Crashlytics dSYM phase, `ExportOptions.plist` | 2.3–2.4 |
 | 8 | Store signing config and `cm-aab` / `dm-aab` | 3.1 |
 | 9 | Driver App Privacy and Data safety mappings | 2.5, 3.2 |

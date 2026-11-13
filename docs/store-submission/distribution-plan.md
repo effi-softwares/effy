@@ -109,7 +109,7 @@ Home. Spec, plan and tasks: `specs/121-in-app-updates/`.
 - **What they read.** One small public file per app and environment on the media CDN:
   `https://media.<zone>/app-updates/<app>.json`. It costs no server, no route and no database, about US$1 per million
   launches past CloudFront's free tier.
-- **Three levels per platform**, as build numbers (`versionCode`, the same number on iPhone and Android):
+- **Three levels per platform**, as build numbers - each platform compared with its own build number (Android `version.properties`, iOS `Version.xcconfig`; independent):
   - below **minimum**: an "Update required" full screen; the app cannot be used;
   - below **recommended**: a sheet with Update now and Later, at every launch;
   - below **latest**: the same sheet, once for that build.

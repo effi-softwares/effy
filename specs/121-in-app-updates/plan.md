@@ -148,10 +148,10 @@ apps/customer-mobile/
 ├── shared/src/commonMain/.../app/        # root: the gate above the shell; pending destination held behind it
 ├── shared/src/commonMain/.../features/account/presentation/AccountScreens.kt   # version row + "Update available"
 ├── shared/src/commonMain/.../core/observability/AnalyticsEvent.kt              # three events
-└── iosApp/Configuration/{Config.xcconfig, Version.xcconfig}   # Version.xcconfig generated, included
+└── iosApp/Configuration/{Config.xcconfig, Version.xcconfig}   # Version.xcconfig: iOS's own numbers, included
 
 apps/driver-mobile/                       # the same set, in the driver's kit; "Call dispatch" from DISPATCH_PHONE
-scripts/bump-version.sh                   # also writes iosApp/Configuration/Version.xcconfig
+scripts/bump-ios-version.sh               # NEW - iOS's numbers only (bump-version.sh stays Android only)
 infra/envs/dev/media.tf                   # app-updates behaviour, cache + headers policies, bucket statement
 infra/envs/dev/outputs (+ SSM)            # app_updates_url_<app>, /effy/dev/app_updates/distribution_id (bucket: 086's /effy/dev/media/bucket)
 Makefile                                  # app-updates, app-updates-check
@@ -197,13 +197,12 @@ docs/store-submission/{distribution-plan.md, publishing-runbook.md}   # point at
 6. **The way out on the mandatory screen**
    - Customer: open the website (`https://<WEB_SITE_HOST>`; hidden if unset).
    - Driver: dial `DISPATCH_PHONE` (hidden if unset).
-7. **Version numbers**
-   - The root `build.gradle.kts` reads `version.properties` and adds `APP_BUILD` / `APP_VERSION` to `effyConfig` (so BuildKonfig carries them).
-   - `bump-version.sh` writes `Version.xcconfig` for iOS.
-   - A test compares `Version.xcconfig` with `version.properties` for both apps.
-   - ⚠ App Store Connect refuses a second upload with the same build number. An iOS release therefore raises the number
-     first, like Android: new targets `make cm-version` / `make dm-version [BUMP=…]` run `bump-version.sh` alone (no
-     Gradle), for use before an Xcode archive. publishing-runbook.md Phase 4 is updated to say so.
+7. **Version numbers** (amended 2026-11-13: the platforms are numbered independently)
+   - Android: `version.properties` → BuildKonfig `APP_BUILD` / `APP_VERSION`; raised by `make cm-apk` / `dm-apk`.
+   - iOS: `iosApp/Configuration/Version.xcconfig` (included by `Config.xcconfig`), raised only by `make cm-ios-version` /
+     `dm-ios-version` (`scripts/bump-ios-version.sh`) before an archive. The app reads its build from the installed bundle
+     (`installedVersionOrNull`, mobile-kit), so Xcode's real numbers are compared even if someone set them in Xcode.
+   - `scripts/check-app-versions.sh` checks both files are well formed and that the Xcode project carries no numbers of its own.
 8. **Publish script** (`publish-app-updates.ts`)
    - It reads the bucket from SSM `/effy/<env>/media/bucket` (086's) and the distribution id from `/effy/<env>/app_updates/distribution_id`.
    - It runs `git status --porcelain -- <file>` and refuses if dirty.

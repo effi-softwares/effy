@@ -17,6 +17,7 @@ case "${1:-}" in
   customer | driver) app="$1" ;;
   *) echo "usage: $0 <customer|driver>" >&2; exit 1 ;;
 esac
+steps="$(cd "$(dirname "$0")" && pwd)/xcodebuild-steps.awk"
 cd "$(dirname "$0")/../../apps/$app-mobile"
 [ -f secrets.properties ] || { echo "apps/$app-mobile/secrets.properties is missing: copy secrets.properties.example and fill it in." >&2; exit 1; }
 
@@ -62,25 +63,7 @@ mkdir -p build
     -destination "platform=iOS Simulator,id=$simulator" \
     -derivedDataPath build/xcode CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO build 2>&1 || rc=$?
   echo "$rc" > build/ios-build.status
-} | tee build/ios-build.log | awk '
-  function target() { return match($0, /in target .[^'"'"']+/) ? substr($0, RSTART + 11, RLENGTH - 11) : "" }
-  function file(path) { n = split(path, parts, "/"); return parts[n] }
-  function say(s) { print s; fflush() }
-  failed && /^\(/ { failed = 0 }
-  failed { say("  " $0); next }
-  /^The following build commands failed:/ { failed = 1; say($0); next }
-  /^(Resolve Package Graph|Fetching from|Cloning |Creating working copy|Checking out|Compile plug-in)/ { say($0); next }
-  /^(SwiftCompile|CompileC) / { for (i = 1; i <= NF; i++) if ($i ~ /\.(swift|c|m|mm|cpp)$/) f = file($i); say("compile  " f "  (" target() ")"); next }
-  /^Ld / { say("link     " target()); next }
-  /^PhaseScriptExecution / { say("script   " target() ": " substr($0, 22, index($0, " /") - 22)); next }
-  /^> Task .* (UP-TO-DATE|NO-SOURCE|SKIPPED|FROM-CACHE)$/ { next }
-  /^> Task / { say("gradle   " substr($0, 8)); next }
-  /^(e: |FAILURE:|\* What went wrong:)/ { say($0); wrong = ($0 ~ /What went wrong/); next }
-  wrong { say($0); wrong = 0; next }
-  / error: / { say($0); next }
-  / warning: / && !/SourcePackages/ { say($0); next }
-  /^\*\* BUILD/ { say($0); next }
-'
+} | tee build/ios-build.log | awk -f "$steps"
 if [ "$(cat build/ios-build.status)" != 0 ]; then
   echo "The build failed: the reason is above, the full log is apps/$app-mobile/build/ios-build.log." >&2
   exit 1

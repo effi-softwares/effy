@@ -25,7 +25,7 @@ TF            := AWS_PROFILE=$(AWS_PROFILE) terraform
 # All Terraform roots (for fmt-check / validate / lint sweeps).
 TF_ROOTS := $(BOOTSTRAP_DIR) $(GLOBAL_DIR) $(INFRA_DIR)/envs/dev $(INFRA_DIR)/envs/qa $(INFRA_DIR)/envs/staging $(INFRA_DIR)/envs/prod
 
-.PHONY: cm-version dm-version app-updates app-updates-check gateway-usage help bootstrap-init bootstrap-apply init plan apply destroy output amplify-hooks fmt validate lint preflight \
+.PHONY: customer-iphone driver-iphone cm-ios-version dm-ios-version app-updates app-updates-check gateway-usage help bootstrap-init bootstrap-apply init plan apply destroy output amplify-hooks fmt validate lint preflight \
         global-init global-plan global-apply global-output dns-verify mail-verify mail-events-verify edge-health \
         db-new db-status db-up db-up-one db-down db-shopper-role check-goose \
         live-guards toast-guard shop-words-guard driver-words-guard purge-orders reset-dev-data seed-delivery seed-catalogue seed-banners wipe-dev create-first-admin load-localities delete-admin edge-install edge-offline edge-test edge-deploy edge-remove \
@@ -455,18 +455,18 @@ dm-apk: ## driver-mobile: signed release APK, build number +1 (BUMP=patch|minor|
 	  echo "dm-apk: APK ready → $$apk" && \
 	  echo "        install:  adb install -r '$$apk'   (or share the file and open it on the phone)"
 
-# --- 121: version numbers alone (no Gradle), before an Xcode archive - App Store Connect refuses a build number it has
-# seen. Writes version.properties and iosApp/Configuration/Version.xcconfig; commit both.
-cm-version: ## customer-mobile: raise the build number (BUMP=patch|minor|major also raises the version) - before an iOS archive
-	@bash scripts/bump-version.sh apps/customer-mobile/version.properties $(BUMP)
-	@echo "cm-version: commit apps/customer-mobile/version.properties and iosApp/Configuration/Version.xcconfig"
-dm-version: ## driver-mobile: raise the build number (BUMP=patch|minor|major also raises the version) - before an iOS archive
-	@bash scripts/bump-version.sh apps/driver-mobile/version.properties $(BUMP)
-	@echo "dm-version: commit apps/driver-mobile/version.properties and iosApp/Configuration/Version.xcconfig"
+# --- 121: the iOS app's own version (iosApp/Configuration/Version.xcconfig), independent of Android's version.properties.
+# Run before an Xcode archive - App Store Connect refuses a build number it has seen. Commit the file after.
+cm-ios-version: ## customer-mobile iOS: build number +1 before an archive (BUMP=patch|minor|major also raises the version)
+	@bash scripts/bump-ios-version.sh apps/customer-mobile/iosApp/Configuration/Version.xcconfig $(BUMP)
+	@echo "cm-ios-version: commit apps/customer-mobile/iosApp/Configuration/Version.xcconfig"
+dm-ios-version: ## driver-mobile iOS: build number +1 before an archive (BUMP=patch|minor|major also raises the version)
+	@bash scripts/bump-ios-version.sh apps/driver-mobile/iosApp/Configuration/Version.xcconfig $(BUMP)
+	@echo "dm-ios-version: commit apps/driver-mobile/iosApp/Configuration/Version.xcconfig"
 
 # --- 121: the apps' update settings (config/app-updates/<env>/<app>.json → https://media.<zone>/app-updates/<app>.json).
 # Edit, commit, publish. The publish refuses an invalid or uncommitted file. Guide: config/app-updates/README.md.
-app-updates-check: ## Validate every app update settings file and the iOS version files (no AWS)
+app-updates-check: ## Validate every app update settings file and both apps' version files (no AWS)
 	@pnpm --filter @effy/edge-ops exec tsx src/publish-app-updates.ts check
 	@bash scripts/check-app-versions.sh
 app-updates: preflight ## OPERATOR: publish the app update settings for ENV (APP=customer|driver for one) to the media CDN
@@ -477,10 +477,14 @@ app-updates: preflight ## OPERATOR: publish the app update settings for ENV (APP
 # stops it. IOS_SIMULATOR="<name or udid>" / ANDROID_DEVICE=<avd or serial> skip the question.
 customer-ios: ## customer app on an iOS simulator you pick, its output in this terminal ([IOS_SIMULATOR="iPhone Air"])
 	@sh scripts/mobile/ios.sh customer
+customer-iphone: ## customer app on the iPhone connected to this Mac (signed), its output in this terminal ([IOS_DEVICE="name"])
+	@sh scripts/mobile/ios-device.sh customer
 customer-android: ## customer app on an Android emulator/phone you pick, its output in this terminal ([ANDROID_DEVICE=Pixel_7_Pro])
 	@sh scripts/mobile/android.sh customer
 driver-ios: ## driver app on an iOS simulator you pick, its output in this terminal ([IOS_SIMULATOR="iPhone Air"])
 	@sh scripts/mobile/ios.sh driver
+driver-iphone: ## driver app on the iPhone connected to this Mac (signed), its output in this terminal ([IOS_DEVICE="name"])
+	@sh scripts/mobile/ios-device.sh driver
 driver-android: ## driver app on an Android emulator/phone you pick, its output in this terminal ([ANDROID_DEVICE=Pixel_7_Pro])
 	@sh scripts/mobile/android.sh driver
 
