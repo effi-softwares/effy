@@ -78,5 +78,15 @@
     "htmlBytes": 15513,
     "htmlChars": 15513,
     "textBytes": 452
+  },
+  "staff-admin-granted": {
+    "htmlBytes": 14239,
+    "htmlChars": 14239,
+    "textBytes": 310
+  },
+  "staff-invitation": {
+    "htmlBytes": 14873,
+    "htmlChars": 14873,
+    "textBytes": 432
   }
 }

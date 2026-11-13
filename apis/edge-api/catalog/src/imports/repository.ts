@@ -3,7 +3,7 @@
 
 import type pg from "pg";
 
-import { likePattern, limitOffsetClause, orderBy, query, runOffsetPage } from "@effy/edge-shared";
+import { likePattern, limitOffsetClause, orderBy, query, runOffsetPage, staffNameSql } from "@effy/edge-shared";
 
 import { IMPORT_LIST, type ImportListRequest } from "./list";
 import type { ProductImportProblemDTO, ProductImportRowResult, ProductImportState } from "@effy/shared-types";
@@ -38,10 +38,9 @@ export interface ImportRow {
 const IMPORT = `
   SELECT i.id::text, i.shop_id::text, s.name AS shop_name, s.status AS shop_status, i.file_name, i.file_sha256, i.columns,
          i.margin_kind, i.margin_value::text, i.state, i.row_count, i.ready_count, i.created_count, i.left_out_count,
-         i.created_by, COALESCE(st.name, st.email) AS created_by_name, i.created_at, i.updated_at::text AS version
+         i.created_by, ${staffNameSql("i.created_by")} AS created_by_name, i.created_at, i.updated_at::text AS version
     FROM public.product_import i
-    JOIN public.shop s ON s.id = i.shop_id
-    LEFT JOIN admin.staff st ON st.cognito_sub = i.created_by`;
+    JOIN public.shop s ON s.id = i.shop_id`;
 
 export async function insertImport(
   db: pg.PoolClient,

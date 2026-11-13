@@ -31,6 +31,8 @@ export const LIVE_KINDS = [
   "messages",
   // A clean-up ran, or the abandon time changed (113). Back-office only.
   "housekeeping",
+  // A back-office team member was added or changed, or the sign-in check ran (119). Back-office only.
+  "team",
 ] as const;
 
 export type LiveKind = (typeof LIVE_KINDS)[number];

@@ -141,10 +141,19 @@ See the numbers: `make gateway-usage ENV=<env>` (deployed) · `pnpm --filter @ef
 > prefix, `/admin/v1/messages/automations…` (list, create, read, edit, state, activity); the literal segment wins over
 > 112's `{id}` (`automations/routes.test.ts`). Staff 234 → **240/300 (80%)**. The runner is route-less, in the
 > `messages` worker. 112's plan stands and is now near: a third gateway before about 255.
+>
+> **119 - back-office team management.** A new stack, `admin-team` (staff), from the `admin` source: 13 new routes for
+> Settings › Team and access (add, read, rename, role, status, remove, sign out everywhere, invitation, repair,
+> activity, the sign-in check, deleting a sign-in account with no record, and `PATCH /admin/v1/me` to rename yourself),
+> plus `GET /admin/v1/staff`, MOVED from `admin` (deploy `admin` first, to free its route key). It is the only stack
+> that may change the back-office sign-in pool (`team.guard.test.ts`). Staff 240 → **253/300 (84%)**. ⚠ **The next
+> feature that adds staff routes MUST first amend the constitution for a third gateway** (112's plan: move `catalog` and
+> `inventory-staff`). No route was merged to fit.
 | `driver` | shared | driver | driver app |
 | `admin` | **staff** | back-office | staff, shops, delivery configuration |
 | `admin-promotions` (same source as `admin`, 095) | **staff** | back-office | promotions, display groups, skins and pictures (`/admin/v1/promotions…`, `/admin/v1/promotion-groups…`, `/admin/v1/promotion-skins…`) - split out at CloudFormation's 500-resource limit |
 | `admin-messages` (same source as `admin`, 112) | **staff** | back-office | back-office messages to customers, drivers and shops (`/admin/v1/messages…`) |
+| `admin-team` (same source as `admin`, 119) | **staff** | back-office | the back-office team: Settings › Team and access (`/admin/v1/staff…`, `PATCH /admin/v1/me`); the one writer of the team is `@effy/edge-shared/team` |
 | `catalog` | **staff** | back-office | the catalogue taxonomy (categories, attribute library, attachments, `/catalog/v1/taxonomy/…`), extra placements, product review and margin (101 moved the taxonomy here from `admin`); every shop's products, holds, Effy-created products and imports (`/catalog/v1/products…`, `/catalog/v1/imports…`, 102) |
 | `fleet` | **staff** | back-office | drivers, wave planning, delivery slots and days |
 | `orders` | **staff** | back-office | order console, handovers, arrivals, refunds, cancellation; the clean-ups page (113) |

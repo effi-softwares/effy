@@ -177,6 +177,16 @@ output "back_office_url" {
   value       = module.amplify_back_office.storefront_url
 }
 
+# /effy/<env>/web/back_office_url: the back-office address, named in the team invitation email (119). Read by the
+# admin-team stack at deploy (required, no default) - redeploy `admin-team` after it changes.
+resource "aws_ssm_parameter" "web_back_office_url" {
+  name        = "/effy/${var.env}/web/back_office_url"
+  description = "The back-office console's origin for this environment. Read by edge-admin-team (the staff invitation email, 119)."
+  type        = "String"
+  value       = module.amplify_back_office.storefront_url
+  tier        = "Standard"
+}
+
 # The three apps' incoming build webhooks, keyed by appRoot (the key scripts/amplify-affected.mjs prints).
 # Copied into the repo secret AMPLIFY_WEBHOOKS_<ENV> by `make amplify-hooks ENV=...`; read only by
 # .github/workflows/amplify-deploy.yml. Null values when amplify_build_trigger = "push".

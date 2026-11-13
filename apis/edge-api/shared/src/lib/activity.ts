@@ -263,8 +263,13 @@ export async function activityResponse(
  * when the record is gone, NULL when there is no subject. ⚠ Back-office logs only - a shop never names Effy staff.
  */
 export function staffNameSql(sub: string): string {
-  return `CASE WHEN ${sub} IS NULL THEN NULL ELSE COALESCE(
-    (SELECT COALESCE(st.name, st.email) FROM admin.staff st WHERE st.cognito_sub = ${sub}),
+  // 119: a returning person's earlier subject is kept in staff_former_subject; `operator` is the break-glass tool and
+  // `system:119` the migration that set everyone to one role.
+  return `CASE WHEN ${sub} IS NULL THEN NULL WHEN ${sub} = 'operator' THEN 'Operator' WHEN ${sub} LIKE 'system:%' THEN 'Effy'
+  ELSE COALESCE(
+    (SELECT COALESCE(st.name, st.email::text) FROM admin.staff st WHERE st.cognito_sub = ${sub}),
+    (SELECT COALESCE(st.name, st.email::text) FROM admin.staff_former_subject fs
+       JOIN admin.staff st ON st.id = fs.staff_id WHERE fs.cognito_sub = ${sub}),
     (SELECT ss.name FROM public.shop_staff ss WHERE ss.cognito_sub = ${sub}),
     (SELECT d.name FROM public.driver d WHERE d.cognito_sub = ${sub}),
     'Former staff') END`;

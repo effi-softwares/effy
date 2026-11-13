@@ -29,6 +29,7 @@ export interface MessageEntry<S extends VarShape = VarShape> {
 
 const ALL_AUDIENCES: readonly Audience[] = ["customer", "driver", "shop", "back-office"];
 const CUSTOMER_ONLY: readonly Audience[] = ["customer"];
+const BACK_OFFICE_ONLY: readonly Audience[] = ["back-office"];
 
 export const TEMPLATE_ID_GRAMMAR = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
 
@@ -257,6 +258,26 @@ export const CATALOG = {
     audiences: CUSTOMER_ONLY,
     sentBy: "platform",
     onSendFailure: "throw",
+  },
+
+  // 119: a person added to the back-office team. No code, no password, no link that signs in (FR-012).
+  "staff-invitation": {
+    vars: { role: "string", backOfficeUrl: "string" },
+    subject: (_v, p) => `You have access to ${p.productName}`,
+    preheader: () => "Sign in with this email address and a six-digit code.",
+    audiences: BACK_OFFICE_ONLY,
+    sentBy: "platform",
+    onSendFailure: "throw",
+  },
+
+  // 119: told to every OTHER active administrator when someone is made one (FR-016).
+  "staff-admin-granted": {
+    vars: { name: "string", email: "string", actorName: "string", when: "string", backOfficeUrl: "string" },
+    subject: (v) => `${v.name} was made an Administrator`,
+    preheader: () => "If you did not expect this, open Team and access.",
+    audiences: BACK_OFFICE_ONLY,
+    sentBy: "platform",
+    onSendFailure: "swallow",
   },
 } as const satisfies Record<string, MessageEntry>;
 

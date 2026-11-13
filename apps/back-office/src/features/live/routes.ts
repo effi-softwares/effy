@@ -40,4 +40,7 @@ export const LIVE_ROUTES: Partial<Record<LiveKind, readonly QueryKey[]>> = {
   // Stock moved: a sale, or checkouts holding or releasing it (114) - a product's "in checkouts" and a shop's
   // low-stock counts.
   stock: [PRODUCTS, SHOP_STOCK],
+  // A team member was added or changed, or the sign-in check ran (119): the list, every person page, and your own
+  // record (a change to you is in force on your next request - the shell follows it).
+  team: [["back-office", "team"], ["back-office", "me"]],
 }

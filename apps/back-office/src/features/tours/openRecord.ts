@@ -34,6 +34,7 @@ const KINDS: Record<string, Kind> = {
   address: { to: "/deliverability", href: /^\/deliverability\/[^/]+$/, noun: "email address" },
   message: { to: "/messages", href: /^\/messages\/(?!new$|automatic$)[^/]+$/, noun: "message" },
   automation: { to: "/messages/automatic", href: /^\/messages\/automatic\/(?!new$)[^/]+$/, noun: "automatic message" },
+  "team-member": { to: "/settings/team", href: /^\/settings\/team\/[^/]+$/, noun: "team member" },
 }
 
 const WAIT_MS = 6000

@@ -10,6 +10,7 @@ import { sessionQuery, useSignOut } from "@/features/auth/queries"
 import { getLiveDescriptor } from "@/features/live/repo"
 import { LIVE_ROUTES } from "@/features/live/routes"
 import { OverviewScreen } from "@/features/overview/OverviewScreen"
+import { useAccessEnded } from "@/features/team/useAccessEnded"
 
 import { rootRoute } from "./__root"
 
@@ -36,12 +37,14 @@ function AppShellRoute() {
   const navigate = useNavigate()
 
   const identity = data?.status === "signed-in" ? data.identity : null
+  // 119: the team record decides (R1). Its role is the shell's once read; a record that has ended signs out (R8).
+  const recordRoles = useAccessEnded(identity !== null)
 
   return (
     <LiveProvider enabled={identity !== null} loadDescriptor={getLiveDescriptor} routes={LIVE_ROUTES}>
       <AppShell
         email={identity?.email ?? ""}
-        roles={identity?.roles ?? []}
+        roles={recordRoles ?? identity?.roles ?? []}
         onSignOut={() => signOut.mutate(undefined, { onSuccess: () => navigate({ to: "/auth/sign-in" }) })}
         signingOut={signOut.isPending}
       >

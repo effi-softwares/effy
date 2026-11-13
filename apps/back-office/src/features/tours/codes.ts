@@ -62,6 +62,7 @@ export const CODE_TO_KEY: Readonly<Record<string, string>> = {
   ED: "deliverability",
   EA: "deliverability-address",
   AA: "admin-access",
+  AP: "admin-person",
   ST: "settings",
 }
 

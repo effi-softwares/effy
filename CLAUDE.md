@@ -448,9 +448,11 @@ slow one as "signed out". "Could not check" is an error here, never a sign-out.
 
 **Pools MAY define RBAC groups** surfaced via the `cognito:groups` JWT claim: the
 admin pool defines `admin` / `manager` / `csa`; the shop pool defines `shop_manager` /
-`shop_staff`; customer and driver define none. The claim is the **origin of role assignment**;
+`shop_staff`; customer and driver define none. The claim is the **origin of role assignment** for the shop pool;
 where a platform staff record exists it is **authoritative for the access decision** (role, status,
-scope). Frontends authenticate against Cognito directly via Amplify; backends
+scope). ⚠ **BACK-OFFICE (119): THE STAFF RECORD IS THE ORIGIN AND THE AUTHORITY** - `/me` never creates a record or
+reads `cognito:groups`; an Administrator (or the break-glass `make create-first-admin`) changes the team through
+`@effy/edge-shared/team`, which mirrors the role into the pool group. Frontends authenticate against Cognito directly via Amplify; backends
 validate JWTs per pool and pin the issuer - there is **no auth proxy**, and a token issued for one
 pool is structurally rejected by services scoped to another.
 
@@ -669,6 +671,7 @@ the entries carry gotchas and deploy-ordering rules that the code does not. Slic
 
 Features recorded:
 
+- **119-backoffice-team-management** - Back-Office Team Management (admins add people with one role, change role, disable/re-enable, remove (record kept), sign out everywhere, rename, repair sign-in disagreements, all from Settings › Team and access; ⚠ the staff record is the origin of a role - `/me` no longer creates records or reads the token's groups; one writer `@effy/edge-shared/team`; new stack `admin-team`, staff gateway 253/300 - a third gateway is next) - built 2026-11-13; not migrated, deployed or walked
 - **116-links-badges-urgency** - Reaching the Right Place (Effy links open the customer app on Android - App Links over `APP_LINK_PATHS`, one parser pinned on both sides; the icon badge corrected silently within two minutes of any inbox change, every app push tagged by its notification id; iPhone urgency from importance, never critical; the iPhone halves switched off until the paid Apple account; the notifications backlog is complete) - deployed to dev 2026-11-12; customer app walked on Android, driver app walk pending, iPhone after the paid Apple account
 - **115-messages-email-automation** - Messages That Do More (a message also by email, offers/news only after a yes in Effy's email wording; one-tap unsubscribe and undo; limits count messages, not pushes; automatic messages on a trigger or a repeat, each run an ordinary message created by the worker; `{first name}` filled at read, the lock screen always the fallback; staff gateway 240/300) - built 2026-11-12; not migrated, deployed or walked; both consent wordings are drafts
 - **114-checkout-stock-holds** - Hold Stock at Checkout (Pay holds the order's counted sizes for the hold time; left to sell = shelf − other customers' live holds, one rule in `availability.ts`; one writer `stock/holds.ts`; the intent carries `shownLines`, a difference is 409 `stock_changed`; holds expire by time, no sweep; hold time on Settings › Clean-ups; no new routes) - built 2026-11-12; not migrated, deployed or walked

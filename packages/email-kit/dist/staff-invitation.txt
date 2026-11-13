@@ -1,0 +1,12 @@
+You have access to Effy Back-Office
+
+You have been given access to Effy Back-Office as {{role}}.
+
+Sign in at {{backOfficeUrl}} with this email address; we will email you a six-digit code each time.
+
+This email contains no code and no password. If you did not expect it, you can ignore it.
+
+--
+{{effyProductName}}{{#if effyPostalAddress}}
+{{effyPostalAddress}}{{/if}}
+Questions? Reply to this email or write to {{effySupportEmail}}.

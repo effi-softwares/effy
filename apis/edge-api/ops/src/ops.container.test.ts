@@ -6,13 +6,48 @@ import { migrationSql } from "@effy/edge-shared/testing";
 import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { staffRecords } from "./admin-bootstrap";
+import type { SignInAccount, SignInPort } from "@effy/edge-shared/team";
+
+import { clientTransactor, createFirstAdmin, deleteAdmin, LastAdminError } from "./admin-bootstrap";
 import { loadLocalities } from "./localities";
 
 const RUN = process.env.CONTAINER_TESTS === "1";
 const d = RUN ? describe : describe.skip;
 
 let container: StartedPostgreSqlContainer;
+
+/** A pool in memory: username `u-<email>`, subject `sub-<email>`. */
+function fakePort() {
+  const accounts = new Map<string, SignInAccount>();
+  const groups = new Map<string, SignInAccount["groups"]>();
+  const port: SignInPort & { groups: typeof groups } = {
+    groups,
+    async create(email) {
+      const existing = accounts.get(email);
+      if (existing) return { ...existing, adopted: true };
+      const made = { username: `u-${email}`, sub: `sub-${email}`, email, enabled: true, groups: [], createdAt: null };
+      accounts.set(email, made);
+      return { ...made, adopted: false };
+    },
+    async get(key) {
+      return accounts.get(key) ?? [...accounts.values()].find((a) => a.username === key || a.sub === key) ?? null;
+    },
+    async enable() {},
+    async disable() {},
+    async delete(username) {
+      for (const [k, a] of accounts) if (a.username === username || k === username) return accounts.delete(k);
+      return false;
+    },
+    async setGroup(username, role) {
+      groups.set(username, role ? [role] : []);
+    },
+    async globalSignOut() {},
+    async listAll() {
+      return [...accounts.values()];
+    },
+  };
+  return port;
+}
 let db: pg.Client;
 
 d("070 - operator tools against the real schema", () => {
@@ -47,30 +82,35 @@ d("070 - operator tools against the real schema", () => {
     await expect(loadLocalities(db, "postcode,locality,state\n30,NOWHERE,VIC")).rejects.toThrow(/upsert row 1 \(NOWHERE VIC 30\)/);
   });
 
-  it("the first admin is created once, refreshed on a re-run, and restored if disabled", async () => {
-    const records = staffRecords(db);
-    expect(await records.upsertSuperAdmin("sub-a", "jane@effy.test", "Jane")).toBe("created");
-    await db.query(`UPDATE admin.staff SET status = 'disabled' WHERE cognito_sub = 'sub-a'`);
-    expect(await records.upsertSuperAdmin("sub-a", "jane@effy.test", "Jane Doe")).toBe("updated");
+  // One pool for the admin tests, as the real one is.
+  const port = fakePort();
 
-    expect((await db.query(`SELECT name, status FROM admin.staff WHERE cognito_sub = 'sub-a'`)).rows).toEqual([{ name: "Jane Doe", status: "active" }]);
-    expect((await db.query(`SELECT role_key FROM admin.staff_role sr JOIN admin.staff s ON s.id = sr.staff_id WHERE s.cognito_sub = 'sub-a'`)).rows)
-      .toEqual([{ role_key: "admin" }]);
+  it("119: the first admin is made through the team's writer, signed Operator; a re-run changes nothing", async () => {
+    const transact = clientTransactor(db);
+    expect(await createFirstAdmin(port, transact, "Jane@Effy.test", "Jane")).toMatchObject({ sub: "sub-jane@effy.test", cognito: "created", staff: "created" });
+    expect(await createFirstAdmin(port, transact, "jane@effy.test", "Jane")).toMatchObject({ cognito: "already-exists", staff: "updated" });
+
+    const rows = (await db.query(`SELECT s.email::text AS email, s.status, s.added_by_sub, sr.role_key
+                                     FROM admin.staff s JOIN admin.staff_role sr ON sr.staff_id = s.id`)).rows;
+    expect(rows).toEqual([{ email: "jane@effy.test", status: "active", added_by_sub: "operator", role_key: "admin" }]);
+    const audit = (await db.query(`SELECT actor_sub, action FROM admin.audit_log WHERE action LIKE 'team.%' ORDER BY created_at`)).rows;
+    expect(audit).toEqual([{ actor_sub: "operator", action: "team.added" }]);
+    expect(port.groups.get("u-jane@effy.test")).toEqual(["admin"]);
   });
 
-  it("knows the last active admin, and deleting removes the record and its roles", async () => {
-    const records = staffRecords(db);
-    expect(await records.isLastActiveAdmin("sub-a")).toBe(true);
-    await records.upsertSuperAdmin("sub-b", "sam@effy.test", "Sam");
-    expect(await records.isLastActiveAdmin("sub-a")).toBe(false);
-    // A disabled colleague does not count as another administrator.
-    await db.query(`UPDATE admin.staff SET status = 'disabled' WHERE cognito_sub = 'sub-b'`);
-    expect(await records.isLastActiveAdmin("sub-a")).toBe(true);
-    expect(await records.isLastActiveAdmin("nobody")).toBe(false);
+  it("119: delete refuses the last active admin unless forced, and keeps the record as Removed", async () => {
+    const transact = clientTransactor(db);
+    await expect(deleteAdmin(port, transact, "jane@effy.test", false)).rejects.toBeInstanceOf(LastAdminError);
+    expect((await db.query(`SELECT status FROM admin.staff`)).rows).toEqual([{ status: "active" }]);
 
-    expect(await records.deleteAdmin("sub-b", "sam@effy.test")).toBe("deleted");
-    expect(await records.deleteAdmin("sub-b", "sam@effy.test")).toBe("not-found");
-    expect(await records.deleteAdmin("", "jane@effy.test")).toBe("deleted"); // by email, when the identity is already gone
-    expect((await db.query(`SELECT 1 FROM admin.staff_role`)).rowCount).toBe(0);
+    await createFirstAdmin(port, transact, "sam@effy.test", "Sam");
+    expect(await deleteAdmin(port, transact, "jane@effy.test", false)).toMatchObject({ cognito: "deleted", staff: "removed" });
+    expect((await db.query(`SELECT status FROM admin.staff WHERE email = 'jane@effy.test'`)).rows).toEqual([{ status: "removed" }]);
+    // A re-run is an answer, not an error.
+    expect(await deleteAdmin(port, transact, "jane@effy.test", false)).toMatchObject({ cognito: "not-found", staff: "removed" });
+
+    expect((await deleteAdmin(port, transact, "sam@effy.test", true)).staff).toBe("removed");
+    const forced = (await db.query(`SELECT detail FROM admin.audit_log WHERE action = 'team.disabled' ORDER BY created_at DESC LIMIT 1`)).rows[0];
+    expect(forced).toEqual({ detail: { forced: true } });
   });
 });

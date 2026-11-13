@@ -2068,10 +2068,10 @@ export const BACK_OFFICE_TOURS = defineTours([
       },
     ],
   },
-  // AA - Team and access
+  // AA - Team and access (rewritten by 119: adding people, who you see, Needs attention)
   {
     key: "admin-access",
-    version: 2,
+    version: 3,
     title: "Team and access",
     path: "/settings/team",
     roles: ["admin"],
@@ -2082,10 +2082,60 @@ export const BACK_OFFICE_TOURS = defineTours([
         text: "Everyone with a back-office account, their role, and when they last opened back-office.",
       },
       {
+        target: "access.add",
+        title: "Adding someone",
+        text: "Give a person access: their work email, their name and one role. They sign in with a code sent to that email.",
+      },
+      {
+        target: "access.status",
+        title: "Who you see",
+        text: "Active and disabled people are shown. Choose Removed to see people who have left.",
+      },
+      {
+        target: "access.attention",
+        title: "Needs attention",
+        text: "Someone whose sign-in account does not match their record. Open them to repair it.",
+        shownWhen: "There are any",
+      },
+      {
         target: "access.roles",
         title: "Roles and permissions",
         text: "What Administrators, Managers and Customer support may each do. The platform's staff record decides.",
       },
+    ],
+  },
+  // AP - A team member (119)
+  {
+    key: "admin-person",
+    version: 1,
+    title: "A team member",
+    needsRecord: "team-member",
+    roles: ["admin"],
+    steps: [
+      {
+        target: "person.head",
+        title: "This person",
+        text: "Their role, whether they can sign in, and when they last opened back-office.",
+      },
+      {
+        target: "person.role",
+        title: "Their role",
+        text: "Change what they may do. It takes effect on their next action.",
+        shownWhen: "Not yourself",
+      },
+      {
+        target: "person.invite",
+        title: "Telling them",
+        text: "Email them that they have access, with their role and where to sign in.",
+        shownWhen: "Active",
+      },
+      {
+        target: "person.disable",
+        title: "Stopping access",
+        text: "Disable stops sign-in at once and signs them out. Their name stays on everything they did.",
+        shownWhen: "Active, not yourself",
+      },
+      { target: "page-activity", title: "Activity", text: "Who added them, and every change to their access since." },
     ],
   },
   // ST - Settings

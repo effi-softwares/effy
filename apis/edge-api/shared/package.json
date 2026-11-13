@@ -18,7 +18,8 @@
     "./documents": "./src/documents/index.ts",
     "./catalog": "./src/catalog/index.ts",
     "./tours": "./src/tours/index.ts",
-    "./notifications": "./src/notifications/index.ts"
+    "./notifications": "./src/notifications/index.ts",
+    "./team": "./src/team/index.ts"
   },
   "types": "./src/index.ts",
   "scripts": {

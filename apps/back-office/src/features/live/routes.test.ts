@@ -21,6 +21,7 @@ const SOURCES = [
   "overview",
   "messages",
   "settings/housekeeping",
+  "team",
 ].map((slice) => readFileSync(resolve(features, slice, "queries.ts"), "utf8"))
   // 114: a shop's stock counts live beside its other queries.
   .concat(readFileSync(resolve(features, "shops", "stockQueries.ts"), "utf8"))
@@ -57,6 +58,7 @@ describe("LIVE_ROUTES", () => {
       "slots",
       "stock",
       "taxonomy",
+      "team",
     ])
   })
 })

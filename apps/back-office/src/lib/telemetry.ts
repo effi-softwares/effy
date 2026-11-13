@@ -38,6 +38,9 @@ type AnalyticsEvent =
   | { name: "taxonomy_category_created"; categoryId: string; depth: number }
   | { name: "taxonomy_attribute_created"; attributeId: string }
   | { name: "driver_created"; driverId: string }
+  // 119: a back-office team change - the action and the role only, never a name or an email.
+  | { name: "team_member_added"; role: string }
+  | { name: "team_member_changed"; action: string; role?: string }
   | { name: "driver_status_changed"; driverId: string; status: string }
   | { name: "driver_exception_resolved"; kind: string }
   | { name: "driver_work_released"; released: number }

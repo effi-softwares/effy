@@ -20,7 +20,8 @@ const RAW_TABLE_ALLOWED: Record<string, string> = {
   "overview/OrdersToday.tsx": "timeline: the hourly chart's table view",
   "products/ImportScreens.tsx": "editor/review: an import's column map and outcome",
   "promotions/components/PerformancePanel.tsx": "matrix: metrics by window",
-  "staff-identity/TeamScreen.tsx": "matrix: permissions by role (the team itself is a StaticTable)",
+  "team/TeamScreen.tsx": "matrix: permissions by role (the team itself is a DataTable, 119)",
+  "team/NotOnTeamPanel.tsx": "action list: sign-in accounts with no record (119) - always few, each with its two actions",
   "taxonomy/AttachmentEditor.tsx": "editor: a category's attributes",
 }
 

@@ -1,0 +1,27 @@
+<mjml lang="en" dir="ltr">
+  <mj-head>
+    <mj-include path="../generated/theme.mjml" />
+    <mj-title>{{name}} was made an Administrator</mj-title>
+    <mj-preview>If you did not expect this, open Team and access.</mj-preview>
+  </mj-head>
+
+  <mj-body width="600px">
+    <mj-include path="../components/header.mjml" />
+
+    <mj-section padding="0 32px 32px 32px">
+      <mj-column>
+        <mj-text mj-class="h1" css-class="e-ink e-h1">A new Administrator</mj-text>
+
+        <mj-text mj-class="muted" css-class="e-muted" padding="12px 0 0 0">
+          {{name}} ({{email}}) was made an Administrator by {{actorName}} at {{when}}.
+        </mj-text>
+
+        <mj-text mj-class="small" css-class="e-muted" padding="20px 0 0 0">
+          If you did not expect this, open Team and access in <a href="{{backOfficeUrl}}" class="e-ink">Effy Back-Office</a>.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-include path="../components/footer.mjml" />
+  </mj-body>
+</mjml>

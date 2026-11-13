@@ -3,13 +3,14 @@ import { useNavigate } from "@tanstack/react-router"
 
 import { MapPinned, Package, Truck, type LucideIcon } from "lucide-react"
 
+import { TEAM_REFUSAL_WORDS } from "@effy/shared-types"
 import { OtpSignInCard } from "@effy/web-kit/console"
 
 import { track } from "@/lib/telemetry"
 
 import { sessionQuery } from "./queries"
 
-export function SignInScreen({ next }: { next?: string }) {
+export function SignInScreen({ next, accessEnded = false }: { next?: string; accessEnded?: boolean }) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
 
@@ -29,7 +30,12 @@ export function SignInScreen({ next }: { next?: string }) {
           <span className="font-semibold">Effy</span>
           <span className="text-muted-foreground">Back-Office</span>
         </div>
-        <div className="flex flex-1 items-center justify-center py-8">
+        <div className="flex flex-1 flex-col items-center justify-center gap-4 py-8">
+          {accessEnded ? (
+            <p role="alert" className="w-full max-w-sm rounded-md border border-border bg-muted px-4 py-3 text-sm">
+              {TEAM_REFUSAL_WORDS.accessEnded}
+            </p>
+          ) : null}
           <OtpSignInCard
             title="Effy Back-Office"
             chrome="page"

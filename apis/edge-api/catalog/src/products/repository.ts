@@ -4,7 +4,7 @@
 
 import type pg from "pg";
 
-import { limitOffsetClause, LOW_STOCK_PREDICATE, orderBy, query, stockHeldSql } from "@effy/edge-shared";
+import { limitOffsetClause, LOW_STOCK_PREDICATE, orderBy, query, staffNameSql, stockHeldSql } from "@effy/edge-shared";
 import type { BackOfficeProductState, Storage } from "@effy/shared-types";
 
 import { PRODUCT_LIST, type ProductListRequest } from "./list";
@@ -172,14 +172,13 @@ export async function readExtra(productId: string, tx: Runner = null): Promise<P
   const res = await run<ProductExtraRow>(
     tx,
     `SELECT ${BACKOFFICE_STATE_SQL} AS state,
-            p.held_at, p.held_reason, COALESCE(st.name, st.email) AS held_by_name,
+            p.held_at, p.held_reason, ${staffNameSql("p.held_by")} AS held_by_name,
             p.content_owner, p.created_via, p.import_id::text AS import_id, i.file_name AS import_file_name,
             pc.state AS change_state, p.review_state, p.approved_at IS NOT NULL AS approved,
             p.created_at, p.updated_at, p.created_by
        FROM public.product p
        LEFT JOIN public.product_change pc ON pc.product_id = p.id
        LEFT JOIN public.product_import i ON i.id = p.import_id
-       LEFT JOIN admin.staff st ON st.cognito_sub = p.held_by
       WHERE p.id = $1`,
     [productId],
   );

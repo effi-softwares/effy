@@ -123,6 +123,11 @@ export const ACTIVITY_LOGS = {
     kinds: { ok: "Worked", partial: "Partly worked", failed: "Failed", refund: "Late payments", settings: "Settings" },
     subject: "Order",
   },
+  // 119 - a back-office team member: access, role, invitations, details and the sign-in account.
+  "bo-team-member": {
+    kinds: { access: "Access", role: "Role", invitation: "Invitations", details: "Details", sign_in: "Sign-in account" },
+    subject: null,
+  },
   "bo-email": {
     kinds: {
       delivery: "Delivered",

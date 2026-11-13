@@ -13,10 +13,13 @@ import {
 import { ErrorState } from "@effy/web-kit/console"
 
 import { Bone, boneWidth, Kbd, Loading } from "@effy/web-kit/patterns"
-import { meQuery } from "@/features/staff-identity/queries"
+import { TEAM_ROLE_WORDS, TEAM_STATUS_WORDS } from "@effy/shared-types"
+import { RenameDialog } from "@/features/team/dialogs/RenameDialog"
+import { meQuery } from "@/features/team/queries"
+import { renameMe } from "@/features/team/repo"
 
 import { CHORDS } from "./chords"
-import { displayName, roleLabel } from "./identity"
+import { displayName } from "./identity"
 
 export function ShortcutsDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const rows: { keys: string[]; what: string }[] = [
@@ -85,19 +88,19 @@ export function StaffRecordDialog({ open, onOpenChange }: { open: boolean; onOpe
           <ErrorState error={me.error} onRetry={() => void me.refetch()} />
         ) : (
           <dl className="divide-y divide-border text-sm">
-            <Row k="Name">{displayName(me.data.email)}</Row>
+            <Row k="Name">
+              {/* 119 US8: anyone corrects their own name; an email is never changed here. */}
+              <span className="flex flex-wrap items-center gap-3">
+                {me.data.name ?? displayName(me.data.email)}
+                <RenameDialog current={me.data.name} run={renameMe} />
+              </span>
+            </Row>
             <Row k="Email">{me.data.email}</Row>
             <Row k="Role">
-              {roleLabel(me.data.roles) ? (
-                <Badge variant="brand">{roleLabel(me.data.roles)}</Badge>
-              ) : (
-                "No role - you can sign in but not act"
-              )}
+              {me.data.roles[0] ? <Badge variant="brand">{TEAM_ROLE_WORDS[me.data.roles[0]]}</Badge> : "No role"}
             </Row>
             <Row k="Status">
-              <Badge variant={me.data.status === "active" ? "success" : "secondary"}>
-                {me.data.status === "active" ? "Active" : "Disabled"}
-              </Badge>
+              <Badge variant={me.data.status === "active" ? "success" : "secondary"}>{TEAM_STATUS_WORDS[me.data.status]}</Badge>
             </Row>
             <Row k="Reference">
               <span className="font-mono text-sm break-all">{me.data.subject}</span>

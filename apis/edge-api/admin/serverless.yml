@@ -191,17 +191,8 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
-  # Settings › Team and access: everyone with a back-office record. Admin only, from the staff record.
-  backOfficeStaffListV1:
-    handler: src/functions/back-office-staff-list-v1-get.handler
-    description: The back-office team - name, email, roles, status, last seen (settings redesign)
-    events:
-      - httpApi:
-          method: GET
-          path: /admin/v1/staff
-          authorizer:
-            type: jwt
-            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+  # Settings › Team and access moved to the admin-team stack (119): GET /admin/v1/staff and every team route.
+  # ⚠ Deploy this stack BEFORE admin-team the first time, so the route key is free.
 
   backOfficeAdminPingV1:
     handler: src/functions/back-office-admin-ping-v1-get.handler

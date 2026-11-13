@@ -4,6 +4,7 @@ export * from "./package-code";
 export * from "./parcels";
 export * from "./scan-rule";
 export * from "./back-office";
+export * from "./back-office-team";
 export * from "./shop";
 export * from "./list";
 export * from "./customer";

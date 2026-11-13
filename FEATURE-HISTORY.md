@@ -4,6 +4,56 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
+**119-backoffice-team-management** - Back-Office Team Management ([spec](specs/119-backoffice-team-management/spec.md)). 🛠 **BUILT
+2026-11-13; NOT APPLIED, MIGRATED, DEPLOYED OR WALKED.** Settings › Team and access manages the back-office team: add a
+person with one role (optional invitation), change role, disable / re-enable, remove (record kept), sign out everywhere,
+rename (an admin anyone; anyone themselves), a person's page with its activity, and a check that shows and repairs where
+the sign-in pool disagrees with the records.
+- ⚠ **THE PIVOT (research R1): THE RECORD IS THE ORIGIN AND THE AUTHORITY.** `/me` no longer creates a record for any
+  token or rewrites roles from `cognito:groups` (`upsertOnContact` is gone). It reads the record and touches
+  `last_seen_at` only; no record → 403 `not_on_team`, disabled/removed → 403 `staff_disabled`, and the console signs the
+  browser out and says "Your back-office access has ended. Ask an administrator." (`useAccessEnded`). The pool group is
+  a mirror written by the same change. The shell takes its roles from `/me` once read.
+- **ONE WRITER**: `@effy/edge-shared/team` (`writer.ts`) writes `admin.staff`, `staff_role`, `staff_former_subject`,
+  `sign_in_orphan`, `team_check` and the `team.*` audit rows, under ONE advisory lock (`hashtext('admin.team')`) that
+  makes "always an active administrator" race-proof. Rules once (`rules.ts` `refusalFor` / `actionsFor`): the page offers
+  exactly what the server allows. Stale views refused by `revision` (409 `staff_changed`). The Cognito adapter
+  (`sign-in.ts`) takes the SDK command classes from its caller - the shared library does NOT depend on the SDK (adding
+  it re-resolved Amplify/smithy across the lockfile; refused). `team.guard.test.ts`: no team write outside `team/`, no
+  UPDATE/DELETE of `admin.audit_log` (113's erasure is the named exception), no staff handler reads `groups(event)`, only
+  `admin-team` may change the back-office pool.
+- **Two systems, one order (R5)**: record first (one transaction), then the pool, then emails, then `announce("team")`.
+  A failed pool step marks the person Needs attention (`sign_in_issue`), writes `team.sign_in_failed`, emits
+  `TeamSignInStepFailures` (Terraform alarm, ≥1 in 15 min → alerts) and answers `complete: false`. An add's pool account
+  is made first and ADOPTED on retry.
+- **Migration** `20261114090000_backoffice_team.sql` (goose up/down/up on local Postgres): one role per person (highest
+  kept, `UNIQUE (staff_id)`), `removed` status, revision, added/disabled/removed by + when, invitation, sign-in issue,
+  email → citext UNIQUE, three new tables. ⚠ **BACKFILL DISABLES ACTIVE PEOPLE WITH NO ROLE** (`no_role`, audited by
+  `system:119`, named "Effy") - list them before migrating (quickstart). Stops with `backoffice_team_duplicate_email` on
+  two records with one email.
+- **Stack `admin-team`** (`admin/serverless.team.yml`): 13 new routes + `GET /admin/v1/staff` MOVED from `admin`. Staff
+  gateway **240 → 253/300**. ⚠ **THE NEXT STAFF-ROUTES FEATURE MUST AMEND THE CONSTITUTION FOR A THIRD GATEWAY FIRST.**
+  New SSM `/effy/<env>/web/back_office_url` from Terraform's own output, required (no default). Emails
+  `staff-invitation` (no code, no sign-in link) and `staff-admin-granted` (every other active admin).
+- **Break-glass**: `make create-first-admin` / `make delete-admin` now write through the same writer, signed "Operator";
+  delete disables and REMOVES (record kept) - `FORCE=1` still overrides the last-admin rule, audited `{forced:true}`.
+- **Names**: `staffNameSql` falls back to `staff_former_subject` (a returning person keeps their name on old actions) and
+  says "Operator" / "Effy"; the ad-hoc name joins in `delivery/override.ts`, `fleet/dispatch/sql.ts` and the catalog
+  product and import repositories moved onto it.
+- **Web**: `features/staff-identity` → `features/team`; the People list is 103's `DataTable` (search, Role and Status
+  facets incl. Removed / Never signed in / Needs attention); the Not on the team panel; Add person; the person page
+  `/settings/team/$staffId` with Change role, Send invitation (again), Disable, Re-enable, Remove, Sign out everywhere,
+  Repair, Rename and the activity drawer (`bo-team-member`); Rename in Your back-office record. Live kind `team`. Tours:
+  `admin-access` v3 (5 steps), new `admin-person` (107's spec AA rewritten, AP added; inventory 61).
+- **Verified**: shared 1,159 + team containers 7 (backfill, UNIQUE, last-admin race - exactly one of two wins - not
+  yourself, revision, role required, re-add naming old actions); admin 228 (team service order of steps, refusal words);
+  ops 10 + containers 4; back-office 468 + build; gateway capacity staff 253/300; refresh-timer and design-system guards.
+  Pre-existing, not 119: shared-types package-status guard (shop-web `collection.ts`), consignment/orders container
+  dash wording, catalog imports fixture SHA check.
+- **Deploy order** (operator): `make apply ENV=dev` → `make db-up ENV=dev` → `make edge-deploy SERVICE=admin ENV=dev` →
+  `make edge-deploy SERVICE=admin-team ENV=dev` → `make edge-deploy-all ENV=dev` (staffNameSql reaches orders, fleet,
+  catalog, admin-messages, admin-promotions) → push `dev` → walk [quickstart.md](specs/119-backoffice-team-management/quickstart.md).
+
 **116-links-badges-urgency** - Reaching the Right Place ([spec](specs/116-links-badges-urgency/spec.md)). ✅ **APPLIED, MIGRATED AND
 DEPLOYED TO DEV 2026-11-12; CUSTOMER APP WALKED ON ANDROID (links Part 1, badge Part 2, urgency Part 3 of `test-plan.md`).
 Driver app walk pending; iPhone half waits for the paid Apple account.** The last notifications backlog items (B7, C6, D7): the backlog is complete.

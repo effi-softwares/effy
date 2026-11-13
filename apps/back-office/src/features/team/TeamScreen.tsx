@@ -1,11 +1,21 @@
-import { useQuery } from "@tanstack/react-query"
-import { useNavigate, useSearch } from "@tanstack/react-router"
-import { Check, Minus, Users } from "lucide-react"
+import { useEffect, useRef, useState } from "react"
 
-import type { BackOfficeRole, StaffMemberDTO } from "@effy/shared-types"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useNavigate, useSearch } from "@tanstack/react-router"
+import { Check, Minus, Plus, Users } from "lucide-react"
+
+import {
+  TEAM_ROLE_WORDS,
+  TEAM_STATUS_FILTERS,
+  TEAM_STATUS_WORDS,
+  type BackOfficeRole,
+  type TeamListDTO,
+  type TeamMemberDTO,
+} from "@effy/shared-types"
 import {
   Avatar,
   AvatarFallback,
+  Button,
   Table,
   TableBody,
   TableCell,
@@ -18,9 +28,19 @@ import {
   TabsList,
   TabsTrigger,
 } from "@effy/design-system/ui"
-import { StaticTable, type EffyColumnDef } from "@effy/web-kit/data-table"
+import {
+  DataTable,
+  Facet,
+  isFiltered,
+  listQueryOptions,
+  ResetFilters,
+  SearchBox,
+  useListState,
+  type EffyColumnDef,
+} from "@effy/web-kit/data-table"
+import { isDomainError } from "@effy/api-client"
 import { ErrorState } from "@effy/web-kit/console"
-import { EmptyState, PageHeader, Panel, StatusWord } from "@effy/web-kit/patterns"
+import { PageHeader, Panel } from "@effy/web-kit/patterns"
 import { tourStatus, useTourPage } from "@effy/web-kit/tour"
 
 import { initialsOf } from "@/components/shell/identity"
@@ -39,7 +59,13 @@ import { canManageShops } from "@/features/shops/access"
 import { canManageVehicles } from "@/features/vehicles/access"
 import { moment } from "@/lib/format"
 
-import { teamQuery } from "./queries"
+import { AddPersonDialog } from "./dialogs/AddPersonDialog"
+import { ReenableDialog } from "./dialogs/ReenableDialog"
+import { NotOnTeamPanel } from "./NotOnTeamPanel"
+import { MemberStatus } from "./PersonScreen"
+import { teamList } from "./list"
+import { TEAM_ROOT } from "./queries"
+import { checkSignIn, fetchTeamPage } from "./repo"
 
 type Rule = (roles: readonly BackOfficeRole[]) => boolean
 
@@ -64,20 +90,15 @@ export const PERMISSIONS: readonly { what: string; rule: Rule }[] = [
   { what: "Change tax settings, and see the team", rule: (roles) => roles.includes("admin") },
 ]
 
-export const ROLE_WORDS: Readonly<Record<BackOfficeRole, string>> = {
-  admin: "Administrator",
-  manager: "Manager",
-  csa: "Customer support",
-}
+/** The roles in words: one list, in shared-types (119). */
+export const ROLE_WORDS: Readonly<Record<BackOfficeRole, string>> = TEAM_ROLE_WORDS
 
 const ROLES: readonly BackOfficeRole[] = ["admin", "manager", "csa"]
 
-const columns: EffyColumnDef<StaffMemberDTO>[] = [
+const columns: EffyColumnDef<TeamMemberDTO>[] = [
   {
     id: "person",
-    accessorFn: (m) => (m.name ?? m.email).toLowerCase(),
     header: "Person",
-    enableSorting: true,
     cell: ({ row }) => (
       <span className="flex items-center gap-3">
         <Avatar aria-hidden="true" className="max-md:hidden">
@@ -91,58 +112,81 @@ const columns: EffyColumnDef<StaffMemberDTO>[] = [
         </span>
       </span>
     ),
-    meta: { label: "Person", identifying: true, phone: "primary" },
+    meta: { label: "Person", identifying: true, phone: "primary", sortKey: "name" },
   },
   {
     id: "role",
     header: "Role",
     cell: ({ row }) =>
-      row.original.roles.length === 0 ? (
-        <span className="text-muted-foreground">No role - can't use back-office</span>
-      ) : (
-        row.original.roles.map((r) => ROLE_WORDS[r]).join(", ")
-      ),
-    meta: { label: "Role", phone: "badge" },
+      row.original.role ? ROLE_WORDS[row.original.role] : <span className="text-muted-foreground">No role</span>,
+    meta: { label: "Role", phone: "badge", sortKey: "role" },
   },
   {
     id: "status",
     header: "Status",
-    cell: ({ row }) =>
-      row.original.status === "active" ? (
-        <StatusWord tone="done">Active</StatusWord>
-      ) : (
-        <StatusWord tone="quiet">Disabled</StatusWord>
-      ),
+    cell: ({ row }) => <MemberStatus status={row.original.status} attention={row.original.signInIssue !== null} />,
     meta: { label: "Status", priority: 2 },
   },
   {
     id: "lastSeen",
-    accessorFn: (m) => m.lastSeenAt ?? "",
     header: "Last seen",
-    enableSorting: true,
     cell: ({ row }) => (
       <span className="text-muted-foreground">
-        {row.original.lastSeenAt ? moment(row.original.lastSeenAt) : "Never"}
+        {row.original.lastSeenAt ? moment(row.original.lastSeenAt) : "Never signed in"}
       </span>
     ),
-    meta: { label: "Last seen", phone: "trail" },
+    meta: { label: "Last seen", phone: "trail", sortKey: "lastSeen" },
+  },
+  {
+    id: "added",
+    header: "Added",
+    cell: ({ row }) => <span className="text-muted-foreground">{moment(row.original.addedAt)}</span>,
+    meta: { label: "Added", priority: 3, sortKey: "added" },
   },
 ]
 
-/** Settings › Team and access (admin): who has a back-office account, and what each role may do. */
+/** Settings › Team and access (119): the team, adding and finding people, and what each role may do. */
 export function TeamScreen() {
-  const team = useQuery(teamQuery)
+  const queryClient = useQueryClient()
+  const search = useSearch({ strict: false }) as { tab?: string }
+  const state = useListState(teamList, search)
+  const f = state.view.filters
+  const input = { key: TEAM_ROOT, list: teamList, view: state.view, fetch: fetchTeamPage }
+  const team = useQuery(listQueryOptions(input))
   useTourPage("admin-access", { status: tourStatus(team) })
-  const { tab } = useSearch({ strict: false }) as { tab?: string }
   const navigate = useNavigate()
-  const current = tab === "roles" ? "roles" : "people"
-  const active = team.data?.filter((m) => m.status === "active").length
+  const current = search.tab === "roles" ? "roles" : "people"
+  const [adding, setAdding] = useState<{ email: string } | null>(null)
+  const [reenable, setReenable] = useState<string | null>(null)
+
+  // The pool is compared with the records when the page opens (research R6; skipped within 60 seconds).
+  const check = useMutation({
+    mutationFn: checkSignIn,
+    onSuccess: (out) => {
+      if (out.checked) void queryClient.invalidateQueries({ queryKey: TEAM_ROOT })
+    },
+  })
+  const checked = useRef(false)
+  useEffect(() => {
+    if (checked.current) return
+    checked.current = true
+    check.mutate()
+  }, [check])
+
+  const page = team.data as TeamListDTO | undefined
+  const notOnTeam = page?.notOnTeam ?? []
 
   return (
     <>
       <PageHeader
         title="Team and access"
-        description="Everyone with a back-office account, their role, and what each role is allowed to do. Roles are granted in the staff sign-in pool; the platform's staff record decides."
+        description="Everyone with a back-office account, their role, and what each role is allowed to do."
+        actions={
+          <Button data-tour="access.add" onClick={() => setAdding({ email: "" })}>
+            <Plus aria-hidden="true" />
+            Add person
+          </Button>
+        }
       />
       <Tabs
         value={current}
@@ -153,7 +197,7 @@ export function TeamScreen() {
             <TabsList aria-label="Team and access">
               <TabsTrigger data-tour="access.team" value="people">
                 People
-                {active !== undefined ? <TabsCount>{active}</TabsCount> : null}
+                {page && !f.status && !state.view.q && !f.role ? <TabsCount>{page.total}</TabsCount> : null}
               </TabsTrigger>
               <TabsTrigger data-tour="access.roles" value="roles">
                 Roles and permissions
@@ -161,24 +205,50 @@ export function TeamScreen() {
             </TabsList>
           </div>
         </div>
-        <TabsContent value="people" className="ef-tabpanel">
-          {team.isError ? (
+        <TabsContent value="people" className="ef-tabpanel space-y-6">
+          {notOnTeam.length > 0 ? (
+            <div data-tour="access.attention">
+              <NotOnTeamPanel accounts={notOnTeam} onAdd={(email) => setAdding({ email })} />
+            </div>
+          ) : null}
+          {team.isError && isDomainError(team.error) && team.error.status === 403 ? (
             <ErrorState
               error={team.error}
               onRetry={() => void team.refetch()}
               forbiddenMessage="Only an administrator can see the team."
             />
-          ) : team.data?.length === 0 ? (
-            <EmptyState icon={Users} title="No one yet" description="People appear here the first time they sign in." />
           ) : (
-            <StaticTable
-              label="Team"
-              columns={columns}
-              rows={team.data ?? []}
-              getRowId={(m) => m.subject}
-              loading={team.isPending}
-              rowClassName={(m) => (m.status === "disabled" ? "text-muted-foreground" : undefined)}
-            />
+          <DataTable
+            app="back-office"
+            label="Team"
+            list={teamList}
+            state={state}
+            columns={columns}
+            query={team}
+            queryInput={input}
+            rowHref={(m) => ({ to: "/settings/team/$staffId", params: { staffId: m.id } })}
+            rowClassName={(m) => (m.status !== "active" ? "text-muted-foreground" : undefined)}
+            empty={{ icon: Users, title: "No one here.", description: "Add a person to give them back-office access." }}
+            toolbar={
+              <>
+                <Facet
+                  tour="access.status"
+                  label="Status"
+                  value={f.status ?? null}
+                  onChange={(v) => state.setFilter("status", v ?? undefined)}
+                  options={TEAM_STATUS_FILTERS.map((s) => ({ value: s, label: TEAM_STATUS_WORDS[s] }))}
+                />
+                <Facet
+                  label="Role"
+                  value={f.role ?? null}
+                  onChange={(v) => state.setFilter("role", v ?? undefined)}
+                  options={ROLES.map((r) => ({ value: r, label: ROLE_WORDS[r] }))}
+                />
+                {isFiltered(state.view) ? <ResetFilters onReset={state.reset} /> : null}
+                <SearchBox label="Search name or email" placeholder="Search name or email" value={state.draftQ} onChange={state.setQ} />
+              </>
+            }
+          />
           )}
         </TabsContent>
         <TabsContent value="roles" className="ef-tabpanel">
@@ -216,6 +286,19 @@ export function TeamScreen() {
           </Panel>
         </TabsContent>
       </Tabs>
+
+      <AddPersonDialog
+        key={adding?.email ?? ""}
+        open={adding !== null}
+        initialEmail={adding?.email ?? ""}
+        onOpenChange={(o) => {
+          if (!o) setAdding(null)
+        }}
+        onReenable={setReenable}
+      />
+      {reenable ? (
+        <ReenableDialog memberId={reenable} open onOpenChange={(o) => (o ? undefined : setReenable(null))} />
+      ) : null}
     </>
   )
 }

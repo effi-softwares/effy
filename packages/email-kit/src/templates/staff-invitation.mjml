@@ -1,0 +1,32 @@
+<mjml lang="en" dir="ltr">
+  <mj-head>
+    <mj-include path="../generated/theme.mjml" />
+    <mj-title>You have access to {{effyProductName}}</mj-title>
+    <mj-preview>Sign in with this email address and a six-digit code.</mj-preview>
+  </mj-head>
+
+  <mj-body width="600px">
+    <mj-include path="../components/header.mjml" />
+
+    <mj-section padding="0 32px 32px 32px">
+      <mj-column>
+        <mj-text mj-class="h1" css-class="e-ink e-h1">You have access to Effy Back-Office</mj-text>
+
+        <mj-text mj-class="muted" css-class="e-muted" padding="12px 0 0 0">
+          You have been given access to Effy Back-Office as <strong>{{role}}</strong>.
+        </mj-text>
+
+        <mj-text mj-class="muted" css-class="e-muted" padding="12px 0 0 0">
+          Sign in at <a href="{{backOfficeUrl}}" class="e-ink">{{backOfficeUrl}}</a> with this email address;
+          we will email you a six-digit code each time.
+        </mj-text>
+
+        <mj-text mj-class="small" css-class="e-muted" padding="20px 0 0 0">
+          This email contains no code and no password. If you did not expect it, you can ignore it.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-include path="../components/footer.mjml" />
+  </mj-body>
+</mjml>

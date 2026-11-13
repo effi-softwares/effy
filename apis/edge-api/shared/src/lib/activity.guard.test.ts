@@ -31,6 +31,8 @@ const ACTIVITY_ROUTES = [
   "/admin/v1/messages/automations/{id}/activity",
   // 113: the clean-ups' runs, late-payment refunds and abandon-time changes.
   "/orders/v1/housekeeping/activity",
+  // 119: a back-office team member's access.
+  "/admin/v1/staff/{staffId}/activity",
 ] as const;
 
 function handlerFileOf(path: string): string {

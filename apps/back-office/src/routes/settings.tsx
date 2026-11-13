@@ -18,7 +18,9 @@ import { HubScreen } from "@/features/delivery/HubScreen"
 import { OrderRulesScreen } from "@/features/promotions/OrderRulesScreen"
 import { SettingsIndexScreen } from "@/features/settings/SettingsIndexScreen"
 import { TaxSettingsScreen } from "@/features/settings/tax/TaxSettingsScreen"
-import { TeamScreen } from "@/features/staff-identity/TeamScreen"
+import { teamList } from "@/features/team/list"
+import { PersonScreen } from "@/features/team/PersonScreen"
+import { TeamScreen } from "@/features/team/TeamScreen"
 
 import { appRoute } from "./app"
 
@@ -117,8 +119,22 @@ export const taxSettingsRoute = createRoute({
 export const teamRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "settings/team",
-  validateSearch: (search: Record<string, unknown>) => (search.tab === "roles" ? { tab: "roles" as const } : {}),
+  validateSearch: (search: Record<string, unknown>) => ({
+    ...(search.tab === "roles" ? { tab: "roles" as const } : {}),
+    ...teamList.validateSearch(search),
+  }),
   component: TeamScreen,
+})
+
+// 119 - a team member's page, and their activity drawer (104).
+export const teamMemberRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "settings/team/$staffId",
+  validateSearch: (search: Record<string, unknown>) => withActivityLog(search),
+  component: function TeamMemberRoute() {
+    const { staffId } = teamMemberRoute.useParams()
+    return <PersonScreen staffId={staffId} />
+  },
 })
 
 /** Where each old Delivery tab lives now. */

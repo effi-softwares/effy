@@ -1,0 +1,10 @@
+A new Administrator
+
+{{name}} ({{email}}) was made an Administrator by {{actorName}} at {{when}}.
+
+If you did not expect this, open Team and access: {{backOfficeUrl}}
+
+--
+{{effyProductName}}{{#if effyPostalAddress}}
+{{effyPostalAddress}}{{/if}}
+Questions? Reply to this email or write to {{effySupportEmail}}.

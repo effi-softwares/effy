@@ -35,6 +35,8 @@ in its `AnalyticsEvent` sealed class; the per-app drift check keeps them aligned
 | `email_unsubscribed` | - | The website's unsubscribe page stopped offers and news by email (115). No token, no address |
 | `email_unsubscribe_undone` | - | Undo on that page (115) |
 | `app_link_opened` | `{ kind, surface }` | An Effy link opened the customer app (116), after its screen shows. `kind` = the page (`home`, `orders`, `order`, `points`, `product`, `aisle`, `search`, `sale`, `unknown`); no id, no message, no campaign |
+| `team_member_added` | `{ role }` | Back-office: an Administrator added a person to the team (119). `role` = `admin` / `manager` / `csa`. No name, no email |
+| `team_member_changed` | `{ action, role? }` | Back-office: a team change (119). `action` = `role` / `disable` / `enable` / `remove` / `sign_out` / `invite` / `repair` / `rename`; `role` = the person's role after it, when they have one |
 
 113 (data lifecycle) adds no client event. Its clean-ups report as backend metrics in the `Effy/Housekeeping` namespace
 (`HousekeepingRan`, `HousekeepingFailed`, `HousekeepingPartial` per job; `UnpaidOrdersClosed`, `UnpaidOrdersStillPaying`,

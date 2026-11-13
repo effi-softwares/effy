@@ -1,15 +1,15 @@
 // Built around what needs attention, not what is fine: the common case is automatic, the exception visible.
 
 import { OPERATING_TZ } from "@effy/shared-types";
+import { staffNameSql } from "@effy/edge-shared";
 import { COURIER_COLLECTION_SQL } from "@effy/edge-shared/delivery";
 import { ROUND_STAGE_COLUMNS, ROUND_STAGE_LATERAL, TO_RETURN_SQL } from "@effy/edge-shared/delivery";
 
 /** A dispatcher's waiver of the cross-run gate, and who gave it. */
 const WAIVER = `
-  LEFT JOIN public.round_sequence_waiver wv ON wv.round_id = dr.id
-  LEFT JOIN admin.staff wst ON wst.cognito_sub = wv.staff_sub`;
+  LEFT JOIN public.round_sequence_waiver wv ON wv.round_id = dr.id`;
 const WAIVER_COLUMNS = `wv.reason AS waiver_reason, wv.created_at AS waiver_at,
-         COALESCE(NULLIF(btrim(wst.name), ''), wst.email::text) AS waiver_staff`;
+         ${staffNameSql("wv.staff_sub")} AS waiver_staff`;
 
 /** Who takes a parcel to the customer, over these queries' aliases. */
 

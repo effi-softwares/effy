@@ -250,6 +250,8 @@ EDGE_STACK_DIR_admin-promotions    := admin
 EDGE_STACK_CONFIG_admin-promotions := serverless.promotions.yml
 EDGE_STACK_DIR_admin-messages      := admin
 EDGE_STACK_CONFIG_admin-messages   := serverless.messages.yml
+EDGE_STACK_DIR_admin-team          := admin
+EDGE_STACK_CONFIG_admin-team       := serverless.team.yml
 EDGE_DIR    := apis/edge-api/$(or $(EDGE_STACK_DIR_$(SERVICE)),$(SERVICE))
 EDGE_CONFIG := $(or $(EDGE_STACK_CONFIG_$(SERVICE)),serverless.yml)
 # Which gateway the stack attaches to, read from the stack file itself - shown in the deploy prompt.
@@ -257,7 +259,7 @@ EDGE_GATEWAY = $(shell grep -q '/staff/http_api_id' "$(EDGE_DIR)/$(EDGE_CONFIG)"
 
 AUTH_PARAM_CMD = AWS_PROFILE=$(AWS_PROFILE) aws ssm get-parameter --region $(AWS_REGION) --query Parameter.Value --output text --name
 
-create-first-admin: ## OPERATOR: bootstrap the FIRST back-office super-admin (EMAIL=.. NAME=".." ENV=dev) - specs/006
+create-first-admin: ## OPERATOR: create a back-office Administrator (break-glass; the same team record and history as Team and access) (EMAIL=.. NAME=".." ENV=dev) - specs/006, 119
 	@test -n "$(EMAIL)" && test -n "$(NAME)" || { echo 'usage: make create-first-admin EMAIL=jane@effy.test NAME="Jane Doe" ENV=dev'; exit 1; }
 	@DSN="$$($(DB_DSN_CMD))" || exit 1; \
 	POOL_ID="$$($(AUTH_PARAM_CMD) /effy/$(ENV)/auth/back-office/user_pool_id)" || { echo "create-first-admin: cannot read back-office pool id from SSM (001 contract)"; exit 1; }; \
@@ -272,9 +274,9 @@ load-localities: ## OPERATOR: load the AU locality reference dataset into public
 	EFFY_ENV=$(ENV) DB_DSN="$$DSN" AWS_PROFILE=$(AWS_PROFILE) \
 		pnpm --filter @effy/edge-ops exec tsx src/load-localities.ts --csv "$(CURDIR)/$(or $(CSVREL),db/reference/au-localities.csv)" $(if $(REPLACE),--replace,)
 
-delete-admin: ## OPERATOR: COMPLETELY delete a back-office admin (EMAIL=.. ENV=dev [FORCE=1]) - irreversible - specs/006
+delete-admin: ## OPERATOR: disable and remove a back-office admin and delete their sign-in account; the record is kept, marked Removed (EMAIL=.. ENV=dev [FORCE=1]) - specs/006, 119
 	@test -n "$(EMAIL)" || { echo 'usage: make delete-admin EMAIL=jane@effy.test ENV=dev [FORCE=1]'; exit 1; }
-	@printf 'DELETE admin %s from %s (Cognito + platform record) - IRREVERSIBLE\nContinue? [y/N] ' "$(EMAIL)" "$(ENV)"; \
+	@printf 'REMOVE admin %s from %s (deletes the sign-in account; the team record is kept, marked Removed)\nContinue? [y/N] ' "$(EMAIL)" "$(ENV)"; \
 	read ans; [ "$$ans" = "y" ] || { echo "aborted - nothing deleted"; exit 1; }
 	@DSN="$$($(DB_DSN_CMD))" || exit 1; \
 	POOL_ID="$$($(AUTH_PARAM_CMD) /effy/$(ENV)/auth/back-office/user_pool_id)" || { echo "delete-admin: cannot read back-office pool id from SSM (001 contract)"; exit 1; }; \
@@ -291,8 +293,8 @@ edge-offline: ## Run ONE service locally via serverless-offline (SERVICE=admin|s
 	@test -n "$(SERVICE)" || { echo "usage: make edge-offline SERVICE=admin|shop|customer|driver|notifications|orders|inventory|storefront|commerce ENV=dev"; exit 1; }
 	@cd $(EDGE_DIR) && AWS_PROFILE=$(AWS_PROFILE) pnpm exec serverless offline --config $(EDGE_CONFIG) --stage $(ENV)
 
-edge-deploy: ## OPERATOR: deploy ONE cold-path service to AWS (SERVICE=admin|admin-promotions|admin-messages|shop|customer|driver|notifications|orders|inventory|inventory-staff|fleet|catalog|storefront|commerce|live ENV=dev)
-	@test -n "$(SERVICE)" || { echo "usage: make edge-deploy SERVICE=admin|admin-promotions|admin-messages|shop|customer|driver|notifications|orders|inventory|inventory-staff|fleet|catalog|storefront|commerce|live ENV=dev"; exit 1; }
+edge-deploy: ## OPERATOR: deploy ONE cold-path service to AWS (SERVICE=admin|admin-promotions|admin-messages|admin-team|shop|customer|driver|notifications|orders|inventory|inventory-staff|fleet|catalog|storefront|commerce|live ENV=dev)
+	@test -n "$(SERVICE)" || { echo "usage: make edge-deploy SERVICE=admin|admin-promotions|admin-messages|admin-team|shop|customer|driver|notifications|orders|inventory|inventory-staff|fleet|catalog|storefront|commerce|live ENV=dev"; exit 1; }
 	@test -d "$(EDGE_DIR)" || { echo "edge-deploy: no such service directory: $(EDGE_DIR)"; exit 1; }
 	@test -f "$(EDGE_DIR)/$(EDGE_CONFIG)" || { echo "edge-deploy: no stack file: $(EDGE_DIR)/$(EDGE_CONFIG)"; exit 1; }
 	@printf 'serverless DEPLOY  →  service=%s stage=%s (%s, attaches to %s, live AWS)\nContinue? [y/N] ' "$(SERVICE)" "$(ENV)" "$(EDGE_DIR)/$(EDGE_CONFIG)" "$(EDGE_GATEWAY)"; \
@@ -301,7 +303,7 @@ edge-deploy: ## OPERATOR: deploy ONE cold-path service to AWS (SERVICE=admin|adm
 
 # Every stack, in the order a deploy must go: admin first (it frees the route keys other stacks may claim,
 # and admin-promotions is split from it), then the rest. Override with SERVICES="a b c" to deploy a subset.
-EDGE_ALL_SERVICES := admin admin-promotions admin-messages catalog shop storefront commerce fleet orders driver notifications \
+EDGE_ALL_SERVICES := admin admin-promotions admin-messages admin-team catalog shop storefront commerce fleet orders driver notifications \
 	customer inventory inventory-staff media live auth
 
 edge-deploy-all: ## OPERATOR: deploy EVERY edge stack in order, one confirmation (YES=1 skips it; SERVICES="..." for a subset; FROM=<svc> to resume)
@@ -321,6 +323,7 @@ edge-deploy-all: ## OPERATOR: deploy EVERY edge stack in order, one confirmation
 			inventory-staff) dir="apis/edge-api/inventory"; config="serverless.staff.yml";; \
 			admin-promotions) dir="apis/edge-api/admin"; config="serverless.promotions.yml";; \
 			admin-messages) dir="apis/edge-api/admin"; config="serverless.messages.yml";; \
+			admin-team) dir="apis/edge-api/admin"; config="serverless.team.yml";; \
 		esac; \
 		test -f "$$dir/$$config" || { echo "edge-deploy-all: no stack file $$dir/$$config"; exit 1; }; \
 		( cd "$$dir" && AWS_PROFILE=$(AWS_PROFILE) pnpm exec serverless deploy --config "$$config" --stage $(ENV) ) || { \
@@ -331,7 +334,7 @@ edge-deploy-all: ## OPERATOR: deploy EVERY edge stack in order, one confirmation
 	echo ""; echo "✓ deployed:$$done"
 
 edge-remove: ## OPERATOR: tear down ONE cold-path service's CloudFormation stack (SERVICE=.. ENV=dev)
-	@test -n "$(SERVICE)" || { echo "usage: make edge-remove SERVICE=admin|shop|...|fleet ENV=dev"; exit 1; }
+	@test -n "$(SERVICE)" || { echo "usage: make edge-remove SERVICE=admin|admin-team|shop|...|fleet ENV=dev"; exit 1; }
 	@test -d "$(EDGE_DIR)" || { echo "edge-remove: no such service directory: $(EDGE_DIR)"; exit 1; }
 	@printf 'serverless REMOVE  →  service=%s stage=%s (DESTROYS the stack: lambdas, routes, alarms, deployment bucket)\nContinue? [y/N] ' "$(SERVICE)" "$(ENV)"; \
 	read ans; [ "$$ans" = "y" ] || { echo "aborted - nothing removed"; exit 1; }; \

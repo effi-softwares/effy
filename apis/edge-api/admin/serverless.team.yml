@@ -1,0 +1,270 @@
+# The team routes of the admin service (119): the same src/ deployed as a fourth stack, beside admin, admin-promotions
+# and admin-messages, because the admin stack is at CloudFormation's resource limit. Staff gateway, back-office
+# authorizer. Every write goes through @effy/edge-shared/team (writer.ts) - the ONE writer of the team - and this is
+# the ONLY stack allowed to change the back-office sign-in pool (team.guard.test.ts).
+# ⚠ Deploy `admin` BEFORE this stack the first time: `GET /admin/v1/staff` moved here from it.
+service: effy-edge-admin-team
+frameworkVersion: "3"
+
+plugins:
+  - serverless-esbuild
+  - serverless-offline
+
+params:
+  default:
+    logLevel: info
+    secretsExtensionArn: arn:aws:lambda:ap-southeast-2:665172237481:layer:AWS-Parameters-and-Secrets-Lambda-Extension-Arm64:90
+  dev:
+    logLevel: debug
+
+provider:
+  name: aws
+  region: ap-southeast-2
+  stage: ${opt:stage, 'dev'}
+  runtime: nodejs22.x
+  architecture: arm64
+  memorySize: 256
+  timeout: 10
+  logRetentionInDays: 30
+  # Every integration invokes $latest, so per-deploy Versions would only spend resources.
+  versionFunctions: false
+  tags:
+    project: effy
+    slice: 119-backoffice-team-management
+    service: admin-team
+  httpApi:
+    id: ${ssm:/effy/${sls:stage}/staff/http_api_id}
+  environment:
+    EFFY_ENV: ${sls:stage}
+    LOG_LEVEL: ${param:logLevel}
+    LIVE_HTTP_HOST: ${ssm:/effy/${sls:stage}/live/http_host}
+    LIVE_REALTIME_HOST: ${ssm:/effy/${sls:stage}/live/realtime_host}
+    DB_HOST: ${ssm:/effy/${sls:stage}/db/endpoint}
+    DB_PORT: ${ssm:/effy/${sls:stage}/db/port}
+    DB_NAME: ${ssm:/effy/${sls:stage}/db/name}
+    DB_USER: ${ssm:/effy/${sls:stage}/db/master_username}
+    DB_SECRET_ARN: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
+    # The invitation and "new administrator" emails - every key in email-kit's MAIL_ENV_KEYS.
+    MAIL_SENDER: ${ssm:/effy/${sls:stage}/ses/sender}
+    MAIL_REPLY_TO: ${ssm:/effy/${sls:stage}/ses/reply_to}
+    MAIL_REPLY_TO_INTERNAL: ${ssm:/effy/${sls:stage}/ses/reply_to_internal, ''}
+    MAIL_CONFIGURATION_SET: ${ssm:/effy/${sls:stage}/ses/configuration_set}
+    MAIL_POSTAL_ADDRESS: ${ssm:/effy/${sls:stage}/mail/postal_address, ''}
+    # Named in the invitation. Written by Terraform from the Amplify console's own address; NO default on purpose.
+    BACK_OFFICE_URL: ${ssm:/effy/${sls:stage}/web/back_office_url}
+    BACK_OFFICE_USER_POOL_ID: ${ssm:/effy/${sls:stage}/auth/back-office/user_pool_id}
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action: secretsmanager:GetSecretValue
+          Resource: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
+        - Effect: Allow
+          Action: appsync:EventPublish
+          Resource: ${ssm:/effy/${sls:stage}/live/api_arn}/channelNamespace/*
+        # The back-office sign-in pool: the team's mirror (research R5). The only stack with these (team.guard.test.ts).
+        - Effect: Allow
+          Action:
+            - cognito-idp:AdminCreateUser
+            - cognito-idp:AdminGetUser
+            - cognito-idp:AdminEnableUser
+            - cognito-idp:AdminDisableUser
+            - cognito-idp:AdminDeleteUser
+            - cognito-idp:AdminAddUserToGroup
+            - cognito-idp:AdminRemoveUserFromGroup
+            - cognito-idp:AdminListGroupsForUser
+            - cognito-idp:AdminUserGlobalSignOut
+            - cognito-idp:ListUsers
+            - cognito-idp:ListUsersInGroup
+          Resource: ${ssm:/effy/${sls:stage}/auth/back-office/user_pool_arn}
+        # The two team emails - the identity and the configuration set, or the send is denied.
+        - Effect: Allow
+          Action: ses:SendEmail
+          Resource:
+            - ${ssm:/effy/${sls:stage}/ses/identity_arn}
+            - ${ssm:/effy/${sls:stage}/ses/configuration_set_arn}
+  layers:
+    - ${param:secretsExtensionArn}
+  # No provider.vpc (dev only).
+
+custom:
+  esbuild:
+    bundle: true
+    # Build-time: baked into the bundle, so a change takes a deploy. No default on purpose.
+    define:
+      process.env.OPERATING_TZ: '"${ssm:/effy/${sls:stage}/operating_tz}"'
+    minify: false
+    sourcemap: true
+    platform: node
+    target: node22
+    format: esm
+    outputFileExtension: .mjs
+    banner:
+      js: import { createRequire } from 'module'; const require = createRequire(import.meta.url);
+
+package:
+  individually: true
+
+
+functions:
+  # Team and access (119). Every route: an active Administrator, from admin.staff - except PATCH /admin/v1/me (any
+  # active person, their own name). The literal paths (sign-in-check, sign-in-accounts) sit beside {staffId}: HTTP API
+  # matches the literal first.
+  teamListV1:
+    handler: src/functions/team-list-v1-get.handler
+    description: The People list (103; search, role, status) - moved from admin, 119
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/staff
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  teamMemberCreateV1:
+    handler: src/functions/team-member-create-v1-post.handler
+    description: Add a person, or adopt a sign-in account with no record - 119
+    timeout: 20
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/staff
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  teamSignInCheckV1:
+    handler: src/functions/team-sign-in-check-v1-post.handler
+    description: Compare the sign-in pool with the team records (skipped within 60 s) - 119
+    timeout: 20
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/staff/sign-in-check
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  teamSignInAccountDeleteV1:
+    handler: src/functions/team-sign-in-account-delete-v1-delete.handler
+    description: Delete a sign-in account that has no team record - 119
+    events:
+      - httpApi:
+          method: DELETE
+          path: /admin/v1/staff/sign-in-accounts/{username}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  teamMemberGetV1:
+    handler: src/functions/team-member-get-v1-get.handler
+    description: A team member's page - 119
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/staff/{staffId}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  teamMemberRenameV1:
+    handler: src/functions/team-member-rename-v1-patch.handler
+    description: Rename a team member - 119
+    events:
+      - httpApi:
+          method: PATCH
+          path: /admin/v1/staff/{staffId}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  teamMemberRoleV1:
+    handler: src/functions/team-member-role-v1-put.handler
+    description: Change a team member's role - 119
+    timeout: 20
+    events:
+      - httpApi:
+          method: PUT
+          path: /admin/v1/staff/{staffId}/role
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  teamMemberStatusV1:
+    handler: src/functions/team-member-status-v1-post.handler
+    description: Disable or re-enable a team member - 119
+    timeout: 20
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/staff/{staffId}/status
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  teamMemberRemoveV1:
+    handler: src/functions/team-member-remove-v1-delete.handler
+    description: Remove a disabled team member (the record is kept) - 119
+    events:
+      - httpApi:
+          method: DELETE
+          path: /admin/v1/staff/{staffId}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  teamMemberSignOutV1:
+    handler: src/functions/team-member-sign-out-v1-post.handler
+    description: Sign a team member out everywhere - 119
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/staff/{staffId}/sign-out
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  teamMemberInviteV1:
+    handler: src/functions/team-member-invite-v1-post.handler
+    description: Send a team member the invitation (again) - 119
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/staff/{staffId}/invitation
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  teamMemberRepairV1:
+    handler: src/functions/team-member-repair-v1-post.handler
+    description: Make a team member's sign-in account match the record - 119
+    timeout: 20
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/staff/{staffId}/repair
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  teamMemberActivityV1:
+    handler: src/functions/team-member-activity-v1-get.handler
+    description: A team member's activity (104 drawer) - 119
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/staff/{staffId}/activity
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  teamMeRenameV1:
+    handler: src/functions/team-me-rename-v1-patch.handler
+    description: Any active team member renames themselves - 119
+    events:
+      - httpApi:
+          method: PATCH
+          path: /admin/v1/me
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}

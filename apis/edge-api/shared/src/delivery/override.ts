@@ -18,6 +18,7 @@ import type {
 } from "@effy/shared-types";
 import { anyTimeDayLabel, formatArrival } from "@effy/shared-types";
 
+import { staffNameSql } from "../lib/activity";
 import type { Queryable } from "../lib/db";
 import { formatCents } from "../lib/money";
 import { notify } from "../notifications/notify";
@@ -731,13 +732,12 @@ export async function deliveryMovesFor(q: Queryable, orderId: string): Promise<A
   const rows = (
     await q.query<MoveRow>(
       `SELECT x.id::text AS id, x.change_id::text AS change_id, x.created_at, x.to_type, x.actor_sub,
-              COALESCE(NULLIF(btrim(st.name), ''), st.email) AS actor_name,
+              ${staffNameSql("x.actor_sub")} AS actor_name,
               x.delivery_date::text AS delivery_date, x.window_start, x.window_end,
               s.courier_name, s.service_name, x.collection,
               x.paid_delivery_cents, x.courier_fee_cents, x.difference_cents,
               x.compensation, x.amount_cents, x.points, r.status AS refund_status, x.compensation_note
          FROM public.delivery_override x
-         LEFT JOIN admin.staff st ON st.cognito_sub = x.actor_sub
          LEFT JOIN public.courier_service s ON s.id = x.courier_service_id
          LEFT JOIN public.refund r ON r.id = x.refund_id
         WHERE x.order_id = $1

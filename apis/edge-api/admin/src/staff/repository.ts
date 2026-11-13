@@ -1,69 +1,17 @@
-import type { PoolClient } from "pg";
+import { pooled, query } from "@effy/edge-shared";
+import { readMemberBySub, touchLastSeen as touchLastSeenWrite } from "@effy/edge-shared/team";
+import type { TeamMemberDTO } from "@effy/shared-types";
 
-import { query, withTransaction } from "@effy/edge-shared";
-import { KNOWN_ROLES, type BackOfficeRole, type StaffMember, type StaffRecord, type StaffStatus } from "./types";
-
-// role_keys aggregates staff_role.
-interface StaffRow {
-  cognito_sub: string;
-  email: string;
-  status: StaffStatus;
-  last_seen_at: Date | null;
-  role_keys: string[] | null;
+/**
+ * 119 (research R1): a sign-in never writes the team. The record is read by the token's subject; the only write is
+ * when an ACTIVE person was last seen, through the team's one writer. No record → no access.
+ */
+export async function readBySub(sub: string): Promise<TeamMemberDTO | null> {
+  return readMemberBySub(pooled, sub);
 }
 
-const READ_BY_ID = `
-SELECT s.cognito_sub, s.email, s.status, s.last_seen_at,
-       COALESCE(array_agg(sr.role_key) FILTER (WHERE sr.role_key IS NOT NULL), '{}') AS role_keys
-  FROM admin.staff s
-  LEFT JOIN admin.staff_role sr ON sr.staff_id = s.id
- WHERE s.id = $1
- GROUP BY s.id
-`;
-
-// Creates or refreshes the staff row and reconciles roles from the token in one transaction; idempotent on cognito_sub.
-export async function upsertOnContact(
-  sub: string,
-  email: string,
-  tokenRoles: readonly string[],
-): Promise<StaffRecord> {
-  const desired = tokenRoles.filter((r): r is BackOfficeRole =>
-    (KNOWN_ROLES as readonly string[]).includes(r),
-  );
-
-  return withTransaction(async (client) => {
-    const up = await client.query<{ id: string }>(
-      `INSERT INTO admin.staff (cognito_sub, email, last_seen_at)
-            VALUES ($1, $2, now())
-       ON CONFLICT (cognito_sub)
-         DO UPDATE SET email = EXCLUDED.email, last_seen_at = now(), updated_at = now()
-        RETURNING id`,
-      [sub, email],
-    );
-    const staffId = up.rows[0]?.id;
-    if (!staffId) throw new Error("staff: upsert returned no id");
-
-    await client.query(
-      `DELETE FROM admin.staff_role WHERE staff_id = $1 AND role_key <> ALL($2::text[])`,
-      [staffId, desired],
-    );
-    for (const role of desired) {
-      await client.query(
-        `INSERT INTO admin.staff_role (staff_id, role_key) VALUES ($1, $2)
-         ON CONFLICT DO NOTHING`,
-        [staffId, role],
-      );
-    }
-
-    return mapRow(await readById(client, staffId));
-  });
-}
-
-async function readById(client: PoolClient, staffId: string): Promise<StaffRow> {
-  const res = await client.query<StaffRow>(READ_BY_ID, [staffId]);
-  const row = res.rows[0];
-  if (!row) throw new Error("staff: record vanished mid-transaction");
-  return row;
+export async function touchLastSeen(sub: string): Promise<void> {
+  await touchLastSeenWrite(pooled, sub);
 }
 
 // Active and holds the admin role; a disabled row is denied even with a valid admin token.
@@ -77,51 +25,4 @@ export async function authorizeAdmin(sub: string): Promise<boolean> {
     [sub],
   );
   return res.rows[0]?.ok ?? false;
-}
-
-function mapRow(row: StaffRow): StaffRecord {
-  const roles = (row.role_keys ?? []).filter((r): r is BackOfficeRole =>
-    (KNOWN_ROLES as readonly string[]).includes(r),
-  );
-  return {
-    subject: row.cognito_sub,
-    email: row.email,
-    roles,
-    status: row.status,
-    lastSeenAt: (row.last_seen_at ?? new Date()).toISOString(),
-  };
-}
-
-interface MemberRow {
-  cognito_sub: string;
-  name: string | null;
-  email: string;
-  status: StaffStatus;
-  last_seen_at: Date | null;
-  created_at: Date;
-  role_keys: string[] | null;
-}
-
-/**
- * Everyone with a back-office record, for Settings › Team and access: a small, staff-made set (the team), so it is
- * read whole - active people first, then by name or email.
- */
-export async function listStaff(): Promise<StaffMember[]> {
-  const res = await query<MemberRow>(
-    `SELECT s.cognito_sub, s.name, s.email, s.status, s.last_seen_at, s.created_at,
-            COALESCE(array_agg(sr.role_key ORDER BY sr.role_key) FILTER (WHERE sr.role_key IS NOT NULL), '{}') AS role_keys
-       FROM admin.staff s
-       LEFT JOIN admin.staff_role sr ON sr.staff_id = s.id
-      GROUP BY s.id
-      ORDER BY (s.status = 'active') DESC, lower(COALESCE(s.name, s.email)), s.id`,
-  );
-  return res.rows.map((r) => ({
-    subject: r.cognito_sub,
-    name: r.name,
-    email: r.email,
-    roles: (r.role_keys ?? []).filter((k): k is BackOfficeRole => (KNOWN_ROLES as readonly string[]).includes(k)),
-    status: r.status,
-    lastSeenAt: r.last_seen_at ? r.last_seen_at.toISOString() : null,
-    createdAt: r.created_at.toISOString(),
-  }));
 }

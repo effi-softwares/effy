@@ -11,7 +11,7 @@ import { StaffShell, StaffUserMenu } from "@effy/web-kit/console"
 import { AllToursDialog, TourHelpButton, TourProvider } from "@effy/web-kit/tour"
 import { IdCard, Keyboard } from "lucide-react"
 
-import { meQuery } from "@/features/staff-identity/queries"
+import { meQuery } from "@/features/team/queries"
 import { useOpenRecord } from "@/features/tours/openRecord"
 import { tourStateQuery, useTourWrite } from "@/features/tours/repo"
 import { BACK_OFFICE_TOURS } from "@/features/tours/tours"

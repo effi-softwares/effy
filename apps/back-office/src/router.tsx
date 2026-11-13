@@ -73,6 +73,7 @@ import {
   settingsIndexRoute,
   taxSettingsRoute,
   teamRoute,
+  teamMemberRoute,
 } from "./routes/settings"
 import { shopDetailRoute, shopsIndexRoute } from "./routes/shops"
 import { vehicleDetailRoute, vehiclesIndexRoute } from "./routes/vehicles"
@@ -110,6 +111,7 @@ const routeTree = rootRoute.addChildren([
     housekeepingRoute,
     taxSettingsRoute,
     teamRoute,
+    teamMemberRoute,
     oldDeliveryRoute,
     oldOrderRulesRoute,
     oldAdminRoute,

@@ -881,10 +881,27 @@ every role whenever its part is on screen. Role marks: **Admin or manager**, **A
 
 ### AA - Team and access (Admin)
 
+Rewritten by 119 (specs/119-backoffice-team-management, FR-036); its version is raised so everyone sees it again.
+
 | # | Points at | Title | Text | Shown when |
 |---|---|---|---|---|
 | 1 | People tab | The team | Everyone with a back-office account, their role, and when they last opened back-office. | |
-| 2 | Roles and permissions | Roles and permissions | What Administrators, Managers and Customer support may each do. The platform's staff record decides. | |
+| 2 | Add person | Adding someone | Give a person access: their work email, their name and one role. They sign in with a code sent to that email. | |
+| 3 | Status filter | Who you see | Active and disabled people are shown. Choose Removed to see people who have left. | |
+| 4 | Needs attention | Needs attention | Someone whose sign-in account does not match their record. Open them to repair it. | There are any |
+| 5 | Roles and permissions | Roles and permissions | What Administrators, Managers and Customer support may each do. The platform's staff record decides. | |
+
+### AP - A team member (Admin)
+
+Added by 119 (FR-036).
+
+| # | Points at | Title | Text | Shown when |
+|---|---|---|---|---|
+| 1 | Page heading | This person | Their role, whether they can sign in, and when they last opened back-office. | |
+| 2 | Change role | Their role | Change what they may do. It takes effect on their next action. | Not yourself |
+| 3 | Send invitation | Telling them | Email them that they have access, with their role and where to sign in. | Active |
+| 4 | Disable | Stopping access | Disable stops sign-in at once and signs them out. Their name stays on everything they did. | Active, not yourself |
+| 5 | Activity | Activity | Who added them, and every change to their access since. | |
 
 ### ST - Settings
 
