@@ -94,7 +94,7 @@ fun UpdateHero(
     )
 
     val canvas = tileSize * 1.9f
-    val badgeSize = tileSize * 0.46f
+    val badgeSize = tileSize * 0.34f
     Box(
         modifier = modifier.size(canvas).clearAndSetSemantics { },
         contentAlignment = Alignment.Center,
@@ -143,13 +143,13 @@ fun UpdateHero(
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .offset(x = badgeSize * 0.24f, y = badgeSize * 0.24f)
+                    .offset(x = badgeSize * 0.18f, y = badgeSize * 0.18f)
                     .size(badgeSize)
                     .graphicsLayer {
                         scaleX = badgeIn.value
                         scaleY = badgeIn.value
                     }
-                    .border(3.dp, colors.page, CircleShape)
+                    .border(2.5.dp, colors.page, CircleShape)
                     .clip(CircleShape)
                     .background(colors.badge),
             ) {
