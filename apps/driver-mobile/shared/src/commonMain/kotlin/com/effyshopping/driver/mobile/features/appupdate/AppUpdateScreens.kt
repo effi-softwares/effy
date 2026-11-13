@@ -54,7 +54,8 @@ internal object AppUpdateWords {
     const val RESTART = "Restart"
     const val AVAILABLE = "Update available"
 
-    fun yourVersion(version: String, build: Int) = "You have version $version ($build)"
+    // The version only: the build number is for support, and Account shows it.
+    fun yourVersion(version: String) = "You have version $version"
 }
 
 /** What shows while the answer is awaited (under the launch intro): the page and the wordmark. */
@@ -125,7 +126,7 @@ internal fun MandatoryUpdateScreen(
             modifier = Modifier.widthIn(max = 340.dp).padding(top = 10.dp).updateEnter(1, animate),
         )
         Text(
-            AppUpdateWords.yourVersion(version, build),
+            AppUpdateWords.yourVersion(version),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,

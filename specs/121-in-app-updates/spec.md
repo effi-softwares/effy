@@ -311,7 +311,7 @@ version they are on.
 |---|---|---|
 | Mandatory title | Time to update Effy | Time to update Effy Driver |
 | Mandatory text | We've made some important changes. Please update to the latest version to keep shopping. | We've made some important changes. Please update to the latest version to carry on with your work. |
-| Mandatory version line | You have version 1.0.2 (5) | You have version 1.0.2 (5) |
+| Mandatory version line | You have version 1.0.2 | You have version 1.0.2 |
 | Mandatory action | Update now | Update now |
 | Mandatory other | Shop on effyshopping.com instead | Call dispatch |
 | Optional title | An important update is ready | An important update is ready |
