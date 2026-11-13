@@ -2,7 +2,7 @@
 
 **Feature Branch**: `121-in-app-updates`
 **Created**: 2026-11-13
-**Status**: Built (2026-11-13) - not applied, published or walked
+**Status**: Signed off (2026-11-13) - applied and published in dev, walked by the operator on Android and a real iPhone
 **Input**: User description: "When the customer or driver app launches it checks the latest version of the app, compares it
 with its own, and shows an update screen or sheet before Home. Three kinds of update: mandatory (the app cannot be used
 until updated), optional (Later lets the person carry on; asked again on the next launch), and a notice (told once, never

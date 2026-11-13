@@ -4,8 +4,9 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
-**121-in-app-updates** - App Updates Inside the App ([spec](specs/121-in-app-updates/spec.md)). 🔨 **BUILT 2026-11-13 - NOT
-APPLIED, PUBLISHED OR WALKED.** The customer and driver apps (iPhone and Android) check, before Home, a small public file for
+**121-in-app-updates** - App Updates Inside the App ([spec](specs/121-in-app-updates/spec.md)). ✅ **SIGNED OFF 2026-11-13: APPLIED AND
+PUBLISHED IN DEV, WALKED BY THE OPERATOR on Android (emulator) and a real iPhone - notice, optional and mandatory, the
+redesigned screens and words. Store-only checks (Play in-app update flows, staged rollout) wait for the store listings.** The customer and driver apps (iPhone and Android) check, before Home, a small public file for
 their app and environment, and decide from their own build number: **mandatory** (below `minimum`: a full screen, nothing
 else reachable), **optional** (below `recommended`: a sheet with Update now / Later at every launch) or **notice** (below
 `latest`: the same sheet once per latest build). No back-office page (operator decision: it is a developers' setting).
@@ -57,13 +58,13 @@ else reachable), **optional** (below `recommended`: a sheet with Update now / La
   words revised. Second walk: separate words per level (optional "Remind me later", notice "Not now"; mandatory says what
   changed, not that the app is broken), and the icon is now the **real app icon file** - `@effy/brand` gained a
   `compose-app-icon` target writing `effy_app_icon.xml` into each app's Compose resources (its vector writer now keeps a
-  rect's rounded corners), so the "e." sits in the tile exactly as on the home screen. Re-walk pending.
+  rect's rounded corners), so the "e." sits in the tile exactly as on the home screen. The mandatory screen shows the
+  version only ("You have version 1.0.2"); the build number stays in Account. Re-walked and signed off.
 - **Not proven until the stores exist**: Play's immediate/flexible flows and the staged-rollout check (quickstart
   "Store-only checks"); prod (no prod environment yet).
-- **Operator steps**: (1) `make apply ENV=dev` (media.tf); (2) `make app-updates ENV=dev` (all-zero files);
-  (3) `APP_UPDATES_URL` is already in both local `secrets.properties` (dev URL); (4) build both apps and walk
-  `specs/121-in-app-updates/quickstart.md`; (5) commit `version.properties` + `Version.xcconfig` after each release build.
-  The screen wording is a draft (spec "Words").
+- **Done in dev**: `make apply ENV=dev` (media.tf), `make app-updates ENV=dev`, both apps walked. **Still open**: the
+  prod environment (same two commands, then real `storeUrl`s once the apps are listed), and the store-only checks.
+  Commands and version files: [docs/runbooks/mobile-builds.md](docs/runbooks/mobile-builds.md). Words approved (spec "Words").
 
 **120-effy-toasts** - Effy's Own Toasts ([spec](specs/120-effy-toasts/spec.md)). ✅ **SIGNED OFF 2026-11-13: DEPLOYED TO DEV
 AND WALKED BY THE OPERATOR ("good for now") - sound in both consoles, toasts at the top centre.** One toast of Effy's own, built from scratch (outside toast products were studied for what makes them feel good,

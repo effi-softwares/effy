@@ -31,6 +31,8 @@
 
 ## Notes
 
+- Signed off 2026-11-13 after walks on Android and a real iPhone (see FEATURE-HISTORY.md).
+
 - The screen wording (spec, "Words") is a draft for the operator to approve; it is not a clarification blocker.
 - The way-out actions on the mandatory screen (website for customers, call dispatch for drivers) are a default chosen
   here; strike FR-010's second sentence if they are not wanted.
