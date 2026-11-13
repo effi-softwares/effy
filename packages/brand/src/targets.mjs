@@ -77,6 +77,18 @@ function mobileTargets(app, surface, colourway) {
     path: `${res}/drawable/ic_splash_logo.xml`,
   })
 
+  // 121: the app icon itself (tile + mark, as on the home screen), for screens inside the app - the update prompts
+  // draw it as it is, never re-composed in code. A Compose resource, so both platforms read the same file.
+  t.push({
+    surface,
+    slot: "compose-app-icon",
+    colourway,
+    composition: "web-icon",
+    kind: KIND.VD,
+    sizeDp: 96,
+    path: `apps/${app}/shared/src/commonMain/composeResources/drawable/effy_app_icon.xml`,
+  })
+
   // Android: raster mipmaps, API 24–25 only
   for (const [density, px] of ANDROID_MIPMAP) {
     for (const name of ["ic_launcher", "ic_launcher_round"]) {

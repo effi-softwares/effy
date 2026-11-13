@@ -67,29 +67,29 @@
       "surface": "customer-mobile",
       "slot": "android-adaptive-background",
       "path": "apps/customer-mobile/androidApp/src/main/res/drawable/ic_launcher_background.xml",
-      "sha256": "bcff988e52009e00c0d18a9480c3cf1fa1e37892bec75cd8d300666f13b4d147",
-      "bytes": 393
+      "sha256": "096dd33898a70fb63301126cd15c75c9d02b8687b122d6474d3371d6f885d50b",
+      "bytes": 391
     },
     {
       "surface": "customer-mobile",
       "slot": "android-adaptive-foreground",
       "path": "apps/customer-mobile/androidApp/src/main/res/drawable/ic_launcher_foreground.xml",
-      "sha256": "fa1ca3839530380dc811f3663afc911c0992e92b7d9f63f683fbbf8e01aebd61",
-      "bytes": 1117
+      "sha256": "9e02e441e2de378804b76401d7b089343951cd60124abdb0028a56e8070e4eff",
+      "bytes": 1115
     },
     {
       "surface": "customer-mobile",
       "slot": "android-adaptive-monochrome",
       "path": "apps/customer-mobile/androidApp/src/main/res/drawable/ic_launcher_monochrome.xml",
-      "sha256": "a1b7c0fcc87b720a9b21f1b2b7a7e015ffa4175bedc02c805d3187b340883a50",
-      "bytes": 1117
+      "sha256": "c10df85d4b16a72d70fc62044ef8eab7e54f044d4c7bfcf8efd1f083fe5e8556",
+      "bytes": 1115
     },
     {
       "surface": "customer-mobile",
       "slot": "android-splash-logo",
       "path": "apps/customer-mobile/androidApp/src/main/res/drawable/ic_splash_logo.xml",
-      "sha256": "32b40557507a6d4a2f23b3e0d7db9e9fe97a41401d40c084b8c4f4f738e13bcb",
-      "bytes": 1115
+      "sha256": "fac483b30232c44036f026f78347bf323e45450e5a0522a481f62dfea343949c",
+      "bytes": 1113
     },
     {
       "surface": "customer-mobile",
@@ -218,6 +218,13 @@
       "bytes": 3468
     },
     {
+      "surface": "customer-mobile",
+      "slot": "compose-app-icon",
+      "path": "apps/customer-mobile/shared/src/commonMain/composeResources/drawable/effy_app_icon.xml",
+      "sha256": "e3a9740c161d69c1edd7e3bdccd9f5b247deb0ea9bbb3a2a25561a978ea87aed",
+      "bytes": 1521
+    },
+    {
       "surface": "customer-web",
       "slot": "apple-touch-icon",
       "path": "apps/customer-web/app/apple-icon.png",
@@ -270,29 +277,29 @@
       "surface": "driver-mobile",
       "slot": "android-adaptive-background",
       "path": "apps/driver-mobile/androidApp/src/main/res/drawable/ic_launcher_background.xml",
-      "sha256": "bcff988e52009e00c0d18a9480c3cf1fa1e37892bec75cd8d300666f13b4d147",
-      "bytes": 393
+      "sha256": "096dd33898a70fb63301126cd15c75c9d02b8687b122d6474d3371d6f885d50b",
+      "bytes": 391
     },
     {
       "surface": "driver-mobile",
       "slot": "android-adaptive-foreground",
       "path": "apps/driver-mobile/androidApp/src/main/res/drawable/ic_launcher_foreground.xml",
-      "sha256": "f3bf8b16f0af5cb9823be54c3b61d1568b2e98ae225dfc472fff73c83ae2ef04",
-      "bytes": 1295
+      "sha256": "556c6f5572c331be97713c97c9826c0667106c0b8045d90e6a0ba7992e78433f",
+      "bytes": 1293
     },
     {
       "surface": "driver-mobile",
       "slot": "android-adaptive-monochrome",
       "path": "apps/driver-mobile/androidApp/src/main/res/drawable/ic_launcher_monochrome.xml",
-      "sha256": "56131a7694d7c0b7b4c5ffadbf9e0fe10b163718fbd053d5915d39ca4d0a35fb",
-      "bytes": 1295
+      "sha256": "590e8d809dfd16b8e31280076683923b5d9b782ca0016d60a4e0e330ca8a0868",
+      "bytes": 1293
     },
     {
       "surface": "driver-mobile",
       "slot": "android-splash-logo",
       "path": "apps/driver-mobile/androidApp/src/main/res/drawable/ic_splash_logo.xml",
-      "sha256": "12546c9de59a73363cdc459c6898a1a5e5137175a1ce679f183f63452c82aeb4",
-      "bytes": 1293
+      "sha256": "55f864a502ed2a5d925f44bf83c3993e4ae3c601103009b42e626a6f706cb445",
+      "bytes": 1291
     },
     {
       "surface": "driver-mobile",
@@ -419,6 +426,13 @@
       "path": "apps/driver-mobile/iosApp/iosApp/Assets.xcassets/LaunchLogo.imageset/launch-logo@3x.png",
       "sha256": "9d37e28eb2e8c63588aed47a81d669a63190639d5e6e5b04bd4b3a5d285b8ca6",
       "bytes": 4338
+    },
+    {
+      "surface": "driver-mobile",
+      "slot": "compose-app-icon",
+      "path": "apps/driver-mobile/shared/src/commonMain/composeResources/drawable/effy_app_icon.xml",
+      "sha256": "43e0ec9cf285c6e1baa4cb2e805a66bae80b42c0ecc14ec91cc9abca634155c1",
+      "bytes": 1724
     },
     {
       "surface": "shop-web",

@@ -63,7 +63,14 @@ function flatten(svg) {
       const y = requireNumber(attrs.y, "y", "rect")
       const w = requireNumber(attrs.width, "width", "rect")
       const h = requireNumber(attrs.height, "height", "rect")
-      d = `M ${x},${y} L ${x + w},${y} L ${x + w},${y + h} L ${x},${y + h} Z`
+      // A rounded rect (the app icon's tile, 121) keeps its corners: four arcs. Without rx, the plain square as before.
+      const rx = Math.min(Number(attrs.rx ?? attrs.ry ?? 0) || 0, w / 2, h / 2)
+      d = rx > 0
+        ? `M ${x + rx},${y} L ${x + w - rx},${y} A ${rx},${rx} 0 0 1 ${x + w},${y + rx} ` +
+          `L ${x + w},${y + h - rx} A ${rx},${rx} 0 0 1 ${x + w - rx},${y + h} ` +
+          `L ${x + rx},${y + h} A ${rx},${rx} 0 0 1 ${x},${y + h - rx} ` +
+          `L ${x},${y + rx} A ${rx},${rx} 0 0 1 ${x + rx},${y} Z`
+        : `M ${x},${y} L ${x + w},${y} L ${x + w},${y + h} L ${x},${y + h} Z`
     }
     out.push({ d, attrs: resolved, tx: ctx.tx, ty: ctx.ty })
   }

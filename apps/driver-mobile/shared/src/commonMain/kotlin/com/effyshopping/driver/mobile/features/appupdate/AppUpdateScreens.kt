@@ -29,10 +29,11 @@ import com.effyshopping.driver.mobile.core.presentation.DriverWordmark
 import com.effyshopping.driver.mobile.core.presentation.LocalReducedMotion
 import com.effyshopping.driver.mobile.core.theme.EffyRoles
 import com.effyshopping.driver.mobile.resources.Res
+import com.effyshopping.driver.mobile.resources.effy_app_icon
 import com.effyshopping.driver.mobile.resources.lucide_phone
 import com.effyshopping.mobile.kit.update.UpdateHero
+import org.jetbrains.compose.resources.painterResource
 import com.effyshopping.mobile.kit.update.UpdateHeroColors
-import com.effyshopping.mobile.kit.update.UpdateMark
 import com.effyshopping.mobile.kit.update.updateEnter
 
 /** 121: the words, one set for both platforms (spec "Words"; draft, to be approved). */
@@ -72,18 +73,15 @@ private fun DriverUpdateHero(tileSize: Dp, modifier: Modifier = Modifier) {
     UpdateHero(
         tileSize = tileSize,
         colors = UpdateHeroColors(
-            tile = EffyRoles.splashGround,
             // A hairline so the black icon keeps its edge on the dark theme; barely there on the light one.
             tileEdge = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f),
-            markInk = EffyRoles.splashInk,
-            markDot = EffyRoles.splashDot,
             pulse = MaterialTheme.colorScheme.primary,
             badge = MaterialTheme.colorScheme.primary,
             badgeInk = MaterialTheme.colorScheme.onPrimary,
             page = MaterialTheme.colorScheme.background,
         ),
         animate = !LocalReducedMotion.current,
-        mark = UpdateMark.Driver,
+        icon = painterResource(Res.drawable.effy_app_icon),
         modifier = modifier,
     )
 }

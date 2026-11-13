@@ -34,9 +34,11 @@ import com.effyshopping.customer.mobile.core.presentation.EffySurface
 import com.effyshopping.customer.mobile.core.presentation.EffyWordmark
 import com.effyshopping.customer.mobile.core.presentation.effyMotionFull
 import com.effyshopping.customer.mobile.core.theme.EffyRoles
+import com.effyshopping.customer.mobile.resources.Res
+import com.effyshopping.customer.mobile.resources.effy_app_icon
 import com.effyshopping.mobile.kit.update.UpdateHero
+import org.jetbrains.compose.resources.painterResource
 import com.effyshopping.mobile.kit.update.UpdateHeroColors
-import com.effyshopping.mobile.kit.update.UpdateMark
 import com.effyshopping.mobile.kit.update.updateEnter
 
 /** 121: the words, one set for both platforms (spec "Words"; draft, to be approved). */
@@ -76,18 +78,15 @@ private fun EffyUpdateHero(tileSize: Dp, modifier: Modifier = Modifier) {
     UpdateHero(
         tileSize = tileSize,
         colors = UpdateHeroColors(
-            tile = EffyRoles.splashGround,
             // A hairline so the black icon keeps its edge on the dark theme; barely there on the light one.
             tileEdge = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f),
-            markInk = EffyRoles.splashInk,
-            markDot = EffyRoles.brand,
             pulse = MaterialTheme.colorScheme.primary,
             badge = MaterialTheme.colorScheme.primary,
             badgeInk = MaterialTheme.colorScheme.onPrimary,
             page = EffySurface.page,
         ),
         animate = effyMotionFull(),
-        mark = UpdateMark.Customer,
+        icon = painterResource(Res.drawable.effy_app_icon),
         modifier = modifier,
     )
 }

@@ -51,7 +51,10 @@ else reachable), **optional** (below `recommended`: a sheet with Update now / La
   over the app, FR-011 amended); one animated picture for both apps, `mobile-kit/common/update/UpdateHero.kt` (the app's
   own "e." icon, an update badge with an arrow dropping into its tray, a soft pulse; drawn in code from the theme, still
   under reduced motion), words staggered in; full screen with the action pinned at the bottom and "You have version …";
-  words revised ("Time to update Effy", "Not now"). Re-walk pending.
+  words revised. Second walk: separate words per level (optional "Remind me later", notice "Not now"; mandatory says what
+  changed, not that the app is broken), and the icon is now the **real app icon file** - `@effy/brand` gained a
+  `compose-app-icon` target writing `effy_app_icon.xml` into each app's Compose resources (its vector writer now keeps a
+  rect's rounded corners), so the "e." sits in the tile exactly as on the home screen. Re-walk pending.
 - **Not proven until the stores exist**: Play's immediate/flexible flows and the staged-rollout check (quickstart
   "Store-only checks"); prod (no prod environment yet).
 - **Operator steps**: (1) `make apply ENV=dev` (media.tf); (2) `make app-updates ENV=dev` (all-zero files);
