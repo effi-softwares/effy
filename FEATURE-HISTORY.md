@@ -4,8 +4,8 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
-**120-effy-toasts** - Effy's Own Toasts ([spec](specs/120-effy-toasts/spec.md)). 🟡 **BUILT 2026-11-13; NOT DEPLOYED OR
-WALKED.** One toast of Effy's own, built from scratch (outside toast products were studied for what makes them feel good,
+**120-effy-toasts** - Effy's Own Toasts ([spec](specs/120-effy-toasts/spec.md)). ✅ **SIGNED OFF 2026-11-13: DEPLOYED TO DEV
+AND WALKED BY THE OPERATOR ("good for now") - sound in both consoles, toasts at the top centre.** One toast of Effy's own, built from scratch (outside toast products were studied for what makes them feel good,
 nothing copied), for shop-web, back-office and customer-web - replacing sonner (consoles) and customer-web's
 `toast-store` + `ToastRegion`. No backend, database or infrastructure change.
 - **Where**: `@effy/design-system/toast` (new export; `@effy/design-system/ui` re-exports `toast`/`Toaster`, so the
@@ -54,9 +54,8 @@ nothing copied), for shop-web, back-office and customer-web - replacing sonner (
   `size`; `make live-guards`, `make toast-guard`, `make brand-guards`. ⚠ Not caused by 120: shared-types'
   `package-status.guard.test.ts` fails on `shop-web/.../fulfillment/collection.ts` (the known 099 failure), and one
   web-kit test failed once and passed on three reruns.
-- **Operator steps open**: deploy the three web apps (no order dependency); walk quickstart §3-§6 - ⚠ **the spring
-  values (`spring.ts`) and the tones (`sound.ts`) are starting values to tune by eye and ear** on a laptop and a phone;
-  record what was kept in research R2/R4.
+- **Signed off as walked**: the spring values (`spring.ts`, research R2 starting values) and the louder tones (`sound.ts`,
+  master 0.55) were accepted as they are; any later tuning is a small follow-up, not an open step.
 
 **119-backoffice-team-management** - Back-Office Team Management ([spec](specs/119-backoffice-team-management/spec.md)). ✅ **SIGNED OFF
 2026-11-13: APPLIED, MIGRATED AND DEPLOYED TO DEV (`make gateway-usage`: staff 253/300); operator confirmed it works.** Settings › Team and access manages the back-office team: add a

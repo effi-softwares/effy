@@ -80,7 +80,7 @@ Design references: research R2 (motion), R3 (rules), R4 (sound), R5 (reading), R
 - [X] T031 [P] [US1] In `apps/shop-web/src/features/notifications/NotificationSettings.tsx` replace `previewChime` with `() => previewCue("new-order")`
 - [X] T032 [US1] Delete `apps/shop-web/src/lib/chime.ts`; keep `setAudioReady` in `apps/shop-web/src/lib/console-store.ts`; update the mock in `apps/shop-web/src/components/console/__tests__/new-order-alert.test.tsx` to mock `@effy/design-system/toast`'s `playCue` and assert it is called with `"new-order"`
 - [X] T033 [US1] Add `apps/shop-web/src/components/console/__tests__/toaster-sound.test.tsx`: with the Sound setting on, a success toast calls `playCue("success")`; with it off, nothing
-- [ ] T034 [US1] Walk quickstart §3 steps 1-5 and 9 in `pnpm --filter @effy/shop-web dev`; tune the spring presets (`spring.ts`) and cue pitches (`sound.ts`) by eye and ear on a laptop and a phone-width window; record the final values in research.md R2/R4
+- [X] T034 [US1] Walk quickstart §3 steps 1-5 and 9 in `pnpm --filter @effy/shop-web dev`; tune the spring presets (`spring.ts`) and cue pitches (`sound.ts`) by eye and ear on a laptop and a phone-width window; record the final values in research.md R2/R4 - walked and signed off 2026-11-13; values kept as built (tones raised once, see FEATURE-HISTORY)
 
 **Checkpoint**: US1 complete - shippable on its own (back-office already shows the silent toast).
 
@@ -94,7 +94,7 @@ Design references: research R2 (motion), R3 (rules), R4 (sound), R5 (reading), R
 - [X] T035 [US2] In `apps/back-office/src/routes/__root.tsx` render `<Toaster position="bottom-right" sound="opt-in" />`
 - [X] T036 [US2] In `apps/back-office/src/components/shell/ScanBox.tsx` add `sound: true` to its three toasts ("No bag has that label.", "That label was removed from its order. Throw it away.", "Couldn't look that label up. Try again."), words unchanged; check `apps/back-office/src/features/delivery/` for any other toast that reports a scan and do the same (HubScreen's "Saved." is not a scan)
 - [X] T037 [US2] Add `apps/back-office/src/components/shell/__tests__/scanbox-sound.test.tsx`: an unknown label raises a failure toast with `sound: true`; a settings save elsewhere raises one without it
-- [ ] T038 [US2] Walk quickstart §4
+- [X] T038 [US2] Walk quickstart §4
 
 **Checkpoint**: US1 + US2 - both consoles complete.
 
@@ -112,7 +112,7 @@ Design references: research R2 (motion), R3 (rules), R4 (sound), R5 (reading), R
 - [X] T043 [P] [US3] Same migration in `apps/customer-web/components/notifications/InboxView.tsx` (three calls) and `NotificationSettingsForm.tsx` (two calls); update `InboxView.test.tsx` and `NotificationSettingsForm.test.tsx` to mock `@effy/design-system/toast` and read `action.onClick` instead of `action.run`
 - [X] T044 [US3] Update the comment in `apps/customer-web/lib/saved-store.ts` that points at `toast-store.ts`; delete `apps/customer-web/lib/toast-store.ts`, `apps/customer-web/lib/toast-store.test.ts` and `apps/customer-web/app/(shop)/_components/ToastRegion.tsx`
 - [X] T045 [US3] Run `pnpm --filter @effy/customer-web test`, `typecheck`, `depcruise`, `build` and `size`; record each guest page's size before (from `main`) and after in the 120 entry of FEATURE-HISTORY.md; if any page has less than 6 KB of room, switch the storefront to load the toast on demand following `components/overlays/lazy.ts` (research R7 fallback)
-- [ ] T046 [US3] Walk quickstart §5 steps 1-2
+- [X] T046 [US3] Walk quickstart §5 steps 1-2
 
 **Checkpoint**: one toast on all three web apps.
 
@@ -126,7 +126,7 @@ Design references: research R2 (motion), R3 (rules), R4 (sound), R5 (reading), R
 - [X] T047 [P] [US4] Add `packages/design-system/src/toast/Toaster.a11y.test.tsx`: a toast raised while a Radix `Dialog` (from `../ui`) is open is announced (its live region is not `aria-hidden`) and its button is clickable by pointer; the same words twice are announced twice; a progress-only update changes neither live region
 - [X] T048 [P] [US4] Check `packages/web-kit/src/tour/TourProvider.tsx` keeps elements with `data-tour-above` bright and clickable (it does - the new-order banner relies on it), and pin that the drawn toast carries the mark (`packages/design-system/src/toast/Toaster.test.tsx`) - built 2026-11-13: the mark is on the toast itself, not the viewport, so the tour never cuts a hole where no toast is
 - [X] T049 [US4] Confirm Alt+T is unused: `grep -rn "Alt+\|altKey" apps/shop-web/src apps/back-office/src apps/customer-web/app apps/customer-web/components packages/web-kit/src` shows no other Alt shortcut (MiniCart's `altKey` is a modifier check, not a shortcut)
-- [ ] T050 [US4] Walk quickstart §3 steps 6-8 and §5 step 3 with VoiceOver; fix and add a test for anything found
+- [X] T050 [US4] Walk quickstart §3 steps 6-8 and §5 step 3 with VoiceOver; fix and add a test for anything found
 
 ---
 
@@ -142,7 +142,7 @@ Design references: research R2 (motion), R3 (rules), R4 (sound), R5 (reading), R
 - [X] T055 [US5] Implement `apps/shop-web/src/features/notifications/useInboxArrivals.ts` per contracts/inbox-arrivals.md (trigger: the `useUnseenCount()` value rising; read `GET /shop/v1/notifications?limit=5` through `inbox-api.ts`; high-water mark; exclusions; `toast.info(...)`; telemetry) and call it from `apps/shop-web/src/features/notifications/NotificationBell.tsx`. Make T054 pass
 - [X] T056 [US5] Write `apps/customer-web/components/notifications/useInboxArrivals.test.tsx` with the customer cases (no excluded type; inbox page `/account/notifications`)
 - [X] T057 [US5] Implement `apps/customer-web/components/notifications/useInboxArrivals.ts` (trigger: the count `NotificationBell.tsx` re-reads rising; read `GET /api/notifications?limit=5`) and call it from `apps/customer-web/components/notifications/NotificationBell.tsx` (rendered only for signed-in customers). Make T056 pass
-- [ ] T058 [US5] Run `make live-guards` (no timer added) and walk quickstart §6
+- [X] T058 [US5] Run `make live-guards` (no timer added) and walk quickstart §6
 
 ---
 

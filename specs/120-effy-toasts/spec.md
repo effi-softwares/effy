@@ -2,7 +2,7 @@
 
 **Feature Branch**: `120-effy-toasts`
 **Created**: 2026-11-13
-**Status**: Draft
+**Status**: Signed off 2026-11-13 (deployed to dev, walked by the operator)
 **Input**: User description: "Effy's own transient feedback ("toasts") for all three web surfaces (shop console, back-office,
 customer storefront), designed and built by us from scratch (not ported from any library), replacing the two toast systems
 in use today with ONE. Spring-like motion that opens from a status mark and changes in place; one toast at a time; a failure
